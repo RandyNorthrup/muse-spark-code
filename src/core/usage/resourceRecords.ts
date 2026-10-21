@@ -24,7 +24,7 @@ export interface ResourceRecordWorkSource {
   read(): Promise<readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]>
 }
 /** M102 supplies durable append, retention, rollups and consent. Minute appends are
- * cumulative snapshots keyed by segment atMs; reads merge them idempotently. */
+cumulative snapshots keyed by segment atMs; reads merge them idempotently. */
 export interface ResourceRecordSink {
   append(record: ResourceRecord): Promise<void>
 }
@@ -44,6 +44,8 @@ function memoryBucket(status: ResourceStatus): Minute['availableMemory'] {
   const sample = status.sample
   if (sample?.memoryAvailableBytes == null || sample.memoryTotalBytes === null) return 'unknown'
   const floor = resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes)
+  // No person-set floor: no floor is breached, so headroom reads ample.
+  if (floor === null) return 'ample'
   const margin = Math.min(
     sample.memoryTotalBytes / 2,
     RESOURCE_MEMORY_HYSTERESIS_GIB * RESOURCE_GIB_BYTES,

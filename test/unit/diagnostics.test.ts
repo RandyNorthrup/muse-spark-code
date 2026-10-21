@@ -72,10 +72,10 @@ describe('formatDiagnostics', () => {
 })
 
 /**
- * An entry as the host hands it over: by its root-relative path, undefined
- * for a resource outside the root (a second folder, the user's other
- * files, an untitled document).
- */
+An entry as the host hands it over: by its root-relative path, undefined
+for a resource outside the root (a second folder, the user's other
+files, an untitled document).
+*/
 function at(relativePath: string | undefined, message: string): DiagnosticEntry {
   return { path: relativePath, severity: 'error', line: 1, column: 1, message, source: undefined }
 }

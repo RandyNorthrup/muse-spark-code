@@ -32,9 +32,7 @@ export interface ExecVaultPort {
   open(context: ExecVaultContext): Promise<ExecVaultSession>
 }
 
-/** B/X inject the authenticated headless registration and bind this authorizer to engine uses.
- * @unwired M109 headless vault session
- */
+/** The authenticated headless registration, bound to engine uses through the runtime vault loader. */
 export class HeadlessVaultSession implements ExecVaultSession {
   private closed = false
   private readonly requester: VaultRequester
@@ -112,7 +110,7 @@ export class HeadlessVaultSession implements ExecVaultSession {
         return this.deny(item, use, 'policy')
       if (result.ticket.requesterId !== this.requester.id || result.ticket.digest !== digest)
         return this.deny(item, use, 'digest')
-      return this.broker.clock.now() >= result.ticket.expiresAt
+      return result.ticket.expiresAt !== null && this.broker.clock.now() >= result.ticket.expiresAt
         ? this.deny(item, use, 'expired')
         : result
     } catch {

@@ -1,8 +1,9 @@
 // "Open a Pull Request in a Conversation…" (M71, PLAN.md D49): the pull
 // request's head is fetched from GitHub through VS Code's git extension
-// (credentials apply) and checked out, detached, in a worktree of its own
-// that opens in a new window, where a conversation reviews or changes it
-// with its host confined to that worktree.
+// (credentials apply; where the extension is missing, through the user's own
+// git in their Git environment, M123's nativeRepository.ts) and checked out,
+// detached, in a worktree of its own that opens in a new window, where a
+// conversation reviews or changes it with its host confined to that worktree.
 //
 // A pull request the user did not author is adversarial content until the
 // user says otherwise: its worktree goes under the extension's own storage,
@@ -12,7 +13,7 @@
 // (`confirmWorktreeTrust`), whatever VS Code's trust says. The user's own
 // pull request goes beside the repository like any worktree (M32).
 
-import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type GitHubClient, isCommitSha, type PullRequest } from '../../core/git/github'
 import { pullRequestCheckoutConfirmation } from '../../core/git/heldCheckoutCore'
@@ -34,7 +35,7 @@ import {
   GitUnavailableError,
   openOwnedRepository,
   type CaptureGitOwner,
-  type GitRepository,
+  type CheckoutRepository,
 } from './gitExtension'
 import type { HeldCheckout } from './heldCheckout'
 import type { WindowHold, WorktreeRegistry } from './worktreeRegistry'
@@ -46,7 +47,8 @@ export interface PullRequestCheckoutDeps {
   readonly isHeld: () => boolean
   /** The extension's global storage folder. */
   readonly storageRoot: string
-  readonly repository: (root: string) => Promise<GitRepository>
+  /** VS Code's Git extension's repository, or the user's own git where it is missing (M123). */
+  readonly repository: (root: string) => Promise<CheckoutRepository>
   readonly captureGitOwner: CaptureGitOwner
   /** The extension's own git (git.ts): by absolute path, no prompt. */
   readonly runGit: (
@@ -57,14 +59,16 @@ export interface PullRequestCheckoutDeps {
     beforeRun?: () => void,
   ) => Promise<string>
   /**
-   * Someone else's pull request: added with nothing checked out and its
-   * files written by the extension (heldCheckout.ts), so no checkout filter,
-   * conversion or hook of git's runs on them.
-   */
+  Someone else's pull request: added with nothing checked out and its
+  files written by the extension (heldCheckout.ts), so no checkout filter,
+  conversion or hook of git's runs on them.
+  */
   readonly checkOutHeld: HeldCheckout
   /** Fetch helpers and checkout filters may write: use the window's checkpoint process admission. */
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
+  /** GitHub refused `token` (401): the source that issued it drops it, so the user signs in again. */
+  readonly dropRejectedGitHubToken: (token: string, error: unknown) => void
   readonly github: GitHubClient
   readonly registry: WorktreeRegistry
   /** An input box; `validate` answers undefined for a good value. */
@@ -101,11 +105,11 @@ function failureText(error: unknown): string {
 }
 
 /** The repository's GitHub remotes, with the repository each names. */
-function githubRemotes(repository: GitRepository): readonly GitHubRemote[] {
+function githubRemotes(repository: CheckoutRepository): readonly GitHubRemote[] {
   return repository.state.remotes.flatMap((remote) => {
     const url = remote.fetchUrl ?? remote.pushUrl
     const github = url === undefined ? undefined : githubRepositoryOf(url)
-    return github === undefined ? [] : [{ name: remote.name, repository: github }]
+    return github === undefined ? [] : { name: remote.name, repository: github }
   })
 }
 
@@ -127,7 +131,7 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
     deps.showWarning(problem ?? UI_TEXT.worktreeNoWorkspace)
     return
   }
-  let repository: GitRepository
+  let repository: CheckoutRepository
   let canonicalRoot: string
   let checkOwner: () => void
   const checkTrust = () => {
@@ -148,6 +152,7 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
     repository = owned.repository
     checkOwner = owned.check
   } catch (error: unknown) {
+    deps.log.warn('Opening a pull request failed while opening the repository')
     deps.showFailure(UI_TEXT.gitUnavailable, failureText(error))
     return
   }
@@ -203,6 +208,8 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
+      deps.log.warn(`Reading pull request #${String(ref.number)} from GitHub failed`)
+      deps.dropRejectedGitHubToken(token, error)
       deps.showFailure(UI_TEXT.gitHubFailed, failureText(error))
       return
     }
@@ -216,6 +223,7 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
       check,
     })
   } catch (error: unknown) {
+    deps.log.warn('Opening a pull request failed while checking it out')
     deps.showFailure(UI_TEXT.openPullRequestFetchFailed, failureText(error))
   }
 }
@@ -225,7 +233,7 @@ interface CheckoutPlan {
   readonly root: string
   /** Captured physical execution directory, independent of the workspace alias. */
   readonly cwd: string
-  readonly repository: GitRepository
+  readonly repository: CheckoutRepository
   readonly remote: GitHubRemote
   readonly pullRequest: PullRequest
   readonly isOwn: boolean
@@ -286,7 +294,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
     const fetched = await deps.runGit(
       ['rev-parse', '--verify', `FETCH_HEAD${COMMIT_PEEL}`],
       cwd,
-      undefined,
+      Infinity,
       undefined,
       check,
     )
@@ -331,7 +339,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
               ...worktreeAddDetachedArgs(folder, pullRequest.headSha),
             ],
             cwd,
-            GIT_WORKTREE_TIMEOUT_MS,
+            Infinity,
             undefined,
             check,
           )
@@ -340,6 +348,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
     await deps.registry.complete(folder, record.createdAt)
   } catch (error: unknown) {
     await deps.registry.remove(folder, record.createdAt, previous)
+    deps.log.warn(`Checking out pull request #${String(pullRequest.number)} failed`)
     deps.showFailure(UI_TEXT.worktreeAddFailed, failureText(error))
     return
   }

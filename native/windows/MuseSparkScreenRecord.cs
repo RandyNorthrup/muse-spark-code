@@ -28,19 +28,24 @@ using FileAttributes = System.IO.FileAttributes;
 
 internal sealed class MuseSparkScreenRecord : Form
 {
-    private const int MinSeconds = 10, MaxSeconds = 600;
     private const long MaxBytes = 1024L * 1024 * 1024;
     private const int FrameBuffers = 2, FramesPerSecond = 30, AudioFrames = 480;
     private const uint VideoBitrate = 4000000, AudioBitrate = 128000;
     private const int SampleRate = 48000, Channels = 2, Bits = 16;
     private const int PollMilliseconds = 10, ParentPollMilliseconds = 100;
     private const int OwnerExitMilliseconds = 2000, CopyBufferBytes = 81920;
-    private const long RecentMaxAgeMilliseconds = 10L * 60 * 1000;
+    // FOLDERID_Videos, and the Captures known folder Xbox Game Bar saves to
+    // (its default place is Videos\Captures; moving Captures moves it).
+    private static readonly Guid VideosFolder = new Guid("18989b1d-99b5-455b-841c-ab7c74e4ddfc");
+    private static readonly Guid CapturesFolder = new Guid("edc0fe71-98d8-4f4a-b920-c8dc133cb165");
+    // KF_FLAG_DONT_VERIFY: an absent folder is skipped by the search, not an error.
+    private const uint KnownFolderDontVerify = 0x00004000;
     private readonly Lifetime lifetime = new Lifetime();
     private object gate { get { return lifetime.Gate; } }
     private readonly string directory;
     private readonly long byteLimit;
-    private readonly int maxSeconds, parent;
+    private readonly long maxSeconds;
+    private readonly int parent;
     private readonly bool microphone, systemAudio;
     private readonly Label clock = new Label();
     private readonly Stopwatch elapsed = new Stopwatch();
@@ -58,8 +63,10 @@ internal sealed class MuseSparkScreenRecord : Form
     {
         directory = args[1]; byteLimit = ParseLimit(args[2], MaxBytes);
         parent = Int32.Parse(args[3], CultureInfo.InvariantCulture);
-        maxSeconds = Int32.Parse(args[4], CultureInfo.InvariantCulture);
-        if (maxSeconds < MinSeconds || maxSeconds > MaxSeconds || parent <= 0)
+        maxSeconds = Int64.Parse(args[4], CultureInfo.InvariantCulture);
+        // D121: 0 records until stopped (no stop of ours); any other whole
+        // number of seconds the person set is used as set.
+        if (maxSeconds < 0 || parent <= 0)
             throw new ArgumentException();
         microphone = Boolean.Parse(args[5]); systemAudio = Boolean.Parse(args[6]);
         Text = args[7]; Width = 320; Height = 130; TopMost = true;
@@ -71,8 +78,9 @@ internal sealed class MuseSparkScreenRecord : Form
         FormClosing += delegate(object sender, FormClosingEventArgs closing) { if (!finished) { closing.Cancel = true; Stop(true); } };
         timer.Interval = ParentPollMilliseconds;
         timer.Tick += delegate {
-            clock.Text = Math.Max(0, maxSeconds - (int)elapsed.Elapsed.TotalSeconds).ToString(CultureInfo.CurrentCulture);
-            if (elapsed.IsRunning && elapsed.Elapsed.TotalSeconds >= maxSeconds) Stop(false);
+            long ticked = (long)elapsed.Elapsed.TotalSeconds;
+            clock.Text = (maxSeconds == 0 ? ticked : Math.Max(0, maxSeconds - ticked)).ToString(CultureInfo.CurrentCulture);
+            if (maxSeconds > 0 && elapsed.IsRunning && elapsed.Elapsed.TotalSeconds >= maxSeconds) Stop(false);
         };
         Shown += async delegate {
             bool success = false;
@@ -107,11 +115,11 @@ internal sealed class MuseSparkScreenRecord : Form
                 MediaEncodingProfile.CreateMp4(VideoEncodingQuality.Auto);
                 Console.WriteLine("muse-spark-screen-record-ready"); return 0;
             }
-            if (args.Length == 5 && args[0] == "--latest") {
+            if (args.Length == 4 && args[0] == "--latest") {
                 using (Lifetime lifetime = new Lifetime()) {
                     lifetime.WatchOwner(Int32.Parse(args[3], CultureInfo.InvariantCulture));
                     StartControls(lifetime);
-                    Latest(args[1], ParseLimit(args[2], MaxBytes), ParseLimit(args[4], RecentMaxAgeMilliseconds), lifetime);
+                    Latest(args[1], ParseLimit(args[2], MaxBytes), lifetime);
                     if (!lifetime.Finish(true)) throw new OperationCanceledException();
                     Emit("complete", null); return 0;
                 }
@@ -143,7 +151,7 @@ internal sealed class MuseSparkScreenRecord : Form
         System.ComponentModel.Win32Exception win32 = error as System.ComponentModel.Win32Exception;
         if (win32 != null && win32.NativeErrorCode == 5) return "accessDenied";
         if (error is UnauthorizedAccessException || (error != null && error.HResult == unchecked((int)0x80070005))) return "permission";
-        if (error is FileNotFoundException) return "noRecent";
+        if (error is FileNotFoundException) return "notFound";
         if (error is RecordingLimitException) return "limit";
         return "unavailable";
     }
@@ -246,9 +254,11 @@ internal sealed class MuseSparkScreenRecord : Form
         TimeSpan stamp = frame.SystemRelativeTime;
         if (!videoStart.HasValue) videoStart = stamp;
         TimeSpan relative = stamp - videoStart.Value;
-        if (relative.TotalSeconds >= maxSeconds) { frame.Dispose(); Stop(false); return null; }
+        if (maxSeconds > 0 && relative.TotalSeconds >= maxSeconds) { frame.Dispose(); Stop(false); return null; }
         MediaStreamSample sample = MediaStreamSample.CreateFromDirect3D11Surface(frame.Surface, relative);
-        sample.Duration = TimeSpan.FromSeconds(Math.Min(1.0 / FramesPerSecond, maxSeconds - relative.TotalSeconds));
+        sample.Duration = maxSeconds == 0
+            ? TimeSpan.FromSeconds(1.0 / FramesPerSecond)
+            : TimeSpan.FromSeconds(Math.Min(1.0 / FramesPerSecond, maxSeconds - relative.TotalSeconds));
         sample.Processed += delegate { frame.Dispose(); };
         return sample;
     }
@@ -257,7 +267,7 @@ internal sealed class MuseSparkScreenRecord : Form
     {
         double seconds = (double)audioPosition / SampleRate;
         while (!stopping && seconds > elapsed.Elapsed.TotalSeconds) Thread.Sleep(PollMilliseconds);
-        if (stopping || seconds >= maxSeconds) return null;
+        if (stopping || (maxSeconds > 0 && seconds >= maxSeconds)) return null;
         short[] left = mic == null ? null : mic.Read(AudioFrames);
         short[] right = system == null ? null : system.Read(AudioFrames);
         byte[] pcm = new byte[AudioFrames * Channels * Bits / 8];
@@ -327,29 +337,45 @@ internal sealed class MuseSparkScreenRecord : Form
         }
     }
 
-    private static void Latest(string directory, long maximum, long maxAge, Lifetime lifetime)
+    private static void Latest(string directory, long maximum, Lifetime lifetime)
+    {
+        CopyLatest(RecordingFolders(), directory, maximum, lifetime);
+    }
+    // Windows' own recorders' folders: Snipping Tool's Screen Recordings under
+    // the Videos known folder, and Xbox Game Bar's Captures known folder.
+    private static string[] RecordingFolders()
+    {
+        string videos = KnownFolder(VideosFolder);
+        if (videos == null) throw new DirectoryNotFoundException();
+        // A system without the Captures known folder keeps its default place.
+        string captures = KnownFolder(CapturesFolder) ?? Path.Combine(videos, "Captures");
+        return new string[] { Path.Combine(videos, "Screen Recordings"), captures };
+    }
+    private static string KnownFolder(Guid folder)
     {
         IntPtr value;
-        Guid videos = new Guid("18989b1d-99b5-455b-841c-ab7c74e4ddfc");
-        Marshal.ThrowExceptionForHR(SHGetKnownFolderPath(ref videos, 0, IntPtr.Zero, out value));
-        string folder;
-        try { folder = Path.Combine(Marshal.PtrToStringUni(value), "Screen Recordings"); }
+        int result = SHGetKnownFolderPath(ref folder, KnownFolderDontVerify, IntPtr.Zero, out value);
+        // The buffer is freed whether or not the call succeeded.
+        try { return result < 0 ? null : Marshal.PtrToStringUni(value); }
         finally { Marshal.FreeCoTaskMem(value); }
-        CopyLatest(folder, directory, maximum, maxAge, lifetime);
     }
-    private static void CopyLatest(string folder, string directory, long maximum, long maxAge, Lifetime lifetime)
+    private static void CopyLatest(string[] folders, string directory, long maximum, Lifetime lifetime)
     {
-        lifetime.ThrowIfStopped();
-        if (!Directory.Exists(folder) || (File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) throw new FileNotFoundException();
+        // D121: no age cutoff of ours. The newest mp4 across the folders wins,
+        // whatever its age; only a file dated in the future is refused.
         FileInfo newest = null;
-        foreach (string file in Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly)) {
+        foreach (string folder in folders) {
             lifetime.ThrowIfStopped();
-            FileInfo candidate = new FileInfo(file);
-            double age = (DateTime.UtcNow - candidate.LastWriteTimeUtc).TotalMilliseconds;
-            if (!String.Equals(candidate.Extension, ".mp4", StringComparison.OrdinalIgnoreCase) ||
-                (candidate.Attributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0 ||
-                age < 0 || age > maxAge) continue;
-            if (newest == null || candidate.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = candidate;
+            // A missing folder, or a link in place of one, hides nothing in the others.
+            if (!Directory.Exists(folder) || (File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) continue;
+            foreach (string file in Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly)) {
+                lifetime.ThrowIfStopped();
+                FileInfo candidate = new FileInfo(file);
+                if (!String.Equals(candidate.Extension, ".mp4", StringComparison.OrdinalIgnoreCase) ||
+                    (candidate.Attributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0 ||
+                    candidate.LastWriteTimeUtc > DateTime.UtcNow) continue;
+                if (newest == null || candidate.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = candidate;
+            }
         }
         if (newest == null) throw new FileNotFoundException();
         // OPEN_REPARSE_POINT binds the read to this file, even if a link was
@@ -364,8 +390,7 @@ internal sealed class MuseSparkScreenRecord : Form
             if (heldLength == 0 || heldLength >= heldPath.Capacity ||
                 !String.Equals(heldPath.ToString(), "\\\\?\\" + Path.GetFullPath(newest.FullName), StringComparison.OrdinalIgnoreCase)) throw new IOException();
             long written = ((long)info.WriteHigh << 32) | info.WriteLow;
-            double age = (DateTime.UtcNow - DateTime.FromFileTimeUtc(written)).TotalMilliseconds;
-            if (age < 0 || age > maxAge) throw new FileNotFoundException();
+            if (DateTime.FromFileTimeUtc(written) > DateTime.UtcNow) throw new FileNotFoundException();
             using (FileStream source = new FileStream(handle, FileAccess.Read)) {
                 if (source.Length <= 0 || source.Length > maximum) throw new RecordingLimitException();
                 CreatePrivate(directory);

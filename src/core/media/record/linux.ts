@@ -6,11 +6,11 @@ import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MILLISECONDS_PER_SECOND,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
+import { recordingNotFound } from './driver'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
@@ -57,14 +57,16 @@ export interface LinuxRecordingPort {
   /** Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4/AAC plugins probed. */
   readonly findEncoder: () => Promise<string | undefined>
   /** A user/OS permission refusal rejects with an Error named NotAllowedError;
-   * transport, compositor and other portal failures keep their own identity. */
+  transport, compositor and other portal failures keep their own identity. */
   readonly openPortal: (
     options: ScreenRecordingOptions,
     signal: AbortSignal,
   ) => Promise<PortalSession>
   readonly createPrivateRecording: () => Promise<PrivateRecording>
   /** Verify trusted path at launch; no shell or credentials. Inherit exactly
-   * these fds, enforce hard output size and lifetime, and kill on parent exit. */
+  these fds, enforce hard output size and lifetime, and kill on parent exit.
+  maxSeconds 0 enforces no lifetime: the run ends only at Stop, cancel or
+  parent exit (D121). */
   readonly launchVerified: (request: {
     readonly command: string
     readonly args: readonly string[]
@@ -302,6 +304,9 @@ function recordingRun(
     .catch(abort)
   const started = performance.now()
   let previous = Date.now()
+  // D121: maxSeconds 0 records until stopped — no automatic stop of ours.
+  // The tick then reports seconds recorded; otherwise seconds remaining.
+  const isUncapped = options.maxSeconds === 0
   const update = () => {
     const now = Date.now()
     if (now < previous || now - previous > 2 * MILLISECONDS_PER_SECOND) {
@@ -309,13 +314,17 @@ function recordingRun(
       return
     }
     previous = now
-    const remaining = Math.max(
-      0,
-      options.maxSeconds - Math.floor((performance.now() - started) / MILLISECONDS_PER_SECOND),
-    )
+    const elapsed = Math.floor((performance.now() - started) / MILLISECONDS_PER_SECOND)
+    if (isUncapped) {
+      onCountdown(elapsed)
+      return
+    }
+    const remaining = Math.max(0, options.maxSeconds - elapsed)
     onCountdown(remaining)
     if (remaining === 0)
       void stop().catch(async () => {
+        // A failed automatic stop escalates to cancel; the encoder result
+        // owns cleanup however termination settles.
         try {
           // A failed automatic Stop terminates the writer, not the user's consent.
           await recording.cancel()
@@ -342,13 +351,15 @@ function recordingRun(
           info.sizeBytes === 0 ||
           info.sizeBytes > MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES ||
           info.durationSeconds === null ||
-          info.durationSeconds > options.maxSeconds ||
+          (options.maxSeconds > 0 && info.durationSeconds > options.maxSeconds) ||
           info.hasSoundtrack !== (options.microphone || options.systemAudio)
         )
           reason = unavailable('mp4')
         else preview = { path: file.path, info, dispose }
       }
     } catch {
+      // A failed result attempt cancels the writer; the finally below still
+      // closes the session and disposes the file.
       try {
         await recording.cancel()
       } catch {
@@ -360,6 +371,8 @@ function recordingRun(
       try {
         await session.close()
       } catch {
+        // A close failure after a result keeps no preview: the file is
+        // disposed below, so nothing unverified is delivered.
         preview = undefined
         reason = UI_TEXT.media.recordingFailed
       } finally {
@@ -371,6 +384,8 @@ function recordingRun(
           try {
             await dispose()
           } catch {
+            // A failed private-file removal still reports failure; the
+            // owner-only directory bounds what stays behind.
             reason = UI_TEXT.media.recordingFailed
           }
       }
@@ -392,46 +407,79 @@ function recordingRun(
   }
 }
 
-export interface LinuxLatestRecordingPort {
-  /** XDG Videos/Screencasts and Spectacle's user-configured recording directory. */
+export interface LatestRecordingPort {
+  /** The OS recordings locations: Linux Videos roots, Windows Screen
+  Recordings and Captures, or the macOS Desktop default. The host factory
+  sets them. */
   readonly roots: readonly string[]
+  /**
+  The person's names for those locations (`Videos\Screen Recordings`,
+  `Desktop`), never a profile path: the not-found sentence names them.
+  */
+  readonly places: readonly string[]
+  /**
+  An extra per-platform file-name gate for a general-purpose directory:
+  macOS scans the Desktop, so only Screenshot names qualify. Absent means
+  every media file qualifies (Linux Videos, Windows Screen Recordings and
+  Captures are dedicated recordings folders).
+  */
+  readonly isRecordingFileName?: (fileName: string) => boolean
   /** Nonrecursive, confined regular files only; reject symlinks/special files. */
   readonly list: (
     root: string,
   ) => Promise<readonly { readonly path: string; readonly modifiedAt: number }[]>
   /** Copy privately under a hard byte cap, then sniff; source is never deleted.
-   * WebM is retained as WebM for M1's explicit conversion offer. */
+  WebM is retained as WebM for M1's explicit conversion offer. */
   readonly copyForPreview: (source: string, maxBytes: number) => Promise<ScreenRecordingPreview>
 }
 
-/** Explicit Attach latest action; never walks arbitrary home/workspace trees. */
-export async function latestLinuxRecording(
-  port: LinuxLatestRecordingPort,
+/**
+Whether a discovered file sits directly inside a recordings root. Both
+sides normalize to forward slashes first, so Windows drive-letter roots
+confine the same way POSIX ones do; anything else (relative, traversal
+outside the root) fails closed.
+*/
+export function isWithinRecordingRoot(root: string, file: string): boolean {
+  const normalRoot = root.replaceAll('\\', '/').replace(/\/$/u, '')
+  const normalFile = file.replaceAll('\\', '/')
+  return (
+    (path.posix.isAbsolute(normalRoot) || path.win32.isAbsolute(root)) &&
+    path.posix.dirname(normalFile) === normalRoot
+  )
+}
+
+/**
+Explicit Attach latest action; never walks arbitrary home/workspace trees.
+D121: no age cutoff of ours. The newest recording across the roots wins,
+whatever its age (the preview shows the person what they attach); only a
+file dated in the future is refused.
+*/
+export async function findLatestRecording(
+  port: LatestRecordingPort,
   now = Date.now(),
 ): Promise<ScreenRecordingResult> {
   const candidates: { readonly path: string; readonly modifiedAt: number }[] = []
   for (const root of port.roots) {
     try {
-      const normalRoot = root.replaceAll('\\', '/').replace(/\/$/u, '')
       const files = await port.list(root)
       for (const file of files) {
         const normalFile = file.path.replaceAll('\\', '/')
+        const fileName = normalFile.slice(normalFile.lastIndexOf('/') + 1)
         if (
-          path.posix.isAbsolute(normalRoot) &&
-          path.posix.dirname(normalFile) === normalRoot &&
+          isWithinRecordingRoot(root, file.path) &&
           /\.(?:mp4|mov|webm)$/iu.test(normalFile) &&
-          file.modifiedAt <= now &&
-          now - file.modifiedAt <= SCREEN_RECORDING_RECENT_MAX_AGE_MS
+          (port.isRecordingFileName?.(fileName) ?? true) &&
+          file.modifiedAt <= now
         )
           candidates.push(file)
       }
     } catch {
-      /* A missing GNOME/Spectacle directory does not hide the other one. */
+      /* A missing recordings directory does not hide the other ones. */
     }
   }
   candidates.sort((a, b) => b.modifiedAt - a.modifiedAt)
   const latest = candidates[0]
-  if (latest === undefined) return { ok: false, reason: UI_TEXT.media.recordingNoRecent }
+  if (latest === undefined) return { ok: false, reason: recordingNotFound(port.places) }
   try {
     const preview = await port.copyForPreview(
       latest.path,

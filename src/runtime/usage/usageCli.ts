@@ -32,26 +32,23 @@ export async function runUsageCommand(
   }
   if (command.action === 'stdio') {
     let outbox = Promise.resolve()
-    let outputError: { readonly error: unknown } | undefined
     const post: UsagePagePorts['post'] = (message) => {
       const parsed = parseUsageServiceToPageMessage(message)
       const previous = outbox
       outbox = (async () => {
         await previous
-        try {
-          await ports.print(
-            `${JSON.stringify(
-              parsed.ok
-                ? parsed.message
-                : {
-                    type: 'usage/error',
-                    code: 'invalidMessage',
-                  },
-            )}\n`,
-          )
-        } catch (error: unknown) {
-          outputError = { error }
-        }
+        // A failed print rejects the outbox, and the loop below surfaces it
+        // at its next step with disposal; nothing is captured or replaced.
+        await ports.print(
+          `${JSON.stringify(
+            parsed.ok
+              ? parsed.message
+              : {
+                  type: 'usage/error',
+                  code: 'invalidMessage',
+                },
+          )}\n`,
+        )
       })()
     }
     const connection = ports.usage.connect({
@@ -63,7 +60,10 @@ export async function runUsageCommand(
         let input: unknown
         try {
           input = JSON.parse(line)
-        } catch {
+        } catch (error) {
+          // A line no JSON value denotes is no message. Anything else keeps
+          // its kind.
+          if (!(error instanceof SyntaxError)) throw error
           input = undefined
         }
         const parsed = parseUsagePageToServiceMessage(input)
@@ -71,14 +71,13 @@ export async function runUsageCommand(
           try {
             await connection.receive(parsed.message)
           } catch {
+            // One failed message reports its fixed code; the session survives.
             post({ type: 'usage/error', code: 'readFailed' })
           }
         } else post({ type: 'usage/error', code: 'invalidMessage' })
         await outbox
-        if (outputError !== undefined) throw outputError.error
       }
       await outbox
-      if (outputError !== undefined) throw outputError.error
     } finally {
       connection.dispose()
     }

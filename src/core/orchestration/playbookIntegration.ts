@@ -135,7 +135,7 @@ export class PlaybookIntegration {
   }
 
   /** G24: the milestone's residual register must be empty or accepted before
-   * the release effect runs. The merge queue calls this, not the lanes. */
+  the release effect runs. The merge queue calls this, not the lanes. */
   release(milestoneId: string, effect: () => void): void {
     const board = this.plan.readBoard()
     this.require(this.policy.releaseReady(milestoneId, board.lanes))

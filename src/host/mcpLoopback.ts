@@ -14,22 +14,37 @@ import type { Logger } from './logger'
 export function readLoopbackBody(
   request: IncomingMessage,
   maxBytes: number,
+  signal?: AbortSignal,
 ): Promise<string | undefined> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = []
     let size = 0
-    request.on('data', (chunk: Buffer) => {
+    const finish = (body?: string) => {
+      request.off('data', onData)
+      request.off('end', onEnd)
+      request.off('error', onError)
+      request.off('aborted', onError)
+      signal?.removeEventListener('abort', onError)
+      resolve(body)
+    }
+    const onData = (chunk: Buffer) => {
       size += chunk.length
       if (size <= maxBytes) {
         chunks.push(chunk)
       }
-    })
-    request.on('end', () => {
-      resolve(size > maxBytes ? undefined : Buffer.concat(chunks).toString('utf8'))
-    })
-    request.on('error', () => {
-      resolve(undefined)
-    })
+    }
+    const onEnd = () => {
+      finish(size > maxBytes ? undefined : Buffer.concat(chunks).toString('utf8'))
+    }
+    const onError = () => {
+      finish()
+    }
+    request.on('data', onData)
+    request.once('end', onEnd)
+    request.once('error', onError)
+    request.once('aborted', onError)
+    signal?.addEventListener('abort', onError, { once: true })
+    if (signal?.aborted === true) onError()
   })
 }
 
@@ -46,9 +61,9 @@ export interface LoopbackListener {
 }
 
 /**
- * Listens on an ephemeral loopback port for one MCP server. Errors after the
- * listen (a socket fault) are logged, never thrown at the host.
- */
+Listens on an ephemeral loopback port for one MCP server. Errors after the
+listen (a socket fault) are logged, never thrown at the host.
+*/
 export async function listenLoopback(
   onRequest: (request: IncomingMessage, response: ServerResponse) => void,
   log: Logger,

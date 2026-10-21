@@ -116,14 +116,14 @@ export class PromptLedger {
   }
 
   /**
-   * The card moved to the stage a stale refusal named (MSP's
-   * `currentRequirementId`), when Muse Code announces none itself: after an
-   * "Always Allow" rule, 1.4.2 can resolve the stage it shows by that rule
-   * and wait on the next one without an `approval/updated` (captured
-   * 2026-10-02). A choice tied to the old stage's rule takes the new stage's
-   * label, or goes when that stage suggests no rule. The update is admitted
-   * like the host's own (`admit`), which moves the ledger with the card.
-   */
+  The card moved to the stage a stale refusal named (MSP's
+  `currentRequirementId`), when Muse Code announces none itself: after an
+  "Always Allow" rule, 1.4.2 can resolve the stage it shows by that rule
+  and wait on the next one without an `approval/updated` (captured
+  2026-10-02). A choice tied to the old stage's rule takes the new stage's
+  label, or goes when that stage suggests no rule. The update is admitted
+  like the host's own (`admit`), which moves the ledger with the card.
+  */
   public advanceTo(requirementId: RequirementRef): ApprovalUpdated | undefined {
     const shown = this.approvals.get(requirementId.approvalId)
     if (
@@ -141,7 +141,7 @@ export class PromptLedger {
       if (!isStageRule) {
         return [choice]
       }
-      return newLabel === undefined ? [] : [{ ...choice, label: newLabel, rulePreview: newLabel }]
+      return newLabel === undefined ? [] : { ...choice, label: newLabel, rulePreview: newLabel }
     })
     return {
       type: 'approvalUpdated',
@@ -153,11 +153,11 @@ export class PromptLedger {
   }
 
   /**
-   * Open approvals with a stage already decided and the current one not:
-   * stopping the turn under one of them leaves Muse Code 1.4.2 unable to run
-   * the session again (the `approvalReplay` fault), so a Stop rejects them
-   * first.
-   */
+  Open approvals with a stage already decided and the current one not:
+  stopping the turn under one of them leaves Muse Code 1.4.2 unable to run
+  the session again (the `approvalReplay` fault), so a Stop rejects them
+  first.
+  */
   public partlyDecided(): readonly ApprovalRequested[] {
     const decidedApprovals = new Set<string>()
     for (const key of this.decided) {

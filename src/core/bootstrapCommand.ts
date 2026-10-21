@@ -1,15 +1,17 @@
+import { noWorkspaceChildEnvironment } from './execGuard'
+import { spawnResourceProcess } from './resources/launcher'
+import { realpathSync } from 'node:fs'
+import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../shared/constants'
 // A client of the lazy facade, like any other governed command: the launcher
 // and its policy stay in the first-use resourceGovernor bundle, so this runner
 // may ride in every bundle that builds a helper.
-import { spawnResourceProcess } from './resources/launcher'
-import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../shared/constants'
 
 /**
- * Bootstrap tier: the compiler builds the containment helper it cannot yet use.
- * A failure always names its exit code, signal and whether it was stopped;
- * `isOutputReported` adds the bounded stdout and stderr (csc writes its
- * diagnostics to stdout), for callers whose output is public, like compilers.
- */
+Bootstrap tier: the compiler builds the containment helper it cannot yet use.
+A failure always names its exit code, signal and whether it was stopped;
+`isOutputReported` adds the bounded stdout and stderr (csc writes its
+diagnostics to stdout), for callers whose output is public, like compilers.
+*/
 export async function runBootstrap(
   file: string,
   args: readonly string[],
@@ -25,8 +27,10 @@ export async function runBootstrap(
   const deadline = AbortSignal.timeout(options.timeoutMs ?? PROCESS_TABLE_TIMEOUT_MS)
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
+  // A build-time helper builds with the host cwd, never a workspace cwd:
+  // absolute entries only, links followed.
   const { child: root, stop: stopTree } = await spawnResourceProcess('bootstrap', file, args, {
-    env,
+    env: noWorkspaceChildEnvironment(process.platform, env, realpathSync),
     cwd: options.cwd,
     signal,
   })

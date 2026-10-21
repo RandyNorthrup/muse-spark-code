@@ -18,6 +18,7 @@ import {
   requireAcpNativeIsolation,
   confineWorkerPath,
   isCheckedWorkerWriteAllowed,
+  MuseWorkerFolderError,
   withWorkerFile,
   recheckWorkerRoot,
   type WorkerRootGrant,
@@ -48,26 +49,26 @@ export interface AcpPreset {
   /** Spawned by default with these arguments. */
   readonly defaultArgs: readonly string[]
   /**
-   * The switch that starts the agent without the user's own MCP servers,
-   * per preset, from step 1's capture. Absent until captured: without it a
-   * worker beside a second copy of a singleton server must not start.
-   */
+  The switch that starts the agent without the user's own MCP servers,
+  per preset, from step 1's capture. Absent until captured: without it a
+  worker beside a second copy of a singleton server must not start.
+  */
   readonly withoutUserServersSwitch?: readonly string[]
   /**
-   * The captured mode per role shape. Absent means the preset has shown no
-   * mode that meets the shape, so the role refuses the agent (acceptance 24).
-   */
+  The captured mode per role shape. Absent means the preset has shown no
+  mode that meets the shape, so the role refuses the agent (acceptance 24).
+  */
   readonly modes: Readonly<Record<AcpRoleShape, string | undefined>>
   /** Modes that skip asking: never chosen, even advertised (acceptance 24). */
   readonly forbiddenModes: readonly string[]
 }
 
 /**
- * The preset table. Claude's and Codex's rows are the research (§4.2, §4.3:
- * Claude's `default` asks before every edit, Codex's `workspace-write` is
- * confined to its `cwd`); the rest wait on step 1's `initialize` records.
- * @unwired M96 external agent preset table
- */
+The preset table. Claude's and Codex's rows are the research (§4.2, §4.3:
+Claude's `default` asks before every edit, Codex's `workspace-write` is
+confined to its `cwd`); the rest wait on step 1's `initialize` records.
+@unwired M96 external agent preset table
+*/
 export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
   claude: {
     id: 'claude',
@@ -126,10 +127,10 @@ export class AcpForbiddenModeError extends Error {
 }
 
 /**
- * Chooses the preset's captured mode for the role's shape. The mode must be
- * one the agent advertises in `initialize`; a forbidden mode is refused even
- * when advertised. Anything else is `AcpModeError`, never a neighbouring mode.
- */
+Chooses the preset's captured mode for the role's shape. The mode must be
+one the agent advertises in `initialize`; a forbidden mode is refused even
+when advertised. Anything else is `AcpModeError`, never a neighbouring mode.
+*/
 export function chooseAcpMode(
   preset: AcpPreset,
   shape: AcpRoleShape,
@@ -164,10 +165,10 @@ export interface AcpPermissionOption {
 }
 
 /**
- * Picks the once option for the verdict. `allow_always` is never forwarded:
- * the agent must never store an "always" the extension cannot see.
- * @unwired M96 ACP once-option picker
- */
+Picks the once option for the verdict. `allow_always` is never forwarded:
+the agent must never store an "always" the extension cannot see.
+@unwired M96 ACP once-option picker
+*/
 export function pickOnceOption(
   options: readonly AcpPermissionOption[],
   shouldAllow: boolean,
@@ -197,8 +198,8 @@ export interface AcpPermissionInput {
 }
 
 /** Confines an `fs/*` path to the working copy, links followed.
- * @unwired M96 ACP fs path confinement
- */
+@unwired M96 ACP fs path confinement
+*/
 export async function confineAcpFsPath(input: {
   readonly folder: string
   readonly workspaceRoot: string
@@ -220,11 +221,11 @@ export interface AcpFsInput {
 }
 
 /**
- * Serves `fs/read_text_file` inside the working copy only. Client file
- * methods enforce nothing on agents with their own tools (research §4.5);
- * the confinement still binds every agent that routes through them.
- * @unwired M96 ACP fs read
- */
+Serves `fs/read_text_file` inside the working copy only. Client file
+methods enforce nothing on agents with their own tools (research §4.5);
+the confinement still binds every agent that routes through them.
+@unwired M96 ACP fs read
+*/
 export async function acpFsRead(
   input: AcpFsInput,
   given: string,
@@ -234,14 +235,17 @@ export async function acpFsRead(
       const content = await handle.read(Number.MAX_SAFE_INTEGER)
       return content === undefined ? { error: 'unreadable' } : { content }
     })
-  } catch {
+  } catch (error) {
+    // Only the fence's confinement refusal reads "outside the working
+    // copy"; a file inside the copy that cannot be read reaches the caller.
+    if (!(error instanceof MuseWorkerFolderError)) throw error
     return { error: 'outside the working copy' }
   }
 }
 
 /** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`.
- * @unwired M96 ACP fs write
- */
+@unwired M96 ACP fs write
+*/
 export async function acpFsWrite(
   input: AcpFsInput,
   given: string,
@@ -259,7 +263,10 @@ export async function acpFsWrite(
       await handle.write(content)
       return { ok: true }
     })
-  } catch {
+  } catch (error) {
+    // Only the fence's confinement refusal reads "outside the working
+    // copy"; a write inside the copy that fails reaches the caller.
+    if (!(error instanceof MuseWorkerFolderError)) throw error
     return { error: 'outside the working copy' }
   }
 }
@@ -320,14 +327,34 @@ export interface AcpWorkerDeps {
   readonly signal: AbortSignal
 }
 
+/** Cancels a worker session with a grace bound; an unreachable peer still closes below. */
+async function cancelWorkerSession(
+  cancel: (sessionId: string) => Promise<unknown>,
+  sessionId: string,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      cancel(sessionId),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, WORKER_CANCEL_GRACE_MS)
+      }),
+    ])
+  } catch {
+    // The peer is unreachable: the close in the runner's finally still runs.
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
 /**
- * Runs one external worker's task: `initialize`, `session/new` with the
- * working copy as `cwd` and the bridge's servers, the preset's captured mode
- * for the role's shape, then the prompt. A terminal sign-in surfaces as
- * `AcpAuthRequiredError` for the host's terminal flow; no vendor credential
- * file is ever read.
- * @unwired M96 ACP worker runner
- */
+Runs one external worker's task: `initialize`, `session/new` with the
+working copy as `cwd` and the bridge's servers, the preset's captured mode
+for the role's shape, then the prompt. A terminal sign-in surfaces as
+`AcpAuthRequiredError` for the host's terminal flow; no vendor credential
+file is ever read.
+@unwired M96 ACP worker runner
+*/
 export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   readonly sessionId: string
   readonly report: WorkerReportOutcome
@@ -389,28 +416,14 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
     )
     await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
     deps.connection.checkMode(activeId, mode)
-    const { lastMessage, stopReason } = await awaitWorkerAction(deps.signal, () =>
+    const { lastMessage = '', stopReason } = await awaitWorkerAction(deps.signal, () =>
       deps.connection.prompt(activeId, prompt),
     )
     await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
-    return { sessionId: activeId, report: reportForStop(lastMessage ?? '', stopReason) }
+    return { sessionId: activeId, report: reportForStop(lastMessage, stopReason) }
   } catch (error: unknown) {
     if (sessionId !== undefined) {
-      try {
-        let timer: ReturnType<typeof setTimeout> | undefined
-        try {
-          await Promise.race([
-            deps.connection.cancel(sessionId),
-            new Promise<void>((resolve) => {
-              timer = setTimeout(resolve, WORKER_CANCEL_GRACE_MS)
-            }),
-          ])
-        } finally {
-          if (timer !== undefined) clearTimeout(timer)
-        }
-      } catch {
-        /* Finally closes an unreachable peer. */
-      }
+      await cancelWorkerSession((id) => deps.connection.cancel(id), sessionId)
     }
     throw asAcpError(error)
   } finally {

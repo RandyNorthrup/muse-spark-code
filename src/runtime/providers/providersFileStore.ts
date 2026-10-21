@@ -39,8 +39,8 @@ function providerOf(value: unknown): AccountProvider | undefined {
 }
 
 /** A stored row counts only when it is whole: the entry id matches its map
- * key and the complete pool (not just each row) validates, so duplicate ids
- * refuse here instead of throwing a raw schema error from the store later. */
+key and the complete pool (not just each row) validates, so duplicate ids
+refuse here instead of throwing a raw schema error from the store later. */
 function storedProviderOf(key: string, value: unknown): AccountProvider | undefined {
   const entry = providerOf(value)
   if (entry?.id !== key) return undefined
@@ -50,9 +50,9 @@ function storedProviderOf(key: string, value: unknown): AccountProvider | undefi
 }
 
 /** The built-in entry: every field is already pinned in-repo (the key names
- * in accountCredentialRecord.ts, the origin in MODEL_API_BASE_URL, the
- * meta/model-api policy row). An absent accounts field migrates the default
- * account in the store, so the pre-existing key keeps working. */
+in accountCredentialRecord.ts, the origin in MODEL_API_BASE_URL, the
+meta/model-api policy row). An absent accounts field migrates the default
+account in the store, so the pre-existing key keeps working. */
 function builtInProvider(id: string): AccountProvider | undefined {
   if (id !== 'meta') return undefined
   return {
@@ -77,16 +77,20 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     let text: string
     try {
       text = readFileSync(this.file, 'utf8')
-    } catch {
+    } catch (error: unknown) {
       // Vanished or unreadable between the check and the read: report
-      // unavailable rather than a partial read.
-      throw new AccountStoreError('unavailable')
+      // unavailable rather than a partial read, keeping the disk failure as
+      // the cause so the person hears it instead of a generic sentence.
+      throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
     let envelope: unknown
     try {
       envelope = JSON.parse(text)
-    } catch {
-      throw new AccountStoreError('invalidProvidersFile')
+    } catch (error) {
+      // A file no JSON value denotes is not a providers file. Anything else
+      // keeps its kind.
+      if (error instanceof SyntaxError) throw new AccountStoreError('invalidProvidersFile')
+      throw error
     }
     if (typeof envelope !== 'object' || envelope === null || Array.isArray(envelope))
       throw new AccountStoreError('invalidProvidersFile')

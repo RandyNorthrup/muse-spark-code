@@ -80,10 +80,10 @@ export class BoundError extends Error {
 }
 
 /**
- * `operation` settled within `withinMs`, or a BoundError: for the step's own
- * input read before the owner exists and its outputs after cleanup. A stuck
- * file operation cannot hold the step open.
- */
+`operation` settled within `withinMs`, or a BoundError: for the step's own
+input read before the owner exists and its outputs after cleanup. A stuck
+file operation cannot hold the step open.
+*/
 export async function withinBound(operation, withinMs, what) {
   let timer
   try {
@@ -122,10 +122,10 @@ export function redactLiterals(text, literals) {
 }
 
 /**
- * True when this module file is the process's entry script. Node loads the
- * entry by its real path, so the script argument is compared after
- * resolving links, and without case on Windows (a runner's drive letter).
- */
+True when this module file is the process's entry script. Node loads the
+entry by its real path, so the script argument is compared after
+resolving links, and without case on Windows (a runner's drive letter).
+*/
 export function isEntry(moduleUrl) {
   const script = process.argv[1]
   if (script === undefined) return false
@@ -157,12 +157,12 @@ function variable(env, platform, name) {
 }
 
 /**
- * Every child's environment, built from an allow-list (SPEC §6.2): the
- * trusted Node directory and system PATH, locale, private home/temp/data
- * folders, Windows system variables and the caller's proxy/CA inputs only.
- * Nothing else is inherited: no GIT_*, token, GITHUB_*, ACTIONS_*, RUNNER_*,
- * NODE_OPTIONS/NODE_PATH, DBUS, SSH or keyring route, and never the key.
- */
+Every child's environment, built from an allow-list (SPEC §6.2): the
+trusted Node directory and system PATH, locale, private home/temp/data
+folders, Windows system variables and the caller's proxy/CA inputs only.
+Nothing else is inherited: no GIT_*, token, GITHUB_*, ACTIONS_*, RUNNER_*,
+NODE_OPTIONS/NODE_PATH, DBUS, SSH or keyring route, and never the key.
+*/
 export function childEnvironment({ platform, parentEnv, paths, nodePath, network }) {
   const isWindows = platform === 'win32'
   const systemRoot = variable(parentEnv, platform, 'SystemRoot') ?? String.raw`C:\Windows`
@@ -304,11 +304,11 @@ function boundedSink(stream, maxBytes, filePath, onOverflow, onFileError, prefix
 }
 
 /**
- * The invocation's single owner. `stop` latches once; a later stop with a
- * repeated signal escalates the current child at once without resetting any
- * deadline. Nothing starts after a stop, and publication is never eligible
- * again. `cleanup` is bounded and always drops the secret references.
- */
+The invocation's single owner. `stop` latches once; a later stop with a
+repeated signal escalates the current child at once without resetting any
+deadline. Nothing starts after a stop, and publication is never eligible
+again. `cleanup` is bounded and always drops the secret references.
+*/
 export function createLauncherOwner({
   paths,
   dropSecrets,
@@ -336,10 +336,15 @@ export function createLauncherOwner({
     current?.terminate(cause, isRepeat && next.kind === 'signal')
   }
 
-  const totalTimer = setTimeout(() => {
-    stop({ kind: 'phase_timeout', phase: 'owner' })
-  }, totalMs)
-  totalTimer.unref?.()
+  // No total of ours without a run deadline (undefined): the run ends with
+  // the person's deadline, a signal, or the job's own timeout.
+  const totalTimer =
+    totalMs === undefined
+      ? undefined
+      : setTimeout(() => {
+          stop({ kind: 'phase_timeout', phase: 'owner' })
+        }, totalMs)
+  totalTimer?.unref?.()
   const unsubscribe = ['SIGINT', 'SIGTERM'].map((signal) =>
     onSignal(signal, () => {
       stop({ kind: 'signal', signal })
@@ -414,9 +419,14 @@ export function createLauncherOwner({
         return
       }
       record.attach(spawned, fail)
-      const timer = setTimeout(() => {
-        stop({ kind: 'phase_timeout', phase: 'child' })
-      }, input.withinMs)
+      // No child deadline of ours when withinMs is undefined: the child ends
+      // on its own, on a stop, or with the job.
+      const timer =
+        input.withinMs === undefined
+          ? undefined
+          : setTimeout(() => {
+              stop({ kind: 'phase_timeout', phase: 'child' })
+            }, input.withinMs)
       const stdout = boundedSink(
         spawned.stdout,
         input.stdoutMaxBytes,
@@ -461,10 +471,10 @@ export function createLauncherOwner({
   }
 
   /**
-   * Final cleanup: a child still running is stopped and given the kill and
-   * reap bounds; then staging and temporary files are removed within the
-   * cleanup bound. Whatever happens, the secret references are dropped.
-   */
+  Final cleanup: a child still running is stopped and given the kill and
+  reap bounds; then staging and temporary files are removed within the
+  cleanup bound. Whatever happens, the secret references are dropped.
+  */
   async function cleanup() {
     if (isCleanedUp) return
     isCleanedUp = true

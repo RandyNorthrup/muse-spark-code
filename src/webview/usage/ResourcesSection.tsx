@@ -123,11 +123,13 @@ function ResourceChart({
             endMs === spans[index + 1]?.record.atMs && value !== null && next != null
           return (
             <g key={`${String(record.atMs)}:${String(index)}`}>
-              <path
-                className="usage-resource-limit"
-                data-limit={limit}
-                d={`M ${String(x(record.atMs))} ${String(100 - limit)} H ${String(x(endMs))}`}
-              />
+              {limit === null ? null : (
+                <path
+                  className="usage-resource-limit"
+                  data-limit={limit}
+                  d={`M ${String(x(record.atMs))} ${String(100 - limit)} H ${String(x(endMs))}`}
+                />
+              )}
               {value === null ? null : (
                 <path
                   className="usage-resource-reading"
@@ -262,15 +264,27 @@ export default function ResourcesSection({ history: raw, now }: ResourcesSection
                         role="cell"
                         data-label={`${UI_TEXT.resourceCpu} / ${UI_TEXT.resourceHistoryThreshold}`}
                       >
-                        {percent(record.minute.cpuPercent)} /{' '}
-                        {formatPercent(record.minute.thresholds.cpuMaxPercent)}
+                        {record.minute.thresholds.cpuMaxPercent === null ? (
+                          percent(record.minute.cpuPercent)
+                        ) : (
+                          <>
+                            {percent(record.minute.cpuPercent)} /{' '}
+                            {formatPercent(record.minute.thresholds.cpuMaxPercent)}
+                          </>
+                        )}
                       </td>
                       <td
                         role="cell"
                         data-label={`${UI_TEXT.resourceMemory} / ${UI_TEXT.resourceHistoryThreshold}`}
                       >
-                        {percent(record.minute.memoryUsedPercent)} /{' '}
-                        {formatPercent(record.minute.thresholds.memoryMaxPercent)}
+                        {record.minute.thresholds.memoryMaxPercent === null ? (
+                          percent(record.minute.memoryUsedPercent)
+                        ) : (
+                          <>
+                            {percent(record.minute.memoryUsedPercent)} /{' '}
+                            {formatPercent(record.minute.thresholds.memoryMaxPercent)}
+                          </>
+                        )}
                       </td>
                       <td role="cell" data-label={UI_TEXT.resourceAvailableMemory}>
                         {resourceHistoryBucket(record.minute.availableMemory)}

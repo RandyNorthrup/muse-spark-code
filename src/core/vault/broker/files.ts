@@ -8,7 +8,7 @@ import {
   renameSync,
   unlinkSync,
 } from 'node:fs'
-import { open, mkdir, lstat, rename, unlink } from 'node:fs/promises'
+import { open, mkdir, lstat, link, rename, unlink } from 'node:fs/promises'
 import pathModule from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
@@ -68,6 +68,15 @@ export async function readVaultFile(
     if (!hasTransferred) result?.fill(0)
   }
 }
+/** Remove only the temporary this write created; a consumed rename is already gone. */
+async function dropTemporary(temporary: string): Promise<void> {
+  try {
+    await unlink(temporary)
+  } catch {
+    /* The rename may already have consumed this private temporary. */
+  }
+}
+
 export async function writeVaultFile(
   path: string,
   bytes: Uint8Array,
@@ -96,40 +105,77 @@ export async function writeVaultFile(
     }
   } catch (error: unknown) {
     await file.close()
-    try {
-      await unlink(temporary)
-    } catch {
-      /* The rename may already have consumed this private temporary. */
-    }
+    await dropTemporary(temporary)
     throw error
   }
 }
-/** Cleanup only the file we created; never unlink a replacement from a competing process. */
+/** The fixed owner-only temporary an exclusive claim publishes through. */
+export const VAULT_CLAIM_PENDING_SUFFIX = '.pending'
+/**
+Publish the complete record, or nothing a reader can see. The bytes are
+written to the owner-only temporary name and synced then published with
+link(), which fails when the name exists: a publisher killed before the
+link leaves only the temporary (no reader opens it), killed after it
+leaves the complete record, whose provably dead holder the contender
+retires by rule. Never an empty or partial record (RVCM109JE P2-1).
+Cleanup only the file we created; never unlink a replacement from a
+competing process.
+*/
 export async function vaultExclusiveFile(
   path: string,
   bytes: Uint8Array,
+  onReady?: () => void | Promise<void>,
 ): Promise<() => Promise<void>> {
+  const temporary = `${path}${VAULT_CLAIM_PENDING_SUFFIX}`
   const file = await open(
-    path,
+    temporary,
     constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
     ownerFile,
   )
   try {
     await file.writeFile(bytes)
     await file.sync()
-  } catch (error: unknown) {
+    // The physical publication boundary: the crash table parks here.
+    await onReady?.()
+    await link(temporary, path)
+    try {
+      await unlink(temporary)
+    } catch {
+      /* The complete record is published; a leftover temporary older than a
+         contender's mutex hold is retired by its recovery rule. */
+    }
+    // The temporary is gone before the directory sync, so a concurrent
+    // reader observes the extra link only inside this link/unlink pair
+    // instead of across the whole sync: a publication in flight resolves to
+    // one link before any blocking call yields.
+    const directory = await open(pathModule.dirname(path), constants.O_RDONLY)
+    try {
+      await directory.sync()
+    } finally {
+      await directory.close()
+    }
+    const identity = await handleIdentity(file)
     await file.close()
+    return async () => {
+      if (sameFile(identity, await lstatIdentity(path))) await unlink(path)
+    }
+  } catch (error: unknown) {
+    // The publication path above already closed it.
+    await teardownBestEffort(() => file.close())
+    // Never published: nothing a reader can see remains under our name.
+    await teardownBestEffort(() => unlink(temporary))
     throw error
   }
-  const identity = await handleIdentity(file)
-  return async () => {
-    try {
-      if (sameFile(identity, await lstatIdentity(path))) await unlink(path)
-    } finally {
-      await file.close()
-    }
+}
+/** Best effort: the original failure below rules, so teardown keeps no cause. */
+async function teardownBestEffort(work: () => Promise<void>): Promise<void> {
+  try {
+    await work()
+  } catch {
+    // Best effort: the original failure below rules, so teardown keeps no cause.
   }
 }
+
 export function isVaultFileMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
@@ -140,7 +186,44 @@ export interface VaultFileWriter {
   replace(bytes: Uint8Array): void
   close(): void
 }
-const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
+
+/** The platform's half of an owner-only file writer: identity checks stay platform-owned. */
+export interface PrivateWriterPorts {
+  readonly current: () => number
+  readonly adopt: (fd: number) => void
+  readonly release: () => void
+  /** How the platform opens the exclusive replace temporary; the mode stays owner-only. */
+  readonly tempFlags: number
+  readonly tempMode?: number
+}
+
+/**
+One owner-only file writer over the platform's descriptor checks: appends
+and atomic replaces are identical everywhere, while opening, revalidation
+and release stay in the ports. Both the POSIX files port and the Windows
+relay write this way.
+*/
+export function privateFileWriter(path: string, ports: PrivateWriterPorts): VaultFileWriter {
+  return {
+    append: (bytes) => {
+      writePrivateBytes(ports.current(), bytes)
+    },
+    replace: (bytes) => {
+      replacePrivateFile(
+        path,
+        bytes,
+        (temporary) => openSync(temporary, ports.tempFlags, ports.tempMode),
+        ports.current,
+        ports.adopt,
+      )
+    },
+    close: () => {
+      ports.release()
+    },
+  }
+}
+/** Write every byte and flush: a short write is a refused write, never a partial one. */
+export const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
   let offset = 0
   while (offset < bytes.byteLength) {
     const count = writeSync(fd, bytes, offset, bytes.byteLength - offset)
@@ -148,6 +231,49 @@ const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
     offset += count
   }
   fsyncSync(fd)
+}
+
+/**
+Atomically replace an owner-only file: write the bytes to an exclusive
+temporary beside it, flush, rename over the path and flush the directory.
+The caller opens the temporary with its own flags and adopts the winning
+descriptor; any failure drops the temporary and keeps the old file. Both
+the POSIX files port and the Windows relay replace this way.
+*/
+export function replacePrivateFile(
+  path: string,
+  bytes: Uint8Array,
+  openTemporary: (temporary: string) => number,
+  current: () => number,
+  adopt: (fd: number) => void,
+): void {
+  current()
+  const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
+  const fd = openTemporary(temporary)
+  let isAdopted = false
+  try {
+    writePrivateBytes(fd, bytes)
+    const previous = current()
+    renameSync(temporary, path)
+    closeSync(previous)
+    adopt(fd)
+    isAdopted = true
+    // A read-only directory descriptor is all the flush needs, on every platform.
+    const directory = openSync(pathModule.dirname(path), constants.O_RDONLY)
+    try {
+      fsyncSync(directory)
+    } finally {
+      closeSync(directory)
+    }
+  } catch (error: unknown) {
+    if (!isAdopted) closeSync(fd)
+    try {
+      unlinkSync(temporary)
+    } catch {
+      /* Rename may have consumed this owned file. */
+    }
+    throw error
+  }
 }
 function privateWriter(path: string): VaultFileWriter {
   const flags =
@@ -189,45 +315,12 @@ function privateWriter(path: string): VaultFileWriter {
     return descriptor
   }
 
-  return {
-    append: (bytes) => {
-      writePrivateBytes(current(), bytes)
+  return privateFileWriter(path, {
+    current,
+    adopt: (fd) => {
+      descriptor = fd
     },
-    replace: (bytes) => {
-      current()
-      const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
-      const fd = openSync(
-        temporary,
-        constants.O_WRONLY |
-          constants.O_APPEND |
-          constants.O_CREAT |
-          constants.O_EXCL |
-          constants.O_NOFOLLOW,
-        ownerFile,
-      )
-      try {
-        writePrivateBytes(fd, bytes)
-        const previous = current()
-        renameSync(temporary, path)
-        closeSync(previous)
-        descriptor = fd
-        const directory = openSync(pathModule.dirname(path), constants.O_RDONLY)
-        try {
-          fsyncSync(directory)
-        } finally {
-          closeSync(directory)
-        }
-      } catch (error: unknown) {
-        if (descriptor !== fd) closeSync(fd)
-        try {
-          unlinkSync(temporary)
-        } catch {
-          /* Rename may have consumed this owned file. */
-        }
-        throw error
-      }
-    },
-    close: () => {
+    release: () => {
       if (descriptor === null) {
         return
       }
@@ -235,7 +328,14 @@ function privateWriter(path: string): VaultFileWriter {
       closeSync(descriptor)
       descriptor = null
     },
-  }
+    tempFlags:
+      constants.O_WRONLY |
+      constants.O_APPEND |
+      constants.O_CREAT |
+      constants.O_EXCL |
+      constants.O_NOFOLLOW,
+    tempMode: ownerFile,
+  })
 }
 
 /** Windows supplies native owner-DACL creation/verification; there is no POSIX-mode fallback. */
@@ -244,7 +344,11 @@ export interface VaultPrivateFilesPort {
   directory(path: string): Promise<void>
   read(path: string, maxBytes?: number): Promise<Buffer>
   replace(path: string, bytes: Uint8Array, authorize?: () => void): Promise<void>
-  claim(path: string, bytes: Uint8Array): Promise<() => Promise<void>>
+  claim(
+    path: string,
+    bytes: Uint8Array,
+    onReady?: () => void | Promise<void>,
+  ): Promise<() => Promise<void>>
 }
 export class UnixVaultPrivateFiles implements VaultPrivateFilesPort {
   constructor() {
@@ -262,7 +366,11 @@ export class UnixVaultPrivateFiles implements VaultPrivateFilesPort {
   async replace(path: string, bytes: Uint8Array, authorize?: () => void): Promise<void> {
     await writeVaultFile(path, bytes, authorize)
   }
-  async claim(path: string, bytes: Uint8Array): Promise<() => Promise<void>> {
-    return await vaultExclusiveFile(path, bytes)
+  async claim(
+    path: string,
+    bytes: Uint8Array,
+    onReady?: () => void | Promise<void>,
+  ): Promise<() => Promise<void>> {
+    return await vaultExclusiveFile(path, bytes, onReady)
   }
 }

@@ -15,7 +15,15 @@ export const BUNDLES = {
 }
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
+  'src/core/providers/subscriptions/chatgptHostId.ts',
   'src/core/providers/subscriptions/registry.ts',
+  // D207 (2026-10-17): the Copilot adapter's failure rides with the
+  // subscription dispatch, like ChatGptSignInError rides in chatgpt.ts. The
+  // host adapter reads it through subscriptionsEntry so both bundles share
+  // the subscriptions bundle's copy (one `instanceof` across the boundary).
+  'src/core/providers/subscriptions/copilotFailure.ts',
+  // The plan catalogue's entry parse, read by the registry beside it.
+  'src/core/providers/subscriptions/chatgptPlanFacts.ts',
 ]
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
@@ -75,7 +83,7 @@ export const SCHEDULES_CORE = [
   'events/registry.ts',
   'events/signals.ts',
 ]
-export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
+export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts', 'repairAttempt.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
   'foreignHooksEntry.ts',
@@ -107,10 +115,22 @@ export const MODEL_API_TOOLS_ONLY = [
   'modelApiToolsEntry.ts',
   'modelCallHooks.ts',
   'argumentPreview.ts',
+  'observationPacking.ts',
 ]
 // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
 // reads addressFamily for every request's SNI.
 export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fetchFailure.ts']
+// The verify loop's session side (M68): the loop, its ledger and the
+// diagnostics history, loaded on the first turn that verifies tool edits.
+// checkCommands.ts, codeFiles.ts and workspaceEdits.ts stay in
+// dist/modelApi.js: activation reads them too, and the synchronous tool
+// definitions need runChecksDefinition from verifyTools.ts.
+export const MODEL_API_VERIFY_ONLY = ['modelApiVerifyEntry.ts', 'verifyLedger.ts', 'verifyLoop.ts']
+export const MODEL_API_VERIFY_CORE = ['src/core/verify/diagnosticsReport.ts']
+// The image run-path (M34, M44): the call checks, the purchase and the
+// paid-use naming, loaded on the first image call. imageToolDefinitions.ts
+// stays with the backend: the tool list names the tools on every turn.
+export const MODEL_API_IMAGE_ONLY = ['modelApiImageEntry.ts', 'imageGeneration.ts']
 // INT0170: M107 W2's machine resource journal is shared through its own bundle;
 // the governor (recorder) and usage service (reader) load it instead of copies.
 const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
@@ -180,6 +200,51 @@ export const DEFERRED = [
     files: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
   },
   {
+    // M105 W: one production media service per session (D85.13). Neither
+    // activation, the Model API bundle nor ACP carries its closure.
+    output: 'dist/productionMedia.js',
+    metafile: 'dist/meta/productionMedia.json',
+    files: [
+      'src/host/backend/productionMediaEntry.ts',
+      'src/host/backend/sessionUploads.ts',
+      'src/core/media/productionMedia.ts',
+      'src/core/media/replayMedia.ts',
+      'src/core/media/mediaCost.ts',
+      'src/core/media/mediaCalibration.ts',
+      'src/core/media/metaMediaCapabilities.ts',
+      'src/core/media/responsesMediaCodec.ts',
+      'src/core/media/uploadLedger.ts',
+      'src/core/media/uploadLedgerStorage.ts',
+      // RVMEDIAV3 3: the conversion root's lease and crash reclaim.
+      'src/runtime/privateRootLease.ts',
+    ],
+  },
+  {
+    // M105 lane V seam 3B: Muse Voice's batch transcription, its paid seams
+    // and the trusted converter, loaded on the first turn with attached sound.
+    output: 'dist/productionAudio.js',
+    metafile: 'dist/meta/productionAudio.json',
+    files: [
+      'src/host/backend/productionAudioEntry.ts',
+      'src/core/voice/productionAudio.ts',
+      'src/core/voice/voiceBatchSeams.ts',
+      'src/core/voice/transcribeBatchHttp.ts',
+      'src/core/voice/audioMessagePreparation.ts',
+      'src/runtime/converterTrust.ts',
+    ],
+  },
+  {
+    // M105 lane V seam 5: the runtime's ACP and exec media port and its
+    // attached-media registry, loaded on the first media prompt.
+    output: 'dist/runtimeMedia.js',
+    metafile: 'dist/meta/runtimeMedia.json',
+    files: [
+      'src/runtime/runtimeMediaEntry.ts',
+      'src/acp/mediaPort.ts',
+      'src/runtime/exec/filesTransport.ts',
+    ],
+  },
+  {
     output: 'dist/modelApiMcp.js',
     metafile: 'dist/meta/modelApiMcp.json',
     files: [
@@ -199,6 +264,7 @@ export const DEFERRED = [
       'src/shared/redact.ts',
       'src/shared/vault.ts',
       'src/shared/vaultProtocol.ts',
+      'src/shared/vaultStatus.ts',
       'src/shared/vaultPanel.ts',
       'src/core/vault/taint.ts',
       'src/core/vault/exec/schema.ts',
@@ -266,12 +332,23 @@ export const DEFERRED = [
       'src/core/usage/journalStore.ts',
       'src/core/usage/aggregate.ts',
       'src/core/usage/usageText.ts',
+      'src/core/backends/musecode/usageDeltas.ts',
     ],
   },
   {
     output: 'dist/usageCompanion.js',
     metafile: 'dist/meta/usageCompanion.json',
     files: ['src/runtime/usage/usageCompanionEntry.ts', 'src/runtime/companion/server.ts'],
+  },
+  {
+    output: 'dist/voiceCompanion.js',
+    metafile: 'dist/meta/voiceCompanion.json',
+    files: [
+      'src/runtime/companion/voiceEntry.ts',
+      'src/runtime/companion/voiceHandler.ts',
+      'src/runtime/companion/voicePaid.ts',
+      'src/runtime/companion/voiceSystem.ts',
+    ],
   },
   {
     output: 'dist/usagePanel.js',
@@ -298,6 +375,22 @@ export const DEFERRED = [
       ...SCHEDULES_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
       ...SCHEDULES_RUNTIME.map((name) => `${RUNTIME_SCHEDULES_DIR}/${name}`),
       ...SCHEDULES_CORE.map((name) => `${CORE_SCHEDULES_DIR}/${name}`),
+    ],
+  },
+  {
+    // SCHEDULEDELIVERY: the schedules' editor-delivery binding, loaded by
+    // dist/schedules.js on the first delivery. Only the entry and the
+    // host-owned binding are pinned here; the shared grant, unattended-run
+    // and shell-syntax machinery it also carries stays unlisted (only files
+    // owned by the schedules feature are pinned above, and modelApi.js
+    // carries those shared sources itself).
+    output: 'dist/scheduleDelivery.js',
+    metafile: 'dist/meta/scheduleDelivery.json',
+    use: 'the first schedule delivery',
+    files: [
+      'src/host/schedules/scheduleDeliveryEntry.ts',
+      'src/host/schedules/deliveryBinding.ts',
+      'src/host/schedules/backgroundTarget.ts',
     ],
   },
   {
@@ -352,6 +445,19 @@ export const DEFERRED = [
       ...MODEL_API_TOOLS_WEB,
     ],
   },
+  {
+    output: 'dist/modelApiVerify.js',
+    metafile: 'dist/meta/modelApiVerify.json',
+    files: [
+      ...MODEL_API_VERIFY_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...MODEL_API_VERIFY_CORE,
+    ],
+  },
+  {
+    output: 'dist/legalFix.js',
+    metafile: 'dist/meta/legalFix.json',
+    files: ['src/core/legal/legalFixEntry.ts', 'src/core/legal/headerFix.ts'],
+  },
 ]
 
 // POSTSPAWN: the governed launcher's own modules, required by the admission
@@ -360,6 +466,7 @@ export const RESOURCE_PROCESS_ONLY = [
   'src/core/resources/resourceProcessEntry.ts',
   'src/core/resources/process.ts',
   'src/core/resources/commands.ts',
+  'src/host/backend/mediaJobRun.ts',
 ]
 // The MCP job launch, which the launcher shares with the window's activation.
 export const RESOURCE_PROCESS_SHARED = ['src/host/backend/mcpJobLaunch.ts']
@@ -429,6 +536,23 @@ export const ON_FIRST_USE = [
       'src/core/vault/scrub.ts',
     ],
   },
+  // PR206: the Muse Code backend's own bundle, required the first time that
+  // backend starts. Only the loader (museCodeBundle.ts) stays at activation;
+  // the Model API backend, the ACP agent and the team bundles keep whatever
+  // copies of these they carry today, so the parent is activation alone.
+  {
+    output: 'dist/museCode.js',
+    metafile: 'dist/meta/museCode.json',
+    use: 'the first Muse Code backend start',
+    files: [
+      'src/host/backend/museCodeEntry.ts',
+      'src/core/backends/musecode/MuseCodeHost.ts',
+      'src/core/backends/musecode/mapNotification.ts',
+      'src/core/backends/musecode/sessionRecords.ts',
+      'src/core/backends/musecode/promptLedger.ts',
+      'src/core/backends/musecode/feedback.ts',
+    ],
+  },
   {
     output: 'dist/legalScan.js',
     metafile: 'dist/meta/legalScan.json',
@@ -450,7 +574,6 @@ export const ON_FIRST_USE = [
       'src/core/legal/ecosystems/toml.ts',
       'src/core/legal/entry.ts',
       'src/core/legal/files.ts',
-      'src/core/legal/headerFix.ts',
       'src/core/legal/headers.ts',
       'src/core/legal/markdown.ts',
       'src/core/legal/projectLicense.ts',
@@ -505,6 +628,23 @@ export const ON_FIRST_USE = [
     files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
   },
   {
+    output: 'dist/reportInputs.js',
+    metafile: 'dist/meta/reportInputs.json',
+    use: 'the first report input read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/runtime/reporting/reportInputsEntry.ts', 'src/runtime/reporting/reportInputs.ts'],
+  },
+  {
+    output: 'dist/playbookSchedulesInputs.js',
+    metafile: 'dist/meta/playbookSchedulesInputs.json',
+    use: 'the first playbook or schedules report read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/playbookSchedulesInputsEntry.ts',
+      'src/runtime/reporting/playbookSchedulesInputs.ts',
+    ],
+  },
+  {
     output: 'dist/media.js',
     metafile: 'dist/meta/media.json',
     use: 'the first media attachment or trusted media read',
@@ -524,6 +664,13 @@ export const ON_FIRST_USE = [
     use: 'the first backend question deferral',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
     files: ['src/core/questions/deferralEntry.ts'],
+  },
+  {
+    output: 'dist/approvalModes.js',
+    metafile: 'dist/meta/approvalModes.json',
+    use: 'the first approval-mode change, schedule admission or restore',
+    parents: [BUNDLES.activation, BUNDLES.acp],
+    files: ['src/core/backends/musecode/approvalModesEntry.ts'],
   },
   {
     output: 'dist/runtimeQuestions.js',
@@ -568,8 +715,38 @@ export const ON_FIRST_USE = [
     files: [
       'src/host/conversation/conversationEntry.ts',
       'src/host/conversation/conversationController.ts',
+    ],
+  },
+  // CONVBUDGET: the conversation's session-transfer flows (the export, the
+  // transfer parse, the import refusal and the message count), required on
+  // the first export, import or share-file preview; the first chat surface
+  // keeps no transfer implementation.
+  {
+    output: 'dist/conversationTransfer.js',
+    metafile: 'dist/meta/conversationTransfer.json',
+    use: 'the first session export, import or share-file preview',
+    parents: [
+      BUNDLES.activation,
+      { output: 'dist/conversation.js', metafile: 'dist/meta/conversation.json' },
+    ],
+    files: [
+      'src/host/conversation/conversationTransferEntry.ts',
+      'src/host/conversation/exportConversation.ts',
       'src/host/conversation/sessionImport.ts',
+      'src/core/export/sessionTransfer.ts',
       'src/core/export/transcriptMarkdown.ts',
+    ],
+  },
+  {
+    // SCHEDULESURFACES: the conversation's schedule surfaces, loaded by
+    // dist/conversation.js and dist/extension.js on the first schedule
+    // delivery, panel command or scheduled question.
+    output: 'dist/scheduleSurfaces.js',
+    metafile: 'dist/meta/scheduleSurfaces.json',
+    use: 'the first schedule surface',
+    files: [
+      'src/host/conversation/scheduleSurfacesEntry.ts',
+      'src/host/conversation/scheduleSurfaces.ts',
     ],
   },
   {
@@ -645,6 +822,34 @@ export const ON_FIRST_USE = [
       'src/core/voice/recorderHelper.ts',
     ],
   },
+  // Linux's offline voice driver (M9, D140), split out of dist/voice.js:
+  // the driver glue and its helper/model acquisition load only on the first
+  // Linux recording, keeping voice.js inside its cap.
+  {
+    output: 'dist/voiceLinux.js',
+    metafile: 'dist/meta/voiceLinux.json',
+    use: 'the first Linux recording',
+    files: [
+      'src/host/voice/voiceLinuxEntry.ts',
+      'src/core/voice/linuxDictation.ts',
+      'src/core/voice/linuxHelper.ts',
+      'src/core/voice/linuxModel.ts',
+    ],
+  },
+  // Voice dictation's setups (M9, M35): the window's dictation and Muse
+  // Voice setups with the helper probes, required at their existing
+  // construction points, keeping activation's lane-K growth inside its cap.
+  {
+    output: 'dist/dictation.js',
+    metafile: 'dist/meta/dictation.json',
+    use: 'the window dictation setup construction',
+    files: [
+      'src/host/voice/dictationEntry.ts',
+      'src/host/voice/dictationHost.ts',
+      'src/host/voice/voiceBundle.ts',
+      'src/core/voice/helperLocation.ts',
+    ],
+  },
   // The window's web fetch (M69), split out on 2026-10-04: the Model API
   // backend keeps its own URL checks, the ACP agent its own fetch.
   {
@@ -691,16 +896,36 @@ export const ON_FIRST_USE = [
       'src/host/providers/copilotClient.ts',
     ],
   },
-  // The report dialog (M93, PLAN.md D72), split out from the start.
+  // ACTIVATIONROOM: the CLI-backed and workspace command flows (the MCP
+  // servers and hooks pickers, the skills flows, the worktree flows, the
+  // memory flow and the Plans picker), required on the first of those
+  // commands; activation keeps no command implementation.
+  {
+    output: 'dist/commands.js',
+    metafile: 'dist/meta/commands.json',
+    use: 'the first CLI-backed or workspace command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/host/commands/commandsEntry.ts',
+      'src/host/commands/museConfigCommands.ts',
+      'src/host/commands/skillsCommands.ts',
+      'src/host/commands/worktreeCommands.ts',
+      'src/host/commands/memoryCommands.ts',
+      'src/host/commands/planCommands.ts',
+    ],
+  },
+  // The report dialog (M93, PLAN.md D72), split out from the start, and the
+  // Diagnostics command's report text (D14), loaded on that command's first run.
   {
     output: 'dist/report.js',
     metafile: 'dist/meta/report.json',
-    use: 'the first report dialog',
+    use: 'the first report dialog or Diagnostics command',
     files: [
       'src/host/support/reportEntry.ts',
       'src/host/conversation/reportProblemHandler.ts',
       'src/host/support/reportProblem.ts',
       'src/core/support/problemReport.ts',
+      'src/core/support/report.ts',
     ],
   },
   // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
@@ -724,6 +949,20 @@ export const ON_FIRST_USE = [
       'src/core/estimator/provision/start.ts',
     ],
   },
+  // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97): the
+  // host, the CLI and the ACP agent require it the first time an estimate
+  // needs a plan snapshot. It carries M113's plan reader beside the shared
+  // core adapter; the reader stays listed under the reporting bundle too.
+  {
+    output: 'dist/planSnapshot.js',
+    metafile: 'dist/meta/planSnapshot.json',
+    use: 'the first estimate needing a plan snapshot',
+    files: [
+      'src/host/estimator/planSnapshotEntry.ts',
+      'src/host/estimator/planSnapshotSource.ts',
+      'src/core/estimator/planSnapshot.ts',
+    ],
+  },
   // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
   // only the front that answers and queues; the journal, its policy and the
   // frame mapping load just after activation or at the first failure.
@@ -739,6 +978,16 @@ export const ON_FIRST_USE = [
       'src/core/support/journalEvents.ts',
     ],
   },
+  // The credential lease (M95 D74, PLAN.md D6): activation and the CLIs
+  // keep only the callers; the lease and its journal load on the first
+  // guarded credential write or Connect recovery.
+  {
+    output: 'dist/credentialLease.js',
+    metafile: 'dist/meta/credentialLease.json',
+    use: 'the first guarded credential write or Connect recovery',
+    parents: [BUNDLES.activation, BUNDLES.acp],
+    files: ['src/core/credentialLeaseEntry.ts', 'src/core/credentialLease.ts'],
+  },
   // What's New (M99, D79): activation keeps the update check, the claim and
   // the loader; the page is required on the first page or notice.
   {
@@ -752,6 +1001,47 @@ export const ON_FIRST_USE = [
       'src/core/whatsNew/whatsNewContent.ts',
       'src/shared/whatsNewMessages.ts',
     ],
+  },
+  // The sign-in gate (CIFIX161B, PLAN.md D6): activation keeps only the
+  // bundle loader; AuthService and the three-valued credential
+  // read load the first time a credential, money or consent path needs
+  // them.
+  {
+    output: 'dist/auth.js',
+    metafile: 'dist/meta/auth.json',
+    use: 'the first credential, money or consent read',
+    files: [
+      'src/host/auth/authEntry.ts',
+      'src/host/auth/authService.ts',
+      'src/host/auth/credentialRead.ts',
+    ],
+  },
+  // The paid features (CIFIX161B, PLAN.md D6): activation keeps only the
+  // bundle loader; the gate, consent, usage and quote authority
+  // load the first time a paid path needs them.
+  {
+    output: 'dist/paid.js',
+    metafile: 'dist/meta/paid.json',
+    use: 'the first paid consent, gate or usage read',
+    files: [
+      'src/host/paid/paidEntry.ts',
+      'src/host/paid/paidHost.ts',
+      'src/core/paid/paidConsent.ts',
+      'src/core/paid/paidFeatures.ts',
+      'src/core/paid/paidAuthority.ts',
+    ],
+  },
+  // The image run-path (M34, M44, PLAN.md D6): the call checks, the
+  // purchase and the paid-use naming, loaded on the first image call. The
+  // backend entry keeps the tool list and requires this entry for the run
+  // itself; activation keeps its own copy for the `ide` image tools (M44),
+  // whose MODEL_TEXT keys it reads, so only the backend entry is its parent.
+  {
+    output: 'dist/modelApiImage.js',
+    metafile: 'dist/meta/modelApiImage.json',
+    use: 'the first image call',
+    parents: [BUNDLES.modelApi],
+    files: MODEL_API_IMAGE_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
 ]
 /** The same parent exclusions and destination requirements used by the CLI. */
@@ -883,6 +1173,16 @@ export function checkDeferredBundles(inputsOf) {
         ) &&
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
+        ) &&
+        // C-M113-2: the session and usage inputs read M102's journal
+        // through its store, whose static record import carries the card.
+        // Reporting never prices; the bytes ride the journal machinery.
+        !(
+          source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/reportInputs.js'
+        ) &&
+        !(
+          source === 'src/core/providers/keyInspection.ts' &&
+          (bundle.output === 'dist/modelsPanel.js' || bundle.output === 'dist/runtimeAccounts.js')
         ) &&
         !(
           bundle.output === 'dist/runtimeAccounts.js' &&
@@ -1031,23 +1331,45 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/core/backends/musecode/approvalModesEntry.ts'), 'dist/approvalModes.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
   [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
+  [
+    path.resolve('src/host/conversation/conversationTransferEntry.ts'),
+    'dist/conversationTransfer.js',
+  ],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
+  [path.resolve('src/core/credentialLeaseEntry.ts'), 'dist/credentialLease.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
+  [path.resolve('src/host/schedules/scheduleDeliveryEntry.ts'), 'dist/scheduleDelivery.js'],
+  [path.resolve('src/host/conversation/scheduleSurfacesEntry.ts'), 'dist/scheduleSurfaces.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
+  [path.resolve('src/host/backend/productionMediaEntry.ts'), 'dist/productionMedia.js'],
+  [path.resolve('src/host/backend/productionAudioEntry.ts'), 'dist/productionAudio.js'],
+  [path.resolve('src/runtime/runtimeMediaEntry.ts'), 'dist/runtimeMedia.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiImageEntry.ts'), 'dist/modelApiImage.js'],
+  [path.resolve('src/core/legal/legalFixEntry.ts'), 'dist/legalFix.js'],
+  [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
+  [path.resolve('src/host/auth/authEntry.ts'), 'dist/auth.js'],
+  [path.resolve('src/host/paid/paidEntry.ts'), 'dist/paid.js'],
+  [path.resolve('src/runtime/reporting/reportInputsEntry.ts'), 'dist/reportInputs.js'],
+  [
+    path.resolve('src/runtime/reporting/playbookSchedulesInputsEntry.ts'),
+    'dist/playbookSchedulesInputs.js',
+  ],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -1055,6 +1377,19 @@ export const deferredCohort = {
   setup(build) {
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
+    // The refusal classifier rides the lazy provider bundle: the Model API
+    // bundle reads it across the boundary only on an error, keeping its pin.
+    // Static imports keep bundling it locally everywhere else.
+    build.onResolve({ filter: /\/refusal(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        args.kind !== 'dynamic-import' ||
+        source !== path.resolve('src/core/refusal.ts') ||
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/modelApi.js')
+      )
+        return
+      return { path: './configuredProviders.js', external: true }
+    })
     // Lane PROVERR's typed refusal rides the same way: one copy in the
     // backend bundle, required from it by providers, configured and report.
     build.onResolve(
@@ -1076,7 +1411,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -1128,25 +1463,30 @@ export const sharedWire = {
 // Admission's state and the lazy launch shims (launcher.ts) ship once, in
 // dist/resourceAdmission.js (admissionEntry.ts re-exports both).
 const RESOURCE_ADMISSION_SOURCES = new Set(
-  ['src/core/resources/admission.ts', 'src/core/resources/launcher.ts'].map((file) =>
-    path.resolve(file),
-  ),
+  [
+    'src/core/resources/admission.ts',
+    'src/core/resources/launcher.ts',
+    'src/core/locks/processOwner.ts',
+  ].map((file) => path.resolve(file)),
 )
 export const sharedResourceAdmission = {
   name: 'shared-resource-admission',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)(?:admission|launcher)(?:\.[jt]s)?$/ }, (args) => {
-      if (
-        args.kind === 'entry-point' ||
-        path.resolve(build.initialOptions.outfile ?? '') ===
-          path.resolve('dist/resourceAdmission.js')
-      )
-        return
-      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return RESOURCE_ADMISSION_SOURCES.has(source)
-        ? { path: './resourceAdmission.js', external: true }
-        : undefined
-    })
+    build.onResolve(
+      { filter: /(?:^|\/)(?:admission|launcher|processOwner)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (
+          args.kind === 'entry-point' ||
+          path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/resourceAdmission.js')
+        )
+          return
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        return RESOURCE_ADMISSION_SOURCES.has(source)
+          ? { path: './resourceAdmission.js', external: true }
+          : undefined
+      },
+    )
   },
 }
 
@@ -1203,6 +1543,7 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   // INT0170: the Windows path rules and their words, once per process.
   'src/core/windowsPathSpelling.ts',
   'src/core/backends/modelapi/schemas.ts',
+  'src/shared/usageJournal.ts',
   'src/shared/teamConversation.ts',
   'src/shared/paidBoundary.ts',
   'src/shared/usd.ts',
@@ -1211,6 +1552,31 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   'src/shared/legal.ts',
   'src/core/backends/modelapi/legalScanTool.ts',
 ]
+
+// The guarded process-start layer (PLAN.md D24), once per process: every
+// Node bundle that starts a program or builds a child environment reads it
+// from dist/execGuard.js; the split check fails a bundle that loads it and
+// still carries it.
+export const EXEC_GUARD_SOURCE = 'src/core/execGuard.ts'
+export const EXEC_GUARD_BUNDLE = {
+  output: 'dist/execGuard.js',
+  metafile: 'dist/meta/execGuard.json',
+}
+/** @type {import('esbuild').Plugin} */
+export const sharedExecGuard = {
+  name: 'shared-exec-guard',
+  setup(build) {
+    build.onResolve({ filter: /\/execGuard(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      if (
+        source !== path.resolve(EXEC_GUARD_SOURCE) ||
+        path.resolve(build.initialOptions.outfile ?? '') === path.resolve(EXEC_GUARD_BUNDLE.output)
+      )
+        return
+      return { path: './execGuard.js', external: true }
+    })
+  },
+}
 
 // Share captured Model API validators, native path identity and team admission across Node
 // consumers; browser validators retain their original inline implementation.
@@ -1221,10 +1587,16 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        // The store owner depends on wire; keep it outside the boundary wire loads.
+        if (source === path.resolve('src/core/backends/modelapi/sessionStore.ts'))
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/modelApiSessions.js')
+            ? undefined
+            : { path: './modelApiSessions.js', external: true }
         // INT0170: the resource journal, once for the window governor and the usage service.
         if (source === path.resolve(RESOURCE_JOURNAL_SOURCE))
           return path.resolve(build.initialOptions.outfile ?? '') ===
@@ -1245,6 +1617,7 @@ export const sharedModelApiBoundaries = {
             'src/shared/redact.ts',
             'src/shared/vault.ts',
             'src/shared/vaultProtocol.ts',
+            'src/shared/vaultStatus.ts',
             'src/shared/vaultPanel.ts',
             'src/core/vault/taint.ts',
             'src/core/vault/exec/schema.ts',
@@ -1256,7 +1629,9 @@ export const sharedModelApiBoundaries = {
             ? undefined
             : { path: './vaultBoundaries.js', external: true }
         }
-        return MODEL_API_BOUNDARY_SOURCES.some((file) => source === path.resolve(file))
+        return path.resolve(build.initialOptions.outfile ?? '') !==
+          path.resolve('dist/modelApiBoundaries.js') &&
+          MODEL_API_BOUNDARY_SOURCES.some((file) => source === path.resolve(file))
           ? { path: './modelApiBoundaries.js', external: true }
           : undefined
       },
@@ -1271,5 +1646,49 @@ export const nodeReferenceData = {
     build.onResolve({ filter: /\/reference\.generated$/ }, () => ({
       path: path.resolve('src/runtime/reference.node.generated.ts'),
     }))
+  },
+}
+
+/** @type {import('esbuild').Plugin} */
+// Keep the immutable core store in one lazy sibling, including its error identity.
+export const sharedVaultStore = {
+  name: 'shared-vault-store',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:store|crypto|ports)(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return [
+        'src/core/vault/store.ts',
+        'src/core/vault/crypto.ts',
+        'src/core/vault/broker/ports.ts',
+      ].some((file) => source === path.resolve(file))
+        ? { path: './vaultStore.js', external: true }
+        : undefined
+    })
+  },
+}
+
+/** @type {import('esbuild').Plugin} */
+export const sharedVaultPosix = {
+  name: 'shared-vault-posix',
+  setup(build) {
+    build.onResolve({ filter: /\/posixClientPlatform(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/runtime/vault/posixClientPlatform.ts')
+        ? { path: './vaultPosix.js', external: true }
+        : undefined,
+    )
+  },
+}
+
+/** @type {import('esbuild').Plugin} */
+export const sharedVaultWindows = {
+  name: 'shared-vault-windows',
+  setup(build) {
+    build.onResolve({ filter: /\/windowsClientPlatform(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/runtime/vault/windowsClientPlatform.ts')
+        ? { path: './vaultWindows.js', external: true }
+        : undefined,
+    )
   },
 }

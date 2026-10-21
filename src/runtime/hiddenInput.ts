@@ -4,6 +4,7 @@
 // goes nowhere but the caller.
 
 import type { Readable, Writable } from 'node:stream'
+import { UI_TEXT } from '../shared/constants'
 
 /** The slice of `process.stdin` the reader uses; a TTY stream has `setRawMode`. */
 export interface InputStream extends Readable {
@@ -15,19 +16,68 @@ const ENTER = new Set(['\r', '\n'])
 const BACKSPACE = new Set(['\u{7F}', '\b'])
 const INTERRUPT = '\u{3}'
 const END_OF_INPUT = '\u{4}'
-const LINE_BREAK = /\r?\n/
+
+/**
+Piped standard input was not UTF-8 text, so no key line could be read
+from it. The message is the shared not-text sentence, read when thrown;
+callers match it with {@link isNonTextStdin} (never `instanceof`, which
+breaks across the split bundles that carry this module).
+*/
+export class NonTextStdinError extends Error {
+  readonly code = 'stdin-not-text'
+  constructor() {
+    super(UI_TEXT.providerKeyNotText)
+    this.name = 'NonTextStdinError'
+  }
+}
+
+/** Whether a secret read failed because piped stdin was not UTF-8 text. */
+export function isNonTextStdin(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'stdin-not-text'
+}
 
 function readPipedLine(input: Readable): Promise<string> {
   return new Promise((resolve, reject) => {
-    let text = ''
-    input.setEncoding('utf8')
-    input.on('data', (chunk: string) => {
-      text += chunk
+    const pieces: Buffer[] = []
+    const failure = (error: unknown) => {
+      for (const piece of pieces) piece.fill(0)
+      pieces.length = 0
+      reject(error instanceof Error ? error : new Error(UI_TEXT.execInterrupted, { cause: error }))
+    }
+    input.on('data', (chunk: unknown) => {
+      if (typeof chunk === 'string') {
+        pieces.push(Buffer.from(chunk, 'utf8'))
+      } else if (Buffer.isBuffer(chunk)) {
+        pieces.push(chunk)
+      } else {
+        // Anything but bytes or text is not a key line either.
+        failure(new NonTextStdinError())
+      }
     })
     input.once('end', () => {
-      resolve(text.split(LINE_BREAK, 1)[0] ?? '')
+      const bytes = Buffer.concat(pieces)
+      for (const piece of pieces) piece.fill(0)
+      pieces.length = 0
+      // This reader's contract is the first line, so only the bytes up to
+      // the first LF are validated and decoded; later malformed bytes are
+      // the next reader's problem, never this key's (the exec key reader
+      // already stops at the first LF the same way).
+      const end = bytes.indexOf('\n')
+      const first = end === -1 ? bytes : bytes.subarray(0, end)
+      let line: string
+      try {
+        line = new TextDecoder('utf-8', { fatal: true }).decode(first)
+      } catch {
+        reject(new NonTextStdinError())
+        return
+      } finally {
+        bytes.fill(0)
+      }
+      // A CR here ended a CRLF line; a trailing CR with no LF stays part
+      // of the value, exactly as the whole-stream decode left it.
+      resolve(end !== -1 && line.endsWith('\r') ? line.slice(0, -1) : line)
     })
-    input.once('error', reject)
+    input.once('error', failure)
   })
 }
 

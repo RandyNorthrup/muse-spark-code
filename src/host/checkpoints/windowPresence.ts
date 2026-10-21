@@ -39,6 +39,7 @@ const PRESENCE_SUFFIX = '.json'
 const ASIDE_SUFFIX = '.aside'
 const ALREADY_THERE = 'EEXIST'
 const NO_SUCH_PROCESS = 'ESRCH'
+const NOT_PERMITTED = 'EPERM'
 const UNREADABLE_TURN = 'unreadable-presence'
 
 const presenceSchema = z.object({
@@ -48,29 +49,30 @@ const presenceSchema = z.object({
 })
 type Presence = z.infer<typeof presenceSchema>
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
-}
-
 /** The text as JSON; undefined when it is not JSON. */
 function parsedJson(text: string): unknown {
   try {
     return JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to drop.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
     return undefined
   }
 }
 
 /** Runs `task` once `previous` settled, whichever way: that write failed for its own caller. */
 async function afterSettled(previous: Promise<unknown>, task: () => Promise<void>): Promise<void> {
-  try {
-    await previous
-  } catch {
-    // This write carries the latest state regardless.
-  }
+  // This write carries the latest state regardless.
+  await Promise.allSettled([previous])
   await task()
+}
+
+/** Whether the failure names the given errno code. */
+function isErrno(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code
 }
 
 /** Whether a process with this id exists (one we may not signal still exists). */
@@ -79,7 +81,15 @@ export function isProcessAlive(pid: number): boolean {
     process.kill(pid, 0)
     return true
   } catch (error: unknown) {
-    return errorCode(error) !== NO_SUCH_PROCESS
+    // Only "no such process" says gone; "not permitted" says it exists.
+    // Anything else is not this probe's to answer.
+    if (isErrno(error, NO_SUCH_PROCESS)) {
+      return false
+    }
+    if (isErrno(error, NOT_PERMITTED)) {
+      return true
+    }
+    throw error
   }
 }
 
@@ -203,10 +213,10 @@ export class WindowPresence {
   }
 
   /**
-   * Removes a gone window's presence file, unless it was written again after
-   * it was read: it is moved aside under a name no other move uses, read
-   * again, and put back when that window beat meanwhile. True when removed.
-   */
+  Removes a gone window's presence file, unless it was written again after
+  it was read: it is moved aside under a name no other move uses, read
+  again, and put back when that window beat meanwhile. True when removed.
+  */
   private async removeIfGone(filePath: string): Promise<boolean> {
     const aside = `${filePath}.${randomUUID()}${ASIDE_SUFFIX}`
     try {
@@ -223,7 +233,8 @@ export class WindowPresence {
       try {
         await copyFile(aside, filePath, fsConstants.COPYFILE_EXCL)
       } catch (error: unknown) {
-        if (errorCode(error) !== ALREADY_THERE) {
+        // The window put its file back meanwhile: it beat us, and stays.
+        if (!isErrno(error, ALREADY_THERE)) {
           throw error
         }
       }
@@ -233,9 +244,9 @@ export class WindowPresence {
   }
 
   /**
-   * Publishes this window as present with these turns running (no lock:
-   * only this window writes its file). Resolves once the file says so.
-   */
+  Publishes this window as present with these turns running (no lock:
+  only this window writes its file). Resolves once the file says so.
+  */
   public async publish(running: readonly string[]): Promise<void> {
     this.isPresent = true
     this.running = [...running]
@@ -243,10 +254,10 @@ export class WindowPresence {
   }
 
   /**
-   * The heartbeat: the presence file is written again from memory, so a
-   * file another window removed (thinking this one gone) or a failed write
-   * heals within one beat.
-   */
+  The heartbeat: the presence file is written again from memory, so a
+  file another window removed (thinking this one gone) or a failed write
+  heals within one beat.
+  */
   public async beat(): Promise<void> {
     if (this.isPresent) {
       await this.writeInTurn()
@@ -254,11 +265,11 @@ export class WindowPresence {
   }
 
   /**
-   * The windows open on this store and the turns running in each, this one
-   * included. The presence files of windows that are gone are removed, but
-   * only while no 0.10.0 window is live: a file a window of this version
-   * left behind for it keeps it fenced.
-   */
+  The windows open on this store and the turns running in each, this one
+  included. The presence files of windows that are gone are removed, but
+  only while no 0.10.0 window is live: a file a window of this version
+  left behind for it keeps it fenced.
+  */
   public async liveWindows(): Promise<ReadonlyMap<string, readonly string[]>> {
     const live = new Map<string, readonly string[]>([[this.deps.instance, this.running]])
     let names: string[]
@@ -306,12 +317,12 @@ export class WindowPresence {
   }
 
   /**
-   * The window is closing: its presence goes at once, and no write brings it
-   * back. It stays when this window may still have work under way, and when
-   * a 0.10.0 window was seen since this one opened (that window stays fenced
-   * until it reloads; a later window of this version removes the file once
-   * no 0.10.0 window is live).
-   */
+  The window is closing: its presence goes at once, and no write brings it
+  back. It stays when this window may still have work under way, and when
+  a 0.10.0 window was seen since this one opened (that window stays fenced
+  until it reloads; a later window of this version removes the file once
+  no 0.10.0 window is live).
+  */
   public leave(): void {
     if (
       !this.isPresent ||

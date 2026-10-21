@@ -198,7 +198,7 @@ export class ResourceActuators {
   }
 
   /** After Stop or natural completion, release saved handles only with C's complete-tree proof.
-   * Closing handles changes no OS policy; a vanished/unknown registry reading is not this proof. */
+  Closing handles changes no OS policy; a vanished/unknown registry reading is not this proof. */
   releaseCompleted(
     input: ResourceTicket,
     completion: ResourceTreeCompletionPort,

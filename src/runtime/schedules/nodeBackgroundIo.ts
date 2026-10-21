@@ -1,14 +1,20 @@
-import { nonnegativeUsdSchema } from '../../shared/usdSchema'
-import { type ChildProcess, type SpawnOptions } from 'node:child_process'
-import { spawnResourceProcess, execResourceFile } from '../../core/resources/launcher'
-import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
-import { homedir } from 'node:os'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { storeErrorCode } from '../../host/backend/storeErrors'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
+
+/** A spawned helper that ran and exited carries its own stdio: a numeric
+code with string stdio is the expected completed-run shape, not a crash. */
+const isExecFailure = (error: unknown): error is { code: number; stdout: string; stderr: string } =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  typeof error.code === 'number' &&
+  'stdout' in error &&
+  typeof error.stdout === 'string' &&
+  'stderr' in error &&
+  typeof error.stderr === 'string'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_STORAGE_FILE_MODE,
@@ -19,7 +25,6 @@ import {
   SCHEDULE_NATIVE_MAX_OUTPUT_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { agentDataFolder } from '../dataFolder'
 import {
   unsafeScheduleLauncher,
   backgroundDefinitionPaths,
@@ -30,6 +35,16 @@ import {
 } from './registration'
 import type { BackgroundFilePort, BackgroundProcessResult } from './nativeBackground'
 import type { TrustedPathVerifier } from '../trustedPathPort'
+import { type GuardedChildEnv } from '../../core/executables'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../core/execGuard'
+import { nonnegativeUsdSchema } from '../../shared/usdSchema'
+import { type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { realpathSync } from 'node:fs'
+import { spawnResourceProcess, execResourceFile } from '../../core/resources/launcher'
+import { createHash, randomUUID } from 'node:crypto'
+import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { agentDataFolder } from '../dataFolder'
 import { windowsTrustedPathVerifier } from '../windowsTrustedPath'
 import { effectiveBackgroundDefinition, scheduleWindowsOwner } from './effectiveDefinition'
 
@@ -83,7 +98,7 @@ export async function waitForScheduleWake(
     try {
       entries = await readdir(directory)
     } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return
+      if (isStoreErrorCode(error, 'ENOENT')) return
       throw error
     }
     let isActive = false
@@ -116,7 +131,7 @@ export async function beginScheduleWake(
     launch: (
       file: string,
       args: readonly string[],
-      options: SpawnOptions,
+      options: Omit<SpawnOptions, 'env'> & { readonly env: GuardedChildEnv },
     ) => Pick<ChildProcess, 'once' | 'unref'> | Promise<Pick<ChildProcess, 'once' | 'unref'>>
   },
 ): Promise<() => Promise<void>> {
@@ -124,7 +139,11 @@ export async function beginScheduleWake(
     identity: startIdentity,
     trustedPath: trustedBackgroundPath,
     write: (file: string, text: string) => nodeBackgroundFiles().write(file, text),
-    launch: async (file: string, args: readonly string[], options: SpawnOptions) => {
+    launch: async (
+      file: string,
+      args: readonly string[],
+      options: Omit<SpawnOptions, 'env'> & { readonly env: GuardedChildEnv },
+    ) => {
       const { stdio: _stdio, detached: _detached, shell: _shell, ...processOptions } = options
       const { child } = await spawnResourceProcess('contained', file, args, processOptions)
       child.stdin.end()
@@ -141,11 +160,17 @@ export async function beginScheduleWake(
   await io.write(file, JSON.stringify({ pid: process.pid, startIdentity: identity }))
   return async () => {
     // Start its bounded wait after settlement, so long turns use no retry budget.
+    // The trust-checked schedule launcher: absolute entries only, links
+    // followed.
     const launching = io.launch(launcher, [script, 'schedule', 'background-maintain', '--json'], {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
-      env: withoutCredentials(process.env),
+      env: noWorkspaceChildEnvironment(
+        process.platform,
+        withoutCredentials(process.env),
+        realpathSync,
+      ),
     })
     const child =
       launching instanceof Promise
@@ -182,8 +207,8 @@ export async function trustedBackgroundPath(
       try {
         await lstat(candidate)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') continue
-        throw unsafeScheduleLauncher(candidate)
+        if (isStoreErrorCode(error, 'ENOENT')) continue
+        throw unsafeScheduleLauncher(candidate, error)
       }
       target = candidate
       break
@@ -283,17 +308,26 @@ export async function verifyScheduleWake(
   return { scheduledPrompts: true, maxBudgetUsd: record.maxBudgetUsd }
 }
 
-function systemProgram(file: string, env: NodeJS.ProcessEnv): string {
-  if (file === 'launchctl') return '/bin/launchctl'
-  if (file === 'systemctl') return '/usr/bin/systemctl'
-  if (file === 'systemd-analyze') return '/usr/bin/systemd-analyze'
-  if (file !== 'powershell.exe' && file !== 'schtasks.exe') return file
+/**
+The fixed OS program a name stands for and its credential-free
+environment: Windows PowerShell is `%SystemRoot%`'s, with its own module
+path (`windowsPowerShell`).
+*/
+function systemProgram(
+  file: string,
+  env: NodeJS.ProcessEnv,
+): { readonly file: string; readonly env: NodeJS.ProcessEnv } {
+  const scrubbed = withoutCredentials(env)
+  if (file === 'launchctl') return { file: '/bin/launchctl', env: scrubbed }
+  if (file === 'systemctl') return { file: '/usr/bin/systemctl', env: scrubbed }
+  if (file === 'systemd-analyze') return { file: '/usr/bin/systemd-analyze', env: scrubbed }
+  if (file !== 'powershell.exe' && file !== 'schtasks.exe') return { file, env: scrubbed }
   const root = Object.entries(env).find(([name]) => name.toUpperCase() === 'SYSTEMROOT')?.[1]
   if (root === undefined || !path.win32.isAbsolute(root) || /[\p{Cc}]/u.test(root))
     throw new Error(UI_TEXT.scheduleV2.runtime.backgroundUnavailable)
   return file === 'powershell.exe'
-    ? path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', file)
-    : path.win32.join(root, 'System32', file)
+    ? windowsPowerShell(root, env)
+    : { file: path.win32.join(root, 'System32', file), env: scrubbed }
 }
 
 /** Only the fixed OS programs receive this credential-free environment. */
@@ -302,25 +336,17 @@ export function backgroundProcessRunner(
 ): (file: string, args: readonly string[]) => Promise<BackgroundProcessResult> {
   return async (file, args) => {
     try {
-      const result = await execResourceFile('contained', systemProgram(file, env), [...args], {
+      const program = systemProgram(file, env)
+      const result = await execResourceFile('contained', program.file, [...args], {
         encoding: 'utf8',
-        env: withoutCredentials(env),
+        env: program.env,
         windowsHide: true,
         timeout: SCHEDULE_POLL_INTERVAL_MS,
         maxBuffer: SCHEDULE_NATIVE_MAX_OUTPUT_BYTES,
       })
       return { exitCode: 0, stdout: result.stdout, stderr: result.stderr }
     } catch (error: unknown) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        typeof error.code === 'number' &&
-        'stdout' in error &&
-        typeof error.stdout === 'string' &&
-        'stderr' in error &&
-        typeof error.stderr === 'string'
-      )
+      if (isExecFailure(error))
         return { exitCode: error.code, stdout: error.stdout, stderr: error.stderr }
       throw new Error(UI_TEXT.scheduleV2.runtime.unavailable, { cause: error })
     }
@@ -333,7 +359,7 @@ async function backgroundBytes(file: string): Promise<Buffer | undefined> {
   try {
     handle = await open(file, 'r')
   } catch (error: unknown) {
-    if (storeErrorCode(error) === 'ENOENT') return
+    if (isStoreErrorCode(error, 'ENOENT')) return
     throw error
   }
   try {
@@ -373,7 +399,7 @@ export function nodeBackgroundFiles(verifier?: TrustedPathVerifier): BackgroundF
         try {
           await lstat(directory)
         } catch (error: unknown) {
-          if (storeErrorCode(error) !== 'ENOENT') throw unsafeScheduleLauncher(directory)
+          if (!isStoreErrorCode(error, 'ENOENT')) throw unsafeScheduleLauncher(directory, error)
           missing.push(directory)
           continue
         }
@@ -389,8 +415,8 @@ export function nodeBackgroundFiles(verifier?: TrustedPathVerifier): BackgroundF
       try {
         await lstat(file)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return
-        throw unsafeScheduleLauncher(file)
+        if (isStoreErrorCode(error, 'ENOENT')) return
+        throw unsafeScheduleLauncher(file, error)
       }
       await trustedPath(file, platform, uid, 'definition')
     },

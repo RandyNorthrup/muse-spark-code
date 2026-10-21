@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { outputTokenMinimumMessage } from '../../shared/providerRouting'
 import { Usd } from '../../shared/usd'
 import * as z from 'zod/mini'
@@ -6,19 +8,21 @@ import { readImageInfo } from '../../core/imageDimensions'
 import { modelApiPaidTier } from '../../shared/paid'
 import {
   EXEC_ENDPOINTS,
+  EXEC_USD_DECIMALS,
   EXEC_IMAGE_N,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_OBSERVER_HIGH_WATER_BYTES,
   EXEC_RESPONSE_MAX_BYTES,
   EXEC_SSE_FRAME_MAX_BYTES,
   MODEL_API_BASE_URL,
+  MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_IMAGE_MODEL,
   MODEL_API_PRICES_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
 import type { ExecEventBody, LastResponse, Refusal } from './execProtocol'
 import type { Lifecycle, StopCause } from './execLimits'
-import type { ImageSettlement, ResponseSettlement, RunLedger } from './runLedger'
+import { type ImageSettlement, type ResponseSettlement, type RunLedger } from './runLedger'
 
 export interface ExecTransport {
   readonly fetch: typeof fetch
@@ -63,9 +67,10 @@ export function execFetch(input: {
   fetch: typeof fetch
   ledger: RunLedger
   selectedModel: string
+  readonly externalResponseAccounting?: boolean
   imageGeneration: boolean
   lifecycle: Lifecycle
-  onLatch: (cause: StopCause) => void
+  onLatch: (cause: StopCause, message?: string) => void
   emit: (event: ExecEventBody) => void
   onResponseStart: (n: number) => void
   onResponseSettled: (outcome: LastResponse) => void
@@ -84,15 +89,30 @@ export function execFetch(input: {
         usd: Usd.from(0).toAmount(),
         reason,
       })
-    if (reason !== 'closed') input.onLatch({ kind: reason })
+    if (reason !== 'closed') input.onLatch({ kind: reason }, message)
     throw new Error(message)
+  }
+  const forward = async (url: string, init?: RequestInit) => {
+    if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
+    return await input.lifecycle.race(
+      input.fetch(url, {
+        ...init,
+        redirect: 'error',
+        signal: AbortSignal.any([
+          input.lifecycle.signal,
+          ...(init?.signal == null ? [] : [init.signal]),
+        ]),
+      }),
+    )
   }
   const transport: typeof fetch = async (url, init) => {
     if (typeof url !== 'string') return refuse('request_shape')
     let parsed: URL
     try {
       parsed = new URL(url)
-    } catch {
+    } catch (error) {
+      // Only an invalid address fails here; anything else is not this parse's answer.
+      if (!(error instanceof TypeError)) throw error
       return refuse('request_shape')
     }
     const base = new URL(MODEL_API_BASE_URL)
@@ -102,22 +122,40 @@ export function execFetch(input: {
       parsed.username !== '' ||
       parsed.password !== '' ||
       parsed.hash !== '' ||
-      parsed.search !== ''
+      (parsed.search !== '' && parsed.pathname !== EXEC_ENDPOINTS.files)
     )
       return refuse('request_shape')
     const method = init?.method ?? 'GET'
-    if (method === 'GET' && parsed.pathname === EXEC_ENDPOINTS.models) {
-      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
-      return await input.lifecycle.race(
-        input.fetch(url, {
+    if (method === 'GET' && parsed.pathname === EXEC_ENDPOINTS.models)
+      return await forward(url, init)
+    if (
+      parsed.pathname === EXEC_ENDPOINTS.files ||
+      /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
+    ) {
+      // An upload that reached the provider is never orphaned (RVM105 1):
+      // when cancellation arrives after the provider answered with a file
+      // id, the owner's clean-up DELETE still goes, once, on its own short
+      // deadline to the bound provider origin only. Cancellation and close
+      // shut every other Files route, and the clean-up never enters the
+      // lazily loaded media owner.
+      const isCleanupDelete =
+        method === 'DELETE' &&
+        init?.body == null &&
+        /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
+      if (isCleanupDelete) {
+        return await input.fetch(url, {
           ...init,
           redirect: 'error',
-          signal: AbortSignal.any([
-            input.lifecycle.signal,
-            ...(init?.signal == null ? [] : [init.signal]),
-          ]),
-        }),
-      )
+          signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+        })
+      }
+      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
+      const media = await import('../runtimeMediaEntry.js')
+      return await media.forwardExecFile(parsed, init, {
+        forward,
+        refuse: () => refuse('request_shape'),
+        signal: input.lifecycle.signal,
+      })
     }
     const isResponse = parsed.pathname === EXEC_ENDPOINTS.responses
     const endpoint =
@@ -131,7 +169,9 @@ export function execFetch(input: {
     let data: unknown
     try {
       data = JSON.parse(body)
-    } catch {
+    } catch (error) {
+      // Only malformed text fails here; anything else is not this parse's answer.
+      if (!(error instanceof SyntaxError)) throw error
       return refuse('request_shape')
     }
     const responseShape = requestSchema(input.ledger.outputCap).safeParse(data)
@@ -153,6 +193,8 @@ export function execFetch(input: {
       return refuse('request_shape', true)
     const tier = modelApiPaidTier(input.selectedModel)
     if (isResponse && tier === undefined) return refuse('unpriced')
+    if (isResponse && input.externalResponseAccounting === true)
+      return await input.fetch(url, { ...init, redirect: 'error' })
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.
     const previous = barrier
@@ -234,7 +276,7 @@ export function execFetch(input: {
           feature: 'imageGeneration',
           n: ticket.n,
           phase,
-          units: 1,
+          units: phase === 'returned' ? count : 1,
           usd: result.chargedUsd,
         })
       }
@@ -249,7 +291,22 @@ export function execFetch(input: {
         ...(ticket.kind === 'responses' && { terminal }),
         totals: input.ledger.totals(),
       })
-      if (result.latch !== undefined) input.onLatch({ kind: result.latch })
+      if (result.latch !== undefined)
+        input.onLatch(
+          { kind: result.latch },
+          result.latch === 'breach' &&
+            Usd.from(result.chargedUsd).compare(Usd.from(ticket.reserveUsd)) > 0
+            ? fill(UI_TEXT.execBudgetOverage, {
+                overage: formatUsd(
+                  Usd.from(result.chargedUsd).subtract(Usd.from(ticket.reserveUsd)),
+                  EXEC_USD_DECIMALS,
+                ),
+                cost: formatUsd(result.chargedUsd, EXEC_USD_DECIMALS),
+                reserved: formatUsd(ticket.reserveUsd, EXEC_USD_DECIMALS),
+              })
+            : undefined,
+        )
+
       stopActive = undefined
       release.run?.()
     }
@@ -393,9 +450,11 @@ export function execFetch(input: {
           let value: unknown
           try {
             value = JSON.parse(event.data)
-          } catch {
+          } catch (error) {
+            // Only malformed text fails here; anything else is not this frame's answer.
+            if (!(error instanceof SyntaxError)) throw error
             why = 'malformed'
-            throw new Error(UI_TEXT.execRequestShape)
+            throw new Error(UI_TEXT.execRequestShape, { cause: error })
           }
           const boundary = z.looseObject({ type: z.string() }).safeParse(value)
           if (!boundary.success) {
@@ -461,6 +520,9 @@ export function execFetch(input: {
         },
       })
       void response.body.pipeTo(transform.writable, { signal }).catch(() => {
+        // Every pipe failure is already settled through the reader, the
+        // abort listener or the consumer's cancel, and settle and abort are
+        // idempotent: this branch only stops the pump.
         lost()
         controller.abort()
       })

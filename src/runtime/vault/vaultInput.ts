@@ -41,6 +41,7 @@ export function readVaultLine(
         try {
           cleanup()
         } catch {
+          // A failed cleanup already rejects below; its kind cannot change the outcome.
           canReturn = false
         }
       }
@@ -53,6 +54,7 @@ export function readVaultLine(
           resolve(owned)
         } else reject(new Error(UI_TEXT.vault.noAccess))
       } catch {
+        // Echo restoration already failed; the line still rejects with the fixed refusal.
         reject(new Error(UI_TEXT.vault.noAccess))
       } finally {
         bytes.fill(0)
@@ -110,6 +112,7 @@ export function readVaultLine(
       }
       input.resume()
     } catch {
+      // Setup failed before any byte arrived; finish refuses with nothing to return.
       finish(false)
     }
   })
@@ -177,8 +180,39 @@ export async function chooseVaultDecision(
   if (input.isTTY !== true) throw new Error(UI_TEXT.vault.noAccess)
   const labels = choices.map((choice) => {
     let label = UI_TEXT.paidDeny
-    if (choice === 'allowOnce') label = UI_TEXT.allowOnce
-    else if (choice === 'allowSession') label = UI_TEXT.vault.allowSession
+    switch (choice) {
+      case 'allowOnce': {
+        label = UI_TEXT.allowOnce
+        break
+      }
+      case 'allowSession': {
+        label = UI_TEXT.vault.allowSession
+        break
+      }
+      case 'savedIt': {
+        label = UI_TEXT.vault.savedIt
+        break
+      }
+      case 'cancel': {
+        label = UI_TEXT.vault.cancelSetup
+        break
+      }
+      case 'continue': {
+        label = UI_TEXT.vault.resetContinue
+        break
+      }
+      case 'keep': {
+        label = UI_TEXT.vault.keepFile
+        break
+      }
+      case 'delete': {
+        label = UI_TEXT.vault.deleteFile
+        break
+      }
+      default: {
+        break
+      }
+    }
     return `${choice}: ${label}`
   })
   const bytes = await readVaultLine(input, output, `${title}\n${labels.join('\n')}\n`, signal)

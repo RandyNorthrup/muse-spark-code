@@ -5,7 +5,7 @@ import {
   type ModelsAccountsSlice,
 } from '../../../../shared/accountsPanel'
 import { accountsReplySchema, type AccountsRequest } from '../../../../shared/hostApi/accounts'
-import { ACCOUNT_MAX_PER_PROVIDER, UI_TEXT } from '../../../../shared/constants'
+import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatNumber } from '../../../../shared/l10n/text'
 import { AccountEditor } from './AccountEditor'
 import { ThresholdEditor } from './ThresholdEditor'
@@ -87,9 +87,13 @@ export function AccountsSection({
       port.accept(next.data)
       setEditor(null)
       setRemovalId(null)
-    } catch {
+    } catch (error: unknown) {
+      // A failed change reads failed: only a non-error keeps its kind past
+      // the section. The failure reaches the host's record.
+      if (!(error instanceof Error)) throw error
       if (generation.current === owner.generation)
         setError({ value, message: UI_TEXT.actionFailed })
+      throw error
     } finally {
       // A stale completion releases only its own serialized slot, never a successor's.
       if (pending.current === owner) {
@@ -293,7 +297,7 @@ export function AccountsSection({
       ) : (
         <button
           type="button"
-          disabled={isPending || isUnavailable || ordered.length >= ACCOUNT_MAX_PER_PROVIDER}
+          disabled={isPending || isUnavailable}
           onClick={() => {
             setEditor('')
           }}

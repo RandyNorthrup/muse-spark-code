@@ -19,30 +19,20 @@
 // port carries the documented untrusted-lane arguments until integration
 // converges them (see `untrustedCheckoutArgs`).
 //
-// Every git this module starts goes through `runGit` or `startGitBatch`,
-// which call the caller's gate and then start the process in the same
-// synchronous turn: nothing can change between the check and the spawn
-// (PLAN.md M123's lock protocol). A checkout's gate asks that the project
+// Every git this module starts goes through `runGit`, `runGitListing` or
+// `startGitBatch`, which call the caller's gate and then start the process
+// in the same synchronous turn: nothing can change between the check and
+// the spawn (PLAN.md M123's lock protocol). A checkout's gate asks that the project
 // is still trusted, that Cancel was not pressed, and that the record is
 // still exactly this checkout's reservation (its fence).
 
-import {
-  execFile,
-  spawn,
-  type ChildProcess,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
-import { Buffer } from 'node:buffer'
-import { randomUUID } from 'node:crypto'
+import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { BigIntStats } from 'node:fs'
-import { mkdir, rename, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
   GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
   GIT_WORKTREE_TIMEOUT_MS,
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
   HELD_CLEANUP_REMOVE_RETRIES,
   HELD_CLEANUP_TIMEOUT_MS,
   HELD_EXECUTABLE_MODE,
@@ -53,24 +43,24 @@ import {
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
-import { fill, formatBytes } from '../../../shared/l10n/text'
-import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
-import { repositoryLabel } from '../../../core/git/githubRemote'
+import { didDropRejectedCredential } from '../../../core/git/github'
 import {
   BlobAnswers,
   heldDestination,
   namedHookOverrides,
   pullRequestCheckoutConfirmation,
 } from '../../../core/git/heldCheckoutCore'
-import { heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
+import {
+  ListingRecords,
+  heldTreeFromRecords,
+  type HeldEntry,
+  unsafePathReason,
+} from '../../../core/git/heldTree'
 import {
   pullRequestRefFrom,
   remoteForPullRequest,
   type GitHubRemote,
 } from '../../../core/git/pullRequestRef'
-import { isPlainRefName } from '../../../core/git/pushPlan'
-import { isSamePath } from '../../../core/paths'
-import { withoutCredentials } from '../../../core/credentialEnvironment'
 import {
   fileIdentityKey,
   identityOf,
@@ -79,25 +69,26 @@ import {
   statIdentity,
   type FileIdentity,
 } from '../../../core/fs/fileIdentity'
-import { currentProcessOwner, isProcessOwnerGone } from '../../../core/locks/processOwner'
-import { heldWorktreeFolder, type WorktreeRecord } from '../../../core/worktreeConversations'
 import {
   worktreeAddDetachedArgs,
   worktreeAddHeldArgs,
   worktreeFolder,
   worktreeRemoveArgs,
 } from '../../../core/worktrees'
-import { canonicalPath } from '../../../host/canonicalPath'
+import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
+import { describeStoreError } from '../../../host/backend/storeErrors'
+import { isUnreadableStoreError } from '../git/service'
+import { LeaseBusyError } from '../../../core/locks/fileLease'
 import { hasGitProgramControls } from '../../../host/git'
 import { createFileExclusively } from '../../../host/fsAtomic'
 import type { CoreLogger } from '../../../core/logging'
 import { redactSecrets } from '../../../core/redact'
+import type { GitHubCredential } from '../../../core/git/tokenSource'
 import {
-  didDropRejectedCredential,
-  resolveGitHubCredential,
-  type GitHubCredential,
-} from '../../../core/git/tokenSource'
-import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
+  PullRequestServiceError,
+  isExpectedPullRequestFailure,
+  type RuntimePullRequestDeps,
+} from './pullRequests'
 import {
   holdForRoots,
   isReservationOf,
@@ -109,6 +100,21 @@ import {
   type TrustTicket,
   type WorktreeRecordStore,
 } from './records'
+import { type GuardedChildEnv } from '../../../core/executables'
+import { workspaceChildEnvironment } from '../../../core/execGuard'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded, spawnGuarded } from '../../../core/guardedChildProcess'
+import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
+import { mkdir, rename, rm, rmdir } from 'node:fs/promises'
+import { fill } from '../../../shared/l10n/text'
+import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
+import { repositoryLabel } from '../../../core/git/githubRemote'
+import { isPlainRefName } from '../../../core/git/pushPlan'
+import { isSamePath } from '../../../core/paths'
+import { withoutCredentials } from '../../../core/credentialEnvironment'
+import { currentProcessOwner, isProcessOwnerGone } from '../../../core/locks/processOwner'
+import { heldWorktreeFolder, type WorktreeRecord } from '../../../core/worktreeConversations'
 
 const COMMIT_PEEL = '^{commit}'
 // A folder made under a private name beside its place, and one moved
@@ -124,13 +130,13 @@ function nullDeviceFor(platform: NodeJS.Platform): string {
 }
 
 /**
- * Every git a held pull request's checkout runs, with these before each
- * command's own: no hooks, no fsmonitor, no replacement objects, no
- * automatic maintenance or garbage collection. Mirrors
- * `UNTRUSTED_CHECKOUT_OPTIONS` (src/host/git/untrustedGit.ts), which lane G
- * owns; the null device is the platform's, as the own-checkout path spells
- * it. Converge on lane G's runner at integration.
- */
+Every git a held pull request's checkout runs, with these before each
+command's own: no hooks, no fsmonitor, no replacement objects, no
+automatic maintenance or garbage collection. Mirrors
+`UNTRUSTED_CHECKOUT_OPTIONS` (src/host/git/untrustedGit.ts), which lane G
+owns; the null device is the platform's, as the own-checkout path spells
+it. Converge on lane G's runner at integration.
+*/
 function untrustedCheckoutArgs(platform: NodeJS.Platform): readonly string[] {
   return [
     '--no-replace-objects',
@@ -145,38 +151,38 @@ function untrustedCheckoutArgs(platform: NodeJS.Platform): readonly string[] {
   ]
 }
 
-function checkoutRefusal(): Error {
-  return new PullRequestServiceError(UI_TEXT.openPullRequestFiltersUnavailable)
+function checkoutRefusal(cause?: unknown): Error {
+  return new PullRequestServiceError(UI_TEXT.openPullRequestFiltersUnavailable, { cause })
 }
 
 /**
- * Throws when git may not run now. Synchronous, and called with no await
- * between it and the process start.
- */
+Throws when git may not run now. Synchronous, and called with no await
+between it and the process start.
+*/
 export type GitGate = () => void
 
 /** The gates one checkout hands its port. */
 export interface CheckoutGates {
   /**
-   * Before every git: still trusted, not cancelled, and (once reserved)
-   * the record still exactly this checkout's reservation.
-   */
+  Before every git: still trusted, not cancelled, and (once reserved)
+  the record still exactly this checkout's reservation.
+  */
   readonly run: GitGate
   /** Before every file a held checkout writes: still trusted, not cancelled. */
   readonly write: GitGate
   /**
-   * Before the git that removes what this checkout made: still trusted
-   * (Cancel and a lost reservation are why it runs). Refused, the folder
-   * is removed without git and its registration is left to git's prune.
-   */
+  Before the git that removes what this checkout made: still trusted
+  (Cancel and a lost reservation are why it runs). Refused, the folder
+  is removed without git and its registration is left to git's prune.
+  */
   readonly cleanup: GitGate
 }
 
 /**
- * One folder this checkout made, told apart from any made later at the
- * same path by its native id and its birth time (Linux reuses a freed
- * inode number at once).
- */
+One folder this checkout made, told apart from any made later at the
+same path by its native id and its birth time (Linux reuses a freed
+inode number at once).
+*/
 export interface MadeFolder {
   readonly folder: string
   readonly identity: FileIdentity
@@ -191,16 +197,16 @@ export interface PullRequestCheckoutGit {
   /** What the fetch brought: `FETCH_HEAD` peeled to its commit. */
   readFetchHead(cwd: string, gate: GitGate): Promise<string>
   /**
-   * Makes `folder` for this checkout alone: empty, under a private name
-   * beside it, then renamed into place, which fails while anything is at
-   * the name (`HeldFolderTakenError`).
-   */
+  Makes `folder` for this checkout alone: empty, under a private name
+  beside it, then renamed into place, which fails while anything is at
+  the name (`HeldFolderTakenError`).
+  */
   claimFolder(folder: string): Promise<MadeFolder>
   /**
-   * The user's own pull request, detached, hooks switched off for the new
-   * worktree, added into the folder `claim` makes. A failure part way
-   * removes what this checkout made.
-   */
+  The user's own pull request, detached, hooks switched off for the new
+  worktree, added into the folder `claim` makes. A failure part way
+  removes what this checkout made.
+  */
   addOwnWorktree(
     cwd: string,
     folder: string,
@@ -209,12 +215,12 @@ export interface PullRequestCheckoutGit {
     claim: () => Promise<MadeFolder>,
   ): Promise<void>
   /**
-   * Someone else's pull request (RV71c): listed and refused whole on any
-   * bad name before anything is made, then added with nothing checked out
-   * into the folder `claim` makes, indexed from the commit, its files
-   * written from one `cat-file --batch`. A failure part way removes what
-   * this checkout made (or hands that to `CleanupPendingError.settled`).
-   */
+  Someone else's pull request (RV71c): listed and refused whole on any
+  bad name before anything is made, then added with nothing checked out
+  into the folder `claim` makes, indexed from the commit, its files
+  written from one `cat-file --batch`. A failure part way removes what
+  this checkout made (or hands that to `CleanupPendingError.settled`).
+  */
   checkOutHeld(
     folder: string,
     sha: string,
@@ -223,21 +229,25 @@ export interface PullRequestCheckoutGit {
     claim: () => Promise<MadeFolder>,
   ): Promise<void>
   /**
-   * Removes what this checkout made, and nothing else (again is harmless).
-   * True once nothing it made is at the folder. Never throws.
-   */
+  Removes what this checkout made, and nothing else (again is harmless).
+  True once nothing it made is at the folder. Never throws.
+  */
   removeMade(cwd: string, made: MadeFolder, gate: GitGate): Promise<boolean>
   /**
-   * The identity (`dev:ino:birth`) a finished checkout records: the folder
-   * at `made`'s place, while it is the very folder made; undefined otherwise.
-   */
+  The identity (`dev:ino:birth`) a finished checkout records: the folder
+  at `made`'s place, while it is the very folder made; undefined otherwise.
+  */
   identityOf(made: MadeFolder): Promise<string | undefined>
 }
 
 /** How git runs to completion: options for one process. */
 export interface GitRunOptions {
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  /**
+  The guarded child environment for `cwd`: the port takes nothing else,
+  so a raw environment does not type-check here.
+  */
+  readonly env: GuardedChildEnv
   readonly signal: AbortSignal
   readonly timeout: number
   readonly maxBuffer: number
@@ -246,7 +256,8 @@ export interface GitRunOptions {
 /** How the batch child starts. */
 export interface GitStartOptions {
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  /** The guarded child environment for `cwd`, as above. */
+  readonly env: GuardedChildEnv
   readonly signal: AbortSignal
   readonly timeout: number
   /** Its own process group on POSIX. */
@@ -254,9 +265,9 @@ export interface GitStartOptions {
 }
 
 /**
- * How git processes start: node's, or a test's that records each start.
- * Both start the process before they return.
- */
+How git processes start: node's, or a test's that records each start.
+Both start the process before they return.
+*/
 export interface GitProcessPort {
   /** Runs to completion; resolves with the standard output. */
   run(file: string, args: readonly string[], options: GitRunOptions): Promise<string>
@@ -272,7 +283,7 @@ export interface GitProcessPort {
 export const nodeGitProcesses: GitProcessPort = {
   run: (file, args, options) =>
     new Promise<string>((resolve, reject) => {
-      execFile(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
+      execFileGuarded(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
         if (error === null) {
           resolve(stdout)
           return
@@ -280,7 +291,7 @@ export const nodeGitProcesses: GitProcessPort = {
         reject(error instanceof Error ? error : new PullRequestServiceError(failureText(error)))
       })
     }),
-  start: (file, args, options) => spawn(file, [...args], { ...options, windowsHide: true }),
+  start: (file, args, options) => spawnGuarded(file, [...args], { ...options, windowsHide: true }),
 }
 
 export interface NodePullRequestCheckoutGitOptions {
@@ -302,23 +313,23 @@ export interface NodePullRequestCheckoutGitOptions {
 }
 
 /**
- * The runtime's process environment for the confirmed pull request fetch:
- * the user's credential helpers, SSH agent and token variables stay, as in
- * a terminal, with no prompt; nothing of ours is added (no `http.extra
- * Header`, no credential helper, no token variable). The runtime strips
- * its own credential variables at start, so `env` already holds none.
- * @unwired M123 PR fetch environment
- */
+The runtime's process environment for the confirmed pull request fetch:
+the user's credential helpers, SSH agent and token variables stay, as in
+a terminal, with no prompt; nothing of ours is added (no `http.extra
+Header`, no credential helper, no token variable). The runtime strips
+its own credential variables at start, so `env` already holds none.
+@unwired M123 PR fetch environment
+*/
 export function pullRequestFetchEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...env, GIT_TERMINAL_PROMPT: '0' }
 }
 
 /**
- * Every other Git call's environment: no credentials, no prompt, no
- * optional locks. The same rule as `quietGitEnvironment` (src/host/git.ts),
- * which lane G owns; converge on its move to core at integration.
- * @unwired M123 quiet PR git environment
- */
+Every other Git call's environment: no credentials, no prompt, no
+optional locks. The same rule as `quietGitEnvironment` (src/host/git.ts),
+which lane G owns; converge on its move to core at integration.
+@unwired M123 quiet PR git environment
+*/
 export function quietPullRequestEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
 }
@@ -343,10 +354,23 @@ interface RunHow {
 }
 
 /**
- * Runs git to completion once `gate` allows it: the gate, then the start,
- * in one synchronous turn. With `startGitBatch`, the only way this module
- * starts git.
- */
+Runs git to completion once `gate` allows it: the gate, then the start,
+in one synchronous turn. With `startGitBatch`, the only way this module
+starts git.
+*/
+/**
+The child's environment for a git run in `cwd`: the guarded child PATH
+for that directory, so a helper git starts by bare name never runs from
+a planting in the checkout.
+*/
+function checkoutChildEnvironment(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+): GuardedChildEnv {
+  return workspaceChildEnvironment(platform, env, { workspaceRoot: cwd, realpath: realpathSync })
+}
+
 function runGit(
   git: NodeGitRunner,
   gate: GitGate,
@@ -357,10 +381,93 @@ function runGit(
   gate()
   return git.processes.run(git.gitPath, args, {
     cwd,
-    env: how.env ?? git.quietEnv,
+    env: checkoutChildEnvironment(git.platform, how.env ?? git.quietEnv, cwd),
     signal: how.signal ?? git.signal,
     timeout: GIT_WORKTREE_TIMEOUT_MS,
     maxBuffer: GIT_OUTPUT_MAX_BYTES,
+  })
+}
+
+/**
+The commit's tree listing, record by record, at any size: `ls-tree -z`
+streams through the spawned child straight into the record splitter, so
+no buffered reader (and its fixed output ceiling) stands between git and
+the validator. Like `runGit`, the gate runs first, in the same
+synchronous turn as the spawn; a deadline and Cancel end the listing
+however quiet git is.
+*/
+function runGitListing(
+  git: NodeGitRunner,
+  gate: GitGate,
+  args: readonly string[],
+  cwd: string,
+): Promise<string[]> {
+  const child = startGitBatch(git, gate, args, cwd)
+  return new Promise<string[]>((resolve, reject) => {
+    const listing = new ListingRecords()
+    const records: string[] = []
+    let hasSettled = false
+    const closed = new Promise<number | null>((done) => {
+      child.once('close', (code: number | null) => {
+        done(code)
+      })
+    })
+    const fail = (error: Error) => {
+      if (hasSettled) {
+        return
+      }
+      hasSettled = true
+      clearTimeout(timer)
+      git.signal.removeEventListener('abort', onAbort)
+      killBatchTree(child, git.platform)
+      child.stdout.destroy()
+      child.stderr.destroy()
+      reject(error)
+    }
+    const onAbort = () => {
+      const reason: unknown = git.signal.reason
+      fail(reason instanceof Error ? reason : new Error('The operation was aborted'))
+    }
+    // The listing's own deadline, independent of the spawn timeout: a root
+    // that ignores its signal still ends the checkout.
+    const timer = setTimeout(() => {
+      fail(unreadable())
+    }, GIT_WORKTREE_TIMEOUT_MS)
+    git.signal.addEventListener('abort', onAbort, { once: true })
+    if (git.signal.aborted) {
+      onAbort()
+      return
+    }
+    child.on('error', fail)
+    // Nothing reads the error stream: discard it, so a chatty git can
+    // never fill the pipe and stall the listing past its deadline.
+    child.stderr.resume()
+    child.stdin.end()
+    void (async () => {
+      try {
+        const stdout: NodeJS.ReadableStream = child.stdout
+        for await (const chunk of stdout) {
+          if (!Buffer.isBuffer(chunk)) {
+            throw unreadable()
+          }
+          records.push(...listing.take(chunk))
+        }
+      } catch (error: unknown) {
+        fail(error instanceof Error ? error : unreadable())
+        return
+      }
+      const code = await closed
+      if (code !== 0) {
+        fail(unreadable())
+        return
+      }
+      records.push(...listing.finish())
+      // Past a failure this resolve is a no-op: the rejection stands, and
+      // the timer and the abort listener are already gone with it.
+      clearTimeout(timer)
+      git.signal.removeEventListener('abort', onAbort)
+      resolve(records)
+    })()
   })
 }
 
@@ -374,7 +481,7 @@ function startGitBatch(
   gate()
   return git.processes.start(git.gitPath, args, {
     cwd,
-    env: git.quietEnv,
+    env: checkoutChildEnvironment(git.platform, git.quietEnv, cwd),
     signal: git.signal,
     timeout: GIT_WORKTREE_TIMEOUT_MS,
     // Its own group on POSIX, so the deadline stops the helpers it
@@ -384,11 +491,11 @@ function startGitBatch(
 }
 
 /**
- * A held checkout's file writers (M123): one operation-local invalidation
- * every publisher observes before each step that touches the disk, and a
- * drain. A failure invalidates first, so no writer starts another step,
- * then waits for the one in flight before anything is cleaned up.
- */
+A held checkout's file writers (M123): one operation-local invalidation
+every publisher observes before each step that touches the disk, and a
+drain. A failure invalidates first, so no writer starts another step,
+then waits for the one in flight before anything is cleaned up.
+*/
 export class HeldWriters {
   private inFlight = 0
   private failure: Error | undefined
@@ -431,11 +538,11 @@ export class HeldWriters {
 }
 
 /**
- * A held checkout failed while a file writer was still in flight past the
- * drain grace. `settled` runs the cleanup once the writer stops and never
- * rejects; until then the record stays pending, so the folder stays held
- * and is never offered or trusted.
- */
+A held checkout failed while a file writer was still in flight past the
+drain grace. `settled` runs the cleanup once the writer stops and never
+rejects; until then the record stays pending, so the folder stays held
+and is never offered or trusted.
+*/
 export class CleanupPendingError extends Error {
   public constructor(
     public readonly failure: Error,
@@ -461,11 +568,11 @@ function settlesWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
 }
 
 /**
- * Stops the batch child and, on POSIX where it leads a process group of
- * its own, the helpers it spawned with it. Windows has no groups: there
- * the root is terminated and the pipes are destroyed, and the operation
- * settles either way (lane G's runner owns whole-tree retirement).
- */
+Stops the batch child and, on POSIX where it leads a process group of
+its own, the helpers it spawned with it. Windows has no groups: there
+the root is terminated and the pipes are destroyed, and the operation
+settles either way (lane G's runner owns whole-tree retirement).
+*/
 function killBatchTree(child: ChildProcess, platform: NodeJS.Platform): void {
   const pid = child.pid
   if (pid !== undefined && platform !== 'win32') {
@@ -494,8 +601,8 @@ async function hookOverrides(
     let output: string
     try {
       output = await runGit(git, gate, ['--version'], cwd)
-    } catch {
-      throw checkoutRefusal()
+    } catch (error: unknown) {
+      throw checkoutRefusal(error)
     }
     if (!hasGitProgramControls(output, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)) {
       throw checkoutRefusal()
@@ -511,8 +618,8 @@ async function hookOverrides(
       [...untrustedCheckoutArgs(git.platform), 'config', '--null', '--name-only', '--list'],
       cwd,
     )
-  } catch {
-    throw checkoutRefusal()
+  } catch (error: unknown) {
+    throw checkoutRefusal(error)
   }
   const overrides = namedHookOverrides(configuration, untrustedCheckoutArgs(git.platform))
   if (overrides === undefined) {
@@ -530,15 +637,6 @@ async function heldDestinationOf(platform: NodeJS.Platform, folder: string, entr
     throw new PullRequestServiceError(unsafePathReason(entryPath))
   }
   return resolution
-}
-
-function tooLarge(): Error {
-  return new PullRequestServiceError(
-    fill(UI_TEXT.openPullRequestTooLarge, {
-      files: HELD_CHECKOUT_MAX_ENTRIES,
-      size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-    }),
-  )
 }
 
 function unreadable(): Error {
@@ -620,17 +718,17 @@ export interface BatchChildOptions {
 }
 
 /**
- * Every answer the batch child completes, then its exit — or its death:
- * a failure (the deadline, Cancel, a bad answer) first invalidates the
- * file writers, so none takes another step; then kills the tree, destroys
- * our pipe ends so the reader cannot hang on a helper holding them, and
- * observes the exit and the writer in flight for bounded graces. Drained,
- * it rejects with the failure; a writer still in flight past its grace
- * rejects as `CleanupPendingError`, whose cleanup waits for it. Nothing
- * keeps the checkout pending past both its deadline and Cancel, and no
- * writer outlives the cleanup. Exported so the tests can stand a
- * scripted root with a helper where git would be.
- */
+Every answer the batch child completes, then its exit — or its death:
+a failure (the deadline, Cancel, a bad answer) first invalidates the
+file writers, so none takes another step; then kills the tree, destroys
+our pipe ends so the reader cannot hang on a helper holding them, and
+observes the exit and the writer in flight for bounded graces. Drained,
+it rejects with the failure; a writer still in flight past its grace
+rejects as `CleanupPendingError`, whose cleanup waits for it. Nothing
+keeps the checkout pending past both its deadline and Cancel, and no
+writer outlives the cleanup. Exported so the tests can stand a
+scripted root with a helper where git would be.
+*/
 export function runBatchChild(
   child: ChildProcess,
   answers: BlobAnswers,
@@ -730,10 +828,10 @@ async function takeChunks(
 }
 
 /**
- * Adds the worktree into `made` once `gate` allows it. Only once git
- * succeeded is what is inside git's and this checkout's: a refused or
- * failed add leaves the folder to be removed only while empty.
- */
+Adds the worktree into `made` once `gate` allows it. Only once git
+succeeded is what is inside git's and this checkout's: a refused or
+failed add leaves the folder to be removed only while empty.
+*/
 async function addWorktree(
   git: NodeGitRunner,
   gate: GitGate,
@@ -746,10 +844,10 @@ async function addWorktree(
 }
 
 /**
- * The runtime's git for pull request checkouts over its own processes:
- * explicit argument arrays, output caps and deadlines, no shell.
- * @unwired M123 PR checkout git runner
- */
+The runtime's git for pull request checkouts over its own processes:
+explicit argument arrays, output caps and deadlines, no shell.
+@unwired M123 PR checkout git runner
+*/
 export function createNodePullRequestCheckoutGit(
   options: NodePullRequestCheckoutGitOptions,
 ): PullRequestCheckoutGit {
@@ -775,7 +873,6 @@ export function createNodePullRequestCheckoutGit(
       )
     }
     await removeMadeFolder(git, cwd, made, gate)
-    throw error
   }
   return {
     fetch: async (cwd, remote, ref, gate) => {
@@ -809,32 +906,23 @@ export function createNodePullRequestCheckoutGit(
         )
       } catch (error: unknown) {
         await cleanUp(cwd, made, gates.cleanup, error)
+        throw error
       }
     },
     checkOutHeld: async (folder, sha, cwd, gates, claim) => {
       if (!isCommitSha(sha)) {
         throw new PullRequestServiceError(UI_TEXT.openPullRequestFetchFailed)
       }
-      let listing: string
-      try {
-        const overrides = await hookOverrides(git, cwd, gates.run)
-        listing = await runGit(
-          git,
-          gates.run,
-          [...overrides, 'ls-tree', '-r', '-z', '--full-tree', '--long', sha],
-          cwd,
-        )
-      } catch (error: unknown) {
-        if (
-          error instanceof Error &&
-          'code' in error &&
-          error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
-        ) {
-          throw tooLarge()
-        }
-        throw error
-      }
-      const tree = heldTree(listing, options.platform)
+      // The listing streams record by record, at any size: a tree past the
+      // old buffered reader's ceiling reads like any other.
+      const listOverrides = await hookOverrides(git, cwd, gates.run)
+      const listing = await runGitListing(
+        git,
+        gates.run,
+        [...listOverrides, 'ls-tree', '-r', '-z', '--full-tree', '--long', sha],
+        cwd,
+      )
+      const tree = heldTreeFromRecords(listing, options.platform)
       if (!tree.ok) {
         throw new PullRequestServiceError(tree.reason)
       }
@@ -877,6 +965,7 @@ export function createNodePullRequestCheckoutGit(
         }
       } catch (error: unknown) {
         await cleanUp(cwd, made, gates.cleanup, error)
+        throw error
       }
     },
     removeMade: (cwd, made, gate) => removeMadeFolder(git, cwd, made, gate),
@@ -895,8 +984,8 @@ export class ReservationLostError extends PullRequestServiceError {
 
 /** The folder was there already, or appeared: this checkout made nothing. */
 export class HeldFolderTakenError extends PullRequestServiceError {
-  public constructor(folder: string) {
-    super(`${UI_TEXT.worktreeFolderExists} ${folder}`)
+  public constructor(folder: string, options?: { cause?: unknown }) {
+    super(`${UI_TEXT.worktreeFolderExists} ${folder}`, options)
     this.name = 'HeldFolderTakenError'
   }
 }
@@ -915,11 +1004,24 @@ function madeFolderOf(folder: string, stats: BigIntStats): MadeFolder {
 }
 
 /**
- * Makes the checkout's folder for this checkout alone: an empty folder
- * under a private random name beside it (so its identity can only be this
- * checkout's), renamed into place, which fails while anything is at the
- * name. Git adds the worktree into that empty folder, keeping its identity.
- */
+The staging folder's removal: still ours under its private name, so a
+missing one is moot. Any other removal failure is not this cleanup's to
+swallow: it replaces the staging failure it follows.
+*/
+async function removeStaging(staging: string): Promise<void> {
+  try {
+    await rmdir(staging)
+  } catch (error: unknown) {
+    if (!isMissingPath(error)) throw error
+  }
+}
+
+/**
+Makes the checkout's folder for this checkout alone: an empty folder
+under a private random name beside it (so its identity can only be this
+checkout's), renamed into place, which fails while anything is at the
+name. Git adds the worktree into that empty folder, keeping its identity.
+*/
 async function claimCheckoutFolder(folder: string): Promise<MadeFolder> {
   const parent = path.dirname(folder)
   await mkdir(parent, { recursive: true })
@@ -936,14 +1038,9 @@ async function claimCheckoutFolder(folder: string): Promise<MadeFolder> {
     }
     await rename(staging, folder)
   } catch (error: unknown) {
-    try {
-      // Still ours under its private name: empty, so never more than it.
-      await rmdir(staging)
-    } catch {
-      // Renamed into place already, or gone.
-    }
+    await removeStaging(staging)
     if (error instanceof HeldFolderTakenError || (await isPresent(folder))) {
-      throw new HeldFolderTakenError(folder)
+      throw new HeldFolderTakenError(folder, { cause: error })
     }
     throw error
   }
@@ -961,18 +1058,18 @@ async function isMadeFolder(target: string, made: MadeFolder): Promise<boolean> 
 }
 
 /**
- * What this checkout made, and only that: anything else at the name (a
- * folder another process put there, a replacement made while this one
- * ran) is left alone. Once git added its worktree, that is removed through
- * git while `gate` allows (no hooks, no filters, quiet; git refuses a
- * folder that is not this repository's worktree; bounded by its own
- * timeout, not the owner's signal, so Cancel still cleans up); refused,
- * the registration is left to git's prune. Whatever is left is moved aside
- * under a private name, checked to be that very folder, then removed:
- * whole once git added it, else only while empty (anything in it then is
- * not this checkout's). Runs once per made folder; asked again, it answers
- * the same. True once nothing this checkout made is left. Never throws.
- */
+What this checkout made, and only that: anything else at the name (a
+folder another process put there, a replacement made while this one
+ran) is left alone. Once git added its worktree, that is removed through
+git while `gate` allows (no hooks, no filters, quiet; git refuses a
+folder that is not this repository's worktree; bounded by its own
+timeout, not the owner's signal, so Cancel still cleans up); refused,
+the registration is left to git's prune. Whatever is left is moved aside
+under a private name, checked to be that very folder, then removed:
+whole once git added it, else only while empty (anything in it then is
+not this checkout's). Runs once per made folder; asked again, it answers
+the same. True once nothing this checkout made is left. Never throws.
+*/
 function removeMadeFolder(
   git: NodeGitRunner,
   cwd: string,
@@ -1014,7 +1111,7 @@ async function isMadeGoneOnceRemoved(
         { signal: AbortSignal.timeout(HELD_CLEANUP_TIMEOUT_MS) },
       )
     } catch (error: unknown) {
-      git.log.warn(`A checkout's worktree was not removed by git: ${failureText(error)}`)
+      git.log.warn(`A checkout's worktree was not removed by git: ${describeStoreError(error)}`)
     }
   }
   if (!(await isPresent(folder))) {
@@ -1027,7 +1124,7 @@ async function isMadeGoneOnceRemoved(
   try {
     await rename(folder, aside)
   } catch (error: unknown) {
-    git.log.warn(`A checkout's folder was left after it failed: ${failureText(error)}`)
+    git.log.warn(`A checkout's folder was left after it failed: ${describeStoreError(error)}`)
     return false
   }
   if (!(await isMadeFolder(aside, made))) {
@@ -1046,7 +1143,7 @@ async function isMadeGoneOnceRemoved(
     // Something in it is not this checkout's (or is held open): kept, back
     // under its name while that is free, else under its private name.
     await putBack(aside, folder)
-    git.log.warn(`A checkout's folder was left after it failed: ${failureText(error)}`)
+    git.log.warn(`A checkout's folder was left after it failed: ${describeStoreError(error)}`)
     return false
   }
 }
@@ -1076,10 +1173,10 @@ async function removeMadeAfter(
 }
 
 /**
- * The folder's identity (`dev:ino:birth`, links resolved): the birth time
- * tells a folder made again at the same path apart even where the system
- * reuses its inode number (Linux). Undefined when it is not a folder.
- */
+The folder's identity (`dev:ino:birth`, links resolved): the birth time
+tells a folder made again at the same path apart even where the system
+reuses its inode number (Linux). Undefined when it is not a folder.
+*/
 async function folderIdentityOf(folder: string): Promise<string | undefined> {
   try {
     const seen = await statIdentity(folder)
@@ -1114,6 +1211,19 @@ function failureText(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
+/**
+A records failure the reader settles through: contention, a held lock,
+or an unreadable store. The re-read below decides; anything else is not
+this settle's answer to give.
+*/
+function isTolerableRecordsFailure(error: unknown): boolean {
+  return (
+    error instanceof UnknownWriteError ||
+    error instanceof LeaseBusyError ||
+    isUnreadableStoreError(error)
+  )
+}
+
 /** What the checkout protocol needs of the service (`RuntimeCheckoutDeps` gives it). */
 export type CheckoutProtocolDeps = Pick<
   RuntimeCheckoutDeps,
@@ -1130,10 +1240,10 @@ export type CheckoutProtocolDeps = Pick<
 >
 
 /**
- * The checkout protocol (PLAN.md M123): reserve, claim, git through the
- * gate, complete; or offer, refuse, supersede. Separate from the service
- * so a test can stand every interleaving of several windows running it.
- */
+The checkout protocol (PLAN.md M123): reserve, claim, git through the
+gate, complete; or offer, refuse, supersede. Separate from the service
+so a test can stand every interleaving of several windows running it.
+*/
 export class PullRequestCheckoutProtocol {
   public constructor(private readonly deps: CheckoutProtocolDeps) {}
 
@@ -1150,19 +1260,22 @@ export class PullRequestCheckoutProtocol {
       this.checkTrust()
       return undefined
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
   }
 
   /**
-   * Whether a new checkout may replace `current`: its folder is gone, and
-   * it finished; or it is pending and its process is provably gone (no
-   * such process, or its id now names a process that started at another
-   * time); or it has been pending longer than any step before the folder
-   * takes (a crash whose id was reused by a process whose start time
-   * cannot be read). The supersede itself checks the folder absent again
-   * under its hold, and names exactly the version read.
-   */
+  Whether a new checkout may replace `current`: its folder is gone, and
+  it finished; or it is pending and its process is provably gone (no
+  such process, or its id now names a process that started at another
+  time); or it has been pending longer than any step before the folder
+  takes (a crash whose id was reused by a process whose start time
+  cannot be read). The supersede itself checks the folder absent again
+  under its hold, and names exactly the version read.
+  */
   private async mayTakeOver(folder: string, current: WorktreeRecord): Promise<boolean> {
     return (
       !this.deps.pathExists(folder) &&
@@ -1173,11 +1286,11 @@ export class PullRequestCheckoutProtocol {
   }
 
   /**
-   * Claims, runs git and completes for one reservation. Every git goes
-   * through the gate (trust, Cancel, the reservation's fence); a
-   * completion refused (another checkout's record names the folder now, or
-   * none does) removes exactly what this checkout made.
-   */
+  Claims, runs git and completes for one reservation. Every git goes
+  through the gate (trust, Cancel, the reservation's fence); a
+  completion refused (another checkout's record names the folder now, or
+  none does) removes exactly what this checkout made.
+  */
   private async checkOutReserved(
     folder: string,
     number: number,
@@ -1293,15 +1406,15 @@ export class PullRequestCheckoutProtocol {
   }
 
   /**
-   * A failed checkout's record goes once nothing it made is left: one that
-   * never made its folder (refused, or the folder was someone else's) goes
-   * at once; one whose folder could not be removed stays pending, so the
-   * folder stays held, is never offered again and can never be trusted.
-   * Only ever this checkout's own reservation, by the latest fence it may
-   * hold (`reservations`: a claim whose landing is not known first, then
-   * the one known), each a compare-and-swap, never a record that moved on.
-   * Never throws.
-   */
+  A failed checkout's record goes once nothing it made is left: one that
+  never made its folder (refused, or the folder was someone else's) goes
+  at once; one whose folder could not be removed stays pending, so the
+  folder stays held, is never offered again and can never be trusted.
+  Only ever this checkout's own reservation, by the latest fence it may
+  hold (`reservations`: a claim whose landing is not known first, then
+  the one known), each a compare-and-swap, never a record that moved on.
+  Never throws.
+  */
   private async discardWithMade(
     made: MadeFolder | undefined,
     reservations: readonly Reservation[],
@@ -1347,23 +1460,25 @@ export class PullRequestCheckoutProtocol {
   }
 
   /**
-   * pending → ready for exactly the reservation claimed. A completion the
-   * store could not confirm re-reads: the reserved checkout ready means it
-   * landed; the record no longer this reservation's means refused.
-   */
+  pending → ready for exactly the reservation claimed. A completion the
+  store could not confirm re-reads: the reserved checkout ready means it
+  landed; the record no longer this reservation's means refused.
+  */
   private async settleComplete(reservation: Reservation, identity: string): Promise<Completion> {
     for (let attempt = 1; ; attempt += 1) {
       try {
         if (await this.deps.records.complete(reservation, identity)) {
           return 'completed'
         }
-      } catch {
+      } catch (error: unknown) {
         // The store is busy: the re-read below decides.
+        if (!isTolerableRecordsFailure(error)) throw error
       }
       let current: WorktreeRecord | undefined
       try {
         current = await this.deps.records.recordFor(reservation.folder)
-      } catch {
+      } catch (error: unknown) {
+        if (!isTolerableRecordsFailure(error)) throw error
         if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
           return 'unknown'
         }
@@ -1404,17 +1519,17 @@ export class PullRequestCheckoutProtocol {
   }
 
   /**
-   * Validate → act → persist for one checkout: reserve the folder's
-   * record, claim it (the folder made under the same hold), run git, then
-   * complete exactly the reservation claimed. A reserve that finds another
-   * checkout there follows what is there — a checkout in flight is refused
-   * honestly, a finished one is offered again, and only a finished record
-   * whose folder is gone (or a pending one whose process is gone or whose
-   * reservation is stale, its folder gone) is taken over, at exactly the
-   * version read and only while the folder is still absent under the
-   * hold. Nothing here overwrites a record it did not read, and nothing
-   * restores an older one.
-   */
+  Validate → act → persist for one checkout: reserve the folder's
+  record, claim it (the folder made under the same hold), run git, then
+  complete exactly the reservation claimed. A reserve that finds another
+  checkout there follows what is there — a checkout in flight is refused
+  honestly, a finished one is offered again, and only a finished record
+  whose folder is gone (or a pending one whose process is gone or whose
+  reservation is stale, its folder gone) is taken over, at exactly the
+  version read and only while the folder is still absent under the
+  hold. Nothing here overwrites a record it did not read, and nothing
+  restores an older one.
+  */
   public async reserveAndCheckout(
     folder: string,
     remote: GitHubRemote,
@@ -1466,6 +1581,7 @@ export class PullRequestCheckoutProtocol {
           )
         }
       } catch (error: unknown) {
+        if (!isTolerableRecordsFailure(error)) throw error
         if (error instanceof UnknownWriteError) {
           // The reservation may have landed: it goes, so it never blocks the
           // folder (nothing was made for it).
@@ -1497,13 +1613,13 @@ export class PullRequestCheckoutProtocol {
 }
 
 /**
- * "Open a pull request in a conversation…": the pull request's head is
- * fetched with the user's Git environment and checked out, detached, in a
- * worktree of its own that opens through `workspace/openFolder`. Only an
- * explicit confirmation checks anything out; an existing checkout is
- * offered again as it is, never taken over.
- * @unwired M123 runtime PR checkout
- */
+"Open a pull request in a conversation…": the pull request's head is
+fetched with the user's Git environment and checked out, detached, in a
+worktree of its own that opens through `workspace/openFolder`. Only an
+explicit confirmation checks anything out; an existing checkout is
+offered again as it is, never taken over.
+@unwired M123 runtime PR checkout
+*/
 export class RuntimePullRequestCheckout {
   /** One opening per destination folder: overlapping opens queue behind it. */
   private readonly admissions = new Map<string, Promise<void>>()
@@ -1568,7 +1684,8 @@ export class RuntimePullRequestCheckout {
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
-      const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
+      if (!isExpectedPullRequestFailure(error)) throw error
+      const isSignIn = await didDropRejectedCredential(this.deps.github, credential, error)
       return {
         ok: false,
         reason: `${UI_TEXT.gitHubFailed}: ${failureText(error)}`,
@@ -1642,6 +1759,9 @@ export class RuntimePullRequestCheckout {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
     const records = await this.deps.records.list()
@@ -1667,14 +1787,13 @@ export class RuntimePullRequestCheckout {
               }),
       }
     }
-    const credential = await resolveGitHubCredential(this.deps.tokenSources, {
-      mode: 'ask',
-      signal: this.deps.signal,
-      now: this.deps.now,
-    })
+    const credential = await this.deps.github.credential('ask', this.deps.signal)
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
     return credential === undefined
@@ -1683,16 +1802,19 @@ export class RuntimePullRequestCheckout {
   }
 
   /**
-   * What the held-worktree card shows for `folder`, and the ticket its
-   * confirmation hands back: one finished, untrusted checkout whose folder
-   * is still the very folder it finished in. Undefined otherwise (pending,
-   * trusted already, gone, or made again at the same path).
-   */
+  What the held-worktree card shows for `folder`, and the ticket its
+  confirmation hands back: one finished, untrusted checkout whose folder
+  is still the very folder it finished in. Undefined otherwise (pending,
+  trusted already, gone, or made again at the same path).
+  */
   public async trustTicket(folder: string): Promise<TrustTicket | undefined> {
     let record: WorktreeRecord | undefined
     try {
       record = await this.deps.records.recordFor(folder)
-    } catch {
+    } catch (error: unknown) {
+      // An unreadable or busy store shows no ticket; anything else is not
+      // this card's answer to give.
+      if (!isTolerableRecordsFailure(error)) throw error
       return undefined
     }
     if (
@@ -1718,18 +1840,21 @@ export class RuntimePullRequestCheckout {
   }
 
   /**
-   * The held-worktree card's "Trust this worktree…": the confirmation
-   * itself lives in the panel (lane U), which hands back the ticket it
-   * showed; here exactly that checkout is marked, once, so the hold by
-   * location lets that very worktree go. A ticket for a checkout replaced,
-   * re-made, still pending or already trusted releases nothing.
-   */
+  The held-worktree card's "Trust this worktree…": the confirmation
+  itself lives in the panel (lane U), which hands back the ticket it
+  showed; here exactly that checkout is marked, once, so the hold by
+  location lets that very worktree go. A ticket for a checkout replaced,
+  re-made, still pending or already trusted releases nothing.
+  */
   public async releaseHold(
     ticket: TrustTicket,
   ): Promise<{ readonly ok: boolean; readonly reason?: string }> {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
     // The folder must still be the one the checkout finished in.
@@ -1745,6 +1870,9 @@ export class RuntimePullRequestCheckout {
         this.checkTrust()
         return undefined
       } catch (error: unknown) {
+        // A trust refusal or Cancel answers; anything else is not this
+        // call's `{ ok: false }` answer to give.
+        if (!isExpectedPullRequestFailure(error)) throw error
         return { ok: false, reason: failureText(error) }
       }
     }
@@ -1757,7 +1885,10 @@ export class RuntimePullRequestCheckout {
     let released: WorktreeRecord | undefined
     try {
       released = await this.deps.records.release(ticket, this.deps.now(), isLive)
-    } catch {
+    } catch (error: unknown) {
+      // A release the store cannot persist reads as changed; anything else
+      // is not this card's answer to give.
+      if (!isTolerableRecordsFailure(error)) throw error
       return ended() ?? { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
     if (released === undefined) {

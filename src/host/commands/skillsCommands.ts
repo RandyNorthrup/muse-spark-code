@@ -18,7 +18,7 @@ import {
   skillImportArgs,
   skillsListArgs,
 } from '../../core/backends/musecode/skillsCli'
-import { stderrForLog } from '../../core/backends/musecode/logText'
+import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
 import { clipForLog } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
 import { type SkillImportSource, UI_TEXT } from '../../shared/constants'
@@ -73,10 +73,6 @@ function scopeLabel(scope: string): string {
 
 function firstLine(text: string): string {
   return text.trim().split(LINE_BREAK, 1)[0] ?? ''
-}
-
-function describe(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 /** Why a finished CLI run failed, in one line. */
@@ -157,7 +153,10 @@ export async function manageSkills(deps: ManageSkillsDeps): Promise<void> {
   try {
     skills = parseSkillCatalog(stdout).filter((skill) => scopeFlagValue(skill.scope) !== undefined)
   } catch (error: unknown) {
-    deps.showError(`${UI_TEXT.skillsListFailed}: ${describe(error)}`)
+    // The CLI's catalog is not JSON or not the documented shape: said in
+    // fixed words (its text can name paths), the kind kept in the log.
+    deps.log.warn(`Skills list could not be read: ${failureForLog(error)}`)
+    deps.showError(UI_TEXT.skillsListFailed)
     return
   }
   const picked = await deps.pickSkills(skills.map((skill) => pickItemOf(skill)))
@@ -221,7 +220,10 @@ function parsedReport(deps: SkillsCliDeps, stdout: string): ImportReport | undef
   try {
     return parseImportReport(stdout)
   } catch (error: unknown) {
-    deps.showError(`${UI_TEXT.importFailed}: ${describe(error)}`)
+    // The CLI's import report is not JSON or not the documented shape:
+    // said in fixed words, the kind kept in the log.
+    deps.log.warn(`Skills import report could not be read: ${failureForLog(error)}`)
+    deps.showError(UI_TEXT.importFailed)
     return undefined
   }
 }

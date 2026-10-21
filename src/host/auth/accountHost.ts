@@ -6,11 +6,13 @@
 // extension never sends its Model API key to it, and never keeps, logs or
 // shows the account's `label` (an e-mail address) or `avatarUrl`.
 
-import { type Connection } from '@muse-code/sdk'
+// Type-only through the SDK's own module (see museCodeBackendManager.ts):
+// activation never value-imports the package root.
+import type { Connection } from '@muse-code/sdk/dist/src/connection/connection.js'
 import * as z from 'zod/mini'
 import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
-import { environmentValue } from '../../core/backends/musecode/launch'
-import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
+import { environmentValue } from '../../core/execGuard'
+import { spawnResourceConnection } from '../resources/museResourceLaunch'
 import { wireWordForLog } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'
 import {
@@ -55,11 +57,11 @@ export function isStoredSignIn(account: AccountState): boolean {
 }
 
 /**
- * The answer every captured `account/read` after a sign-out gave
- * (docs/certification/sign-in-detection.md). Nothing else counts as signed
- * out: `envKey` masks the stored lane, and other answers were never
- * captured (AGENTS.md rule 13, the review of PR #49).
- */
+The answer every captured `account/read` after a sign-out gave
+(docs/certification/sign-in-detection.md). Nothing else counts as signed
+out: `envKey` masks the stored lane, and other answers were never
+captured (AGENTS.md rule 13, the review of PR #49).
+*/
 export function isCapturedSignedOut(account: AccountState): boolean {
   return account.state === MUSE_ACCOUNT_STATES.loggedOut && account.credentialRequired
 }
@@ -68,8 +70,9 @@ type AccountConnection = AccountSession['connection']
 
 /** An account method's `AccountState` answer; undefined when it failed or came in another shape. */
 async function requestAccount(
-  connection: AccountConnection,
+  connection: Pick<AccountConnection, 'request'>,
   method: string,
+  log: Logger,
 ): Promise<AccountState | undefined> {
   try {
     const result = accountStateSchema.safeParse(
@@ -80,7 +83,14 @@ async function requestAccount(
       ),
     )
     return result.success ? result.data : undefined
-  } catch {
+  } catch (error: unknown) {
+    // The host failed or did not answer in time: it said nothing, which is
+    // not a state. Anything that is not an error keeps its kind.
+    // read-state: cert TBL-03. "Cannot say" reads as unsigned-in here; the
+    // sign-in gate re-asks rather than releasing anything on it. The kind
+    // reaches the record; the words carry nothing raw.
+    if (!(error instanceof Error)) throw error
+    log.warn(`Muse Code did not answer ${method}: ${wireWordForLog(errorName(error))}`)
     return undefined
   }
 }
@@ -88,15 +98,16 @@ async function requestAccount(
 /** `account/read` on an open host; undefined when the host cannot say. */
 export async function readAccountState(
   connection: AccountConnection,
+  log: Logger,
 ): Promise<AccountState | undefined> {
-  return await requestAccount(connection, MUSE_ACCOUNT_READ)
+  return await requestAccount(connection, MUSE_ACCOUNT_READ, log)
 }
 
 /**
- * `use` on one short-lived host, closed afterwards; `fallback` when it
- * cannot start, or once `ended` aborts (the window closing), which closes
- * the host at once instead of waiting for its answer.
- */
+`use` on one short-lived host, closed afterwards; `fallback` when it
+cannot start, or once `ended` aborts (the window closing), which closes
+the host at once instead of waiting for its answer.
+*/
 async function onAccountHost<T>(
   connect: ConnectAccountHost,
   log: Logger,
@@ -108,7 +119,10 @@ async function onAccountHost<T>(
   try {
     session = await connect(ended)
   } catch (error: unknown) {
-    log.warn(`The Muse Code account host could not start: ${errorName(error)}`)
+    // A host that cannot start answers with the fallback. Anything that is
+    // not an error keeps its kind.
+    if (!(error instanceof Error)) throw error
+    log.warn(`The Muse Code account host could not start: ${wireWordForLog(errorName(error))}`)
     return fallback
   }
   try {
@@ -128,16 +142,18 @@ export async function probeAccount(
   log: Logger,
   ended: AbortSignal,
 ): Promise<AccountState | undefined> {
-  return await onAccountHost(connect, log, ended, undefined, readAccountState)
+  return await onAccountHost(connect, log, ended, undefined, (connection) =>
+    readAccountState(connection, log),
+  )
 }
 
 /**
- * MSP `account/logout` on a short-lived host, confirmed by `account/read`:
- * `confirmed` only on the captured signed-out answer; `unconfirmed` when the
- * host could not start or refused, or answered anything else: a stored
- * credential, `envKey` (`META_API_KEY`, which no logout can unset, masks
- * the stored lane), or a state never captured.
- */
+MSP `account/logout` on a short-lived host, confirmed by `account/read`:
+`confirmed` only on the captured signed-out answer; `unconfirmed` when the
+host could not start or refused, or answered anything else: a stored
+credential, `envKey` (`META_API_KEY`, which no logout can unset, masks
+the stored lane), or a state never captured.
+*/
 export async function logOutAccount(
   connect: ConnectAccountHost,
   log: Logger,
@@ -149,8 +165,8 @@ export async function logOutAccount(
     ended,
     'unconfirmed',
     async (connection) => {
-      const answer = await requestAccount(connection, MUSE_ACCOUNT_LOGOUT)
-      const after = answer === undefined ? undefined : await readAccountState(connection)
+      const answer = await requestAccount(connection, MUSE_ACCOUNT_LOGOUT, log)
+      const after = answer === undefined ? undefined : await readAccountState(connection, log)
       // The state word only, and only in the shape of one: its vocabulary
       // is open (the review of PR #49).
       if (after === undefined || !isCapturedSignedOut(after)) {
@@ -168,11 +184,11 @@ export async function logOutAccount(
 }
 
 /**
- * The window's short-lived `account/read` and `account/logout` hosts, which
- * end together when it closes (the review of PR #49): a probe still waiting,
- * or one Cancel left behind, is closed rather than left running, and none
- * starts afterwards.
- */
+The window's short-lived `account/read` and `account/logout` hosts, which
+end together when it closes (the review of PR #49): a probe still waiting,
+or one Cancel left behind, is closed rather than left running, and none
+starts afterwards.
+*/
 export class AccountHosts {
   private readonly windowClosing = new AbortController()
 
@@ -215,10 +231,14 @@ export async function connectAccountSession(
   if (isAborted()) {
     throw new Error('The Muse Code account host was cancelled')
   }
+  // Loaded before the lease is taken: a bundle that will not load must
+  // refuse without holding resource admission.
+  const bundle = backend.museCodeBundle()
   const resource = await admitResource('museServe', signal)
   const env = backend.childEnvironment()
   let isStderrReported = false
-  const handshake = await spawnResourceMuseConnection(
+  const handshake = await spawnResourceConnection(
+    bundle.spawnMspConnection,
     {
       command: resolution.launch.command,
       args: resolution.launch.args,

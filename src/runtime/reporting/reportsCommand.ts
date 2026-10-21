@@ -73,7 +73,7 @@ export interface ReportsServices {
 }
 
 export interface ReportsCommandDeps {
-  readonly text: Pick<UiText, 'reportUi' | 'reportCliUsage'>
+  readonly text: Pick<UiText, 'reportUi' | 'reportCliUsage' | 'reportCliKinds'>
   readonly services: ReportsServices
   readonly now: () => string
   readonly locale: string

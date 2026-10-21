@@ -28,11 +28,11 @@ import {
 } from './registration'
 
 /**
- * Parse the wake record. A version 1 cap whose written digits a double
- * cannot carry is refused, never rounded: the written digits come from
- * `parseJsonWithExactNumbers`, never the reviver's source text, so the
- * refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
- */
+Parse the wake record. A version 1 cap whose written digits a double
+cannot carry is refused, never rounded: the written digits come from
+`parseJsonWithExactNumbers`, never the reviver's source text, so the
+refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
+*/
 function parseWakeRecord(stored: string): unknown {
   const { value, isExact } = parseJsonWithExactNumbers(stored, SCHEDULE_LEGACY_MONEY_KEYS)
   if (!isExact) throw new Error('scheduleStoredJsonInvalid')

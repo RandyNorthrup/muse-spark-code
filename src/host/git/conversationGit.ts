@@ -41,6 +41,8 @@ import type {
 } from '../../shared/git'
 import { fill } from '../../shared/l10n/text'
 import { GitHubError, type GitHubClient, repositoryFromFullName } from '../../core/git/github'
+import { githubStateOf, type GitHubSignIn } from '../../core/git/githubSignIn'
+import type { GitHubTokenSourceKind } from '../../core/git/tokenSource'
 import {
   type GitHubRepository,
   githubRepositoryOf,
@@ -51,6 +53,7 @@ import {
   commitMessageFrom,
   commitMessagePrompt,
   hasCredentialShapes,
+  isPullRequestFormRefused,
   pullRequestPrompt,
   pullRequestTextFrom,
   gitDraftContract,
@@ -58,8 +61,9 @@ import {
   type GitDraftOutputPort,
 } from '../../core/git/gitText'
 import type { SideCallFormats } from '../../core/backends/modelapi/structuredOutput'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isPlainRefName, isPlainRefspec, planPush, type PushPlan } from '../../core/git/pushPlan'
-import { pullRequestFormProblem } from '../../core/git/pullRequestRef'
+import { replyIfUsable } from '../../core/turns/usableReply'
 import { wireWordForLog } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
 import type { RuntimeGitDeps } from '../../core/git/runtimeGit'
@@ -77,6 +81,7 @@ import {
   type GitChange,
   type GitRepository,
 } from './gitExtension'
+import type { NativeGitBundle } from './nativeGitBundle'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 
 /** Preserve activation's error identities when this adapter is built into its own bundle. */
@@ -116,16 +121,22 @@ export interface GitWindow {
   readonly repository: (root: string) => Promise<GitRepository>
   readonly captureGitOwner: CaptureGitOwner
   /**
-   * A commit or a push runs the repository's hooks, signing programs and
-   * credential helpers, and a hook can write the workspace or leave a process
-   * behind. It starts only through the window's admission for workspace
-   * processes (M72, PLAN.md D51): trust, the window's closing and the backend's
-   * generation are asked at the last moment, and checkpoints' file restore
-   * becomes unavailable for this window, as after any command that may write.
-   */
+  A commit or a push runs the repository's hooks, signing programs and
+  credential helpers, and a hook can write the workspace or leave a process
+  behind. It starts only through the window's admission for workspace
+  processes (M72, PLAN.md D51): trust, the window's closing and the backend's
+  generation are asked at the last moment, and checkpoints' file restore
+  becomes unavailable for this window, as after any command that may write.
+  */
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
   /** VS Code's GitHub sign-in: `ask` may prompt, `silent` only reads one there is. */
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
+  /**
+  The window's GitHub sign-in over D104's sources (M123): the token for
+  each call, the panel card (a device-flow code, the source and the
+  account), Cancel and Sign out. `createGitWindow` always sets it.
+  */
+  readonly githubSignIn?: GitHubSignIn | undefined
   readonly github: GitHubClient
   readonly links: PullRequestLinks
   /** The push modal; true only for an explicit yes. */
@@ -147,11 +158,14 @@ export interface GitWindow {
   /** Formats the existing user turn; no separate draft request is started here. */
   readonly draftOutput?: GitDraftOutputPort | undefined
   /**
-   * M123's native route (PLAN.md D104) for a VS Code-family host without
-   * the `vscode.git` extension: the runtime adapter's deps over this
-   * window, or undefined when there is no folder or no git on PATH.
-   */
-  readonly nativeGit?: (() => RuntimeGitDeps | undefined) | undefined
+  M123's native route (PLAN.md D104) for a VS Code-family host without
+  the `vscode.git` extension: the runtime adapter's deps over this
+  window and the bundle it is in, or undefined when there is no folder or
+  no git on PATH.
+  */
+  readonly nativeGit?:
+    | (() => { readonly deps: RuntimeGitDeps; readonly bundle: () => NativeGitBundle } | undefined)
+    | undefined
 }
 
 /** A new file: where it is, and its path as the prompt names it. */
@@ -179,6 +193,8 @@ interface Generation {
 interface TurnSeen {
   text: string | undefined
   terminal: string | undefined
+  /** The turn's error kind, so a capped turn's summary is never a draft. */
+  errorKind: string | undefined
 }
 
 interface Destination {
@@ -201,7 +217,6 @@ interface PullRequestTarget {
 }
 
 const EMPTY_STATE_JSON = '{}'
-const COMPLETED_TERMINAL = 'completed'
 const AGENT_MESSAGE_KIND = 'agentMessage'
 const HEAD_REF = 'HEAD'
 const LINE_BREAK = /\r?\n/
@@ -283,6 +298,49 @@ function pushRefusalText(plan: Extract<PushPlan, { ok: false }>): string {
   return texts[plan.refusal]
 }
 
+/**
+The window's held-worktree card and the worktree line, as the panel shows
+them: the same in every conversation of the window, on both routes.
+*/
+export function windowWorktreeState(
+  window: Pick<GitWindow, 'hold' | 'worktree' | 'isWorkspaceTrusted'>,
+): Pick<GitState, 'hold' | 'worktree'> {
+  const hold = window.hold()
+  const worktree = window.worktree()
+  const pullRequest = hold?.pullRequest
+  return {
+    ...(hold !== undefined && {
+      hold: {
+        isRestricted: !window.isWorkspaceTrusted(),
+        ...(pullRequest !== undefined && {
+          pullRequest: {
+            repository: pullRequest.repository,
+            number: pullRequest.number,
+            title: pullRequest.title,
+            author: pullRequest.author,
+            url: pullRequest.url,
+          },
+        }),
+      },
+    }),
+    ...(worktree !== undefined && {
+      worktree: {
+        repositoryRoot: worktree.repositoryRoot,
+        ...(worktree.branch !== undefined && { branch: worktree.branch }),
+        ...(worktree.pullRequest !== undefined && {
+          pullRequestNumber: worktree.pullRequest.number,
+        }),
+      },
+    }),
+  }
+}
+
+/** The error constructors a conversation throws when no test double supplies its own. */
+const DEFAULT_CONVERSATION_GIT_ERROR_TYPES: ConversationGitErrorTypes = {
+  GitHubError,
+  GitUnavailableError,
+}
+
 export class ConversationGit implements ConversationGitPort {
   private generation: Generation | undefined
   private generationEpoch = 0
@@ -307,42 +365,26 @@ export class ConversationGit implements ConversationGitPort {
   private isDisposed = false
   private operationEpoch = 0
   private checkOperation: (() => void) | undefined
+  /** Ends a sign-in this conversation waits on when it closes. */
+  private readonly lifetime = new AbortController()
+  private readonly stopWatchingSignIn: (() => void) | undefined
 
   public constructor(
     private readonly window: GitWindow,
     private readonly surface: GitSurface,
-    private readonly errorTypes: ConversationGitErrorTypes = { GitHubError, GitUnavailableError },
-  ) {}
+    private readonly errorTypes: ConversationGitErrorTypes = DEFAULT_CONVERSATION_GIT_ERROR_TYPES,
+  ) {
+    // The sign-in card (a code to enter, the account) shows in every conversation of the window.
+    this.stopWatchingSignIn = window.githubSignIn?.onDidChange(() => {
+      this.postState()
+    })
+  }
 
   private currentState(): GitState {
-    const hold = this.window.hold()
-    const worktree = this.window.worktree()
-    const pullRequest = hold?.pullRequest
     return {
-      ...(hold !== undefined && {
-        hold: {
-          isRestricted: !this.window.isWorkspaceTrusted(),
-          ...(pullRequest !== undefined && {
-            pullRequest: {
-              repository: pullRequest.repository,
-              number: pullRequest.number,
-              title: pullRequest.title,
-              author: pullRequest.author,
-              url: pullRequest.url,
-            },
-          }),
-        },
-      }),
-      ...(worktree !== undefined && {
-        worktree: {
-          repositoryRoot: worktree.repositoryRoot,
-          ...(worktree.branch !== undefined && { branch: worktree.branch }),
-          ...(worktree.pullRequest !== undefined && {
-            pullRequestNumber: worktree.pullRequest.number,
-          }),
-        },
-      }),
+      ...windowWorktreeState(this.window),
       ...(this.view !== undefined && { pullRequest: this.view }),
+      ...githubStateOf(this.window.githubSignIn),
     }
   }
 
@@ -404,8 +446,9 @@ export class ConversationGit implements ConversationGitPort {
       this.checkOperation = owned.check
       return owned.repository
     } catch (error: unknown) {
+      const code = gitFailureCode(error)
       this.window.log.warn(
-        `The git extension could not open the repository (${gitFailureCode(error)})`,
+        `The git extension could not open the repository (${code}): ${failureForLog(error)}`,
       )
       if (this.canPost()) {
         this.surface.say('warning', `${UI_TEXT.gitUnavailable}: ${gitFailureText(error)}`)
@@ -494,9 +537,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Asks, then pushes exactly `plan`: three arguments to the git extension,
-   * never a force mode. True when the push went through.
-   */
+  Asks, then pushes exactly `plan`: three arguments to the git extension,
+  never a force mode. True when the push went through.
+  */
   private async pushWithConfirmation(
     repository: GitRepository,
     plan: Extract<PushPlan, { ok: true }>,
@@ -528,7 +571,8 @@ export class ConversationGit implements ConversationGitPort {
         await repository.push(plan.remote, plan.refspec, plan.setUpstream)
       })
     } catch (error: unknown) {
-      this.window.log.warn(`Push failed (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(`Push failed (${code}): ${failureForLog(error)}`)
       if (this.canPost()) {
         this.surface.say('error', `${UI_TEXT.gitPushFailed}: ${gitFailureText(error)}`)
       }
@@ -591,17 +635,80 @@ export class ConversationGit implements ConversationGitPort {
     }
   }
 
-  /** A GitHub token after VS Code's sign-in, or undefined after saying it was not given. */
+  /**
+  A token for one GitHub call, from the window's sign-in in D104's order
+  (`askWith`: the source the user picked). A sign-in that failed or was
+  cancelled is said here, in fixed words; `isSaid` tells the caller.
+  */
+  private async gitHubToken(
+    mode: 'ask' | 'silent',
+    askWith?: GitHubTokenSourceKind,
+  ): Promise<{ readonly token: string | undefined; readonly isSaid: boolean }> {
+    const signIn = this.window.githubSignIn
+    if (signIn === undefined) {
+      return { token: await this.window.githubToken(mode), isSaid: false }
+    }
+    const { credential, isSaid } = await signIn.credentialOrSaid(
+      { mode, signal: this.lifetime.signal, askWith },
+      (text) => {
+        this.surface.notice('warning', text)
+      },
+    )
+    return { token: credential?.bearer, isSaid }
+  }
+
+  /** A GitHub token after the sign-in, or undefined after saying it was not given. */
   private async askedToken(): Promise<string | undefined> {
-    const token = await this.window.githubToken('ask')
+    const { token, isSaid } = await this.gitHubToken('ask')
     this.checkCurrent()
-    if (token === undefined) {
+    if (token === undefined && !isSaid) {
       this.surface.notice('info', UI_TEXT.gitHubSignInDeclined)
     }
     return token
   }
 
-  private githubFailure(error: unknown): void {
+  /** GitHub refused `token` (401): the source that issued it drops it, so the user signs in again. */
+  private dropRejected(error: unknown, token: string): void {
+    if (!(error instanceof this.errorTypes.GitHubError && error.kind === 'signIn')) {
+      return
+    }
+    void this.window.githubSignIn?.rejectedBearer(token).catch(() => {
+      this.window.log.warn('A refused GitHub sign-in could not be dropped')
+    })
+  }
+
+  /** Sign in with the source the user picked (the card's "Sign In With a Code"). */
+  private async signInWith(kind: GitHubTokenSourceKind): Promise<void> {
+    const { token, isSaid } = await this.gitHubToken('ask', kind)
+    if (token === undefined) {
+      if (!isSaid && this.canPost()) {
+        this.surface.notice('info', UI_TEXT.gitHubSignInDeclined)
+      }
+      return
+    }
+    // Which sign-in GitHub calls now use: the one just made, or the
+    // editor's own when it already had one (D104's order).
+    const account = this.window.githubSignIn?.accountText()
+    if (account !== undefined && this.canPost()) {
+      this.surface.notice('info', account)
+    }
+    if (this.link !== undefined) {
+      await this.refreshStatus('silent')
+    }
+  }
+
+  /** Sign out of Muse Spark's own sign-in: the token is deleted and GitHub's page for the app opens. */
+  private async signOutOfGitHub(): Promise<void> {
+    const signIn = this.window.githubSignIn
+    if (signIn !== undefined) {
+      await signIn.signOutAndSay((level, text) => {
+        this.surface.notice(level, text)
+      })
+    }
+  }
+
+  private githubFailure(error: unknown, token: string): void {
+    this.dropRejected(error, token)
     if (!this.canPost()) {
       return
     }
@@ -613,9 +720,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Where the pull request opens: the remote's repository, or for a fork the
-   * repository it came from, with the branch named `owner:branch` there.
-   */
+  Where the pull request opens: the remote's repository, or for a fork the
+  repository it came from, with the branch named `owner:branch` there.
+  */
   private async destinationOf(token: string, target: PullRequestTarget): Promise<Destination> {
     const facts = await this.window.github.repositoryFacts(token, target.repository)
     this.checkCurrent()
@@ -677,7 +784,8 @@ export class ConversationGit implements ConversationGitPort {
         return
       }
     } catch (error: unknown) {
-      this.githubFailure(error)
+      this.window.log.warn(`Linking the pull request failed: ${failureForLog(error)}`)
+      this.githubFailure(error, token)
       return
     }
     let pushState: PullRequestFormFacts['push'] = 'pushed'
@@ -749,7 +857,7 @@ export class ConversationGit implements ConversationGitPort {
       this.view = view
       this.postState()
     }
-    const token = await this.window.githubToken(mode)
+    const { token } = await this.gitHubToken(mode)
     if (!this.isStatusCurrent(epoch)) {
       return
     }
@@ -773,6 +881,8 @@ export class ConversationGit implements ConversationGitPort {
         checkedAt: this.window.now(),
       })
     } catch (error: unknown) {
+      this.window.log.warn(`A pull request's checks could not be read: ${failureForLog(error)}`)
+      this.dropRejected(error, token)
       settle({
         ...base,
         problem: redactSecrets(
@@ -838,7 +948,8 @@ export class ConversationGit implements ConversationGitPort {
         }
       }
     } catch (error: unknown) {
-      this.window.log.warn(`A draft's diff could not be read (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(`A draft's diff could not be read (${code}): ${failureForLog(error)}`)
       throw new Error(UI_TEXT.gitUnavailable, { cause: error })
     }
     return commitMessagePrompt({
@@ -880,6 +991,8 @@ export class ConversationGit implements ConversationGitPort {
       try {
         commits = await repository.log({ range: `${baseRef}..${HEAD_REF}` })
       } catch {
+        // The fetch was only a fallback after the log failed; its own
+        // failure carries no new signal, and the outer handler reports it.
         check()
         await this.window.admit(async () => {
           check()
@@ -905,7 +1018,10 @@ export class ConversationGit implements ConversationGitPort {
       if (error instanceof this.errorTypes.GitUnavailableError) {
         throw error
       }
-      this.window.log.warn(`The branch's commits could not be listed (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(
+        `The branch's commits could not be listed (${code}): ${failureForLog(error)}`,
+      )
       throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
     }
   }
@@ -915,7 +1031,7 @@ export class ConversationGit implements ConversationGitPort {
     if (known !== undefined) {
       return known
     }
-    const fresh: TurnSeen = { text: undefined, terminal: undefined }
+    const fresh: TurnSeen = { text: undefined, terminal: undefined, errorKind: undefined }
     this.turnsSeen.set(turnId, fresh)
     return fresh
   }
@@ -934,19 +1050,17 @@ export class ConversationGit implements ConversationGitPort {
       this.turnsSeen.clear()
       return
     }
-    if (
-      generation.output !== undefined &&
-      seen.terminal === COMPLETED_TERMINAL &&
-      seen.text !== undefined
-    ) {
+    // A capped turn's summary is never a draft: only a turn that completed
+    // without a limit answers what was asked.
+    const reply = replyIfUsable({ terminal: seen.terminal, errorKind: seen.errorKind }, seen.text)
+    if (reply !== undefined && generation.output !== undefined) {
       if (generation.isSettling === true) return
       generation.isSettling = true
-      void this.settleStructuredGeneration(generation, seen.text)
+      void this.settleStructuredGeneration(generation, reply)
       return
     }
     this.generation = undefined
     this.turnsSeen.clear()
-    const reply = seen.terminal === COMPLETED_TERMINAL ? seen.text : undefined
     if (generation.kind === 'commitMessage') {
       const message = reply === undefined ? undefined : commitMessageFrom(reply)
       if (message !== undefined) {
@@ -987,7 +1101,8 @@ export class ConversationGit implements ConversationGitPort {
         this.generationFailed(generation.id)
         this.surface.notice('warning', UI_TEXT.gitDraftFailed)
       }
-    } catch {
+    } catch (error: unknown) {
+      this.window.log.warn(`A draft could not be generated: ${failureForLog(error)}`)
       if (this.isGenerationCurrent(generation.id)) this.generationFailed(generation.id)
     } finally {
       if (this.generation === generation) {
@@ -998,10 +1113,10 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Runs `operation` unless another commit, push or pull request operation
-   * is running for this conversation: a second press is ignored, and a
-   * form's press is answered as failed, so its buttons come back.
-   */
+  Runs `operation` unless another commit, push or pull request operation
+  is running for this conversation: a second press is ignored, and a
+  form's press is answered as failed, so its buttons come back.
+  */
   private async exclusively(operation: () => Promise<void>, form?: GitForm): Promise<void> {
     if (this.isDisposed || this.isOperating) {
       this.window.log.info('A git operation is already running here; the second press is ignored')
@@ -1016,8 +1131,9 @@ export class ConversationGit implements ConversationGitPort {
       this.checkCurrent()
       await operation()
     } catch (error: unknown) {
+      const code = gitFailureCode(error)
+      this.window.log.warn(`Git operation stopped (${code}): ${failureForLog(error)}`)
       if (this.canPost()) {
-        this.window.log.warn(`Git operation stopped (${gitFailureCode(error)})`)
         this.surface.say('warning', gitFailureText(error))
         if (form !== undefined) {
           this.surface.post({ type: 'gitDone', form, ok: false })
@@ -1107,7 +1223,8 @@ export class ConversationGit implements ConversationGitPort {
         })
         return true
       } catch (error: unknown) {
-        this.window.log.warn(`Commit failed (${gitFailureCode(error)})`)
+        const code = gitFailureCode(error)
+        this.window.log.warn(`Commit failed (${code}): ${failureForLog(error)}`)
         if (this.canPost()) {
           this.surface.say('error', `${UI_TEXT.gitCommitFailed}: ${gitFailureText(error)}`)
         }
@@ -1140,23 +1257,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     const title = request.title.trim()
     const base = request.base.trim()
-    const problem = pullRequestFormProblem(title, request.body, base)
-    if (problem !== undefined) {
-      this.surface.notice('warning', problem)
-      done(false)
-      return
-    }
-    if (hasCredentialShapes(title) || hasCredentialShapes(request.body)) {
-      // The form gets the masked text back: what goes out is what the user saw.
-      this.surface.post({
-        type: 'gitDraft',
-        draft: {
-          kind: 'pullRequest',
-          title: redactSecrets(title),
-          body: redactSecrets(request.body),
-        },
-      })
-      this.surface.notice('warning', UI_TEXT.gitCredentialMasked)
+    if (isPullRequestFormRefused({ title, body: request.body, base }, this.surface)) {
       done(false)
       return
     }
@@ -1196,7 +1297,10 @@ export class ConversationGit implements ConversationGitPort {
       destination = await this.destinationOf(token, target)
       this.checkCurrent(repository, stamp)
     } catch (error: unknown) {
-      this.githubFailure(error)
+      this.window.log.warn(
+        `The pull request destination could not be read: ${failureForLog(error)}`,
+      )
+      this.githubFailure(error, token)
       done(false)
       return
     }
@@ -1239,7 +1343,8 @@ export class ConversationGit implements ConversationGitPort {
         isDraft: request.isDraft,
       })
     } catch (error: unknown) {
-      this.githubFailure(error)
+      this.window.log.warn(`The pull request could not be opened: ${failureForLog(error)}`)
+      this.githubFailure(error, token)
       done(false)
       return
     }
@@ -1265,6 +1370,8 @@ export class ConversationGit implements ConversationGitPort {
     try {
       this.checkCurrent()
     } catch {
+      // Ownership or lifetime loss after a completed post stops only the
+      // linking reads; success already stands, so there is nothing to report.
       return
     }
     await this.linkPullRequest({
@@ -1277,9 +1384,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * The hold card, the worktree line and the pull request strip, sent when
-   * they change; `isSurfaceReady` for a webview that starts with none of them.
-   */
+  The hold card, the worktree line and the pull request strip, sent when
+  they change; `isSurfaceReady` for a webview that starts with none of them.
+  */
   public postState(isSurfaceReady = false): void {
     if (this.isDisposed) {
       return
@@ -1320,7 +1427,10 @@ export class ConversationGit implements ConversationGitPort {
     if (sessionId !== undefined && pending !== undefined) {
       this.pendingLink = undefined
       void this.window.links.set(sessionId, pending).catch((error: unknown) => {
-        this.window.log.warn(`The pull request link could not be kept (${gitFailureCode(error)})`)
+        const code = gitFailureCode(error)
+        this.window.log.warn(
+          `The pull request link could not be kept (${code}): ${failureForLog(error)}`,
+        )
       })
     }
     const link = sessionId === undefined ? undefined : this.window.links.get(sessionId)
@@ -1338,7 +1448,10 @@ export class ConversationGit implements ConversationGitPort {
     this.postState()
     if (this.link !== undefined) {
       void this.refreshStatus('silent').catch((error: unknown) => {
-        this.window.log.warn(`The pull request status could not be read (${gitFailureCode(error)})`)
+        const code = gitFailureCode(error)
+        this.window.log.warn(
+          `The pull request status could not be read (${code}): ${failureForLog(error)}`,
+        )
       })
     }
   }
@@ -1363,6 +1476,18 @@ export class ConversationGit implements ConversationGitPort {
       }
       case 'signInGitHub': {
         await this.refreshStatus('ask')
+        break
+      }
+      case 'signInGitHubWithCode': {
+        await this.signInWith('deviceFlow')
+        break
+      }
+      case 'cancelGitHubSignIn': {
+        this.window.githubSignIn?.cancel()
+        break
+      }
+      case 'signOutGitHub': {
+        await this.signOutOfGitHub()
         break
       }
       case 'trustWorktree': {
@@ -1390,9 +1515,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * What the model needs beside the user's own message asking for `kind`.
-   * Throws with the reason in words when it cannot be built.
-   */
+  What the model needs beside the user's own message asking for `kind`.
+  Throws with the reason in words when it cannot be built.
+  */
   public async promptFor(kind: GitDraftKind, base?: string): Promise<string> {
     const formEpoch = this.formEpoch
     const check = this.activityCheck()
@@ -1410,7 +1535,10 @@ export class ConversationGit implements ConversationGitPort {
       checkOwned = owned.check
     } catch (error: unknown) {
       // The card says it in fixed words; git's own may name a path, so the log gets its code.
-      this.window.log.warn(`A draft's repository could not be read (${gitFailureCode(error)})`)
+      const code = gitFailureCode(error)
+      this.window.log.warn(
+        `A draft's repository could not be read (${code}): ${failureForLog(error)}`,
+      )
       throw new Error(UI_TEXT.gitUnavailable, { cause: error })
     }
     const stamp = repositoryStamp(repository)
@@ -1509,13 +1637,17 @@ export class ConversationGit implements ConversationGitPort {
     ) {
       this.seen(event.item.turnId).text = event.item.text
     } else if (event.type === 'turnCompleted' && isWatched(event.turnId)) {
-      this.seen(event.turnId).terminal = event.terminal
+      const seen = this.seen(event.turnId)
+      seen.terminal = event.terminal
+      seen.errorKind = event.errorKind
       this.settleGeneration()
     }
   }
 
   public dispose(): void {
     this.isDisposed = true
+    this.stopWatchingSignIn?.()
+    this.lifetime.abort()
     this.operationEpoch += 1
     this.statusEpoch += 1
     this.advanceFormEpoch()

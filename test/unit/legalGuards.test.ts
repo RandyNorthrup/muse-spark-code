@@ -8,24 +8,24 @@ import { scanLegal } from '../../src/core/legal/scan'
 
 const FIXTURE_DIR = new URL('../fixtures/legal/tree/', import.meta.url)
 
-function fixtureFiles(dir: URL, root: URL): string[] {
+function fixtureFiles(dir: URL): string[] {
   const found: string[] = []
   const listed2 = readdirSync(dir, { withFileTypes: true })
   for (const entry of listed2) {
     const child = new URL(entry.name, dir)
     if (entry.isDirectory()) {
-      found.push(...fixtureFiles(new URL(`${child.href}/`), root))
+      found.push(...fixtureFiles(new URL(`${child.href}/`)))
     } else {
-      found.push(decodeURIComponent(child.href.slice(root.href.length)))
+      found.push(decodeURIComponent(child.href.slice(FIXTURE_DIR.href.length)))
     }
   }
   return found.toSorted((a, b) => a.localeCompare(b, 'en'))
 }
 
 describe('legal scanner guards', () => {
-  it('leaves the hazardous fixture tree byte-identical and executes nothing', () => {
+  it('leaves the hazardous fixture tree byte-identical and executes nothing', async () => {
     const before = new Map<string, string>()
-    const listed3 = fixtureFiles(FIXTURE_DIR, FIXTURE_DIR)
+    const listed3 = fixtureFiles(FIXTURE_DIR)
     for (const file of listed3) {
       const bytes = readFileSync(new URL(file, FIXTURE_DIR))
       before.set(file, createHash('sha256').update(bytes).digest('hex'))
@@ -44,7 +44,7 @@ describe('legal scanner guards', () => {
         return readFileSync(new URL(path, FIXTURE_DIR), 'utf8')
       },
     }
-    const result = scanLegal(snapshot, { headerPolicy: 'required' })
+    const result = await scanLegal(snapshot, { headerPolicy: 'required' })
     expect(result.findings.length).toBeGreaterThan(0)
     expect(readPaths).not.toContain('notes/payload.md')
 
@@ -52,7 +52,7 @@ describe('legal scanner guards', () => {
       const bytes = readFileSync(new URL(file, FIXTURE_DIR))
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash)
     }
-    expect(fixtureFiles(FIXTURE_DIR, FIXTURE_DIR)).toEqual(
+    expect(fixtureFiles(FIXTURE_DIR)).toEqual(
       Array.from(before.keys(), (entry) => entry).toSorted((a, b) => a.localeCompare(b, 'en')),
     )
 

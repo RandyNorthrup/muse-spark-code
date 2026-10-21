@@ -1,12 +1,13 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { mkdir, open, readdir, readFile, realpath, rmdir, unlink } from 'node:fs/promises'
+import { link, mkdir, open, readdir, readFile, realpath, rmdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
   RESOURCE_BIGINT_ZERO,
   RESOURCE_PRIVATE_DIR_MODE,
   RESOURCE_PRIVATE_FILE_MODE,
+  RESOURCE_RETIRED_SWEEP_WIDTH,
   RESOURCE_UNSAFE_WRITE_MODE,
   RESOURCE_TEMP_KEEP_MS,
   RESOURCE_TEMP_PREFIX,
@@ -27,6 +28,15 @@ const entrySchema = z.strictObject({
   failed: z.boolean(),
 })
 type CreatedPath = z.infer<typeof entrySchema>
+const manifestSchema = z.array(entrySchema)
+/** Quarantine names for retired stages/displaced manifests; fresh and unguessable. */
+const RETIRED_PREFIX = '.muse-retired-'
+function isUuidText(text: string | undefined): boolean {
+  return (
+    text !== undefined &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(text)
+  )
+}
 export interface CreatedPathProof {
   /** Exact birth-bound whole-tree completion; absence of a PID is never proof. */
   exited(owner: string): Promise<boolean>
@@ -95,10 +105,17 @@ export class CreatedRegistry {
     } catch (error: unknown) {
       if (!isMissing(error)) throw error
     }
+    // Names an earlier run retained are retired by the same proof, in the
+    // background through the registry's own queue, so a folder holding
+    // thousands of them never holds back the first governed launch.
+    await registry.queueLeftovers()
     return registry
   }
 
   private readonly entries = new Map<string, CreatedPath>()
+  /** The background retirement of names earlier runs left; clean() reports its failure. */
+  private leftovers: Promise<readonly PromiseSettledResult<void>[]> = Promise.resolve([])
+  /** Entry ids and retained manifest names that failed proof and were left alone. */
   private readonly refused = new Set<string>()
   private readonly finished = new Set<string>()
   private readonly made = new Set<string>()
@@ -113,11 +130,11 @@ export class CreatedRegistry {
     private readonly proof: CreatedPathProof,
   ) {}
 
-  private checkPrivate(
+  private isUnsafe(
     sample: Awaited<ReturnType<typeof lstatIdentity>>,
     isDirectory: boolean,
-  ): void {
-    if (
+  ): boolean {
+    return (
       sample.isSymbolicLink() ||
       (isDirectory ? !sample.isDirectory() : !sample.isFile()) ||
       (process.platform !== 'win32' &&
@@ -125,6 +142,13 @@ export class CreatedRegistry {
           sample.uid !== BigInt(process.getuid()) ||
           (sample.mode & BigInt(RESOURCE_UNSAFE_WRITE_MODE)) !== RESOURCE_BIGINT_ZERO))
     )
+  }
+
+  private checkPrivate(
+    sample: Awaited<ReturnType<typeof lstatIdentity>>,
+    isDirectory: boolean,
+  ): void {
+    if (this.isUnsafe(sample, isDirectory))
       throw new Error('Unsafe creation registry ownership or permissions')
   }
 
@@ -204,9 +228,172 @@ export class CreatedRegistry {
     return await next
   }
 
+  private async verifiedParent(): Promise<{ parent: string; identity: string }> {
+    await mkdir(path.dirname(this.file), { recursive: true, mode: RESOURCE_PRIVATE_DIR_MODE })
+    const parent = await realpath(path.dirname(this.file))
+    const parentSample = await lstatIdentity(parent)
+    this.checkPrivate(parentSample, true)
+    const identity = fileIdentityKey(parentSample)
+    if (identity === undefined) throw new Error('Unsafe creation registry parent identity')
+    return { parent, identity }
+  }
+
+  private isRetainedName(name: string): boolean {
+    if (name.startsWith(RETIRED_PREFIX) && isUuidText(name.slice(RETIRED_PREFIX.length)))
+      return true
+    const legacy = /^([\da-f-]{36})\.json\.([\da-f-]{36})(\.(?:publish|previous))?$/u.exec(name)
+    if (legacy !== null && isUuidText(legacy[1]) && isUuidText(legacy[2])) return true
+    const live = path.basename(this.file)
+    if (!name.startsWith(`${live}.`)) return false
+    const rest = name.slice(live.length + 1)
+    const stage =
+      rest.endsWith('.publish') || rest.endsWith('.previous')
+        ? rest.slice(0, rest.lastIndexOf('.'))
+        : rest
+    return isUuidText(stage)
+  }
+
+  /**
+  Retire one retained stage or displaced manifest. Proof is content plus
+  identity, never age or count: the bytes must parse as this registry's
+  manifest, and the name must still be that file when it is unlinked. A name
+  exchanged for anything else is left alone and reported, never removed.
+  */
+  private async retireRetained(parent: string, name: string): Promise<boolean> {
+    const candidate = path.join(parent, name)
+    let sample
+    try {
+      sample = await lstatIdentity(candidate)
+    } catch (error: unknown) {
+      if (!isMissing(error)) throw error
+      return true
+    }
+    const identity = fileIdentityKey(sample)
+    if (identity === undefined || this.isUnsafe(sample, false)) {
+      this.refused.add(candidate)
+      return false
+    }
+    let text: string
+    try {
+      const handle = await open(
+        candidate,
+        constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW),
+      )
+      try {
+        text = await handle.readFile('utf8')
+      } finally {
+        await handle.close()
+      }
+    } catch (error: unknown) {
+      if (!isMissing(error)) throw error
+      return true
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(text)
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
+      this.refused.add(candidate)
+      return false
+    }
+    if (!manifestSchema.safeParse(parsed).success) {
+      this.refused.add(candidate)
+      return false
+    }
+    // No-replace quarantine capture: success proves the trash name is this
+    // file, whatever happens to the guessable name afterwards.
+    const trash = path.join(parent, `${RETIRED_PREFIX}${randomUUID()}`)
+    await link(candidate, trash)
+    const captured = fileIdentityKey(await lstatIdentity(trash))
+    let current: string | undefined
+    try {
+      current = fileIdentityKey(await lstatIdentity(candidate))
+    } catch (error: unknown) {
+      if (!isMissing(error)) throw error
+      current = undefined
+    }
+    if (captured !== identity || (current !== undefined && current !== identity)) {
+      // An exchange raced the capture: drop only our own fresh trash name.
+      await this.dropTrash(trash, captured)
+      this.refused.add(candidate)
+      return false
+    }
+    // Re-prove the content through the captured name, closing the gap between
+    // the first read and the capture.
+    let reproof: unknown
+    try {
+      reproof = JSON.parse(await readFile(trash, 'utf8'))
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
+      await this.dropTrash(trash, captured)
+      this.refused.add(candidate)
+      return false
+    }
+    if (!manifestSchema.safeParse(reproof).success) {
+      await this.dropTrash(trash, captured)
+      this.refused.add(candidate)
+      return false
+    }
+    await unlink(candidate)
+    if (!(await this.isGone(candidate))) throw new Error('Retained manifest name was not retired')
+    await unlink(trash)
+    if (!(await this.isGone(trash))) throw new Error('Retained manifest name was not retired')
+    return true
+  }
+
+  private async dropTrash(trash: string, captured: string | undefined): Promise<void> {
+    if (captured === undefined) return
+    try {
+      if (fileIdentityKey(await lstatIdentity(trash)) === captured) await unlink(trash)
+    } catch (error: unknown) {
+      if (!isMissing(error)) throw error
+    }
+  }
+
+  private async isGone(file: string): Promise<boolean> {
+    try {
+      await lstatIdentity(file)
+      return false
+    } catch (error: unknown) {
+      if (!isMissing(error)) throw error
+      return true
+    }
+  }
+
+  /** Retire one batch of retained names in the verified registry folder. */
+  private async retireBatch(names: readonly string[]): Promise<void> {
+    const { parent } = await this.verifiedParent()
+    await Promise.all(names.map((name) => this.retireRetained(parent, name)))
+  }
+
+  /**
+  Start retiring every retained name an earlier run left, in the
+  background. Each batch joins the registry's queue only after the one
+  before it finished, so a save or cleanup asked for meanwhile goes first
+  and a stage is never looked at while its save is publishing it. A failure
+  is kept for clean(), which reports it with its cause.
+  */
+  private async queueLeftovers(): Promise<void> {
+    const { parent } = await this.verifiedParent()
+    const listed = await readdir(parent)
+    const names = listed.filter((name) => this.isRetainedName(name))
+    this.leftovers = this.retireLeftovers(names)
+  }
+
+  private async retireLeftovers(
+    names: readonly string[],
+  ): Promise<readonly PromiseSettledResult<void>[]> {
+    const settled: PromiseSettledResult<void>[] = []
+    for (let i = 0; i < names.length; i += RESOURCE_RETIRED_SWEEP_WIDTH) {
+      const batch = names.slice(i, i + RESOURCE_RETIRED_SWEEP_WIDTH)
+      settled.push(...(await Promise.allSettled([this.serial(() => this.retireBatch(batch))])))
+    }
+    return settled
+  }
+
   private async save(): Promise<void> {
     await this.verifyBase()
-    await mkdir(path.dirname(this.file), { recursive: true, mode: RESOURCE_PRIVATE_DIR_MODE })
+    const { parent, identity: parentIdentity } = await this.verifiedParent()
     let previous = ''
     try {
       await this.checkManifest()
@@ -221,15 +408,12 @@ export class CreatedRegistry {
       await handle.sync()
       const identity = fileIdentityKey(await handle.stat({ bigint: true }))
       if (identity === undefined) throw new Error('Unsafe manifest stage identity')
-      const parent = await realpath(path.dirname(this.file))
-      const parentSample = await lstatIdentity(parent)
-      this.checkPrivate(parentSample, true)
       z.strictObject({ published: z.literal(true) }).parse(
         JSON.parse(
           await this.nativeFiles([
             'publish',
             parent,
-            fileIdentityKey(parentSample) ?? '',
+            parentIdentity,
             path.basename(stage),
             path.basename(this.file),
             previous,
@@ -239,8 +423,13 @@ export class CreatedRegistry {
       )
     } finally {
       await handle.close()
-      // Retain stages/displaced manifests: an external name can be exchanged before unlink.
     }
+    // The publish keeps the stage and the displaced manifest under guessable
+    // names; retire this save's own now that the live manifest is proven, by
+    // content and identity. A failed proof leaves the name alone and reports
+    // it. Names earlier runs left are the background queue's (open()).
+    const stageName = path.basename(stage)
+    await this.retireBatch([stageName, `${stageName}.previous`, `${stageName}.publish`])
   }
 
   private async nativeFiles(args: readonly string[]): Promise<string> {
@@ -343,6 +532,30 @@ export class CreatedRegistry {
     }
   }
 
+  /**
+  A refused quarantine restores its entry only onto a missing name, never
+  over a replacement. Probe failures stay quarantined; the quarantine's own
+  cause is refused and rethrown by the caller.
+  */
+  private async restoreQuarantined(
+    source: string,
+    trash: string,
+    storedIdentity: string,
+  ): Promise<void> {
+    // Never overwrite a replacement when restoring a refused quarantine.
+    try {
+      await lstatIdentity(source)
+    } catch (error: unknown) {
+      if (isMissing(error)) {
+        try {
+          await this.renameEntry(trash, source, storedIdentity)
+        } catch {
+          /* A raced or replaced restore name remains quarantined and reported. */
+        }
+      }
+    }
+  }
+
   private async removeEntry(entry: CreatedPath): Promise<boolean> {
     if (this.refused.has(entry.id)) return false
     await this.checkManifest()
@@ -397,20 +610,7 @@ export class CreatedRegistry {
             await this.removeDirectory(trash, identity)
           })
         } catch (error: unknown) {
-          if (isQuarantined) {
-            // Never overwrite a replacement when restoring a refused quarantine.
-            try {
-              await lstatIdentity(source)
-            } catch (error_: unknown) {
-              if (isMissing(error_)) {
-                try {
-                  await this.renameEntry(trash, source, storedIdentity)
-                } catch {
-                  /* A raced or replaced restore name remains quarantined and reported. */
-                }
-              }
-            }
-          }
+          if (isQuarantined) await this.restoreQuarantined(source, trash, storedIdentity)
           if (isQuarantined || !isMissing(error)) {
             this.refused.add(entry.id)
             throw error
@@ -580,8 +780,18 @@ export class CreatedRegistry {
     })
   }
 
-  clean(): Promise<CreatedCleanup> {
-    return this.serial(async () => {
+  async clean(): Promise<CreatedCleanup> {
+    // The background retirement of earlier runs' names finishes first (it
+    // needs the queue, so it is awaited outside it); a failed batch is
+    // reported once, with its cause.
+    const settled = await this.leftovers
+    this.leftovers = Promise.resolve([])
+    const failure = settled.find((step) => step.status === 'rejected')
+    if (failure !== undefined)
+      throw new Error('Retained creation registry names could not be retired', {
+        cause: failure.reason,
+      })
+    return await this.serial(async () => {
       let removed = 0
       let freedBytes: number | null = 0
       for (const entry of this.entries.values()) {

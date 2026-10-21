@@ -26,17 +26,18 @@ function isUiText(table: unknown, locale: string): table is UiText {
   )
 }
 
-function refused(reason: string): Error {
+function refused(reason: string, cause?: unknown): Error {
   return new Error(
     `The display language's table was not installed; the panel stays English: ${reason}`,
+    { cause },
   )
 }
 
 /**
- * Installs the table embedded in `page`, if there is one. Returns why an
- * embedded table was refused, for the log; undefined when it was installed
- * or the page has none.
- */
+Installs the table embedded in `page`, if there is one. Returns why an
+embedded table was refused, for the log; undefined when it was installed
+or the page has none.
+*/
 export function installEmbeddedTable(page: ParentNode): Error | undefined {
   const element = page.querySelector(`#${WEBVIEW_L10N_ELEMENT_ID}`)
   if (element === null) {
@@ -46,7 +47,7 @@ export function installEmbeddedTable(page: ParentNode): Error | undefined {
   try {
     raw = JSON.parse(element.textContent)
   } catch (error) {
-    return refused(error instanceof Error ? error.message : String(error))
+    return refused(error instanceof Error ? error.message : String(error), error)
   }
   const parsed = embeddedTableSchema.safeParse(raw)
   if (!parsed.success) {
@@ -56,7 +57,9 @@ export function installEmbeddedTable(page: ParentNode): Error | undefined {
   try {
     // A tag Intl rejects would leave the plural and number rules half set.
     Intl.getCanonicalLocales(locale)
-  } catch {
+  } catch (error: unknown) {
+    // Only a rejected tag refuses the table: anything else keeps its kind.
+    if (!(error instanceof RangeError)) throw error
     return refused(`"${locale}" is not a language tag`)
   }
   if (!isUiText(table, locale)) {

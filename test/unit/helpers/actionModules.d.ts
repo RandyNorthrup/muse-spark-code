@@ -54,7 +54,7 @@ interface ActionChildInput {
   stdin?: Uint8Array
   stdoutPath?: string
   stdoutPrefixMaxBytes?: number
-  withinMs: number
+  withinMs: number | undefined
   stdoutMaxBytes: number
   stderrMaxBytes: number
 }
@@ -85,8 +85,8 @@ interface ActionInputs {
   mode: 'review' | 'fix'
   maxBudgetUsd: string
   imageGeneration: boolean
-  maxRequests: number
-  timeoutMinutes: number
+  maxRequests: number | null
+  timeoutMinutes: number | null
   model: string
   effort: string
   allowContributorModels: boolean
@@ -231,11 +231,67 @@ declare module '*/action/lib/lifecycle.mjs' {
   export function createLauncherOwner(input: {
     paths: Partial<ActionPaths>
     dropSecrets: () => void
-    totalMs: number
+    totalMs: number | undefined
     bounds?: ActionBounds
     onSignal?: (signal: 'SIGINT' | 'SIGTERM', run: () => void) => () => void
     temporaryFiles?: readonly string[]
   }): LauncherOwner
+}
+
+interface CiFacts {
+  system: string
+  workspace: string
+  runId: string
+  attempt: string
+  event: 'pull_request' | 'branch' | 'unsupported'
+  label: string
+  number: string | null
+  isFork: boolean
+  isProtected: boolean | null
+  headSha: string
+  base: { sha: string } | { ref: string } | { firstParent: true } | { mergeParent: true }
+  title: string
+  body: string
+}
+
+type CiInputs = ActionInputs & { trustPullRequests: boolean }
+
+declare module '*/action/lib/ci-adapters.mjs' {
+  export const CI_SYSTEMS: readonly string[]
+  export function azureBoolean(value: string | undefined, name: string): boolean | undefined
+  export function ciFacts(system: string, env: Record<string, string | undefined>): CiFacts
+  export function decideCi(
+    facts: CiFacts,
+    inputs: Pick<CiInputs, 'trustPullRequests' | 'imageGeneration' | 'mode'>,
+  ): { allowed: true } | { allowed: false; reason: string }
+}
+
+declare module '*/action/lib/ci-run.mjs' {
+  export function takeCiKey(env: Record<string, string | undefined>): string | undefined
+  export function parseCiInputs(env: Record<string, string | undefined>, system: string): CiInputs
+  export function ownerTotalMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number | undefined
+  export function requiredJobMinutes(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
+  export function requiredRunMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
+  export function jobMinutes(env: Record<string, string | undefined>, system: string): number
+  export function bootstrapStartMs(env: Record<string, string | undefined>): number
+  export function jobStartMs(
+    env: Record<string, string | undefined>,
+    system: string,
+    nowMs?: number,
+  ): number
+  export function checkJobDeadline(
+    env: Record<string, string | undefined>,
+    system: string,
+    inputs: Pick<ActionInputs, 'timeoutMinutes'>,
+    nowMs?: number,
+  ): void
+  export const CI_BOOTSTRAP_UNSET: readonly string[]
+  export const CI_PUBLISHED_FILES: readonly string[]
+  export function privateTemp(
+    value: string | undefined,
+    workspace: string,
+    platform: string,
+  ): string
 }
 
 declare module '*/action/lib/git.mjs' {
@@ -427,6 +483,7 @@ declare module '*/action/lib/inputs.mjs' {
 declare module '*/action/lib/result.mjs' {
   export function exitCodeFor(status: string, signal: string | null): number
   export function microUsd(value: unknown): bigint | undefined
+  export function isExecStatus(value: unknown): boolean
   export function isExecResult(value: unknown): boolean
   export function isExecEvent(value: unknown): boolean
   export const PROHIBITED_UPDATE: RegExp
@@ -443,6 +500,7 @@ declare module '*/action/lib/run-exec.mjs' {
   export const MODEL_API_KEY_PATTERN: RegExp
   export const KEY_VARIABLE: string
   export const INVALID_KEY_MESSAGE: string
+  export function isValidModelApiKey(value: unknown): boolean
   export function takeModelApiKey(env: Record<string, string | undefined>): string | undefined
   export function maskCommand(value: string): string
   export function execArguments(input: {
@@ -460,6 +518,10 @@ declare module '*/action/lib/run-exec.mjs' {
     owner: LauncherOwner,
     paths: ActionPaths,
   ): Record<string, string>
+  export function summaryFor(
+    report: Pick<ActionRunReport, 'execCode' | 'wrapperFailed' | 'patchWithheld'>,
+    outputs: Record<string, string>,
+  ): string
 }
 
 declare module '*/action/lib/post.mjs' {

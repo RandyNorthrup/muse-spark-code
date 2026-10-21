@@ -2,11 +2,15 @@
 import type { UiText } from '../../shared/l10n/en'
 import type { Logger } from '../../host/logger'
 import { lazyBundleLoader } from '../../host/lazyBundle'
-import { UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import type { ScheduleCommandOptions } from './args'
+import type { ScheduleMigrationSource } from '../../core/schedules/migrate'
 import type { ScheduleCommandResult } from './settle'
 import type { AcpSchedulePort } from '../../acp/schedules'
+import type { ScheduleEditorDeliveryPorts } from '../../host/schedules/deliveryBinding'
+import type { RuntimeScheduleDeliveryPorts, RuntimeScheduleEngineModule } from './delivery'
+import type { AcpScheduleSession } from '../../acp/schedules'
 
 export interface RuntimeSchedulesBinding extends AcpSchedulePort {
   command(
@@ -15,14 +19,26 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
     isInteractive?: boolean,
   ): Promise<ScheduleCommandResult>
   /** ACP/native/companion workspace lifetime; S binds the polling engine here. */
-  holdWorkspace(cwd: string): Promise<() => Promise<void>>
+  holdWorkspace(cwd: string, session?: AcpScheduleSession): Promise<() => Promise<void>>
   /** The VS Code panel's request port over the same workspace control. */
   message(input: unknown, cwd: string): Promise<unknown>
   close(): Promise<void>
 }
 
+export type CreateRuntimeSchedulesArgs = [
+  table: UiText,
+  locale: string,
+  delivery?: ScheduleEditorDeliveryPorts,
+  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
+  migration?: { source: ScheduleMigrationSource; zone: string },
+  scheduleEngine?: RuntimeScheduleEngineModule,
+  // D121: the person's pause-after-failures count (0 never pauses), read
+  // live on every settlement when it is a function. Absent never pauses.
+  pauseAfterFailures?: number | (() => number),
+]
+
 interface RuntimeSchedulesModule {
-  createRuntimeSchedules(table: UiText, locale: string): Promise<RuntimeSchedulesBinding>
+  createRuntimeSchedules(...args: CreateRuntimeSchedulesArgs): Promise<RuntimeSchedulesBinding>
 }
 
 function isSchedulesModule(value: unknown): value is RuntimeSchedulesModule {
@@ -38,6 +54,13 @@ export function runtimeSchedulesBinding(
   bundlePath: string,
   log: Logger,
   loadBundle?: (file: string) => unknown,
+  delivery?: ScheduleEditorDeliveryPorts,
+  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
+  migration?: { source: ScheduleMigrationSource; zone: string },
+  scheduleEngine?: RuntimeScheduleEngineModule,
+  // D121: the person's pause-after-failures count (0 never pauses), read
+  // live on every settlement when it is a function. Absent never pauses.
+  pauseAfterFailures?: number | (() => number),
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({
     bundlePath,
@@ -49,7 +72,35 @@ export function runtimeSchedulesBinding(
   })
   let binding: Promise<RuntimeSchedulesBinding> | undefined
   return async () => {
-    binding ??= load().createRuntimeSchedules(UI_TEXT, uiLocale())
+    if (binding === undefined) {
+      if (!SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady) {
+        delivery = undefined
+        runtimeDelivery = undefined
+      }
+      if (runtimeDelivery === undefined) {
+        binding =
+          delivery === undefined && migration === undefined && pauseAfterFailures === undefined
+            ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
+            : load().createRuntimeSchedules(
+                UI_TEXT,
+                uiLocale(),
+                delivery,
+                undefined,
+                migration,
+                scheduleEngine,
+                pauseAfterFailures,
+              )
+      } else
+        binding = load().createRuntimeSchedules(
+          UI_TEXT,
+          uiLocale(),
+          delivery,
+          runtimeDelivery,
+          migration,
+          scheduleEngine,
+          pauseAfterFailures,
+        )
+    }
     try {
       return await binding
     } catch (error: unknown) {

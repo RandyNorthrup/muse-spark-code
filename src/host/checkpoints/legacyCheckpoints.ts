@@ -62,7 +62,7 @@ export async function legacyCheckpointTurns(
     ...new Set([
       ...fileIds,
       ...listed.flatMap(({ record }) =>
-        record?.kind === 'checkpoint' && record.sessionId === sessionId ? [record.turnId] : [],
+        record?.kind === 'checkpoint' && record.sessionId === sessionId ? record.turnId : [],
       ),
     ]),
   ]

@@ -3,6 +3,9 @@
 import * as z from 'zod/mini'
 import { accountIdSchema } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID, SECRET_KEYS } from '../../shared/constants'
+import { AccountStoreError } from '../accountStoreError'
+
+export { AccountStoreError } from '../accountStoreError'
 
 export const accountBindingSchema = z.strictObject({
   provider: accountIdSchema,
@@ -17,7 +20,9 @@ export const accountBindingSchema = z.strictObject({
           url.username === '' &&
           url.password === ''
         )
-      } catch {
+      } catch (error: unknown) {
+        // Only a malformed origin fails the binding: anything else keeps its kind.
+        if (!(error instanceof TypeError)) throw error
         return false
       }
     }),
@@ -40,22 +45,6 @@ export interface AccountCredentialVault {
   readForRemoval(binding: AccountBinding): Promise<AccountCredential | undefined>
   write(binding: AccountBinding, record: AccountCredential): Promise<void>
   remove(binding: AccountBinding): Promise<void>
-}
-
-export class AccountStoreError extends Error {
-  public constructor(
-    public readonly code:
-      | 'invalidAccount'
-      | 'notOffered'
-      | 'unavailable'
-      | 'invalidCredential'
-      | 'originMismatch'
-      | 'invalidProvidersFile',
-  ) {
-    // Fixed codes only: store/revocation errors can contain the secret itself.
-    super(code)
-    this.name = 'AccountStoreError'
-  }
 }
 
 /** Validate both identity and exact origin, including scheme and port. */

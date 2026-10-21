@@ -45,10 +45,10 @@ export interface FileRules {
   /** Absolute, normalized. */
   readonly extraRoots: readonly string[]
   /**
-   * Whether a path, relative to the workspace or to an extra root (forward
-   * slashes; its textual and canonical forms both), is refused: a glob
-   * matches it or a folder above it. Case is ignored.
-   */
+  Whether a path, relative to the workspace or to an extra root (forward
+  slashes; its textual and canonical forms both), is refused: a glob
+  matches it or a folder above it. Case is ignored.
+  */
   isDenied(relativePaths: readonly string[]): boolean
 }
 
@@ -97,11 +97,10 @@ function validGlobs(
       compileGlob(lower)
       valid.push(lower)
     } catch (error: unknown) {
-      problems.push({
-        kind: 'globInvalid',
-        glob,
-        detail: error instanceof Error ? error.message : String(error),
-      })
+      // compileGlob fails only on a RangeError (past the length or
+      // alternative caps); anything else is not the glob's fault.
+      if (!(error instanceof RangeError)) throw error
+      problems.push({ kind: 'globInvalid', glob, detail: error.name })
       isDenyAll = true
     }
   }
@@ -226,7 +225,6 @@ const RULE_PROBLEM_TEXT = {
   exampleFailedKept: () => UI_TEXT.commandRuleExampleFailedKept,
   allowInRepository: () => UI_TEXT.commandRuleAllowInRepository,
   allowsEvaluator: () => UI_TEXT.commandRuleAllowsEvaluator,
-  tooMany: () => UI_TEXT.commandRulesTooMany,
 } as const satisfies Readonly<Record<RuleProblem['kind'], () => string>>
 
 // The setting each problem is in, as the user finds it in settings.json.
@@ -278,10 +276,10 @@ export function describePolicyProblem(problem: PolicyProblem): string {
 }
 
 /**
- * The policy for the settings as they stand, compiled once for each value
- * of them; `fresh` holds the problems of a value not seen before, to be
- * reported once.
- */
+The policy for the settings as they stand, compiled once for each value
+of them; `fresh` holds the problems of a value not seen before, to be
+reported once.
+*/
 export class PolicyCache {
   private key: string | undefined
   private policy: PermissionPolicy | undefined

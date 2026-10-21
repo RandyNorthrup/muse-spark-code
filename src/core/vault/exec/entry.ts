@@ -12,7 +12,7 @@ async function readPrivatePipe(pipe: Readable, limit: number): Promise<Buffer> {
   let joined: Buffer | undefined
   try {
     for await (const chunk of pipe) {
-      if (!(chunk instanceof Buffer)) throw new Error(UI_TEXT.vault.noAccess)
+      if (!(chunk instanceof Buffer)) throw new TypeError(UI_TEXT.vault.noAccess)
       total += chunk.length
       if (total > limit) {
         chunk.fill(0)
@@ -30,9 +30,9 @@ async function readPrivatePipe(pipe: Readable, limit: number): Promise<Buffer> {
       offset += bytes.length
     }
     return joined
-  } catch {
+  } catch (error: unknown) {
     joined?.fill(0)
-    throw new Error(UI_TEXT.vault.noAccess)
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   } finally {
     for (const bytes of chunks) bytes.fill(0)
     pipe.destroy()
@@ -44,8 +44,8 @@ export async function readVaultExecEnvelope(pipe: Readable): Promise<VaultExecEn
   const bytes = await readPrivatePipe(pipe, VAULT_LIMITS.frameBytes)
   try {
     return vaultExecEnvelopeSchema.parse(JSON.parse(bytes.toString('utf8')))
-  } catch {
-    throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   } finally {
     bytes.fill(0)
   }

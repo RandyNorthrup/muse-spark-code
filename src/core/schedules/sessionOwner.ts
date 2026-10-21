@@ -1,3 +1,5 @@
+import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { UnattendedRun } from './unattended'
 
 /** A waiter/effect is valid only in the generation and turn that created it. */
@@ -27,6 +29,12 @@ export class SessionOwner {
   private mode: string | undefined
   private modePending: SessionEffect | undefined
   private isQuarantined = false
+  /**
+  The quarantine's own sentence (it names the wire mode the host still
+  runs), so a later refused turn repeats it instead of the generic
+  reviewer-missing words. Cleared with the quarantine.
+  */
+  private quarantineNote: string | undefined
   private restoring = false
   private sequence = 0
   private readonly liveTurns = new Map<string, number>()
@@ -53,6 +61,67 @@ export class SessionOwner {
     let current: string | undefined
     for (const turnId of this.liveTurns.keys()) current = turnId
     return current
+  }
+
+  public get isIdle(): boolean {
+    return (
+      this.fire === undefined &&
+      this.liveTurns.size === 0 &&
+      this.starts.size === 0 &&
+      !this.restoring &&
+      !this.isQuarantined &&
+      this.mode !== undefined &&
+      this.modePending === undefined
+    )
+  }
+
+  public get canQueue(): boolean {
+    return !this.isQuarantined && this.mode !== undefined && this.currentTurnId !== undefined
+  }
+
+  /**
+  The approval mode the host was last told to run (the constructor's, the
+  last applied effect's, an idle external change, or the running mode a
+  quarantine named): `undefined` while a failed change quarantined without
+  naming one. Lets a caller put the previous mode back when a follow-up
+  step fails, so the mode the person sees stays the mode the host runs.
+  */
+  public get currentMode(): string | undefined {
+    return this.mode
+  }
+
+  /** Whether turns are refused until a mode change succeeds. */
+  public get quarantined(): boolean {
+    return this.isQuarantined
+  }
+
+  /**
+  Refuse turns until a mode change succeeds: the host runs a mode whose
+  reviewer is not installed (or no mode is known at all), so letting a
+  turn run would judge where the person expects asking. A later mode
+  change still runs, which is how the session recovers.
+  */
+  public quarantine(): void {
+    this.mode = undefined
+    this.isQuarantined = true
+    this.quarantineNote = undefined
+  }
+
+  /**
+  Quarantine naming the wire mode the host still runs (a torn ack or a
+  refused restore named it) with the sentence that says so: the later
+  refused turn repeats that sentence instead of saying the reviewer is
+  missing. Without a mode the sentence stands but no mode is kept.
+  */
+  public quarantineWith(message: string, mode?: string): void {
+    this.quarantine()
+    this.quarantineNote = message
+    if (mode !== undefined) this.mode = mode
+  }
+
+  /** The sentence a refused turn repeats while quarantined, when one was named. */
+  public get quarantineCause(): string | undefined {
+    return this.isQuarantined ? this.quarantineNote : undefined
   }
 
   public token(): SessionToken {
@@ -123,20 +192,40 @@ export class SessionOwner {
     return effect
   }
 
+  /**
+  A command that did not change the host (a refused `session/setApprovalMode`,
+  a stale token) releases its effect but keeps the mode: the host still runs
+  it with its reviewer, so turns stay live. Only a mode the host runs with an
+  unconfirmed reviewer quarantines, through `quarantine()` at that site.
+  */
   public modeApplied(effect: SessionEffect, didSucceed: boolean): boolean {
     if (this.modePending !== effect) return false
     this.modePending = undefined
     if (effect.type === 'restore') this.restoring = false
     if (!this.matches(effect.token)) return false
-    this.mode = didSucceed ? effect.mode : undefined
-    this.isQuarantined = !didSucceed
+    if (didSucceed) {
+      this.mode = effect.mode
+      this.isQuarantined = false
+      this.quarantineNote = undefined
+    }
     return didSucceed
   }
 
   public observeMode(mode: string): void {
     // Session-wide notifications have no generation. Only an idle external
     // change can be adopted; owned commands use their tagged acknowledgement.
-    if (this.fire === undefined && !this.modePending && !this.restoring) this.mode = mode
+    // A torn rollback's notice names the mode the quarantine already
+    // recorded (the rollback restored it), so the sentence stays and the
+    // next refused turn repeats it. A genuinely different mode replaces it
+    // with the sentence naming that mode: the notice installs and removes no
+    // reviewer (a mode notice writes no profile fact, and Plan and Bypass
+    // install none), so the later refusal must not say one failed to
+    // install, nor that the change tore — the reviewer already installed is
+    // still installed. Turns stay refused until the mode is set again.
+    if (this.fire !== undefined || this.modePending || this.restoring) return
+    if (this.isQuarantined && mode !== this.mode)
+      this.quarantineNote = fill(UI_TEXT.permissionModeChangedWhileQuarantined, { mode })
+    this.mode = mode
   }
 
   public start(token: SessionToken, run?: UnattendedRun): boolean {
@@ -184,6 +273,7 @@ export class SessionOwner {
       (this.fire === undefined || this.currentTurnId === expectedTurnId) &&
       !this.restoring &&
       !this.modePending &&
+      !this.isQuarantined &&
       (this.fire === undefined ||
         (this.fire.run === run && this.fire.phase !== 'failed' && run.isActive()))
     )

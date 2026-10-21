@@ -4,19 +4,15 @@
 import { type Disposable } from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
-import { uiLocale } from '../../shared/l10n/text'
 import { fixedMessageLog, lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { VaultPanelEntryDeps } from './vaultPanelEntry'
-import type { VaultPanelHost, VaultPanelService } from './vaultPanelHost'
+import type {
+  ModelsVaultBinding,
+  ModelsVaultBindingDeps,
+  WindowVaultControlsDeps,
+} from './vaultPanelEntry'
 
 export const VAULT_COMMANDS = { open: 'museSpark.vault', lock: 'museSpark.lockVault' } as const
-/** @unwired M109 vault lock keybinding */
-export const VAULT_LOCK_KEYBINDING = {
-  command: VAULT_COMMANDS.lock,
-  key: 'ctrl+alt+shift+l',
-  mac: 'cmd+alt+shift+l',
-} as const
 export interface VaultWindowControls {
   open(): Promise<void>
   lock(): Promise<void>
@@ -49,26 +45,38 @@ export function registerVaultCommands(
 }
 
 /**
- * What dist/vault.js exports: the panel factory. Only types come from the
- * panel's side here: a value imported from there would carry the host, the
- * editor and the broker client back into dist/extension.js, which the
- * bundle-split gate refuses.
- */
+What dist/vault.js exports: the window and panel factories. Only types
+come from the panel's side here: a value imported from there would carry
+the host, the editor and the broker client back into dist/extension.js,
+which the bundle-split gate refuses.
+*/
 export interface VaultBundle {
-  readonly createVaultPanelHost: (
-    deps: VaultPanelEntryDeps,
+  /**
+  The window commands without a second host: open reveals the panel's
+  vault section, lock works through one broker-backed service alone.
+  */
+  readonly createWindowVaultControls: (
+    deps: WindowVaultControlsDeps,
     table: UiText,
     locale: string,
-  ) => { host: VaultPanelHost } & VaultWindowControls
+  ) => VaultWindowControls
+  /** The Models & Agents panel's vault section binding (C-M109-1 P1). */
+  readonly createModelsVaultBinding: (
+    deps: ModelsVaultBindingDeps,
+    table: UiText,
+    locale: string,
+  ) => ModelsVaultBinding
 }
 
-/** Whether a required module exports the panel factory. */
+/** Whether a required module exports the panel factories. */
 export function isVaultBundle(value: unknown): value is VaultBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
-    'createVaultPanelHost' in value &&
-    typeof value.createVaultPanelHost === 'function'
+    'createWindowVaultControls' in value &&
+    typeof value.createWindowVaultControls === 'function' &&
+    'createModelsVaultBinding' in value &&
+    typeof value.createModelsVaultBinding === 'function'
   )
 }
 
@@ -81,10 +89,12 @@ export interface VaultBundleLoaderDeps {
 }
 
 /**
- * The bundle, required the first time it is asked for and kept from then on.
- * A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
- * on the next call (the log has the cause, never a credential).
- */
+The bundle, required the first time it is asked for and kept from then on.
+A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
+on the next call (the log has the cause, never a credential). The bundle's
+factories resolve README's legacy vault switch themselves, so a
+switched-off vault refuses on every call and re-enabling needs no restart.
+*/
 export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundle {
   return lazyBundleLoader({
     ...deps,
@@ -97,32 +107,4 @@ export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundl
     label: 'vault bundle',
     unavailable: () => UI_TEXT.vault.brokerBlocked,
   })
-}
-
-export interface VaultControlsDeps extends VaultBundleLoaderDeps {
-  /**
-   * The panel's broker-backed service. W has no implementation yet (the C/B/P/M
-   * adapter over the broker channel is an open handoff in
-   * docs/certification/m109.md): while it is missing the commands refuse
-   * closed with `vault.brokerBlocked` instead of opening an empty vault.
-   */
-  readonly service: VaultPanelService | undefined
-}
-
-/**
- * The window controls, or an explicit refusal while the service is missing.
- * `connect` supplies the entry's live host bindings (panel opener, native
- * prompts, clock, webview publisher) and runs only once the service exists,
- * so activation registers no placeholder for them.
- */
-export function loadVaultControls(
-  deps: VaultControlsDeps,
-  connect: () => Omit<VaultPanelEntryDeps, 'service'>,
-): VaultWindowControls {
-  if (deps.service === undefined) {
-    deps.log.error('The vault panel needs its broker-backed service; refusing closed')
-    throw new Error(UI_TEXT.vault.brokerBlocked)
-  }
-  const bundle = vaultBundleLoader(deps)()
-  return bundle.createVaultPanelHost({ service: deps.service, ...connect() }, UI_TEXT, uiLocale())
 }

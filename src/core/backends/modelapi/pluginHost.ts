@@ -1,4 +1,3 @@
-import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
 // M91 lane X: the plugin host. Amp and OpenCode plugins run OUT OF PROCESS
 // in a short-lived child under the user's own runtime (pluginChild.ts is the
 // entry; the host writes one JSON request line on stdin and reads one JSON
@@ -22,27 +21,33 @@ import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
 //   errors and kill errors all settle the call;
 // - a disposed session spawns nothing, rechecked after every await [8];
 // - the answer completes on its response line, then the tree is ended [11];
-// - bounds: PLUGIN_HOOK_TIMEOUT_MS per call, PLUGIN_CHILD_MAX_HEAP_MB heap
-//   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
+// - waits: no deadline of ours — a call waits for the child's answer line,
+//   an explicit per-hook timeout, the person's own plugin wait, or Stop,
+//   and the runtime answers whole; every wait says how long it has waited
+//   while it lasts, and an explicit timeout or Stop names the wait it
+//   kept [14].
 import { Buffer } from 'node:buffer'
 import { admitResource, stopResourceTree } from '../../resources/admission'
 
-import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process'
-import { withoutCredentials } from '../../credentialEnvironment'
-import { statSync } from 'node:fs'
+import type { ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
-  PLUGIN_CHILD_MAX_HEAP_MB,
-  PLUGIN_CHILD_MAX_MEMORY_BYTES,
-  PLUGIN_HOOK_TIMEOUT_MS,
+  BYTES_PER_MIB,
+  MILLISECONDS_PER_SECOND,
   PLUGIN_NODE_MINIMUM,
-  PLUGIN_RESPONSE_MAX_BYTES,
-  PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
+  STILL_WAITING_NOTICE_MS,
 } from '../../../shared/constants'
-import { resolveExecutable } from '../../executables'
-import { environmentValue } from '../musecode/launch'
+import { formatUnit } from '../../../shared/l10n/text'
+import { startStillWaiting, stillWaitingText } from '../../timeouts'
 import type { ForeignHookAnswer } from './hookFormats/contract'
+import { type GuardedChildEnv } from '../../executables'
+import { resolveExecutable, workspaceChildEnvironment } from '../../execGuard'
+import { environmentValue } from '../../execGuard'
+import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
+import { spawnGuarded } from '../../guardedChildProcess'
+import { withoutCredentials } from '../../credentialEnvironment'
+import { statSync } from 'node:fs'
 import { pluginChildSource } from './pluginChild'
 
 export type PluginSystem = 'amp' | 'opencode'
@@ -62,14 +67,20 @@ export interface PluginCall {
 
 export interface PluginSpawnOptions {
   readonly resource?: ResourceLease | undefined
-  /** The child's whole environment: already allowlisted by the caller. */
-  readonly env: NodeJS.ProcessEnv
+  /**
+  The child's whole environment: already allowlisted and guarded for the
+  workspace by the caller (only `workspaceChildEnvironment` can produce
+  one), so a raw environment does not type-check here.
+  */
+  readonly env: GuardedChildEnv
   readonly cwd: string
 }
 
 /** One running plugin child, as the host drives it. */
 export interface PluginChildHandle {
   readonly pid: number | undefined
+  /** True once the child's exit event fired; its pid may already be reused. */
+  readonly exited: boolean
   /** Writes the request and closes stdin; a write error reaches `onError`. */
   write(text: string): void
   onStdout(listener: (chunk: Buffer) => void): void
@@ -79,10 +90,10 @@ export interface PluginChildHandle {
 }
 
 /**
- * How plugin children start and end as a whole tree. The host gives a
- * kill-on-close job object on Windows (the M50 job launcher); POSIX uses a
- * process group of its own. `killTree` never throws.
- */
+How plugin children start and end as a whole tree. The host gives a
+kill-on-close job object on Windows (the M50 job launcher); POSIX uses a
+process group of its own. `killTree` never throws.
+*/
 export interface PluginProcessTree {
   spawn(
     command: string,
@@ -94,11 +105,23 @@ export interface PluginProcessTree {
 
 export interface PluginRunDeps {
   /**
-   * M51's allowlisted hook environment, computed by the caller
-   * (`hookEnvironment` in the host). It is the only environment the probe
-   * and the child see; the extension host's own never reaches either.
-   */
+  M51's allowlisted hook environment, computed by the caller
+  (`hookEnvironment` in the host). It is the only environment the probe
+  and the child see; the extension host's own never reaches either.
+  */
   readonly env: NodeJS.ProcessEnv
+  /**
+  The workspace the plugin runs for: `node`, `bun` and `prlimit` are
+  never resolved to a file inside it (resolved through links), and the
+  child's PATH carries the guarded child environment for it. REQUIRED:
+  the production session passes the workspace with `realpathSync`.
+  */
+  readonly workspaceRoot: string
+  /**
+  Resolves links for the workspace comparison. REQUIRED: a lexical-only
+  comparison keeps a symlink into the workspace on PATH.
+  */
+  readonly realpath: (filePath: string) => string
   readonly platform?: NodeJS.Platform | undefined
   /** `node --version` / `bun --version` output for an absolute command. */
   readonly runVersion?: ((command: string, env: NodeJS.ProcessEnv) => Promise<string>) | undefined
@@ -110,6 +133,54 @@ export interface PluginRunDeps {
   readonly processTree?: PluginProcessTree | undefined
   /** Fixed-text notes (refused registrations); never plugin text. */
   readonly warn?: ((message: string) => void) | undefined
+  /**
+  The person's plugin bounds, re-read per call so a changed setting
+  applies without rebinding; absent means none of ours.
+  */
+  readonly bounds?: (() => PluginPersonBounds) | undefined
+  /** Still-waiting notices go here; without one the wait stays silent. */
+  readonly notice?: ((message: string) => void) | undefined
+  /** Tests only: the still-waiting cadence; production keeps the shared one. */
+  readonly noticeMs?: number | undefined
+}
+
+/**
+What the person sets on plugin children (D121: each 0 or absent is none
+of ours, applied only when set). The host reads these from `museSpark.`
+settings on every call.
+*/
+export interface PluginPersonBounds {
+  /** Seconds a plugin hook waits for its child; 0 waits for the answer or Stop. */
+  readonly timeoutSeconds?: number | undefined
+  /** The child's memory ceiling in MiB; 0 is the runtime's own default. */
+  readonly maxMemoryMiB?: number | undefined
+  /** The answer frame cap in bytes; 0 reads answers whole. */
+  readonly maxAnswerBytes?: number | undefined
+}
+
+/** A call's bounds in the units the host enforces; undefined is none of ours. */
+export interface PluginCallBounds {
+  readonly timeoutMs: number | undefined
+  readonly maxMemoryBytes: number | undefined
+  readonly maxAnswerBytes: number | undefined
+}
+
+/** The person's bounds in enforcement units; every unset value is none of ours. */
+export function pluginCallBounds(bounds: PluginPersonBounds): PluginCallBounds {
+  return {
+    timeoutMs:
+      bounds.timeoutSeconds !== undefined && bounds.timeoutSeconds > 0
+        ? bounds.timeoutSeconds * MILLISECONDS_PER_SECOND
+        : undefined,
+    maxMemoryBytes:
+      bounds.maxMemoryMiB !== undefined && bounds.maxMemoryMiB > 0
+        ? bounds.maxMemoryMiB * BYTES_PER_MIB
+        : undefined,
+    maxAnswerBytes:
+      bounds.maxAnswerBytes !== undefined && bounds.maxAnswerBytes > 0
+        ? bounds.maxAnswerBytes
+        : undefined,
+  }
 }
 
 /** What a session lends one call: its live children, whether it closed, and the turn's stop. */
@@ -131,12 +202,29 @@ async function defaultRunVersion(
 ): Promise<string> {
   const tree = treeFor(deps, deps.platform ?? process.platform)
   if (tree === undefined) throw new Error('Plugin runtime probe has no process tree')
+  // D121: no probe timeout of ours — the probe waits for the runtime's
+  // answer, its exit, the person's own plugin wait, or Stop. The wait says
+  // how long it has waited while it lasts, and every end names its wait.
+  const startedAt = Date.now()
+  const waitedText = (): string =>
+    formatUnit(
+      Math.max(0, Math.round((Date.now() - startedAt) / MILLISECONDS_PER_SECOND)),
+      'second',
+    )
+  const bounds = pluginCallBounds(deps.bounds?.() ?? {})
   const resource = await admitResource('hook', signal)
   let child: PluginChildHandle
   try {
-    if (signal?.aborted === true) throw new Error('Plugin runtime probe cancelled')
+    if (signal?.aborted === true)
+      throw new Error(`Plugin runtime probe cancelled after ${waitedText()}`)
     child = await tree.spawn(command, ['--version'], {
-      env: resourceEnvironment(env, resource),
+      env: resourceEnvironment(
+        workspaceChildEnvironment(deps.platform ?? process.platform, env, {
+          workspaceRoot: deps.workspaceRoot,
+          realpath: deps.realpath,
+        }),
+        resource,
+      ),
       cwd: path.dirname(command),
       ...(resource !== undefined && { resource }),
     })
@@ -151,18 +239,39 @@ async function defaultRunVersion(
     const finish = (error?: Error) => {
       if (isDone) return
       isDone = true
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
+      stopNoticing()
       signal?.removeEventListener('abort', abort)
       endTree(tree, child)
       if (error === undefined) resolve(Buffer.concat(chunks).toString('utf8'))
       else reject(error)
     }
     const abort = () => {
-      finish(new Error('Plugin runtime probe cancelled'))
+      finish(new Error(`Plugin runtime probe cancelled after ${waitedText()}`))
     }
-    const timer = setTimeout(() => {
-      finish(new Error('Plugin runtime probe timed out'))
-    }, PLUGIN_RUNTIME_PROBE_TIMEOUT_MS)
+    // Only the person's own plugin wait ends the probe early; without one
+    // the runtime's answer, its exit, or Stop ends it. The bound names the
+    // wait it kept, as a wait with no bound names Stop's wait.
+    const probeTimeoutMs = bounds.timeoutMs
+    const timer =
+      probeTimeoutMs === undefined
+        ? undefined
+        : setTimeout(
+            () => {
+              finish(
+                new Error(
+                  `Plugin runtime probe timed out after ${formatUnit(Math.max(1, Math.round(probeTimeoutMs / MILLISECONDS_PER_SECOND)), 'second')}`,
+                ),
+              )
+            },
+            Math.max(probeTimeoutMs, 1),
+          )
+    // Do not let a straggler keep the host alive.
+    timer?.unref()
+    // The wait says how long it has waited, as Model API requests do.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      deps.notice?.(stillWaitingText({ key: 'pluginHook' }, elapsedMs))
+    }, deps.noticeMs ?? STILL_WAITING_NOTICE_MS)
     signal?.addEventListener('abort', abort, { once: true })
     child.onError(() => {
       finish(new Error('Plugin runtime probe failed'))
@@ -177,9 +286,11 @@ async function defaultRunVersion(
     child.onStdout((chunk) => {
       if (isDone) return
       bytes += chunk.byteLength
-      if (bytes > PLUGIN_RESPONSE_MAX_BYTES)
+      if (bounds.maxAnswerBytes !== undefined && bytes > bounds.maxAnswerBytes) {
         finish(new Error('Plugin runtime probe output exceeded its bound'))
-      else chunks.push(chunk)
+        return
+      }
+      chunks.push(chunk)
     })
     if (signal?.aborted === true) abort()
   })
@@ -204,6 +315,19 @@ function parseVersion(text: string): readonly [number, number, number] | undefin
     : undefined
 }
 
+/**
+Stop and the person's own wait end the probe with the wait's own words, not
+the absent-runtime reason: a cancelled or timed-out probe reports itself.
+Any other probe failure keeps its kind for the caller.
+*/
+function isProbeSettled(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    (error.message.startsWith('Plugin runtime probe cancelled after') ||
+      error.message.startsWith('Plugin runtime probe timed out after'))
+  )
+}
+
 function isAtLeast(have: readonly [number, number, number], want: string): boolean {
   const minimum = want.split('.').map(Number)
   for (let index = 0; index < VERSION_PARTS; index += 1) {
@@ -215,12 +339,30 @@ function isAtLeast(have: readonly [number, number, number], want: string): boole
 }
 
 /**
- * The user's runtime for this plugin system, by absolute path on the
- * allowlisted PATH (D24), or a refusal with a reason: Amp and plain JS need
- * system node >= 22.18 (TS goes through Node's built-in type stripping; the
- * extension host's Electron Node is never used); OpenCode is Bun-native and
- * needs the installed bun.
- */
+One runtime name by absolute path on the allowlisted PATH, never a file
+inside the workspace the plugin runs for (resolved through links).
+*/
+function probeRuntime(
+  name: string,
+  deps: PluginRunDeps,
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+): string | undefined {
+  return resolveExecutable(name, {
+    platform,
+    pathVariable: environmentValue(env, platform, 'PATH'),
+    fileExists: deps.fileExists ?? isExistingFile,
+    scope: { workspaceRoot: deps.workspaceRoot, realpath: deps.realpath },
+  })
+}
+
+/**
+The user's runtime for this plugin system, by absolute path on the
+allowlisted PATH (D24), or a refusal with a reason: Amp and plain JS need
+system node >= 22.18 (TS goes through Node's built-in type stripping; the
+extension host's Electron Node is never used); OpenCode is Bun-native and
+needs the installed bun.
+*/
 export async function resolvePluginRuntime(
   system: PluginSystem,
   deps: PluginRunDeps,
@@ -228,15 +370,14 @@ export async function resolvePluginRuntime(
 ): Promise<RuntimeResolution> {
   const platform = deps.platform ?? process.platform
   const env = withoutCredentials(deps.env)
+  // The person's own plugin bounds, or none of ours: a set memory ceiling
+  // caps the child's heap, job and data segment below.
+  const bounds = pluginCallBounds(deps.bounds?.() ?? {})
   const runVersion =
     deps.runVersion ??
     ((command: string, env: NodeJS.ProcessEnv) => defaultRunVersion(command, env, deps, signal))
   const name = system === 'amp' ? 'node' : 'bun'
-  const command = resolveExecutable(name, {
-    platform,
-    pathVariable: environmentValue(env, platform, 'PATH'),
-    fileExists: deps.fileExists ?? isExistingFile,
-  })
+  const command = probeRuntime(name, deps, env, platform)
   if (system === 'amp') {
     if (command === undefined) {
       return { ok: false, reason: 'amp: the system node runtime is not installed' }
@@ -244,8 +385,13 @@ export async function resolvePluginRuntime(
     let text: string
     try {
       text = await runVersion(command, env)
-    } catch {
-      return { ok: false, reason: 'amp: the system node runtime is not installed' }
+    } catch (error: unknown) {
+      // A wait the person ended reports its own words; a start the OS
+      // refused means the runtime is absent. Anything else keeps its kind.
+      if (isProbeSettled(error)) return { ok: false, reason: error.message }
+      if (isSpawnStartRefusal(error))
+        return { ok: false, reason: 'amp: the system node runtime is not installed' }
+      throw error
     }
     const version = parseVersion(text)
     if (version === undefined)
@@ -255,14 +401,16 @@ export async function resolvePluginRuntime(
         ok: false,
         reason: `amp: system node ${version.join('.')} is too old (need >= ${PLUGIN_NODE_MINIMUM} for type stripping)`,
       }
+    // D121: no heap flag of ours — without a set ceiling the runtime's own
+    // default applies; a set ceiling caps node's heap at it.
+    const heapFlag =
+      bounds.maxMemoryBytes === undefined
+        ? []
+        : [`--max-old-space-size=${String(Math.floor(bounds.maxMemoryBytes / BYTES_PER_MIB))}`]
     return {
       ok: true,
       command,
-      args: [
-        `--max-old-space-size=${String(PLUGIN_CHILD_MAX_HEAP_MB)}`,
-        '--input-type=module',
-        '-e',
-      ],
+      args: [...heapFlag, '--input-type=module', '-e'],
     }
   }
   if (command === undefined) {
@@ -270,43 +418,60 @@ export async function resolvePluginRuntime(
   }
   try {
     await runVersion(command, env)
-  } catch {
-    return { ok: false, reason: 'opencode: the installed bun runtime is absent' }
+  } catch (error: unknown) {
+    // A wait the person ended reports its own words; a start the OS
+    // refused means the runtime is absent. Anything else keeps its kind.
+    if (isProbeSettled(error)) return { ok: false, reason: error.message }
+    if (isSpawnStartRefusal(error))
+      return { ok: false, reason: 'opencode: the installed bun runtime is absent' }
+    throw error
   }
-  return boundedBun(command, env, platform, deps)
+  // D121: no memory bound of ours on any platform — without a set ceiling
+  // bun runs directly, and a plugin child that outgrows the machine is
+  // ended with its tree on an explicit timeout, by Stop, or by the OS, not
+  // refused up front.
+  return boundedBun(command, env, platform, deps, bounds.maxMemoryBytes)
 }
 
 /**
- * Bun has no heap flag, so its memory is bounded outside it (RVM91X P2 12):
- * on Windows by the job's memory limit (the host's tree), on Linux by
- * util-linux's `prlimit --data`, the data segment and private writable
- * mappings since Linux 4.7. Elsewhere (macOS does not enforce a data
- * limit) the hook is refused rather than run unbounded.
- */
+Bun has no heap flag, so a person's memory ceiling is bounded outside it
+where the OS offers a spawner-set cap: on Windows by the job's memory
+limit (the host's tree caps the launcher it starts through), on Linux by
+util-linux's `prlimit --data`. macOS offers neither, and OpenCode itself
+runs bun plugins with no memory bound there — so on macOS a set ceiling
+refuses with its reason instead of running unbounded past it.
+*/
 function boundedBun(
   bun: string,
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   deps: PluginRunDeps,
+  maxMemoryBytes: number | undefined,
 ): RuntimeResolution {
-  if (platform === 'win32') {
+  if (maxMemoryBytes === undefined) {
     return { ok: true, command: bun, args: ['-e'] }
+  }
+  if (platform === 'win32') {
+    // The host starts this through its job launcher, which carries the same ceiling.
+    return { ok: true, command: bun, args: ['-e'] }
+  }
+  if (platform === 'darwin') {
+    return { ok: false, reason: 'opencode: the plugin memory ceiling cannot be bounded on darwin' }
   }
   if (platform !== 'linux') {
     return { ok: false, reason: `opencode: bun's memory cannot be bounded on ${platform}` }
   }
-  const prlimit = resolveExecutable('prlimit', {
-    platform,
-    pathVariable: environmentValue(env, platform, 'PATH'),
-    fileExists: deps.fileExists ?? isExistingFile,
-  })
+  const prlimit = probeRuntime('prlimit', deps, env, platform)
   if (prlimit === undefined) {
-    return { ok: false, reason: 'opencode: prlimit is absent, so bun cannot be bounded' }
+    return {
+      ok: false,
+      reason: 'opencode: the plugin memory ceiling needs prlimit, which is absent',
+    }
   }
   return {
     ok: true,
     command: prlimit,
-    args: [`--data=${String(PLUGIN_CHILD_MAX_MEMORY_BYTES)}`, '--', bun, '-e'],
+    args: [`--data=${String(maxMemoryBytes)}`, '--', bun, '-e'],
   }
 }
 
@@ -321,8 +486,18 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
   child.stdin?.on('error', failed)
   // Plugin logs stay on the child's stderr; the host never parses them.
   child.stderr?.resume()
+  // The exit event is the only proof this pid is dead: a later liveness
+  // probe cannot tell a dead pid from a reused one, and the tree kill must
+  // never signal a group it does not own.
+  let hasExited = false
+  child.on('exit', () => {
+    hasExited = true
+  })
   return {
     pid: child.pid,
+    get exited() {
+      return hasExited
+    },
     write: (text) => {
       const { stdin } = child
       if (stdin === null) {
@@ -364,7 +539,7 @@ async function didStopRegisteredPlugin(child: PluginChildHandle): Promise<boolea
 /** POSIX: the child leads a process group of its own, killed as one. */
 export const posixProcessTree: PluginProcessTree = {
   spawn: (command, args, options) => {
-    const child = nodeSpawn(command, [...args], {
+    const child = spawnGuarded(command, [...args], {
       env: options.env,
       cwd: options.cwd,
       detached: true,
@@ -384,7 +559,9 @@ export const posixProcessTree: PluginProcessTree = {
     return Promise.resolve(handle)
   },
   killTree: async (child) => {
-    if ((await didStopRegisteredPlugin(child)) || child.pid === undefined) return
+    // An exited child owns no group: its pid may already name a process
+    // that never belonged to this tree, so only a live child is signalled.
+    if ((await didStopRegisteredPlugin(child)) || child.pid === undefined || child.exited) return
     try {
       process.kill(-child.pid, 'SIGKILL')
     } catch {
@@ -401,10 +578,10 @@ export type PluginJobLaunch = (
 ) => ChildProcess
 
 /**
- * Children started through a job launcher. Ending the launcher closes the
- * job's only handle, so kill-on-close ends the runtime and everything it
- * started; the launcher also returns, closing the job, when the child exits.
- */
+Children started through a job launcher. Ending the launcher closes the
+job's only handle, so kill-on-close ends the runtime and everything it
+started; the launcher also returns, closing the job, when the child exits.
+*/
 export function jobProcessTree(launch: PluginJobLaunch): PluginProcessTree {
   const launchers = new WeakMap<PluginChildHandle, ChildProcess>()
   return {
@@ -475,9 +652,9 @@ const FRAME_SCHEMA = z.union([
 ])
 
 /**
- * Registrations the mapping refuses (PLAN.md M91, the lane X tables), each
- * with its fixed reason. The child reports names; only these reach the log.
- */
+Registrations the mapping refuses (PLAN.md M91, the lane X tables), each
+with its fixed reason. The child reports names; only these reach the log.
+*/
 const REFUSED_REGISTRATIONS: Readonly<Record<PluginSystem, Readonly<Record<string, string>>>> = {
   amp: { 'changes.prompt': 'there is no Ship or Push workflow here' },
   opencode: {
@@ -516,11 +693,11 @@ function noteRefused(call: PluginCall, names: readonly string[], deps: PluginRun
 }
 
 /**
- * A plugin answer can only refuse, narrow or add context: every allow
- * grant is dropped (an allow becomes a plain completed), and tool
- * narrowing the plugin was never offered is dropped. Runs on every answer,
- * including the child's, so a compromised child cannot widen a decision.
- */
+A plugin answer can only refuse, narrow or add context: every allow
+grant is dropped (an allow becomes a plain completed), and tool
+narrowing the plugin was never offered is dropped. Runs on every answer,
+including the child's, so a compromised child cannot widen a decision.
+*/
 export function sanitizePluginAnswer(answer: ForeignHookAnswer): ForeignHookAnswer {
   const { allowedToolNames: _dropped, ...offered } = answer
   const parsed = ANSWER_SCHEMA.safeParse(offered)
@@ -531,6 +708,26 @@ export function sanitizePluginAnswer(answer: ForeignHookAnswer): ForeignHookAnsw
     ...(approvalDecision === 'deny' && { approvalDecision: 'deny' as const }),
     ...((permissionDecision === 'deny' || permissionDecision === 'ask') && { permissionDecision }),
   }
+}
+
+/** System errors that mean the OS refused the child's start (a missing or unusable runtime path). */
+const PLUGIN_SPAWN_START_CODES: ReadonlySet<string> = new Set([
+  'ENOENT',
+  'EACCES',
+  'EPERM',
+  'ELOOP',
+  'ENOTDIR',
+  'ENAMETOOLONG',
+])
+
+/** Whether the OS refused the child's start, with its refusal code. */
+function isSpawnStartRefusal(error: unknown): error is Error & { readonly code: string } {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    PLUGIN_SPAWN_START_CODES.has(error.code)
+  )
 }
 
 /** The call's fail-closed rule over any failure: a transport fault or a failed answer. */
@@ -549,7 +746,8 @@ function readFrame(call: PluginCall, text: string, deps: PluginRunDeps): Foreign
   let value: unknown
   try {
     value = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return transportFailure(call, 'the plugin child answered outside its frame')
   }
   const frame = FRAME_SCHEMA.safeParse(value)
@@ -578,21 +776,30 @@ function treeFor(deps: PluginRunDeps, platform: NodeJS.Platform): PluginProcessT
 }
 
 /**
- * One plugin hook call in one child. The child's tree is always ended: on
- * its answer line, on timeout, on crash, and by PluginSession.dispose for
- * stragglers.
- */
+One plugin hook call in one child. The child's tree is always ended: on
+its answer line, on timeout, on crash, and by PluginSession.dispose for
+stragglers.
+*/
 async function runInScope(
   call: PluginCall,
   deps: PluginRunDeps,
   scope: RunScope | undefined,
 ): Promise<ForeignHookAnswer> {
+  // A call refused because the session was already closed reads as refused;
+  // a call Stop ends after it started names the wait it kept.
+  if (scope?.isClosed() === true)
+    return { status: 'failed', reason: `${call.system}: the session is closed` }
   const platform = deps.platform ?? process.platform
-  const closed = (): ForeignHookAnswer => ({
+  const startedAt = Date.now()
+  const waitedText = (): string =>
+    formatUnit(
+      Math.max(0, Math.round((Date.now() - startedAt) / MILLISECONDS_PER_SECOND)),
+      'second',
+    )
+  const closedAfterWait = (): ForeignHookAnswer => ({
     status: 'failed',
-    reason: `${call.system}: the session is closed`,
+    reason: `${call.system}: the session is closed after ${waitedText()}`,
   })
-  if (scope?.isClosed() === true) return closed()
   const tree = treeFor(deps, platform)
   if (tree === undefined) {
     return settled(
@@ -601,56 +808,102 @@ async function runInScope(
     )
   }
   const runtime = await resolvePluginRuntime(call.system, deps, scope?.signal)
-  if (scope?.isClosed() === true) return closed()
+  if (scope?.isClosed() === true) return closedAfterWait()
   if (!runtime.ok) return settled(call, transportFailure(call, runtime.reason))
   const source = deps.childSource ?? pluginChildSource()
   const resource = await admitResource('hook', scope?.signal)
   if (scope?.isClosed() === true) {
     resource?.complete(true)
-    return closed()
+    return closedAfterWait()
   }
   let child: PluginChildHandle
   try {
+    // The child runs an absolute runtime, never a workspace file, with the
+    // guarded child PATH for the workspace (links followed), so nothing it
+    // starts by bare name resolves to a program planted there.
+    const pluginDir = path.dirname(call.pluginPath)
     child = await tree.spawn(runtime.command, [...runtime.args, source], {
-      env: resourceEnvironment(withoutCredentials(deps.env), resource),
-      cwd: path.dirname(call.pluginPath),
+      env: resourceEnvironment(
+        withoutCredentials(
+          workspaceChildEnvironment(platform, deps.env, {
+            workspaceRoot: deps.workspaceRoot,
+            realpath: deps.realpath,
+          }),
+        ),
+        resource,
+      ),
+      cwd: pluginDir,
       ...(resource !== undefined && { resource }),
     })
-  } catch {
+  } catch (error: unknown) {
     resource?.complete(true)
-    return settled(call, transportFailure(call, 'the plugin child could not start'))
+    // A start the OS refuses settles the call failed naming the refusal; an
+    // unexpected failure keeps its kind.
+    if (isSpawnStartRefusal(error))
+      return settled(
+        call,
+        transportFailure(call, `the plugin child could not start (${error.code})`),
+      )
+    throw error
   }
   if (scope?.isClosed() === true) {
     endTree(tree, child)
-    return closed()
+    return closedAfterWait()
   }
+  // D121: no deadline of ours — the call waits for the child's answer
+  // line, an explicit per-hook timeout, the person's own plugin wait, or
+  // Stop; without a bound the answer arrives whole, whatever its size.
+  // Every wait says how long it has waited while it lasts, and every end
+  // names the wait it kept.
   return await new Promise<ForeignHookAnswer>((resolve) => {
     scope?.owned.add(child)
     const onAbort = (): void => {
-      finish(transportFailure(call, 'the plugin call was cancelled'))
+      finish(transportFailure(call, `the plugin call was cancelled after ${waitedText()}`))
     }
     let isDone = false
-    let bytes = 0
     const chunks: Buffer[] = []
-    const timeoutMs = call.timeoutMs ?? PLUGIN_HOOK_TIMEOUT_MS
+    let bytes = 0
+    // An explicit per-hook timeout wins; otherwise the person's own plugin
+    // wait bounds the call. The bound names the wait it kept, as a wait
+    // with no bound names Stop's wait.
+    const bounds = pluginCallBounds(deps.bounds?.() ?? {})
+    const timeoutMs = call.timeoutMs ?? bounds.timeoutMs
     const finish = (answer: ForeignHookAnswer): void => {
       if (isDone) return
       isDone = true
       scope?.owned.delete(child)
       scope?.signal?.removeEventListener('abort', onAbort)
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
+      stopNoticing()
       endTree(tree, child)
-      // A call its session ended answers nothing: the session is gone.
-      resolve(scope?.isClosed() === true ? closed() : settled(call, sanitizePluginAnswer(answer)))
+      // A call its session ended answers nothing stale: the session is
+      // gone, and the answer names the wait Stop kept.
+      resolve(
+        scope?.isClosed() === true
+          ? closedAfterWait()
+          : settled(call, sanitizePluginAnswer(answer)),
+      )
     }
-    const timer = setTimeout(
-      () => {
-        finish(transportFailure(call, 'the plugin child timed out'))
-      },
-      Math.max(timeoutMs, 1),
-    )
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(
+            () => {
+              finish(
+                transportFailure(
+                  call,
+                  `the plugin child timed out after ${formatUnit(Math.max(1, Math.round(timeoutMs / MILLISECONDS_PER_SECOND)), 'second')}`,
+                ),
+              )
+            },
+            Math.max(timeoutMs, 1),
+          )
     // Do not let a straggler keep the host alive.
-    timer.unref()
+    timer?.unref()
+    // The wait says how long it has waited, as Model API requests do.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      deps.notice?.(stillWaitingText({ key: 'pluginHook' }, elapsedMs))
+    }, deps.noticeMs ?? STILL_WAITING_NOTICE_MS)
     scope?.signal?.addEventListener('abort', onAbort, { once: true })
     child.onError(() => {
       finish(transportFailure(call, 'the plugin child crashed'))
@@ -660,7 +913,7 @@ async function runInScope(
       const end = chunk.indexOf(NEWLINE)
       const part = end === -1 ? chunk : chunk.subarray(0, end)
       bytes += part.byteLength
-      if (bytes > PLUGIN_RESPONSE_MAX_BYTES) {
+      if (bounds.maxAnswerBytes !== undefined && bytes > bounds.maxAnswerBytes) {
         finish(transportFailure(call, 'the plugin answer exceeded its frame'))
         return
       }
@@ -692,8 +945,8 @@ async function runInScope(
 }
 
 /** One plugin hook call outside any session.
- * @unwired M91b one plugin hook call outside any session
- */
+@unwired M91b one plugin hook call outside any session
+*/
 export async function runPluginHook(
   call: PluginCall,
   deps: PluginRunDeps,
@@ -710,9 +963,9 @@ export class PluginSession {
   public constructor(private readonly deps: PluginRunDeps) {}
 
   /**
-   * Run one hook call; refused when the session is closed, at any await.
-   * A stopped turn (`signal`) ends the child and answers nothing.
-   */
+  Run one hook call; refused when the session is closed, at any await.
+  A stopped turn (`signal`) ends the child and answers nothing.
+  */
   public async run(call: PluginCall, signal?: AbortSignal): Promise<ForeignHookAnswer> {
     const stop =
       signal === undefined

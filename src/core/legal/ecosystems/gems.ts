@@ -7,12 +7,14 @@ import { compareLegalText } from '../files'
 // assignments are read, and executable content is reported as a coverage
 // gap rather than run.
 
-import type {
-  EcosystemResult,
-  LegalDependencyScope,
-  ManifestLicenseDeclaration,
+import {
+  dependency,
+  countIncludedDependencies,
+  type EcosystemResult,
+  type LegalDependencyScope,
+  type ManifestLicenseDeclaration,
+  type LegalDependencyAdmission,
 } from '../dependencies'
-import { dependency } from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf, dirNameOf } from '../files'
 
@@ -139,10 +141,14 @@ function readGemfileLock(text: string): { readonly name: string; readonly versio
 }
 
 /**
- * Read gem evidence from the snapshot. Gemspec code never runs: static
- * assignments are read and executable content becomes a coverage gap.
- */
-export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
+Read gem evidence from the snapshot. Gemspec code never runs: static
+assignments are read and executable content becomes a coverage gap.
+*/
+export function readGems(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: LegalDependencyAdmission,
+): EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []
   const requirements: GemRequirement[] = []
@@ -291,11 +297,19 @@ export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
     })
   })
 
-  const unresolved = dependencies.filter((dep) => dep.version === undefined).length
+  const unresolved = countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.version === undefined,
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m158, unresolved, { v0: unresolved }))
   }
-  const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
+  const withoutLicense = countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.licenseRaw === undefined,
+  )
   if (withoutLicense > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m159, withoutLicense, { v0: withoutLicense }))
   }

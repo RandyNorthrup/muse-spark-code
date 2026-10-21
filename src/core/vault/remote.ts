@@ -97,12 +97,12 @@ export interface VaultRemotePorts {
   /** Local selection only. Offers/status never enumerate owner-side items. */
   select(request: RemoteRequest, identity: Identity, signal: AbortSignal): Promise<unknown>
   /** S/L resolve the verified SSH exchange, or the receiver's command-bound code sink.
-   * Resolution must prove the exact sessionDigest/origin, not a caller-supplied command. */
+  Resolution must prove the exact sessionDigest/origin, not a caller-supplied command. */
   resolve(request: RemoteRequest, identity: Identity, signal: AbortSignal): Promise<VaultUse>
   /** Authenticated owner-side UI, with both remote origin/session and broker's exact use shown. */
   approve(card: VaultRemoteApprovalCard, signal: AbortSignal): Promise<unknown>
   /** Runs IN the broker. Redeems the ticket against current policy and returns only signature/code bytes.
-   * It keeps the admission alive through canRelease, never returns an item or seed. */
+  It keeps the admission alive through canRelease, never returns an item or seed. */
   execute(
     ticket: VaultTicket,
     use: VaultUse,
@@ -119,7 +119,7 @@ export interface VaultRemoteConsumerPorts {
   subscribeClose(listener: () => void): () => void
   exchange(request: RemoteRequest, signal: AbortSignal): Promise<unknown>
   /** S/X/L consume in the pinned SSH exchange, private stdin or fill only, never a model/tool result.
-   * They call canDeliver at the physical delivery and retain no byte reference afterwards. */
+  They call canDeliver at the physical delivery and retain no byte reference afterwards. */
   deliver(
     kind: 'ssh' | 'totp',
     bytes: Uint8Array,
@@ -313,10 +313,9 @@ export class VaultRemoteOwner {
       if (
         !this.current(operation) ||
         answer.requestId !== request.id ||
-        answer.digest !== card.digest ||
-        this.ports.broker.clock.now() >= request.expiresAt
+        answer.digest !== card.digest
       )
-        throw new Error(UI_TEXT.vault.approvalExpired)
+        throw new Error(UI_TEXT.vault.useChanged)
       const result = vaultApprovalResultSchema.parse(
         await this.ports.broker.answer(this.ports.peer, {
           requestId: request.id,
@@ -333,7 +332,7 @@ export class VaultRemoteOwner {
         ticket.requestId === request.id &&
         ticket.itemId === request.item.id &&
         ticket.digest === request.digest &&
-        this.ports.broker.clock.now() < ticket.expiresAt
+        (ticket.expiresAt === null || this.ports.broker.clock.now() < ticket.expiresAt)
       if (!canRelease()) throw new Error(UI_TEXT.vault.noAccess)
       bytes = await this.ports.execute(
         structuredClone(ticket),
@@ -363,13 +362,15 @@ export class VaultRemoteOwner {
         hasSent = true
         channel.send(response)
       } else throw new Error(UI_TEXT.vault.noAccess)
-    } catch {
-      if (hasSent) throw new Error(UI_TEXT.vault.noAccess)
+    } catch (error: unknown) {
+      // A failure after the response went out rejects with its cause; a live
+      // operation answers the peer with a denial, and a stale one ends quiet.
+      if (hasSent) throw new Error(UI_TEXT.vault.noAccess, { cause: error })
       if (this.current(operation)) {
         try {
           channel.send({ v: VAULT_PROTOCOL_VERSION, id: remote.id, result: { kind: 'denied' } })
-        } catch {
-          throw new Error(UI_TEXT.vault.noAccess)
+        } catch (error_: unknown) {
+          throw new Error(UI_TEXT.vault.noAccess, { cause: error_ })
         }
       }
     } finally {

@@ -110,8 +110,13 @@ function urlTarget(url: string): string {
   try {
     const parsed = new URL(url)
     return `${parsed.protocol}//${parsed.host}`
-  } catch {
-    return UI_TEXT.mcpInvalidUrl
+  } catch (error: unknown) {
+    // A string the URL parser refuses is an invalid URL; anything else is not
+    // this view's to name.
+    if (error instanceof TypeError) {
+      return UI_TEXT.mcpInvalidUrl
+    }
+    throw error
   }
 }
 
@@ -144,7 +149,12 @@ function parsed(text: string): JsonObject | string {
   try {
     value = JSON.parse(text)
   } catch (error: unknown) {
-    return error instanceof Error ? error.message : String(error)
+    // Malformed text reads as invalid JSON in fixed words: the parser's own
+    // message varies and can echo the file back. Anything else is rethrown.
+    if (error instanceof SyntaxError) {
+      return UI_TEXT.mcpInvalidJson
+    }
+    throw error
   }
   return isObject(value) ? value : 'the file does not hold a JSON object'
 }
@@ -163,7 +173,7 @@ export function readMcpServerEntries(text: string | undefined): McpSettingsEntri
   const entries = [camel, legacy].flatMap((block) =>
     isObject(block)
       ? Object.entries(block).flatMap(([name, entry]) =>
-          isObject(entry) ? [{ view: serverView(name, entry), entry }] : [],
+          isObject(entry) ? { view: serverView(name, entry), entry } : [],
         )
       : [],
   )

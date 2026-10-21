@@ -34,10 +34,17 @@
     "other": "呼び出しごとのエクスポートは直近{count}日間のみ利用できます。"
   },
   "exportComplete": "使用量をエクスポートしました。",
+  "exportTooLarge": "このエクスポートはブラウザーには大きすぎます。期間を短くするか、CLIでエクスポートしてください。",
+  "exportBound": "ブラウザーでのエクスポートはJSONエンコードを含めて{limit}までです。",
+  "editorActionsUnavailable": "このページではエディター設定や履歴フォルダーを開いたり、モデル料金を編集したりできません。エディター設定と「モデルとエージェント」の操作を使用してください。閲覧、フィルター、グラフ、エクスポートは引き続き利用できます。",
+  "readOnlyActions": "このテキスト画面は読み取り専用です。グラフ、履歴の管理、ダウンロードには補助ページを開いてください。",
   "deleteHistory": "使用履歴を削除…",
   "deleteTitle": "使用履歴を削除しますか？",
   "deleteConfirm": {
     "other": "このマシン上の使用記録{count}件を削除しますか？支出台帳と付与済みの権限は保持されます。"
+  },
+  "deleteConfirmResources": {
+    "other": "リソースの履歴のエントリ{count}件も削除されます。"
   },
   "deleteAction": "履歴を削除",
   "deleteComplete": "使用履歴を削除しました。",
@@ -100,11 +107,15 @@
   "certaintyReported": "報告値",
   "certaintyComputed": "計算値",
   "certaintyUncertain": "不確実",
+  "reservedLabel": "予約済み",
   "certaintyPlan": "プラン",
   "certaintyLocal": "ローカル",
   "certaintyUnpriced": "価格未設定",
   "certaintyEstimated": "推定値",
   "uncertainNote": "リクエストは送信されましたが、使用量が返されませんでした。そのコスト負担は保持されます。",
+  "unknownCalls": {
+    "other": "コスト不明のリクエスト{count}件"
+  },
   "unpricedNote": "価格カードがありません。不明なコストはゼロではありません。",
   "estimatedNote": "トークン数は推定値です。",
   "localNote": "ローカルモデル：API料金はかかりません。",
@@ -205,12 +216,6 @@
   "sortAscending": "昇順で並べ替え",
   "sortDescending": "降順で並べ替え",
   "retentionNote": "呼び出しごとの詳細は{detailDays}日間、日次サマリーは{historyDays}日間保持されます。",
-  "privacyNote": "履歴はこのマシン上に留まります。プロンプト、応答、ツール引数、パス、キーは含まれません。",
-  "exportTooLarge": "このエクスポートはブラウザーには大きすぎます。期間を短くするか、CLIでエクスポートしてください。",
-  "exportBound": "ブラウザーでのエクスポートはJSONエンコードを含めて{limit}までです。",
-  "editorActionsUnavailable": "このページではエディター設定や履歴フォルダーを開いたり、モデル料金を編集したりできません。エディター設定と「モデルとエージェント」の操作を使用してください。閲覧、フィルター、グラフ、エクスポートは引き続き利用できます。",
-  "readOnlyActions": "このテキスト画面は読み取り専用です。グラフ、履歴の管理、ダウンロードには補助ページを開いてください。",
-  "deleteConfirmResources": {
-    "other": "リソースの履歴のエントリ{count}件も削除されます。"
-  }
+  "retentionNoteKept": "呼び出しごとの詳細は{detailDays}日間保持され、日次サマリーは日数を設定するかクリアするまで保持されます。",
+  "privacyNote": "履歴はこのマシン上に留まります。プロンプト、応答、ツール引数、パス、キーは含まれません。"
 }

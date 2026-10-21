@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../../../../shared/refusal'
 import { Usd, type UsdAmount } from '../../../../shared/usd'
 // The Chat Completions wire codec (PLAN.md D74, M95 lane H): the shared
 // implementation behind every `chat` preset (OpenRouter, Groq, DeepSeek,
@@ -26,11 +27,19 @@ import * as z from 'zod/mini'
 import {
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  EFFORT_PROVIDER_DEFAULT,
   THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../../../shared/constants'
 import { resolveReasoning } from '../../../../shared/effort'
-import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
+import { fill } from '../../../../shared/l10n/text'
+import {
+  ChatCodecError,
+  cleanWireText,
+  isBlankWireText,
+  nativeCallId,
+  type CallIdFormat,
+} from './shared'
 export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import type {
   CreateResponseBody,
@@ -49,16 +58,16 @@ export const CHAT_CODEC_FORMAT = 'chat' as const
 // --- preset quirks (lane P's data) ---
 
 /** Which reasoning field a preset replays on its assistant messages. */
-export type ChatReplayField = 'details' | 'content' | 'text' | 'none'
+export type ChatReplayField = 'details' | 'content' | 'chunks' | 'text' | 'none'
 
 /**
- * The family's quirks as data, one value per preset from `presets.ts`:
- * the output-cap parameter, the reasoning request parameter, which extras
- * travel (`prompt_cache_key`, `stream_options.include_usage`, Z.ai's
- * `tool_stream`), whether tool results name their function (Mistral's
- * capture replays `name`), which reasoning field replays, and OpenRouter's
- * fixed routing object plus attribution headers.
- */
+The family's quirks as data, one value per preset from `presets.ts`:
+the output-cap parameter, the reasoning request parameter, which extras
+travel (`prompt_cache_key`, `stream_options.include_usage`, Z.ai's
+`tool_stream`), whether tool results name their function (Mistral's
+capture replays `name`), which reasoning field replays, and OpenRouter's
+fixed routing object plus attribution headers.
+*/
 export interface ChatPresetQuirks {
   /** Selected model's effective supportsStrictTools; absent stays off. */
   readonly supportsStrictTools?: boolean | undefined
@@ -69,22 +78,53 @@ export interface ChatPresetQuirks {
   /** The output-cap parameter the preset accepts. */
   readonly outputCap: 'max_tokens' | 'max_completion_tokens'
   /**
-   * The reasoning request parameter: none (Mistral, Z.ai), OpenRouter's
-   * `reasoning: {effort}` object, or the flat `reasoning_effort` string.
-   */
+  The reasoning request parameter: none (Mistral, Z.ai), OpenRouter's
+  `reasoning: {effort}` object, or the flat `reasoning_effort` string.
+  */
   readonly reasoningParam: 'none' | 'effort-object' | 'effort-flat'
   /**
-   * Maps the canonical effort (`body.reasoning.effort`) to the preset's
-   * own level names. Absent means the effort goes as it came.
-   */
+  Maps the canonical effort (`body.reasoning.effort`) to the preset's
+  own level names. Absent means the effort goes as it came.
+  */
   readonly effortMap?: Readonly<Record<string, string>> | undefined
   /**
-   * The preset's documented Thinking-off switch: `thinking: {type:
-   * "disabled"}` with no effort parameter. When set, the shared resolver
-   * (`resolveReasoning`) maps every effort with the two record facts below.
-   * Absent keeps the preset's existing bytes.
-   */
-  readonly thinkingOff?: 'thinking-switch' | undefined
+  The preset's documented Thinking-off switch: `thinking: {type:
+  "disabled"}` (DeepSeek, Z.ai) with no effort parameter, or
+  `reasoning: {enabled: false}` (Together's hybrid toggle) with no
+  effort parameter. When set, the shared resolver (`resolveReasoning`)
+  maps every effort with the record facts below. Absent keeps the
+  preset's existing bytes.
+  */
+  readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+  /**
+  The preset's documented reasoning presentation (`reasoning_format`),
+  sent where the record affirms reasoning. Never beside
+  `include_reasoning`, which keeps its default.
+  */
+  readonly reasoningFormat?: 'parsed' | 'raw' | 'hidden' | undefined
+  /**
+  The preset documents its effort vocabulary for every model
+  (llama.cpp): send the body's effort as named even when the record
+  declares no levels. Absent keeps unknown models silent.
+  */
+  readonly sendUndeclaredEffort?: boolean | undefined
+  /**
+  Whether the record lets this model call tools. False drops the tools,
+  the tool choice and the parallelism flag (OpenRouter's
+  `supported_parameters` enforcement); absent or true keeps them.
+  */
+  readonly sendTools?: boolean | undefined
+  /**
+  The record's affirmed output formats. `json_object` sends the
+  main-turn `response_format` where the body asks for a JSON schema.
+  */
+  readonly outputFormats?: readonly string[] | undefined
+  /**
+  The preset opts into preserved thinking (Z.ai's `clear_thinking:
+  false`): sent as `thinking: {type: "enabled", clear_thinking:
+  false}` where the turn replays reasoning and thinking is not off.
+  */
+  readonly thinkingPreserved?: boolean | undefined
   /** The selected model's declared effort levels (capability record). */
   readonly effortLevels?: readonly string[] | undefined
   /** The selected model's record affirms Thinking can be disabled. */
@@ -96,9 +136,9 @@ export interface ChatPresetQuirks {
   /** Send Z.ai's `tool_stream: true`, which fragments tool arguments. */
   readonly toolStream: boolean
   /**
-   * Send `parallel_tool_calls` (research: Groq rejects unknown fields, so
-   * this travels only where the preset says so; absent means omitted).
-   */
+  Send `parallel_tool_calls` (research: Groq rejects unknown fields, so
+  this travels only where the preset says so; absent means omitted).
+  */
   readonly parallelToolCalls?: boolean | undefined
   /** Local/custom presets may omit the tool choice parameter. */
   readonly toolChoice?: 'auto' | 'omit' | undefined
@@ -128,11 +168,11 @@ export interface ChatEncodeOptions {
   /** The caller's model capability record; unknown vision is refused. */
   readonly capabilities?: Pick<ModelCapabilities, 'vision' | 'supportsStrictTools'> | undefined
   /**
-   * `anthropic` marks the system block and the last text block (OpenRouter
-   * to an Anthropic upstream, as the `anthropic` codec's rule); `last`
-   * marks only the last text block (a Gemini upstream); `none` sends
-   * plain strings. Lane I picks this from the model's route.
-   */
+  `anthropic` marks the system block and the last text block (OpenRouter
+  to an Anthropic upstream, as the `anthropic` codec's rule); `last`
+  marks only the last text block (a Gemini upstream); `none` sends
+  plain strings. Lane I picks this from the model's route.
+  */
   readonly cacheBreakpoints?: ChatBreakpoints | undefined
 }
 
@@ -166,9 +206,22 @@ export interface ChatToolCall {
   readonly function: { readonly name: string; readonly arguments: string }
 }
 
+/** Mistral's thinking chunk: the trace as a list of text chunks. */
+export interface ChatThinkingChunk {
+  readonly type: 'thinking'
+  readonly thinking: readonly { readonly type: 'text'; readonly text: string }[]
+}
+
+/** Mistral's answer chunk inside a chunk list. */
+export interface ChatContentTextChunk {
+  readonly type: 'text'
+  readonly text: string
+}
+
 export interface ChatAssistantMessage {
   readonly role: 'assistant'
-  readonly content: string | readonly ChatTextPart[] | null
+  readonly content:
+    string | readonly (ChatTextPart | ChatThinkingChunk | ChatContentTextChunk)[] | null
   readonly tool_calls?: readonly ChatToolCall[] | undefined
   /** OpenRouter: the streamed `reasoning_details`, unmodified, in order. */
   readonly reasoning_details?: readonly unknown[] | undefined
@@ -200,15 +253,16 @@ export interface ChatFunctionTool {
 }
 
 /**
- * The native request body, built in this fixed key order: model, messages,
- * tools, tool_choice, parallel_tool_calls, stream, stream_options, the
- * output cap, provider, reasoning, thinking, prompt_cache_key, tool_stream.
- */
+The native request body, built in this fixed key order: model, messages,
+tools, tool_choice, parallel_tool_calls, stream, stream_options, the
+output cap, provider, reasoning, reasoning_effort, thinking,
+reasoning_format, response_format, prompt_cache_key, tool_stream.
+*/
 export interface ChatCompletionRequest {
   readonly model: string
   readonly messages: readonly ChatMessage[]
   readonly tools?: readonly ChatFunctionTool[] | undefined
-  readonly tool_choice?: 'auto' | undefined
+  readonly tool_choice?: 'auto' | 'none' | undefined
   readonly parallel_tool_calls?: boolean | undefined
   readonly stream: true
   readonly stream_options?: { readonly include_usage: true } | undefined
@@ -224,13 +278,23 @@ export interface ChatCompletionRequest {
         readonly allow_fallbacks?: boolean | undefined
       }
     | undefined
-  readonly reasoning?: { readonly effort: string } | undefined
+  /** OpenRouter's effort object, or Together's hybrid toggle (off only). */
+  readonly reasoning?: { readonly effort: string } | { readonly enabled: false } | undefined
   readonly reasoning_effort?: string | undefined
   /**
-   * The thinking-mode switch; only `disabled` is ever sent, for effort
-   * `none` on a preset that declares it. Never beside an effort value.
-   */
-  readonly thinking?: { readonly type: 'disabled' } | undefined
+  The thinking-mode switch. `disabled` for effort `none` on a preset
+  that declares it, never beside an effort value; `enabled` with
+  `clear_thinking: false` where the preset opts into preserved
+  thinking and the turn replays reasoning.
+  */
+  readonly thinking?:
+    | { readonly type: 'disabled' }
+    | { readonly type: 'enabled'; readonly clear_thinking: false }
+    | undefined
+  /** Groq's reasoning presentation; never beside `include_reasoning`. */
+  readonly reasoning_format?: 'parsed' | 'raw' | 'hidden' | undefined
+  /** The main-turn JSON mode, where the record affirms it. */
+  readonly response_format?: { readonly type: 'json_object' } | undefined
 }
 
 /** What the transport sends: codec-owned headers plus the JSON body. */
@@ -243,11 +307,11 @@ export interface ChatNativeRequest {
 // --- opaque reasoning replay (research §4) ---
 
 /**
- * The chat codec's half of a canonical reasoning item's `encrypted_content`:
- * the streamed reasoning kept verbatim (details in order, concatenated
- * text) with the preset id that produced it. Only this codec reads it, and
- * only for the same preset: switching providers drops it (acceptance 12).
- */
+The chat codec's half of a canonical reasoning item's `encrypted_content`:
+the streamed reasoning kept verbatim (details in order, concatenated
+text) with the preset id that produced it. Only this codec reads it, and
+only for the same preset: switching providers drops it (acceptance 12).
+*/
 export interface ChatReasoningPayload {
   readonly v: 1
   readonly provider: string
@@ -286,7 +350,8 @@ export function readChatReasoning(
   let parsed: unknown
   try {
     parsed = JSON.parse(encryptedContent)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const result = chatReasoningEnvelopeSchema.safeParse(parsed)
@@ -309,15 +374,21 @@ const chatReasoningEnvelopeSchema = z.object({
 
 // --- encode: canonical body to a native request ---
 
-function textOfParts(parts: readonly InputContentPart[]): string {
+function textOfParts(parts: readonly InputContentPart[], model: string): string {
   // M101 lane P1 (BYO items 1, 13): blank text is dropped and lone
   // surrogates are removed (Pi `transform-messages.ts`).
   return parts
     .flatMap((part) => {
       if (part.type === 'input_text' || part.type === 'output_text') {
-        return isBlankWireText(part.text) ? [] : [cleanWireText(part.text)]
+        return isBlankWireText(part.text) ? [] : cleanWireText(part.text)
       }
-      throw new Error(UI_TEXT.execUnknownModel)
+      // M105 lane V R2 (RVCM1054 finding 1, same class): a video part in a
+      // non-user message refuses with its own typed reason, not the generic
+      // unknown-model error.
+      if (part.type === 'input_video') {
+        throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
+      }
+      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     })
     .join('')
 }
@@ -325,32 +396,57 @@ function textOfParts(parts: readonly InputContentPart[]): string {
 function contentOfParts(
   parts: readonly InputContentPart[],
   vision: boolean | undefined,
+  model: string,
 ): ChatUserMessage['content'] {
-  if (parts.every((part) => part.type !== 'input_image')) {
-    return textOfParts(parts)
+  if (parts.every((part) => part.type !== 'input_image' && part.type !== 'input_video')) {
+    return textOfParts(parts, model)
   }
-  if (vision === undefined) {
-    throw new Error(UI_TEXT.execUnknownModel)
+  // M105 lane V R2 (RVCM1054 finding 1, same class): the vision check skips
+  // a video part, so `chatBlockFor` below refuses it with its own typed
+  // reason instead of the generic unknown-model error.
+  if (vision === undefined && parts.every((part) => part.type !== 'input_video')) {
+    throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
   }
-  // M101 lane P1 (BYO item 1): media rides as the image-omitted placeholder
-  // where the model takes no images, so the turn keeps its shape.
+  const hasVision = vision ?? false
+  // M101 lane P1 (BYO item 1): images ride as the image-omitted placeholder
+  // where the model takes no images, so the turn keeps its shape. M105 lane
+  // V: video has no Chat shape without a vendor capture behind it, so it is
+  // refused with the model's own reason instead of a placeholder.
   const blocks: (ChatTextPart | ChatImagePart)[] = []
   for (const part of parts) {
-    if (part.type === 'input_image') {
-      blocks.push(
-        vision
-          ? { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
-          : { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION },
-      )
-    } else if (part.type === 'input_text' || part.type === 'output_text') {
-      if (!isBlankWireText(part.text)) {
-        blocks.push({ type: 'text', text: cleanWireText(part.text) })
-      }
-    } else {
-      throw new Error(UI_TEXT.execUnknownModel)
-    }
+    const block = chatBlockFor(part, hasVision, model)
+    if (block !== undefined) blocks.push(block)
   }
   return blocks
+}
+
+/** One request part as a Chat block; provider-held files keep the placeholder. */
+function chatBlockFor(
+  part: InputContentPart,
+  hasVision: boolean,
+  model: string,
+): ChatTextPart | ChatImagePart | undefined {
+  switch (part.type) {
+    case 'input_image': {
+      // Another provider's held file has no URL to send; like an image where
+      // the model takes none, the turn keeps its shape with the placeholder.
+      return hasVision && 'image_url' in part
+        ? { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
+        : { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
+    }
+    case 'input_video': {
+      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
+    }
+    case 'input_text':
+    case 'output_text': {
+      return isBlankWireText(part.text)
+        ? undefined
+        : { type: 'text', text: cleanWireText(part.text) }
+    }
+    default: {
+      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+    }
+  }
 }
 
 /** Chat tool messages carry text; image results follow in a user message. */
@@ -378,11 +474,11 @@ interface PendingCalls {
 }
 
 /**
- * Encodes one canonical body for a preset: the harness keeps building
- * `CreateResponseBody`, and this turns it into native bytes. Never sends
- * an empty tool list (vLLM refuses it); the compaction that needs tools on
- * every request keeps the turn's tools in the body (lane I, D74).
- */
+Encodes one canonical body for a preset: the harness keeps building
+`CreateResponseBody`, and this turns it into native bytes. Never sends
+an empty tool list (vLLM refuses it); the compaction that needs tools on
+every request keeps the turn's tools in the body (lane I, D74).
+*/
 export function encodeChatRequest(
   body: CreateResponseBody,
   model: string,
@@ -427,18 +523,18 @@ export function encodeChatRequest(
       case 'message': {
         if (item.role === 'developer') {
           flushAssistant()
-          messages.push({ role: 'system', content: textOfParts(item.content) })
+          messages.push({ role: 'system', content: textOfParts(item.content, model) })
         } else if (item.role === 'assistant') {
           if (pending === undefined) {
-            pendingText += textOfParts(item.content)
+            pendingText += textOfParts(item.content, model)
           } else {
-            pending.text = `${pending.text ?? ''}${textOfParts(item.content)}`
+            pending.text = `${pending.text ?? ''}${textOfParts(item.content, model)}`
           }
         } else {
           flushAssistant()
           messages.push({
             role: 'user',
-            content: contentOfParts(item.content, options?.capabilities?.vision),
+            content: contentOfParts(item.content, options?.capabilities?.vision, model),
           })
         }
 
@@ -488,7 +584,7 @@ export function encodeChatRequest(
         if (images.length > 0) {
           pendingImages.push({
             role: 'user',
-            content: contentOfParts(images, options?.capabilities?.vision),
+            content: contentOfParts(images, options?.capabilities?.vision, model),
           })
         }
 
@@ -529,7 +625,9 @@ export function encodeChatRequest(
 
   const nativeTools: ChatFunctionTool[] = []
   const shouldUseStrictTools = (options?.capabilities ?? quirks).supportsStrictTools === true
-  const tools = withStrictTools(body.tools, shouldUseStrictTools)
+  // The record refuses tools to this model (OpenRouter's
+  // `supported_parameters`): the turn goes without them, never refused.
+  const tools = quirks.sendTools === false ? [] : withStrictTools(body.tools, shouldUseStrictTools)
   for (const tool of tools) {
     if (tool.type !== 'function') {
       throw new Error('chat codec: hosted search never reaches a BYO model')
@@ -548,6 +646,8 @@ export function encodeChatRequest(
   // A trailing developer message is request-only progress (M101), so the
   // rolling marker belongs to the preceding historical native message.
   const suffix = body.input.at(-1)
+  // A request without tools carries no tool_choice on the wire, in any
+  // profile: Meta takes auto only, and a choice without tools is refused.
   const request: ChatCompletionRequest = {
     model,
     messages: markBreakpoints(
@@ -555,13 +655,15 @@ export function encodeChatRequest(
       options?.cacheBreakpoints ?? 'none',
       suffix?.type === 'message' && suffix.role === 'developer',
     ),
-    ...(nativeTools.length > 0 && {
-      tools: nativeTools,
-      ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
-    }),
-    ...(quirks.parallelToolCalls !== undefined && {
-      parallel_tool_calls: quirks.parallelToolCalls,
-    }),
+    ...(body.tools.length > 0 &&
+      nativeTools.length > 0 && {
+        tools: nativeTools,
+        ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
+      }),
+    ...(quirks.sendTools !== false &&
+      quirks.parallelToolCalls !== undefined && {
+        parallel_tool_calls: quirks.parallelToolCalls,
+      }),
     stream: true,
     ...(quirks.includeUsage && { stream_options: { include_usage: true as const } }),
     ...(quirks.outputCap === 'max_tokens'
@@ -576,13 +678,14 @@ export function encodeChatRequest(
 }
 
 /**
- * One assistant message with its tool calls and, where the preset replays
- * reasoning, the turn's own payload back in its own field: OpenRouter's
- * `reasoning_details` unmodified and in order, DeepSeek's / Fireworks' /
- * Z.ai's `reasoning_content`, Groq's / Together's / Hugging Face's
- * `reasoning`. Anything else (another preset's payload, a foreign shape)
- * is dropped, never translated.
- */
+One assistant message with its tool calls and, where the preset replays
+reasoning, the turn's own payload back in its own field: OpenRouter's
+`reasoning_details` unmodified and in order, DeepSeek's / Fireworks' /
+Z.ai's `reasoning_content`, Groq's / Together's / Hugging Face's
+`reasoning`, Mistral's chunk list (the thinking chunk plus the answer).
+Anything else (another preset's payload, a foreign shape) is dropped,
+never translated.
+*/
 function assistantMessage(
   text: string | null,
   calls: readonly ChatToolCall[],
@@ -599,6 +702,23 @@ function assistantMessage(
       content: text,
       ...toolCalls,
       ...(reasoning.details !== undefined && { reasoning_details: reasoning.details }),
+    }
+  }
+  if (quirks.replayField === 'chunks') {
+    // Mistral's docs: always replay the full message including the
+    // thinking chunk; with no trace the content stays a plain string.
+    if (reasoning.text === undefined || reasoning.text === '') {
+      return { role: 'assistant', content: text, ...toolCalls }
+    }
+    const thinkingText = cleanWireText(reasoning.text)
+    const chunks: (ChatThinkingChunk | ChatContentTextChunk)[] = [
+      { type: 'thinking', thinking: [{ type: 'text', text: thinkingText }] },
+    ]
+    if (text !== null) chunks.push({ type: 'text', text })
+    return {
+      role: 'assistant',
+      content: chunks,
+      ...toolCalls,
     }
   }
   if (reasoning.text === undefined || reasoning.text === '') {
@@ -625,23 +745,20 @@ function nativeRouting(routing: ChatRouting): NonNullable<ChatCompletionRequest[
   }
 }
 
-class ChatCodecError extends Error {
-  override readonly name = 'ChatCodecError'
-}
-
 /**
- * The configured client rethrows these instead of its generic unavailable
- * error, so the typed refusal and its localized reason reach the caller.
- * Matched by name so a second copy of this module cannot mask it.
- */
-export function isChatCodecError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'ChatCodecError'
-}
+Re-exported from `./shared` (M105 lane V R3, RVCM1054B P2): the one
+decision point lives there so no client keeps its own list. Kept here so
+existing `chat.isChatCodecError` callers keep working.
+*/
+export { isChatCodecError } from './shared'
 
 function nativeReasoning(
   body: CreateResponseBody,
   quirks: ChatPresetQuirks,
-): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort' | 'thinking'> {
+): Pick<
+  ChatCompletionRequest,
+  'reasoning' | 'reasoning_effort' | 'thinking' | 'reasoning_format' | 'response_format'
+> {
   let requested = body.reasoning.effort
   if (quirks.thinkingOff !== undefined) {
     const decision = resolveReasoning(
@@ -652,8 +769,12 @@ function nativeReasoning(
       },
       requested,
     )
-    if (decision.kind === 'off') return { thinking: { type: 'disabled' } }
-    if (decision.kind === 'default') return {}
+    if (decision.kind === 'off') {
+      return quirks.thinkingOff === 'reasoning-enabled'
+        ? { reasoning: { enabled: false } }
+        : { thinking: { type: 'disabled' } }
+    }
+    if (decision.kind === 'default') return { ...preservedThinking(body, quirks) }
     if (decision.kind === 'refuse') {
       const reason =
         requested === THINKING_OFF_EFFORT
@@ -662,14 +783,67 @@ function nativeReasoning(
       throw new ChatCodecError(`${reason} (${decision.code})`)
     }
     requested = decision.effort
-  }
-  if (quirks.reasoningParam === 'none') {
+  } else if (quirks.sendUndeclaredEffort === true) {
+    if (requested === 'default') return {}
+  } else if (quirks.reasoningParam === 'none') {
     return {}
   }
+  // `default` (a level the record does not list) takes the provider
+  // default: no reasoning field is sent, never the neighbour and never
+  // off (lane REASONSHAPESR2, GAPANTH-G10).
+  if (requested === EFFORT_PROVIDER_DEFAULT) {
+    return {
+      ...preservedThinking(body, quirks),
+      ...(quirks.reasoningFormat !== undefined && { reasoning_format: quirks.reasoningFormat }),
+      ...jsonResponseFormat(body, quirks),
+    }
+  }
   const effort = quirks.effortMap?.[requested] ?? requested
-  return quirks.reasoningParam === 'effort-object'
-    ? { reasoning: { effort } }
-    : { reasoning_effort: effort }
+  if (quirks.reasoningParam === 'none') {
+    return {
+      reasoning_effort: effort,
+      ...preservedThinking(body, quirks),
+      ...(quirks.reasoningFormat !== undefined && { reasoning_format: quirks.reasoningFormat }),
+      ...jsonResponseFormat(body, quirks),
+    }
+  }
+  return {
+    ...(quirks.reasoningParam === 'effort-object'
+      ? { reasoning: { effort } }
+      : { reasoning_effort: effort }),
+    ...preservedThinking(body, quirks),
+    ...(quirks.reasoningFormat !== undefined && { reasoning_format: quirks.reasoningFormat }),
+    ...jsonResponseFormat(body, quirks),
+  }
+}
+
+/**
+Z.ai's preserved thinking (`thinking: {type: "enabled",
+clear_thinking: false}`): only where the preset opts in, thinking is
+not off, and the turn replays reasoning worth preserving.
+*/
+function preservedThinking(
+  body: CreateResponseBody,
+  quirks: ChatPresetQuirks,
+): Pick<ChatCompletionRequest, 'thinking'> {
+  if (quirks.thinkingPreserved !== true) return {}
+  const isReplays = body.input.some((item) => item.type === 'reasoning')
+  return isReplays ? { thinking: { type: 'enabled', clear_thinking: false } } : {}
+}
+
+/**
+The main-turn JSON mode (`response_format: {type: "json_object"}`):
+only where the body asks for a JSON schema and the record affirms
+`json_object`.
+*/
+function jsonResponseFormat(
+  body: CreateResponseBody,
+  quirks: ChatPresetQuirks,
+): Pick<ChatCompletionRequest, 'response_format'> {
+  return body.text?.format.type === 'json_schema' &&
+    (quirks.outputFormats ?? []).includes('json_object')
+    ? { response_format: { type: 'json_object' } }
+    : {}
 }
 
 // --- decode: native stream to canonical events ---
@@ -694,9 +868,21 @@ const chatReasoningDetailSchema = z.looseObject({
   index: z.optional(z.number()),
 })
 
+const chatThinkingPartSchema = z.looseObject({
+  type: z.optional(z.string()),
+  text: z.optional(z.nullable(z.string())),
+})
+
+/** Mistral's streamed chunk list: thinking chunks carry the trace as text parts. */
+const chatContentChunkSchema = z.looseObject({
+  type: z.optional(z.string()),
+  text: z.optional(z.nullable(z.string())),
+  thinking: z.optional(z.nullable(z.array(chatThinkingPartSchema))),
+})
+
 const chatDeltaSchema = z.object({
   role: z.optional(z.string()),
-  content: z.optional(z.nullable(z.string())),
+  content: z.optional(z.nullable(z.union([z.string(), z.array(chatContentChunkSchema)]))),
   reasoning: z.optional(z.nullable(z.string())),
   reasoning_content: z.optional(z.nullable(z.string())),
   reasoning_details: z.optional(z.nullable(z.array(chatReasoningDetailSchema))),
@@ -812,16 +998,16 @@ function callItemOf(entry: DecodedCall): {
 }
 
 /**
- * Incremental decoder over parsed `data:` payloads (lane T's SSE layer
- * parses frames; `[DONE]` and blanks are skipped here). One instance per
- * response; `feed` returns the canonical events for each payload and
- * `finish` the terminal events plus the canonical `ResponseObject`.
- *
- * Reads deltas and usage from every chunk (Mistral puts the whole call,
- * the finish reason and the usage in one chunk; Groq, Together and
- * Fireworks use a `choices: []` usage chunk). Only the first choice is
- * read; a turn carries one.
- */
+Incremental decoder over parsed `data:` payloads (lane T's SSE layer
+parses frames; `[DONE]` and blanks are skipped here). One instance per
+response; `feed` returns the canonical events for each payload and
+`finish` the terminal events plus the canonical `ResponseObject`.
+
+Reads deltas and usage from every chunk (Mistral puts the whole call,
+the finish reason and the usage in one chunk; Groq, Together and
+Fireworks use a `choices: []` usage chunk). Only the first choice is
+read; a turn carries one.
+*/
 export class ChatStreamDecoder {
   private readonly model: string
   private readonly quirks: ChatPresetQuirks
@@ -976,9 +1162,32 @@ export class ChatStreamDecoder {
   }
 
   /**
-   * Splits `<think>` blocks (research §1: unclosed ones too) out of answer
-   * text into reasoning; local servers stream thought this way.
-   */
+  Routes one streamed content chunk (Mistral's chunk list): thinking
+  chunks join the reasoning trace, text chunks join the answer. Unknown
+  chunk shapes without text are ignored, never failed.
+  */
+  private takeContentChunk(
+    chunk: z.infer<typeof chatContentChunkSchema>,
+    events: StreamEvent[],
+  ): void {
+    if (chunk.type === 'thinking') {
+      const parts = chunk.thinking ?? []
+      for (const part of parts) {
+        if (typeof part.text === 'string' && part.text !== '') {
+          this.pushReasoning(part.text, events)
+        }
+      }
+      return
+    }
+    if (typeof chunk.text === 'string' && chunk.text !== '') {
+      this.takeContent(chunk.text, events)
+    }
+  }
+
+  /**
+  Splits `<think>` blocks (research §1: unclosed ones too) out of answer
+  text into reasoning; local servers stream thought this way.
+  */
   private takeContent(piece: string, events: StreamEvent[]): void {
     this.contentPending += piece
     for (;;) {
@@ -1008,9 +1217,9 @@ export class ChatStreamDecoder {
   }
 
   /**
-   * Merges by native index, then native id. An unnamed/indexless/idless
-   * continuation can reconnect only while one call is unambiguous.
-   */
+  Merges by native index, then native id. An unnamed/indexless/idless
+  continuation can reconnect only while one call is unambiguous.
+  */
   private takeToolCall(call: ChatToolCallDelta, events: StreamEvent[]): string | undefined {
     const index = call.index
     let key: string | number
@@ -1077,12 +1286,12 @@ export class ChatStreamDecoder {
   }
 
   /**
-   * Usage as M75 validates it (finite, non-negative, cached at most
-   * input); missing means unknown, not zero (research §1). The last chunk
-   * carrying usage wins: Mistral's single chunk, the finish chunk
-   * (OpenRouter, DeepSeek, Z.ai) or the `choices: []` chunk
-   * (Groq, Together, Fireworks).
-   */
+  Usage as M75 validates it (finite, non-negative, cached at most
+  input); missing means unknown, not zero (research §1). The last chunk
+  carrying usage wins: Mistral's single chunk, the finish chunk
+  (OpenRouter, DeepSeek, Z.ai) or the `choices: []` chunk
+  (Groq, Together, Fireworks).
+  */
   private canonicalUsage(): Usage | undefined {
     const raw = this.usageRaw
     if (raw === undefined) {
@@ -1149,7 +1358,8 @@ export class ChatStreamDecoder {
       }
       try {
         raw = JSON.parse(trimmed)
-      } catch {
+      } catch (error: unknown) {
+        if (!(error instanceof SyntaxError)) throw error
         return this.fail('malformed_chunk')
       }
     }
@@ -1164,12 +1374,9 @@ export class ChatStreamDecoder {
     ) {
       return events
     }
-    let chunk: ChatChunk
-    try {
-      chunk = chatChunkSchema.parse(raw)
-    } catch {
-      return this.fail('malformed_chunk')
-    }
+    const parsed = chatChunkSchema.safeParse(raw)
+    if (!parsed.success) return this.fail('malformed_chunk')
+    const chunk: ChatChunk = parsed.data
     const error = readStreamError(chunk)
     if (error !== undefined) {
       this.streamError = error
@@ -1242,6 +1449,10 @@ export class ChatStreamDecoder {
       }
       if (typeof delta.content === 'string' && delta.content !== '') {
         this.takeContent(delta.content, events)
+      } else if (Array.isArray(delta.content)) {
+        for (const chunk of delta.content) {
+          this.takeContentChunk(chunk, events)
+        }
       }
       if (delta.tool_calls !== undefined && delta.tool_calls !== null) {
         for (const call of delta.tool_calls) {
@@ -1340,11 +1551,11 @@ export class ChatStreamDecoder {
 }
 
 /**
- * A mid-stream error under HTTP 200 (research: OpenRouter keeps 200 with a
- * string): any chunk carrying an `error` object, or the flat
- * `{object: "error", message}` shape, becomes the canonical error event.
- * HTTP error bodies stay lane T's per-format parser.
- */
+A mid-stream error under HTTP 200 (research: OpenRouter keeps 200 with a
+string): any chunk carrying an `error` object, or the flat
+`{object: "error", message}` shape, becomes the canonical error event.
+HTTP error bodies stay lane T's per-format parser.
+*/
 function readStreamError(
   chunk: ChatChunk,
 ): { readonly code?: string | undefined; readonly message: string } | undefined {
@@ -1383,10 +1594,10 @@ export function decodeChatStream(
 }
 
 /**
- * Marks the system block and, in `anthropic` mode, the last text block
- * (rolling); in `last` mode only the last text block. Anything else keeps
- * plain strings, as every non-cache capture shows.
- */
+Marks the system block and, in `anthropic` mode, the last text block
+(rolling); in `last` mode only the last text block. Anything else keeps
+plain strings, as every non-cache capture shows.
+*/
 function markBreakpoints(
   messages: readonly ChatMessage[],
   mode: ChatBreakpoints,

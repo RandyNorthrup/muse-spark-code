@@ -4,10 +4,10 @@
 // configured until the user finishes it.
 
 /**
- * The preset id a workspace suggests, or undefined when the setting is
- * empty, unknown, or URL-shaped (a workspace file can never set an
- * address: anything shaped like one is ignored).
- */
+The preset id a workspace suggests, or undefined when the setting is
+empty, unknown, or URL-shaped (a workspace file can never set an
+address: anything shaped like one is ignored).
+*/
 export function workspaceSuggestedPreset(
   settingValue: string | undefined,
   hasPreset: (id: string) => boolean,

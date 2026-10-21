@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, expect, it } from 'vitest'
+import { beforeAll, beforeEach, expect, it } from 'vitest'
 import axe from 'axe-core'
 import { aggregateResources } from '../../src/core/usage/aggregate'
 import { resourceHistoryText } from '../../src/core/usage/resourceText'
@@ -39,6 +39,33 @@ const usageResourcesText = (records: readonly ResourceRecord[]) =>
 
 beforeEach(() => {
   setUiText(EN, 'en')
+})
+
+// Aggregating a full week of minutes costs hundreds of milliseconds of pure
+// computation on fixture data: build it once outside any test deadline. The
+// paging tests below still render the same aggregate and page through it.
+const week: {
+  events: ResourceRecord[]
+  history: ReturnType<typeof aggregateResources> | undefined
+} = { events: [], history: undefined }
+beforeAll(() => {
+  const minute = historyRecords().find((record) => record.minute !== null)
+  if (minute === undefined) throw new Error('fixture missing')
+  const minutes = Array.from({ length: RESOURCE_HISTORY_MAX_MINUTES }, (_, index) => ({
+    ...minute,
+    atMs: index * RESOURCE_HISTORY_MINUTE_MS,
+  }))
+  week.events = Array.from(
+    { length: RESOURCE_HISTORY_PAGE_SIZE + 2 },
+    (_, atMs): ResourceRecord => ({
+      type: 'resource',
+      atMs,
+      minute: null,
+      work: [],
+      event: { type: 'paused', atMs, kind: 'check' },
+    }),
+  )
+  week.history = aggregateResources([...minutes, ...week.events])
 })
 
 it('property: chart readings/limits, level band, event totals and harness table agree with the journal', () => {
@@ -108,7 +135,7 @@ it('property: chart readings/limits, level band, event totals and harness table 
       if (minute === null) throw new Error('fixture missing')
       expect(text).toContain(resourceHistoryLevel(minute.level))
       expect(text).toContain(
-        `${UI_TEXT.resourceCpu}: ${minute.cpuPercent === null ? UI_TEXT.resourceUnknown : formatPercent(minute.cpuPercent)} / ${formatPercent(minute.thresholds.cpuMaxPercent)}`,
+        `${UI_TEXT.resourceCpu}: ${minute.cpuPercent === null ? UI_TEXT.resourceUnknown : formatPercent(minute.cpuPercent)}${minute.thresholds.cpuMaxPercent === null ? '' : ` / ${formatPercent(minute.thresholds.cpuMaxPercent)}`}`,
       )
     }
     expect(text).toContain(`${UI_TEXT.resourceCpuTime}: ${formatUnit(seed * 4 + 12, 'second')}`)
@@ -327,37 +354,28 @@ it('rejects bridge lists exceeding the named minute, event, count and work bound
   }
 })
 
-it('pages a full week of minutes and large event detail without rendering unbounded rows or chart paths', () => {
-  const minute = historyRecords().find((record) => record.minute !== null)
-  if (minute === undefined) throw new Error('fixture missing')
-  const minutes = Array.from({ length: RESOURCE_HISTORY_MAX_MINUTES }, (_, index) => ({
-    ...minute,
-    atMs: index * RESOURCE_HISTORY_MINUTE_MS,
-  }))
-  const events: ResourceRecord[] = Array.from(
-    { length: RESOURCE_HISTORY_PAGE_SIZE + 2 },
-    (_, atMs) => ({
-      type: 'resource',
-      atMs,
-      minute: null,
-      work: [],
-      event: { type: 'paused', atMs, kind: 'check' },
-    }),
-  )
-  const history = aggregateResources([...minutes, ...events])
+// Each accessible table lookup walks the document, so every page state
+// below queries its tables once and asserts everything from the captured
+// rows instead of re-querying per assertion. The week pages in two tests
+// because one render with every minute and event interaction exceeded the
+// default timeout on a loaded runner; both halves assert what the single
+// test did.
+const tableRows = (name: string) => within(screen.getByRole('table', { name })).getAllByRole('row')
+
+it('pages a full week of minutes without rendering unbounded rows or chart paths', () => {
+  const history = week.history
+  if (history === undefined) throw new Error('fixture missing')
   const view = render(<ResourcesSection history={history} />)
   expect(view.container.querySelectorAll('[data-level]').length).toBe(RESOURCE_HISTORY_PAGE_SIZE)
   expect(view.container.querySelector(':scope tbody')?.children.length).toBe(
     RESOURCE_HISTORY_PAGE_SIZE,
   )
-  const readings = () => screen.getByRole('table', { name: UI_TEXT.resourceHistory })
-  const eventTable = () => screen.getByRole('table', { name: UI_TEXT.resourceHistoryEvents })
-  const rows = (table: HTMLElement) => within(table).getAllByRole('row')
   const minuteNav = screen.getByRole('navigation', { name: UI_TEXT.resourceHistory })
-  const eventNav = screen.getByRole('navigation', { name: UI_TEXT.resourceHistoryEvents })
-  expect(rows(readings())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
-  expect(rows(eventTable())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
-  expect(rows(readings())[1]).toHaveTextContent(
+  let readingRows = tableRows(UI_TEXT.resourceHistory)
+  const eventRows = tableRows(UI_TEXT.resourceHistoryEvents)
+  expect(readingRows).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  expect(eventRows).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  expect(readingRows[1]).toHaveTextContent(
     formatDateTime(
       (RESOURCE_HISTORY_MAX_MINUTES - RESOURCE_HISTORY_PAGE_SIZE) * RESOURCE_HISTORY_MINUTE_MS,
     ),
@@ -370,34 +388,48 @@ it('pages a full week of minutes and large event detail without rendering unboun
     within(minuteNav).getByRole('button', { name: UI_TEXT.resourceHistoryNewer }),
   ).toBeDisabled()
   fireEvent.click(within(minuteNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }))
-  expect(rows(readings())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
-  expect(rows(readings())[1]).toHaveTextContent(
+  readingRows = tableRows(UI_TEXT.resourceHistory)
+  expect(readingRows).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  expect(readingRows[1]).toHaveTextContent(
     formatDateTime(
       (RESOURCE_HISTORY_MAX_MINUTES - RESOURCE_HISTORY_PAGE_SIZE * 2) * RESOURCE_HISTORY_MINUTE_MS,
     ),
   )
-  expect(rows(eventTable())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
-  fireEvent.click(within(eventNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }))
-  expect(rows(eventTable())).toHaveLength(3)
-  expect(
-    within(eventNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }),
-  ).toBeDisabled()
-  expect(screen.getByRole('table', { name: UI_TEXT.resourceHistoryCount })).toHaveTextContent(
-    formatNumber(events.length),
-  )
-  expect(screen.getByRole('table', { name: UI_TEXT.resourceHarness })).toHaveTextContent(
-    formatUnit(history.work[0]?.cpuSeconds ?? 0, 'second'),
-  )
+  expect(tableRows(UI_TEXT.resourceHistoryEvents)).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
   fireEvent.click(within(minuteNav).getByRole('button', { name: UI_TEXT.resourceHistoryNewer }))
-  expect(rows(readings())[1]).toHaveTextContent(
+  readingRows = tableRows(UI_TEXT.resourceHistory)
+  expect(readingRows[1]).toHaveTextContent(
     formatDateTime(
       (RESOURCE_HISTORY_MAX_MINUTES - RESOURCE_HISTORY_PAGE_SIZE) * RESOURCE_HISTORY_MINUTE_MS,
     ),
   )
+})
+
+it('pages large event detail and collapses navigation for a small history', () => {
+  const history = week.history
+  if (history === undefined) throw new Error('fixture missing')
+  const view = render(<ResourcesSection history={history} />)
+  const eventNav = screen.getByRole('navigation', { name: UI_TEXT.resourceHistoryEvents })
+  let eventRows = tableRows(UI_TEXT.resourceHistoryEvents)
+  expect(eventRows).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  fireEvent.click(within(eventNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }))
+  eventRows = tableRows(UI_TEXT.resourceHistoryEvents)
+  expect(eventRows).toHaveLength(3)
+  expect(
+    within(eventNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }),
+  ).toBeDisabled()
+  expect(screen.getByRole('table', { name: UI_TEXT.resourceHistoryCount })).toHaveTextContent(
+    formatNumber(week.events.length),
+  )
+  expect(screen.getByRole('table', { name: UI_TEXT.resourceHarness })).toHaveTextContent(
+    formatUnit(history.work[0]?.cpuSeconds ?? 0, 'second'),
+  )
   view.rerender(<ResourcesSection history={aggregateResources(historyRecords())} />)
   expect(screen.queryByRole('navigation')).toBeNull()
-  expect(rows(readings())).toHaveLength(5)
-  expect(rows(eventTable())).toHaveLength(5)
+  const readingRows = tableRows(UI_TEXT.resourceHistory)
+  eventRows = tableRows(UI_TEXT.resourceHistoryEvents)
+  expect(readingRows).toHaveLength(5)
+  expect(eventRows).toHaveLength(5)
 })
 
 it('clips an older chart page at the next hidden threshold segment within the same minute', () => {

@@ -32,9 +32,9 @@ function stripTomlComment(line: string): string {
 }
 
 /**
- * The key/value pairs of one `[section]` table. Multi-line arrays are
- * joined; nested tables, array tables and non-string values are skipped.
- */
+The key/value pairs of one `[section]` table. Multi-line arrays are
+joined; nested tables, array tables and non-string values are skipped.
+*/
 export function parseTomlSection(text: string, section: string): Map<string, TomlValue> {
   const found = new Map<string, TomlValue>()
   const lines = text.split('\n').map((line) => stripTomlComment(line))
@@ -112,10 +112,10 @@ export interface TomlPackageStanza {
 }
 
 /**
- * The `[[package]]` stanzas of `uv.lock`, `poetry.lock` and `Cargo.lock`:
- * names and versions only. Locks carry no license fields, so every entry
- * needs installed metadata to close its license gap.
- */
+The `[[package]]` stanzas of `uv.lock`, `poetry.lock` and `Cargo.lock`:
+names and versions only. Locks carry no license fields, so every entry
+needs installed metadata to close its license gap.
+*/
 export function readTomlPackageStanzas(
   snapshot: LegalFileSnapshot,
   file: string,

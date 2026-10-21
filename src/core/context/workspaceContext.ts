@@ -19,6 +19,7 @@ import type { ContentSource } from '../schedules/provenance'
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
+import { isCodedError } from '../workspaceRoot'
 import {
   type AgentCatalogue,
   type AgentDefinition,
@@ -31,6 +32,7 @@ import {
   resolveAgent,
 } from './customAgents'
 import { type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
+import { withBundledSkillsArchive } from './bundledSkillsArchive'
 import {
   type BundledSkillsSource,
   bundledSkillsRoot,
@@ -48,16 +50,16 @@ export interface WorkspaceContextDeps {
   /** Muse Code's personal skill root; undefined when the host has no home. */
   readonly personalSkillsRoot: string | undefined
   /**
-   * The skills that ship with the extension (M89, PLAN.md D68), the lowest
-   * source; undefined where none ship (the ACP agent, the evaluation).
-   */
+  The skills that ship with the extension (M89, PLAN.md D68), the lowest
+  source; undefined where none ship (the ACP agent, the evaluation).
+  */
   readonly bundledSkills?: BundledSkillsSource | undefined
   /** The managed personal agent root (M76); undefined when the host has no home. */
   readonly personalAgentsRoot: string | undefined
   /**
-   * Whether the agents are loaded (M76): a parent conversation lists them
-   * and spawns them; a child cannot spawn, so it reads none.
-   */
+  Whether the agents are loaded (M76): a parent conversation lists them
+  and spawns them; a child cannot spawn, so it reads none.
+  */
   readonly hasAgents: boolean
   readonly isWorkspaceTrusted: () => boolean
   /** The memory snapshot (M49); undefined when the backend has no memory. */
@@ -73,9 +75,9 @@ export interface ContextSections {
   readonly rules: string | undefined
   readonly skills: readonly SkillDefinition[]
   /**
-   * The custom agents the model may run through `subagent_spawn` (M76):
-   * only those a spawn of the name would run (RV70x).
-   */
+  The custom agents the model may run through `subagent_spawn` (M76):
+  only those a spawn of the name would run (RV70x).
+  */
   readonly agents: readonly AgentDefinition[]
   /** The scopes that keep notes, as the session began; empty without any. */
   readonly memory: readonly MemoryScopeSnapshot[]
@@ -84,10 +86,6 @@ export interface ContextSections {
 const ROOT_DIRECTORY = ''
 // Missing source evidence stays explicit and cannot authorize a new fire.
 const UNKNOWN_CONTEXT_SOURCE: ContentSource = { kind: 'tool', callId: 'unproved-context' }
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 function catalogueKey(skills: readonly SkillDefinition[]): string {
   return JSON.stringify(skills)
@@ -212,12 +210,15 @@ export class WorkspaceContext {
     return true
   }
 
-  /** A read that fails (permissions, encoding) is a warning, never a failed turn. */
+  /** A store read that fails (permissions, encoding) warns and falls back, never a failed turn. */
   private async guarded<T>(what: string, run: () => Promise<T>, fallback: T): Promise<T> {
     try {
       return await run()
     } catch (error: unknown) {
-      this.deps.warn(`${what} failed: ${describe(error)}`)
+      // Only a shaped store failure keeps the fallback: anything else is
+      // raised, so a bug in our own read never reads as a quiet warning.
+      if (!isCodedError(error)) throw error
+      this.deps.warn(`${what} failed`)
       return fallback
     }
   }
@@ -239,11 +240,11 @@ export class WorkspaceContext {
   }
 
   /**
-   * Agents load once per session with the rest of the context (M76): a
-   * repository's files only in a trusted workspace, like the skills. Each
-   * root loads on its own; one that fails is a hole the others' precedence
-   * respects (RV70x).
-   */
+  Agents load once per session with the rest of the context (M76): a
+  repository's files only in a trusted workspace, like the skills. Each
+  root loads on its own; one that fails is a hole the others' precedence
+  respects (RV70x).
+  */
   private async loadAgentCatalogue(): Promise<void> {
     // Rules and skills awaited first; trust can change before agent loading.
     if (!this.isTrusted) return
@@ -293,10 +294,10 @@ export class WorkspaceContext {
   }
 
   /**
-   * Loads the rules files of the directories above a touched path that have
-   * not been checked yet, deeper files after shallower ones (Muse Code: the
-   * deeper file wins). True when the rules changed.
-   */
+  Loads the rules files of the directories above a touched path that have
+  not been checked yet, deeper files after shallower ones (Muse Code: the
+  deeper file wins). True when the rules changed.
+  */
   public async touch(relativePath: string): Promise<boolean> {
     if (!this.isTrusted) {
       return false
@@ -324,7 +325,16 @@ export class WorkspaceContext {
       async () => {
         const recorded = await this.recorder.run(recordOperation, {
           kind: 'skills',
-          deps: { io: this.deps.io, platform: this.deps.platform },
+          deps: {
+            // The vendored package reads through its solid archive when the
+            // install is packaged (VSIXWEB B), the loose tree otherwise.
+            io: withBundledSkillsArchive(
+              this.deps.io,
+              this.deps.bundledSkills?.packageRoot,
+              this.deps.platform,
+            ),
+            platform: this.deps.platform,
+          },
           roots: this.skillRoots(),
         })
         for (const skill of recorded.value.skills)

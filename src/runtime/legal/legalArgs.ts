@@ -22,9 +22,9 @@ function isFormat(value: unknown): value is LegalFormat {
 }
 
 /**
- * What `legal`'s flags mean. No positional takes part: the scan covers the
- * workspace the command runs in, and anything else is a usage error.
- */
+What `legal`'s flags mean. No positional takes part: the scan covers the
+workspace the command runs in, and anything else is a usage error.
+*/
 export function parseLegalArgs(
   values: Readonly<Record<string, unknown>>,
   positionals: readonly string[],

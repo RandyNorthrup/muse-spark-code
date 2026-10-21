@@ -19,12 +19,12 @@ import {
 } from '../../shared/constants'
 
 /**
- * The session names a canonical team tool may be offered under. Only the
- * diagnostics tool needs aliases today: `getDiagnostics` in process and
- * `mcp__ide__getDiagnostics` over MCP (src/core/diagnostics.ts). Muse Code
- * and external agents get the nearest of their own tools (lane W); that
- * mapping lives with the worker, never here.
- */
+The session names a canonical team tool may be offered under. Only the
+diagnostics tool needs aliases today: `getDiagnostics` in process and
+`mcp__ide__getDiagnostics` over MCP (src/core/diagnostics.ts). Muse Code
+and external agents get the nearest of their own tools (lane W); that
+mapping lives with the worker, never here.
+*/
 const TEAM_TOOL_ALIASES: Readonly<Record<string, readonly string[]>> = {
   [TEAM_DIAGNOSTICS_TOOL]: ['getDiagnostics', 'mcp__ide__getDiagnostics'],
 }
@@ -186,11 +186,11 @@ export function describeToolsForCharter(
 }
 
 /**
- * A role's tools, met with what the session offers and the paid gates
- * allow. Paid groups (`webSearch`, `images`) are dropped while their gate
- * is off; a worker whose role names `delegates` gets `roster`, `delegate`,
- * `collect` and `cancel`, never `merge`.
- */
+A role's tools, met with what the session offers and the paid gates
+allow. Paid groups (`webSearch`, `images`) are dropped while their gate
+is off; a worker whose role names `delegates` gets `roster`, `delegate`,
+`collect` and `cancel`, never `merge`.
+*/
 export function resolveTeamToolset(
   spec: TeamToolsetSpec,
   session: TeamToolsetSession,

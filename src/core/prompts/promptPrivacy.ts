@@ -26,7 +26,7 @@ export function promptPrivacy(input: {
       if (root === '') continue
       // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- pathPattern escapes every root segment; only fixed separator/tail syntax is added (PLAN.md §8).
       const pattern = new RegExp(
-        `${pathPattern(root)}(?:[\\\\/]+([^\\s"'\u{60}<>]*))?(?=$|[\\s"'\u{60}<>])`,
+        `${pathPattern(root)}(?:[\\\\/]+([^\\s"'\`<>]*))?(?=$|[\\s"'\`<>])`,
         'gi',
       )
       result = result.replaceAll(pattern, (_match: string, tail: string | undefined) =>

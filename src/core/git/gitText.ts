@@ -16,6 +16,7 @@ import {
   GIT_PROMPT_DIFF_MAX_CHARS,
   GIT_PROMPT_FILES_MAX,
   GIT_MODEL_TEXT,
+  UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { redactSecrets } from '../redact'
@@ -27,7 +28,8 @@ import {
   type SideCallFormats,
 } from '../backends/modelapi/structuredOutput'
 import type { TurnPart, TurnSubmission } from '../agent/agentBackend'
-import type { GitDraftKind } from '../../shared/git'
+import type { GitDraft, GitDraftKind } from '../../shared/git'
+import { pullRequestFormProblem } from './pullRequestRef'
 
 export interface CommitPromptFacts {
   readonly branch: string | undefined
@@ -53,7 +55,7 @@ export interface PullRequestText {
 }
 
 /** M95/host binding: submit owns the prepared user's turn; request continues
- * that same held turn with its live admission, consent and budget guards. */
+that same held turn with its live admission, consent and budget guards. */
 export interface GitDraftOutputPort {
   readonly submit?: (parts: readonly TurnPart[], displayText?: string) => Promise<TurnSubmission>
   readonly formats: () => SideCallFormats | undefined
@@ -156,9 +158,9 @@ function listed(items: readonly string[], max: number): string {
 }
 
 /**
- * A new file as `git diff` shows one, for the commit prompt: `bytes` are
- * its start, `size` its length, and a file cut short or binary says so.
- */
+A new file as `git diff` shows one, for the commit prompt: `bytes` are
+its start, `size` its length, and a file cut short or binary says so.
+*/
 export function newFileDiff(label: string, bytes: Uint8Array, size: number): string {
   const header = `diff --git a/${label} b/${label}\nnew file\n--- /dev/null\n+++ b/${label}`
   if (bytes.includes(0)) {
@@ -241,4 +243,46 @@ export function pullRequestTextFrom(reply: string): PullRequestText | undefined 
 /** Whether `text` holds a credential-shaped string the masking would change. */
 export function hasCredentialShapes(text: string): boolean {
   return redactSecrets(text) !== text
+}
+
+/**
+A pull request's title and description with every credential shape
+masked, when either holds one: what goes back to the form, so nothing
+goes out that the user has not seen. Undefined when both are clean.
+*/
+function maskedPullRequestText(
+  title: string,
+  body: string,
+): { readonly title: string; readonly body: string } | undefined {
+  return hasCredentialShapes(title) || hasCredentialShapes(body)
+    ? { title: redactSecrets(title), body: redactSecrets(body) }
+    : undefined
+}
+
+/**
+The pull request form's own refusals, before anything is asked or sent
+(both routes): a problem with its fields, or a credential shape in the
+title or the description, whose masked text goes back to the form. True
+when it was refused, said through `surface`.
+*/
+export function isPullRequestFormRefused(
+  fields: { readonly title: string; readonly body: string; readonly base: string },
+  surface: {
+    post(message: { readonly type: 'gitDraft'; readonly draft: GitDraft }): void
+    notice(level: 'warning', text: string): void
+  },
+): boolean {
+  const problem = pullRequestFormProblem(fields.title, fields.body, fields.base)
+  if (problem !== undefined) {
+    surface.notice('warning', problem)
+    return true
+  }
+  const masked = maskedPullRequestText(fields.title, fields.body)
+  if (masked === undefined) {
+    return false
+  }
+  // The form gets the masked text back: what goes out is what the user saw.
+  surface.post({ type: 'gitDraft', draft: { kind: 'pullRequest', ...masked } })
+  surface.notice('warning', UI_TEXT.gitCredentialMasked)
+  return true
 }

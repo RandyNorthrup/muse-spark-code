@@ -484,7 +484,7 @@ public static class MuseSparkJob {
   // includes the helper, and excludes breakaway. Never used by M27's Join.
   public static int RunTeam(string executable, string[] arguments, string cwd,
     uint parentPid, string[] environment, string ownerPipe, string nonce,
-    string statusPipe, string jobName, bool belowNormal) {
+    string statusPipe, string jobName, bool belowNormal, bool verbatimArguments) {
     IntPtr job = CreateJobObjectW(IntPtr.Zero, jobName);
     if (job == IntPtr.Zero) throw new Win32Exception();
     IntPtr limitsBuffer = IntPtr.Zero;
@@ -510,7 +510,7 @@ public static class MuseSparkJob {
         System.Threading.Tasks.Task monitor = null;
         using (var reader = new StreamReader(status, Encoding.UTF8, true, 1024, true)) {
           int code = MuseSparkMcpJob.Run(executable, arguments, cwd, parentPid,
-            environment, false, ownerPipe, nonce, (pid, process) => {
+            environment, verbatimArguments, ownerPipe, nonce, (pid, process) => {
               long creation;
               string image, uid;
               TeamIdentity(process, out creation, out image, out uid);
@@ -623,7 +623,11 @@ public static class MuseSparkCreated {
     IntPtr owner, group, dacl, sacl, descriptor;
     if (GetSecurityInfo(h, 1, 1, out owner, out group, out dacl, out sacl, out descriptor) != 0) Refuse();
     try { using (WindowsIdentity current = WindowsIdentity.GetCurrent()) {
-      if (current.User == null || new SecurityIdentifier(owner).Value != current.User.Value) Refuse();
+      // The token's own default owner counts as this user's: an elevated
+      // administrator's new objects can belong to Administrators (Windows
+      // Server's default), and the registry folder is made that way.
+      string found = new SecurityIdentifier(owner).Value;
+      if (current.User == null || (found != current.User.Value && (current.Owner == null || found != current.Owner.Value))) Refuse();
     }} finally { LocalFree(descriptor); }
   }
   static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create, bool allowMissing = false) {

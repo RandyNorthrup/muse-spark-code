@@ -9,8 +9,6 @@ import {
   MEDIA_NAME_MAX_CHARS,
   MEDIA_PATH_TOKEN_MAX_CHARS,
   MEDIA_SHA256_PATTERN,
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_MIN_SECONDS,
 } from './constants'
 
 const count = z.int().check(z.gte(0))
@@ -164,7 +162,7 @@ export const mediaAttachmentUpdateSchema = z.strictObject({
 })
 
 /** One provider file as the upload ledger caches it (metadata only). Pure
- * builders: the browser never parses it, so chat startup drops both. */
+builders: the browser never parses it, so chat startup drops both. */
 export const uploadedAccountFileSchema = /* @__PURE__ */ (() =>
   z.strictObject({
     fileId: z.string(),
@@ -173,7 +171,7 @@ export const uploadedAccountFileSchema = /* @__PURE__ */ (() =>
     expiresAt: z.optional(z.int().check(z.gt(0))),
   }))()
 /** The account's uploaded-files report the chat validates before posting it
- * (CAPS017: here, so dist/conversation.js no longer carries the ledger). */
+(CAPS017: here, so dist/conversation.js no longer carries the ledger). */
 export const uploadedFilesReportSchema = /* @__PURE__ */ (() =>
   z.strictObject({
     provider: z.string(),
@@ -190,11 +188,12 @@ export const uploadedFilesReportSchema = /* @__PURE__ */ (() =>
   }))()
 export type UploadedFilesReport = z.infer<typeof uploadedFilesReportSchema>
 
-/** No implicit audio selection and no unbounded recording request. */
+/**
+No implicit audio selection. D121: 0 records until stopped; any other whole
+number of seconds the person sets is used as set, with no floor or ceiling.
+*/
 export const screenRecordingOptionsSchema = z.strictObject({
-  maxSeconds: z
-    .int()
-    .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
+  maxSeconds: count,
   microphone: z.boolean(),
   systemAudio: z.boolean(),
 })

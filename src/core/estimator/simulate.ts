@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import { fingerprint } from '../verify/fingerprint'
 import {
   estimateInputsSchema,
@@ -15,7 +16,6 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
 import { compareEstimateIds } from './goal'
 import { planDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { canEstimateMachineRun, prepareEstimateSchedule } from './schedule'
@@ -27,9 +27,9 @@ export type EstimateDurationModel =
   | { kind: 'lognormal'; calibration: Calibration; reviewHours: Quantity; redesignHours: Quantity }
 
 /** C owns fitting/prior rates and overhead evidence; S never invents them.
- * Lognormal mu/sigma describe actual/estimated total lane duration. Review
- * and redesign overheads must exclude work already included in that fit.
- */
+Lognormal mu/sigma describe actual/estimated total lane duration. Review
+and redesign overheads must exclude work already included in that fit.
+*/
 export interface EstimateDurationPort {
   model(lane: EstimateLane, machineClassId: string): EstimateDurationModel
 }
@@ -41,7 +41,7 @@ export interface EstimateDurationSample {
   reviewRounds: number
   redesigns: number
   /** The duration's own evidence, frozen: plan assumption or the model's
-   * calibration fit with its sample count. `evidence.hours` equals `hours`. */
+  calibration fit with its sample count. `evidence.hours` equals `hours`. */
   evidence: EstimateDurationEvidence
 }
 
@@ -74,12 +74,12 @@ const P50 = 0.5
 const P90 = 0.9
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** All input arrays are sets of application records/identities; object and
- * array order cannot change the seed. No locale-dependent ordering is used.
- */
+array order cannot change the seed. No locale-dependent ordering is used.
+*/
 function canonical(value: unknown): string {
   if (Array.isArray(value))
     return `[${value
@@ -97,8 +97,8 @@ function canonical(value: unknown): string {
 }
 
 /** SHA-256 seeds our small dependency-free PRNG. Midpoints exclude 0/1,
- * so Box–Muller and geometric draws cannot take log(0).
- */
+so Box–Muller and geometric draws cannot take log(0).
+*/
 export function estimateRandom(seed: string): () => number {
   let state = Number.parseInt(fingerprint(seed).slice(0, WORD_HEX_CHARS), HEX_RADIX) || 1
   return () => {
@@ -201,14 +201,14 @@ export function estimateDurationMap(
 }
 
 /** Exactly ESTIMATE_RUNS trials. Nearest-rank quantiles select real trials;
- * the representative schedule is P50's trial, not independent lane medians.
- * Report assembly keeps these models/input quantities as disclosure evidence.
- */
+the representative schedule is P50's trial, not independent lane medians.
+Report assembly keeps these models/input quantities as disclosure evidence.
+*/
 export function simulateEstimate(
   input: EstimateInputs,
   port: EstimateDurationPort,
 ): EstimateSimulation {
-  const inputs = estimateInputsSchema.parse(input)
+  const inputs = parseEstimate(estimateInputsSchema, input)
   const scheduler = prepareEstimateSchedule(inputs.lanes, inputs.fleet)
   const lanes = inputs.lanes.toSorted((a, b) => compareEstimateIds(a.id, b.id))
   const layout = lanes

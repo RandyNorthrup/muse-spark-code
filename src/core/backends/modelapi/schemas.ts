@@ -25,10 +25,10 @@ export const outputTextPartSchema = z.object({
   text: z.string(),
   annotations: z.optional(z.array(z.union([urlCitationSchema, otherAnnotationSchema]))),
   /**
-   * M101 lane P1 (BYO item 4): a thought signature Gemini attached to this
-   * text part. Only the Gemini codec reads it; every other reader renders
-   * the text and ignores the signature.
-   */
+  M101 lane P1 (BYO item 4): a thought signature Gemini attached to this
+  text part. Only the Gemini codec reads it; every other reader renders
+  the text and ignores the signature.
+  */
   thoughtSignature: z.optional(z.string()),
 })
 
@@ -67,11 +67,11 @@ export const reasoningItemSchema = z.object({
 export type ReasoningItem = z.infer<typeof reasoningItemSchema>
 
 /**
- * What a search did (the Responses schema's `action`): `search` with its
- * queries (`query` is the deprecated single one), or `open_page` /
- * `find_in_page` on a URL. Meta's guide shows items without it, so it is
- * optional here though the schema requires it.
- */
+What a search did (the Responses schema's `action`): `search` with its
+queries (`query` is the deprecated single one), or `open_page` /
+`find_in_page` on a URL. Meta's guide shows items without it, so it is
+optional here though the schema requires it.
+*/
 export const webSearchActionSchema = z.object({
   type: z.string(),
   query: z.optional(z.string()),
@@ -155,16 +155,16 @@ export function citationsOf(item: MessageItem): readonly Citation[] {
 }
 
 /**
- * The reply text of a message: its output text, and a refusal's own words
- * (PLAN.md D26: a refusal used to render as an empty reply).
- */
+The reply text of a message: its output text, and a refusal's own words
+(PLAN.md D26: a refusal used to render as an empty reply).
+*/
 export function messageText(item: MessageItem): string {
   return item.content
     .flatMap((part) => {
       if (part.type === 'output_text' && 'text' in part) {
-        return [part.text]
+        return part.text
       }
-      return part.type === 'refusal' && 'refusal' in part ? [part.refusal] : []
+      return part.type === 'refusal' && 'refusal' in part ? part.refusal : []
     })
     .join('')
 }
@@ -253,13 +253,51 @@ export type StreamEvent = z.infer<typeof streamEventSchema>
 /** Just the discriminator, to tell an unknown event type from a malformed one. */
 export const eventTypeSchema = z.object({ type: z.string() })
 
+/**
+An error envelope's `code`, as text. llama.cpp's server sends it as a
+number (its HTTP status, captured b11541); every other captured preset
+sends a string. A number decodes to its decimal text so the overflow
+classifier still sees the code; absent stays absent.
+*/
+const errorCodeSchema = z.codec(
+  z.optional(z.nullable(z.union([z.string(), z.number()]))),
+  z.optional(z.nullable(z.string())),
+  {
+    decode: (code) => (typeof code === 'number' ? String(code) : code),
+    encode: (code) => code,
+  },
+)
+
+const errorObjectSchema = z.object({
+  message: z.string(),
+  type: z.optional(z.nullable(z.string())),
+  code: errorCodeSchema,
+  param: z.optional(z.nullable(z.string())),
+})
+
+/**
+An error envelope's `error`, as an object. LM Studio's server sends it as
+a bare string instead (Express-style, captured 2026-10-10); a string
+decodes to a message-only object so the failure still reads as the
+server's words rather than a bare HTTP status.
+*/
+type ErrorObject = z.output<typeof errorObjectSchema>
+
+const errorFieldSchema = z.codec(z.union([z.string(), errorObjectSchema]), errorObjectSchema, {
+  decode: (error): ErrorObject =>
+    typeof error === 'string'
+      ? { message: error }
+      : {
+          message: error.message,
+          type: error.type,
+          code: typeof error.code === 'number' ? String(error.code) : error.code,
+          param: error.param,
+        },
+  encode: (error) => errorObjectSchema.parse(error),
+})
+
 export const errorBodySchema = z.object({
-  error: z.object({
-    message: z.string(),
-    type: z.optional(z.nullable(z.string())),
-    code: z.optional(z.nullable(z.string())),
-    param: z.optional(z.nullable(z.string())),
-  }),
+  error: errorFieldSchema,
 })
 
 export const modelListSchema = z.object({
@@ -274,11 +312,11 @@ export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.non
 // --- request items (what the backend sends back as `input`) ---
 
 /**
- * What an assistant message was (protocols/responses, message phase):
- * `commentary` is text the model wrote before a tool call, and must be
- * replayed as such: replayed as a final answer before a `function_call`
- * it is a 400. `final_answer` is accepted on input only.
- */
+What an assistant message was (protocols/responses, message phase):
+`commentary` is text the model wrote before a tool call, and must be
+replayed as such: replayed as a final answer before a `function_call`
+it is a 400. `final_answer` is accepted on input only.
+*/
 
 /** A user or assistant message in the replayed conversation. */
 export interface InputMessageItem {
@@ -289,54 +327,112 @@ export interface InputMessageItem {
 }
 
 /**
- * A PDF sent inline (M54, PLAN.md D47; file-handling, "Send a file inline"):
- * the bytes as a base64 data URL, never uploaded, with the name the model
- * sees.
- */
+A PDF sent inline (M54, PLAN.md D47; file-handling, "Send a file inline"):
+the bytes as a base64 data URL, never uploaded, with the name the model
+sees.
+*/
 export interface InputFilePart {
   readonly type: 'input_file'
   readonly filename: string
   readonly file_data: string
 }
 
+/**
+A file the provider already holds (M105, D85.2): the upload's id replays
+instead of its bytes. Captured on the wire in
+`docs/research/m105-captures/` (round 1 U6b `input_file`, round 3 I13/I12
+`input_image` at every detail, round 1/2/3 `input_video` with and without
+`fps`); only the replay codec mints these, never the request builder.
+*/
+export interface InputUploadedFilePart {
+  readonly type: 'input_file'
+  readonly file_id: string
+}
+
+/** An image the provider already holds: `file_id` plus the captured detail. */
+export interface InputUploadedImagePart {
+  readonly type: 'input_image'
+  readonly file_id: string
+  readonly detail: 'auto' | 'low' | 'high' | 'original'
+}
+
+/** A video the provider already holds: `file_id`, plus `fps` when explicit. */
+export interface InputVideoPart {
+  readonly type: 'input_video'
+  readonly file_id: string
+  readonly fps?: number | undefined
+}
+
 export type InputContentPart =
   | InputFilePart
+  | InputUploadedFilePart
+  | InputUploadedImagePart
+  | InputVideoPart
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
   | {
       readonly type: 'output_text'
       readonly text: string
       /**
-       * M101 lane P1 (BYO item 4): a thought signature Gemini attached to
-       * this text part, empty parts included (Pi #7356). Only the Gemini
-       * codec reads it, replaying the part with its signature; every other
-       * codec renders the text and ignores the signature.
-       */
+      M101 lane P1 (BYO item 4): a thought signature Gemini attached to
+      this text part, empty parts included (Pi #7356). Only the Gemini
+      codec reads it, replaying the part with its signature; every other
+      codec renders the text and ignores the signature.
+      */
       readonly thoughtSignature?: string | undefined
     }
 
 /**
- * A part of a function's output given as content (the Responses schema's
- * `FunctionCallOutputContentListParam`, read 2026-09-25): text and pictures,
- * which an MCP tool may return (M50).
- */
+A part of a function's output given as content (the Responses schema's
+`FunctionCallOutputContentListParam`, read 2026-09-25): text and pictures,
+which an MCP tool may return (M50).
+*/
 export type FunctionOutputPart =
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
+
+/**
+TOOLCAP: the text of a tool result allowed into a request. Only
+`boundToolResultText` (tool text through the one bound), `withCutNotice`
+(bounded text with its cut notice appended) and `fixedHarnessText` (fixed
+harness words with no tool text: cancellations, refusals) in
+toolResultBound.ts produce it; every place that builds a
+`function_call_output` or a tool-carrying note takes this type, not
+`string`, so bypassing the bound fails compilation. A plain `string` is
+never assignable: a new site must route through the bound, and a cast
+elsewhere needs its own justification.
+*/
+export type BoundedToolText = string & { readonly __boundedToolText: true }
+
+/**
+TOOLCAP: stored text re-entering the live session. This lives beside the
+brand (not the bound: the stored-session format ships in the activation
+bundle, while the bound loads lazily with the backend). Restore keeps
+stored bytes byte-identical (golden requests, forks and compaction rely on
+it), so the bound cannot re-cut here; text stored before the bound still
+meets it through send-time recovery, which cuts whatever exceeds the bound
+with a spill before the turn gives up. The only brand restatement outside
+the bound itself, the cut notice, and fixed harness words (PLAN.md §8:
+TOOLCAP brand).
+*/
+export function restoredToolText(text: string): BoundedToolText {
+  // Brand: restore is byte-identical by design; the send-time recovery is the backstop (PLAN.md §8: TOOLCAP brand).
+  return text as BoundedToolText
+}
 
 export interface FunctionCallOutputItem {
   readonly type: 'function_call_output'
   readonly call_id: string
   /** The result as text, or as content parts when it holds pictures. */
-  readonly output: string | readonly FunctionOutputPart[]
+  readonly output: BoundedToolText | readonly FunctionOutputPart[]
 }
 
 /**
- * A search the model made, replayed so its reasoning keeps the item that
- * followed it (search-grounding: earlier `web_search_call` items may be
- * replayed). Its results stay out: they were asked for the transcript, and
- * the reply that used them is replayed already.
- */
+A search the model made, replayed so its reasoning keeps the item that
+followed it (search-grounding: earlier `web_search_call` items may be
+replayed). Its results stay out: they were asked for the transcript, and
+the reply that used them is replayed already.
+*/
 export interface WebSearchCallInputItem {
   readonly type: 'web_search_call'
   readonly id?: string | undefined
@@ -371,12 +467,12 @@ export interface FunctionToolDefinition {
 }
 
 /**
- * Flags function tools strict where the model takes it (M101 item 24);
- * search tools pass through. Off returns the same definitions, so the
- * canonical body (and the golden bytes) stays `strict: false` when the
- * session setting or capability is off. Unconvertible MCP tools retain
- * their declaration; harness schema failures still refuse the request.
- */
+Flags function tools strict where the model takes it (M101 item 24);
+search tools pass through. Off returns the same definitions, so the
+canonical body (and the golden bytes) stays `strict: false` when the
+session setting or capability is off. Unconvertible MCP tools retain
+their declaration; harness schema failures still refuse the request.
+*/
 export function withStrictTools(
   tools: readonly FunctionToolDefinition[],
   shouldUseStrict: boolean,
@@ -417,7 +513,8 @@ export function restoreOptionalToolArguments(json: string, tool: FunctionToolDef
   let value: unknown
   try {
     value = JSON.parse(json)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return json
   }
   const restore = (input: unknown, schema: Record<string, unknown>): unknown => {
@@ -591,12 +688,12 @@ function isGrammarType(value: unknown): boolean {
 }
 
 /**
- * Whether a tool parameter schema converts to a constrained-decoding
- * grammar (M101 item 24): known primitive types only, no references or
- * combinators, bounded depth. Structural, not a byte limit: the byte
- * budget beside it is a regression tripwire, and the exact upstream
- * grammar limit stays a residual until a live capture names it.
- */
+Whether a tool parameter schema converts to a constrained-decoding
+grammar (M101 item 24): known primitive types only, no references or
+combinators, bounded depth. Structural, not a byte limit: the byte
+budget beside it is a regression tripwire, and the exact upstream
+grammar limit stays a residual until a live capture names it.
+*/
 export function isToolSchemaGrammarSafe(node: unknown, depth = 0): boolean {
   if (depth > TOOL_SCHEMA_MAX_DEPTH) {
     return false
@@ -642,19 +739,72 @@ export interface JsonSchemaTextFormat {
   readonly strict: boolean
 }
 
+/**
+Whether a request declares tools for the wire: the ONE predicate behind
+every tool-less request in the product (the wrap-up, compaction without
+reused tools, git drafts, the reviewer and hook-model calls with no
+tools, any side call). A tool-less request omits tools and tool choice
+alike on every wire format: xAI answers 400 "A tool_choice was set on
+the request but no tools were specified."
+(`docs/certification/toolrounds-captures/xai/`), and the omitted shape
+is the only one all twelve captures accept.
+*/
+export function hasDeclaredTools(tools: readonly unknown[]): boolean {
+  return tools.length > 0
+}
+
+/**
+The wire body for a tool-less request: `tools` and `tool_choice` omitted,
+every other key (and its order) untouched, so the instruction prefix
+stays byte-identical and cacheable.
+*/
+export function omitToolShape(body: CreateResponseBody): Record<string, unknown> {
+  const wire: Record<string, unknown> = { ...body }
+  delete wire['tools']
+  delete wire['tool_choice']
+  return wire
+}
+
 export interface CreateResponseBody {
   readonly model: string
   readonly input: readonly InputItem[]
   readonly instructions: string
   readonly tools: readonly ToolDefinition[]
-  readonly tool_choice: 'auto'
+  readonly tool_choice: 'auto' | 'none'
+  /**
+  The plan route's priority tier (`priority`) while the conversation's
+  Fast switch is on; absent otherwise and off the keyed route, whose
+  bytes are unchanged.
+  */
+  readonly service_tier?: string
   // Optional: Tab asks for no reasoning summary (M94, PLAN.md D73), so it
   // omits the key. Every existing request still sends `summary: 'auto'`,
   // whose bytes are unchanged.
-  readonly reasoning: { readonly effort: string; readonly summary?: 'auto' }
+  readonly reasoning: {
+    readonly effort: string
+    readonly summary?: 'auto'
+    /**
+    OpenAI's `pro` execution mode (lane REASONSHAPESR2, OPENAI-G08):
+    GPT-5.6 and GPT-6 models take `standard` (default) and `pro`.
+    No product surface sets it yet; UNVERIFIED until OPENAI-PRO answers.
+    */
+    readonly mode?: 'standard' | 'pro'
+    /**
+    Which reasoning the model may render (lane REASONSHAPESR2,
+    OPENAI-G07): `auto` is the model's default (`all_turns` on GPT-5.6
+    and later). No product surface sets it yet; UNVERIFIED until
+    OPENAI-CONTEXT answers.
+    */
+    readonly context?: 'auto' | 'current_turn' | 'all_turns'
+  }
   readonly stream: true
   readonly store: false
   readonly include: readonly IncludeField[]
+  /**
+  The output cap, absent on a hook call whose capability record names no
+  maximum (hookModelEntry.hookModelOutputCap): nothing of ours is sent,
+  and the provider's own default applies. Every other writer sends one.
+  */
   readonly max_output_tokens: number
   /** U8: bounds hosted tool calls, not the harness's function calls. */
   readonly max_tool_calls?: number
@@ -691,9 +841,9 @@ export interface CreateImageBody {
 }
 
 /**
- * One edited image (M44): Meta's JSON form of `POST /images/edits`, the
- * sources inline as data URLs; the answer is an `ImagesResponse`.
- */
+One edited image (M44): Meta's JSON form of `POST /images/edits`, the
+sources inline as data URLs; the answer is an `ImagesResponse`.
+*/
 export interface EditImageBody extends CreateImageBody {
   readonly images: readonly { readonly image_url: string }[]
 }

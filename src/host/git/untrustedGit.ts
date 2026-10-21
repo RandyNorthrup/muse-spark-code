@@ -15,10 +15,10 @@ import {
 } from '../git'
 
 /**
- * Every git a held pull request's checkout runs (heldCheckout.ts) runs with
- * these: no hooks, no fsmonitor, no replacement objects, no automatic
- * maintenance or garbage collection.
- */
+Every git a held pull request's checkout runs (heldCheckout.ts) runs with
+these: no hooks, no fsmonitor, no replacement objects, no automatic
+maintenance or garbage collection.
+*/
 export const UNTRUSTED_CHECKOUT_OPTIONS: readonly string[] = [
   '--no-replace-objects',
   '-c',
@@ -32,9 +32,10 @@ export const UNTRUSTED_CHECKOUT_OPTIONS: readonly string[] = [
 ]
 
 /** An old git, or a configured name the overrides cannot spell: the checkout is refused. */
-function checkoutRefusal(): Error {
-  // Configuration keys and exec errors may contain private details.
-  return new Error(UI_TEXT.openPullRequestFiltersUnavailable)
+function checkoutRefusal(cause?: unknown): Error {
+  // Configuration keys and exec errors may contain private details, so the
+  // sentence stays fixed and the failure travels as the cause.
+  return new Error(UI_TEXT.openPullRequestFiltersUnavailable, { cause })
 }
 
 /** The per-command overrides that turn off hooks and fsmonitor need Git 2.36 or newer. */
@@ -46,8 +47,8 @@ async function requireCheckoutSafeGit(
   let output: string
   try {
     output = await execFile(git, ['--version'], options)
-  } catch {
-    throw checkoutRefusal()
+  } catch (error: unknown) {
+    throw checkoutRefusal(error)
   }
   if (!hasGitProgramControls(output, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)) {
     throw checkoutRefusal()
@@ -55,12 +56,12 @@ async function requireCheckoutSafeGit(
 }
 
 /**
- * The options that keep the untrusted lane's git from running programs: the
- * fixed ones above, and every named hook the configuration where it runs
- * defines switched off (hook commands are never read). The lane never
- * checks a tree out (heldCheckout.ts writes the files), so no filter needs
- * switching off.
- */
+The options that keep the untrusted lane's git from running programs: the
+fixed ones above, and every named hook the configuration where it runs
+defines switched off (hook commands are never read). The lane never
+checks a tree out (heldCheckout.ts writes the files), so no filter needs
+switching off.
+*/
 async function checkoutOverrides(
   execFile: GitExecFile,
   git: string,
@@ -75,8 +76,8 @@ async function checkoutOverrides(
       [...UNTRUSTED_CHECKOUT_OPTIONS, 'config', '--null', '--name-only', '--list'],
       options,
     )
-  } catch {
-    throw checkoutRefusal()
+  } catch (error: unknown) {
+    throw checkoutRefusal(error)
   }
   check?.()
   const overrides = namedHookOverrides(configuration, UNTRUSTED_CHECKOUT_OPTIONS)

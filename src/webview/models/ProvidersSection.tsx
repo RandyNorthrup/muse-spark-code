@@ -5,6 +5,7 @@
 
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { ContextWindow } from './components/ContextWindow'
 import { fill, plural } from '../../shared/l10n/text'
 import type { UsdAmount } from '../../shared/usdSchema'
 import { useMoneyLoad } from '../money'
@@ -97,15 +98,20 @@ function TestLine({
 }
 
 function KeyUsage({ provider }: { readonly provider: ProviderState }) {
+  if (provider.keyUsageError !== undefined) {
+    return (
+      <p className="models-hint" role="status">
+        {provider.keyUsageError}
+      </p>
+    )
+  }
   const usage = provider.keyUsage
   if (usage === undefined) {
-    return provider.presetId === 'openrouter' ? (
-      <p className="models-hint" role="status">
-        {UI_TEXT.providerOpenRouterServices}
-      </p>
-    ) : null
+    return null
   }
   const rows: (readonly [string, UsdAmount])[] = []
+  if (usage.totalUsd !== undefined) rows.push([UI_TEXT.usageKeyTotal, usage.totalUsd])
+  if (usage.weekUsd !== undefined) rows.push([UI_TEXT.usageWeekly, usage.weekUsd])
   if (usage.dayUsd !== undefined) {
     rows.push([UI_TEXT.usageToday, usage.dayUsd])
   }
@@ -125,6 +131,12 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
     <div className="models-key-usage">
       <h4>{UI_TEXT.usageKeyUsage}</h4>
       <dl className="models-usage">
+        {usage.unlimited === true ? (
+          <div className="models-usage-row">
+            <dt>{UI_TEXT.usageLimit}</dt>
+            <dd>{UI_TEXT.usageUnlimited}</dd>
+          </div>
+        ) : null}
         {rows.map(([label, usd]) => (
           <div key={label} className="models-usage-row">
             <dt>{label}</dt>
@@ -145,6 +157,7 @@ function EditForm({
   onCancel,
   onReload,
   onPrefill,
+  onContextWindow,
 }: {
   readonly draft: PanelDraft
   readonly editId: string
@@ -152,6 +165,7 @@ function EditForm({
   readonly onCancel: () => void
   readonly onReload: () => void
   readonly onPrefill: (fields: PrefillFields) => void
+  readonly onContextWindow: (model: string, tokens: number) => void
 }) {
   return (
     <div className="models-edit-form">
@@ -178,6 +192,17 @@ function EditForm({
               onPrefill={onPrefill}
             />
           </div>
+        ))}
+      {draft.auth === 'none' &&
+        draft.models.map((model) => (
+          <ContextWindow
+            key={model}
+            model={model}
+            tokens={draft.modelLimits?.[model]?.contextTokens}
+            onChange={(tokens) => {
+              onContextWindow(model, tokens)
+            }}
+          />
         ))}
       <InlineError messages={[...draft.errors, ...draft.blockers]} />
       <div className="models-row-actions">
@@ -208,9 +233,9 @@ function EditForm({
 }
 
 /**
- * The pick step before the host's draft arrives: local only, with nothing
- * to save. Cancelling here writes nothing anywhere.
- */
+The pick step before the host's draft arrives: local only, with nothing
+to save. Cancelling here writes nothing anywhere.
+*/
 const PICK_DRAFT: PanelDraft = {
   step: 'pick-provider',
   auth: 'apiKey',
@@ -294,6 +319,17 @@ function ProviderRow({
         }}
       />
       <KeyUsage provider={provider} />
+      {provider.presetId === 'openrouter' && provider.key.state === 'stored' ? (
+        <button
+          type="button"
+          className="models-button"
+          onClick={() => {
+            post({ type: 'providers/readUsage' })
+          }}
+        >
+          {UI_TEXT.gitRefresh}
+        </button>
+      ) : null}
       <ScanStatus
         scan={panelState.scans[provider.id]}
         onRefresh={() => {
@@ -366,6 +402,14 @@ function ProviderRow({
       {editDraft !== undefined && (
         <EditForm
           draft={editDraft}
+          onContextWindow={(model, contextTokens) => {
+            post({
+              type: 'models/contextWindow',
+              scope: { scope: 'wizard', providerId: provider.id },
+              ref: `${provider.id}/${model}`,
+              contextTokens,
+            })
+          }}
           editId={provider.id}
           onSave={() => {
             post({ type: 'providers/save', useNow: false, providerId: provider.id })
@@ -475,19 +519,36 @@ export function ProvidersSection(props: SectionProps) {
       <h2>{UI_TEXT.providersSectionTitle}</h2>
       {panelState.subscriptionsAvailable === true && (
         <div className="models-actions">
-          <button
-            type="button"
-            onClick={() => {
-              post({ type: 'providers/connectSubscription', providerId: 'chatgpt' })
-            }}
-          >
-            {UI_TEXT.acpChatGpt.actions.add}
-          </button>
+          <div className="models-row-actions">
+            <button
+              type="button"
+              className="models-button"
+              onClick={() => {
+                post({ type: 'providers/connectSubscription', providerId: 'chatgpt' })
+              }}
+            >
+              {UI_TEXT.acpChatGpt.actions.add}
+            </button>
+            <button
+              type="button"
+              className="models-button"
+              onClick={() => {
+                post({
+                  type: 'providers/connectSubscription',
+                  providerId: 'chatgpt',
+                  isNewAccount: true,
+                })
+              }}
+            >
+              {UI_TEXT.acpChatGpt.actions['add-new-account']}
+            </button>
+          </div>
           <p>{UI_TEXT.acpChatGpt.notice}</p>
           {panelState.copilotAvailable === true && (
             <>
               <button
                 type="button"
+                className="models-button"
                 onClick={() => {
                   post({ type: 'providers/connectSubscription', providerId: 'copilot' })
                 }}

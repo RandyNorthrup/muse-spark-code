@@ -54,10 +54,10 @@ export function byteLength(text) {
 }
 
 /**
- * The marked blocks of one archive file.
- * @param {string} text
- * @returns {{ id: string, firstLine: number, lastLine: number, at: string | undefined, bytes: number, sha256: string, body: string }[]}
- */
+The marked blocks of one archive file.
+@param {string} text
+@returns {{ id: string, firstLine: number, lastLine: number, at: string | undefined, bytes: number, sha256: string, body: string }[]}
+*/
 export function archiveBlocks(text) {
   return Array.from(text.matchAll(BLOCK), (match) => ({
     id: match[1] ?? '',
@@ -71,10 +71,10 @@ export function archiveBlocks(text) {
 }
 
 /**
- * What is wrong with one archive file's blocks; empty when nothing is.
- * @param {string} text
- * @returns {string[]}
- */
+What is wrong with one archive file's blocks; empty when nothing is.
+@param {string} text
+@returns {string[]}
+*/
 export function archiveProblems(text) {
   const blocks = archiveBlocks(text)
   const problems = []
@@ -95,19 +95,19 @@ export function archiveProblems(text) {
 }
 
 /**
- * One block as it stands in an archive file, ending with a newline.
- * @param {{ id: string, firstLine: number, lastLine: number, at?: string, body: string }} block
- */
+One block as it stands in an archive file, ending with a newline.
+@param {{ id: string, firstLine: number, lastLine: number, at?: string, body: string }} block
+*/
 export function renderBlock(block) {
   const at = block.at === undefined ? '' : ` at="${block.at}"`
   return `<!-- plan-archive:begin id="${block.id}" lines="${String(block.firstLine)}-${String(block.lastLine)}"${at} bytes="${String(byteLength(block.body))}" sha256="${sha256(block.body)}" -->\n\n${block.body}\n<!-- plan-archive:end id="${block.id}" -->\n`
 }
 
 /**
- * Prose wrapped the way PLAN.md's paragraphs are, safe under Prettier.
- * @param {string} text
- * @returns {string[]}
- */
+Prose wrapped the way PLAN.md's paragraphs are, safe under Prettier.
+@param {string} text
+@returns {string[]}
+*/
 export function wrapProse(text) {
   const lines = []
   let line = ''
@@ -122,9 +122,9 @@ export function wrapProse(text) {
 }
 
 /**
- * Which lines are inside a fenced code block (the fence lines included).
- * @param {readonly string[]} lines
- */
+Which lines are inside a fenced code block (the fence lines included).
+@param {readonly string[]} lines
+*/
 function fencedLines(lines) {
   const fenced = new Uint8Array(lines.length)
   let fence
@@ -142,14 +142,14 @@ function fencedLines(lines) {
 }
 
 /**
- * The top-level blocks of PLAN.md: a block starts at a line in column 0 that
- * follows a blank line (or a heading), outside a fence, and takes everything
- * indented under it. A heading is a block of its own. A run of column-0
- * ordered-list items is one block, because Prettier renumbers a list and a
- * list that lost an item would be rewritten.
- * @param {readonly string[]} lines
- * @returns {{ start: number, end: number, isHeading: boolean }[]} 0-based, end exclusive
- */
+The top-level blocks of PLAN.md: a block starts at a line in column 0 that
+follows a blank line (or a heading), outside a fence, and takes everything
+indented under it. A heading is a block of its own. A run of column-0
+ordered-list items is one block, because Prettier renumbers a list and a
+list that lost an item would be rewritten.
+@param {readonly string[]} lines
+@returns {{ start: number, end: number, isHeading: boolean }[]} 0-based, end exclusive
+*/
 export function topLevelBlocks(lines) {
   const fenced = fencedLines(lines)
   /** @type {{ start: number, end: number, isHeading: boolean }[]} */
@@ -198,18 +198,18 @@ export function topLevelBlocks(lines) {
 }
 
 /**
- * Take line ranges out of a plan and say what stood there.
- *
- * Every range must be a run of whole top-level blocks with no heading in it.
- * A range is replaced by its `stub` (the lines that say where the text went)
- * or, without one, by nothing. The blank lines after a range go with it, so
- * the text around it keeps one blank line between blocks.
- *
- * @param {string} plan the whole PLAN.md
- * @param {readonly { first: number, last: number, stub?: readonly string[] }[]} ranges 1-based, inclusive
- * @returns {{ text: string, moves: { range: number, firstLine: number, lastLine: number, body: string, blankBefore: number, blankAfter: number, stubLines: number, newStart: number }[] }}
- *   the moves in the plan's order; `range` is the range's place in `ranges`
- */
+Take line ranges out of a plan and say what stood there.
+
+Every range must be a run of whole top-level blocks with no heading in it.
+A range is replaced by its `stub` (the lines that say where the text went)
+or, without one, by nothing. The blank lines after a range go with it, so
+the text around it keeps one blank line between blocks.
+
+@param {string} plan the whole PLAN.md
+@param {readonly { first: number, last: number, stub?: readonly string[] }[]} ranges 1-based, inclusive
+@returns {{ text: string, moves: { range: number, firstLine: number, lastLine: number, body: string, blankBefore: number, blankAfter: number, stubLines: number, newStart: number }[] }}
+  the moves in the plan's order; `range` is the range's place in `ranges`
+*/
 export function takeOut(plan, ranges) {
   const lines = plan.split('\n')
   const blocks = topLevelBlocks(lines)
@@ -298,12 +298,12 @@ export function takeOut(plan, ranges) {
 }
 
 /**
- * The plan as it was before `takeOut`: the proof that nothing was lost. The
- * bodies come from the archive files as written, not from memory.
- * @param {string} plan the plan after the move
- * @param {readonly { newStart: number, stubLines: number, blankBefore: number, blankAfter: number }[]} moves
- * @param {readonly string[]} bodies each move's block as read back from its archive file
- */
+The plan as it was before `takeOut`: the proof that nothing was lost. The
+bodies come from the archive files as written, not from memory.
+@param {string} plan the plan after the move
+@param {readonly { newStart: number, stubLines: number, blankBefore: number, blankAfter: number }[]} moves
+@param {readonly string[]} bodies each move's block as read back from its archive file
+*/
 export function putBack(plan, moves, bodies) {
   const lines = plan.split('\n')
   const out = []
@@ -323,14 +323,14 @@ export function putBack(plan, moves, bodies) {
 }
 
 /**
- * Where a passage of whole lines stands in a text: the 1-based first line of
- * each place it stands. A marker's `lines` are those of the commit it names,
- * so a passage moved from a PLAN.md that differs from that commit's (a merge
- * in progress, a second move before a commit) is looked up there.
- * @param {string} text
- * @param {string} body whole lines, ending with a newline
- * @returns {number[]}
- */
+Where a passage of whole lines stands in a text: the 1-based first line of
+each place it stands. A marker's `lines` are those of the commit it names,
+so a passage moved from a PLAN.md that differs from that commit's (a merge
+in progress, a second move before a commit) is looked up there.
+@param {string} text
+@param {string} body whole lines, ending with a newline
+@returns {number[]}
+*/
 export function linesOf(text, body) {
   const hay = `\n${text}`
   const needle = `\n${body}`
@@ -354,12 +354,12 @@ export function linesOf(text, body) {
 }
 
 /**
- * The lines of the section a line stands in, from the heading above it to the
- * line before the next heading (1-based, inclusive).
- * @param {string} plan
- * @param {number} line 1-based
- * @returns {readonly [number, number]}
- */
+The lines of the section a line stands in, from the heading above it to the
+line before the next heading (1-based, inclusive).
+@param {string} plan
+@param {number} line 1-based
+@returns {readonly [number, number]}
+*/
 export function sectionOf(plan, line) {
   const lines = plan.split('\n')
   const headings = topLevelBlocks(lines)
@@ -371,12 +371,12 @@ export function sectionOf(plan, line) {
 }
 
 /**
- * An archive file with blocks added under a `## heading` (appended to the
- * heading's own blocks when the file already has it, else at the end).
- * @param {string} archive
- * @param {string} heading the heading's text, without the `## `
- * @param {readonly string[]} rendered blocks from `renderBlock`
- */
+An archive file with blocks added under a `## heading` (appended to the
+heading's own blocks when the file already has it, else at the end).
+@param {string} archive
+@param {string} heading the heading's text, without the `## `
+@param {readonly string[]} rendered blocks from `renderBlock`
+*/
 export function addToArchive(archive, heading, rendered) {
   const lines = archive.replace(/\n*$/, '').split('\n')
   const fenced = fencedLines(lines)

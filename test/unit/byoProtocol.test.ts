@@ -65,7 +65,21 @@ describe('M95 first-run wire', () => {
         },
       ],
     }
-    expect(parseHostToWebviewMessage(message)).toEqual({ ok: true, message })
+    // Money crosses the bridge as exact decimal strings (PLAN.md D74):
+    // legacy numeric input normalizes once, canonical strings pass through.
+    expect(parseHostToWebviewMessage(message)).toEqual({
+      ok: true,
+      message: {
+        ...message,
+        providers: [
+          {
+            ...message.providers[0],
+            keyUsage: { todayUsd: '0.4', monthUsd: '2.1', limitUsd: '10', remainingUsd: '7.9' },
+          },
+          message.providers[1],
+        ],
+      },
+    })
   })
 
   it('reads an older numeric provider row as exact dollars (M121)', () => {

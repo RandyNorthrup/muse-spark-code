@@ -7,6 +7,9 @@ export * from './legal'
 export * from '../core/backends/modelapi/legalScanTool'
 
 export * from './usd'
+
+// M105 port: share pure usage validation across Node readers.
+export * from './usageJournal'
 // The build points usdSchema.ts in every Node bundle at this one, which
 // exports what this file exports. exactJson.ts reads `canonicalUsd` from
 // usdSchema.ts; 0.18.0 did not export it here and every version 1 amount was

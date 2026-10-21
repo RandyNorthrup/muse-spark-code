@@ -53,6 +53,10 @@ function admittedDraft(
 }
 
 export interface ScheduleControlDeps {
+  readonly consent?: (
+    schedule: ScheduleV2,
+    caller?: ScheduleCallerContext,
+  ) => Promise<ScheduleV2['paidConsent']>
   readonly store: ScheduleStoreV2
   readonly authority: ScheduleAuthorityStore
   readonly scheduler: ReturnType<typeof createScheduler>
@@ -135,7 +139,7 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
     const admitted = admitTiming(draft.draft, caller)
     if ('kind' in admitted) return admitted
     const { now, firstFire } = admitted
-    const schedule = scheduleV2Schema.parse({
+    let schedule = scheduleV2Schema.parse({
       ...admittedDraft(
         draft.draft,
         {
@@ -154,6 +158,16 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       fireCount: 0,
       consecutiveFailures: 0,
     })
+    if (
+      'backend' in schedule.target &&
+      schedule.target.backend === 'modelApi' &&
+      deps.consent !== undefined
+    ) {
+      const consent = await deps.consent(schedule, caller)
+      if (consent === undefined)
+        return refused(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
+      schedule = scheduleV2Schema.parse({ ...schedule, paidConsent: consent })
+    }
     const isCreated = await editor.create(schedule)
     if (!isCreated) return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
     await deps.onCreate(workspaceKey)
@@ -174,7 +188,7 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
     const admitted = admitTiming(draft.draft, caller)
     if ('kind' in admitted) return admitted
     const { now, firstFire } = admitted
-    const next = scheduleV2Schema.parse({
+    let next = scheduleV2Schema.parse({
       ...admittedDraft(
         draft.draft,
         {
@@ -197,6 +211,16 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       ...(current.lastFireAtMs !== undefined && { lastFireAtMs: current.lastFireAtMs }),
       paidConsent: undefined,
     })
+    if (
+      'backend' in next.target &&
+      next.target.backend === 'modelApi' &&
+      deps.consent !== undefined
+    ) {
+      const consent = await deps.consent(next, caller)
+      if (consent === undefined)
+        return refused(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
+      next = scheduleV2Schema.parse({ ...next, paidConsent: consent })
+    }
     const isOk = await deps.store.update(next)
     if (!isOk) return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
     await deps.authority.append({ scheduleId: id, atMs: now, kind: 'changed' })
@@ -250,15 +274,13 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       .flatMap(([atMs, group]) => {
         const [first, ...rest] = group
         if (first === undefined) return []
-        return [
-          {
-            scheduleId: first.scheduleId,
-            atMs,
-            target: first.target,
-            collisionIds: rest.map((entry) => entry.scheduleId),
-            creator: first.creator,
-          },
-        ]
+        return {
+          scheduleId: first.scheduleId,
+          atMs,
+          target: first.target,
+          collisionIds: rest.map((entry) => entry.scheduleId),
+          creator: first.creator,
+        }
       })
     return { kind: 'timeline', entries }
   }

@@ -1,5 +1,7 @@
+import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { abortableSleep } from '../core/backends/modelapi/transport'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -8,27 +10,33 @@ import { failureForLog } from '../core/backends/musecode/logText'
 
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
+import { createInterface as createPromisedInterface } from 'node:readline/promises'
 import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
+import { setTimeout as nodeSleep } from 'node:timers/promises'
 import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
+import { voiceCompanionLoader } from './companion/voiceLoader'
+import type { VoiceCompanionContext } from './companion/voiceEntry'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   ESTIMATOR_BUNDLE_FILE,
+  PLAN_SNAPSHOT_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   PLAYBOOK_BUNDLE_FILE,
   RUNTIME_ACCOUNTS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
-  EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
   MEMORY_STAGE_FILE_MODE,
   EXTENSION_HOOKS_BUNDLE_FILE,
@@ -37,50 +45,51 @@ import {
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
+  USAGE_ERROR_LOCALE_MS,
   LEGAL_EXIT,
-  LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_SCAN_BUNDLE_FILE,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
-  USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
-  SESSION_EXPORT_MAX_BYTES,
+  BOUNDED_FILE_READ_CHUNK_BYTES,
+  SCHEDULE_STORE_SUBFOLDER,
   REPORT_SOURCE_TIMEOUT_MS,
+  CONNECTOR_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
+import { authClear, type AuthCommandDeps, authSet, login } from './authCommands'
+import { authGitHub } from './authCommands'
 import {
-  authClear,
-  authClearProvider,
-  type AuthCommandDeps,
-  authSet,
-  authSetProvider,
-  authStatus,
-  authStatusProvider,
-  login,
-} from './authCommands'
-import {
+  authSetProviderId,
   isHeadlessCommand,
   parseCommandLine,
   type RuntimeCommand,
   type ServeOptions,
 } from './cliArgs'
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
+import { deviceFlowSource } from './github/deviceFlowSource'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './sharing/sharingPorts'
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
-import { formatAcpUsage } from './cliOptions'
+import { formatCommandHelp, formatAcpUsage } from './cliOptions'
+import { helpTopicNamed, renderTopicHelp } from './cliHelp'
 import { referenceLoader } from '../host/referenceLoader'
-import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
+import {
+  createRuntimeEstimate,
+  runRuntimeEstimateCommand,
+  runtimeEstimatorPorts,
+} from './estimator/ports'
+import { lazyEstimator } from '../host/estimator/estimatorBundle'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder } from './dataFolder'
+import { agentDataFolder, workspaceKey, workspaceSessionsFolder } from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
@@ -88,6 +97,8 @@ import { readSecretLine } from './hiddenInput'
 import {
   credentialStoreName,
   keyringSecretStore,
+  parseStoredProviderSecret,
+  providerSecretAccount,
   StoreUnavailableError,
   type KeyringEntry,
 } from './keyStore'
@@ -114,6 +125,7 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from '../core/usage/recording'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -123,8 +135,14 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
+import { reportInputsLoader } from './reporting/reportInputsLoader'
+import { runtimeReportsPlanMaxBytes } from './runtimeReportsPlan'
+import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInputsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
-import { runtimeSchedulesBinding } from './schedules/binding'
+import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
+import { connectorLoader } from './connector/connectorBundle'
+import type { ScheduleWakeAuthorization } from './schedules/registration'
+import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
@@ -139,16 +157,12 @@ import type {
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
 import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
-import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
+import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
-/** The headless deadlines beside exec's own (M97 lane R: the workspace scan). */
-const HEADLESS_FIXED_TIMEOUT_MS = {
-  'scan-secrets': EXEC_SCAN_TIMEOUT_MS,
-  legal: LEGAL_SCAN_TIMEOUT_MS,
-} as const
+
 /** What a headless command answers when its own wiring fails (D76: 2 for the scan). */
 const HEADLESS_WIRING_EXIT = {
   'scan-secrets': EXEC_EXIT.usage,
@@ -194,10 +208,10 @@ function writeLine(stream: NodeJS.WriteStream, line: string): void {
   stream.write(`${line}\n`)
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
+// Lane PR225FIX2: a Stop clears the wait's own timer, so an abandoned
+// wait leaves none behind.
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return abortableSleep(ms, signal)
 }
 
 function packageVersion(): string {
@@ -263,8 +277,8 @@ async function loadSecrets(): Promise<SecretStore> {
   })()
   try {
     return await nativeStore.value
-  } catch {
-    throw new StoreUnavailableError()
+  } catch (error: unknown) {
+    throw new StoreUnavailableError({ cause: error })
   }
 }
 const secrets: SecretStore = {
@@ -282,7 +296,12 @@ const secrets: SecretStore = {
   },
 }
 
-/** A held regular-file descriptor bounds both stat size and growth while reading. */
+/**
+A held regular-file descriptor bounds both stat size and growth while
+reading. NOLIMITS1FIX: an infinite `maxBytes` reads to end-of-file —
+the removed 16 MiB report-source bound was invented. Finite callers
+(exec's own file bounds) behave exactly as before.
+*/
 async function readBoundedFile(
   file: string,
   maxBytes: number,
@@ -294,6 +313,17 @@ async function readBoundedFile(
     const info = await handle.stat()
     if (!info.isFile()) throw new Error(UI_TEXT.execFileUnreadable)
     if (info.size > maxBytes) throw new Error(UI_TEXT.execFileTooLarge)
+    if (!Number.isFinite(maxBytes)) {
+      const parts: Buffer[] = []
+      for (;;) {
+        signal.throwIfAborted()
+        const chunk = Buffer.alloc(BOUNDED_FILE_READ_CHUNK_BYTES)
+        const { bytesRead } = await handle.read(chunk, 0, chunk.length, null)
+        if (bytesRead === 0) break
+        parts.push(chunk.subarray(0, bytesRead))
+      }
+      return Buffer.concat(parts)
+    }
     const bytes = new Uint8Array(maxBytes + 1)
     let offset = 0
     for (;;) {
@@ -310,11 +340,11 @@ async function readBoundedFile(
 }
 
 /**
- * This agent process's flight recorder (M93, PLAN.md D72): the extension's
- * own ReportJournal, with the same policy, under the agent's data folder
- * (no workspace needed). Each process writes only its own journal; `report`
- * reads them all.
- */
+This agent process's flight recorder (M93, PLAN.md D72): the extension's
+own ReportJournal, with the same policy, under the agent's data folder
+(no workspace needed). Each process writes only its own journal; `report`
+reads them all.
+*/
 async function reportJournal(log: Logger): Promise<ReportJournal> {
   const { ReportJournal } = await import('../host/support/recorderEntry')
   return new ReportJournal({
@@ -337,6 +367,21 @@ function authDeps(): AuthCommandDeps {
     secrets,
     storeName: credentialStoreName(process.platform),
     readSecret: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
+    confirmKeyUse: async (message) => {
+      // Piped stdin cannot answer: name the value and proceed to the
+      // provider, exactly as before (PLAN.md D123 never dead-ends a
+      // pipe). A terminal asks and waits for the answer.
+      if (!process.stdin.isTTY) {
+        writeLine(process.stderr, message)
+        return true
+      }
+      const input = createPromisedInterface({ input: process.stdin, output: process.stderr })
+      try {
+        return (await input.question(`${message} (y/N): `)) === 'y'
+      } finally {
+        input.close()
+      }
+    },
     print: (line) => {
       writeLine(process.stdout, line)
     },
@@ -391,12 +436,30 @@ async function userProvidersFile() {
 /** The `providers …` commands' dependencies: the user's own file, the OS store, stdin. */
 async function providersDeps(): Promise<ProvidersDeps> {
   const { resolveEndpointHost } = await import('./providersCommands')
+  const { readFile } = await import('node:fs/promises')
   return {
     ...authDeps(),
     ...(await userProvidersFile()),
     resolveHost: resolveEndpointHost,
     fetch: globalThis.fetch.bind(globalThis),
+    // D4: runnable-model warnings read the priced catalogue beside the bundle.
+    readCatalog: async (): Promise<unknown> =>
+      JSON.parse(await readFile(path.join(__dirname, 'providerCatalog.json'), 'utf8')),
   }
+}
+
+async function openRouterApi() {
+  const entry = await import('../host/backend/configuredProvidersEntry')
+  entry.setUiText(UI_TEXT, uiLocale())
+  return entry.createConfiguredProviderServices(undefined, {
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    catalogFile: path.join(distDir, 'providerCatalog.json'),
+    secrets,
+  })
 }
 
 function signInMethod(options: ServeOptions): SignInMethod {
@@ -461,14 +524,79 @@ function resourcesFor(
     onError: () => {
       log.warn(UI_TEXT.resourceUnavailable)
     },
+    // A damaged usage-history choice on stderr once, with what is damaged,
+    // what the product does, and what to do (the noter announces once per
+    // distinct damage).
+    onDamagedChoice: (text) => {
+      log.error(text)
+    },
     ...(overrides !== undefined && { overrides }),
     ...(isRecordingHistory !== undefined && { isRecordingHistory }),
   })
 }
 
-/** No account or backend is touched; W ships this entry in its own lazy chunk. */
-function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+/**
+Owned LocalSourceError brand (localFailureOf), like the conversation
+bundle's: a failed report read is a failure with its reason, never a
+silent miss (RVCM1132B finding 4).
+*/
+function reportReadFailed(): Error {
+  return Object.assign(new Error('failed'), { isLocalSourceError: true, code: 'failed' })
+}
+
+/**
+No account or backend is touched; W ships this entry in its own lazy chunk.
+The connector's reads keep no history and make no network request (M124).
+*/
+interface ReportsPolicy {
+  readonly keepHistory: boolean
+  readonly allowEgress: () => Promise<boolean>
+}
+const CLI_REPORTS: ReportsPolicy = {
+  keepHistory: true,
+  allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+}
+
+function runtimeReports(
+  log: Logger,
+  current?: Awaited<ReturnType<typeof runtimeFor>>,
+  recording?: UsageRecording,
+  /** One-shot CLI reports have no live runtime but still show the shared daily budget. */
+  reportBudgets?: () => Promise<readonly UsageBudgetRead[]>,
+  policy: ReportsPolicy = CLI_REPORTS,
+): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
+  // M113 C-M113-2: the session and usage inputs ride their own lazy chunk.
+  const inputs = reportInputsLoader({
+    bundlePath: path.join(distDir, 'reportInputs.js'),
+    log,
+  })
+  // M113 C-M113-4: the playbook and schedules inputs ride a second chunk
+  // beside it; the journal replay and schedule store would overflow the
+  // session/usage chunk's budget.
+  const playbookSchedules = playbookSchedulesInputsLoader({
+    bundlePath: path.join(distDir, 'playbookSchedulesInputs.js'),
+    log,
+  })
+  // M113 C-M113-4: one estimator per requesting workspace root, like the
+  // headless estimate command; the estimate report kind runs the same run.
+  const reportEstimators = new Map<string, ReturnType<typeof lazyEstimator>>()
+  const reportEstimatorFor = (cwd: string): ReturnType<typeof lazyEstimator> => {
+    const known = reportEstimators.get(cwd)
+    if (known !== undefined) return known
+    const estimator = lazyEstimator({
+      bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
+      log,
+      ports: () =>
+        runtimeEstimatorPorts({
+          snapshotBundlePath: path.join(distDir, PLAN_SNAPSHOT_BUNDLE_FILE),
+          log,
+          root: cwd,
+        }),
+    })
+    reportEstimators.set(cwd, estimator)
+    return estimator
+  }
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
     reports ??= load().createRuntimeReports({
@@ -477,31 +605,183 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       table: UI_TEXT,
       now: () => new Date().toISOString(),
       roots: [homedir()],
-      servicesFor: (cwd, _sessionId, language) =>
-        Promise.resolve({
-          keepHistory: true,
+      servicesFor: (cwd, _sessionId, language) => {
+        const l10n = language ?? { table: UI_TEXT, locale: uiLocale() }
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        let journalReader:
+          ReturnType<ReturnType<typeof inputs>['createReportJournalReader']> | undefined
+        const readJournal = (context: SourceReadContext) => {
+          const readBudgets = reportBudgets ?? current?.readUsageBudgets
+          journalReader ??= inputs().createReportJournalReader({
+            dataFolder,
+            ...(recording !== undefined && { beforeRead: () => recording.flush() }),
+            ...(readBudgets !== undefined && { readBudgets }),
+            // One offset per report: the budget stamp shares the usage
+            // period's sample through the run, like M102's page (RVCM1132B
+            // finding 2, RVCM1132C finding 3).
+            timezoneOffsetMins: inputs().reportTimezoneOffset,
+          })
+          return journalReader(context)
+        }
+        return Promise.resolve({
+          keepHistory: policy.keepHistory,
           services: load().createReportingServices({
             workspaceRoot: cwd,
             log,
-            storageRoot: agentDataFolder({
-              platform: process.platform,
-              env: process.env,
-              homeDir: homedir(),
-            }),
-            l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
+            storageRoot: dataFolder,
+            l10n,
             generatorVersion: packageVersion(),
-            keepHistory: true,
+            keepHistory: policy.keepHistory,
+            // D121: the person's own plan byte limit from the agent data
+            // folder's settings.json; 0 (the default) reads whole.
+            planMaxBytes: runtimeReportsPlanMaxBytes(dataFolder),
             enabledAgents: [],
+            session: {
+              read: (context) =>
+                inputs()
+                  .createSessionReportReader(
+                    {
+                      resolveSession: async (sessionId, reportContext) => {
+                        if (sessionId === undefined) return null
+                        // A failed read is a failure with its reason, never a
+                        // silent miss: precise stored/host brands propagate,
+                        // and anything else becomes a failure (RVCM1132B
+                        // finding 4). Only null means no session was found.
+                        try {
+                          const stored = await inputs().readStoredReportSession(
+                            workspaceSessionsFolder(
+                              { platform: process.platform, env: process.env, homeDir: homedir() },
+                              cwd,
+                            ),
+                            sessionId,
+                          )
+                          if (stored !== null) return stored
+                          // Default serve options for the on-demand CLI runtime;
+                          // ACP serve reuses its live runtime through `current`.
+                          const parsed = parseCommandLine([])
+                          if (parsed.command !== 'serve') return null
+                          let runtime = current
+                          try {
+                            runtime ??= await runtimeFor(parsed.options, log)
+                            const host = await runtime.backend.hostFor(cwd)
+                            return await inputs().readHostReportSession(
+                              host,
+                              sessionId,
+                              reportContext.reportText,
+                            )
+                          } finally {
+                            if (current === undefined) await runtime?.close()
+                          }
+                        } catch (error) {
+                          if (
+                            typeof error === 'object' &&
+                            error !== null &&
+                            (error as { isLocalSourceError?: unknown }).isLocalSourceError === true
+                          )
+                            throw error
+                          throw reportReadFailed()
+                        }
+                      },
+                      readJournal,
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            usage: (context) =>
+              inputs().createUsageReportReader(
+                {
+                  dataFolder,
+                  readJournal,
+                  // The machine-local day, like M102's page and the journal's
+                  // own day stamps; the contract carries it explicitly (D93).
+                  // The shared per-run sample keeps the period on the budget
+                  // stamp's day (RVCM1132C finding 3).
+                  timezoneOffsetMins: inputs().reportTimezoneOffset,
+                },
+                l10n.table,
+                l10n.locale,
+              )(context),
+            // M113 C-M113-5: this install's manifest, like the panel's, so
+            // the CLI and the ACP agent report the same installed bindings.
+            keybindings: () =>
+              inputs().keybindingsManifestReader(path.join(packageRoot, 'package.json'))(),
+
+            // C-M113-3: the registry and developer audit read from the same
+            // data folder. M108's use/swaps adapters and an unlock-capable
+            // vault view bind here when their owning lanes land; until then
+            // those facets stay empty and named.
+            accounts: {
+              read: (context) =>
+                inputs()
+                  .createAccountsReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
+            security: {
+              read: (context) =>
+                inputs()
+                  .createSecurityReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
+            // M113 C-M113-4: the playbook journal and the schedules store
+            // live under the same agent data folder as the usage journal.
+            // The schedules key matches the delivery engine's own workspace
+            // key (schedulesBridge keyFor), not the report storage key.
+            playbook: {
+              read: (context) =>
+                playbookSchedules()
+                  .createPlaybookReportReader(
+                    { agentDataFolder: dataFolder, workspaceRoot: cwd },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            schedules: {
+              read: (context) =>
+                playbookSchedules()
+                  .createSchedulesReportReader(
+                    {
+                      storeRoot: path.join(dataFolder, SCHEDULE_STORE_SUBFOLDER),
+                      workspaceKey: workspaceKey(path.resolve(cwd)),
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            // M113 C-M113-4: the estimate report kind runs the headless
+            // estimator for the report's workspace root. Only estimate
+            // reports load it; networked reads stay off headless (D65).
+            estimate: {
+              read: (request, context) =>
+                inputs()
+                  .createEstimateReportReader(
+                    {
+                      run: (runRequest, signal) =>
+                        reportEstimatorFor(cwd).estimate(runRequest, signal),
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(request, context),
+            },
             network: {
               policy: {
                 surface: 'terminal',
                 mode: 'always',
                 githubSignedIn: false,
-                allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+                allowEgress: policy.allowEgress,
               },
             },
           }),
-        }),
+        })
+      },
       resolveSaved: async (cwd, file) => {
         const target = path.resolve(cwd, file)
         const info = await lstat(target)
@@ -509,9 +789,11 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
         return await realpath(target)
       },
       readSaved: async (cwd, file) => {
+        // NOLIMITS1FIX: a saved report reads whole at any size — the
+        // removed 16 MiB bound was invented.
         const bytes = await readBoundedFile(
           path.resolve(cwd, file),
-          SESSION_EXPORT_MAX_BYTES,
+          Infinity,
           AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
         )
         const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
@@ -548,6 +830,9 @@ async function setupHooks(
   const io = createToolIo({
     platform: process.platform,
     listFiles: (signal) => walkFiles(workspaceRoot, 1, log, signal),
+    // Setup hooks run in this workspace: their `sh` lookup excludes it, so
+    // a planted `sh` there never becomes the interpreter.
+    workspaceRoot,
     systemRoot,
     searchWorkerPath: path.join(distDir, SEARCH_WORKER_FILE),
     env: () => process.env,
@@ -566,6 +851,7 @@ async function setupHooks(
             },
           })
         : undefined,
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
   })
   const runHook = io.runHook?.bind(io)
   if (runHook === undefined) throw new Error(UI_TEXT.hooksNotRunnable)
@@ -609,6 +895,31 @@ async function setupHooks(
   return 0
 }
 
+/**
+The stored credential's identity for a provider id, or undefined when none
+is stored, unreadable or damaged. The usage service shows only the budgets
+of the key in use, so a rotated or removed key's numbers disappear.
+*/
+async function currentProviderCredentialId(providerId: string): Promise<string | undefined> {
+  const account = providerSecretAccount(providerId)
+  if (account === undefined) return undefined
+  let stored: string | undefined
+  try {
+    stored = await secrets.get(account)
+  } catch {
+    return undefined
+  }
+  if (stored === undefined) return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(stored)
+  } catch {
+    return undefined
+  }
+  const parsed = parseStoredProviderSecret(value)
+  return parsed === undefined ? undefined : createHash('sha256').update(parsed.key).digest('hex')
+}
+
 function usageFor(
   log: Logger,
   recording?: UsageRecording,
@@ -626,15 +937,20 @@ function usageFor(
     locale: uiLocale(),
     uiText: UI_TEXT,
     log,
-    historySettings: () => ({ enabled: isHistoryEnabled, days: USAGE_HISTORY_DAYS_DEFAULT }),
+    // NOLIMITSSET (PLAN.md D121): null keeps history — no day count of ours.
+    historySettings: () => ({ enabled: isHistoryEnabled, days: null as number | null }),
     ...(recording !== undefined && {
       beforeRead: () => recording.flush(),
-      live: {
-        readBudgets: runtime?.readUsageBudgets ?? (() => Promise.resolve([])),
-        readLiveLimits: () => Promise.resolve(recording.limits?.() ?? []),
-        providerConsoles: () => [],
-      },
     }),
+    live: {
+      readBudgets:
+        recording === undefined
+          ? () => Promise.resolve([])
+          : (runtime?.readUsageBudgets ?? (() => Promise.resolve([]))),
+      readLiveLimits: () => Promise.resolve(recording?.limits?.() ?? []),
+      providerConsoles: () => [],
+      currentCredentialId: currentProviderCredentialId,
+    },
   })
 }
 
@@ -651,6 +967,7 @@ async function openUsageBrowser(input: string): Promise<void> {
     // is launched once started, and its lifetime never holds the CLI or the page.
     await handoffResourceFile(executable, args, {
       env: process.env,
+      workspaceRoot: process.cwd(),
       ...(process.platform === 'linux' && { until: 'spawn' as const }),
     })
   } catch (error: unknown) {
@@ -660,17 +977,16 @@ async function openUsageBrowser(input: string): Promise<void> {
   }
 }
 
-async function serve(
-  options: ServeOptions,
+function runtimeRecording(
   log: Logger,
-  loadAccounts: () => RuntimeAccountServices,
-): Promise<number> {
-  let clientName = 'ACP'
-  const recording = createUsageRecording({
-    client: () => clientName,
+  client: () => string,
+  isEnabled: () => boolean,
+): UsageRecording {
+  return createUsageRecording({
+    client,
     now: Date.now,
     newId: randomUUID,
-    isEnabled: () => options.usageHistory ?? true,
+    isEnabled,
     log,
     writer: async (onWriteError) => {
       const bundle = requireFile(path.join(distDir, 'usageService.js'))
@@ -683,11 +999,29 @@ async function serve(
         }),
         writerId: randomUUID(),
         now: Date.now,
-        isEnabled: () => options.usageHistory ?? true,
+        isEnabled,
         onWriteError,
+        onInvalidSettings: () => {
+          log.warn(
+            'Usage history settings are invalid, so usage history is paused. Delete usage-settings.json in the agent data folder or turn usage history off and on again to record history again.',
+          )
+        },
       })
     },
   })
+}
+
+async function serve(
+  options: ServeOptions,
+  log: Logger,
+  loadAccounts: () => RuntimeAccountServices,
+): Promise<number> {
+  let clientName = 'ACP'
+  const recording = runtimeRecording(
+    log,
+    () => clientName,
+    () => options.usageHistory ?? true,
+  )
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   const restoreRecording = engine.installUsageRecording(recording)
@@ -707,7 +1041,37 @@ async function serve(
     })
     const isUsageHistoryOn = options.usageHistory ?? true
     const resources = resourcesFor(log, undefined, () => isUsageHistoryOn)
-    const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+    const scheduleSessions = runtimeScheduleSessionFactory({
+      current: runtime,
+      create: (backend) => runtimeFor({ ...options, backend }, log),
+      distDir,
+      dataDir: agentDataFolder({
+        platform: process.platform,
+        env: process.env,
+        homeDir: homedir(),
+      }),
+      log,
+      allowsContributorModels: options.allowsContributorModels,
+    })
+    // The ACP-side engine module; the schedules bundle never loads it from
+    // VS Code, so the VSIX need not carry the runtime engine for schedules.
+    // Its members are read by name so the bundle-split gate can compare them
+    // with the engine bundle's exports; the module never crosses whole.
+    const engineModule = await import('./runtimeEngineEntry')
+    engineModule.setUiText(UI_TEXT, uiLocale())
+    const scheduleEngine = {
+      createRuntimeScheduleDelivery: engineModule.createRuntimeScheduleDelivery,
+      setUiText: engineModule.setUiText,
+    }
+    const loadSchedules = runtimeSchedulesBinding(
+      path.join(distDir, 'schedules.js'),
+      log,
+      undefined,
+      undefined,
+      scheduleSessions.ports,
+      undefined,
+      scheduleEngine,
+    )
     let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
     const usage = usageFor(log, recording, runtime, isUsageHistoryOn)
     const journal = await reportJournal(log)
@@ -726,12 +1090,16 @@ async function serve(
     // "Allow always" lapses for a paid feature started without its flag (M58).
     await runtime.forgetUnflaggedGrants()
     const providerCommands = await chatGptDeps()
+    const openRouterCommands = await import('./openRouterCommands')
+    const openRouterSignIns = openRouterCommands.openRouterAuthenticationMethods(
+      await providersDeps(),
+    )
     const legalRegistryNotices = new Map<string, Set<string>>()
     const agentLegalBundle = legalScanLoader({
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
       log,
     })
-    const reports = runtimeReports(log)
+    const reports = runtimeReports(log, runtime, recording)
     // Model API sessions only: the Muse Code backend runs on its
     // subscription. Meta's entry is built in, so the metadata reads without
     // a providers file; a refused file or a loader failure leaves the
@@ -744,12 +1112,13 @@ async function serve(
         log.warn(`ACP accounts unavailable: ${failureForLog(error)}`)
       }
     }
+    const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
       schedules: {
-        isAvailable: false,
-        async holdWorkspace(cwd) {
+        isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
+        async holdWorkspace(cwd, session) {
           loadedSchedules ??= await loadSchedules()
-          return await loadedSchedules.holdWorkspace(cwd)
+          return await loadedSchedules.holdWorkspace(cwd, session)
         },
         async run(text, context) {
           try {
@@ -807,11 +1176,17 @@ async function serve(
         clientName = name
       },
       backend: runtime.backend,
+      // Lane V seam 5: `/attach`, resource links and embedded media, bound
+      // to the same registry the Model API sessions resolve.
+      ...(runtime.media !== undefined && { media: runtime.media }),
+      // M105 lane F: /uploads over the runtime's account ledger.
+      ...(runtime.uploads !== undefined && { uploads: runtime.uploads }),
       version: packageVersion(),
       options: {
         canBypass: options.canBypass,
         allowsContributorModels: options.allowsContributorModels,
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
+        ...(options.initialModelId !== undefined && { initialModelId: options.initialModelId }),
         scheduleAuthorization: {
           scheduledPrompts: options.scheduledPrompts === true,
           ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
@@ -821,7 +1196,7 @@ async function serve(
         }),
       },
       signIn: signInMethod(options),
-      providerSignIns: providerCommands.signIns,
+      providerSignIns: [...providerCommands.signIns, ...openRouterSignIns],
       defaultCwd: process.cwd(),
       sharing: {
         commands: acpSharingCommands,
@@ -831,6 +1206,9 @@ async function serve(
             .execute(text, context),
       },
       paid: runtime.paid,
+      // The vault's asker: broker approvals route back as
+      // session/request_permission, and /vault commands work in sessions.
+      vault: acpVault,
       playbookBundle: () => {
         const bundle = loadPlaybook()
         return {
@@ -859,6 +1237,19 @@ async function serve(
       },
       log,
       usage,
+      ...(COMPANION_VOICE_RELEASE.isReady && {
+        dictation: async (context: VoiceCompanionContext) =>
+          await runtimeDictation(
+            log,
+            options.companionVoice === true,
+            options.trustWorkspace,
+            recording,
+          )({
+            ...context,
+            signal: AbortSignal.any([context.signal, dictationLifetime.signal]),
+            isCurrent: () => !dictationLifetime.signal.aborted && context.isCurrent(),
+          }),
+      }),
       resources,
       reportError: (fact) => {
         void journal.record(fact)
@@ -875,6 +1266,7 @@ async function serve(
     try {
       await connection.closed
     } finally {
+      dictationLifetime.abort()
       await Promise.allSettled(
         registries.map((registry) => {
           registry.dispose()
@@ -885,15 +1277,19 @@ async function serve(
         await loadedSchedules?.close()
       } finally {
         try {
-          await usage.dispose()
+          await scheduleSessions.close()
         } finally {
           try {
-            resources.dispose()
+            await usage.dispose()
           } finally {
             try {
-              await runtime.close()
+              resources.dispose()
             } finally {
-              await journal.shutdown()
+              try {
+                await runtime.close()
+              } finally {
+                await journal.shutdown()
+              }
             }
           }
         }
@@ -915,6 +1311,36 @@ function sharingDeps(): SharingPortsDeps {
   }
 }
 
+function runtimeDictation(
+  log: Logger,
+  isOn: boolean,
+  isWorkspaceTrusted: boolean,
+  recording?: UsageRecording,
+) {
+  return voiceCompanionLoader({
+    packageRoot,
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    temporaryRoot: tmpdir(),
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    programFiles: process.env['ProgramFiles'],
+    isVoiceOn: () => isOn,
+    canRemember: () => isWorkspaceTrusted,
+    getKey: async () => await secrets.get(SECRET_KEYS.modelApiKey),
+    fetch: globalThis.fetch.bind(globalThis),
+    sleep: (ms) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+    log,
+    ...(recording !== undefined && { recording }),
+  })
+}
+
 function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
   if (command.command !== 'serve') {
     return 'warn'
@@ -923,14 +1349,13 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
 }
 
 async function main(): Promise<number> {
-  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
-    await loadUiTable({
-      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-      log: stderrLogger((line) => {
-        writeLine(process.stderr, line)
-      }, 'warn'),
-    })
+  // Parse first, on the bundled English table: a stalled package
+  // filesystem must not hang argument parsing past exec --timeout or the
+  // fixed scan/legal deadlines. Parser refusals read English until the
+  // loads below install the display language. Localization runs under the
+  // headless lifecycle further down (unbounded for the interactive
+  // commands after it), and scan-secrets does no localization work at all
+  // (Codex on PR #213).
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
@@ -958,10 +1383,35 @@ async function main(): Promise<number> {
     return cachedAccounts
   }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
+    // The refusal was built from the bundled English table at parse time.
+    // Install the display language first, then re-parse so the refusal
+    // reads in it instead of always in English (Codex on PR #227). A
+    // stalled package filesystem must not hang the refusal: the wait is
+    // bounded, and a stall keeps the English parse above.
+    let reason = command.reason
+    const quiet = (): undefined => undefined
+    const installed = (async (): Promise<void> => {
+      try {
+        await loadUiTable({
+          language: displayLanguage(
+            process.env,
+            new Intl.DateTimeFormat().resolvedOptions().locale,
+          ),
+          readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+          surface: 'terminal',
+          log: { trace: quiet, info: quiet, warn: quiet, error: quiet },
+        })
+      } catch {
+        // An unreadable table keeps the bundled English parse above.
+      }
+    })()
+    await Promise.race([installed, sleep(USAGE_ERROR_LOCALE_MS)])
+    const reparsed = parseCommandLine(process.argv.slice(2), parseSharingArgs)
+    if (reparsed.command === 'invalid') reason = reparsed.reason
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
     })
-    stderr.write(`${redactWhole(command.reason, [])}\n`)
+    stderr.write(`${redactWhole(reason, [])}\n`)
     const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
     exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }
@@ -972,10 +1422,15 @@ async function main(): Promise<number> {
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
     const now = () => performance.timeOrigin + performance.now()
-    const headlessTimeoutMs =
-      command.command === 'exec'
-        ? command.options.timeoutMs
-        : HEADLESS_FIXED_TIMEOUT_MS[command.command]
+    // Only `exec` (its own option) and `scan-secrets` (its `--timeout` flag)
+    // name a deadline; without one — and the `legal` scan always — the run
+    // continues until it is done or a signal stops it.
+    let headlessTimeoutMs: number | undefined
+    if (command.command === 'exec') {
+      headlessTimeoutMs = command.options.timeoutMs
+    } else if (command.command === 'scan-secrets') {
+      headlessTimeoutMs = command.timeoutMs
+    }
     const lifecycle = createLifecycle({
       processStartMs: performance.timeOrigin,
       timeoutMs: headlessTimeoutMs,
@@ -1004,21 +1459,8 @@ async function main(): Promise<number> {
     })
     let headlessCode: number = EXEC_EXIT.internal
     try {
-      try {
-        await lifecycle.race(
-          loadUiTable({
-            language: displayLanguage(
-              process.env,
-              new Intl.DateTimeFormat().resolvedOptions().locale,
-            ),
-            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-            log,
-          }),
-        )
-      } catch {
-        /* The bundled English table is already installed; stop still owns the deadline. */
-      }
-      setProviderPolicyText(UI_TEXT, uiLocale())
+      // The scanner has no translated output: stdout is a count, and even
+      // its refusal is exit-only. Do not emit panel language diagnostics.
       if (command.command === 'scan-secrets') {
         try {
           headlessCode = await lifecycle.race(
@@ -1037,6 +1479,22 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
+      try {
+        await lifecycle.race(
+          loadUiTable({
+            language: displayLanguage(
+              process.env,
+              new Intl.DateTimeFormat().resolvedOptions().locale,
+            ),
+            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+            surface: 'terminal',
+            log,
+          }),
+        )
+      } catch {
+        /* The bundled English table is already installed; stop still owns the deadline. */
+      }
+      setProviderPolicyText(UI_TEXT, uiLocale())
       // The reserved read-only scan (M97 lane R): no backend, no auth, no
       // model. stdout carries only the rendered report; every other word
       // goes to stderr, as the sign-in commands' own output does.
@@ -1140,10 +1598,52 @@ async function main(): Promise<number> {
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
     readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    surface: 'terminal',
     log,
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
+    case 'dictate': {
+      const recording = runtimeRecording(
+        log,
+        () => 'CLI',
+        () => true,
+      )
+      const openPage = runtimeDictation(log, command.paid, command.trustWorkspace, recording)
+      let complete!: () => void
+      // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Host type project targets Node 20; the resolver is assigned synchronously (PLAN.md §8).
+      const sent = new Promise<void>((resolve) => {
+        complete = resolve
+      })
+      const outcome = { hasSent: false }
+      const server = await openPage({
+        cwd: process.cwd(),
+        signal: new AbortController().signal,
+        isCurrent: () => !outcome.hasSent,
+        send: async (text, signal) => {
+          signal.throwIfAborted()
+          await new Promise<void>((resolve, reject) => {
+            process.stdout.write(`${text}\n`, (error) => {
+              if (error == null) resolve()
+              else reject(error)
+            })
+          })
+          outcome.hasSent = true
+          setImmediate(complete)
+        },
+      })
+      try {
+        writeLine(process.stderr, `${UI_TEXT.companionVoiceOpen}: ${server.launchUrl()}`)
+        await Promise.race([sent, server.closed])
+        return outcome.hasSent ? 0 : EXIT_FAILED
+      } finally {
+        try {
+          await server.close()
+        } finally {
+          await recording.flush()
+        }
+      }
+    }
     case 'resources': {
       const resources = resourcesFor(log)
       try {
@@ -1238,7 +1738,54 @@ async function main(): Promise<number> {
       }
     }
     case 'schedule': {
-      const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let scheduleAuthorization: ScheduleWakeAuthorization = {
+        scheduledPrompts: command.options.scheduledPrompts === true,
+        ...(command.options.maxBudgetUsd !== undefined && {
+          maxBudgetUsd: command.options.maxBudgetUsd,
+        }),
+      }
+      const scheduleSessions = runtimeScheduleSessionFactory({
+        create: (backend) => {
+          const parsed = parseCommandLine([
+            'serve',
+            '--backend',
+            backend,
+            ...(backend === 'modelApi' && scheduleAuthorization.scheduledPrompts
+              ? [
+                  '--scheduled-prompts',
+                  '--max-budget-usd',
+                  scheduleAuthorization.maxBudgetUsd ?? '0',
+                ]
+              : []),
+          ])
+          if (parsed.command !== 'serve') throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+          return runtimeFor(parsed.options, log)
+        },
+        distDir,
+        dataDir: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        log,
+        allowsContributorModels: false,
+      })
+      // As above: read the engine's members by name for the split gate.
+      const engineModule = await import('./runtimeEngineEntry')
+      engineModule.setUiText(UI_TEXT, uiLocale())
+      const scheduleEngine = {
+        createRuntimeScheduleDelivery: engineModule.createRuntimeScheduleDelivery,
+        setUiText: engineModule.setUiText,
+      }
+      const load = runtimeSchedulesBinding(
+        path.join(distDir, 'schedules.js'),
+        log,
+        undefined,
+        undefined,
+        scheduleSessions.ports,
+        undefined,
+        scheduleEngine,
+      )
       let afterWake: (() => Promise<void>) | undefined
       try {
         if (
@@ -1249,7 +1796,7 @@ async function main(): Promise<number> {
             const { createRuntimeScheduleBackground } = await import('./schedules/backgroundEntry')
             const { verifyScheduleWake, beginScheduleWake, waitForScheduleWake } =
               createRuntimeScheduleBackground(UI_TEXT, uiLocale())
-            await verifyScheduleWake(
+            scheduleAuthorization = await verifyScheduleWake(
               process.execPath,
               __filename,
               undefined,
@@ -1266,8 +1813,10 @@ async function main(): Promise<number> {
               else await waitForScheduleWake(dataDir)
             }
           } catch (error: unknown) {
-            const reason =
-              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest
+            const reason = redactWhole(
+              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest,
+              [],
+            )
             writeLine(
               command.options.isJson ? process.stdout : process.stderr,
               command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
@@ -1287,7 +1836,11 @@ async function main(): Promise<number> {
             try {
               await binding.close()
             } finally {
-              await afterWake?.()
+              try {
+                await scheduleSessions.close()
+              } finally {
+                await afterWake?.()
+              }
             }
           },
         )
@@ -1301,6 +1854,8 @@ async function main(): Promise<number> {
           command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
         )
         return EXIT_FAILED
+      } finally {
+        await scheduleSessions.close()
       }
     }
     case 'vault': {
@@ -1314,6 +1869,10 @@ async function main(): Promise<number> {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
+          readLine: (prompt, signal) =>
+            readVaultLine(process.stdin, process.stderr, prompt, signal),
+          // The one-time recovery code must reach a person, never a redirected file.
+          isInteractive: process.stdin.isTTY && process.stdout.isTTY,
           choose: (title, choices, signal) =>
             chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
           print: (text) => {
@@ -1342,12 +1901,19 @@ async function main(): Promise<number> {
     }
     case 'login': {
       const { museCode } = await runtimeFor(command.options, log)
+      // The login child keeps this directory: the shared manager guards its
+      // environment and lookup for it, and the spawn names it outright.
+      const cwd = process.cwd()
       return await login({
         resolveLaunch: () => museCode.resolveLaunch(),
         environment: () => museCode.childEnvironment(),
-        spawnInTerminal: async (file, args, env) => {
+        cwd,
+        spawnInTerminal: async (file, args, env, spawnCwd) => {
           // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- `muse login` as `muse serve` is started: the CLI resolved from its install layout, PATH or an absolute --muse-binary (D1a, D4), its launcher's fixed prefix and MUSE_LOGIN_ARGS, as an argument array with no shell (PLAN.md §8)
-          const { child } = await spawnResourceProcess('interactive', file, args, { env })
+          const { child } = await spawnResourceProcess('interactive', file, args, {
+            env,
+            cwd: spawnCwd,
+          })
           return child
         },
         printError: (line) => {
@@ -1356,13 +1922,22 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      const { target } = command
-      if (target === undefined) return await authSet(authDeps())
-      if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
+      // A provider-only set (`auth set --provider <id>`, the ACP paste-key
+      // method) routes to the provider's own key shape, never Meta's.
+      const providerId = authSetProviderId(command)
+      if (providerId !== undefined) {
         const providersFile = await userProvidersFile()
-        return await authSetProvider(authDeps(), target.provider, providersFile.readUserFile)
+        const { runAuthSetProvider } = await import('./providerAuth')
+        return await runAuthSetProvider(
+          authDeps(),
+          providerId,
+          providersFile.readUserFile,
+          providersFile.withUserFileLock,
+        )
       }
-      return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
+      const { target } = command
+      return target === undefined ||
+        (target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID)
         ? await authSet(authDeps())
         : await loadAccountsBundle(log).runAccountAuthSet(target, {
             ...loadAccounts(log).commands,
@@ -1397,23 +1972,101 @@ async function main(): Promise<number> {
       writeLine(result.exitCode === 0 ? process.stdout : process.stderr, result.text)
       return result.exitCode
     }
+    case 'authGitHub': {
+      const controller = new AbortController()
+      const abort = () => {
+        controller.abort()
+      }
+      process.once('SIGINT', abort)
+      try {
+        const network = globalThis.fetch.bind(globalThis)
+        return await authGitHub(command.action, {
+          // The terminal is this sign-in's surface: the code and GitHub's
+          // address are printed; the token never is.
+          source: deviceFlowSource({
+            store: secrets,
+            flow: {
+              fetch: network,
+              now: Date.now,
+              sleep: (ms, signal) => nodeSleep(ms, undefined, { signal }),
+            },
+            present: (prompt) => {
+              writeLine(
+                process.stdout,
+                fill(UI_TEXT.githubSignIn.code, {
+                  url: prompt.verificationUri,
+                  code: prompt.userCode,
+                }),
+              )
+              return Promise.resolve()
+            },
+            openExternal: (url) => {
+              writeLine(process.stdout, fill(UI_TEXT.githubSignIn.signedOut, { url }))
+              return Promise.resolve()
+            },
+            fetch: network,
+          }),
+          storeName: credentialStoreName(process.platform),
+          signal: controller.signal,
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
+          printError: (line) => {
+            writeLine(process.stderr, line)
+          },
+        })
+      } finally {
+        process.off('SIGINT', abort)
+      }
+    }
     case 'authStatus': {
+      // Every provider command and `auth status` runs the crashed-Connect
+      // recovery first and reports it (R5). Bare status answers every
+      // credential; the exit code names whether anything is stored (D6).
+      const providersFile = await userProvidersFile()
+      const { runAuthStatusProvider, runAuthStatusWithRecovery } = await import('./providerAuth')
+      const deps = authDeps()
       return command.provider === undefined
-        ? await authStatus(authDeps())
-        : await authStatusProvider(authDeps(), command.provider)
+        ? await runAuthStatusWithRecovery(
+            deps,
+            providersFile.withUserFileLock,
+            providersFile.readUserFile,
+          )
+        : await runAuthStatusProvider(deps, command.provider, providersFile.withUserFileLock)
     }
     case 'authClear': {
-      return command.provider === undefined
-        ? await authClear(authDeps())
-        : await authClearProvider(authDeps(), command.provider)
+      if (command.provider === undefined) return await authClear(authDeps())
+      const providersFile = await userProvidersFile()
+      const { runAuthClearProvider } = await import('./providerAuth')
+      return await runAuthClearProvider(
+        authDeps(),
+        command.provider,
+        providersFile.withUserFileLock,
+      )
     }
     case 'providersList': {
       const { providersList } = await import('./providersCommands')
       return await providersList(await providersDeps())
     }
+    case 'openRouterConnect': {
+      const { runOpenRouterConnect } = await import('./openRouterCommands')
+      return await runOpenRouterConnect(await providersDeps(), await openRouterApi())
+    }
+    case 'providerKeyUsage': {
+      const { runOpenRouterUsage } = await import('./openRouterCommands')
+      return await runOpenRouterUsage(
+        await providersDeps(),
+        await openRouterApi(),
+        command.provider,
+      )
+    }
     case 'providersAdd': {
       const { providersAdd } = await import('./providersCommands')
       return await providersAdd(await providersDeps(), command.options)
+    }
+    case 'providersModels': {
+      const { providersModels } = await import('./providersModelsCommand')
+      return await providersModels(await providersDeps(), command.options)
     }
     case 'providersTest': {
       const { providersTest } = await import('./providersCommands')
@@ -1506,7 +2159,18 @@ async function main(): Promise<number> {
     }
     case 'reports': {
       try {
-        return await runtimeReports(log)().run(command.args)
+        // The one-shot CLI has no live runtime, but its usage reports still
+        // show the shared daily paid budget, exactly like VS Code and ACP
+        // serve (RVCM1132B finding 3). The ledger read never starts a backend.
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        const { readRuntimeDailyBudget } = await import('./runtimeAccountingEntry.js')
+        return await runtimeReports(log, undefined, undefined, () =>
+          readRuntimeDailyBudget({ dataFolder, now: () => Date.now() }),
+        )().run(command.args)
       } catch {
         writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
         return EXIT_FAILED
@@ -1549,6 +2213,68 @@ async function main(): Promise<number> {
         uiLocale(),
       )
     }
+    case 'mcp': {
+      // M124: stdout is the MCP stream from here on; words go to stderr.
+      const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let schedules: RuntimeSchedulesBinding | undefined
+      const scheduleAnswer = async (
+        root: string,
+        options: Parameters<RuntimeSchedulesBinding['command']>[0],
+      ): Promise<unknown> => {
+        schedules ??= await loadSchedules()
+        const result = await schedules.command(options, root, false)
+        const answer: unknown = JSON.parse(result.output)
+        return answer
+      }
+      const reports = runtimeReports(log, undefined, undefined, undefined, {
+        keepHistory: false,
+        allowEgress: () => Promise.resolve(false),
+      })
+      try {
+        return await connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector(
+          {
+            argv: command.argv,
+            table: UI_TEXT,
+            locale: uiLocale(),
+            dataFolder: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            homeDir: homedir(),
+            version: packageVersion(),
+            stdin: process.stdin,
+            stdout: process.stdout,
+            stderr: process.stderr,
+            isInteractive: process.stdin.isTTY,
+            registered: () => sharingCredentials.map((variable) => variable.value),
+            openBrowser: openUsageBrowser,
+            schedules: {
+              list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
+              pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
+            },
+            reports: {
+              generate: async (root, kind, subjectId, signal) => {
+                // M113's own grammar: a positional subject, except playbook's --milestone.
+                let subject: string[] = []
+                if (subjectId !== undefined)
+                  subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
+                const result = await reports().acp.execute([kind, ...subject].join(' '), {
+                  cwd: root,
+                  sessionId: 'connector',
+                  format: 'md',
+                  signal,
+                })
+                if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
+                return result.text
+              },
+            },
+          },
+        )
+      } finally {
+        await schedules?.close()
+      }
+    }
     case 'vaultHelp': {
       writeLine(process.stdout, vaultUsage())
       return 0
@@ -1563,8 +2289,28 @@ async function main(): Promise<number> {
         const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
         writeLine(process.stdout, reference.all(nls))
       } else {
-        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(
+          process.stdout,
+          command.route === undefined
+            ? formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
+            : formatCommandHelp(UI_TEXT, ACP_AGENT_NAME, command.route),
+        )
       }
+      return 0
+    }
+    case 'helpTopic': {
+      const topic = helpTopicNamed(command.topic)
+      if (topic === undefined) {
+        writeLine(
+          process.stderr,
+          fill(UI_TEXT.cliHelp.unknownTopic, {
+            topic: command.topic,
+            command: ACP_AGENT_NAME,
+          }),
+        )
+        return 2
+      }
+      writeLine(process.stdout, renderTopicHelp(UI_TEXT, ACP_AGENT_NAME, topic))
       return 0
     }
     case 'invalid': {

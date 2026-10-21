@@ -6,10 +6,10 @@ import type { ResourceSurfaceLoader } from './resourcePort'
 type ResourceAction = Extract<WebviewToHostMessage, { type: 'resourceAction' }>['action']
 
 /**
- * M107 U–C1: the chat window's chip source over the store's bounded status
- * text. Created once in mountChat, outside render; the deferred chip imports
- * only when the first status arrives, and checks its schema before use.
- */
+M107 U–C1: the chat window's chip source over the store's bounded status
+text. Created once in mountChat, outside render; the deferred chip imports
+only when the first status arrives, and checks its schema before use.
+*/
 export function windowResourceLoader(
   store: UiStore,
   post: (message: WebviewToHostMessage) => void,
@@ -52,7 +52,9 @@ function parsedJson(text: string | null | undefined): unknown {
   try {
     const value: unknown = JSON.parse(text)
     return value
-  } catch {
+  } catch (error: unknown) {
+    // Unreadable text reads null: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return null
   }
 }

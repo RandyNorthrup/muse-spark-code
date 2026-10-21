@@ -7,16 +7,10 @@
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import {
-  BASE64_DATA_URL_OVERHEAD_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
-  MAX_ATTACHMENTS_PER_MESSAGE,
-  MAX_DOCUMENT_BYTES,
-  MAX_ENCODED_MEDIA_CHARS,
-  MAX_IMAGE_BYTES,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
-  MAX_TEXT_ATTACHMENT_BYTES,
-  MODEL_API_MEDIA_PER_REQUEST,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
+  MODEL_API_TEXT_BUDGET_TOKENS,
   MODEL_API_PDF_PAGE_IMAGES,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
   PDF_EXTENSION,
@@ -39,6 +33,8 @@ export interface AttachmentMediaPort {
   readonly sniff: (bytes: Uint8Array) => MediaFileInfo | undefined
   readonly check: (info: MediaFileInfo) => MediaLimitResult
   readonly part: (summary: AttachmentSummary, info: MediaFileInfo) => TurnPart
+  /** The chip is discarded before sending: its registration goes (RVMEDIAV 7). */
+  readonly release?: () => void
 }
 
 export type AddAttachmentResult =
@@ -58,6 +54,7 @@ type StoredAttachment =
   | {
       readonly summary: AttachmentSummary
       readonly part: () => TurnPart
+      readonly discard?: () => void
     }
 
 const FIRST_PRINTABLE_CODE_POINT = 0x20
@@ -77,11 +74,13 @@ export function hasBinaryControlCharacters(content: string): boolean {
 }
 
 /**
- * The images a message's attachments stand for in Meta's per-request budget
- * (M54): one per image, and a PDF's page images, at most its first 50. A
- * PDF whose pages could not be counted weighs the full 50, so the host
- * never accepts a set that would force a newly attached file out of view.
- */
+The images a message's attachments stand for in a provider's per-request
+budget (M54): one per image, and a PDF's page images, at most its first
+50 (Meta's documented budget). A PDF whose pages could not be counted
+weighs the full 50, so a record count errs toward protecting the request,
+never toward sending one the provider refuses. The weight only matters
+where a record states a count; without one nothing is enforced locally.
+*/
 function imageWeight(summary: AttachmentSummary): number {
   if (summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE) {
     return 0
@@ -91,29 +90,28 @@ function imageWeight(summary: AttachmentSummary): number {
     : 1
 }
 
+/**
+D121: bytes past the record's own limit are refused, in the record's
+words; without a record limit nothing is enforced locally, so both adders
+share this one gate instead of mirroring it. The provider's own refusal
+reaches the person in words at send.
+*/
+function refuseOverLimit(
+  recordBytes: number | undefined,
+  byteLength: number,
+): AddAttachmentResult | undefined {
+  return recordBytes !== undefined && byteLength > recordBytes
+    ? { ok: false, reason: UI_TEXT.modelAttachmentOverLimit }
+    : undefined
+}
+
 export class AttachmentStore {
   private readonly entries = new Map<string, StoredAttachment>()
 
   public constructor(
     private readonly newId: () => string,
-    private readonly maxEncodedMediaChars: number = MAX_ENCODED_MEDIA_CHARS,
     private media?: AttachmentMediaPort,
   ) {}
-
-  /** Encoded data URL characters held for this message's images and PDFs. */
-  private mediaChars(): number {
-    return Array.from(this.entries.values(), (entry) =>
-      !('bytes' in entry) || entry.summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
-        ? 0
-        : this.encodedChars(entry.bytes, entry.summary.mediaType),
-    ).reduce((total, length) => total + length, 0)
-  }
-
-  private encodedChars(bytes: Uint8Array, mediaType: string): number {
-    const base64Length =
-      BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(bytes.byteLength / BASE64_INPUT_BLOCK_BYTES)
-    return BASE64_DATA_URL_OVERHEAD_CHARS + mediaType.length + base64Length
-  }
 
   /** Serialized MSP attachment parts, before prompt/context and command envelope. */
   private mspAttachmentBytes(): number {
@@ -122,15 +120,19 @@ export class AttachmentStore {
     ).reduce((total, length) => total + length, 0)
   }
 
-  /** Conservative text-only share of the Model API context window. */
+  /** Conservative text-only share of the Model API context window, in UTF-8 bytes. */
   private modelApiTextBytes(): number {
     return Array.from(this.entries.values(), (entry) =>
       'bytes' in entry ? (entry.modelApiTextBytes ?? 0) : 0,
     ).reduce((total, length) => total + length, 0)
   }
 
-  private fitsMediaBytes(bytes: Uint8Array, mediaType: string): boolean {
-    return this.mediaChars() + this.encodedChars(bytes, mediaType) <= this.maxEncodedMediaChars
+  /**
+  The held Model API text in tokens, estimated high: the admission unit
+  the provider's window is counted in.
+  */
+  private modelApiTextTokens(): number {
+    return Math.ceil(this.modelApiTextBytes() / MODEL_API_CONTEXT_BYTES_PER_TOKEN)
   }
 
   private weight(): number {
@@ -148,17 +150,17 @@ export class AttachmentStore {
     const policy = record?.modalities.pdf
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
-    const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes = isMeta ? MAX_DOCUMENT_BYTES : policy?.value.maxBytes
-    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
-      return {
-        ok: false,
-        reason: isMeta ? UI_TEXT.documentTooLarge : UI_TEXT.modelAttachmentOverLimit,
-      }
+    // D121: the record decides, and only the record. Without one the
+    // document attaches at any size and the provider answers for it at send.
+    const documentLimit = refuseOverLimit(
+      policy?.state === 'yes' ? policy.value.maxBytes : undefined,
+      bytes.byteLength,
+    )
+    if (documentLimit !== undefined) {
+      return documentLimit
     }
     const pageCount = pdfPageCount(bytes)
     if (
-      !isMeta &&
       policy?.state === 'yes' &&
       policy.value.maxPages !== undefined &&
       (pageCount === undefined || pageCount > policy.value.maxPages)
@@ -174,15 +176,17 @@ export class AttachmentStore {
       sizeBytes: bytes.byteLength,
       ...(pageCount !== undefined && { pageCount }),
     }
-    // A message Meta would refuse whole (more than 50 images) is refused here, with the reason.
-    if (isMeta && this.weight() + imageWeight(summary) > MODEL_API_MEDIA_PER_REQUEST) {
+    // A set past the record's own per-request count is refused here, with
+    // the reason; without a record count the send path answers for it.
+    if (
+      policy?.state === 'yes' &&
+      policy.value.maxCount !== undefined &&
+      this.weight() + imageWeight(summary) > policy.value.maxCount
+    ) {
       return {
         ok: false,
-        reason: UI_TEXT.documentsOverBudget,
+        reason: UI_TEXT.modelAttachmentOverLimit,
       }
-    }
-    if (!this.fitsMediaBytes(bytes, PDF_MEDIA_TYPE)) {
-      return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
     }
     this.entries.set(summary.id, { summary, bytes })
     return { ok: true, attachment: summary }
@@ -197,13 +201,14 @@ export class AttachmentStore {
     const policy = record?.modalities.image
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
-    const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes = isMeta ? MAX_IMAGE_BYTES : policy?.value.maxBytes
-    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
-      return {
-        ok: false,
-        reason: isMeta ? UI_TEXT.attachmentTooLarge : UI_TEXT.modelAttachmentOverLimit,
-      }
+    // D121: the record decides, and only the record. Without one the image
+    // attaches at any size and the provider answers for it at send.
+    const imageLimit = refuseOverLimit(
+      policy?.state === 'yes' ? policy.value.maxBytes : undefined,
+      bytes.byteLength,
+    )
+    if (imageLimit !== undefined) {
+      return imageLimit
     }
     const info = readImageInfo(bytes)
     if (info === undefined) {
@@ -211,24 +216,15 @@ export class AttachmentStore {
     }
     if (policy?.state === 'yes' && !policy.value.mimes.includes(info.mediaType))
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
-    let imageCount = 0
-    for (const entry of this.entries.values()) {
-      if (entry.summary.mediaType.startsWith('image/')) imageCount++
-    }
     if (
-      isMeta
-        ? this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST
-        : policy?.state === 'yes' &&
-          policy.value.maxCount !== undefined &&
-          imageCount + 1 > policy.value.maxCount
+      policy?.state === 'yes' &&
+      policy.value.maxCount !== undefined &&
+      this.weight() + 1 > policy.value.maxCount
     ) {
       return {
         ok: false,
-        reason: isMeta ? UI_TEXT.documentsOverBudget : UI_TEXT.modelAttachmentOverLimit,
+        reason: UI_TEXT.modelAttachmentOverLimit,
       }
-    }
-    if (!this.fitsMediaBytes(bytes, info.mediaType)) {
-      return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
     }
     const summary: AttachmentSummary = {
       id: this.newId(),
@@ -265,14 +261,20 @@ export class AttachmentStore {
     bytes: Uint8Array,
     shouldCheckMspBudget: boolean,
   ): AddAttachmentResult {
-    if (bytes.byteLength > MAX_TEXT_ATTACHMENT_BYTES) {
-      return { ok: false, reason: UI_TEXT.textFileTooLarge }
-    }
+    // D121: no per-file text size of ours. On the Muse Code backend the
+    // frame budget below still bounds the transport, and Muse Code answers
+    // for its own ceiling; on the Model API backend a text file (a plan
+    // brief included) is admitted by the selected model's capability: its
+    // estimated tokens against the window-minus-reserve budget below.
     let content: string
     try {
       content = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    } catch {
-      return { ok: false, reason: UI_TEXT.textFileInvalid }
+    } catch (error: unknown) {
+      // Only undecodable bytes are invalid text: anything else keeps its kind past the decode.
+      if (error instanceof TypeError) {
+        return { ok: false, reason: UI_TEXT.textFileInvalid }
+      }
+      throw error
     }
     if (hasBinaryControlCharacters(content)) {
       return { ok: false, reason: UI_TEXT.textFileInvalid }
@@ -305,7 +307,8 @@ export class AttachmentStore {
     }
     if (
       !shouldCheckMspBudget &&
-      this.modelApiTextBytes() + modelApiTextBytes > MAX_MODEL_API_TEXT_ATTACHMENT_BYTES
+      this.modelApiTextTokens() + Math.ceil(modelApiTextBytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) >
+        MODEL_API_TEXT_BUDGET_TOKENS
     ) {
       return { ok: false, reason: UI_TEXT.textFilesOverModelApiBudget }
     }
@@ -319,9 +322,11 @@ export class AttachmentStore {
   }
 
   /**
-   * An image, or a PDF when `acceptsDocuments` (the Model API backend); the
-   * caller refuses a PDF on Muse Code with its own reason first (M54).
-   */
+  An image, or a PDF when `acceptsDocuments` (the Model API backend); the
+  caller refuses a PDF on Muse Code with its own reason first (M54).
+  D121: no count of ours — any number of attachments is held; the
+  transports' frame validity and the send path answer for the rest.
+  */
   public add(
     name: string,
     bytes: Uint8Array,
@@ -329,9 +334,6 @@ export class AttachmentStore {
     canAcceptText = false,
     capabilityRecord?: ModelCapabilityRecord,
   ): AddAttachmentResult {
-    if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE) {
-      return { ok: false, reason: UI_TEXT.attachmentLimit }
-    }
     const mediaInfo = this.media?.sniff(bytes)
     if (mediaInfo !== undefined) return this.addMedia(name, mediaInfo)
     if (isPdf(bytes)) {
@@ -359,14 +361,13 @@ export class AttachmentStore {
     info: MediaFileInfo,
     isScreenRecording = false,
   ): AddAttachmentResult {
-    if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE)
-      return { ok: false, reason: UI_TEXT.attachmentLimit }
     const media = this.media
     if (media === undefined) return { ok: false, reason: UI_TEXT.media.museCodeRefusal }
+    // D121: no count of ours. The media bundle's own check (the selected
+    // model's record) still admits, and the send path packs the request
+    // against the provider's per-request budget with its words.
     const admission = media.check(info)
     if (!admission.ok) return { ok: false, reason: admission.reason }
-    if (this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST)
-      return { ok: false, reason: UI_TEXT.documentsOverBudget }
     const summary: AttachmentSummary = {
       id: this.newId(),
       name,
@@ -376,15 +377,22 @@ export class AttachmentStore {
       // upload lifecycle read it (M105 E1 recording binding).
       media: { info, ...(isScreenRecording && { isScreenRecording: true as const }) },
     }
-    this.entries.set(summary.id, { summary, part: () => media.part(summary, info) })
+    this.entries.set(summary.id, {
+      summary,
+      part: () => media.part(summary, info),
+      ...(media.release !== undefined && { discard: media.release }),
+    })
     return { ok: true, attachment: summary }
   }
 
   public remove(id: string): boolean {
+    const entry = this.entries.get(id)
+    if (entry !== undefined && 'discard' in entry) entry.discard()
     return this.entries.delete(id)
   }
 
   public clear(): void {
+    for (const entry of this.entries.values()) if ('discard' in entry) entry.discard()
     this.entries.clear()
   }
 
@@ -397,10 +405,10 @@ export class AttachmentStore {
   }
 
   /**
-   * Image and document parts for the given ids (unknown ids are skipped).
-   * They stay until `release`: a message the host refused keeps them for
-   * another try.
-   */
+  Image and document parts for the given ids (unknown ids are skipped).
+  They stay until `release`: a message the host refused keeps them for
+  another try.
+  */
   public partsFor(ids: readonly string[]): readonly TurnPart[] {
     const parts: TurnPart[] = []
     for (const id of ids) {

@@ -61,7 +61,7 @@ export function prepareLegalHeaderPatches(
       const content = snapshot.readFile(path)
       return content === undefined
         ? []
-        : [{ path, hash: snapshot.readFileHash?.(path) ?? fingerprint(content) }]
+        : { path, hash: snapshot.readFileHash?.(path) ?? fingerprint(content) }
     })
   const prepared: LegalPreparedPatch[] = []
   for (const file of fixPaths(findings)) {

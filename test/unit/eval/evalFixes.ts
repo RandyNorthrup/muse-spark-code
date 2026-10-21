@@ -83,12 +83,30 @@ export const EVAL_CANONICAL_FIXES: Readonly<Record<string, readonly EvalFix[]>> 
   'heldout-long-middle-rule': [
     { path: 'transform.js', content: 'export const transform = (value) => value * 7 + 11\n' },
   ],
+  'accept-long-compaction': [{ path: 'answer.js', content: 'export const answer = 781924\n' }],
+  'heldout-long-compaction': [
+    { path: 'transform.js', content: 'export const transform = (value) => (value + 4) * 6\n' },
+  ],
+  'accept-multi-edit': [
+    {
+      path: 'voice.js',
+      content:
+        "export function shout(text) {\n  return text.toUpperCase() + '!!!'\n}\n\nexport function whisper(text) {\n  return text.toLowerCase() + '...'\n}\n",
+    },
+  ],
+  'heldout-multi-edit': [
+    {
+      path: 'clamp.js',
+      content:
+        'export function clampLow(value, min) {\n  return value < min ? min : value\n}\n\nexport function clampHigh(value, max) {\n  return value > max ? max : value\n}\n',
+    },
+  ],
 }
 
 /**
- * The same fixes in another spelling a model might choose: the verifiers
- * judge behaviour, so these pass too.
- */
+The same fixes in another spelling a model might choose: the verifiers
+judge behaviour, so these pass too.
+*/
 export const EVAL_OTHER_FIXES: Readonly<Record<string, readonly EvalFix[]>> = {
   'accept-off-by-one': [
     {
@@ -167,6 +185,29 @@ export const EVAL_OTHER_FIXES: Readonly<Record<string, readonly EvalFix[]>> = {
     {
       path: 'transform.js',
       content: 'export function transform(value) {\n  return 11 + 7 * value\n}\n',
+    },
+  ],
+  'accept-long-compaction': [
+    { path: 'answer.js', content: 'const build = 781_924\n\nexport { build as answer }\n' },
+  ],
+  'heldout-long-compaction': [
+    {
+      path: 'transform.js',
+      content: 'export function transform(value) {\n  return 6 * (4 + value)\n}\n',
+    },
+  ],
+  'accept-multi-edit': [
+    {
+      path: 'voice.js',
+      content:
+        'const loud = (text) => text.toUpperCase()\nconst quiet = (text) => text.toLowerCase()\n\nexport function shout(text) {\n  return `${loud(text)}!!!`\n}\n\nexport function whisper(text) {\n  return `${quiet(text)}...`\n}\n',
+    },
+  ],
+  'heldout-multi-edit': [
+    {
+      path: 'clamp.js',
+      content:
+        'export function clampLow(value, min) {\n  if (value < min) return min\n  return value\n}\n\nexport function clampHigh(value, max) {\n  if (value > max) return max\n  return value\n}\n',
     },
   ],
 }

@@ -1,6 +1,6 @@
 // The selected-fix handoff's guards (M97 lane W, PLAN.md D76). Pure and
 // backend-agnostic: no `vscode`, no Node, no DOM. The host
-// (`src/host/legalFix.ts`) supplies the live state; the webview
+// (`src/core/legal/fixPreviews.ts`) supplies the live state; the webview
 // (`LegalReport.tsx`) reuses the eligibility preview. Every refusal names a
 // LEGAL_FIX_REFUSALS word; every exclusion a LEGAL_FIX_EXCLUSIONS word.
 
@@ -14,19 +14,19 @@ import type { LegalFinding } from '../shared/legal'
 import { findingDigest, type LegalFixSnapshot } from '../shared/legalFix'
 
 /**
- * A project-license change (D76): the project's own license declaration,
- * not a dependency's. It can never enter "safe ones"; it needs its own
- * separate explicit confirmation. A dependency finding always names its
- * package, so `license` without one is the project's.
- */
+A project-license change (D76): the project's own license declaration,
+not a dependency's. It can never enter "safe ones"; it needs its own
+separate explicit confirmation. A dependency finding always names its
+package, so `license` without one is the project's.
+*/
 export function isProjectLicenseChange(finding: LegalFinding): boolean {
   return finding.packageName === undefined && finding.category === 'license'
 }
 
 /**
- * Byte-order string comparison: deterministic across machines, unlike a
- * locale-aware sort, so the same scan previews the same file order.
- */
+Byte-order string comparison: deterministic across machines, unlike a
+locale-aware sort, so the same scan previews the same file order.
+*/
 export function compareStrings(left: string, right: string): number {
   if (left === right) {
     return 0
@@ -51,12 +51,12 @@ export interface EligibleFixTargets {
 }
 
 /**
- * The exact selection (D76): only the selected ids, in the scan's own
- * order, that the scanner marked fixable and that need no separate
- * confirmation. Everything else is listed with its reason, never silently
- * dropped or added. An empty selection is eligible for nothing; Bypass
- * still requires the user to select.
- */
+The exact selection (D76): only the selected ids, in the scan's own
+order, that the scanner marked fixable and that need no separate
+confirmation. Everything else is listed with its reason, never silently
+dropped or added. An empty selection is eligible for nothing; Bypass
+still requires the user to select.
+*/
 export function eligibleFixTargets(
   findings: readonly LegalFinding[],
   selectedIds: readonly string[],
@@ -126,12 +126,12 @@ export type LegalFixAuthorization =
   | { readonly ok: false; readonly refusal: LegalFixRefusal }
 
 /**
- * Authorize exactly the snapshotted findings against the live state (D76):
- * recheck selection, permission state, trust, workspace, evidence hashes
- * and file hashes. The first mismatch refuses; a changed file or changed
- * evidence needs a fresh report/preview. Plan refuses writes; an untrusted
- * workspace (Restricted Mode) does too.
- */
+Authorize exactly the snapshotted findings against the live state (D76):
+recheck selection, permission state, trust, workspace, evidence hashes
+and file hashes. The first mismatch refuses; a changed file or changed
+evidence needs a fresh report/preview. Plan refuses writes; an untrusted
+workspace (Restricted Mode) does too.
+*/
 export function authorizeLegalFix(
   snapshot: LegalFixSnapshot,
   live: LegalFixLiveState,

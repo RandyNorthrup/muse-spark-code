@@ -10,10 +10,10 @@ export type ForeignStdinResult =
   /** The hook does not run, and that is not a failure (Kiro's path filter). */
   | { readonly outcome: 'skip'; readonly reason: string }
   /**
-   * The event + payload cannot be translated faithfully. For a blocking row,
-   * blockOperation requires refusing the guarded operation before execution;
-   * recording a discarded hook failure would lose the imported guard.
-   */
+  The event + payload cannot be translated faithfully. For a blocking row,
+  blockOperation requires refusing the guarded operation before execution;
+  recording a discarded hook failure would lose the imported guard.
+  */
   | { readonly outcome: 'refused'; readonly reason: string; readonly blockOperation?: true }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -71,7 +71,8 @@ export function splitMcpName(name: string): { server: string; tool: string } | u
 export function jsonOutput(stdout: string): unknown {
   try {
     return JSON.parse(stdout)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }

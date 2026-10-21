@@ -28,10 +28,13 @@ function isSameDecimal(source: string, parsed: number): boolean {
       Math.abs(exponent) <= source.length + canonical.length &&
       canonicalUsd(source) === canonical
     )
-  } catch {
+  } catch (error) {
     // Exactness was not proved. A schema may accept the rounded value (even
     // underflowed zero), so it cannot decide whether the written money was lost.
-    return false
+    // Only the money canonicalization fails here, on text no double denotes;
+    // the name (not the constructor) names it, so split bundles agree on it.
+    if (error instanceof Error && error.name === '$ZodError') return false
+    throw error
   }
 }
 
@@ -87,11 +90,11 @@ function scanNumberEnd(text: string, start: number): number {
 }
 
 /**
- * Record the source text of every numeric literal held under a money key,
- * keyed by its path (decoded object keys and array indices) so document order
- * and integer-like key reordering cannot misalign a comparison. Runs only on
- * text `JSON.parse` has already accepted, so escapes and structure are valid.
- */
+Record the source text of every numeric literal held under a money key,
+keyed by its path (decoded object keys and array indices) so document order
+and integer-like key reordering cannot misalign a comparison. Runs only on
+text `JSON.parse` has already accepted, so escapes and structure are valid.
+*/
 function scanSources(
   text: string,
   moneyKeys: ReadonlySet<string>,
@@ -190,10 +193,10 @@ function collectNumbers(
 }
 
 /**
- * Parse stored JSON, keeping each money-keyed numeric literal's source text.
- * `isExact` is false when a written literal cannot denote the double it
- * parses to, on every Node version. Invalid text throws, as `JSON.parse` does.
- */
+Parse stored JSON, keeping each money-keyed numeric literal's source text.
+`isExact` is false when a written literal cannot denote the double it
+parses to, on every Node version. Invalid text throws, as `JSON.parse` does.
+*/
 export function parseJsonWithExactNumbers(
   text: string,
   moneyKeys: ReadonlySet<string>,

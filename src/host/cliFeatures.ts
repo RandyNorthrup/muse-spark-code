@@ -4,7 +4,7 @@
 // The flows themselves live in commands/skillsCommands.ts,
 // commands/museConfigCommands.ts and conversation/exportConversation.ts.
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -21,13 +21,15 @@ import {
   type SkillImportSource,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import type { ProcessResult } from './backend/sandboxSetup'
 import type { AgentImportHostDeps } from './agentImportHost'
 import { runAgentImport } from './agentImportBundle'
-import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
-import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
+import type * as CommandsBundle from './commands/commandsEntry'
+import type { MuseConfigDeps } from './commands/museConfigCommands'
+import type { SkillsCliDeps } from './commands/skillsCommands'
 import type { ConversationExports } from './conversation/exportConversation'
+import { readTextIfPresent } from './fsAtomic'
 import type { Logger } from './logger'
 import { loggedPopups } from './popups'
 import { showPickOne } from './quickPick'
@@ -47,9 +49,9 @@ export interface CliFeatureDeps {
   readonly museSettingsPath: () => string
   readonly workspaceRoot: string | undefined
   /**
-   * Runs a write of `fsPath` (an export the user placed): inside the
-   * workspace folder under the checkpoint lease (M72), elsewhere as it is.
-   */
+  Runs a write of `fsPath` (an export the user placed): inside the
+  workspace folder under the checkpoint lease (M72), elsewhere as it is.
+  */
   readonly editFile: <T>(fsPath: string, work: () => Promise<T>) => Promise<T>
   /** What the import from other agents needs of the window (M83). */
   readonly agentImport: Omit<
@@ -61,18 +63,18 @@ export interface CliFeatureDeps {
   /** Stops the hosts; the next message starts them with the new settings (D25). */
   readonly restartBackend: () => Promise<void>
   /**
-   * The Model API backend's MCP servers, read for the view when this window
-   * runs on that backend (M50); undefined on Muse Code.
-   */
+  The Model API backend's MCP servers, read for the view when this window
+  runs on that backend (M50); undefined on Muse Code.
+  */
   readonly modelApiMcp: () => (() => McpPoolSnapshot | undefined) | undefined
   /** Undefined on Muse Code; current machine hook setting on Model API. */
   readonly modelApiHooks: () => boolean | undefined
   /** Shows the extension's log, where an MCP server's stderr goes. */
   readonly openLog: () => void
   /**
-   * VS Code trusts the workspace and the window is not held on someone
-   * else's pull request (M71): the project's skills and hooks may be read.
-   */
+  VS Code trusts the workspace and the window is not held on someone
+  else's pull request (M71): the project's skills and hooks may be read.
+  */
   readonly isProjectTrusted: () => boolean
   /** Whether this window is held on someone else's pull request (M71). */
   readonly isProjectHeld: () => boolean
@@ -89,20 +91,6 @@ export interface CliFeatures {
   showMcpServers(): Promise<void>
   showHooks(): Promise<void>
   readonly exports: ConversationExports
-}
-
-const NOT_FOUND = 'ENOENT'
-
-/** The file's text; undefined when there is none; throws on any other failure. */
-export function readTextIfPresent(fsPath: string): string | undefined {
-  try {
-    return readFileSync(fsPath, 'utf8')
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === NOT_FOUND) {
-      return undefined
-    }
-    throw error
-  }
 }
 
 interface SourceChoice extends vscode.QuickPickItem {
@@ -208,10 +196,10 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       filters: { [filterName]: [extension] },
     })
   /**
-   * Asks where to save an export and writes it there under the edit lease
-   * and action guard (M72), Markdown and portable JSON alike; undefined,
-   * with nothing written, when the dialog is dismissed.
-   */
+  Asks where to save an export and writes it there under the edit lease
+  and action guard (M72), Markdown and portable JSON alike; undefined,
+  with nothing written, when the dialog is dismissed.
+  */
   const saveExport = async (
     fileName: string,
     filterName: string,
@@ -228,42 +216,61 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
     return target
   }
   return {
-    showMcpServers: () => showMcpServers(configDeps()),
-    showHooks: () => showHooks(configDeps()),
-    manageSkills: () =>
-      manageSkills({
-        ...skillsDeps(),
-        pickSkills: async (items) => {
-          const picked = await vscode.window.showQuickPick(
-            items.map((item) => ({ ...item })),
-            {
-              canPickMany: true,
-              title: UI_TEXT.skillsPickTitle,
-              placeHolder: UI_TEXT.skillsPickPlaceholder,
-              matchOnDescription: true,
-              matchOnDetail: true,
-              ignoreFocusOut: true,
-            },
-          )
-          return picked === undefined ? undefined : new Set(picked.map((item) => item.id))
+    // The command flows load on first use (PLAN.md D6): dist/commands.js.
+    showMcpServers: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.showMcpServers(configDeps(), UI_TEXT, uiLocale())
+    },
+    showHooks: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.showHooks(configDeps(), UI_TEXT, uiLocale())
+    },
+    manageSkills: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.manageSkills(
+        {
+          ...skillsDeps(),
+          pickSkills: async (items) => {
+            const picked = await vscode.window.showQuickPick(
+              items.map((item) => ({ ...item })),
+              {
+                canPickMany: true,
+                title: UI_TEXT.skillsPickTitle,
+                placeHolder: UI_TEXT.skillsPickPlaceholder,
+                matchOnDescription: true,
+                matchOnDetail: true,
+                ignoreFocusOut: true,
+              },
+            )
+            return picked === undefined ? undefined : new Set(picked.map((item) => item.id))
+          },
         },
-      }),
-    importSkills: () =>
-      importSkills({
-        ...skillsDeps(),
-        pickSource: async () => {
-          const choice = await vscode.window.showQuickPick(sourceChoices(), {
-            title: UI_TEXT.importSourceTitle,
-          })
-          return choice?.source
+        UI_TEXT,
+        uiLocale(),
+      )
+    },
+    importSkills: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.importSkills(
+        {
+          ...skillsDeps(),
+          pickSource: async () => {
+            const choice = await vscode.window.showQuickPick(sourceChoices(), {
+              title: UI_TEXT.importSourceTitle,
+            })
+            return choice?.source
+          },
+          confirmImport: async (message, detail) =>
+            (await vscode.window.showInformationMessage(
+              message,
+              { modal: true, detail },
+              UI_TEXT.importConfirmAction,
+            )) === UI_TEXT.importConfirmAction,
         },
-        confirmImport: async (message, detail) =>
-          (await vscode.window.showInformationMessage(
-            message,
-            { modal: true, detail },
-            UI_TEXT.importConfirmAction,
-          )) === UI_TEXT.importConfirmAction,
-      }),
+        UI_TEXT,
+        uiLocale(),
+      )
+    },
     importFromAgents: () =>
       runAgentImport({
         ...deps.agentImport,

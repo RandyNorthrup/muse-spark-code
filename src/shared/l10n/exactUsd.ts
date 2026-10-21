@@ -2,7 +2,14 @@
 // prices load with the surfaces that show money, never through l10n/text.ts,
 // so a startup graph that installs the language carries no USD arithmetic.
 import { Usd } from '../usd'
-import { numberFormat } from './text'
+import { numberFormat, UI_TEXT } from './text'
+
+/** A daily limit the person set, for display: its amount, or that none is set (D208). */
+export function formatDailyBudget(amount: number | string): string {
+  return Usd.from(amount).compare(Usd.from(0)) > 0
+    ? formatUsd(amount, 2)
+    : UI_TEXT.paidDailyBudgetNone
+}
 
 /** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */
 export function formatUsd(
@@ -55,9 +62,9 @@ function formatUsdIntl(
 }
 
 /**
- * A verified quote's chosen precision, without changing its exact amount:
- * in the installed language, or in `locale` when a report renders for its own.
- */
+A verified quote's chosen precision, without changing its exact amount:
+in the installed language, or in `locale` when a report renders for its own.
+*/
 export function formatUsdAtPrecision(exact: Usd, precision: number, locale?: string): string {
   const rounded = exact.ceiling(precision).toString()
   const [whole = '0', fraction = ''] = rounded.split('.', 2)

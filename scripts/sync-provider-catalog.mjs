@@ -191,10 +191,10 @@ function filterModel(key, entry) {
 }
 
 /**
- * Keep the presets' providers and their tool-capable models, refusing a
- * download that misses a listed provider or keeps none of its models.
- * Returns the snapshot's providers, keyed by preset id.
- */
+Keep the presets' providers and their tool-capable models, refusing a
+download that misses a listed provider or keeps none of its models.
+Returns the snapshot's providers, keyed by preset id.
+*/
 export function filterCatalog(api) {
   if (!isRecord(api)) throw new Error('Provider catalogue must be an object')
   api = apiSchema.parse(api)
@@ -307,6 +307,31 @@ export function parseCatalogSnapshot(text) {
       }
     }
   }
+  // Owner-reported IDs with no captured tariff stay separate from tool-capable data.
+  if (document.unpriced !== undefined) {
+    const entries = z
+      .record(
+        z.string(),
+        z.record(
+          z.string(),
+          z.strictObject({
+            id: z.string().min(1).max(MAX_ID_LENGTH),
+            name: z.string().min(1).max(MAX_NAME_LENGTH),
+            price: z.literal('unknown'),
+            addedAt: dateSchema,
+            source: z.string().min(1),
+          }),
+        ),
+      )
+      .parse(document.unpriced)
+    for (const [preset, models] of Object.entries(entries)) {
+      if (!expected.includes(preset)) throw new Error('Unknown unpriced catalogue provider')
+      for (const [id, row] of Object.entries(models)) {
+        if (row.id !== id || document.providers[preset].models[id] !== undefined)
+          throw new Error('Unpriced catalogue row mismatches or replaces a captured model')
+      }
+    }
+  }
   return document
 }
 
@@ -333,7 +358,7 @@ function presentFiles(directory, prefix = '') {
       const relative = `${prefix}${entry.name}`
       return entry.isDirectory()
         ? presentFiles(path.join(directory, entry.name), `${relative}/`)
-        : [relative]
+        : relative
     })
     .map((file) => file.split(path.sep).join('/'))
     .toSorted((a, b) => a.localeCompare(b, 'en'))
@@ -405,10 +430,10 @@ function readVendorManifest(paths) {
 }
 
 /**
- * Verify the vendor directory against VENDOR.json: exactly the listed files,
- * every digest matching, the licence present, and the snapshot's shape, size
- * cap and manifest agreement. Returns the sealed file and snapshot sizes.
- */
+Verify the vendor directory against VENDOR.json: exactly the listed files,
+every digest matching, the licence present, and the snapshot's shape, size
+cap and manifest agreement. Returns the sealed file and snapshot sizes.
+*/
 export function verifyVendorFiles(vendorDir = DEFAULT_VENDOR_DIR) {
   const paths = vendorPaths(vendorDir)
   const manifest = readVendorManifest(paths)

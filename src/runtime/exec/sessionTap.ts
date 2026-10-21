@@ -15,10 +15,10 @@ export interface SessionTap {
   subscribe(sessionId: string, listener: (event: AgentEvent) => void): () => void
   beginResponse(n: number): void
   settleResponse(outcome: LastResponse): void
-  releasedMessages(): readonly ReleasedMessage[]
+  releasedMessages(shouldIncludePartial?: boolean): readonly ReleasedMessage[]
 }
 
-export function observeBackend(backend: AcpBackend): SessionTap {
+export function observeBackend(backend: AcpBackend, modelHint?: string): SessionTap {
   const hosts = new WeakMap<AgentHost, AgentHost>()
   const sessions = new Map<string, AgentSession>()
   const items = new Map<string, { n: number; item: ItemSnapshot; isDone: boolean }>()
@@ -43,6 +43,7 @@ export function observeBackend(backend: AcpBackend): SessionTap {
       readSessionOutput: host.readSessionOutput.bind(host),
       resumeSession: host.resumeSession.bind(host),
       forkSession: host.forkSession.bind(host),
+      deleteSession: host.deleteSession.bind(host),
       onSessionListEvent: host.onSessionListEvent.bind(host),
       readUsage: host.readUsage.bind(host),
       onUsageChanged: host.onUsageChanged.bind(host),
@@ -86,7 +87,11 @@ export function observeBackend(backend: AcpBackend): SessionTap {
   return {
     backend: {
       kind: backend.kind,
-      readiness: backend.readiness.bind(backend),
+      // The exec run names its model up front, so the session gate sees the
+      // same plan-model hint as the run's own readiness check: a plan model
+      // with only its subscription sign-in opens the session, and a refusal
+      // names the plan sign-in instead of a Meta key.
+      readiness: (isRecheck) => backend.readiness(isRecheck, modelHint),
       async hostFor(cwd) {
         return wrap(await backend.hostFor(cwd))
       },
@@ -105,13 +110,13 @@ export function observeBackend(backend: AcpBackend): SessionTap {
     settleResponse(outcome) {
       outcomes.set(outcome.n, { ...outcome })
     },
-    releasedMessages() {
+    releasedMessages(shouldIncludePartial = false) {
       const released: ReleasedMessage[] = []
       for (const [itemId, entry] of items) {
         const outcome = outcomes.get(entry.n)
-        if (outcome === undefined) continue
+        if (outcome === undefined && !shouldIncludePartial) continue
         const isComplete =
-          outcome.terminal === 'completed' &&
+          outcome?.terminal === 'completed' &&
           outcome.usage !== 'invalid' &&
           outcome.transportError === null &&
           !outcome.endedWithoutTerminal &&
@@ -122,9 +127,10 @@ export function observeBackend(backend: AcpBackend): SessionTap {
         released.push({
           itemId,
           kind,
-          text: isComplete
-            ? (entry.item.text ?? entry.item.summary?.join('\n') ?? '')
-            : UI_TEXT.execMessageWithheld,
+          text:
+            isComplete || (shouldIncludePartial && kind === 'agentMessage')
+              ? (entry.item.text ?? entry.item.summary?.join('\n') ?? '')
+              : UI_TEXT.execMessageWithheld,
           complete: isComplete,
         })
       }

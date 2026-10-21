@@ -9,9 +9,9 @@ export interface TrafficSurfaceProps {
 }
 type TrafficViewProps = { mode: 'singleModel' } | (TrafficSurfaceProps & { mode: 'team' })
 /** Called once by each panel's registry, outside React render. The injected
- * loader imports the separate browser bundle; the IIFE startup build cannot
- * accidentally inline it. Single-model mode never invokes the loader.
- */
+loader imports the separate browser bundle; the IIFE startup build cannot
+accidentally inline it. Single-model mode never invokes the loader.
+*/
 export function createTrafficView(
   loadSurface: () => Promise<{ default: ComponentType<TrafficSurfaceProps> }>,
 ) {

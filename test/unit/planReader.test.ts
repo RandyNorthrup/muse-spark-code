@@ -141,21 +141,25 @@ describe('plan-format v1', () => {
       })
   })
 
-  it('refuses oversized UTF-8 plans honestly before parsing either format', () => {
-    for (const text of [
-      'x'.repeat(REPORT_PLAN_MAX_BYTES + 1),
-      'é'.repeat(REPORT_PLAN_MAX_BYTES / 2 + 1),
-    ]) {
-      const parsed = readPlan(text)
-      expect(parsed.facts.milestones).toEqual([])
-      expect(parsed.facts.drift).toEqual([
+  it('reads an oversized plan whole by default, refusing it only past a set limit', () => {
+    // D121: no limit of ours — a plan past the old 4 MiB bound still parses.
+    const big = `## 6. Milestones\n### M12 — Big\n**Status 2026-10-05: planned.**\n${'x'.repeat(REPORT_PLAN_MAX_BYTES + 1)}\n`
+    const parsed = readPlan(big)
+    expect(parsed.facts.drift).toEqual([])
+    expect(parsed.facts.milestones.map(({ id }) => id)).toEqual(['M12'])
+    // A limit the person sets still refuses honestly, naming their limit.
+    for (const text of ['x'.repeat(11), 'é'.repeat(6)]) {
+      const refused = readPlan(text, {}, 10)
+      expect(refused.facts.milestones).toEqual([])
+      expect(refused.facts.drift).toEqual([
         {
           code: 'input-size',
           line: 1,
-          detail: `maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`,
+          detail: 'maxUtf8Bytes=10',
         },
       ])
     }
+    expect(readPlan('x'.repeat(11), {}, 0).facts.drift).toEqual([])
   })
 
   it('parses ten thousand milestones within the named plan budget without per-milestone rescans', () => {
@@ -209,6 +213,27 @@ describe('plan-format v1', () => {
       expect(drift.find((entry) => entry.code === code)?.detail).not.toBe('')
     },
   )
+
+  it('keeps a preparation record beside its released record without release-duplicate drift', () => {
+    const facts = readPlan(
+      `${PLAN_FORMAT_FIXTURE}**0.14.2 preparation (2026-10-04, draft).**\nA preparation record.\n`,
+    ).facts
+    expect(facts.releases.filter((record) => record.version === '0.14.2')).toHaveLength(2)
+    expect(facts.drift.filter((entry) => entry.code === 'release-duplicate')).toEqual([])
+  })
+
+  it.each([
+    '**0.14.2 released (2026-10-06).**',
+    '**v0.14.2 (published 2026-10-06).**',
+    '**Status 2026-10-06:** v0.14.2 shipped.',
+  ])('flags equivalent definitive releases across syntax forms: %s', (record) => {
+    const input = `${PLAN_FORMAT_FIXTURE}${record}\nA second definitive release.\n`
+    const facts = readPlan(input).facts
+    expect(facts.releases.filter((entry) => entry.version === '0.14.2')).toHaveLength(2)
+    expect(facts.drift.filter((entry) => entry.code === 'release-duplicate')).toEqual([
+      { code: 'release-duplicate', line: PLAN_FORMAT_FIXTURE.split('\n').length, detail: '0.14.2' },
+    ])
+  })
 
   it('masks fenced examples, keeps CRLF locations, and preserves folded checklist text', () => {
     const input = PLAN_FORMAT_FIXTURE.replace(
@@ -465,5 +490,19 @@ describe('plan-format v1', () => {
     )
     expect(parsed.facts.releases.some(({ version }) => version === '9.9.9')).toBe(true)
     expect(nextSteps(parsed.facts)).toEqual([])
+  })
+
+  it('keeps every duplicated open-question id and flags each repeat as drift', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace(
+      '### Q-M91b — Older question form',
+      '### Q-M91b — Older question form\n- **Q-M12 — Repeated id (2026-10-06).**\n  A second body.',
+    )
+    const parsed = readPlan(input)
+    expect(parsed.facts.questions.filter(({ id }) => id === 'Q-M12')).toHaveLength(2)
+    expect(parsed.facts.drift).toContainEqual(
+      expect.objectContaining({ code: 'question-duplicate', detail: 'Q-M12' }),
+    )
+    // The fixed repository plan carries no duplicated question id.
+    expect(readPlan(repositoryPlan).facts.drift).toEqual([])
   })
 })

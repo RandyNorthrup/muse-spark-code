@@ -26,13 +26,23 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Add a model provider with an API key and pick a model.
 
-openRouterServices=absent: OpenRouter account connection and key usage are unavailable. Paste a key to use models.
+provider=openrouter: Connect your OpenRouter account and view the key’s usage, limit and remaining balance.
 
 Prices per million tokens.
 
 provider=openrouter&privacy=zdr: Only providers that retain no data are used.
 
 outputMinimum=known: Output caps below the provider’s known minimum are refused when saved and before sending. Meta requires at least 16 tokens.
+
+Each chosen model needs its context window and longest reply before saving.
+
+Enter the context window loaded on the local server. Manual values override scanned limits.
+
+--add &lt;model&gt;: Offer this model on the entry; repeat the option for more models.
+
+--remove &lt;model&gt;: Stop offering this model on the entry; repeat the option for more models.
+
+--force &lt;reason&gt;: Add a model the provider does not list; the reason is stored on the entry.
 
 ```json
 {
@@ -51,7 +61,7 @@ Generate a deterministic report from named sources, without a model call.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.showReport`. Settings: `museSpark.reports.network`, `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
+Commands: `museSpark.showReport`. Settings: `museSpark.reports.keepHistory`, `museSpark.reports.planMaxBytes`, `museSpark.reports.agentSources`, `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
 
 ### Prompt Library
 
@@ -77,9 +87,17 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#usage-and-cost)
 
+### Uploaded Files
+
+List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaUploadExpiryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+
 ### Legal Scan
 
-Scan the workspace for licensing, attribution and header findings
+Local licence scan; optional licence-review.json receipts bind a reviewed SPDX licence to its package, exact version and SHA-256, with a reason. Changed bytes or versions require review again.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -158,6 +176,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api)
 
+### museSpark.modelApiMaxToolOutputBytes
+
+conversationStart: The per-tool-result byte guard. No limit unless you set one: 0 (the default) keeps results whole within the model's window; a set value cuts a past-it result to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.modelApiMaxToolOutputBytes`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#limits)
+
 ### Share Chat…
 
 Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
@@ -172,7 +198,7 @@ Best of N Apply and stage exactly the selected preview. No commit is created; ig
 
 bestOfNAdmission: Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -256,9 +282,10 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
 
+`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used.
+
 ```json
 {
-  "maxAttachments": 20,
   "textExtensions": [
     ".txt",
     ".md",
@@ -282,11 +309,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
     ".sh"
   ],
   "textSources": "trustedIndexedWorkspacePaths",
-  "modelApiTextAllowanceBytes": 786432,
-  "imageBytes": 10485760,
-  "pdfBytes": 32000000,
-  "textBytes": 1048576,
-  "encodedMediaChars": 48000000,
+  "modelApiTextAllowanceTokens": 786432,
   "requestMedia": 50,
   "vision": "modelCapability",
   "museCodeMessageBytes": 10485760,
@@ -298,7 +321,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.attachScreenRecording`, `museSpark.attachLatestScreenRecording`, `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaMaxUploadMiB`, `museSpark.mediaUploadExpiryDays`, `museSpark.screenRecordingMaxSeconds`, `museSpark.mediaAudioAction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+Commands: `museSpark.attachScreenRecording`, `museSpark.attachLatestScreenRecording`, `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaMaxUploadMiB`, `museSpark.mediaUploadExpiryDays`, `museSpark.screenRecordingMaxSeconds`, `museSpark.mediaAudioAction`, `museSpark.mediaConverterPath`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
 ### museSpark.modelApiStrictTools
 
@@ -316,6 +339,73 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### museSpark.modelApiMaxRetries
+
+Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.
+
+Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.modelApiMaxRetries`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
+### Automatic compaction
+
+conversationStart&modelPricing: On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The ACP agent asks once through the editor permission request and stays off where the client cannot ask; headless exec runs it only with --auto-compaction under --max-budget-usd.
+
+conversationStart&modelPricing: On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The ACP agent asks once through the editor permission request and stays off where the client cannot ask; headless exec runs it only with --auto-compaction under --max-budget-usd.
+
+```json
+{
+  "paidFeature": "autoCompaction",
+  "paidSettings": ["museSpark.modelApiAutoCompaction"],
+  "configuredDefaults": {
+    "museSpark.modelApiAutoCompaction": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
+  },
+  "pricesUsd": {
+    "webSearchPerThousand": "2.5",
+    "imageGeneration": "0.01",
+    "voicePerHour": "0.18"
+  },
+  "tokenRatesPerMillion": {
+    "standard": {
+      "input": "1.25",
+      "cachedInput": "0.15",
+      "output": "4.25"
+    },
+    "contributor": {
+      "input": "0.1",
+      "cachedInput": "0.002",
+      "output": "0.2"
+    }
+  },
+  "billing": "storedModelApiKey",
+  "effectiveAvailability": {
+    "vscode:modelApi": {
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
+      "key": "SecretStorage",
+      "consent": "window",
+      "ledger": "paidDailyBudgetUsd"
+    },
+    "acp:modelApi": {
+      "configuredDefault": false,
+      "flag": "auto-compaction",
+      "consent": "editorPermission",
+      "ledger": "runtime:paidDailyBudgetUsd"
+    }
+  }
+}
+```
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: yes; consent required; admission depends on the surface.
+
+Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### Argument Preview
 
 Show validated, scrubbed tool arguments as they arrive, before the tool runs.
@@ -332,11 +422,13 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
-### The structured answer was invalid. Retrying once…
+### The structured answer was not valid. Repairing it again (repair {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -349,6 +441,14 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 Validate the final answer against a bounded JSON schema file (Model API only).
 
 Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#headless-runs)
+
+### --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.
+
+--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#headless-runs)
 
@@ -376,7 +476,7 @@ Choose how much effort Muse puts into each reply.
 {
   "default": "high",
   "tiers": {
-    "muse-spark-1.3": ["minimal", "low", "medium", "high", "xhigh", "max"],
+    "muse-spark-1.3": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
     "muse-spark-1.2": ["minimal", "low", "medium", "high", "xhigh"]
   },
   "thinkingOff": {
@@ -394,7 +494,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Define custom agents in project or personal AGENT.md files. Select an agent or ask for explore or second-opinion; tool allowlists narrow its abilities. Model API child tasks require paid subagent consent.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -412,6 +512,8 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 ### Conversation
 
 turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
+
+No round count of ours ends a Model API turn: it runs until the model answers without a tool call, you press Stop, a hook stops it, the provider refuses it, or a limit you set is spent. A caller allowance still bounds its run: exec --max-requests, or a best-of-N attempt ceiling. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a capped turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.
 
 Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).
 
@@ -468,9 +570,9 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Submit
 
-Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
+Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (no limit unless you set one; 0, the default, waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
 
-Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
+Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (no limit unless you set one; 0, the default, waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer &lt;n&gt; &lt;text&gt; answers one.
 
 ```json
 {
@@ -499,7 +601,9 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+
+help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
 
 ```json
 {
@@ -511,6 +615,7 @@ Installed skills add dynamic slash commands. This static reference does not list
     "session/resume",
     "session/list",
     "session/close",
+    "session/delete",
     "session/set_mode",
     "session/set_config_option",
     "session/prompt",
@@ -520,6 +625,7 @@ Installed skills add dynamic slash commands. This static reference does not list
   "configOptions": {
     "model": "model",
     "effort": "effort",
+    "fast": "fast",
     "account": "account"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
@@ -544,6 +650,14 @@ Installed skills add dynamic slash commands. This static reference does not list
 Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#help-and-reference)
+
+### Other CI systems
+
+system: Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; every template uploads those files. GitLab/Bitbucket external-temp copies and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.
+
+Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#other-ci-systems)
 
 ### Web Fetch
 
@@ -614,18 +728,18 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Record Voice
 
-platform&localWindow: Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.
+platform&localWindow: Free dictation uses the OS engine on Windows and macOS. Local Linux x64/arm64 uses offline English Whisper tiny.en after consent to download its model; linuxDictationModel=false removes it. Remote workspace hosts cannot hear the local microphone.
 
 ```json
 {
-  "platforms": ["win32", "darwin"],
+  "platforms": ["win32", "darwin", "linux"],
   "remote": false
 }
 ```
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
+Commands: —. Settings: `museSpark.linuxDictationModel`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
 
 ### Conversation
 
@@ -695,6 +809,14 @@ Pick a previous conversation in this workspace.
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.archiveInactiveSessions`, `museSpark.cleanupPeriodDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+
+### Safer Windows paths
+
+On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#safer-windows-paths)
 
 ### Mention File From This Project…
 
@@ -778,19 +900,21 @@ Inspect project, user, managed and spark-hooks.json hook sources for the selecte
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `museSpark.retryPluginHooks`. Settings: `museSpark.modelApiHooks`, `museSpark.hookHttpAllowedHosts`, `museSpark.modelApiShellKeepsDirectory`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#hooks)
+Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `museSpark.retryPluginHooks`. Settings: `museSpark.modelApiHooks`, `museSpark.hookHttpAllowedHosts`, `museSpark.modelApiShellKeepsDirectory`, `museSpark.hooksMaxStopContinuations`, `museSpark.hooksMaxRunningCommands`, `museSpark.pluginHookTimeoutSeconds`, `museSpark.pluginChildMaxMemoryMiB`, `museSpark.pluginAnswerMaxBytes`, `museSpark.pluginMaxFailures`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#hooks)
 
 ### Git and Pull Requests
 
 A new branch in its own folder and window; this checkout is untouched.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.newWorktree`, `museSpark.removeWorktree`, `museSpark.openPullRequestInConversation`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)
+Commands: `museSpark.newWorktree`, `museSpark.removeWorktree`, `museSpark.openPullRequestInConversation`. Settings: `museSpark.github.useGhLogin`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)
 
 ### Background Tasks
 
@@ -824,6 +948,14 @@ Ask Muse to review your changes, or what you describe.
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#review)
+
+### /playback
+
+Muse states its own understanding of the goal, from memory only, with no tools
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#playback)
 
 ### Plans…
 
@@ -892,7 +1024,6 @@ workspaceTrust: The page loads in a fresh private browser profile that is delete
 ```json
 {
   "actions": ["click", "type"],
-  "maxActions": 8,
   "results": ["consoleErrors", "failedRequests"],
   "screenshot": {
     "modelApi": "PNG",
@@ -907,17 +1038,21 @@ Commands: `museSpark.downloadBrowserCheckRuntime`. Settings: `museSpark.browserC
 
 ### Muse Voice
 
-backend&localWindow&voiceAdmission: Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.
+backend&localWindow&voiceAdmission: Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget before connecting. A set conversation cap refuses microphone recordings; attached audio is transcribed only when its bounded cost still fits the cap. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
-  "modelApi": "unavailable",
-  "museCode": ["local", "storedModelApiKey", "explicitOptIn"],
+  "modelApi": ["local", "storedModelApiKey", "boundedBudgetAdmission"],
+  "museCode": ["local", "storedModelApiKey", "explicitOptIn", "boundedBudgetAdmission"],
   "platforms": ["win32", "darwin", "linux"],
   "remote": false,
   "linuxRecorders": ["arecord", "parec"],
+  "maximumRecordingSeconds": 180,
+  "frameMs": 80,
+  "reservedMs": 180080,
+  "settlement": "finalAudioProcessedMsWholeSeconds",
   "paidFeature": "voice",
   "paidSettings": ["museSpark.modelApiVoice"],
   "configuredDefaults": {
@@ -952,20 +1087,29 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "explicitOptIn": true,
       "consent": "use",
       "ledger": false
+    },
+    "vscode:modelApi": {
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
+      "key": "SecretStorage",
+      "consent": "use",
+      "ledger": "paidDailyBudgetUsd"
     }
   }
 }
 ```
 
-Surfaces: vscode:museCode. Paid: yes; consent required; admission depends on the surface.
+Surfaces: vscode:museCode, vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.dictationEngine`, `museSpark.modelApiVoice`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
+Commands: —. Settings: `museSpark.dictationEngine`, `museSpark.modelApiVoice`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
 
 ### Web Search
 
 Turn paid web search on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -1024,7 +1168,7 @@ Commands: —. Settings: `museSpark.modelApiWebSearch`, `museSpark.webSearchMaxP
 
 Turn paid image generation on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -1090,9 +1234,13 @@ Commands: —. Settings: `museSpark.modelApiImageGeneration`. [Documentation](ht
 
 Schedule a prompt in this Model API conversation.
 
-Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
+scheduleDeliveryCertified=false: The v2 schedule editor, list and timeline manage durable records. Automatic VS Code v2 prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
+
+scheduleDeliveryCertified=false: Automatic delivery is disabled; the running editor neither asks for v2 schedule consent nor reserves its paid caps. The candidate billing port binds consent to payer kind, model, key, verified tariff and shared daily budget; changing any requires renewal. Allow once covers one fire; Allow always covers this schedule.
 
 Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
+
+Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
 
 ```json
 {
@@ -1145,13 +1293,23 @@ Scheduled turns support text and image inputs; video and audio inputs are unsupp
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`, `museSpark.schedulePauseAfterFailures`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+
+### Runtime schedules
+
+Schedule unattended Muse Code prompts in ACP or the terminal
+
+scheduleDeliveryCertified=false: Automatic v2 delivery in VS Code, ACP and the terminal is disabled pending certification. The candidate runs unattended Muse Code prompts with standing grants, persistent fire records and background conversation targets.
+
+Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery)
 
 ### /agents
 
 Turn paid subagents on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -1198,13 +1356,13 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiSubagents`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#session-board-and-best-of-n)
+Commands: —. Settings: `museSpark.modelApiSubagents`, `museSpark.subagentMaxConcurrent`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#session-board-and-best-of-n)
 
 ### Permission Mode
 
 Turn the paid Auto reviewer on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -1318,11 +1476,11 @@ Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`. [Documentatio
 
 Shared daily budget for interactive paid extras: USD.
 
-Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.
+Shared daily budget: museSpark.paidDailyBudgetUsd, a limit you set (none by default); a session limit you set also applies. Tab has its own separate budget. Nothing is held for a request in flight: a request without reported usage counts as cost unknown, never as its estimate. A response can cost more than its estimate; the next request is then stopped.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
+Commands: —. Settings: `museSpark.paidDailyBudgetUsd`, `museSpark.modelApiSessionBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
 
 ### Tab Menu
 
@@ -1333,7 +1491,7 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
   "trigger": "onInvoke",
   "key": "SecretStorage",
   "ledger": "tabDailyBudgetUsd",
-  "budgetUsd": 1,
+  "budgetUsd": 0,
   "rates": {
     "standard": {
       "input": "1.25",
@@ -1402,7 +1560,9 @@ Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, 
 
 Turn paid Judge advice on or off.
 
-The structured answer was invalid. Retrying once…
+The structured answer was not valid. Repairing it again (repair {count})…
+
+The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
@@ -1491,13 +1651,21 @@ Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116)
 
+### MCP connector for other agents
+
+Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.
+
+Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#mcp-connector-for-other-agents-m124)
+
 ### Support
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
-Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProblem`, `museSpark.openWalkthrough`, `museSpark.showWhatsNew`, `museSpark.openHelp`. Settings: `museSpark.showWhatsNewOnUpdate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#help-and-reference)
 
@@ -1510,6 +1678,8 @@ Availability depends on the backend. Installed skills also add their own slash c
 - `/push`: museCode: Push this branch; always asks, never forces; modelApi: Push this branch; always asks, never forces
 - `/pr`: museCode: On GitHub, as a draft or ready, linked to this conversation; modelApi: On GitHub, as a draft or ready, linked to this conversation
 - `/checkout-pr`: museCode: Check a pull request out in its own worktree and window; modelApi: Check a pull request out in its own worktree and window
+- `/github-login`: museCode: Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store; modelApi: Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store
+- `/github-logout`: museCode: Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it; modelApi: Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it
 - `/model`: museCode: Switch Model…; modelApi: Switch Model…
 - `/permissions`: museCode: Permission Mode; modelApi: Permission Mode
 - `/mcp`: museCode: What Muse Code connects to; sign in to a server; modelApi: The servers in Muse Code’s settings, run by this window
@@ -1522,6 +1692,7 @@ Availability depends on the backend. Installed skills also add their own slash c
 - `/compact`: museCode: Summarise older context to free the window; modelApi: Summarise older context to free the window
 - `/handoff [goal]`: museCode: Distil this conversation into a brief for a fresh one; modelApi: Distil this conversation into a brief for a fresh one
 - `/goal <objective>` | `/goal edit <objective>` | `/goal pause` | `/goal resume` | `/goal clear`: museCode: Set a goal Muse keeps working toward: /goal &lt;objective&gt;; modelApi: Set a goal Muse keeps working toward: /goal &lt;objective&gt;
+- `/playback`: museCode: Muse states its own understanding of the goal, from memory only, with no tools; modelApi: Muse states its own understanding of the goal, from memory only, with no tools
 - `/legal [workspace-relative path ...]`: museCode: Scan the workspace for licensing, attribution and header findings; modelApi: Scan the workspace for licensing, attribution and header findings
 - `/export`: museCode: Save this conversation as a Markdown file; modelApi: Save this conversation as a Markdown file
 - `/clear`: museCode: Clear Conversation; modelApi: Clear Conversation
@@ -1827,7 +1998,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Delete Uploaded Files…
 
-`museSpark.deleteUploadedFiles` — List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
+`museSpark.deleteUploadedFiles` — List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
 
@@ -2154,7 +2325,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.modelApiVoice
 
-voiceAdmission: Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+voiceAdmission: Muse Voice sends recordings to Meta, billed to your Model API key at $0.18 per hour of audio, on either backend. Recordings stop at three minutes and reserve the daily budget before connecting. A set conversation cap refuses microphone recordings; attached audio is transcribed only when its bounded cost still fits the cap. Allow once covers this window; Always covers this workspace until revoked. The provider’s bill cannot be read back.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2197,7 +2368,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.schedules
 
-scheduleRuntime=unbound&backend=museCode: Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.
+scheduleDeliveryCertified=true: Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2210,7 +2381,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.scheduleDefaultDelivery
 
-Selects the delivery written into new schedule drafts; it does not enable scheduled execution.
+scheduleDeliveryCertified=true: Selects the delivery written into new schedule drafts; it does not enable scheduled execution.
 
 Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 
@@ -2228,9 +2399,23 @@ Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 - `"whenIdle"`:
 - `"newConversation"`:
 
+### museSpark.schedulePauseAfterFailures
+
+scheduleDeliveryCertified=true: How many consecutive failures pause a schedule. No pause unless you set one: 0 (the default) never pauses a schedule on failures, and every failure is still recorded in its run history.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
 ### museSpark.modelApiSubagents
 
-Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+Paid child agents: a task runs until done or stopped, billed per request. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2264,6 +2449,104 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 {
   "type": "boolean",
   "default": true
+}
+```
+
+### museSpark.hooksMaxStopContinuations
+
+hooks: How many times in a row Stop hooks may keep a finished turn going. No limit unless you set one: 0 (the default) keeps going until the turn ends on its own; a set number of times is honoured as set.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.hooksMaxRunningCommands
+
+hooks: How many hook commands run at once (minimum 0). 0 starts them all at once, as Muse Code does.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.subagentMaxConcurrent
+
+sessionBoard&subagents: How many subagents work at once. No limit unless you set one: 0 (the default) starts every subagent at once, and a set number is honoured as set. Later ones queue.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.pluginHookTimeoutSeconds
+
+hooks: How long a plugin hook waits for its child, in seconds. No wait bound unless you set one: 0 (the default) waits for the child's answer or Stop, and the wait says how long it has waited.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.pluginChildMaxMemoryMiB
+
+hooks: How much memory a plugin child may use, in MiB. No memory bound unless you set one: 0 (the default) is the runtime's own default.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.pluginAnswerMaxBytes
+
+hooks: How large a plugin answer may be, in bytes. No answer bound unless you set one: 0 (the default) reads answers whole.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.pluginMaxFailures
+
+hooks: How many Windows job-launcher failures set plugin hooks aside until Retry Plugin Hooks. No latch unless you set one: 0 (the default) keeps trying.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
 }
 ```
 
@@ -2333,7 +2616,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 {
   "type": "array",
   "default": [],
-  "maxItems": 8,
   "items": {
     "type": "object",
     "required": ["name", "command"],
@@ -2361,7 +2643,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
       "timeoutSeconds": {
         "type": "integer",
         "minimum": 1,
-        "maximum": 600,
         "default": 300,
         "description": "Seconds before the command is stopped (300 unless set).",
         "descriptionKey": "config.checkCommands.timeoutSeconds.description"
@@ -2415,7 +2696,7 @@ Type: `"boolean"`. Default: `true`. Scope: `window`.
 
 ### museSpark.modelApiSessionBudgetUsd
 
-sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.
+sessionBudget: Spending limit in US dollars that you set for each Model API conversation; 0 (the default) means none, and then nothing is checked before a request. With a limit, the conversation keeps a running total from the usage each call reports, saved with the conversation; a request whose estimate would pass what is left is not sent, and nothing is held for a request in flight. A response that ended without its usage counts as cost unknown, never as its estimate, and input estimates may differ from billed usage. Web search is unavailable while a limit is set because its billed query count has no verified bound, and automatic retries after ambiguous failures are refused. Separate paid consent still applies. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it. Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget before connecting. A set conversation cap refuses microphone recordings; attached audio is transcribed only when its bounded cost still fits the cap. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -2450,6 +2731,19 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 {
   "type": "boolean",
   "default": true
+}
+```
+
+### museSpark.modelApiMaxToolOutputBytes
+
+conversationStart: The per-tool-result byte guard. No limit unless you set one: 0 (the default) keeps results whole within the model's window; a set value cuts a past-it result to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.
+
+Type: `"integer"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 0
 }
 ```
 
@@ -2502,7 +2796,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 {
   "type": "array",
   "default": [],
-  "maxItems": 500,
   "items": {
     "type": "object",
     "required": ["pattern", "decision", "match"],
@@ -2715,8 +3008,7 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
   "default": [],
   "items": {
     "type": "string"
-  },
-  "maxItems": 32
+  }
 }
 ```
 
@@ -2744,20 +3036,19 @@ Type: `"string"`. Default: `"ask"`. Scope: `machine`.
 
 Shared daily budget for interactive paid extras: USD.
 
-Type: `"number"`. Default: `5`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "default": 5,
-  "minimum": 0.5,
-  "maximum": 500
+  "default": 0,
+  "minimum": 0
 }
 ```
 
 ### museSpark.dictationEngine
 
-Dictation engine on Model API. Free OS recognizer is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.
+Dictation engine on Model API. Free dictation is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.
 
 Type: `"string"`. Default: `"system"`. Scope: `machine`.
 
@@ -2775,7 +3066,7 @@ Type: `"string"`. Default: `"system"`. Scope: `machine`.
 ### museSpark.modelApiTab
 
 Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Optional daily budget in US dollars for Tab completion requests across every window on this machine (museSpark.tabDailyBudgetUsd, 0 is no budget); a set budget refuses a request whose worst case would pass it.
 Allow once / Allow always in this workspace.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
@@ -2806,16 +3097,15 @@ Type: `"string"`. Default: `"muse-spark-1.3"`. Scope: `machine`.
 
 ### museSpark.tabDailyBudgetUsd
 
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Daily budget in US dollars for Tab completion requests across every window on this machine; 0 is no budget. A set budget refuses a request whose worst case would pass it. A set budget starts at $0.05, with no maximum.
 
-Type: `"number"`. Default: `1`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "minimum": 0.05,
-  "maximum": 50,
-  "default": 1
+  "minimum": 0,
+  "default": 0
 }
 ```
 
@@ -2941,46 +3231,40 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.resourceCpuMaxPercent
 
-resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds.
+resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.
 
-Type: `"number"`. Default: `85`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 85,
-  "minimum": 30,
-  "maximum": 100
+  "type": ["number", "null"],
+  "default": null
 }
 ```
 
 ### museSpark.resourceMemoryMaxPercent
 
-resourceThreshold&memoryHeadroom=available: Throttle when memory in use stays above this percentage for two samples.
+resourceThreshold&memoryHeadroom=available: Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.
 
-Type: `"number"`. Default: `90`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 90,
-  "minimum": 40,
-  "maximum": 98
+  "type": ["number", "null"],
+  "default": null
 }
 ```
 
 ### museSpark.resourceMemoryMinFreeGiB
 
-memoryHeadroom=available: Minimum available memory in GiB, capped at 15% of this machine’s RAM.
+memoryHeadroom=available: Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.
 
-Type: `"number"`. Default: `2`. Scope: `machine`.
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "number",
-  "default": 2,
-  "minimum": 0.5,
-  "maximum": 64
+  "type": ["number", "null"],
+  "default": null
 }
 ```
 
@@ -3016,15 +3300,14 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ### museSpark.resourceDiskMinFreeGiB
 
-resourceDiskThreshold: Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.
+resourceDiskThreshold: Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.
 
 Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
   "type": ["number", "null"],
-  "default": null,
-  "minimum": 2
+  "default": null
 }
 ```
 
@@ -3048,16 +3331,15 @@ Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 
 ### museSpark.questions.deferAfterSeconds
 
-Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
+Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; any other whole number of seconds is used as you set it. The question stays open and can be answered later. Only this machine’s setting is used.
 
-Type: `"integer"`. Default: `60`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 60,
-  "minimum": 0,
-  "maximum": 3600
+  "default": 0,
+  "minimum": 0
 }
 ```
 
@@ -3076,7 +3358,7 @@ Type: `"string"`. Default: `""`. Scope: `window`.
 
 ### museSpark.modelApiAutoCompaction
 
-conversationStart&modelPricing: Shows the first-turn notice that automatic compaction is awaiting evaluation. Automatic compaction remains inactive; turning this off hides the notice.
+conversationStart&modelPricing: On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The ACP agent asks once through the editor permission request and stays off where the client cannot ask; headless exec runs it only with --auto-compaction under --max-budget-usd.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -3115,16 +3397,29 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.webSearchMaxPerRequest
 
-conversationStart&hosted.webSearch: Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge.
+conversationStart&hosted.webSearch: Maximum hosted web searches per response. No limit unless you set one: 0 (the default) sends no max and the provider decides; a set number is honoured as set. The price and shared daily budget are shown before the first charge.
 
-Type: `"number"`. Default: `5`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "default": 5,
-  "minimum": 1,
-  "maximum": 20
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.modelApiMaxRetries
+
+Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.
+
+Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["integer", "null"],
+  "default": null,
+  "minimum": 0
 }
 ```
 
@@ -3143,16 +3438,14 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.usageHistoryDays
 
-Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.
+Days to keep daily usage summaries. Unset keeps them until you set a number of days or clear them; a whole number of days of 1 or more is honoured as set. Per-call detail is kept for 30 days.
 
-Type: `"integer"`. Default: `365`. Scope: `machine`.
+Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
 
 ```json
 {
-  "type": "integer",
-  "default": 365,
-  "minimum": 30,
-  "maximum": 1825
+  "type": ["integer", "null"],
+  "default": null
 }
 ```
 
@@ -3213,24 +3506,6 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 }
 ```
 
-### museSpark.reports.network
-
-reportsNetwork&githubSignIn: Choose when reports may read GitHub. Terminal reports use the network only with --network.
-
-Type: `"string"`. Default: `"whenSignedIn"`. Scope: `machine`.
-
-```json
-{
-  "type": "string",
-  "enum": ["whenSignedIn", "always", "off"],
-  "default": "whenSignedIn"
-}
-```
-
-- `"whenSignedIn"`: reportsNetwork&githubSignIn: Read GitHub while signed in to GitHub.
-- `"always"`: Allow network sources for reports.
-- `"off"`: Read local sources only.
-
 ### museSpark.reports.keepHistory
 
 Keep the newest 50 reports per kind on this machine for history and comparison.
@@ -3262,24 +3537,37 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 }
 ```
 
-### museSpark.mediaMaxUploadMiB
+### museSpark.reports.planMaxBytes
 
-Largest media file the extension opens for attach or recording, in MiB. 200 by default; maximum 1,024. Larger files are refused before any read. Only this machine’s setting is used.
+Largest plan file reports read, in bytes. No limit unless you set one: 0 (the default) reads the whole plan however large, and a plan past a set value is refused with input-size drift naming your limit. Only this machine's setting is used.
 
-Type: `"integer"`. Default: `200`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 200,
-  "minimum": 1,
-  "maximum": 1024
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.mediaMaxUploadMiB
+
+Largest media file the extension opens for attach or recording, in MiB. No limit unless you set one: 0 (the default) opens any size, and a set value has no maximum. A file past a set value is refused before any read. Only this machine’s setting is used.
+
+Type: `"integer"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0
 }
 ```
 
 ### museSpark.mediaUploadExpiryDays
 
-Days a provider upload stays listed before cleanup is offered. 7 by default; 1–30. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.
+Days a provider upload stays listed before cleanup is offered. 7 by default; a whole number of days of 1 or more is honoured as set. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.
 
 Type: `"integer"`. Default: `7`. Scope: `machine`.
 
@@ -3287,23 +3575,21 @@ Type: `"integer"`. Default: `7`. Scope: `machine`.
 {
   "type": "integer",
   "default": 7,
-  "minimum": 1,
-  "maximum": 30
+  "minimum": 1
 }
 ```
 
 ### museSpark.screenRecordingMaxSeconds
 
-Longest screen recording the extension captures, in seconds. 120 by default; 10–600. The recorder stops at the limit and keeps what it captured. Only this machine’s setting is used.
+Longest screen recording the extension captures, in seconds. No limit unless you set one: 0 (the default) records until stopped, and any other whole number of seconds is used as set. The recorder stops at a set limit and keeps what it captured. Only this machine’s setting is used.
 
-Type: `"integer"`. Default: `120`. Scope: `machine`.
+Type: `"integer"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "integer",
-  "default": 120,
-  "minimum": 10,
-  "maximum": 600
+  "default": 0,
+  "minimum": 0
 }
 ```
 
@@ -3324,9 +3610,49 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 - `"transcribe"`:
 - `"sendAudio"`:
 
+### museSpark.mediaConverterPath
+
+Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": "",
+  "maxLength": 4096
+}
+```
+
+### museSpark.github.useGhLogin
+
+Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
+
 ### museSpark.vault.agentFence
 
 shellOrigin=interactive&agentFence: Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.linuxDictationModel
+
+Enable free offline English dictation on local Linux x64/arm64. First use asks before downloading the 74 MiB model. Turning this off stops dictation and removes the model and partial download; turn it on and reload the window to enable it again. Windows/macOS are unchanged.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -3382,17 +3708,22 @@ These are defaults; editor customizations take precedence.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers connect openrouter`: Connect your OpenRouter account and view the key’s usage, limit and remaining balance.
+- `providers usage <id>`: API Key Usage
 - `providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]`: Add a model provider with an API key and pick a model.
 - `providers test <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers remove <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
-- `providers add|remove|status chatgpt`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `help <command>`: help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
+- `providers add|remove|status chatgpt [--new-account]`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `[options]`: muse-spark-code-acp [options] Serve the Agent Client Protocol on stdin and stdout
 - `login`: Runs Muse Code’s own sign-in in a terminal. Your Muse subscription pays for the conversations.
 - `auth set`: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations.
-- `auth status`: Check whether a Model API key is stored.
+- `auth status`: List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.
 - `auth clear`: Remove the stored Model API key.
+- `auth github login|logout|status`: Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.
 - `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
-- `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
+- `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
 - `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
 - `developer`: Show or unlock machine-local developer options. Profile operations require a connected resource owner.
@@ -3421,9 +3752,10 @@ These are defaults; editor customizations take precedence.
   muse-spark-code-acp report history
   muse-spark-code-acp report problem
 
+- `playbook [status|record|settings]`: Use `playbook status|record|settings`.
 - `fonts install [--from <directory>]`: Usage: muse-spark-code-acp fonts install [--from &lt;directory&gt;]
-- `help --all`: Commands, settings and features, with descriptions and documentation.
-- `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
+- `help reference / help --all`: Commands, settings and features, with descriptions and documentation.
+- `help / --help / -h`: help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
 - `share chat SESSION_ID [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt`: Prompts are stored as plain text. Do not save passwords or keys.
 - `prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`: Prompt Library
@@ -3432,6 +3764,7 @@ These are defaults; editor customizations take precedence.
 - `/agents [receipt|continue|retry] [ID]`: Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.
 - `/prompt save|list|use|share`: Review Variables and Insert
 - `/share chat [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+- `/whatsnew`: Open this version’s release highlights and full notes.
 - `resources [status|history|resume] [--json]; usage resources [--json]`: Keep this machine responsive by slowing or deferring work started by the harness. On by default.
 - `--version / -v`: Print the installed agent version.
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
@@ -3439,9 +3772,14 @@ These are defaults; editor customizations take precedence.
 - `providersAdd: --address <value>`: --address: Address `{"type":"string","repeatable":false}`
 - `providersAdd: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"enum":["chat","responses","anthropic"],"preset":"custom"}`
 - `providersAdd: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true}`
+- `providersAdd: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false}`
 - `providersAdd: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"preset":"openrouter"}`
 - `providersAdd: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"consent":"privateNetwork","default":false}`
 - `providersAdd: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
+- `providersModels: --add <value>`: --add &lt;model&gt;: Offer this model on the entry; repeat the option for more models. `{"type":"string","repeatable":true}`
+- `providersModels: --remove <value>`: --remove &lt;model&gt;: Stop offering this model on the entry; repeat the option for more models. `{"type":"string","repeatable":true}`
+- `providersModels: --force <value>`: --force &lt;reason&gt;: Add a model the provider does not list; the reason is stored on the entry. `{"type":"string","repeatable":false}`
+- `providersModels: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `usage: --range <value>`: --range today|7d|30d|90d|custom: Range `{"type":"string","repeatable":false,"enum":["today","7d","30d","90d","custom"],"default":"30d"}`
 - `usage: --by <value>`: --by provider|model|kind|client: Group by `{"type":"string","repeatable":false,"enum":["provider","model","kind","client"]}`
 - `usage: --from <value>`: --from &lt;value&gt;: From `{"type":"string","repeatable":false,"format":"YYYY-MM-DD"}`
@@ -3461,46 +3799,52 @@ These are defaults; editor customizations take precedence.
 - `serve: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `serve: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `serve: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `serve: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false}`
 - `serve: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `serve: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `serve: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `serve: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on"}`
 - `serve: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode"}`
+- `serve: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"disableAutoCompaction","effective":"evaluationPending","default":false}`
 - `serve: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false}`
 - `serve: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false}`
 - `serve: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto"}`
 - `serve: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
+- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD"}`
+- `serve: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD"}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --as <value>`: --as: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `login: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `login: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `login: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `login: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `login: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `login: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `login: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `login: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
 - `login: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false}`
 - `login: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `login: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `login: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -3508,22 +3852,25 @@ These are defaults; editor customizations take precedence.
 - `setup: --address <value>`: --address: Address `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"purpose":"acceptedUnused"}`
+- `setup: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"purpose":"acceptedUnused"}`
 - `setup: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"consent":"privateNetwork","default":false,"purpose":"acceptedUnused"}`
 - `setup: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `setup: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `setup: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
 - `setup: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","repeatable":false,"default":false,"event":"maintenance"}`
 - `setup: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `setup: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `setup: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3531,12 +3878,14 @@ These are defaults; editor customizations take precedence.
 - `authSet: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `authSet: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `authSet: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `authSet: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `authSet: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `authSet: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `authSet: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `authSet: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false}`
 - `authSet: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authSet: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
 - `authSet: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
@@ -3544,11 +3893,12 @@ These are defaults; editor customizations take precedence.
 - `authSet: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `authSet: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authSet: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3556,23 +3906,26 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `authStatus: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `authStatus: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `authStatus: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `authStatus: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `authStatus: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `authStatus: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `authStatus: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false}`
 - `authStatus: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authStatus: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
 - `authStatus: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `authStatus: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authStatus: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3580,27 +3933,31 @@ These are defaults; editor customizations take precedence.
 - `authClear: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `authClear: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `authClear: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `authClear: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `authClear: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `authClear: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `authClear: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `authClear: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false}`
 - `authClear: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authClear: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
 - `authClear: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `authClear: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authClear: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false,"purpose":"provider"}`
 - `exec: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"backend"}`
+- `exec: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"no-auto-compaction","effective":"evaluationPending","default":false}`
 - `exec: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false,"purpose":"cwd"}`
 - `exec: --prompt-file <value>`: Read the prompt from this file. `{"type":"string","repeatable":false,"maximumBytes":262144,"purpose":"prompt"}`
 - `exec: --output-schema <value>`: Validate the final answer against a bounded JSON schema file (Model API only). `{"type":"string","repeatable":false,"purpose":"output-schema"}`
@@ -3611,27 +3968,33 @@ These are defaults; editor customizations take precedence.
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
-- `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
+- `exec: --account-pool`: --account-pool Request account pooling. Requires a bound resource owner; excludes key-stdin in CI. `{"type":"boolean","repeatable":false,"default":false,"purpose":"account-pool"}`
+- `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max","ultra","none"],"purpose":"effort"}`
+- `exec: --fast`: --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance. `{"type":"boolean","repeatable":false,"default":false,"purpose":"fast"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
-- `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
-- `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
-- `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
+- `exec: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
+- `exec: --max-requests <value>`: Set the maximum number of model requests; without it, there is no request limit. `{"type":"string","repeatable":false,"minimum":1,"purpose":"maxRequests"}`
+- `exec: --max-tool-output-bytes <value>`: Raise the per-tool-result byte guard for this run. `{"type":"string","repeatable":false,"purpose":"max-tool-output-bytes"}`
+- `exec: --max-output-tokens <value>`: Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it. `{"type":"string","repeatable":false,"minimum":1,"maximum":32768,"unit":"tokens","purpose":"max-output-tokens"}`
+- `exec: --timeout <value>`: Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own. `{"type":"string","repeatable":false,"minimum":1,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`
 - `exec: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"allow-contributor-models"}`
 - `exec: --image-generation`: Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused. `{"type":"boolean","repeatable":false,"default":false,"purpose":"paidFeatures:imageGeneration"}`
+- `exec: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"purpose":"auto-compaction"}`
 - `exec: --fail-on-denial`: permission=denied: Stop the run when a permission request is denied. `{"type":"boolean","repeatable":false,"default":false,"purpose":"failOnDenial"}`
 - `exec: --ephemeral`: Keep the session in memory without saving it. `{"type":"boolean","repeatable":false,"default":false,"purpose":"ephemeral"}`
 - `exec: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false,"purpose":"keyFromStdin"}`
 - `exec: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"verbose"}`
-- `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"trust-workspace"}`
-- `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"allow-dangerously-skip-permissions"}`
-- `exec: --web-search`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"web-search"}`
+- `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"trust-workspace"}`
+- `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"allow-dangerously-skip-permissions"}`
+- `exec: --web-search`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"web-search"}`
 - `exec: --resource-governor <value>`: --resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default. `{"type":"string","repeatable":false,"purpose":"resource-governor"}`
 - `exec: --cpu-max <value>`: resourceThreshold: --cpu-max &lt;percent&gt;: Throttle when CPU stays above this percentage for 30 seconds. `{"type":"string","repeatable":false,"purpose":"cpu-max"}`
 - `exec: --memory-max <value>`: resourceThreshold: --memory-max &lt;percent&gt;: Throttle when used memory stays above this percentage for two samples. `{"type":"string","repeatable":false,"purpose":"memory-max"}`
 - `exec: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false,"purpose":"help"}`
 - `scan-secrets: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
+- `scan-secrets: --timeout <value>`: Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own. `{"type":"string","repeatable":false,"minimum":1,"maximum":2147483,"unit":"seconds"}`
 - `scan-secrets: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --out <value>`: --out &lt;file&gt; Write the report to a file instead of stdout `{"type":"string","repeatable":false}`
 - `report: --description <value>`: --description &lt;text&gt; What was happening, in your own words `{"type":"string","repeatable":false}`
@@ -3642,8 +4005,32 @@ These are defaults; editor customizations take precedence.
 - `resources: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `fontsInstall: --from <value>`: --from &lt;value&gt;: From `{"type":"string","repeatable":false,"format":"YYYY-MM-DD"}`
 - `fontsInstall: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
-- `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
-- `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
+- `share: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false}`
+- `share: --json`: --json: Print the machine-readable result instead of the human preview. `{"type":"boolean","repeatable":false,"output":"json","default":false}`
+- `share: --mode <value>`: --mode full|conversation: Share the full session or the conversation only. `{"type":"string","repeatable":false}`
+- `share: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false}`
+- `share: --destination <value>`: --destination copy|file|browser: Copy to the clipboard, write a file, or open a browser. `{"type":"string","repeatable":false}`
+- `share: --out <value>`: --out &lt;file&gt;: Write the shared text to a file instead of stdout. `{"type":"string","repeatable":false}`
+- `share: --from <value>`: --from &lt;message&gt;: First message to include. `{"type":"string","repeatable":false}`
+- `share: --to <value>`: --to &lt;message&gt;: Last message to include. `{"type":"string","repeatable":false}`
+- `share: --no-code-blocks`: --no-code-blocks: Omit code blocks from the shared text. `{"type":"boolean","repeatable":false,"default":false}`
+- `share: --no-attachment-names`: --no-attachment-names: Omit attachment names from the shared text. `{"type":"boolean","repeatable":false,"default":false}`
+- `share: --diffs`: --diffs: Include the session diff in the shared text. `{"type":"boolean","repeatable":false,"default":false}`
+- `share: --attachment-content <value>`: --attachment-content &lt;kind&gt;: Include attachment contents; repeat for more. `{"type":"string","repeatable":true}`
+- `share: --exported-at <value>`: --exported-at &lt;time&gt;: Timestamp of the confirmed export. `{"type":"string","repeatable":false}`
+- `share: --confirm <value>`: --confirm: Confirm without asking. `{"type":"string","repeatable":false}`
+- `prompts: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false}`
+- `prompts: --json`: --json: Print the machine-readable result instead of the human preview. `{"type":"boolean","repeatable":false,"output":"json","default":false}`
+- `prompts: --scope <value>`: --scope user|workspace: Save the prompt for this user or this workspace. `{"type":"string","repeatable":false}`
+- `prompts: --search <value>`: --search &lt;text&gt;: List only prompts matching this text. `{"type":"string","repeatable":false}`
+- `prompts: --tag <value>`: --tag &lt;tag&gt;: Filter by tag, or tag the saved prompt. `{"type":"string","repeatable":true}`
+- `prompts: --title <value>`: --title &lt;title&gt;: Title for the saved prompt. `{"type":"string","repeatable":false}`
+- `prompts: --chat <value>`: --chat active|new: Use the prompt in the active chat or a new one. `{"type":"string","repeatable":false}`
+- `prompts: --var <value>`: --var &lt;name=value&gt;: Set a prompt variable; repeat for more. `{"type":"string","repeatable":true}`
+- `prompts: --confirm`: --confirm: Confirm without asking. `{"type":"boolean","repeatable":false,"default":false}`
+- `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.
+- `scan-secrets <file> [--key-stdin] [--timeout <seconds>]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 - `playbook <status|record|settings ...>`: Show or change the orchestrator playbook journal for this workspace (starts no backend).
+- `mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>`: Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.
 
 For full headless argument syntax, run `muse-spark-code-acp exec --help`, or see [the ACP guide](acp.md) and [headless/CI contract](ci.md).

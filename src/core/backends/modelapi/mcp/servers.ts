@@ -12,7 +12,9 @@
 // - streamable-http: `url` (http or https) and `headers`; it must not set
 //   `command`, `args`, `env` or `framing`.
 // - every server: `enabled` (false: not started), `mode` (only `optional`
-//   is optional), `startup_timeout_sec`, `tool_timeout_sec`, and the tool
+//   is optional), the entry's own `startup_timeout_sec` and
+//   `tool_timeout_sec` (a wait the entry does not name has no deadline: the
+//   server is waited on until it answers or is stopped), and the tool
 //   filters `enabled_tools` and `disabled_tools` (the migrate skill copies
 //   them from Codex; honoured here).
 // - `${VAR}` in any string is the extension host's environment variable
@@ -27,9 +29,6 @@
 import {
   MCP_FRAMINGS,
   type McpFraming,
-  MCP_STARTUP_TIMEOUT_MS,
-  MCP_TIMEOUT_MAX_SECONDS,
-  MCP_TOOL_TIMEOUT_MS,
   MCP_TRANSPORTS,
   IDE_MCP_SERVER_NAME,
   MILLISECONDS_PER_SECOND,
@@ -66,8 +65,14 @@ export interface McpServerSpec {
   readonly launch:
     | { readonly ok: true; readonly value: McpLaunch }
     | { readonly ok: false; readonly reason: string }
-  readonly startupTimeoutMs: number
-  readonly toolTimeoutMs: number
+  /**
+  The entry's own `startup_timeout_sec` / `tool_timeout_sec` in
+  milliseconds, or undefined when the entry names none: then starting and
+  tool calls are waited on until the server answers or is stopped (owner
+  2026-10-16: no arbitrary limits), never killed at an invented default.
+  */
+  readonly startupTimeoutMs: number | undefined
+  readonly toolTimeoutMs: number | undefined
   /** Only these tools are offered, when set. */
   readonly enabledTools: ReadonlySet<string> | undefined
   readonly disabledTools: ReadonlySet<string>
@@ -169,15 +174,15 @@ function stringMap(
   return map
 }
 
-function timeoutMs(entry: JsonObject, key: string, fallbackMs: number): number {
+function timeoutMs(entry: JsonObject, key: string): number | undefined {
   const value = entry[key]
   if (value === undefined) {
-    return fallbackMs
+    return undefined
   }
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     throw new EntryProblem(`"${key}" must be a positive number of seconds`)
   }
-  return Math.min(value, MCP_TIMEOUT_MAX_SECONDS) * MILLISECONDS_PER_SECOND
+  return value * MILLISECONDS_PER_SECOND
 }
 
 function refuseKeys(entry: JsonObject, keys: readonly string[], transport: string): void {
@@ -234,7 +239,8 @@ function httpLaunch(
   let parsed: URL
   try {
     parsed = new URL(url)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof TypeError)) throw error
     throw new EntryProblem('its url is not a URL')
   }
   if (!HTTP_SCHEMES.has(parsed.protocol)) {
@@ -291,8 +297,8 @@ function specOf(
     return {
       ...base,
       launch: { ok: true, value: launchOf(view, entry, lookupEnv) },
-      startupTimeoutMs: timeoutMs(entry, 'startup_timeout_sec', MCP_STARTUP_TIMEOUT_MS),
-      toolTimeoutMs: timeoutMs(entry, 'tool_timeout_sec', MCP_TOOL_TIMEOUT_MS),
+      startupTimeoutMs: timeoutMs(entry, 'startup_timeout_sec'),
+      toolTimeoutMs: timeoutMs(entry, 'tool_timeout_sec'),
       enabledTools: enabledTools === undefined ? undefined : new Set(enabledTools),
       disabledTools: new Set(stringList(entry, 'disabled_tools')),
     }
@@ -303,8 +309,8 @@ function specOf(
     return {
       ...base,
       launch: { ok: false, reason: error.message },
-      startupTimeoutMs: MCP_STARTUP_TIMEOUT_MS,
-      toolTimeoutMs: MCP_TOOL_TIMEOUT_MS,
+      startupTimeoutMs: undefined,
+      toolTimeoutMs: undefined,
       enabledTools: undefined,
       disabledTools: new Set(),
     }

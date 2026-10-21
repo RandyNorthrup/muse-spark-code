@@ -15,7 +15,7 @@ import {
   type ScheduleStore,
 } from '../../shared/schedule'
 import type { Logger } from '../logger'
-import { describeStoreError, storeErrorCode } from './storeErrors'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import type { ScheduleMigrationEntry, ScheduleMigrationSource } from '../../core/schedules/migrate'
 
 export interface FileScheduleStoreDeps {
@@ -60,7 +60,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
     try {
       raw = JSON.parse(await readFile(jobPath(id), 'utf8'))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== ENOENT) {
+      if (!isStoreErrorCode(error, ENOENT)) {
         deps.log.warn(`Schedule ${id} skipped: ${describeStoreError(error)}`)
       }
       return undefined
@@ -140,7 +140,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
     try {
       return await readdir(deps.directory)
     } catch (error: unknown) {
-      if (storeErrorCode(error) === ENOENT) {
+      if (isStoreErrorCode(error, ENOENT)) {
         return []
       }
       throw error
@@ -161,7 +161,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
             await rm(file, { force: true })
           }
         } catch (error: unknown) {
-          if (storeErrorCode(error) !== ENOENT) {
+          if (!isStoreErrorCode(error, ENOENT)) {
             deps.log.warn(`Schedule receipt ${name} cleanup failed: ${describeStoreError(error)}`)
           }
         }
@@ -226,7 +226,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
       try {
         await writeFile(receipt, JSON.stringify({ admittedAtMs: deps.now() }), { flag: 'wx' })
       } catch (error: unknown) {
-        if (storeErrorCode(error) === EEXIST) {
+        if (isStoreErrorCode(error, EEXIST)) {
           return false
         }
         throw error
@@ -251,15 +251,14 @@ async function isMigrationSealed(directory: string, id: string): Promise<boolean
     await stat(path.join(directory, `${id}${JOB_FILE}${MIGRATION_FILE}`))
     return true
   } catch (error: unknown) {
-    if (storeErrorCode(error) === ENOENT) return false
+    if (isStoreErrorCode(error, ENOENT)) return false
     throw error
   }
 }
 
 /** M52 stays a readable migration source; a seal prevents its old scheduler
- * admitting work while the shared store verifies its copy. Seals survive
- * @unwired M115 v1 file schedule source
- * failures and removal, so a stale v1 object cannot revive an old job. */
+admitting work while the shared store verifies its copy. Seals survive
+failures and removal, so a stale v1 object cannot revive an old job. */
 export function createFileScheduleMigrationSource(directory: string): ScheduleMigrationSource {
   const snapshot = async (id: string): Promise<ScheduleMigrationEntry> => {
     assertId(id)
@@ -267,8 +266,11 @@ export function createFileScheduleMigrationSource(directory: string): ScheduleMi
     let raw: unknown
     try {
       raw = JSON.parse(original)
-    } catch {
-      throw new Error('scheduleStoredJsonInvalid')
+    } catch (error: unknown) {
+      if (error instanceof SyntaxError) {
+        throw new Error('scheduleStoredJsonInvalid', { cause: error })
+      }
+      throw error
     }
     const job = scheduledPromptSchema.parse(raw)
     if (job.id !== id) throw new Error('scheduleMigrationIdentityMismatch')
@@ -343,7 +345,7 @@ export function createFileScheduleMigrationSource(directory: string): ScheduleMi
       try {
         names = await readdir(directory)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === ENOENT) return []
+        if (isStoreErrorCode(error, ENOENT)) return []
         throw error
       }
       const entries: ScheduleMigrationEntry[] = []
@@ -355,7 +357,7 @@ export function createFileScheduleMigrationSource(directory: string): ScheduleMi
         try {
           await writeFile(path.join(directory, `${name}${MIGRATION_FILE}`), '', { flag: 'wx' })
         } catch (error: unknown) {
-          if (storeErrorCode(error) !== EEXIST) throw error
+          if (!isStoreErrorCode(error, EEXIST)) throw error
         }
         entries.push(await snapshot(id))
       }

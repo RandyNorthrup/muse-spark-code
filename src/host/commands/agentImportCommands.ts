@@ -49,10 +49,10 @@ import type { Logger } from '../logger'
 export type AgentImportSourceChoice = AgentImportSource | 'all'
 
 /**
- * Runs the task unless one is already running; false when it is busy. The
- * gate is held until the whole flow ends, every answer the user owes
- * included, so a second import never starts over the first one's questions.
- */
+Runs the task unless one is already running; false when it is busy. The
+gate is held until the whole flow ends, every answer the user owes
+included, so a second import never starts over the first one's questions.
+*/
 export type ImportGate = (task: () => Promise<void>) => Promise<boolean>
 
 /** One gate for the extension host: only one import is open at a time. */
@@ -83,29 +83,29 @@ export interface AgentImportPickItem {
 
 export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
   /**
-   * Whether this window is held on someone else's pull request (M71): when
-   * held, project reads and writes are refused with the held-worktree text
-   * even while VS Code trusts the folder. `isWorkspaceTrusted` carries the
-   * combined project trust (trusted and not held); user-scope imports never
-   * consult either predicate.
-   */
+  Whether this window is held on someone else's pull request (M71): when
+  held, project reads and writes are refused with the held-worktree text
+  even while VS Code trusts the folder. `isWorkspaceTrusted` carries the
+  combined project trust (trusted and not held); user-scope imports never
+  consult either predicate.
+  */
   readonly isProjectHeld?: () => boolean
   /** Muse Code's settings file where `muse serve` reads it; its folder holds the personal skills. */
   readonly museSettingsFile: string
   /**
-   * The window's first folder as VS Code names it now. The approval wait can
-   * outlast a change to it, so a write compares it with the folder the plan
-   * was made for.
-   */
+  The window's first folder as VS Code names it now. The approval wait can
+  outlast a change to it, so a write compares it with the folder the plan
+  was made for.
+  */
   readonly currentRoot: () => string | undefined
   readonly writer: ImportWriter
   /** The session-owned workspace notice for a project write (M68); absent without a live session. */
   readonly beginProjectEdit?: ImportWriteNotice
   /**
-   * Holds the checkpoint lease (M86) until `work` settles, so no restore
-   * runs over the import's project writes; `check` throws once the window
-   * or the root it was taken for is gone. Runs only for project writes.
-   */
+  Holds the checkpoint lease (M86) until `work` settles, so no restore
+  runs over the import's project writes; `check` throws once the window
+  or the root it was taken for is gone. Runs only for project writes.
+  */
   readonly editProject: <T>(work: (check: () => void) => Promise<T>) => Promise<T>
   /** Refuses a project publication in checkpoint storage (M86); records no bytes. */
   readonly beforeProjectWrite: (absolutePath: string) => void | Promise<void>
@@ -125,10 +125,10 @@ export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
   /** Offers an unsaved edit in the target, or opens it without changing it. */
   readonly offerEdit: (message: string) => Promise<'edit' | 'open' | undefined>
   /**
-   * Opens the file in an editor: loads the document, then asks `isStillSafe`
-   * before it is shown (the load awaits); one that does not exist opens
-   * unsaved at its path, for the user to save.
-   */
+  Opens the file in an editor: loads the document, then asks `isStillSafe`
+  before it is shown (the load awaits); one that does not exist opens
+  unsaved at its path, for the user to save.
+  */
   readonly openTarget: (
     absolutePath: string,
     isExisting: boolean,
@@ -164,10 +164,10 @@ const PREVIEW_EXTENSION = '.md'
 const LOG_PREFIX = 'Import from other agents:'
 
 /**
- * What a project-scope refusal shows: the held-worktree text while the
- * window is held on someone else's pull request (M71), else the untrusted
- * workspace text. User-scope imports never reach this helper.
- */
+What a project-scope refusal shows: the held-worktree text while the
+window is held on someone else's pull request (M71), else the untrusted
+workspace text. User-scope imports never reach this helper.
+*/
 function projectTrustRefusal(deps: AgentImportDeps): string {
   return deps.isProjectHeld?.() === true ? UI_TEXT.worktreeHeldShell : UI_TEXT.agentImportUntrusted
 }
@@ -297,10 +297,8 @@ function reasonLabel(reason: ImportSkipReason): string {
 }
 
 /** A refusal in the user's language; `field` names the refusing field when there is one. */
-function skipReasonText(reason: ImportSkipReason, field?: string): string {
-  return reason === 'field'
-    ? fill(UI_TEXT.agentImportSkippedField, { field: field ?? '' })
-    : reasonLabel(reason)
+function skipReasonText(reason: ImportSkipReason, field = ''): string {
+  return reason === 'field' ? fill(UI_TEXT.agentImportSkippedField, { field }) : reasonLabel(reason)
 }
 
 function skipLabel(skip: ImportSkip): string {
@@ -385,6 +383,15 @@ function previewMarkdown(
 /** Where a project destination stands: inside the planned folder, outside it by a link, or the folder changed. */
 type ProjectStanding = 'inside' | 'outside' | 'changed'
 
+/**
+Whether the failure carries an import error code (a refused path or a
+file failure, never a foreign value). Only coded failures read as a
+standing; anything else is not the import's to place.
+*/
+function isImportFailure(error: unknown): boolean {
+  return importErrorCode(error) !== 'error'
+}
+
 /** Whether a project destination stays in the planned workspace folder once links and junctions are followed. */
 async function projectStanding(
   deps: AgentImportDeps,
@@ -402,6 +409,9 @@ async function projectStanding(
     await deps.writer.assertSafePath(absolutePath, project)
     return 'inside'
   } catch (error: unknown) {
+    if (!isImportFailure(error)) {
+      throw error
+    }
     const code = importErrorCode(error)
     deps.log.warn(`${LOG_PREFIX}  could not be resolved (failed)`)
     return code === AGENT_IMPORT_ROOT_CHANGED_CODE ? 'changed' : 'outside'
@@ -409,11 +419,11 @@ async function projectStanding(
 }
 
 /**
- * A destination file for the plan: its text, or why it is unknown. A
- * project's file is confined first, so a link out of the workspace is never
- * read; a file that is there but cannot be read says so rather than passing
- * for an empty one.
- */
+A destination file for the plan: its text, or why it is unknown. A
+project's file is confined first, so a link out of the workspace is never
+read; a file that is there but cannot be read says so rather than passing
+for an empty one.
+*/
 async function readPlanFile(
   deps: AgentImportDeps,
   absolutePath: string,
@@ -436,7 +446,10 @@ async function readPlanFile(
           break
         }
       }
-    } catch {
+    } catch (error: unknown) {
+      if (!isImportFailure(error)) {
+        throw error
+      }
       deps.log.warn(`${LOG_PREFIX}  could not be resolved (failed)`)
       return { status: 'unreadable' }
     }
@@ -454,7 +467,10 @@ async function readPlanFile(
   let read: ImportRead
   try {
     read = await deps.io.readFile(absolutePath, maxBytes, isProjectFile ? project?.path : undefined)
-  } catch {
+  } catch (error: unknown) {
+    if (!isImportFailure(error)) {
+      throw error
+    }
     deps.log.warn(`${LOG_PREFIX}  could not be read (failed)`)
     return { status: 'unreadable' }
   }
@@ -562,7 +578,10 @@ async function isCopyTargetSafe(
         deps.log.warn(`${LOG_PREFIX} config edit refused (${reason})`)
         return false
       }
-    } catch {
+    } catch (error: unknown) {
+      if (!isImportFailure(error)) {
+        throw error
+      }
       deps.showWarning(UI_TEXT.agentImportSkippedUnreadable)
       return false
     }
@@ -596,10 +615,10 @@ async function isCopyTargetSafe(
 }
 
 /**
- * Whether the window's first folder still leads to the folder the plan was
- * made for: the approval wait can outlast a change to the folder list or to
- * a link on the way to it.
- */
+Whether the window's first folder still leads to the folder the plan was
+made for: the approval wait can outlast a change to the folder list or to
+a link on the way to it.
+*/
 async function isRootCurrent(deps: AgentImportDeps, project: ImportProjectRoot): Promise<boolean> {
   const live = deps.currentRoot()
   if (live === undefined) {
@@ -614,7 +633,10 @@ async function isRootCurrent(deps: AgentImportDeps, project: ImportProjectRoot):
       isSamePath(now.canonical, project.identity.canonical, deps.platform) &&
       now.fileId === project.identity.fileId
     )
-  } catch {
+  } catch (error: unknown) {
+    if (!isImportFailure(error)) {
+      throw error
+    }
     deps.log.warn(`${LOG_PREFIX} the workspace folder could not be resolved (failed)`)
     return false
   }
@@ -660,6 +682,7 @@ async function planFor(
       homeDir: deps.homeDir,
       workspaceRoot: root,
       ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
+      ...(deps.signal !== undefined && { signal: deps.signal }),
       workspaceIdentity: project?.identity,
       personalRoot: p.dirname(deps.museSettingsFile),
       museSettingsFile: deps.museSettingsFile,
@@ -711,6 +734,7 @@ async function applyPlan(
       ...(deps.beginProjectEdit !== undefined && { beginProjectEdit: deps.beginProjectEdit }),
       beforeProjectWrite: deps.beforeProjectWrite,
       isRootCurrent: async (root) => await isRootCurrent(deps, root),
+      ...(deps.signal !== undefined && { signal: deps.signal }),
     })
   // The lease's release can fail after the writes are done: keep what they did.
   const outcomes: ImportApplyResult[] = []
@@ -759,7 +783,7 @@ async function applyPlan(
   )
   const refused = applied.skipped.flatMap((skip) => {
     const candidate = selected.find((entry) => entry.id === skip.candidateId)
-    return candidate === undefined ? [] : [`${candidate.label}: ${skipLabel(skip)}`]
+    return candidate === undefined ? [] : `${candidate.label}: ${skipLabel(skip)}`
   })
   // An import that wrote nothing and has no editor edit says why, not that it finished.
   const counts = countLines(result, refusedCopyEntries).join(DETAIL_SEPARATOR)
@@ -839,6 +863,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
     isWorkspaceTrusted: deps.isWorkspaceTrusted,
     isActive: deps.isActive,
+    ...(deps.signal !== undefined && { signal: deps.signal }),
     sources: choice === 'all' ? AGENT_IMPORT_SOURCES : [choice],
   })
   if (!deps.isActive()) {

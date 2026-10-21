@@ -54,8 +54,10 @@ export interface ScheduledReportPorts {
   readonly sleep: (ms: number) => Promise<void>
 }
 function validatedAction(input: unknown): ScheduledReportAction {
+  const reportUi = UI_TEXT.reportUi
+
   const validation = scheduledReportActionSchema.safeParse(input)
-  if (!validation.success) throw new Error(UI_TEXT.reportUi.generationFailed)
+  if (!validation.success) throw new Error(reportUi.generationFailed)
   return validation.data
 }
 export class ScheduledReportRunner {
@@ -145,6 +147,8 @@ export class ScheduledReportRunner {
 
   /** Called in the interactive schedule editor, never by an unattended fire. */
   async prepare(scheduleId: string, input: unknown): Promise<boolean> {
+    const reportUi = UI_TEXT.reportUi
+
     try {
       const action = validatedAction(input)
       const authority = await this.ports.authority.authorize(scheduleId, action)
@@ -176,8 +180,8 @@ export class ScheduledReportRunner {
           return false
       }
       return true
-    } catch {
-      throw new Error(UI_TEXT.reportUi.generationFailed)
+    } catch (error: unknown) {
+      throw new Error(reportUi.generationFailed, { cause: error })
     }
   }
 
@@ -186,6 +190,8 @@ export class ScheduledReportRunner {
     occurrence: string,
     input: unknown,
   ): Promise<Readonly<Record<string, ReportDeliveryOutcome>>> {
+    const reportUi = UI_TEXT.reportUi
+
     const action = validatedAction(input)
     const options = reportOptionsSchema.parse({ ...action.options, asOf: occurrence })
     return await this.ports.occurrences.exclusive(scheduleId, occurrence, async () => {
@@ -197,11 +203,10 @@ export class ScheduledReportRunner {
       const actionKey = createHash('sha256').update(JSON.stringify(action)).digest('hex')
       const saved = await this.ports.occurrences.read(scheduleId, occurrence)
       const validation = saved === null ? null : reportOccurrenceRecordSchema.safeParse(saved)
-      if (validation !== null && !validation.success)
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+      if (validation !== null && !validation.success) throw new Error(reportUi.generationFailed)
       const previous = validation?.data ?? null
       if (previous !== null && previous.actionKey !== actionKey)
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(reportUi.generationFailed)
       const document =
         previous?.payload.document ??
         (await this.ports.generation.generate({
@@ -218,10 +223,10 @@ export class ScheduledReportRunner {
         payload.locale !== action.locale ||
         JSON.stringify(payload.theme) !== JSON.stringify(action.theme)
       )
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(reportUi.generationFailed)
       const outcomes: Record<string, ReportDeliveryOutcome> = { ...previous?.outcomes }
       if (Object.keys(outcomes).some((id) => action.destinations.every((item) => item.id !== id)))
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(reportUi.generationFailed)
       await this.ports.occurrences.write(scheduleId, occurrence, { actionKey, payload, outcomes })
       for (const destination of action.destinations) {
         // Failure/uncertainty are terminal. A deferred browser may resume when

@@ -1,8 +1,13 @@
 import { Usd } from '../../shared/usd'
-// Shared scheduler: hosts supply clocks, ownership and fully settled delivery.
+// Shared scheduler owns durable dispatch and terminal settlement for every host.
 // T computes time occurrences; E filters/debounces and persists delayed events;
 // U/D own unattended admission and run-scoped refusal/paid settlement facts.
-import { SCHEDULE_POLL_INTERVAL_MS, SCHEDULE_RECONCILE_MAX_RUNS } from '../../shared/constants'
+import {
+  SCHEDULE_POLL_INTERVAL_MS,
+  SCHEDULE_RECONCILE_MAX_RUNS,
+  SCHEDULE_CLOSE_RESULT_WAIT_MS,
+} from '../../shared/constants'
+import { withDeadline } from '../timeouts'
 import { UI_TEXT } from '../../shared/l10n/text'
 import {
   scheduleEventRunId,
@@ -47,7 +52,7 @@ export interface SchedulerDeps {
   /** E persists a manual event composed with time; T computes its due instant. */
   readonly deferEvent: (schedule: ScheduleV2, event: ScheduleEvent) => Promise<void>
   /** D/U provide conservative final accounting when a returned terminal result
-   * is invalid. S never invents an exact zero-cost failed dispatch. */
+  is invalid. S never invents an exact zero-cost failed dispatch. */
   readonly failureSettlement: (
     intent: ScheduleRunIntent,
     error: unknown,
@@ -68,6 +73,7 @@ function unspent(
   intent: ScheduleRunIntent,
   now: number,
   outcome: 'missed' | 'skipped',
+  reason = UI_TEXT.scheduleV2.messages.catchUpSkipped,
 ): ScheduleFireRecord {
   return {
     runId: intent.runId,
@@ -78,6 +84,7 @@ function unspent(
     target: intent.schedule.target,
     delivery: intent.schedule.delivery,
     outcome,
+    reason,
     refusedActions: [],
     cost: {
       usd: Usd.from(0).toAmount(),
@@ -89,6 +96,16 @@ function unspent(
 }
 
 export function createScheduler(deps: SchedulerDeps) {
+  const lifetime = new AbortController()
+  const signal = AbortSignal.any([lifetime.signal, deps.host.signal ?? lifetime.signal])
+  const isClosing = () => signal.aborted
+  // One question, asked everywhere before a hand-over to a host: may this
+  // process act on this fire now? It holds the workspace and it is not
+  // closing. A process that releases its hold without closing (an ACP session
+  // ends, a window loses trust or sign-in) stops exactly like a closing one:
+  // the fire stays pending for whoever holds the workspace next.
+  const canAct = (workspaceKey: string) => !isClosing() && deps.host.holds(workspaceKey)
+  const active = new Set<Promise<void>>()
   const readings = new Map<string, ScheduleClockReading>()
   const pending = new Set<string>()
   const knownSettlements = new Map<string, ScheduleFireRecord>()
@@ -135,40 +152,110 @@ export function createScheduler(deps: SchedulerDeps) {
     await deps.store.record(fire)
     knownSettlements.delete(intent.runId)
   }
+  const uncertain = (
+    intent: ScheduleRunIntent,
+    liabilityUsd = intent.schedule.grant.paidCapUsd,
+  ): ScheduleFireRecord => ({
+    ...unspent(intent, deps.host.now(), 'skipped'),
+    outcome: 'uncertain',
+    reason: UI_TEXT.scheduleV2.messages.dispatchUncertain,
+    cost: {
+      usd: Usd.from(0).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd:
+        intent.schedule.action.kind === 'report' ? Usd.from(0).toAmount() : liabilityUsd,
+    },
+  })
+  const skipReason = (job: ScheduleV2, previous: ScheduleV2): string | undefined => {
+    if (job.paused) return UI_TEXT.scheduleV2.messages.schedulePaused
+    if (!deps.host.holds(job.workspaceKey)) return UI_TEXT.scheduleV2.messages.workspaceNotHeld
+    if (job.end?.atMs !== undefined && deps.host.now() >= job.end.atMs)
+      return UI_TEXT.scheduleV2.messages.scheduleEnded
+    return JSON.stringify(job.trigger) !== JSON.stringify(previous.trigger) ||
+      job.zone !== previous.zone ||
+      JSON.stringify(job.target) !== JSON.stringify(previous.target) ||
+      job.delivery !== previous.delivery
+      ? UI_TEXT.scheduleV2.messages.scheduleEdited
+      : undefined
+  }
   const execute = async (intent: ScheduleRunIntent): Promise<void> => {
+    // An orderly close keeps every unhanded admission for the next owner, and
+    // so does a process that released its hold without closing.
+    if (!canAct(intent.schedule.workspaceKey)) return
     const known =
       knownSettlements.get(intent.runId) ??
       (await deps.runs.acknowledged(intent.schedule.workspaceKey, intent.runId))
+    if (!canAct(intent.schedule.workspaceKey)) return
     if (known !== undefined) {
       await settle(intent, known)
       return
     }
-    const ledger = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
+    const ledger = scheduleDeliveryStateSchema.parse(
+      await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId),
+    )
+    if (!canAct(intent.schedule.workspaceKey)) return
     if (ledger.status === 'settled' || ledger.status === 'uncertain') {
       await deps.runs.advance(intent)
       await settle(intent, ledger.fire)
       return
     }
-    if (ledger.status === 'admitted') return
+    if (ledger.status === 'dispatchStarted') {
+      if (
+        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId)
+      )
+        return
+      // The journal forbids another send. A still-live host may supply known
+      // terminal facts; a restarted host supplies none, so recovery is uncertain.
+      let fire = uncertain(intent, ledger.retainedLiabilityUsd)
+      try {
+        const reported = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
+        if (reported.status === 'settled' || reported.status === 'uncertain')
+          fire = validateScheduleSettlement(
+            intent.schedule,
+            intent.runId,
+            intent.occurrenceMs,
+            reported.fire,
+            intent.event,
+          )
+      } catch {
+        /* Missing/invalid host facts cannot reopen dispatch. */
+      }
+      await settle(intent, fire)
+      return
+    }
     const job = await load(intent.schedule.workspaceKey, intent.schedule.id)
+    if (!canAct(intent.schedule.workspaceKey)) return
     const isAdmitted = await deps.runs.advance(intent)
+    // Past this point the admission is consumed; a process that may no longer
+    // act still hands nothing to a host, and settles nothing either: the next
+    // holder replays the idempotent admission and delivers exactly once.
+    if (!canAct(intent.schedule.workspaceKey)) return
     if (!isAdmitted) {
-      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
+      await settle(
+        intent,
+        unspent(
+          intent,
+          deps.host.now(),
+          'skipped',
+          job === undefined
+            ? UI_TEXT.scheduleV2.messages.scheduleDeleted
+            : UI_TEXT.scheduleV2.messages.admissionLost,
+        ),
+      )
       return
     }
     // A queued candidate never restores an earlier grant, mode or consent.
     // A changed trigger or target invalidates its old occurrence altogether.
-    if (
-      job === undefined ||
-      job.paused ||
-      !deps.host.holds(job.workspaceKey) ||
-      (job.end?.atMs !== undefined && deps.host.now() >= job.end.atMs) ||
-      JSON.stringify(job.trigger) !== JSON.stringify(intent.schedule.trigger) ||
-      job.zone !== intent.schedule.zone ||
-      JSON.stringify(job.target) !== JSON.stringify(intent.schedule.target) ||
-      job.delivery !== intent.schedule.delivery
-    ) {
-      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
+    if (job === undefined) {
+      await settle(
+        intent,
+        unspent(intent, deps.host.now(), 'skipped', UI_TEXT.scheduleV2.messages.scheduleDeleted),
+      )
+      return
+    }
+    const reason = skipReason(job, intent.schedule)
+    if (reason !== undefined) {
+      await settle(intent, unspent(intent, deps.host.now(), 'skipped', reason))
       return
     }
     if (intent.missed === true && job.catchUp === 'skip') {
@@ -176,29 +263,68 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     const fresh = await load(job.workspaceKey, job.id)
-    if (
-      fresh === undefined ||
-      fresh.paused ||
-      !deps.host.holds(job.workspaceKey) ||
-      (fresh.end?.atMs !== undefined && deps.host.now() >= fresh.end.atMs) ||
-      JSON.stringify(fresh.trigger) !== JSON.stringify(job.trigger) ||
-      fresh.zone !== job.zone ||
-      JSON.stringify(fresh.target) !== JSON.stringify(job.target) ||
-      fresh.delivery !== job.delivery
-    ) {
-      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
+    if (!canAct(intent.schedule.workspaceKey)) return
+    if (fresh === undefined) {
+      await settle(
+        intent,
+        unspent(intent, deps.host.now(), 'skipped', UI_TEXT.scheduleV2.messages.scheduleDeleted),
+      )
+      return
+    }
+    const freshReason = skipReason(fresh, job)
+    if (freshReason !== undefined) {
+      await settle(intent, unspent(intent, deps.host.now(), 'skipped', freshReason))
       return
     }
     const delivery = { ...intent, schedule: fresh }
+    if (!(await deps.runs.startDispatch(intent, fresh.grant.paidCapUsd))) {
+      // A lost race is not an uncertain outcome. When another live owner
+      // started the dispatch, this process records nothing and leaves the fire
+      // to its owner; the real result and its cost are never lost to a false
+      // record here.
+      if (
+        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId)
+      )
+        return
+      const state = await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId)
+      await settle(
+        intent,
+        state.status === 'settled' || state.status === 'uncertain' ? state.fire : uncertain(intent),
+      )
+      return
+    }
+    // startDispatch is the hand-over: this process owns the dispatch now. A
+    // hold released after it still sends nothing, and the owned fire is
+    // recorded as not sent with its liability released, never as uncertain.
+    if (!canAct(intent.schedule.workspaceKey)) {
+      await settle(
+        intent,
+        unspent(intent, deps.host.now(), 'skipped', UI_TEXT.scheduleV2.messages.workspaceNotHeld),
+      )
+      return
+    }
     let result: unknown
     let hasReturned = false
+    let returned: Promise<unknown> | undefined
+    let stopAbort: (() => void) | undefined
     try {
-      result = await deps.host.deliver(
+      const aborted = new Promise<never>((_resolve, reject) => {
+        const abort = () => {
+          reject(new Error(UI_TEXT.scheduleV2.messages.targetClosed))
+        }
+        signal.addEventListener('abort', abort, { once: true })
+        stopAbort = () => {
+          signal.removeEventListener('abort', abort)
+        }
+        if (signal.aborted) abort()
+      })
+      returned = deps.host.deliver(
         fresh,
         scheduleRunContextOf(fresh, intent.runId),
         intent.occurrenceMs,
         intent.event,
       )
+      result = await Promise.race([returned, aborted])
       hasReturned = true
       validateScheduleSettlement(
         delivery.schedule,
@@ -210,26 +336,88 @@ export function createScheduler(deps: SchedulerDeps) {
     } catch (error: unknown) {
       // A bad settlement is a contract failure: its accounting is not discarded
       // into a free success. The delivery owner provides conservative facts.
-      const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
-      // Absence is a proof of no admission/send: leave the retained intent for
-      // the next poll instead of burning this occurrence or guessing a bill.
-      if (after.status === 'absent') throw error
-      // A queued/running target still owns recovery. A transport error does
-      // not turn its unfinished work into a final failed accounting record.
-      if (!hasReturned && after.status === 'admitted') throw error
-      if (after.status === 'settled' || after.status === 'uncertain') {
-        try {
-          result = validateScheduleSettlement(
-            delivery.schedule,
-            delivery.runId,
-            delivery.occurrenceMs,
-            after.fire,
-            delivery.event,
-          )
-        } catch (error_: unknown) {
-          result = await deps.failureSettlement(delivery, error_)
+      // Every failed round is journaled before it travels: the authoritative
+      // settlement lands first, then the failure reaches the poll record. Only
+      // a proven settlement resolves quietly; an ambiguous one still reports.
+      // A host refusal before anything is sent (the hold was released, the
+      // runtime is closing) is a known not-sent fire with its liability
+      // released, never an uncertain one with the cap kept. The refusal is
+      // thrown synchronously at the boundary, before any send.
+      if (
+        !hasReturned &&
+        error instanceof Error &&
+        error.message === UI_TEXT.scheduleV2.messages.workspaceNotHeld
+      ) {
+        result = unspent(
+          delivery,
+          deps.host.now(),
+          'skipped',
+          UI_TEXT.scheduleV2.messages.workspaceNotHeld,
+        )
+      } else if (returned !== undefined && isClosing()) {
+        // The host owns queue withdrawal and cost facts. An abort does not
+        // discard an answer arriving during that cooperative close.
+        const reported = validateScheduleSettlement(
+          delivery.schedule,
+          delivery.runId,
+          delivery.occurrenceMs,
+          await withDeadline(
+            returned,
+            SCHEDULE_CLOSE_RESULT_WAIT_MS,
+            UI_TEXT.scheduleV2.messages.targetClosed,
+          ),
+          delivery.event,
+        )
+        // Known means known: after an abort only a CONFIRMED withdrawal from
+        // the queue is a known nothing-sent fire. A turn that had started is
+        // never recorded as skipped; its outcome stays unknown.
+        if (reported.outcome === 'skipped' && reported.reason !== UI_TEXT.turnUnqueued) {
+          // An ambiguous recovery settles its failed accounting first and
+          // then rejects so the poll record hears it.
+          result = uncertain(delivery)
+          await settle(intent, result)
+          throw error
         }
-      } else result = await deps.failureSettlement(delivery, error)
+        result = reported
+      } else {
+        // A bad settlement is a contract failure: its accounting is not discarded
+        // into a free success. The delivery owner provides conservative facts.
+        // Every failed round is journaled before it travels: the authoritative
+        // settlement lands first, then the failure reaches the poll record. Only
+        // a proven settlement resolves quietly; an ambiguous one still reports.
+        const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
+        // Absence is a proof of no admission/send: leave the retained intent for
+        // the next poll instead of burning this occurrence or guessing a bill.
+        if (after.status === 'absent') throw error
+        // A queued/running target still owns recovery. A transport error does
+        // not turn its unfinished work into a final failed accounting record.
+        if (!hasReturned && after.status === 'admitted') throw error
+        if (after.status === 'settled' || after.status === 'uncertain') {
+          try {
+            result = validateScheduleSettlement(
+              delivery.schedule,
+              delivery.runId,
+              delivery.occurrenceMs,
+              after.fire,
+              delivery.event,
+            )
+          } catch (error_: unknown) {
+            result = await deps.failureSettlement(delivery, error_)
+            await settle(intent, result)
+            throw error_
+          }
+          if (after.status === 'uncertain') {
+            await settle(intent, result)
+            throw error
+          }
+        } else {
+          result = await deps.failureSettlement(delivery, error)
+          await settle(intent, result)
+          throw error
+        }
+      }
+    } finally {
+      stopAbort?.()
     }
     await settle(intent, result)
   }
@@ -300,6 +488,11 @@ export function createScheduler(deps: SchedulerDeps) {
           const first = group[0]
           if (first === undefined) return
           for (const _entry of group) {
+            if (signal.aborted) break
+            // The drain selects only what this process may act on. A fire
+            // whose workspace this process no longer holds stays pending for
+            // whoever holds it; this process neither advances nor settles it.
+            if (!canAct(first.schedule.workspaceKey)) break
             const queue = await deps.runs.pending(first.schedule.workspaceKey)
             const intent = queue.find(
               (intent) =>
@@ -328,7 +521,9 @@ export function createScheduler(deps: SchedulerDeps) {
       }
     })
     // Always drain independent targets, even if one disk/settlement fails.
+    for (const task of work) active.add(task)
     const results = await Promise.allSettled(work)
+    for (const task of work) active.delete(task)
     const failure = results.find((result) => result.status === 'rejected')
     if (failure?.status === 'rejected') throw failure.reason
   }
@@ -339,8 +534,19 @@ export function createScheduler(deps: SchedulerDeps) {
     isOnlyManual: boolean,
   ) => {
     const job = await load(workspaceKey, id)
-    if (job === undefined || !deps.host.holds(workspaceKey) || !canRun(job, deps.host.now()))
-      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.labels.paused }
+    // A refusal names its true reason: deleted, not held, ended and paused
+    // each have their own sentence.
+    if (job === undefined)
+      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.messages.scheduleDeleted }
+    if (!deps.host.holds(workspaceKey))
+      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.messages.workspaceNotHeld }
+    if (!canRun(job, deps.host.now()))
+      return {
+        kind: 'refused' as const,
+        reason: job.paused
+          ? UI_TEXT.scheduleV2.labels.paused
+          : UI_TEXT.scheduleV2.messages.scheduleEnded,
+      }
     const trigger = job.trigger.kind === 'afterEvent' ? job.trigger.event : job.trigger
     if (
       isOnlyManual &&
@@ -358,6 +564,8 @@ export function createScheduler(deps: SchedulerDeps) {
       await deps.deferEvent(job, event)
       return { kind: 'accepted' as const, id }
     }
+    if (signal.aborted)
+      return { kind: 'refused' as const, reason: UI_TEXT.scheduleV2.messages.targetClosed }
     const intent = {
       schedule: job,
       runId: scheduleEventRunId(job.id, event),
@@ -369,6 +577,22 @@ export function createScheduler(deps: SchedulerDeps) {
     return { kind: 'accepted' as const, id }
   }
   const scheduler = {
+    async close(): Promise<void> {
+      lifetime.abort()
+      await Promise.allSettled(active)
+      // Retry only terminal facts produced by this scheduler. Closing never
+      // acquires another process's target lease or consumes its admissions.
+      // A failed retry keeps its entry and never skips the rest of close.
+      for (const [runId, fire] of knownSettlements) {
+        try {
+          await deps.runs.acknowledge(fire)
+          await deps.store.record(fire)
+          knownSettlements.delete(runId)
+        } catch {
+          continue
+        }
+      }
+    },
     blockedRuns() {
       return Array.from(blocked, ([runId, reason]) => ({
         runId,
@@ -377,7 +601,7 @@ export function createScheduler(deps: SchedulerDeps) {
       }))
     },
     async poll(workspaceKey: string): Promise<void> {
-      if (!deps.host.holds(workspaceKey)) return
+      if (signal.aborted || !deps.host.holds(workspaceKey)) return
       const reading = clock(workspaceKey)
       await deps.runs.maintain(workspaceKey, reading.nowMs)
       const jobs = await deps.store.list(workspaceKey)
@@ -468,7 +692,7 @@ export function createScheduler(deps: SchedulerDeps) {
       if (!deps.host.holds(workspaceKey)) return
       await drain([workspaceKey])
     },
-    start(workspaces: () => readonly string[], onError: (error: unknown) => void) {
+    start(workspaces: () => readonly string[], report: (error: unknown) => void) {
       let isDisposed = false
       const tick = () => {
         if (isDisposed) return
@@ -477,13 +701,13 @@ export function createScheduler(deps: SchedulerDeps) {
           void scheduler
             .recover(workspace)
             .catch((error: unknown) => {
-              onError(error)
+              report(error)
             })
             .then(async () => {
               if (!isDisposed) await scheduler.poll(workspace)
             })
             .catch((error: unknown) => {
-              onError(error)
+              report(error)
             })
         }
       }

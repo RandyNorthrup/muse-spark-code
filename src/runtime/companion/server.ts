@@ -59,7 +59,7 @@ function reply(response: ServerResponse, status: number, error?: string): void {
 export async function startCompanionServer<Input, Output>(
   options: CompanionOptions<Input, Output>,
   /** Embedding gate: build the HTTP transport. Production passes node:http;
-   * tests pass a socket-free fake so startup races stay deterministic. */
+  tests pass a socket-free fake so startup races stay deterministic. */
   createTransport: (requestListener: RequestListener) => Server = createServer,
 ) {
   const host = options.host ?? IDE_MCP_LOOPBACK_HOST

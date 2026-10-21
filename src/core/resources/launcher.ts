@@ -15,10 +15,10 @@ import type {
 // dist/resourceAdmission.js (admissionEntry.ts).
 
 /**
- * Portable process launch lives in its own first-use bundle
- * (dist/resourceProcess.js, POSTSPAWN), beside the governor's.
- * Hand-offs go through handoffResourceFile, the one hand-off entry point.
- */
+Portable process launch lives in its own first-use bundle
+(dist/resourceProcess.js, POSTSPAWN), beside the governor's.
+Hand-offs go through handoffResourceFile, the one hand-off entry point.
+*/
 export async function spawnResourceProcess(
   profile: 'interactive',
   file: string,

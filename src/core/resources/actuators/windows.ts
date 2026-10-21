@@ -1,19 +1,14 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { powerShellQuoted } from '../../shellQuote'
-import {
-  RESOURCE_JOB_CPU_RATE_PERCENT,
-  SHELL_JOB_TYPE_NAME,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
-} from '../../../shared/constants'
+import { RESOURCE_JOB_CPU_RATE_PERCENT, SHELL_JOB_TYPE_NAME } from '../../../shared/constants'
 import {
   resourceProcessIdentitySchema,
   type ResourceProcessIdentity,
   type ResourceTicket,
 } from '../../../shared/resources'
 import { runTreeProgram, type ResourceTreeRun } from '../trees/run'
-import type { WindowsTreeDeps } from '../trees/windows'
+import { callWindowsJobHelper, type WindowsTreeDeps } from '../trees/windows'
 import type { ResourceActuatorPort, ResourceControl } from './controls'
 
 const priority = z.enum(['normal', 'belowNormal', 'idle'])
@@ -49,14 +44,7 @@ export class WindowsResourceActuator implements ResourceActuatorPort {
   }
 
   private async call(body: string): Promise<unknown> {
-    const script = `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(this.deps.assemblyPath)}); ${body} } catch { exit 1 }`
-    const raw = await this.run(
-      path.win32.join(this.deps.systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
-      [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
-      { SystemRoot: this.deps.systemRoot },
-    )
-    const result: unknown = JSON.parse(raw)
-    return result
+    return await callWindowsJobHelper(this.deps, this.run, body)
   }
 
   controls(ticket: ResourceTicket): Promise<readonly ResourceControl[]> {

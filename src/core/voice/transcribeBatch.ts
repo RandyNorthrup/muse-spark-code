@@ -1,15 +1,16 @@
+import { UserRefusalError } from '../refusal'
 // M105-A / D85.5. Portable sound routing; the captured batch HTTP adapter,
 // M1's confined converter and M2's media encoder are injected at integration.
 import * as z from 'zod/mini'
 import {
-  MAX_TEXT_ATTACHMENT_BYTES,
+  VOICE_TEXT_MAX_BYTES,
   PAID_PRICES_USD,
   SECONDS_PER_HOUR,
   TEXT_ATTACHMENT_MEDIA_TYPE,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import { mediaInfoSchema, type MediaInfo } from '../../shared/media'
 import type { BackendKind } from '../../shared/protocol'
 import type { AudioAction, AudioRouteOptions } from '../../shared/audioRouting'
@@ -56,6 +57,12 @@ function canTakeVideo(model: AudioModelCapabilities, mime: string): boolean {
   return model.video === 'yes' && model.videoFormats.includes(mime)
 }
 
+/** U18 T9 converted the mp3 locally to 16 kHz mono WAV and the batch
+accepted it, so convertible audio is offered transcription wherever a
+converter can extract WAV, exactly like a video soundtrack. Formats
+without a conversion capture stay unoffered. */
+const CONVERTIBLE_AUDIO_MEDIA_TYPE = 'audio/mpeg'
+
 /** No vendor-wide defaults: unknown support never authorizes a native send. */
 export function audioRouteOptions(
   info: SoundMedia,
@@ -98,9 +105,9 @@ export function audioRouteOptions(
   if (
     context.isVoiceOn &&
     (context.batchFormats.includes(info.mediaType) ||
-      (info.kind === 'video' &&
-        context.canExtractWav &&
-        context.batchFormats.includes('audio/wav')))
+      (context.canExtractWav &&
+        context.batchFormats.includes('audio/wav') &&
+        (info.kind === 'video' || info.mediaType === CONVERTIBLE_AUDIO_MEDIA_TYPE)))
   ) {
     actions.push('transcribe')
   }
@@ -136,28 +143,41 @@ export function audioRouteOptions(
 }
 
 /** Application result, NOT a provider schema. The adapter parses the captured
- * HTTP response before mapping it here. No duration receipt is invented. */
+HTTP response before mapping it here. No duration receipt is invented. */
 const batchResultSchema = z.strictObject({
   text: z.string(),
   billedSeconds: z.optional(z.number().check(z.gte(0))),
 })
 
+/**
+Permission and dispatch are separate states (RVMEDIAV 3): a refusal before
+`dispatch` (no key, another account, the endpoint check) is a non-send that
+refunds and counts nothing; only `dispatch` carries liability.
+*/
+export interface BatchAdmission {
+  /** Permission only: gate, claim, model and Stop now. Nothing is owed. */
+  readonly check: () => void
+  /** The transport's last synchronous step before its fetch, after the key
+  and endpoint: the final admission, then the observed dispatch. */
+  readonly dispatch: () => void
+}
+
 export interface BatchTranscriptionPort {
   /** Evidence-backed billing bound, including any provider rounding. Unknown
-   * refuses admission; sniffed duration alone is not a billing receipt. */
+  refuses admission; sniffed duration alone is not a billing receipt. */
   readonly billableSecondsUpperBound: (source: AudioSource) => number | undefined
-  /** Streams a confined source; calls admitSend before EACH charged attempt,
-   * after retrieving the stored key. Stop/close aborts the supplied signal. */
+  /** Streams a confined source; the transport calls `admission.dispatch`
+  immediately before EACH charged attempt. Stop/close aborts the signal. */
   readonly transcribe: (
     source: AudioSource,
     signal: AbortSignal,
-    admitSend: () => void,
+    admission: BatchAdmission,
   ) => Promise<z.infer<typeof batchResultSchema>>
 }
 
 export interface AudioConversionPort {
   /** M1 verifies the absolute executable through its trusted-path port, uses
-   * argument arrays and a bounded owner-only temporary file. No key is passed. */
+  argument arrays and a bounded owner-only temporary file. No key is passed. */
   readonly convert: (
     source: AudioSource,
     mode: 'extractWav' | 'wrapMp4',
@@ -171,21 +191,21 @@ export interface AudioConversionPort {
 export interface BatchSpendClaim {
   /** Final synchronous admission, including the current budget and owner. */
   readonly admitSend: () => void
-  /** Undefined keeps the full reservation as uncertain liability. */
+  /** Undefined is a cost unknown: nothing is counted, never the estimate (D208). */
   readonly settle: (costUsd: Usd | undefined) => Promise<void>
 }
 
 export interface AudioPreparationDeps {
   readonly context: AudioRoutingContext
   /** Rebinds owner/key, model, mode, trust, contributor consent and source
-   * revision after every await. Throws on a stale choice, including switch-back. */
+  revision after every await. Throws on a stale choice, including switch-back. */
   readonly assertCurrent: () => void
   readonly converter?: AudioConversionPort
   readonly batch?: BatchTranscriptionPort
   readonly gate: Pick<PaidFeatureGate, 'isOn'>
   /** Shared PaidUseConsent, with voice's window-once policy and batch question. */
   readonly consent: Pick<PaidUseConsent, 'allows'>
-  /** D78 daily and M82 session admission, durable before dispatch. */
+  /** D78 daily and M82 session limits the person set, checked before dispatch (D208). */
   readonly reserve: (costUsd: Usd, signal: AbortSignal) => Promise<BatchSpendClaim>
   readonly usage: Pick<PaidUsage, 'addVoiceBatch'>
 }
@@ -200,16 +220,16 @@ export interface PreparedAudioAttachment {
 }
 
 /** The existing three-choice modal uses this question for a batch, with exact
- * hourly money and the shared daily budget; no microphone starts. */
+hourly money and the shared daily budget; no microphone starts. */
 export function batchTranscriptionQuestion(name: string, dailyBudgetUsd: UsdAmount) {
   if (!nonnegativeUsdSchema.safeParse(dailyBudgetUsd).success)
-    throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'ledger_integrity')
   const price = fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
   return {
     title: fill(UI_TEXT.media.transcript, { name }),
     detail: [
       fill(UI_TEXT.imageBuyBilling, { price }),
-      fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) }),
+      fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(dailyBudgetUsd) }),
     ].join('\n\n'),
   }
 }
@@ -221,7 +241,7 @@ function batchCost(seconds: number): Usd {
   if (match === null) throw new Error(UI_TEXT.media.durationUnknown)
   const digits = BigInt(`${match[1] ?? ''}${match[2] ?? ''}`)
   const shift = Number(match[3] ?? 0) - (match[2]?.length ?? 0)
-  if (!Number.isSafeInteger(shift)) throw new Error(UI_TEXT.media.durationUnknown)
+  if (!Number.isSafeInteger(shift)) throw new TypeError(UI_TEXT.media.durationUnknown)
   const radix = BigInt(USD_DECIMAL_RADIX)
   const count = Number(shift >= 0 ? digits * radix ** BigInt(shift) : digits)
   let cost = Usd.from(PAID_PRICES_USD.voicePerHour).times(count)
@@ -308,14 +328,19 @@ export async function prepareAudioAttachment(
     const admittedClaim = await deps.reserve(batchCost(upperSeconds), signal)
     claim = admittedClaim
     check(deps, signal)
+    const admit = () => {
+      check(deps, signal)
+      if (accounting.hasSent || !deps.gate.isOn('voice')) throw new Error(UI_TEXT.museVoiceRefused)
+      admittedClaim.admitSend()
+    }
     const result = batchResultSchema.parse(
-      await deps.batch.transcribe(converted?.source ?? source, signal, () => {
-        check(deps, signal)
-        if (accounting.hasSent || !deps.gate.isOn('voice'))
-          throw new Error(UI_TEXT.museVoiceRefused)
-        admittedClaim.admitSend()
-        accounting.hasSent = true
-        accounting.settledCost = undefined
+      await deps.batch.transcribe(converted?.source ?? source, signal, {
+        check: admit,
+        dispatch: () => {
+          admit()
+          accounting.hasSent = true
+          accounting.settledCost = undefined
+        },
       }),
     )
     if (!accounting.hasSent) throw new Error(UI_TEXT.museVoiceRefused)
@@ -327,7 +352,7 @@ export async function prepareAudioAttachment(
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     if (
       result.text.trim() === '' ||
-      new TextEncoder().encode(result.text).length > MAX_TEXT_ATTACHMENT_BYTES
+      new TextEncoder().encode(result.text).length > VOICE_TEXT_MAX_BYTES
     )
       throw new Error(UI_TEXT.museVoiceRefused)
     check(deps, signal)

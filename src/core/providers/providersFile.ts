@@ -16,14 +16,16 @@ import {
   PROVIDERS_FILE_VERSION,
 } from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
 import {
   customCompatSchema,
   modelLimitsSchema,
   outputTokenMinimumMessage,
   providerOutputMinimum,
   openRouterRoutingSchema,
+  pruneModelLimits,
 } from '../../shared/providerRouting'
-import { isProviderId, parseModelRef } from './modelRef'
+import { isProviderId, isStorableModelId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
 import { capabilityOverridesSchema, userCapabilityOverrides } from './capabilityRecord'
 
@@ -66,8 +68,13 @@ export const providerEntrySchema = z
     // The wire format (a custom server's choice; presets fix their own).
     format: z.optional(providerFormatSchema),
     auth: providerAuthSchema,
-    // The chosen models (`<modelId>` as the provider lists them).
-    models: z.array(z.string()),
+    // The chosen models (`<modelId>` as the provider lists them). A stored
+    // id is printed back by later lists, so control and format characters
+    // never validate: no stored value can steer a terminal (Codex on PR
+    // #227, like the `--force` reasons below).
+    models: z.array(
+      z.string().check(z.refine(isStorableModelId, { error: () => UI_TEXT.actionFailed })),
+    ),
     // Required for every chosen custom model; retained across save/reload.
     modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
     // Compatibility overrides for a custom server's wire shape (BYO 14).
@@ -84,8 +91,29 @@ export const providerEntrySchema = z
     routing: z.optional(openRouterRoutingSchema),
     // The context each Ollama model runs with (only on an `ollama` entry).
     numCtx: z.optional(z.record(z.string(), z.number())),
+    // EXECPROV round 6: exact input counts are on by default where the
+    // provider documents a same-body count call; false keeps the byte bound.
+    exactInputCount: z.optional(z.boolean()),
+    // The deployment name Azure sends as `model` (only on an `azure`
+    // entry); capability records resolve by the model family in `models`.
+    // Optional in the file: entries saved before the wizard persisted it
+    // (and terminal adds, which have no deployment option) must still
+    // load; `wireModelFor` requires it at send.
+    deployment: z.optional(z.string()),
     // Set once the user answers the private-network question for this entry.
     privateNetwork: z.optional(z.boolean()),
+    // Models added despite the provider not listing them (D120): each maps
+    // to the `--force` reason shown on the entry. Never a credential.
+    forcedModels: z.optional(
+      z.record(
+        z.string(),
+        z.string().check(
+          z.refine((reason) => reason.trim() !== '' && !/\p{Cc}|\p{Zl}|\p{Zp}/u.test(reason), {
+            error: () => UI_TEXT.actionFailed,
+          }),
+        ),
+      ),
+    ),
   })
   .check(
     z.refine(
@@ -210,20 +238,15 @@ export type ProvidersFileRead =
       readonly ok: false
       readonly reason: 'missing' | 'unparseable' | 'invalid'
       readonly detail: string
+      /** The read failure behind an `unparseable` file the store never read. */
+      readonly cause?: unknown
     }
 
 /**
- * Read and validate the file. A missing file is the first-run state, not
- * an error. An invalid file is reported, never repaired or defaulted: the
- * panel shows the failure and the user's providers stay untouched.
- */
-/** The `code` of a filesystem error, or undefined for anything else. */
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
-}
-
+Read and validate the file. A missing file is the first-run state, not
+an error. An invalid file is reported, never repaired or defaulted: the
+panel shows the failure and the user's providers stay untouched.
+*/
 export async function readProvidersFile(
   filePath: string,
   read: (path: string) => Promise<string> = (path) => readFile(path, 'utf8'),
@@ -232,36 +255,92 @@ export async function readProvidersFile(
   try {
     text = await read(filePath)
   } catch (error) {
-    return errorCode(error) === 'ENOENT'
+    // Only a missing file reads as one. Any other read failure keeps its
+    // cause on the refusal (the detail names the file, never the error).
+    return isStoreErrorCode(error, 'ENOENT')
       ? { ok: false, reason: 'missing', detail: filePath }
-      : { ok: false, reason: 'unparseable', detail: String(error) }
+      : { ok: false, reason: 'unparseable', detail: filePath, cause: error }
   }
   let value: unknown
   try {
     value = JSON.parse(text) as unknown
-  } catch {
+  } catch (error) {
+    // Only malformed text reads as unparseable; anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: 'unparseable', detail: filePath }
   }
   const parsed = z.safeParse(providersFileSchema, value)
-  return parsed.success
-    ? { ok: true, file: parsed.data }
-    : {
-        ok: false,
-        reason: 'invalid',
-        detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
-      }
+  if (!parsed.success)
+    return {
+      ok: false,
+      reason: 'invalid',
+      detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
+    }
+  // C-M95-4 R5: a load prunes limits for models that are not listed,
+  // for every reader of this file: the panel, the wizard, the CLI, ACP,
+  // the registry.
+  return {
+    ok: true,
+    file: {
+      ...parsed.data,
+      providers: parsed.data.providers.map((entry) => ({
+        ...entry,
+        modelLimits: pruneModelLimits(entry.models, entry.modelLimits),
+      })),
+    },
+  }
+}
+
+/**
+What the person reads for a refused file: the file, and — when the store
+was never read — the read failure behind it. A bare path never tells them
+whether to fix permissions or the text.
+*/
+export function refusalDetail(read: Extract<ProvidersFileRead, { ok: false }>): string {
+  const cause = read.cause instanceof Error ? read.cause.message : read.cause
+  return typeof cause === 'string' && cause !== '' ? `${read.detail}: ${cause}` : read.detail
 }
 
 export type ProvidersFileWrite =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'invalid' | 'io-error'; readonly detail: string }
+  | { readonly ok: false; readonly reason: 'invalid'; readonly detail: string }
+  | {
+      readonly ok: false
+      readonly reason: 'io-error'
+      readonly detail: string
+      readonly cause: unknown
+    }
 
 /**
- * Validate and write the file atomically: encoded once, written to a
- * unique temporary file beside the destination, then renamed over the
- * target, so a crash never leaves half a file. An invalid value is refused
- * before anything is written.
- */
+A rename the platform briefly denies (Windows readers hold the
+destination): worth another attempt after a pause. Anything else keeps
+its kind at once. One named test so the retry condition reads as the
+single expected case it is.
+*/
+function isRenameRetryCode(error: unknown): boolean {
+  return (
+    isStoreErrorCode(error, 'EPERM') ||
+    isStoreErrorCode(error, 'EACCES') ||
+    isStoreErrorCode(error, 'EBUSY')
+  )
+}
+
+/** Best-effort removal of the temporary beside the destination. */
+async function dropTemporaryFile(temporary: string): Promise<void> {
+  try {
+    await rm(temporary, { force: true })
+  } catch {
+    // An inaccessible directory may also prevent cleanup; the caller keeps
+    // and reports the original write or rename failure.
+  }
+}
+
+/**
+Validate and write the file atomically: encoded once, written to a
+unique temporary file beside the destination, then renamed over the
+target, so a crash never leaves half a file. An invalid value is refused
+before anything is written.
+*/
 export async function writeProvidersFileAtomic(
   filePath: string,
   file: unknown,
@@ -287,23 +366,19 @@ export async function writeProvidersFileAtomic(
         await renameFile(temporary, filePath)
         break
       } catch (error) {
-        if (
-          !['EPERM', 'EACCES', 'EBUSY'].includes(errorCode(error) ?? '') ||
-          attempt >= ATOMIC_RENAME_ATTEMPTS
-        )
-          throw error
+        // Windows readers briefly deny replacement; retry the same complete
+        // file a bounded number of times, then keep the failure's kind.
+        if (attempt >= ATOMIC_RENAME_ATTEMPTS) throw error
+        if (!isRenameRetryCode(error)) throw error
         await pause(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
       }
     }
     return { ok: true }
   } catch (error) {
-    // Cleanup is best-effort; preserve the write/rename failure for the caller.
-    try {
-      await rm(temporary, { force: true })
-    } catch {
-      // An inaccessible directory may also prevent cleanup; report the original IO failure.
-    }
-    return { ok: false, reason: 'io-error', detail: String(error) }
+    // Cleanup is best-effort; the caller keeps the write or rename failure
+    // with its cause.
+    await dropTemporaryFile(temporary)
+    return { ok: false, reason: 'io-error', detail: String(error), cause: error }
   }
 }
 

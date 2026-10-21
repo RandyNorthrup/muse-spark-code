@@ -4,10 +4,9 @@
 
 import {
   IMAGE_ASPECT_SIZES,
-  IMAGE_EDIT_MAX_SOURCES,
+  IMAGE_EDIT_SOURCE_MIN,
   IMAGE_FILE_EXTENSION,
   type ImageAspect,
-  IMAGE_PROMPT_MAX_CHARS,
 } from '../../../shared/constants'
 
 export const IMAGE_ASPECTS = Object.keys(IMAGE_ASPECT_SIZES) as [ImageAspect, ...ImageAspect[]]
@@ -25,7 +24,8 @@ const ASPECT_PARAMETER = {
 export const GENERATE_IMAGE_PARAMETERS = {
   prompt: {
     type: 'string',
-    description: `What the image shows, in detail (at most ${String(IMAGE_PROMPT_MAX_CHARS)} characters)`,
+    // D121: no prompt length of ours — Meta documents none.
+    description: 'What the image shows, in detail',
   },
   path: PATH_PARAMETER,
   aspect: ASPECT_PARAMETER,
@@ -34,12 +34,17 @@ export const GENERATE_IMAGE_PARAMETERS = {
 export const EDIT_IMAGE_PARAMETERS = {
   prompt: {
     type: 'string',
-    description: `The change to make, or how to combine the images, in detail (at most ${String(IMAGE_PROMPT_MAX_CHARS)} characters)`,
+    description: 'The change to make, or how to combine the images, in detail',
   },
   images: {
     type: 'array',
     items: { type: 'string' },
-    description: `Workspace-relative paths of 1 to ${String(IMAGE_EDIT_MAX_SOURCES)} existing PNG, JPEG or WebP images to start from`,
+    minItems: IMAGE_EDIT_SOURCE_MIN,
+    // D121: no maxItems of ours — Meta's own 1–10 range rides its capability
+    // record and the runtime refuses past it before anything is read or
+    // asked. The description still names the provider's range.
+    description:
+      'Workspace-relative paths of existing PNG, JPEG or WebP images to start from, one to ten',
   },
   path: PATH_PARAMETER,
   aspect: ASPECT_PARAMETER,

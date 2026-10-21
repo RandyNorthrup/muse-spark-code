@@ -365,6 +365,71 @@ Gemini's `quota_exceeded` body (the snake_case envelope); Azure's 429 with
 `retry-after-ms`; OpenAI's quota 429 and `server_error`; Anthropic's spend-cap
 429; Mistral's exhaustion error.
 
+### Lane RETRYLIMITS — documented retry limits per provider (2026-10-17)
+
+Every source below was read 2026-10-17 (PR #202 research files, plus the
+PROVERRORS record for the SDK rows; review RVRETRYLIMITS re-read the
+OpenAI and Google SDK pages named below on the same date). "Not
+documented" means the provider names no maximum retry count / backoff
+on the pages read; per the owner's rule no limit of ours applies and
+the person's setting decides. Rows whose research file itself records
+the retry pages as unread or unverified are marked UNVERIFIED: their
+behaviour (unbounded, the person's setting decides) is the same, but
+the "not documented" claim itself was not established.
+
+| Provider                                       | Max retries                     | Backoff                                | Source                                                                 |
+| ---------------------------------------------- | ------------------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
+| Anthropic                                      | 2 (SDK default)                 | Exponential, honors Retry-After        | Official SDK (via anthropic.md ERR)                                    |
+| OpenAI                                         | 2 (SDK default)                 | Retry-After, else exp backoff + jitter | Error codes page (ERR) + SDK                                           |
+| Gemini                                         | 4 (SDK: 5 attempts incl. first) | ~1 s start, 60 s max (SDK)             | Troubleshooting + Google Gen AI SDK                                    |
+| Azure                                          | 5-10 (example range)            | retry-after-ms, else exp + jitter      | Learn QUOTAHOW                                                         |
+| Meta                                           | 3-5 attempts                    | Exp, honors Retry-After                | dev.meta.ai error handling                                             |
+| xAI                                            | Up to 5                         | 2^attempt s (docs examples)            | Rate limits page (RL)                                                  |
+| OpenRouter                                     | Not documented                  | Wait Retry-After                       | Errors / limits docs (ERR)                                             |
+| Groq                                           | Not documented                  | retry-after seconds only               | Rate limits page (RL)                                                  |
+| DeepSeek                                       | Not documented                  | Not documented                         | Rate limits page (RL)                                                  |
+| Mistral                                        | Not documented                  | Not documented                         | Pages read                                                             |
+| Together                                       | Not documented                  | Exponential, no bounds                 | Rate limits page (RL)                                                  |
+| Fireworks                                      | Not documented (UNVERIFIED)     | Not documented (UNVERIFIED)            | No retry row in fireworks.md; its serverless rate-limits page not read |
+| HuggingFace                                    | Not documented (UNVERIFIED)     | Not documented (UNVERIFIED)            | huggingface.md: retry guidance "not documented / not verified"         |
+| Z.ai                                           | Not documented                  | Wait until next_flush_time             | Errors page (ERR)                                                      |
+| ChatGPT-Codex plan                             | Not documented                  | Bounded backoff                        | SIWC errors page                                                       |
+| Copilot                                        | Not documented (UNVERIFIED)     | Not documented (UNVERIFIED)            | No retry row in copilot.md                                             |
+| Ollama / LM Studio / vLLM / llama.cpp / custom | Not documented                  | Not documented                         | Server docs                                                            |
+
+Notes:
+
+- Anthropic's API docs fix no count ("retry with exponential backoff" for
+  500; 429 retries after `retry-after` seconds); the count 2 is the
+  official SDK default ("retries transient failures ... twice by default").
+- Gemini's API docs ask for "a maximum number of retry attempts to prevent
+  infinite loops" without naming one; the count 4 with ~1 s to 60 s is the
+  official SDK default. Verified in review RVRETRYLIMITS (2026-10-17)
+  against Google Cloud's "Retry strategy" page for the Google Gen AI SDK:
+  `attempts` defaults to 5 as the maximum number of attempts including
+  the original request (so 4 retries), `initial_delay` 1.0 s, `max_delay`
+  60 s. The PR #202 research file (gemini.md) does not itself contain
+  the SDK row; the PROVERRORS record's quotation is what the lane used.
+- OpenAI's API docs say only "limit retries" (openai.md §4), but its
+  official SDK documents the same basis the Anthropic row uses:
+  "automatically retried 2 times by default, with a short exponential
+  backoff" (openai-python README, read 2026-10-17 in review
+  RVRETRYLIMITS). The count 2 therefore rides on the OpenAI preset; the
+  lane as submitted left OpenAI unbounded, which was inconsistent with
+  the Anthropic and Gemini SDK rows.
+- Azure's docs give 5-10 as an example ("for example, 5–10"), not a fixed
+  ceiling; `retry-after-ms` is read before `Retry-After` (done in PROVERRORS).
+- Meta's 3–5 attempts with exponential backoff and jitter honouring
+  `Retry-After` is `dev.meta.ai/docs/error-handling` (cited in
+  `src/shared/constants.ts`, the Model API backend's own provider page);
+  no PR #202 research file covers Meta, and the backoff has no documented
+  bounds, so the count is 4 retries and the bounds are the person's
+  setting (uncapped when unset).
+- xAI's "up to 5 attempts" with 2^attempt-second backoff is from the
+  docs' own worked examples (xai.md §4).
+- OpenRouter, Z.ai and the Codex plan route document _which_ answers wait
+  and retry (Retry-After / next_flush_time / bounded backoff) but no count.
+
 ### Gates
 
 Full set on `fcc07ad8ea` (before the second merge): typecheck 0, lint
@@ -384,3 +449,286 @@ tree, under the lead's narrowed rule: prettier 0 and eslint
 (`--max-warnings=0`, with main's new stand-in rule) 0 on the 33 files this
 lane changed, typecheck 0, build 0, the touched suites 0 (18 files, 526
 tests), l10n 0, plan 0.
+
+## Lane RETRYLIMITS (2026-10-17): each provider's own retry limit
+
+Branch `fix/provider-retry-limits` from `3080ef02c4` (PR #176 head).
+Recorded 2026-10-17, rig `macmini`, worktree `/Users/randy/lanes/RETRYLIMITS`.
+Engine: GPT Sol 6.1 (Codex CLI).
+
+Rule: the single global retry count (4) and backoff (1 s to 60 s) are
+replaced by each provider's documented values (table above); anything a
+provider does not document is the person's `museSpark.modelApiMaxRetries`
+setting, unset by default, and with none set the provider's own
+Retry-After (or stop answer) governs, with no cap of ours.
+
+### What changed
+
+- `src/shared/retryPolicy.ts`: `RetryLimits` (absent field = not
+  documented), `PROVIDER_RETRY_LIMITS` per format (anthropic 2, gemini
+  4/1 s/60 s, the rest empty), `META_DOCUMENTED_RETRY_LIMITS` (4, from
+  dev.meta.ai/docs/error-handling's 3–5 attempts), the
+  person-over-documented-over-unbounded merge (`effectiveMaxRetries`) and
+  the pure backoff math (`retryDelayMs`: named wait whole, else
+  exponential from the only documented base, capped only where documented).
+- `src/core/providers/presets.ts`: `FormatQuirks.retryLimits` (format
+  defaults plus the preset's override); xAI 4 retries from 1 s (up to 5
+  attempts, 2^attempt s); Azure 10 (the largest maximum its documented
+  5–10 example range names; anything above exceeds its guidance).
+- `src/core/backends/modelapi/transport.ts`: per-transport effective
+  maximum (`TransportDeps.retryLimits` + live `personMaxRetries`), unbounded
+  loop bound, `noRetryBudget()` for single-attempt paths (replacing every
+  `{ retriesUsed: MODEL_API_MAX_RETRIES }`), uncapped notices
+  (`maxAttempts: number | undefined`).
+- Turn loops (`ModelApiHost` twice), the configured stream resend
+  (`providerClient.ts`) and every `ProviderClient` (CodecClient,
+  ModelApiClient, the configured/subscription/accounting delegates) read
+  the current client's own limit. The `turnRetry` event, its mapping and
+  its transcript sentence carry no cap (`turnRetryingUncapped`) when
+  neither the provider nor the person sets one.
+- The person setting: `museSpark.modelApiMaxRetries` (integer or null,
+  default null = unset, 0 never retries; machine-scoped) through the
+  settings registry (`settings.ts`, `package.json`, `package.nls.json` +
+  14 locales, `featureCatalog.ts` `retry-limits`, regenerated reference,
+  README, CHANGELOG), wired live into the Meta client and every
+  configured provider's transports. The ACP/headless surface does not
+  expose it yet (its hosts pass no option): documented providers keep
+  their maxima there; undocumented ones are unbounded there too.
+- `MODEL_API_MAX_RETRIES` is gone. `MODEL_API_RETRY_BASE_MS` stays as the
+  mechanical default initial wait (1 s is the only documented base);
+  `MODEL_API_RETRY_JITTER_MS` stays as anti-herd mechanism;
+  `MODEL_API_RETRY_MAX_MS` stays for pacing's assumed 429 wait only
+  (lane PROVM95's area, untouched).
+
+### Tests and drills
+
+- `test/unit/providerRetryLimits.test.ts` (10 tests, real code only, no
+  stand-ins): documented counts and bounds per preset, a preset's own
+  count merged over its format's backoff, undocumented presets without a
+  limit, person-wins merge (incl. 0), documented fallback, unbounded
+  fallback, backoff math (named wait whole, doubling, documented cap,
+  uncapped growth), single-attempt budgets past every cap. Green at the
+  repo timeout. (Review RVRETRYLIMITS removed the one settings-read
+  test: it fed `readSettings` a hand-written configuration object and a
+  no-op logger, a stand-in for the editor's own config under the
+  owner's testing rule; the packed-product steps below cover the
+  setting instead. The same review added the merge test and pinned
+  OpenAI's 2.)
+- Drill: planted anthropic 3 instead of 2 — the pin test failed exit
+  non-zero (`pins the documented counts`); restored byte-identical, green.
+- The bundle-split gate fired on the change (3 cross-bundle reads:
+  `UNBOUNDED_RETRIES` into `configuredProviders.js`, `noRetryBudget`
+  into `reviewer.js` and `tab.js`); both names were exported from
+  `dist/modelApi.js` before any real use, build green after.
+
+### Gates (final tree)
+
+typecheck all projects 0; eslint `--max-warnings=0` 0 on all changed
+sources; prettier 0; deadcode 0; cycles 0; duplication 0 clones;
+check:l10n 0 (new `turnRetryingUncapped` + setting description in all 14
+locales, real translations); check:reference 0 (regenerated:
+`retry-limits` feature, 90 settings); check:host-api 0; check:plan 0
+drift; check:roadmap current; build 0 (budgets held); security:audit 0
+(2 advisories, 1 exception). SAST could not start here:
+`Fatal error: exception Failure: ca-certs: empty trust anchors` (the
+sandbox's toolchain, before any scan; same tree-independent failure the
+lead sees outside). `vitest related` over every changed source: all
+retry-adjacent suites green (98/98 across the retry/refusals/presets/
+notification/l10n files); the only failures are process/timing suites
+that fail identically on the untouched base (see below).
+
+### Related-suite failures, measured on both trees
+
+`vitest related` (293 files) on this tree and on a clean clone at
+`c5b764683` (no retry-code changes): `fileLease.test.ts` (4) and
+`treesLifecycleNative.test.ts` (2) fail identically on both —
+`processStartTime` undefined and zombie/setid assertions the sandbox
+cannot satisfy. `nativeGitCore`, `runtimePullRequestRecords`,
+`trafficHarness` fail intermittently on both trees with hook/test
+timeouts under rig load (failed on base 2026-10-17; passed on this tree
+in the earlier run). `packagedBundles.test.mjs` failed once in three
+runs with an `afterAll` hook timeout removing its fixture folder (no
+content assertion failed). None touches retry, settings, providers or
+notices; the retry-adjacent suites pass deterministically.
+
+### Real use (packed build of this tree, `node dist/acp.js`)
+
+Isolated: `XDG_CONFIG_HOME` and workspace in scratch folders, no stored
+key read or written (keys over stdin were shape-valid but made-up
+strings). Provider calls: 1, to `api.anthropic.com`, refused with 401
+($0).
+
+1. `providers add --preset ollama --as dead --address
+http://127.0.0.1:59321` (a closed port): "Test failed: Could not reach
+   dead: the connection failed (fetch failed: ECONNREFUSED), so whether
+   the request arrived is unknown; check the network and the provider
+   address." — one attempt, through the packed code.
+2. Hand-written `providers.json` (anthropic preset, scratch only), `exec
+--backend modelApi --provider anthropic --model
+anthropic/claude-haiku-4-5 --max-budget-usd 5 --key-stdin`: "Anthropic
+   refused the request: the stored key was rejected. Store a new
+   Anthropic key from Models & Agents; nothing reached a model and
+   nothing was charged. Anthropic said: invalid x-api-key (request id
+   req_011Cg8mpoAwSRy4MzVf3r6et)" — requests 1, never retried, sentence
+   and request id intact after the refactor. (Headless books uncertain
+   $0.331072 on the refusal: PROVERRORS finding 1, the budget lane owns
+   it.)
+
+### What the lead must run
+
+1. The loopback suites at the repo timeout on a non-sandbox rig — the
+   per-provider attempt counts the new caps imply (Anthropic stops after
+   2 retries, Gemini after 4, an undocumented provider only on its stop
+   answer, `modelApiMaxRetries: 0` sends once) cannot be driven here
+   (`listen(2)` is EPERM).
+2. One real 429-or-500 answer per documented provider (no model needs to
+   run for most): the attempts must stop at that provider's documented
+   maximum.
+3. The person's setting in VS Code: set `museSpark.modelApiMaxRetries`
+   to 1 and to 0 and watch a retryable failure stop accordingly; unset
+   it and watch the provider's documented maximum govern.
+4. SAST outside this sandbox (it cannot start here).
+
+### Open, with the reason
+
+- ACP/headless exposes no `modelApiMaxRetries` knob (runtime
+  `createConfiguredProviderServices` and the headless Meta client pass
+  no option): the mechanism honors it on every surface once a host
+  passes it; the setting's surface is VS Code only.
+- Idle and request timeouts (300 s, 30 s): not this lane (stated in the
+  PLAN amendment).
+
+### Review threads on PR #225 (2026-10-17)
+
+The four unresolved Codex threads at `e6b2d3948d`, one line each:
+
+1. `src/core/providers/configured.ts:371` (configured models retry by
+   Meta's limit): fixed in `dfe495a437`. `boundClient()` spread `base`,
+   whose `maxRetries` delegates to the Meta client (or throws when there
+   is none, so the turn loop rethrew without any retry); the bound client
+   now answers from its own `CodecClient` (`configured.ts:1048`: the
+   preset's documented limit, or the person's setting).
+2. `src/shared/retryPolicy.ts:202` (an uncapped delay overflows the timer):
+   fixed in `c9171e323b`. `RequestTransport.pause` (`transport.ts:750`,
+   the one wait every retry, turn resend and pacing hold goes through)
+   sleeps in abortable
+   pieces of at most `MODEL_API_TIMER_MAX_MS` (2^31 − 1 ms: "When `delay`
+   is larger than `2147483647` … the `delay` will be set to `1`",
+   nodejs.org/api/timers.html, Node.js v26.12.0, read 2026-10-17). The
+   logical delay stays whole, so neither an uncapped backoff nor a
+   provider's `Retry-After` date weeks away collapses to 1 ms.
+3. `test/unit/providerRetryLimits.test.ts:87` (invented retry inputs):
+   fixed in `c9171e323b`. The made-up 5-second provider wait, the
+   synthetic jitter samples, the hand-written limit records and the
+   fabricated preset (count 9) are gone. Every input is now a preset's real documented record, Meta's
+   documented record, the product's own `RequestTransport` with the
+   platform's random source and timer, and the agent's own
+   `stderrLogger`. The named-wait rule has no test: the repository holds no
+   recorded real exchange with a `Retry-After` header (a case-insensitive
+   search of `test/` finds it only in two `sources.json` source snapshots
+   and in hand-written header values of the usage-journal tests, no
+   capture), so the packed product's real-life run proves it.
+4. `src/extension.ts:2054` (the setting never reaches the conversation
+   client): fixed in `dfe495a437`.
+   `ModelApiBackendManagerDeps.personMaxRetries`
+   (`modelApiBackendManager.ts:140`) is passed into the conversation
+   client the backend builds (`:347`), and the extension hands it the live
+   setting (`extension.ts:2629`), so `museSpark.modelApiMaxRetries: 0`
+   stops ordinary Meta turns too.
+
+Tests and drills:
+
+- The suite drives the real transport: documented backoff per preset with
+  the real jitter (bounds, not a sample), and the overflow case: an
+  undocumented provider's 23rd try (`backoffMs(22)`, about 4.19 × 10^9 ms)
+  is still waiting when a Stop comes 200 ms later. 8 tests, exit 0.
+- Drill (run twice, on the first and the final form of the test): `pause`
+  with the pieces removed (`piece = remaining`). Node printed its
+  `TimeoutOverflowWarning` for the delay (4194304443 ms on the final
+  run), the wait ended after 7 ms and the overflow test failed ("promise
+  resolved "undefined" instead of rejecting", exit 1). Restored
+  byte-identical (`cmp` exit 0), green again.
+- No unit test for threads 1 and 4: the configured services need a
+  secret store (`ConfiguredProviderOptions.secrets` is required) and the
+  backend manager is built from the editor's settings and services. Each
+  could only be built in a unit test on a stand-in, which the owner's rule
+  forbids, so the real-life steps below are their proof.
+
+What the lead must run (packed product, adds to the list above):
+
+1. VS Code, `museSpark.modelApiMaxRetries: 0`, Meta backend, the network
+   cut (for example `http.proxy` pointed at a closed port): one send and
+   the failure at once, no "Retrying" notice. Unset it: Meta's four
+   retries with their notices.
+2. Thread 1 changes what the turn loop reads for a configured model,
+   which is the media-recovery resend gate: configured streams never
+   reach the loop as a `RetryableStreamError` (`configured.ts:994-1007`
+   throws a stream error as a `ModelApiError`), and their own resends in
+   `CodecClient` already read the preset's limit through the transport.
+   Real-life: a configured Anthropic model whose provider refuses an
+   attached image for its size after its own retries are spent (2): no
+   recovery resend follows, where Meta's 4 used to allow one.
+
+Still open:
+
+- `createSubscriptionClient` (`subscriptions/registry.ts:183`) answers
+  `maxRetries` from the Meta client for ChatGPT-plan and Copilot models as
+  well. The host's turn loop reads it only for a `RetryableStreamError`
+  (never raised on those routes) and for the media-recovery gate. Fixing it
+  needs a per-model `maxRetries`, which `ProviderClient` does not have.
+  Not changed here.
+- ACP/headless still pass no `personMaxRetries` (see above).
+
+## The three new Codex threads on PR #225 (lane PR225FIX2, done)
+
+1. `ModelApiHost.ts:14610` (P1, compaction reads the aggregate client): fixed. `collectText` keeps the resolved attempt's client in `attemptClient` (`ModelApiHost.ts:14437,14452`) and the catch reads the limit, the delay and the wait from it (`:14618-14644`), falling back to the aggregate client only when nothing resolved yet. No unit test: the host needs the editor's services, which a unit test may only build on a stand-in (owner's rule); the lead's real-life step 1 below is the proof.
+2. `transport.ts:760` (P2, an aborted long wait leaves its timer): fixed. `pause` hands the turn's stop to each chunk's sleep (`transport.ts:795`), and the four production sleeps that feed a transport (configured providers in `configured.ts:478`, the Meta key client and the conversation manager in `extension.ts:2058,2634`, the ACP/headless managers in `runtime/main.ts:201`) share `abortableSleep`, which clears its timer the moment the stop aborts. Clearing, not unreferencing, on purpose: an unaborted wait holds the process exactly as before; only an abandoned wait is gone. The race stays as the backstop for a sleep that ignores the signal. `abortableSleep` is exported from the Model API bundle entry (`modelApiEntry.ts:41`), or the three bundles that read it get `undefined` at run time (HOTFIX0181; the split gate failed before the export).
+3. `transport.ts:1175` (P2 security, unbounded ambiguous replays): fixed. An unanswered send — the request may have arrived and executed — is sent again only within an explicit bound: the person's `museSpark.modelApiMaxRetries` setting or the provider's documented maximum (`transport.ts:1211-1219`). With neither, the send failure ends the request at once. The same rule covers a connection lost before any content in `CodecClient.streamResponse` (`providerClient.ts:287-297`). Answered retries are unchanged: HTTP statuses with the provider's `Retry-After`, documented retryable stream errors and the host turn loops' provider-answered error events stay on the provider's own policy (the provider answered, so the send is not ambiguous).
+
+Tests and drills (`test/unit/providerRetryLimits.test.ts`, 14 tests, exit 0; real code and real data only — the platform's timer, the presets' documented tables, the product's own transport, a real refused loopback connection, no server, no stand-in):
+
+- The stop reaches each chunk's sleep (fails when `pause` stops forwarding the signal: 1 failed, 13 skipped).
+- A sleep that ignores the stop is still abandoned promptly (fails with the race removed: timeout past the suite limit).
+- The production sleep resolves a stopped wait instead of holding it.
+- An unanswered send with OpenRouter's undocumented limits and no setting fails once with zero retry notices (fails with the bound removed: three growing retries in the log, then the suite timeout — the vulnerability on display).
+- The person's setting of 1 still retries exactly once; Anthropic's documented 2 still starts its first wait, ended by Stop.
+- Shared transport deps factored out after the duplication gate found one 13-line clone; gate exit 0.
+
+Real-life runs (lead, packed product):
+
+1. Thread 1: a configured Anthropic model compacting after its own two retries are spent: the compaction follows Anthropic's limit (at most 2 more waits), not Meta's 4.
+2. Thread 3: a configured provider with no documented maximum (e.g. OpenRouter), `museSpark.modelApiMaxRetries` unset, network cut mid-turn: the send failure at once, no "Retrying" notice. Set the count to 1: exactly one notice, then the failure.
+
+Still open: `RetryableStreamError` resends in the host turn loops stay on the provider's policy (answered error events, not ambiguous sends); per-call-billed paths never retried ambiguous sends and still don't.
+
+## Lane PR225W1 first result (the 7 threads triaged, fixes to follow)
+
+1. Compaction reads the resolved client: already fixed in `413bf5658` (`attemptClient` retained per attempt; the catch reads the limit, the delay and the wait from it). To answer with that commit.
+2. Cancel each timer chunk on abort: already fixed in `413bf5658` + `b4ae1e92b` (the stop reaches each chunk's sleep; `abortableSleep` clears its timer; all production deps share it). To answer with those commits.
+3. Bound ambiguous retries: already fixed in `413bf5658` (an unanswered send replays only within an explicit bound — the person's setting or the provider's documented maximum — else the failure ends the request). To answer with that commit.
+4. Subscription `maxRetries` delegates to Meta: OPEN, measured (`registry.ts:183` still `() => meta.maxRetries()`). To fix: plan routes answer the person's setting when set, else undefined (no documented maximum); non-plan routes keep Meta's.
+5. `effectiveMaxRetries` replaces the provider maximum with `??`: OPEN, measured (`retryPolicy.ts:179`). To fix: the minimum when both exist; the person's value stays for undocumented providers.
+6. Live retry cap not rechecked after the wait: OPEN, measured (`transport.ts:1288` gates before `pause()` only). To fix: revalidate the live callback after the wait, before dispatch.
+7. No orchestrator notice when the person's cap fires: OPEN, measured (`ModelApiHost.ts:6037` rethrows with no cap event). To fix: emit the cap notification when the person's cap, not a provider maximum, blocks the retry.
+8. CI `tests (ubuntu-latest, shard 3)`: OPEN, reproduced locally (`test/unit/modelsActivationBudget.test.ts`: growth 3282 > 3072; base `81dacaf5a` grows 2901, so the branch adds 381 — all in the activation bundle: `extension.ts` +146, `settings.ts` +113, `modelApiBackendManager.ts` +86, `constants.ts` +24, `mapNotification.ts` +12). To fix in code; the budget stays 3072.
+9. CI `quality` (ubuntu/windows/macos), `package (.vsix)`, `dictation helper (macos)`: downstream of the unit-test failure (require every selected-tier job); expected green once item 8 is fixed.
+10. CI `tests (windows/macos)` in the capacity repository (push the merge commit): a CI-infra step with no local equivalent (`never push`); no code cause on this branch. For the lead to re-run.
+
+## Lane PR225W1 done (threads 4–7 fixed; threads 1–3 answered; budget green)
+
+Threads 1–3 were already fixed on the branch — answered with `413bf5658` (1 and 3) and `413bf5658` + `b4ae1e92b` (2) — and their tests still pass in `test/unit/providerRetryLimits.test.ts` (20 tests, exit 0).
+
+4. Subscription `maxRetries` (P1): fixed. `ProviderClient.maxRetries` takes the selected model (`client.ts`, `providerClient.ts`); the registry answers plan routes with the person's live setting when set, else undefined (neither plan route documents a maximum), and off-plan models with Meta's (`registry.ts`). `subscriptionFeatures` forwards the setting; headless passes none (unset). Unit test builds the real Meta client in front of the real registry (no stand-ins; sign-in, catalogue and account untouched by a limit read).
+5. `effectiveMaxRetries` (P1): fixed. The minimum when both the person and the provider set one (`retryPolicy.ts`); the person's value still decides alone where nothing is documented. Unit test pins the Azure-then-Anthropic case (10 stays 2) and a real refused send stopping at 2 with the person at 10.
+6. Live cap recheck (P2): fixed. `transport.request`'s `retry()`, `CodecClient`'s resend loop and both host loops (`streamOnce`, `collectText`) revalidate the live limit after the wait and refuse the dispatch with the original error when the cap now forbids it. Unit test lowers the cap to 0 mid-backoff on a real refused send: one send, one notice (two sends with the recheck removed).
+7. Orchestrator notice (P1): fixed. Both host loops emit a `backendNotice` warning (`UI_TEXT.modelApiRetryCapReached`, English + all 14 tables) exactly when the person's own cap — not a provider maximum — stops the retry (`isPersonRetryCap` in `retryPolicy.ts`, unit-tested; the host emission itself needs the editor's services, so the packed-product steps below are its proof).
+8. Activation budget: fixed in code, budget unchanged (3072). The branch added 381; dieted to 159: one shared live reader in `extension.ts`, `z.int()` schema, direct forward in the manager, and — the large one — `RequestTransport` waits with `abortableSleep` when no sleep is injected, so activation wires no sleep at all (as a side effect activation no longer eagerly requires `dist/modelApi.js`). The live person-set reader is now named `personCap` (it reads distinct from the effective `maxRetries()`). Growth `3060`, test exit 0. Items 9–10 above stand as recorded (downstream jobs unblocked; capacity-repo push for the lead).
+
+Gate-fire drills (each break reverted byte-identical): reverting the thread-4/5 fixes fails 4 (both new blocks), the thread-6 send count doubles without the recheck, the `isPersonRetryCap` table inverts on `!==`.
+
+Real-life runs (lead, packed product):
+
+1. Thread 4: a `chatgpt/...` model, setting unset, network cut mid-turn: provider-governed retries with no Meta-imposed stop; set the count to 1: exactly one retry notice.
+2. Thread 5: setting 10, Anthropic model, refused send: at most 2 retries.
+3. Thread 6: setting 1, a long `Retry-After` wait, set 0 mid-wait: no further request goes out.
+4. Thread 7: setting 1, two retryable stream errors: a warning names the person's cap (`museSpark.modelApiMaxRetries: 1`) on the run's feed.

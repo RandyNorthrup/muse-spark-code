@@ -10,8 +10,10 @@ import {
   setUiText,
   providersFile,
   recordPlanUsage,
+  OPENROUTER_ORIGIN,
 } from '../backend/providersEntry'
 import {
+  ChatGptSignInError,
   createSubscriptionClient,
   chatGptModels,
   chatGptAccountId,
@@ -22,8 +24,12 @@ import type { CoreLogger } from '../../core/logging'
 import type { SecretStore } from '../auth/credentialStore'
 import type { UiTable } from '../l10n'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS, UI_TEXT } from '../../shared/constants'
-import { planUsageReportSchema } from '../../shared/usage'
-import { setUiText as setHostUiText } from '../../shared/l10n/text'
+import {
+  planUsageReportSchema,
+  providerUsageRowSchema,
+  type ProviderUsageRow,
+} from '../../shared/usage'
+import { fill, setUiText as setHostUiText } from '../../shared/l10n/text'
 
 export function createSubscriptionFeatures(options: {
   readonly log: CoreLogger
@@ -31,6 +37,8 @@ export function createSubscriptionFeatures(options: {
   readonly globalStorageUri: vscode.Uri
   readonly catalogFile?: string
   readonly configFile: string
+  /** Lane RETRYLIMITS: the person's retry limit, read live per transport. */
+  readonly personCap?: () => number | undefined
   readonly l10n: UiTable
   readonly globalState: {
     get(key: string): unknown
@@ -85,6 +93,10 @@ export function createSubscriptionFeatures(options: {
       configFile: options.configFile,
       catalogFile: options.catalogFile ?? path.resolve(__dirname, 'providerCatalog.json'),
       secrets: options.secrets,
+      // The transport's still-waiting notices reach the product log
+      // (PR #214 review); per-request timing still goes nowhere.
+      log: options.log,
+      ...(options.personCap !== undefined && { personCap: options.personCap }),
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
       loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
       saveUsage: (rows) => {
@@ -117,6 +129,41 @@ export function createSubscriptionFeatures(options: {
   }
   const panelSeam = {
     ...seam,
+    catalog: {
+      ...seam.catalog,
+      get: (id: string) => {
+        const preset = seam.catalog.get(id)
+        return preset?.id === 'openrouter'
+          ? { ...preset, connectLabel: fill(UI_TEXT.providerConnect, { provider: preset.name }) }
+          : preset
+      },
+    },
+    exchanger: {
+      exchange: async (request: {
+        readonly code: string
+        readonly verifier: string
+        readonly signal?: AbortSignal
+      }) => {
+        const services = await configured()
+        return await services.openRouterExchange(request.code, request.verifier, request.signal)
+      },
+    },
+    usage: {
+      read: async (key: string, signal?: AbortSignal) => {
+        const services = await configured()
+        return await services.openRouterUsage(
+          {
+            id: 'openrouter',
+            preset: 'openrouter',
+            address: OPENROUTER_ORIGIN,
+            auth: 'apiKey',
+            models: [],
+          },
+          key,
+          signal,
+        )
+      },
+    },
     fetcher: { fetchModels },
     tester: {
       test: async (provider: Parameters<typeof fetchModels>[0], key: string) => {
@@ -147,6 +194,51 @@ export function createSubscriptionFeatures(options: {
   }
   return {
     seam: panelSeam,
+    readKeyUsage: async (): Promise<ProviderUsageRow[]> => {
+      const services = await configured()
+      const rows: ProviderUsageRow[] = []
+      const entries = await seam.store.list()
+      for (const entry of entries) {
+        if (entry.preset !== 'openrouter') continue
+        try {
+          const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)
+          if (stored === undefined) throw new Error(UI_TEXT.providerUsageFailed)
+          const snapshot = await services.openRouterUsage(
+            providersFile.providerEntrySchema.parse(entry),
+          )
+          if ((await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)) !== stored)
+            throw new Error(UI_TEXT.providerUsageFailed)
+          rows.push(
+            providerUsageRowSchema.parse({
+              providerId: entry.id,
+              providerLabel: seam.catalog.get(entry.preset)?.name ?? entry.id,
+              pricing: 'priced',
+              inputTokens: 0,
+              outputTokens: 0,
+              keyUsage: {
+                totalUsd: snapshot.usedTotal,
+                unlimited: snapshot.unlimited,
+                todayUsd: snapshot.usedToday,
+                weekUsd: snapshot.usedThisWeek,
+                monthUsd: snapshot.usedThisMonth,
+                limitUsd: snapshot.limit,
+                remainingUsd: snapshot.remaining,
+              },
+            }),
+          )
+        } catch {
+          rows.push({
+            providerId: entry.id,
+            providerLabel: 'OpenRouter',
+            pricing: 'priced',
+            inputTokens: 0,
+            outputTokens: 0,
+            keyUsageError: UI_TEXT.providerUsageFailed,
+          })
+        }
+      }
+      return rows
+    },
     hasCopilotAccess: () => copilot.size > 0 && !options.isConfidential(),
     accountId,
     planAccount: async () => {
@@ -159,8 +251,15 @@ export function createSubscriptionFeatures(options: {
         ? createSubscriptionClient(meta, {
             fetch: fetcher,
             hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
+            // Lane PR225W1: the plan routes answer the person's setting.
+            ...(options.personCap !== undefined && {
+              personCap: options.personCap,
+            }),
             chatgpt,
             accountId,
+            // Indefinite ChatGPT stream waits say so on the product log
+            // (PR #214 review) instead of looking hung until Stop.
+            log: options.log,
             providers: async () =>
               providersFile.providersFileSchema.parse({ v: 1, providers: await seam.store.list() }),
             copilot: () => (options.isConfidential() ? new Map() : copilot),
@@ -178,10 +277,16 @@ export function createSubscriptionFeatures(options: {
       const services = await configured(subscribed)
       return services.client
     },
-    connectChatGpt: async () => {
+    /**
+    Connect ChatGPT. A saved registration is reused; `isNewAccount` registers
+    a different account instead, and like a terminal `add` it never
+    replaces a grant that is still stored.
+    */
+    connectChatGpt: async (isNewAccount = false) => {
       const core = await chatgpt()
       const isNew = (await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
-      if (isNew) await core.signIn()
+      if (!isNew && isNewAccount) throw new ChatGptSignInError('already-added')
+      if (isNew) await core.signIn({ isNewAccount })
       try {
         await save('chatgpt', await chatGptModels(core, fetcher))
       } catch (error) {

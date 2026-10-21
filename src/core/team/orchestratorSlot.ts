@@ -28,7 +28,10 @@ export interface OrchestratorSlotState {
 
 const OVERRIDE_KEY = 'museSpark.team.orchestrator'
 
-/** The workspace's override, if the user set one; anything else stored reads as none. */
+/** The workspace's override, if the user set one; anything else stored reads as none.
+@unwired M96 orchestrator slot owner wiring: no production caller passes
+workspace state yet, so the store cases have no executable real-store path.
+*/
 export function readOrchestratorOverride(
   state: Pick<OrchestratorSlotState, 'get'>,
 ): OrchestratorOverride | undefined {
@@ -36,7 +39,10 @@ export function readOrchestratorOverride(
   return result.success ? { modelId: result.data.modelId, backend: result.data.backend } : undefined
 }
 
-/** Reset to Default: forget the stored override, so the picker decides again. */
+/** Reset to Default: forget the stored override, so the picker decides again.
+@unwired M96 orchestrator slot owner wiring: no production caller passes
+workspace state yet, so the store cases have no executable real-store path.
+*/
 export async function resetOrchestratorSlot(
   state: Pick<OrchestratorSlotState, 'update'>,
 ): Promise<void> {
@@ -59,10 +65,10 @@ export function resolveOrchestratorModel(options: {
 }
 
 /**
- * What Default resolves to right now: live, not a snapshot. Default takes
- * the slot's current model and backend (the picker's, or the override), so a
- * picker change applies to the next delegation.
- */
+What Default resolves to right now: live, not a snapshot. Default takes
+the slot's current model and backend (the picker's, or the override), so a
+picker change applies to the next delegation.
+*/
 export function resolveDefaultModel(options: {
   readonly override: OrchestratorOverride | undefined
   readonly pickerModelId: string

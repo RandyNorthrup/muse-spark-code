@@ -5,7 +5,9 @@
 import * as vscode from 'vscode'
 import type { MemoryStore } from '../core/memory/memoryStore'
 import { MUSE_MEMORY_DOCS_URL, UI_TEXT } from '../shared/constants'
-import { type MemoryEdit, showMemory } from './commands/memoryCommands'
+import { uiLocale } from '../shared/l10n/text'
+import type * as CommandsBundle from './commands/commandsEntry'
+import type { MemoryEdit } from './commands/memoryCommands'
 import type { Logger } from './logger'
 import { loggedPopups } from './popups'
 import { showPickOne } from './quickPick'
@@ -22,48 +24,55 @@ export interface MemoryFeatures {
 
 export function createMemoryFeatures(deps: MemoryFeatureDeps): MemoryFeatures {
   return {
-    showMemory: () =>
-      showMemory({
-        store: deps.store,
-        edit: deps.edit,
-        pick: showPickOne,
-        askName: (validate) =>
-          Promise.resolve(
-            vscode.window.showInputBox({
-              title: UI_TEXT.memoryNamePrompt,
-              placeHolder: UI_TEXT.memoryNamePlaceholder,
-              ignoreFocusOut: true,
-              validateInput: validate,
-            }),
-          ),
-        askDescription: () =>
-          Promise.resolve(
-            vscode.window.showInputBox({
-              title: UI_TEXT.memoryDescriptionPrompt,
-              placeHolder: UI_TEXT.memoryDescriptionPlaceholder,
-              ignoreFocusOut: true,
-            }),
-          ),
-        confirm: async (message, detail, action) =>
-          (await vscode.window.showWarningMessage(message, { modal: true, detail }, action)) ===
-          action,
-        openFile: async (fsPath) => {
-          await vscode.window.showTextDocument(vscode.Uri.file(fsPath), { preview: false })
+    // The memory flow loads on first use (PLAN.md D6): dist/commands.js.
+    showMemory: async (): Promise<void> => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.showMemory(
+        {
+          store: deps.store,
+          edit: deps.edit,
+          pick: showPickOne,
+          askName: (validate) =>
+            Promise.resolve(
+              vscode.window.showInputBox({
+                title: UI_TEXT.memoryNamePrompt,
+                placeHolder: UI_TEXT.memoryNamePlaceholder,
+                ignoreFocusOut: true,
+                validateInput: validate,
+              }),
+            ),
+          askDescription: () =>
+            Promise.resolve(
+              vscode.window.showInputBox({
+                title: UI_TEXT.memoryDescriptionPrompt,
+                placeHolder: UI_TEXT.memoryDescriptionPlaceholder,
+                ignoreFocusOut: true,
+              }),
+            ),
+          confirm: async (message, detail, action) =>
+            (await vscode.window.showWarningMessage(message, { modal: true, detail }, action)) ===
+            action,
+          openFile: async (fsPath) => {
+            await vscode.window.showTextDocument(vscode.Uri.file(fsPath), { preview: false })
+          },
+          trash: async (fsPath, assertCanWrite) => {
+            // VS Code's delete has no publication callback: the guard speaks last, right before it.
+            // The user's removal is never recorded (M86): a restore leaves it as it is.
+            assertCanWrite()
+            await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+            deps.log.info(`Memory note moved to the trash: ${fsPath}`)
+          },
+          openDocs: () => {
+            void vscode.env.openExternal(vscode.Uri.parse(MUSE_MEMORY_DOCS_URL))
+          },
+          showInformation: (message) => {
+            void vscode.window.showInformationMessage(message)
+          },
+          showError: loggedPopups(deps.log).showError,
         },
-        trash: async (fsPath, assertCanWrite) => {
-          // VS Code's delete has no publication callback: the guard speaks last, right before it.
-          // The user's removal is never recorded (M86): a restore leaves it as it is.
-          assertCanWrite()
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-          deps.log.info(`Memory note moved to the trash: ${fsPath}`)
-        },
-        openDocs: () => {
-          void vscode.env.openExternal(vscode.Uri.parse(MUSE_MEMORY_DOCS_URL))
-        },
-        showInformation: (message) => {
-          void vscode.window.showInformationMessage(message)
-        },
-        showError: loggedPopups(deps.log).showError,
-      }),
+        UI_TEXT,
+        uiLocale(),
+      )
+    },
   }
 }

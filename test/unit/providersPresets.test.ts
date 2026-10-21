@@ -17,7 +17,9 @@ import {
   presetsByCategory,
   PRESETS,
   quirksOf,
+  replayFieldFor,
   isKeyShape,
+  wireModelFor,
   FORMAT_QUIRKS,
   type ProviderPreset,
 } from '../../src/core/providers/presets'
@@ -31,6 +33,54 @@ function preset(id: string): ProviderPreset {
 }
 
 describe('the preset table', () => {
+  it('declares DeepSeek strict tools and the full effort vocabulary (DS-G02, DS-G01 round 2)', () => {
+    // DS-STRICT and DS-STRICT-PROD answer 200 with `strict: true` on
+    // either address, so strict is declared, never address-gated.
+    // DS-XHIGH and DS-ULTRA answer 200 to the names, so the dated
+    // record carries the full vocabulary.
+    expect(preset('deepseek').quirks.supportsStrictTools).toBe(true)
+    const facts = preset('deepseek').reasoningFacts ?? []
+    const flash = facts.find((fact) => fact.modelId === 'deepseek-flash')
+    expect(flash?.fields.reasoning?.effortLevels).toEqual({
+      state: 'yes',
+      value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    })
+  })
+
+  it('declares Anthropic Thinking-off facts and grok-4.5 xhigh (round 2)', () => {
+    // GAPANTH-G02: the thinking table answers 400 to `disabled` on four
+    // models (Sonnet 5.5 takes `between_tools` instead); Opus 5 and
+    // Haiku 5.5 take `disabled`. XAI-G01: grok-4.5 takes `xhigh`.
+    const facts = preset('anthropic').reasoningFacts ?? []
+    const fact = (id: string) => facts.find((entry) => entry.modelId === id)
+    expect(fact('claude-opus-5-5')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-fable-5')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-fable-5-1')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-sonnet-5-5')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-sonnet-5-5')?.fields.reasoning?.offSwitch).toBe('between_tools')
+    expect(fact('claude-opus-5')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    expect(fact('claude-haiku-5-5')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    // Every 4.x row ends in "Thinking off": `disabled` rides there.
+    expect(fact('claude-opus-4-5')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    expect(fact('claude-opus-4-6')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    const xai = preset('xai').reasoningFacts ?? []
+    expect(
+      xai.find((entry) => entry.modelId === 'grok-4.5')?.fields.reasoning?.effortLevels,
+    ).toEqual({ state: 'yes', value: ['low', 'medium', 'high', 'xhigh'] })
+  })
+
   it('holds eighteen presets with unique, valid ids', () => {
     expect(PRESETS.length).toBe(18)
     const ids = PRESETS.map((candidate) => candidate.id)
@@ -55,10 +105,13 @@ describe('the preset table', () => {
       'fireworks',
       'huggingface',
       'zai',
+      // C-M95-4: live captures in docs/certification/m95-captures/<llamacpp|lmstudio>/.
+      'lmstudio',
+      'llamacpp',
     ]) {
       expect(listed).toContain(id)
     }
-    for (const id of ['azure', 'ollama', 'lmstudio', 'vllm', 'llamacpp', 'custom']) {
+    for (const id of ['azure', 'ollama', 'vllm', 'custom']) {
       expect(listed).not.toContain(id)
     }
   })
@@ -111,7 +164,7 @@ describe('the preset table', () => {
   it('checks key shapes as they are typed', () => {
     const anthropicKey = ['sk', '-', 'ant', '-', 'test-key-00001'].join('')
     expect(isKeyShape(preset('anthropic').keyShape, anthropicKey)).toBe(true)
-    expect(isKeyShape(preset('anthropic').keyShape, 'sk-test-key-1')).toBe(false)
+    expect(isKeyShape(preset('anthropic').keyShape, '[REDACTED]')).toBe(false)
     expect(isKeyShape(preset('anthropic').keyShape, '')).toBe(false)
     const groqKey = ['gsk', '_', 'test-key-0000001'].join('')
     expect(isKeyShape(preset('groq').keyShape, groqKey)).toBe(true)
@@ -126,7 +179,23 @@ describe('the preset table', () => {
     const key = ['fw', '_', 'synthetic-fixture-00001'].join('')
     expect(isKeyShape(preset('fireworks').keyShape, key)).toBe(true)
     expect(isKeyShape(preset('fireworks').keyShape, key.replace('_', '-'))).toBe(false)
-    expect(preset('fireworks').keyHint).toContain('fw_')
+  })
+
+  it('hints name where the key comes from, never a key shape', () => {
+    for (const candidate of PRESETS) {
+      if (candidate.auth !== 'apiKey') {
+        continue
+      }
+      expect(candidate.keyHint).not.toContain('AIza')
+      expect(candidate.keyHint).not.toContain('sk-ant-')
+      expect(candidate.keyHint).not.toContain('sk-or-')
+      expect(candidate.keyHint).not.toContain('gsk_')
+      expect(candidate.keyHint).not.toContain('fw_')
+      expect(candidate.keyHint).not.toContain('hf_')
+      expect(candidate.keyHint).not.toContain('xai-')
+      expect(candidate.keyHint).not.toMatch(/beginning with/i)
+    }
+    expect(preset('fireworks').keyHint).toContain('fireworks.ai')
   })
 
   it('tests keys for free where a check exists, else states a paid token', () => {
@@ -143,16 +212,25 @@ describe('the preset table', () => {
   it('reads quirks from the preset over its format defaults', () => {
     // M101 BYO 5: OpenAI adds its documented server_error past the responses table.
     // M101 item 24: OpenAI takes strict tool schemas.
+    // Lane RETRYLIMITS (review RVRETRYLIMITS): OpenAI's SDK-documented 2 retries.
+    // EXECPROVR7: OpenAI documents an exact input-token count for the request.
     expect(quirksOf(preset('openai'))).toEqual({
       ...FORMAT_QUIRKS.responses,
       retry: { ...FORMAT_QUIRKS.responses.retry, errorKinds: ['server_error'] },
       supportsStrictTools: true,
+      retryLimits: { maxRetries: 2 },
+      exactCount: 'responses-input-tokens',
     })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio streams `reasoning_content` (capture 02-plain-reply).
+    expect(quirksOf(preset('lmstudio')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio's list carries no window (capture 01-models-list).
+    expect(preset('lmstudio').modelsList.windowField).toBeUndefined()
     expect(quirksOf(preset('gemini')).reasoningField).toBe('thoughtSignature')
     expect(quirksOf(preset('anthropic')).reasoningField).toBe('thinking')
-    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('string-only')
+    // C-M95-4: b11541 accepts the object form (capture 12-toolchoice-object).
+    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('auto')
     expect(quirksOf(preset('together')).outputCapParam).toBe('max_tokens')
     for (const candidate of PRESETS) {
       expect(quirksOf(candidate).neverSendEmptyTools).toBe(true)
@@ -185,6 +263,7 @@ describe('the preset table', () => {
   it('gates strict tool schemas per capable server (M101 item 24)', () => {
     expect(quirksOf(preset('openai')).supportsStrictTools).toBe(true)
     expect(quirksOf(preset('azure')).supportsStrictTools).toBe(true)
+    expect(quirksOf(preset('deepseek')).supportsStrictTools).toBe(true)
     for (const id of ['xai', 'anthropic', 'gemini', 'openrouter', 'ollama', 'llamacpp', 'custom']) {
       expect(quirksOf(preset(id)).supportsStrictTools).toBe(false)
     }
@@ -199,6 +278,43 @@ describe('the preset table', () => {
     expect(azureOrigin('has space')).toBeUndefined()
     expect(azureOrigin('ab')).toBeUndefined()
     expect(azureOrigin('has.dot')).toBeUndefined()
+  })
+
+  it('sends the Azure deployment as the wire model, never the family', () => {
+    // PROVM95, research §1.2 [AZ1, AZ6]: `model` is the deployment name;
+    // records resolve by the family, so the deployment never leaks into one.
+    expect(wireModelFor({ preset: 'azure', deployment: 'my-gpt-deploy' }, 'gpt-5.4-nano')).toBe(
+      'my-gpt-deploy',
+    )
+    expect(wireModelFor({ preset: 'openai', deployment: 'my-gpt-deploy' }, 'gpt-5.6-luna')).toBe(
+      'gpt-5.6-luna',
+    )
+    expect(() => wireModelFor({ preset: 'azure' }, 'gpt-5.4-nano')).toThrow()
+    expect(() => wireModelFor({ preset: 'azure', deployment: '' }, 'gpt-5.4-nano')).toThrow()
+  })
+
+  it('never replays thinking to an unversioned local server (fail closed)', () => {
+    // C-M95-4 R2: neither local list carries a version, so a build older
+    // or newer than the capture may not understand the captured replay
+    // field. Local presets replay nothing; the decoder still displays
+    // every reasoning field.
+    for (const id of ['ollama', 'lmstudio', 'vllm', 'llamacpp']) {
+      expect(replayFieldFor(preset(id))).toBe('none')
+    }
+    expect(replayFieldFor(preset('openrouter'))).toBe('details')
+    expect(replayFieldFor(preset('deepseek'))).toBe('content')
+    expect(replayFieldFor(preset('openai'))).toBe('none')
+    expect(replayFieldFor(preset('groq'))).toBe('none')
+  })
+
+  it('stamps the captured server build on captured local presets only', () => {
+    // C-M95-4 R2: the stamp names what the quirks were proven against
+    // (the capture ledgers); the scan names it when it fails closed.
+    expect(preset('llamacpp').capturedBuild).toBe('b11541 (0.6.0-dev, commit f2918cabb)')
+    expect(preset('lmstudio').capturedBuild).toBe('llmster 0.0.25-1')
+    for (const id of ['openai', 'ollama', 'vllm', 'custom']) {
+      expect(preset(id).capturedBuild).toBeUndefined()
+    }
   })
 })
 

@@ -1,22 +1,15 @@
-import { resourceEnvironment } from '../core/resources/launch'
 // How the extension runs git (the mention index, the Model API prompt's
 // environment facts): by absolute path, found on the absolute PATH entries
 // only, so a `git.exe` committed to the workspace is never the one that runs
-// (PLAN.md D24); with a timeout, no console window, no credential prompt,
-// and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never takes the
-// index lock out from under the user's own git.
+// (PLAN.md D24); with no deadline unless the caller names one (owner
+// 2026-10-16: no arbitrary limits — a wait ends at git's answer or its
+// abort, never at an invented kill), no console window, no credential
+// prompt, and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never
+// takes the index lock out from under the user's own git.
 
-import { type ExecFileOptions, spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
-import { spawnMcpJob } from './backend/mcpJobLaunch'
-import { observeResourceProcess } from './resources/resourceAdmission'
-import { treeSpawnOptions } from './processTree'
-import { Buffer } from 'node:buffer'
+import type { ExecFileOptions } from 'node:child_process'
 import * as z from 'zod/mini'
-import { resolveExecutable } from '../core/executables'
 import type { BestOfNGitGuard } from '../core/bestOfN/bestOfNRunner'
-import { environmentValue } from '../core/backends/musecode/launch'
 import {
   BEST_OF_N_MIN_GIT_MINOR,
   GIT_FILTER_NAMES_ARGS,
@@ -26,14 +19,19 @@ import {
   GIT_OUTPUT_MAX_BYTES,
   type GIT_PUSH_CREDENTIAL_VARIABLES,
   GIT_STDERR_MAX_CHARS,
-  GIT_TIMEOUT_MS,
   UI_TEXT,
 } from '../shared/constants'
-
-import { withoutCredentials } from '../core/credentialEnvironment'
+import { treeSpawnOptions } from './processTree'
+import { gitLocator, quietGitEnvironment, childGitEnvironment } from '../core/execGuard'
+import { resourceEnvironment } from '../core/resources/launch'
+import { spawnGuarded } from '../core/guardedChildProcess'
+import { existsSync, realpathSync } from 'node:fs'
+import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
+import { spawnMcpJob } from './backend/mcpJobLaunch'
+import { observeResourceProcess } from './resources/resourceAdmission'
+import { Buffer } from 'node:buffer'
 
 const GIT = 'git'
-const PATH_VARIABLE = 'PATH'
 const GIT_MISSING = 'git was not found on the absolute entries of PATH'
 const CONFIG_OPTION = '-c'
 const OPTION_MARK = '-'
@@ -79,13 +77,13 @@ export function gitFilterOptions(output: string): readonly string[] {
 }
 
 /**
- * git for an automatic metadata read in `cwd` (the prompt's facts, D15; the
- * session board, M77): no fsmonitor, maintenance, replacement refs or
- * signature program (GIT_METADATA_OPTIONS), and each configured filter
- * driver's clean and process emptied by name, its command never read. The
- * runner's `GIT_OPTIONAL_LOCKS=0` takes no index lock, so status writes no
- * index and no index hook runs. Rejects when the names cannot be read.
- */
+git for an automatic metadata read in `cwd` (the prompt's facts, D15; the
+session board, M77): no fsmonitor, maintenance, replacement refs or
+signature program (GIT_METADATA_OPTIONS), and each configured filter
+driver's clean and process emptied by name, its command never read. The
+runner's `GIT_OPTIONAL_LOCKS=0` takes no index lock, so status writes no
+index and no index hook runs. Rejects when the names cannot be read.
+*/
 export async function metadataGit(
   runGit: (args: readonly string[], cwd: string, timeoutMs?: number) => Promise<string>,
   cwd: string,
@@ -95,7 +93,7 @@ export async function metadataGit(
     names = await runGit([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], cwd)
   } catch (error: unknown) {
     // `config --get-regexp` exits 1 when no filter is configured.
-    if (gitExitCode(error) !== 1) {
+    if (!isExitCode(error, 1)) {
       throw error
     }
     names = ''
@@ -126,44 +124,23 @@ function subcommandOf(args: readonly string[]): string {
   return GIT
 }
 
-/**
- * git's absolute path, found once per PATH value; a miss is not cached, so
- * git installed while the window is open is found on the next call.
- */
-function gitLocator(
-  deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists'>,
-): () => string | undefined {
-  let cache: { readonly pathValue: string | undefined; readonly git: string } | undefined
-  return () => {
-    const pathValue = environmentValue(deps.env, deps.platform, PATH_VARIABLE)
-    if (cache === undefined || cache.pathValue !== pathValue) {
-      const git = resolveExecutable(GIT, {
-        platform: deps.platform,
-        pathVariable: pathValue,
-        fileExists: deps.fileExists,
-      })
-      cache = git === undefined ? undefined : { pathValue, git }
-    }
-    return cache?.git
-  }
-}
-
-/** The extension's git environment: no optional locks, and never a credential prompt. */
-export function quietGitEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
-}
-
 export interface GitRunnerDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
   /**
-   * Arguments put before each command's own once the runner found git:
-   * only the untrusted lane that lists, adds and indexes someone else's
-   * pull request before its separate trust confirmation (git/untrustedGit.ts,
-   * heldCheckout.ts). It may run git itself with the call's options, and
-   * calls `beforeRun` where a check must precede a process.
-   */
+  Resolves links for the workspace comparison, so a PATH entry that is a
+  symlink or junction into the run's working directory is excluded with
+  it. REQUIRED: a lexical-only comparison keeps such an entry on PATH.
+  */
+  readonly realpath: (filePath: string) => string
+  /**
+  Arguments put before each command's own once the runner found git:
+  only the untrusted lane that lists, adds and indexes someone else's
+  pull request before its separate trust confirmation (git/untrustedGit.ts,
+  heldCheckout.ts). It may run git itself with the call's options, and
+  calls `beforeRun` where a check must precede a process.
+  */
   readonly argsBefore?: GitArgsBefore | undefined
   /** Best-of-N's automatic local snapshots, never ordinary user Git commands. */
   readonly isAutomatic?: boolean
@@ -201,9 +178,10 @@ export function hasGitProgramControls(output: string, minimumMinor: number): boo
 }
 
 /**
- * A git runner; rejects when git is not on the absolute PATH. A call that
- * does real work (a worktree's checkout, M32) passes its own timeout.
- */
+A git runner; rejects when git is not on the absolute PATH. A call that
+does real work (a worktree's checkout, M32) passes its own timeout;
+unnamed, the call waits for git's answer or its abort (owner 2026-10-16).
+*/
 export function createGitRunner(
   deps: GitRunnerDeps,
 ): (
@@ -213,19 +191,24 @@ export function createGitRunner(
   input?: string,
   beforeRun?: BestOfNGitGuard,
 ) => Promise<string> {
-  const env = quietGitEnvironment(deps.env)
   const gitPath = gitLocator(deps)
   let supportedVersion: { readonly git: string; readonly checked: Promise<void> } | undefined
-  return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, input, beforeRun) => {
-    const git = gitPath()
+  return async (args, cwd, timeoutMs, input, beforeRun) => {
+    const git = gitPath(cwd)
     if (git === undefined) {
       throw new GitMissingError()
     }
     const options: ExecFileOptions = {
       cwd,
-      env,
+      env: quietGitEnvironment(deps.env, {
+        workspaceRoot: cwd,
+        platform: deps.platform,
+        realpath: deps.realpath,
+      }),
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
-      timeout: timeoutMs,
+      // Infinity names no deadline: the spawn path waits for git's answer
+      // or the signal's abort (a 0 here would fire the timer at once).
+      ...(timeoutMs !== undefined && timeoutMs !== Infinity && { timeout: timeoutMs }),
       windowsHide: true,
       ...(beforeRun?.signal !== undefined && { signal: beforeRun.signal }),
     }
@@ -274,9 +257,9 @@ export function createGitRunner(
 }
 
 /**
- * The runner over this process's own environment and Node's `execFile`: the
- * one the extension uses, and the one tests use to drive real git (M32).
- */
+The runner over this process's own environment and Node's `execFile`: the
+one the extension uses, and the one tests use to drive real git (M32).
+*/
 export function processGitRunner(
   options: {
     readonly isAutomatic?: boolean
@@ -295,6 +278,7 @@ export function processGitRunner(
     env: options.env ?? process.env,
     argsBefore: options.argsBefore,
     fileExists: existsSync,
+    realpath: realpathSync,
     isAutomatic: options.isAutomatic === true,
     execFile: async (_file, args, options, input, beforeRun) => {
       if (typeof options.cwd !== 'string' || options.env === undefined)
@@ -303,12 +287,15 @@ export function processGitRunner(
         platform: process.platform,
         env: options.env,
         fileExists: existsSync,
-        spawn,
+        realpath: realpathSync,
+        spawn: spawnGuarded,
       })
       const result = await run(args, {
         cwd: options.cwd,
         env: options.env,
-        timeoutMs: options.timeout ?? GIT_TIMEOUT_MS,
+        // A timeout Node names still kills; unnamed, git is waited on until
+        // it answers or the signal aborts (owner 2026-10-16).
+        ...(options.timeout !== undefined && { timeoutMs: options.timeout }),
         ...(input !== undefined && { input }),
         ...(options.signal !== undefined && { signal: options.signal }),
         ...(beforeRun !== undefined && { beforeRun }),
@@ -319,14 +306,14 @@ export function processGitRunner(
 }
 
 /**
- * A failed git call's exit code, however the runner reported it: a
- * `GitExitError` carries it in `exitCode`, which is -1 when a signal ended
- * git (the runner's own sentinel, never a real exit code); a Node
- * child-process error carries a numeric `code`. Undefined when the call
- * produced no exit at all (git missing, a timeout, a capped buffer): never a
- * guess. A caller that acts on one specific code compares for that code and
- * treats every other value, -1 included, as a failure.
- */
+A failed git call's exit code, however the runner reported it: a
+`GitExitError` carries it in `exitCode`, which is -1 when a signal ended
+git (the runner's own sentinel, never a real exit code); a Node
+child-process error carries a numeric `code`. Undefined when the call
+produced no exit at all (git missing, a timeout, a capped buffer): never a
+guess. A caller that acts on one specific code compares for that code and
+treats every other value, -1 included, as a failure.
+*/
 export function gitExitCode(error: unknown): number | undefined {
   if (isGitExitError(error)) {
     return error.exitCode
@@ -337,6 +324,15 @@ export function gitExitCode(error: unknown): number | undefined {
     typeof error.code === 'number'
     ? error.code
     : undefined
+}
+
+/**
+Whether the failed call exited with `code` (1: `config --get-regexp`
+found no filter): the catch-gate-visible form of the one handled case,
+with exactly the same answer as `gitExitCode` on every input.
+*/
+function isExitCode(error: unknown, code: number): boolean {
+  return gitExitCode(error) === code
 }
 
 /** git ended with a non-zero exit code: the code and what it said (capped). */
@@ -368,14 +364,14 @@ export interface GitProcessOptions {
   /** Checkpoint Git bypasses temp pressure and checks this storage volume instead. */
   readonly checkpointDestination?: string | undefined
   /**
-   * D104's named exception (M123): a confirmed push or a pull request fetch
-   * keeps the user's own Git environment (credential helpers, SSH agent and
-   * token variables, as a terminal would), with `GIT_TERMINAL_PROMPT=0`.
-   * Everything else keeps the quiet environment. The process never gains
-   * anything of ours either way: no `http.extraHeader`, no credential
-   * helper of ours, no token variable. The caller hands the very list
-   * (GIT_PUSH_CREDENTIAL_VARIABLES), so activation does not carry it.
-   */
+  D104's named exception (M123): a confirmed push or a pull request fetch
+  keeps the user's own Git environment (credential helpers, SSH agent and
+  token variables, as a terminal would), with `GIT_TERMINAL_PROMPT=0`.
+  Everything else keeps the quiet environment. The process never gains
+  anything of ours either way: no `http.extraHeader`, no credential
+  helper of ours, no token variable. The caller hands the very list
+  (GIT_PUSH_CREDENTIAL_VARIABLES), so activation does not carry it.
+  */
   readonly credentialRoutes?: typeof GIT_PUSH_CREDENTIAL_VARIABLES | undefined
   readonly beforeRun?: BestOfNGitGuard | undefined
   readonly cwd: string
@@ -383,18 +379,23 @@ export interface GitProcessOptions {
   readonly env: NodeJS.ProcessEnv
   /** Written to stdin, which is then closed; stdin is empty without it. */
   readonly input?: string | Uint8Array
-  readonly timeoutMs: number
+  /**
+  A deadline the caller names (a worktree checkout, a job's own bound);
+  undefined waits for git's answer or the signal's abort (owner
+  2026-10-16: no arbitrary limits). Nothing here invents one.
+  */
+  readonly timeoutMs?: number | undefined
   /** Aborting ends the command (the window closing). */
   readonly signal?: AbortSignal
   /**
-   * Takes stdout as it comes instead of collecting it (M71's held checkout):
-   * git waits until each chunk's promise settles, a rejection ends the
-   * command with that error, and the result is empty.
-   */
+  Takes stdout as it comes instead of collecting it (M71's held checkout):
+  git waits until each chunk's promise settles, a rejection ends the
+  command with that error, and the result is empty.
+  */
   readonly onStdout?: (chunk: Buffer) => Promise<void>
 }
 
-/** One git command's stdout as bytes; rejects on a failure, a timeout or a non-zero exit. */
+/** One git command's stdout as bytes; rejects on a failure, a named timeout or a non-zero exit. */
 export type GitProcess = (args: readonly string[], options: GitProcessOptions) => Promise<Buffer>
 
 export interface GitProcessDeps {
@@ -402,36 +403,33 @@ export interface GitProcessDeps {
   /** Where git is looked for: this environment's PATH, absolute entries only (D24). */
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
-  readonly spawn: typeof spawn
   /**
-   * The git to run instead of a PATH search (M123's native route: the git
-   * the host resolved, absolute only, `fixedGitLocator`), or undefined
-   * when there is none, so the run fails as git missing (D24).
-   */
-  readonly locate?: (() => string | undefined) | undefined
+  Resolves links for the workspace comparison, so a PATH entry that is a
+  symlink or junction into the run's working directory is excluded with
+  it. REQUIRED: a lexical-only comparison keeps such an entry on PATH.
+  */
+  readonly realpath: (filePath: string) => string
+  /**
+  The guarded starter: the run hands it only the guarded child
+  environment for the call's working directory, so a raw environment
+  does not type-check here.
+  */
+  readonly spawn: typeof spawnGuarded
+  /**
+  The git to run instead of a PATH search (M123's native route: the git
+  the host resolved, absolute only, `fixedGitLocator`), or undefined
+  when there is none, so the run fails as git missing (D24). The run's
+  working directory is passed so a searching locator can exclude it.
+  */
+  readonly locate?: ((workspaceRoot: string) => string | undefined) | undefined
 }
 
 /**
- * One environment for both launch routes, an allow-list per operation
- * (RVM123G2 R3): no credential variable at all, or for D104's exception
- * (a confirmed push, a pull request fetch) only the Git routes
- * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
- */
-function childGitEnvironment(options: GitProcessOptions): NodeJS.ProcessEnv {
-  return options.credentialRoutes === undefined
-    ? withoutCredentials(options.env)
-    : {
-        ...withoutCredentials(options.env, options.credentialRoutes),
-        GIT_TERMINAL_PROMPT: '0',
-      }
-}
-
-/**
- * The stderr kept for an error: once the cap cut it, the last (partial)
- * word goes too, so a credential cut short at the cap, no longer in a shape
- * the redactor knows, is never shown, logged or returned (redact before
- * truncate).
- */
+The stderr kept for an error: once the cap cut it, the last (partial)
+word goes too, so a credential cut short at the cap, no longer in a shape
+the redactor knows, is never shown, logged or returned (redact before
+truncate).
+*/
 export function cappedStderr(stderr: string, wasCut: boolean): string {
   if (!wasCut) {
     return stderr
@@ -441,13 +439,14 @@ export function cappedStderr(stderr: string, wasCut: boolean): string {
 }
 
 /**
- * git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
- * found as the other runner finds it, no console window, collected stdout
- * capped at GIT_OUTPUT_MAX_BYTES (a taker bounds its own) and stderr at
- * GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
- * passes the complete environment, so nothing of the extension host's own
- * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
- */
+git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
+found as the other runner finds it, no console window, collected stdout
+capped at GIT_OUTPUT_MAX_BYTES (a taker bounds its own) and stderr at
+GIT_STDERR_MAX_CHARS, killed only at a timeout the caller names —
+unnamed, the call waits for git's answer or its abort. The caller
+passes the complete environment, so nothing of the extension host's own
+(a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
+*/
 export function createGitProcess(deps: GitProcessDeps): GitProcess {
   const gitPath = deps.locate ?? gitLocator(deps)
   return async (args, options) => {
@@ -467,7 +466,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         resource === undefined || deps.platform !== 'win32' ? undefined : await resourceWindowsJob()
       options.beforeRun?.()
       return await new Promise<Buffer>((resolve, reject) => {
-        const git = gitPath()
+        const git = gitPath(options.cwd)
         if (git === undefined) {
           resource?.complete(true)
           reject(new GitMissingError())
@@ -481,7 +480,14 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         }
         // The same environment on both routes: the governed Windows job too
         // keeps D104's user environment for a push and a fetch (M123).
-        const childEnv = resourceEnvironment(childGitEnvironment(options), resource)
+        const childEnv = resourceEnvironment(
+          childGitEnvironment(options, {
+            workspaceRoot: options.cwd,
+            platform: deps.platform,
+            realpath: deps.realpath,
+          }),
+          resource,
+        )
         // The Windows helper creates git only after GO: the caller's check
         // runs again at that authorization, after the helper's own start
         // (RVM123G2 R1), and its refusal is this command's.
@@ -528,8 +534,8 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         let stderr = ''
         let isStderrCut = false
         let failure: Error | undefined
-        // A failure (the timeout, the window closing) also ends the wait for a
-        // taker still busy with a chunk after the child closed.
+        // A failure (a named timeout, the window closing) also ends the wait
+        // for a taker still busy with a chunk after the child closed.
         // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
         const stopping = new AbortController()
         const stopped = new Promise<void>((resolveStopped) => {
@@ -550,7 +556,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
                 stopError instanceof Error
                   ? stopError
                   : new Error('Registered Git tree stop failed')
-              clearTimeout(timer)
+              if (timer !== undefined) clearTimeout(timer)
               options.signal?.removeEventListener('abort', onAbort)
               child.stdout.destroy()
               child.stderr.destroy()
@@ -558,9 +564,16 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
             })
           stopping.abort()
         }
-        const timer = setTimeout(() => {
-          fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
-        }, options.timeoutMs)
+        // A deadline only the caller names (owner 2026-10-16: no invented
+        // kill); unnamed, the call waits for git's answer or its abort.
+        // Infinity and 0 both mean none: Node reads execFile's 0 as none
+        // and a bare setTimeout(Infinity) as 1 ms, which would kill a
+        // call the caller refused to bound.
+        const timer = [undefined, 0, Infinity].includes(options.timeoutMs)
+          ? undefined
+          : setTimeout(() => {
+              fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
+            }, options.timeoutMs)
         const onAbort = () => {
           fail(new Error(`git ${command} was stopped: the window is closing`))
         }
@@ -617,10 +630,10 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         child.on('error', (error) => {
           fail(error)
         })
-        // The timeout and the abort stay armed until the taker is done.
+        // A named timeout and the abort stay armed until the taker is done.
         const settle = async (code: number | null): Promise<void> => {
           await Promise.race([taking, stopped])
-          clearTimeout(timer)
+          if (timer !== undefined) clearTimeout(timer)
           options.signal?.removeEventListener('abort', onAbort)
           if (refusal !== undefined) {
             reject(refusal)
@@ -644,9 +657,19 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
   }
 }
 
-/** git's absolute path on this process's PATH (D24), for M123's native route; undefined when absent. */
-export function processGitPath(): string | undefined {
-  return gitLocator({ platform: process.platform, env: process.env, fileExists: existsSync })()
+/**
+git's absolute path on this process's PATH (D24), for M123's native
+route; undefined when absent. With the workspace root, directories inside
+it (resolved through links) are never probed, so a planted git there
+never resolves.
+*/
+export function processGitPath(workspaceRoot: string): string | undefined {
+  return gitLocator({
+    platform: process.platform,
+    env: process.env,
+    fileExists: existsSync,
+    realpath: realpathSync,
+  })(workspaceRoot)
 }
 
 /** Whether git is on the absolute entries of this process's PATH (M72's availability). */
@@ -655,16 +678,18 @@ export function processGitLocator(): () => boolean {
     platform: process.platform,
     env: process.env,
     fileExists: existsSync,
+    realpath: realpathSync,
   })
-  return () => locate() !== undefined
+  return () => locate(process.cwd()) !== undefined
 }
 
-/** The process runner over this process's PATH and Node's `spawn` (M72). */
+/** The process runner over this process's PATH and the guarded starter (M72). */
 export function processGitProcess(): GitProcess {
   return createGitProcess({
     platform: process.platform,
     env: process.env,
     fileExists: existsSync,
-    spawn,
+    realpath: realpathSync,
+    spawn: spawnGuarded,
   })
 }

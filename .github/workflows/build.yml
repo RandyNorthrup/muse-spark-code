@@ -2,11 +2,16 @@
 # once the merge queue is on) runs the Ubuntu static gates, the production
 # build and every unit test with no coverage gate; the full tier (merge
 # groups, manual runs, release.yml) runs every gate on three platforms, unit
-# shards (four on Ubuntu, eight on Windows and macOS), the integration runs,
-# the macOS helper and the universal packages. Accessibility left the
-# pull-request path: it runs on merge groups, manual runs and releases, never
-# on a pull_request event. The required check names come from the `required`
-# aggregate below on both tiers.
+# shards (eight on Ubuntu, sixteen each on Windows and macOS), the
+# integration runs, the macOS helper and one .vsix per supported target
+# plus the untargeted fallback (PLAN.md D209).
+# With ORG_CI on (D122, CISHARDS2), a same-repository pull request is part
+# `home`: every Windows and macOS leg (static gates, unit shards, Windows
+# integration, the macOS helper) runs in the capacity repository (part
+# `org`) and only Ubuntu legs plus the aggregates run here.
+# Accessibility left the pull-request path: it runs on merge groups, manual
+# runs and releases, never on a pull_request event. The required check names
+# come from the `required` aggregate below on both tiers.
 # Releases can reuse these exact-tree packages after verifying the CI receipt.
 #
 # Every job has a timeout and every checkout leaves no token in the git
@@ -24,11 +29,14 @@ on:
         type: boolean
         default: false
       # Where this run's jobs belong (D122). `all` runs every job of the tier
-      # here. `home` runs the Ubuntu unit shards here and the Windows and
-      # macOS ones in the capacity repository scnetsolutions/muse-spark-code-ci
-      # through the `org` job; `org` (the capacity repository's own run) runs
-      # only those shards. Release builds and every caller that passes nothing
-      # get `all`.
+      # here. `home` runs only the Ubuntu legs here (static gates, unit
+      # shards 1-8, Ubuntu integration, the Linux helpers and the platform
+      # packages), and its `org` job runs every Windows and macOS leg
+      # (static gates, all sixteen Windows and macOS unit shards, Windows
+      # integration, the macOS helper) in the capacity repository
+      # scnetsolutions/muse-spark-code-ci; `org` (the capacity repository's
+      # own run) runs only those legs. Release builds and every caller that
+      # passes nothing get `all`.
       part:
         description: all, home or org (D122)
         type: string
@@ -47,8 +55,22 @@ permissions:
 jobs:
   checks:
     name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
-    if: ${{ inputs.part != 'org' }}
-    runs-on: ${{ matrix.os }}
+    # No job-level `if`: every part runs this job and the matrix below picks
+    # its operating systems (`home` Ubuntu only, `org` Windows and macOS
+    # only, `all` every OS). A `part != 'org'` condition here would skip the
+    # Windows and macOS gates in the only run that holds them.
+    # Larger runners (CISHARDS2): in the capacity repository's own run
+    # (`org`), and only while its `LARGE_RUNNERS` variable is `on`, the
+    # Windows gates take the larger label. macOS stays standard: the
+    # GitHub-owned macOS larger labels need a Team or Enterprise plan and
+    # the capacity organization is free, so `macos-latest-xlarge` would
+    # queue forever there; the macOS browser capture stays standard for the
+    # same reason. `vars` is read when each job starts, so the variable must
+    # be set before the pull request is pushed: jobs already started keep
+    # their labels. `vars` resolves in the repository that owns the run, so
+    # a fork's `pull_request` run (part `all` on its own repository) can
+    # never take this branch.
+    runs-on: ${{ inputs.part == 'org' && vars.LARGE_RUNNERS == 'on' && matrix.os == 'windows-latest' && 'msc-windows-8core' || matrix.os }}
     # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
     # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
     # check:host-api, no hang): type-aware ESLint alone took 17.7 min there
@@ -59,19 +81,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        # CISHARDS2: a `home` run keeps only the Ubuntu gates here; the
+        # Windows and macOS gates run in the capacity run (`org`). `all`
+        # keeps every gate here, as before.
+        os: ${{ fromJSON(inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest","macos-latest"]' || inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
         part:
           - name: lint
             gates: 'format:check lint:js:main lint:js:tests lint:css lint:ps'
           - name: unit lint
             gates: 'lint:js:unit'
           - name: build
-            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit'
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches check:usable-reply check:wrap-up-request check:no-output-cap check:no-round-cap deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -132,7 +157,7 @@ jobs:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
           GITHUB_TOKEN: ${{ github.token }}
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.os == 'ubuntu-latest' && matrix.part.name == 'build' && !inputs.fast
         with:
           name: production-webview
@@ -146,6 +171,9 @@ jobs:
 
   unit:
     name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
+    # D122: a `home` run keeps no unit shard here; all forty run in the
+    # capacity repository (part `org`), and part `all` runs them here.
+    if: ${{ inputs.part != 'home' }}
     runs-on: ${{ matrix.os }}
     # The warm limit stays 20 minutes (the shard history is in the matrix
     # comment below). An `org` run starts cold: a cache restores only from
@@ -159,44 +187,93 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # D122: `home` keeps Ubuntu here and `org` runs Windows and macOS in
-        # the capacity repository (macOS jobs queue first: five at a time per
-        # account, twelve per full run, eight of them these shards).
-        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest","macos-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
-        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
-        # Windows splits its slower serial run eight ways: with six, shard 1 ran
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]') }}
+        # Windows splits its slower serial run sixteen ways: with six, shard 1 ran
         # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
         # 20-minute limit in run 38027675949, as hosted Windows varies ~60%
         # between runs (PLAN.md §8). macOS also runs files one at a time
-        # (vitest.config.ts) and takes eight too: over six it had no margin
+        # (vitest.config.ts) and takes sixteen too: over six it had no margin
         # even green (run 38225260540: shard 4 took 19 of the 20 minutes,
         # shard 1 took 16), and run 38270466443 lost shard 1 to the limit
-        # while it was still running normally. The warm limit stays 20 minutes;
-        # Ubuntu keeps four. Part `org` gets 25 (the job's timeout): a new
-        # capacity branch starts with a cold npm cache.
-        exclude: ${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
+        # while it was still running normally. After the stand-in tests went
+        # (PR #183) the suite is 311 files and eight shards ran 1-3 min, but
+        # the slowest Windows shard (2.9 min, run 39070870774) times that
+        # ~60% swing lands at 4.6: sixteen halves it to ~1.1 min of tests
+        # plus setup, ~2.9 min at the swing, cold-start ~4.5 min — under the
+        # ~5-minute ceiling either way (CISHARDS, docs/certification/ciflow.md).
+        # Ubuntu runs files in parallel and takes eight. The warm limit stays
+        # 20 minutes; part `org` gets 25 (the job's timeout): a new capacity
+        # branch starts with a cold npm cache.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":9},{"os":"ubuntu-latest","shard":10},{"os":"ubuntu-latest","shard":11},{"os":"ubuntu-latest","shard":12},{"os":"ubuntu-latest","shard":13},{"os":"ubuntu-latest","shard":14},{"os":"ubuntu-latest","shard":15},{"os":"ubuntu-latest","shard":16}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
+          # Track 22 (latest 22.x), as main does: the evaluation children
+          # need `--permission` (unflagged from 22.13.0, review RVCM1012H),
+          # which every 22.13+ keeps, and `@asamuzakjp/css-color@7.0.1`
+          # requires ^22.22.2, which 22.13.0 does not satisfy (EBADENGINE
+          # in train run 39099729902). `22` resolves to the newest 22.x,
+          # never an earlier patch, so both needs stay met.
           node-version: 22
           cache: npm
       - run: npm ci
+      # The VSIX recompression suite needs the pinned Zopfli (VSIXFIT B):
+      # the compressor refuses to run without it, on every shard that
+      # reaches it.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r .github/vsix-compress/requirements.txt
+      # The vault broker fixtures compile muse-created through the product's
+      # own build script, which links -lcrypto: the same package the native
+      # job installs below.
+      - name: Linux OpenSSL headers for the fixture helper build
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      # The broker fixtures stage the product's own .app executable for
+      # created paths and a unit checkout holds no built binary, so build
+      # it the way the native job does.
+      - name: macOS dictation helper for the fixture created paths
+        if: runner.os == 'macOS'
+        run: bash native/darwin/build.sh
       - name: unit tests
+        if: runner.os != 'Windows'
         shell: bash
         env:
           FAST: ${{ inputs.fast }}
           SHARD: ${{ matrix.shard }}
-          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 8 || 16 }}
         run: |
           if [ "$FAST" = true ]; then
             npx vitest run
           else
             npx vitest run --shard="$SHARD/$SHARDS" --reporter=default
           fi
+      # Windows starts the suite from PowerShell, as a person's editor starts
+      # the product. Git Bash's MSYS runtime turns on an administrator's
+      # backup and restore privileges in every process it starts, and with
+      # them the system skips file permissions: the suites that prove a real
+      # permission refusal could never be refused (measured on the hosted
+      # runner: a denied folder listed under Git Bash, EPERM under PowerShell).
+      - name: unit tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          FAST: ${{ inputs.fast }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: 16
+        run: |
+          if ($env:FAST -eq 'true') {
+            npx vitest run
+          } else {
+            npx vitest run "--shard=$($env:SHARD)/$($env:SHARDS)" --reporter=default
+          }
+          exit $LASTEXITCODE
 
   accessibility:
     name: accessibility (WCAG 2.2 AA)
@@ -210,12 +287,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: production-webview
           path: dist
@@ -226,22 +303,31 @@ jobs:
 
   integration:
     name: integration (${{ matrix.os }})
-    if: ${{ inputs.part != 'org' && !inputs.fast }}
+    # CISHARDS2: Ubuntu integration stays here; Windows integration runs in
+    # the capacity run. Standard runners: 2.0 min, under the longest shard.
+    if: ${{ !inputs.fast }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest"]' || '["ubuntu-latest","windows-latest"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The schedule integration tests drive the real governed runner, whose
+      # resource registry shells out to the created-path helper: build it on
+      # Linux, where the runner needs it.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libssl-dev
+          node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
       # The integration tests run twice (.vscode-test.mjs): on the latest
       # stable VS Code and on the manifest's floor (engines.vscode). The two
       # downloads are cached under a key naming both versions.
@@ -263,24 +349,78 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
-  # D122: in a `home` run this job stands for the Windows and macOS unit
-  # shards. It pushes the pull request's merge commit to the capacity
+  # D122: in a `home` run this job stands for every Windows and macOS leg
+  # (CISHARDS2: static gates, unit shards, Windows integration, the macOS
+  # helper). It pushes the pull request's merge commit to the capacity
+  # AGENTS.md rule 2 at the merge door (docs/certification/rule2-gate.md): no
+  # attempt after the first passes, and every other workflow run on the same
+  # head (Hosts, Browser check, Forks, a second CI run) must be complete and
+  # green on its first attempt; one still in progress is waited for, and the
+  # head is read once more immediately before passing, so a run started after
+  # the judged set was read refuses. It needs every
+  # job, so starting any of them again starts this one again, and it names
+  # the job and step of the first attempt that was not green. Its output is
+  # the attempt it judged: the required names below pass only for that one.
+  first-attempt:
+    name: first attempt, every run green (rule 2)
+    if: always()
+    needs:
+      [
+        checks,
+        unit,
+        org,
+        accessibility,
+        integration,
+        native-build,
+        linux-native-build,
+        packages,
+        secrets,
+        sast,
+      ]
+    runs-on: ubuntu-latest
+    # The wait for a run still in progress is bounded at 60 minutes.
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      attempt: ${{ steps.gate.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: nothing was started again, and every other run on this head is green
+        id: gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RULE2_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node scripts/rule2-gate.mjs run
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
   # repository as ci/pr-<number>, where ci.yml runs part `org` on the
   # organization's runners (a newer commit replaces the branch, and ci.yml's
   # concurrency cancels the older run there), then waits for that run and
   # succeeds only if it succeeded. The push token comes from the capacity
   # GitHub App: one hour, contents and workflow files of that one repository,
   # revoked when the job ends. The wait reads the public run with this job's
-  # own read-only token.
+  # own read-only token. Last, the macOS helper artifacts the `packages` job
+  # needs come back through this job the same way the result did: it reads
+  # them from that run over the API with this job's own token (the capacity
+  # repository is public, so any authenticated token has read access — no
+  # App permission needed) and uploads them under their existing names.
+  # This job mints the App token but never installs or runs the pull
+  # request's code: its steps are the token action, a clone, `git push`,
+  # `gh` API reads and artifact relay — no `npm ci`, no script, no binary
+  # the pull request carries.
   org:
-    name: tests (windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci
+    name: tests (ubuntu-latest, windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci
     if: ${{ inputs.part == 'home' }}
     runs-on: ubuntu-latest
-    # The capacity run is a route job, then sixteen shards of at most 25
-    # minutes, macOS five at a time per account. With four pull requests
-    # queued ahead, their 32 macOS shards take eight waves plus two more for
-    # this run's eight: ten waves of full-length shards is 200 minutes before
-    # route and setup overhead. 360 is GitHub's own job ceiling on hosted
+    # The capacity run is a route job, then forty shards of at most 25
+    # minutes each (eight on Ubuntu, sixteen each on Windows and macOS), each
+    # measured at 1-3 minutes. 360 is GitHub's own job ceiling on hosted
     # runners (actions/reference/limits: "Job execution time ... 6 hours"),
     # not our figure: the wait outlives any supported backlog, and anything
     # longer fails at the platform's limit instead of ours. The wait step
@@ -331,6 +471,7 @@ jobs:
       # ten minutes after the push means the push or Actions there failed;
       # the job says so instead of waiting out its limit.
       - name: wait for the capacity repository's run and take its result
+        id: wait
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -357,7 +498,7 @@ jobs:
             sleep 60
           done
           {
-            echo "### Windows and macOS unit shards: $conclusion"
+            echo "### Unit shards (Ubuntu, Windows, macOS): $conclusion"
             echo
             echo "[$CAPACITY run $id]($url)"
             echo
@@ -368,12 +509,66 @@ jobs:
               echo "| the job list could not be read: $(cat "$errors") | |"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$url concluded $conclusion"
+          echo "run=$id" >> "$GITHUB_OUTPUT"
           test "$conclusion" = success
+      # The `packages` job runs here and needs the macOS helpers, which now
+      # build in the capacity run. They come back the way the result did:
+      # this job reads them from that run over the API and uploads them
+      # under their existing names. Reading files is all it does with them:
+      # nothing here executes them. The download uses this job's own token:
+      # the capacity repository is public, so artifact reads need no scope
+      # beyond any authenticated token; the push token above is not reused
+      # because it may have expired during the wait.
+      - name: bring the macOS helpers back for the packages job
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.wait.outputs.run }}
+        run: |
+          test -n "$RUN_ID"
+          base="$RUNNER_TEMP/back"
+          rm -rf "$base"
+          gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-dictate-darwin --dir "$base/darwin"
+          gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-vault-darwin --dir "$base/vault"
+          gh run download "$RUN_ID" --repo "$CAPACITY" --name muse-vault-peer-darwin --dir "$base/peer"
+          test -f "$base/darwin/muse-dictate-screen-arm64.tgz"
+          test -f "$base/darwin/muse-dictate-screen-x64.tgz"
+          # One thin slot helper and one peer helper per architecture (D209).
+          test -f "$base/vault/muse-vault-arm64"
+          test -f "$base/vault/muse-vault-x64"
+          test -f "$base/peer/muse-vault-peer-arm64"
+          test -f "$base/peer/muse-vault-peer-x64"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-dictate-darwin
+          path: |
+            ${{ runner.temp }}/back/darwin/muse-dictate-screen-arm64.tgz
+            ${{ runner.temp }}/back/darwin/muse-dictate-screen-x64.tgz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-vault-darwin
+          path: |
+            ${{ runner.temp }}/back/vault/muse-vault-arm64
+            ${{ runner.temp }}/back/vault/muse-vault-x64
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-vault-peer-darwin
+          path: |
+            ${{ runner.temp }}/back/peer/muse-vault-peer-arm64
+            ${{ runner.temp }}/back/peer/muse-vault-peer-x64
+          if-no-files-found: error
 
   # The matrix emits the five existing non-security required names on BOTH
-  # events. Every name rejects a failed/cancelled/missing selected-tier job;
-  # in a `home` run that includes `org`, so `quality (windows-latest)` and
-  # `quality (macos-latest)` still mean that those shards passed (D122).
+  # events. Every name rejects a failed/cancelled/missing selected-tier job
+  # and every attempt the first-attempt job did not judge and pass (rule 2:
+  # these are the names the main ruleset requires, so a run that was started
+  # again cannot merge, whichever of its jobs ran again). A `home` run keeps
+  # no Windows or macOS leg here (`unit` and `native-build` are skipped,
+  # `checks` and `integration` hold only their Ubuntu legs) and requires
+  # `org` instead, so `quality (ubuntu-latest)`, `quality (windows-latest)`
+  # and `quality (macos-latest)` still mean those legs passed (D122, CISHARDS2).
   required:
     name: ${{ matrix.check }}
     if: ${{ always() && inputs.part != 'org' }}
@@ -389,6 +584,7 @@ jobs:
         packages,
         secrets,
         sast,
+        first-attempt,
       ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -406,8 +602,10 @@ jobs:
         shell: bash
         env:
           FAST: ${{ inputs.fast }}
+          ATTEMPT: ${{ github.run_attempt }}
           PART: ${{ inputs.part }}
           EVENT: ${{ github.event_name }}
+          CHECK: ${{ matrix.check }}
           CHECKS: ${{ needs.checks.result }}
           UNIT: ${{ needs.unit.result }}
           ORG: ${{ needs.org.result }}
@@ -418,21 +616,48 @@ jobs:
           PACKAGES: ${{ needs.packages.result }}
           SECRETS: ${{ needs.secrets.result }}
           SAST: ${{ needs.sast.result }}
+          FIRST_ATTEMPT: ${{ needs.first-attempt.result }}
+          JUDGED_ATTEMPT: ${{ needs.first-attempt.outputs.attempt }}
         run: |
-          test "$CHECKS" = success
-          test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success
-          # D122: a `home` run's Windows and macOS unit shards ran in the
-          # capacity repository, and `org` succeeded only if that run did.
+          test "$FIRST_ATTEMPT" = success
+          # A result of the first-attempt job carried over from an earlier
+          # attempt does not count: it must have judged this very attempt.
+          if [ "$JUDGED_ATTEMPT" != "$ATTEMPT" ]; then
+            echo "::error::This is attempt $ATTEMPT of the run and the first-attempt job judged attempt $JUDGED_ATTEMPT: nothing is started again on the same commit (AGENTS.md rule 2). Push a new commit that says what happened; its run decides." >&2
+            exit 1
+          fi
+          # D122: a `home` run's Windows and macOS legs ran in the capacity
+          # repository, and `org` succeeded only if that run did; its own
+          # `unit` is skipped, so requiring it would fail every home run.
+          # Every other run's legs ran here and `org` is skipped.
           if [ "$PART" = home ]; then
             test "$ORG" = success
+          else
+            test "$UNIT" = success
           fi
+          # In a `home` run `checks` holds only the Ubuntu gates, so the
+          # Windows and macOS quality names mean the capacity run's legs
+          # (`org` above), and the helper name means the helper built there.
+          # Every other run's legs ran here.
+          case "$CHECK" in
+            "quality (ubuntu-latest)" | "package (.vsix)")
+              test "$CHECKS" = success ;;
+            "quality (windows-latest)" | "quality (macos-latest)" | "dictation helper (macos)")
+              if [ "$PART" != home ]; then
+                test "$CHECKS" = success
+              fi ;;
+          esac
           if [ "$FAST" != true ]; then
             test "$INTEGRATION" = success
-            test "$HELPER" = success
             test "$LINUX_HELPER" = success
             test "$PACKAGES" = success
+            # The helper compiled here except in a `home` run, where it
+            # compiled in the capacity run `org` already covers.
+            if [ "$PART" != home ]; then
+              test "$HELPER" = success
+            fi
           fi
           # Accessibility runs on merge groups, manual runs and releases, but
           # never on a pull_request event: there it is skipped, not failed.
@@ -446,7 +671,10 @@ jobs:
   # fails when the finished binary carries another.
   native-build:
     name: compile dictation helper (macos)
-    if: ${{ inputs.part != 'org' && !inputs.fast }}
+    # CISHARDS2: the helper compiles in the capacity run (`org`), like the
+    # unit shards already do; a `home` run takes it back through `org`.
+    # Standard runner: 2.2 min, under the longest shard.
+    if: ${{ inputs.part != 'home' && !inputs.fast }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -464,24 +692,39 @@ jobs:
           bash test/native/darwin/check-screen-resources.sh
           bash native/darwin/check-disclaim.sh --screen-only
       # Archive on macOS: artifact upload otherwise discards executable modes.
-      - run: tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app
+      # One thin signed .app per architecture (D209).
+      - run: |
+          for arch in arm64 x64; do
+            tar -czf "native/darwin/muse-dictate-screen-${arch}.tgz" -C native/darwin "muse-dictate-screen-${arch}.app"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-vault-peer-darwin
+          path: |
+            native/darwin/muse-vault-peer-arm64
+            native/darwin/muse-vault-peer-x64
+          if-no-files-found: error
       - run: bash native/darwin/check-vault.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-vault-darwin
-          path: dist/native/darwin/muse-vault
+          path: |
+            dist/native/darwin/muse-vault-arm64
+            dist/native/darwin/muse-vault-x64
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-dictate-darwin
           path: |
-            native/darwin/muse-dictate
-            native/darwin/muse-dictate-screen.tgz
+            native/darwin/muse-dictate-screen-arm64.tgz
+            native/darwin/muse-dictate-screen-x64.tgz
           if-no-files-found: error
 
-  # The .vsix with both helpers: what release.yml publishes.
+  # The .vsix with the helpers from both accounts: what release.yml publishes.
+  # The Linux dictation helper release assets (D140): built here for both
+  # architectures, published by release.yml, never packed in the .vsix.
   linux-native-build:
-    name: compile created-path helper (linux ${{ matrix.arch }})
+    name: compile native helpers (linux ${{ matrix.arch }})
     if: ${{ inputs.part != 'org' && !inputs.fast }}
     strategy:
       matrix:
@@ -496,107 +739,264 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
-      - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
+      - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer()"
+      # The dictation build reads its pins from src/shared/constants.ts
+      # through esbuild, so the locked dependencies come first.
+      - run: npm ci
+      - run: CC=gcc-14 CXX=g++-14 node scripts/build-linux-dictation.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-created-linux-${{ matrix.arch }}
-          path: native/linux/${{ matrix.arch }}/muse-created
+          path: |
+            native/linux/${{ matrix.arch }}/muse-created
+            native/linux/${{ matrix.arch }}/muse-dictate
+            native/linux/${{ matrix.arch }}/*.so*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-vault-peer-linux-${{ matrix.arch }}
+          path: native/linux/${{ matrix.arch }}/muse-vault-peer
           if-no-files-found: error
 
   packages:
-    name: universal release artifacts
-    if: ${{ inputs.part != 'org' && !inputs.fast }}
-    needs: [checks, native-build, linux-native-build]
+    name: platform release artifacts (.vsix per target)
+    # CISHARDS2: `native-build` is skipped in a `home` run and `org` is
+    # skipped everywhere else, so `always()` starts this job and its first
+    # step requires the producers that built for this part (like `required`).
+    if: ${{ always() && inputs.part != 'org' && !inputs.fast }}
+    needs: [checks, native-build, linux-native-build, org]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # One production build, then six targeted packs, each with maximum
+    # DEFLATE recompression and its own module-exports run (PLAN.md D123).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: require the jobs that built for this part
+        shell: bash
+        env:
+          PART: ${{ inputs.part }}
+          CHECKS: ${{ needs.checks.result }}
+          NATIVE: ${{ needs.native-build.result }}
+          LINUX: ${{ needs.linux-native-build.result }}
+          ORG: ${{ needs.org.result }}
+        run: |
+          test "$CHECKS" = success
+          test "$LINUX" = success
+          # A `home` run's macOS helpers came back through `org` (its own
+          # `native-build` is skipped); every other run built them here and
+          # `org` is skipped.
+          if [ "$PART" = home ]; then
+            test "$ORG" = success
+          else
+            test "$NATIVE" = success
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-dictate-darwin
           path: native/darwin
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-created-linux-x64
           path: native/linux/x64
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-created-linux-arm64
           path: native/linux/arm64
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: muse-vault-darwin
           path: dist/native/darwin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: muse-vault-peer-linux-x64
+          path: native/linux/x64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: muse-vault-peer-linux-arm64
+          path: native/linux/arm64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: muse-vault-peer-darwin
+          path: native/darwin
       - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
-      - run: chmod +x dist/native/darwin/muse-vault
-      - run: chmod +x native/darwin/muse-dictate
-      - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
+      - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer native/darwin/muse-vault-peer-arm64 native/darwin/muse-vault-peer-x64
+      - run: chmod +x native/linux/x64/muse-dictate native/linux/arm64/muse-dictate
+      - run: chmod +x dist/native/darwin/muse-vault-arm64 dist/native/darwin/muse-vault-x64
+      # One thin signed .app per architecture (D209): both extract; each
+      # darwin target's filter keeps only its own architecture's slices.
+      - run: tar -xzf native/darwin/muse-dictate-screen-arm64.tgz -C native/darwin
+      - run: tar -xzf native/darwin/muse-dictate-screen-x64.tgz -C native/darwin
+      # Dependencies first: the pin checker imports esbuild to load the
+      # pins module, so it cannot run before `npm ci`.
       - run: npm ci
-      - run: npm run package
+      # D140: the Linux dictation helpers ship as same-tag release assets,
+      # never in any .vsix. Regenerate their pins from these built helpers so
+      # the packaged extension embeds their exact digests; unset pins fail.
+      - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
+      - run: node scripts/check-linux-helper-pins.mjs --require-values
+      # The .vsix recompressor needs the pinned Zopfli (VSIXFIT B): without
+      # it packaging fails rather than falling back to zlib level 9.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r .github/vsix-compress/requirements.txt
+      # One production build for every target; each target is packed from
+      # its own filtered stage, plus the untargeted fallback (PLAN.md D209).
+      - run: npm run build
+      - name: pack one .vsix per supported target plus the fallback
         env:
           # The packaged-README badge check lists public main (GitHub API).
           GITHUB_TOKEN: ${{ github.token }}
-      - name: the universal VSIX stays within its measured budget
-        run: node scripts/check-vsix-size.mjs ./*.vsix
-      # What must be inside the package: the licence, the third-party
-      # notices, the native helpers and every runtime bundle (the webview
-      # loads main.css beside main.js; the extension requires modelApi.js
-      # when the Model API backend first starts, M57, starts pageWorker.js
-      # as a worker for each web page it converts, M69, and requires
-      # browserCheck.js on the first browser check, M81).
-      - name: the .vsix carries the notices, the helpers, the bundles and the manifest's text
         run: |
-          listing="$(unzip -Z1 ./*.vsix)"
-          for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
-            extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
-            extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
-            extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
-            extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
-            extension/native/windows/MuseSparkScreenRecord.cs \
-            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
-            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \
-            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/estimator.js extension/dist/estimateContracts.js \
-            extension/dist/native/darwin/muse-vault \
-            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs \
-            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs \
-            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
-            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
-            extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
-            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
-            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js \
-            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
-            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \
-            extension/dist/sessionBoard.js extension/dist/reviewer.js \
-            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
-            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
-            extension/dist/report.js extension/dist/recorder.js \
-            extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json \
-            extension/dist/webview/main.js extension/dist/webview/main.css \
-            extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do
+          for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
+            node scripts/package-vsix.mjs --target "$target"
+          done
+          node scripts/package-vsix.mjs
+          stat -c '%n %s' ./*.vsix
+      - name: every target VSIX stays within its measured budget
+        run: node scripts/check-vsix-size.mjs ./*.vsix
+      # What must be inside each package: the licence, the third-party
+      # notices and every runtime bundle (the webview ships as one solid
+      # archive holding main.css beside main.js, VSIXWEB A; the extension
+      # requires modelApi.js when the Model API backend first starts, M57,
+      # starts pageWorker.js as a worker for each web page it converts, M69,
+      # and requires browserCheck.js on the first browser check, M81), plus
+      # only that target's own native helpers and its TargetPlatform in the
+      # packed manifest — and none of the other platforms' helpers (PLAN.md
+      # D209). The untargeted fallback carries the same neutral content plus
+      # both Linux helpers, no TargetPlatform and no darwin or Windows
+      # pieces: it only ever serves Linux-family servers without their own
+      # package.
+      - name: each .vsix carries its own helpers, the bundles and its target
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          common='extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json
+            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/vaultBroker.js extension/dist/estimator.js extension/dist/estimateContracts.js
+            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js
+            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js
+            extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js
+            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js
+            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js
+            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js
+            extension/dist/legalScan.js extension/dist/legal-data.json.br extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json
+            extension/dist/sessionBoard.js extension/dist/reviewer.js
+            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js
+            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js
+            extension/dist/report.js extension/dist/recorder.js
+            extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json
+            extension/dist/webview.json.br
+            extension/vendor/high-quality-projects-skill/LICENSE extension/vendor/high-quality-projects-skill/VENDOR.json
+            extension/vendor/high-quality-projects-skill.json.br'
+          windows='extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1
+            extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs
+            extension/native/windows/MuseSparkMcpLauncher.cs extension/native/windows/MuseSparkScreenRecord.cs
+            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs
+            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs
+            extension/native/windows/MuseSparkVaultPipe.cs'
+          # One thin binary per Mac architecture (D209): each darwin target
+          # carries only its own architecture's slices.
+          darwin_arm64='extension/native/darwin/muse-dictate-screen-arm64.app/Contents/MacOS/muse-dictate
+            extension/native/darwin/muse-dictate-screen-arm64.app/Contents/_CodeSignature/CodeResources
+            extension/native/darwin/muse-vault-peer-arm64
+            extension/dist/native/darwin/muse-vault-arm64'
+          darwin_x64='extension/native/darwin/muse-dictate-screen-x64.app/Contents/MacOS/muse-dictate
+            extension/native/darwin/muse-dictate-screen-x64.app/Contents/_CodeSignature/CodeResources
+            extension/native/darwin/muse-vault-peer-x64
+            extension/dist/native/darwin/muse-vault-x64'
+          for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
+            vsix="muse-spark-code-${target}-${version}.vsix"
+            listing="$(unzip -Z1 "$vsix")"
+            case "$target" in
+              win32-*) want="$windows"; reject='extension/native/darwin/ extension/native/linux/ extension/dist/native/darwin/' ;;
+              darwin-arm64) want="$darwin_arm64"; reject='extension/native/windows/ extension/native/linux/ muse-dictate-screen-x64.app muse-vault-peer-x64 muse-vault-x64' ;;
+              darwin-x64) want="$darwin_x64"; reject='extension/native/windows/ extension/native/linux/ muse-dictate-screen-arm64.app muse-vault-peer-arm64 muse-vault-arm64' ;;
+              linux-x64) want='extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/arm64/' ;;
+              linux-arm64) want='extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/x64/' ;;
+            esac
+            # shellcheck disable=SC2086
+            for entry in $common $want; do
+              if ! grep -Fxq -- "$entry" <<< "$listing"; then
+                echo "::error::$entry is missing from $vsix" >&2
+                exit 1
+              fi
+            done
+            # shellcheck disable=SC2086
+            for prefix in $reject; do
+              if grep -Fq -- "$prefix" <<< "$listing"; then
+                echo "::error::$vsix carries another platform's helper under $prefix" >&2
+                exit 1
+              fi
+            done
+            if ! unzip -p "$vsix" extension.vsixmanifest | grep -Fq "TargetPlatform=\"$target\""; then
+              echo "::error::$vsix does not declare TargetPlatform=\"$target\"" >&2
+              exit 1
+            fi
+            echo "$vsix holds $(wc -l <<< "$listing") entries, its own helpers and TargetPlatform=\"$target\" included"
+          done
+          vsix="muse-spark-code-${version}.vsix"
+          listing="$(unzip -Z1 "$vsix")"
+          # shellcheck disable=SC2086
+          for entry in $common extension/native/linux/x64/muse-created extension/native/linux/x64/muse-vault-peer extension/native/linux/arm64/muse-created extension/native/linux/arm64/muse-vault-peer; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
-              echo "::error::$entry is missing from the .vsix" >&2
+              echo "::error::$entry is missing from $vsix" >&2
               exit 1
             fi
           done
-          echo "the .vsix holds $(wc -l <<< "$listing") entries, the required ones included"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          # shellcheck disable=SC2086
+          for prefix in extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/; do
+            if grep -Fq -- "$prefix" <<< "$listing"; then
+              echo "::error::$vsix carries another platform's helper under $prefix" >&2
+              exit 1
+            fi
+          done
+          if unzip -p "$vsix" extension.vsixmanifest | grep -Fq 'TargetPlatform='; then
+            echo "::error::$vsix must not declare a TargetPlatform" >&2
+            exit 1
+          fi
+          echo "$vsix holds $(wc -l <<< "$listing") entries: neutral content plus both Linux helpers, no TargetPlatform"
+      # The webview ships as one solid archive (VSIXWEB A): each package
+      # carries it with every file each panel's HTML needs and no loose
+      # webview member beside it.
+      - name: each .vsix carries the verified webview archive
+        run: |
+          for vsix in ./*.vsix; do
+            node scripts/check-webview-archive.mjs "$vsix"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-vsix
           path: '*.vsix'
           if-no-files-found: error
           retention-days: 30
+      # D140: no target carries a dictation binary; the helpers ship as
+      # same-tag release assets only.
+      - name: no .vsix carries a dictation binary
+        run: |
+          for vsix in ./*.vsix; do
+            listing="$(unzip -Z1 "$vsix")"
+            for entry in extension/native/linux/x64/muse-dictate extension/native/linux/arm64/muse-dictate \
+              extension/native/linux/x64/libwhisper.so.1 extension/native/linux/arm64/libwhisper.so.1 \
+              extension/native/linux/x64/libggml.so extension/native/linux/arm64/libggml.so \
+              extension/native/linux/x64/libggml-base.so extension/native/linux/arm64/libggml-base.so; do
+              if grep -Fxq -- "$entry" <<< "$listing"; then
+                echo "::error::$entry must not ship in $vsix" >&2
+                exit 1
+              fi
+            done
+          done
       # The ACP agent's npm package (M63, PLAN.md D62), from the same
-      # production build `npm run package` just ran.
+      # production build this job just ran.
       - run: node scripts/package-acp.mjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -604,24 +1004,27 @@ jobs:
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
           for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js package/dist/uiTextMedia.js \
-            package/dist/vault.js package/dist/vaultBoundaries.js package/dist/estimator.js package/dist/estimateContracts.js \
+            package/dist/vault.js package/dist/vaultBoundaries.js package/dist/vaultBroker.js package/dist/estimator.js package/dist/estimateContracts.js \
             package/native/windows/MuseSparkVault.cs package/native/windows/MuseSparkVaultCng.cs \
             package/native/windows/MuseSparkVaultHello.cs package/native/windows/MuseSparkVaultLock.cs \
-            package/dist/native/darwin/muse-vault \
+            package/native/windows/MuseSparkVaultPipe.cs \
+            package/dist/native/darwin/muse-vault-arm64 package/dist/native/darwin/muse-vault-x64 \
             package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/media.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
             package/dist/exec.js package/dist/mcpPool.js package/dist/modelApiCodeIntel.js package/dist/structuredSchema.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
-            package/native/darwin/muse-dictate \
+            package/native/darwin/muse-dictate-screen-arm64.app/Contents/MacOS/muse-dictate \
+            package/native/darwin/muse-dictate-screen-x64.app/Contents/MacOS/muse-dictate \
             package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
+            package/native/linux/x64/muse-vault-peer package/native/linux/arm64/muse-vault-peer package/native/darwin/muse-vault-peer-arm64 package/native/darwin/muse-vault-peer-x64 \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/native/windows/MuseSparkMcpLauncher.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
             package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \
-            package/dist/runtime.bundles.json.br package/dist/legalScan.js \
+            package/dist/runtime.bundles.json.br package/dist/legalScan.js package/dist/legal-data.json.br \
             package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
             package/schemas/share-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
@@ -642,7 +1045,7 @@ jobs:
           mkdir -p "$acp"
           npm install --prefix "$acp" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz
           node scripts/check-ui-text.mjs "$acp/node_modules/muse-spark-code-acp"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-acp
           path: dist/muse-spark-code-acp-*.tgz
@@ -650,7 +1053,7 @@ jobs:
           retention-days: 30
       - name: CycloneDX inventories for shipped bundles and native runtime dependencies
         run: node scripts/release-sbom.mjs
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: muse-spark-code-sboms
           path: dist/sbom/*.cdx.json
@@ -659,7 +1062,7 @@ jobs:
       - name: record the actual checkout tree and release asset hashes
         id: source
         run: node scripts/release-reuse.mjs record
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: source-tree-${{ steps.source.outputs.tree }}
           path: dist/release-build.json

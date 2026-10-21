@@ -27,7 +27,7 @@ const WINDOWS_HOOK_TIMEOUT_MS = 30_000
 // 38022741513 was 2,239 s, about eight minutes a shard. Rigs keep parallel files.
 const IS_HOSTED_MAC = process.platform === 'darwin' && process.env['GITHUB_ACTIONS'] === 'true'
 
-export default defineConfig({
+const config = defineConfig({
   test: {
     include: ['test/unit/**/*.test.{ts,tsx,mjs}', 'test/e2e/**/*.test.ts'],
     environment: 'node',
@@ -57,3 +57,5 @@ export default defineConfig({
     },
   },
 })
+
+export default config

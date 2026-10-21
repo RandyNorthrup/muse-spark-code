@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import * as z from 'zod/mini'
 import {
   estimateRequestSchema,
@@ -8,7 +9,7 @@ import {
 } from '../../shared/estimate'
 import machineClasses from '../../shared/machineClasses.json'
 import { ESTIMATE_MAX_ITEMS } from '../../shared/constants'
-import { fill, UI_TEXT } from '../../shared/l10n/text'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
 import { compareEstimateIds } from './goal'
 
 const priceSchema =
@@ -40,9 +41,9 @@ const responseSchema = z.discriminatedUnion('status', [
 ])
 export interface EstimatePricePort {
   /** M113 N owns persistence and public-address/redirect-safe transport.
-   * fetchPublic returns a parsed application projection from a captured
-   * catalog adapter, never a provider's raw wire response or credentials.
-   */
+  fetchPublic returns a parsed application projection from a captured
+  catalog adapter, never a provider's raw wire response or credentials.
+  */
   cached(catalogUrl: string): Promise<unknown>
   store(catalogUrl: string, document: z.infer<typeof documentSchema>): Promise<void>
   fetchPublic(catalogUrl: string, etag?: string): Promise<unknown>
@@ -71,13 +72,15 @@ export interface EstimatePrices {
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 function isPublicUrl(text: string): boolean {
   try {
     const url = new URL(text)
     return url.protocol === 'https:' && !url.username && !url.password && !url.hash
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed URL is not public: anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }
@@ -86,7 +89,7 @@ function isConsistent(
   catalogUrl: string,
   asOf: string,
 ): boolean {
-  const classes = machineClassesSchema.parse(machineClasses)
+  const classes = parseEstimate(machineClassesSchema, machineClasses)
   return (
     Date.parse(document.retrievedAt) <= Date.parse(asOf) &&
     document.catalogDate <= document.retrievedAt.slice(0, 'YYYY-MM-DD'.length) &&
@@ -101,15 +104,15 @@ function isConsistent(
 }
 
 /** Optional no-account catalogs. Dates come only from injected asOf and the
- * adapter's dated catalog evidence, never the clock or a guessed price.
- * Offline stale evidence is retained and labelled; a failed refresh cannot
- * overwrite a previously validated cache entry.
- */
+adapter's dated catalog evidence, never the clock or a guessed price.
+Offline stale evidence is retained and labelled; a failed refresh cannot
+overwrite a previously validated cache entry.
+*/
 export async function lookupEstimatePrices(
   options: EstimatePriceLookup,
   port: EstimatePricePort,
 ): Promise<EstimatePrices> {
-  const asOf = estimateRequestSchema.shape.asOf.parse(options.asOf)
+  const asOf = parseEstimate(estimateRequestSchema.shape.asOf, options.asOf)
   if (
     !Number.isFinite(options.maxAgeMs) ||
     options.maxAgeMs < 0 ||
@@ -125,7 +128,11 @@ export async function lookupEstimatePrices(
     let wasCacheUnavailable = false
     try {
       rawCache = await port.cached(catalogUrl)
-    } catch {
+    } catch (error: unknown) {
+      // A missing cache entry is a cold cache: the reason stays
+      // 'unavailable' while the refresh below retries over the network. Any
+      // other store failure keeps its kind for the caller (D207).
+      if (!isStoreErrorCode(error, 'ENOENT')) throw error
       wasCacheUnavailable = true
     }
     const parsed = documentSchema.safeParse(rawCache)

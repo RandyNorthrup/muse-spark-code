@@ -56,17 +56,17 @@ export interface LazyBundleRow {
   /** The bundle's path below dist/, e.g. 'tab.js' or 'webview/models.js'. */
   readonly file: string
   /**
-   * Which process loads it: the VS Code extension host, the agent, or both.
-   * A bundle no import edge and no load by file name reaches (an empty
-   * requestedBy) takes the side of the packages that carry it, and
-   * \`unreached\` when neither does.
-   */
+  Which process loads it: the VS Code extension host, the agent, or both.
+  A bundle no import edge and no load by file name reaches (an empty
+  requestedBy) takes the side of the packages that carry it, and
+  \`unreached\` when neither does.
+  */
   readonly side: 'vscode' | 'acp' | 'both' | 'unreached'
   /**
-   * Every source that names it by file name: the file, the function, method
-   * or constant the name stands in, and the side that load needs. No line
-   * number: an unrelated edit of the source must not make this file stale.
-   */
+  Every source that names it by file name: the file, the function, method
+  or constant the name stands in, and the side that load needs. No line
+  number: an unrelated edit of the source must not make this file stale.
+  */
   readonly requestedBy: readonly {
     readonly importer: string
     readonly symbol: string
@@ -163,14 +163,32 @@ function useLines(file, identifier) {
 
 function sideName(sides) {
   if (sides.has('vscode') && sides.has('acp')) return 'both'
-  const [only] = sides
-  return only ?? 'unreached'
+  const [only = 'unreached'] = sides
+  return only
 }
 
 // A bundler-internal chunk (content-hashed, below a chunks/ folder) is never
 // loaded by file name and is not a row: the registry names stable bundles.
 // It still carries import edges and input attribution.
 const isStableBundle = (file) => !file.includes('/chunks/')
+
+// The solid webview archive's members below dist/webview/, as the packager
+// stages them (scripts/package-vsix.mjs): everything the build emits except
+// the ACP agent's voice companion, which was never allowlisted into the
+// VSIX and leaves the stage instead of joining the archive.
+function webviewArchiveMembers() {
+  const found = []
+  const walk = (directory, prefix) => {
+    const entries = readdirSync(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isDirectory()) walk(path.join(directory, entry.name), `${prefix}${entry.name}/`)
+      else if (entry.name !== 'voiceCompanion.js' && entry.name !== 'voiceCompanion.css')
+        found.push(`${prefix}${entry.name}`)
+    }
+  }
+  walk(path.join(root, 'dist', 'webview'), '')
+  return found
+}
 
 async function buildRegistry() {
   const emitted = new Set()
@@ -294,6 +312,15 @@ async function buildRegistry() {
     }
   }
   const vsix = await vsixInventory()
+  // The webview ships as one solid archive (VSIXWEB A): the inventory
+  // lists dist/webview.json.br instead of the loose members, but the VS Code
+  // side loads them through the verified extraction, so the archive's
+  // members count as carried. The stage always packs them (the loose files
+  // leave with it), so this holds whether or not the check runs on a tree
+  // whose dist/ already holds the archive file. The ACP agent's voice
+  // companion never joined the VSIX (the same exclusion
+  // scripts/package-vsix.mjs packs with), so it stays out here too.
+  for (const member of webviewArchiveMembers()) vsix.add(`dist/webview/${member}`)
   // The agent carries the bundle list plus the usage page's asset closure,
   // exactly what scripts/package-acp.mjs stages.
   const agentFiles = [...ACP_BUNDLES]

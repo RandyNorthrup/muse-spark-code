@@ -14,6 +14,7 @@ import type {
   ResourceTreeReader,
 } from '../../../shared/resources'
 import type { ResourceActuatorPort, ResourceControl, ResourceControlName } from './controls'
+import { isErrno } from '../../fs/errno'
 
 const prioritySchema = z.strictObject({
   nice: z
@@ -29,8 +30,8 @@ const prioritySchema = z.strictObject({
 type LinuxPriority = z.infer<typeof prioritySchema>
 
 /** M96 K's native boundary must check group/cgroup AND exact start identity before each syscall.
- * It must use absolute renice/ionice paths, credential-free environments, no elevation,
- * and return null on failed readback. */
+It must use absolute renice/ionice paths, credential-free environments, no elevation,
+and return null on failed readback. */
 export interface LinuxProcessPriorityPort {
   read(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<LinuxPriority | null>
   nice(
@@ -116,6 +117,17 @@ export class LinuxResourceActuator implements ResourceActuatorPort {
     z.number().check(z.int(), z.gt(0), z.lte(Number.MAX_SAFE_INTEGER)).parse(deps.memoryHighBytes)
   }
 
+  /** Abandoned setup closes whatever opened; a close failure cannot fix the setup. */
+  private async closeAll(controls: readonly { close(): Promise<void> }[]): Promise<void> {
+    for (const control of controls) {
+      try {
+        await control.close()
+      } catch {
+        // The setup already failed: a control that will not close is abandoned.
+      }
+    }
+  }
+
   private async cgroup(ticket: ResourceTicket): Promise<readonly ResourceControl[]> {
     if (ticket.scope.type !== 'cgroup' || this.deps.ownedCgroupRoot === undefined)
       throw new Error('Delegated harness scope unavailable')
@@ -157,7 +169,10 @@ export class LinuxResourceActuator implements ResourceActuatorPort {
                 if ((await files.canonical(location)) !== location)
                   throw new Error('Aliased resource control')
                 held = await files.open(location)
-              } catch {
+              } catch (error) {
+                // A filesystem refusal backs off and retries; anything else
+                // (including a confirmed alias) fails this read at once.
+                if (!isErrno(error)) throw error
                 retryAtMs = performance.now() + retryDelayMs
                 retryDelayMs = Math.min(retryDelayMs * 2, RESOURCE_ESCALATE_MS)
               }
@@ -196,7 +211,7 @@ export class LinuxResourceActuator implements ResourceActuatorPort {
       }
       return controls
     } catch (error: unknown) {
-      for (const control of controls) await control.close()
+      await this.closeAll(controls)
       throw error
     }
   }

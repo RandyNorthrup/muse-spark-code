@@ -1,7 +1,8 @@
 // The MCP servers of one Model API host (M50, PLAN.md D42): read from Muse
 // Code's settings when the first conversation starts, started together
-// (each within its start-up deadline), their tools offered to the model
-// while they are connected, and closed with the host (the window). Only a
+// (each within the start-up deadline its entry names, or waited on with
+// still-waiting notices when it names none), their tools offered to the
+// model while they are connected, and closed with the host (the window). Only a
 // trusted workspace starts any: in Restricted Mode every server stays
 // stopped, and trusting the workspace starts them with the next message.
 // A server that cannot start, or stops later, keeps its reason for the
@@ -10,16 +11,19 @@
 
 import path from 'node:path'
 import {
-  MCP_REQUEST_TIMEOUT_MS,
   MCP_START_CONCURRENCY,
-  MCP_TOOLS_MAX_PER_SERVER,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
   MCP_POOL_MODEL_TEXT,
   UI_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
-import { withDeadline } from '../../../timeouts'
+import {
+  startStillWaiting,
+  type StillWaitingSubject,
+  stillWaitingText,
+  withDeadline,
+} from '../../../timeouts'
 import type { McpVaultPoolPort } from '../../../vault/mcpSecrets'
 import { mcpSecretReferences } from '../../../vault/mcpReferences'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
@@ -44,12 +48,28 @@ import {
 } from './servers'
 import { type McpChildProcess, McpStdioTransport } from './stdio'
 
+/**
+The listed tools the server's entry keeps: its enabled/disabled filter
+only. Every kept tool is offered to the model; the provider's own request
+limits decide what fits. Pure.
+*/
+export function offeredTools(
+  listed: readonly McpToolInfo[],
+  spec: Pick<McpServerSpec, 'enabledTools' | 'disabledTools'>,
+): readonly McpToolInfo[] {
+  return listed.filter(
+    (tool) =>
+      (spec.enabledTools === undefined || spec.enabledTools.has(tool.name)) &&
+      !spec.disabledTools.has(tool.name),
+  )
+}
+
 export type McpServerState =
   | { readonly status: 'starting' }
   | {
       readonly status: 'connected'
       readonly toolCount: number
-      /** Listed by the server but not offered (the entry's filters, the cap). */
+      /** Listed by the server but not offered (the entry's filters only). */
       readonly unofferedCount: number
     }
   | { readonly status: 'failed'; readonly reason: string }
@@ -83,10 +103,10 @@ export interface BridgeToolRef extends McpToolRef {
 }
 
 /**
- * One offered function with its server's raw MCP tool (M96 lane B): the team
- * bridge's `tools/list` serves the server's own description, not the Model
- * API's fitted definition.
- */
+One offered function with its server's raw MCP tool (M96 lane B): the team
+bridge's `tools/list` serves the server's own description, not the Model
+API's fitted definition.
+*/
 export interface BridgeOfferedTool {
   readonly functionName: string
   readonly server: string
@@ -115,10 +135,10 @@ export interface McpToolSource {
   definitions(): readonly FunctionToolDefinition[]
   find(functionName: string): McpToolRef | undefined
   /**
-   * Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
-   * lost server. `onElicitation` answers that call's `elicitation/create`
-   * with its session; without it the pool's default handler answers.
-   */
+  Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
+  lost server. `onElicitation` answers that call's `elicitation/create`
+  with its session; without it the pool's default handler answers.
+  */
   call(
     functionName: string,
     argsJson: string,
@@ -127,10 +147,10 @@ export interface McpToolSource {
   ): Promise<McpCallOutcome>
   close(): Promise<void>
   /**
-   * Answers `elicitation/create` for servers connected afterwards (M91):
-   * the capability is declared at each connection's init, so it stays
-   * stable within the session. Absent, the client offers nothing.
-   */
+  Answers `elicitation/create` for servers connected afterwards (M91):
+  the capability is declared at each connection's init, so it stays
+  stable within the session. Absent, the client offers nothing.
+  */
   setElicitationHandler?(handler: McpElicitationHandler | undefined): void
 }
 
@@ -187,12 +207,22 @@ function initialState(spec: McpServerSpec, isTrusted: boolean): McpServerState {
 }
 
 function startupDeadline(spec: McpServerSpec, launch: McpLaunch): string {
-  const seconds = String(Math.round(spec.startupTimeoutMs / MILLISECONDS_PER_SECOND))
+  const seconds =
+    spec.startupTimeoutMs === undefined
+      ? undefined
+      : String(Math.round(spec.startupTimeoutMs / MILLISECONDS_PER_SECOND))
   const hint =
     launch.transport === MCP_TRANSPORTS.stdio && launch.framing === 'auto'
       ? '; if it frames its messages with Content-Length, set "framing": "content_length" in its entry'
       : ''
-  return `it did not finish starting within ${seconds} s${hint}`
+  return seconds === undefined
+    ? `it did not finish starting${hint}`
+    : `it did not finish starting within ${seconds} s${hint}`
+}
+
+/** What the still-waiting notices name while a server starts. */
+function startupWaitWhat(spec: McpServerSpec): StillWaitingSubject {
+  return { key: 'mcpServerStartup', name: spec.name }
 }
 
 export class McpServerPool implements McpToolSource {
@@ -203,10 +233,10 @@ export class McpServerPool implements McpToolSource {
   private isClosed = false
   private elicitationHandler: McpElicitationHandler | undefined
   /**
-   * Sessions waiting on each server. The negotiated request names no tool
-   * call, so ambiguous overlapping routes are cancelled rather than sent
-   * to a different session.
-   */
+  Sessions waiting on each server. The negotiated request names no tool
+  call, so ambiguous overlapping routes are cancelled rather than sent
+  to a different session.
+  */
   private readonly elicitationRoutes = new Map<string, McpElicitationHandler[]>()
   /** A server that exited by itself can still have a Windows child to reap. */
   private readonly closing = new Set<Promise<void>>()
@@ -312,11 +342,22 @@ export class McpServerPool implements McpToolSource {
     }
     const launch = spec.launch.value
     try {
-      await withDeadline(
-        this.open(server, launch),
-        spec.startupTimeoutMs,
-        startupDeadline(spec, launch),
-      )
+      const timeoutMs = spec.startupTimeoutMs
+      if (timeoutMs === undefined) {
+        // No deadline of its own: the start is waited on until the server
+        // answers or is stopped, saying so out loud (owner 2026-10-16: no
+        // silent hangs, no arbitrary limits).
+        const stopNoticing = startStillWaiting((elapsedMs) => {
+          this.deps.log.info(stillWaitingText(startupWaitWhat(spec), elapsedMs))
+        })
+        try {
+          await this.open(server, launch)
+        } finally {
+          stopNoticing()
+        }
+      } else {
+        await withDeadline(this.open(server, launch), timeoutMs, startupDeadline(spec, launch))
+      }
     } catch (error: unknown) {
       const { connection } = server
       server.connection = undefined
@@ -387,10 +428,9 @@ export class McpServerPool implements McpToolSource {
     const cleanup = (async () => {
       try {
         await connection.close()
-      } catch (error: unknown) {
-        this.deps.log.warn(
-          `MCP server ${server.spec.name} could not finish closing: ${describe(error)}`,
-        )
+      } catch {
+        // The record names the unclosed server, never the close failure's text.
+        this.deps.log.warn(`MCP server ${server.spec.name} could not finish closing`)
       }
     })()
     this.closing.add(cleanup)
@@ -407,21 +447,11 @@ export class McpServerPool implements McpToolSource {
     server.tools = []
   }
 
-  /** The server's tools, filtered by its entry and capped, under their function names. */
+  /** The server's tools, filtered by its entry, under their function names. */
   private offer(server: LiveServer, listed: readonly McpToolInfo[]): void {
     this.withdraw(server)
     const { spec } = server
-    const allowed = listed.filter(
-      (tool) =>
-        (spec.enabledTools === undefined || spec.enabledTools.has(tool.name)) &&
-        !spec.disabledTools.has(tool.name),
-    )
-    const kept = allowed.slice(0, MCP_TOOLS_MAX_PER_SERVER)
-    if (allowed.length > kept.length) {
-      this.deps.log.warn(
-        `MCP server ${spec.name} offers ${String(allowed.length)} tools; the first ${String(MCP_TOOLS_MAX_PER_SERVER)} are offered to the model`,
-      )
-    }
+    const kept = offeredTools(listed, spec)
     const taken = new Set(this.byFunction.keys())
     server.tools = kept.map((tool) => {
       const functionName = mcpFunctionName(spec.name, tool.name, taken)
@@ -452,16 +482,19 @@ export class McpServerPool implements McpToolSource {
   /** `notifications/tools/list_changed`: the list read again; a failure is logged. */
   private async relist(server: LiveServer, connection: McpConnection): Promise<void> {
     try {
-      const tools = await connection.listTools(MCP_REQUEST_TIMEOUT_MS)
+      // Waited on until the server answers or the connection closes (a
+      // close rejects whatever still waits); a failure is logged below.
+      const tools = await connection.listTools(undefined)
       if (!this.isClosed && server.connection === connection) {
         this.offer(server, tools)
         this.deps.log.info(
           `MCP server ${server.spec.name} changed its tools: ${String(server.tools.length)} offered`,
         )
       }
-    } catch (error: unknown) {
+    } catch {
+      // The record names the server, never the relist failure's text.
       this.deps.log.warn(
-        `MCP server ${server.spec.name} changed its tools, and they could not be listed again: ${describe(error)}`,
+        `MCP server ${server.spec.name} changed its tools, and they could not be listed again`,
       )
     }
   }
@@ -470,7 +503,8 @@ export class McpServerPool implements McpToolSource {
     let args: unknown
     try {
       args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       args = undefined
     }
     if (typeof args !== 'object' || args === null || Array.isArray(args)) {
@@ -552,10 +586,10 @@ export class McpServerPool implements McpToolSource {
   }
 
   /**
-   * The raw `tools/call` result (M96 lane B): the team bridge proxies it to
-   * MCP clients, which need the server's own content blocks rather than the
-   * model's outcome. Throws the same `McpError` as `call`.
-   */
+  The raw `tools/call` result (M96 lane B): the team bridge proxies it to
+  MCP clients, which need the server's own content blocks rather than the
+  model's outcome. Throws the same `McpError` as `call`.
+  */
   public async callRaw(
     functionName: string,
     argsJson: string,
@@ -597,9 +631,9 @@ export class McpServerPool implements McpToolSource {
   }
 
   /**
-   * Every offered function with its raw tool (M96 lane B): the team bridge's
-   * `tools/list`, filtered per caller there.
-   */
+  Every offered function with its raw tool (M96 lane B): the team bridge's
+  `tools/list`, filtered per caller there.
+  */
   public bridgeTools(): readonly BridgeOfferedTool[] {
     return Array.from(this.byFunction, ([functionName, { server, offered }]) => ({
       functionName,

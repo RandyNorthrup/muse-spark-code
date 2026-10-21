@@ -248,6 +248,18 @@ describe('M105 hostile and partial metadata', () => {
     ).toMatchObject({ ok: true, info: { mediaType: 'audio/mpeg', durationSeconds: null } })
   })
 
+  it('carries a failed read with its cause instead of dropping it', async () => {
+    const failure = new Error('read refused')
+    const result = await sniffMedia({
+      sizeBytes: 16,
+      read: () => Promise.reject(failure),
+    })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toEqual(expect.any(String))
+    expect(result.cause).toBe(failure)
+  })
+
   it('rejects incorrect head/tail read lengths even when the bytes would otherwise parse', async () => {
     const clip = Buffer.from(videoFixture())
     for (const returned of [clip.subarray(0, -1), Buffer.concat([clip, Buffer.alloc(1)])])

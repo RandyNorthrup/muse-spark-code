@@ -1,8 +1,112 @@
 // Public runtime command table. The localized usage table owns descriptions.
-import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from './constants'
+import {
+  ACP_AGENT_NAME,
+  REFERENCE_DOCS_URL,
+  UI_TEXT,
+  SLASH_COMMAND_NAMES,
+  REPORT_KINDS,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
+} from './constants'
+import { COMPANION_VOICE_RELEASE } from './companionVoice'
 
-export function cliCommands() {
+export function cliCommands(shouldIncludeHeld = false) {
+  // Executable examples enumerate deep help routes; the help regression walks
+  // this same public table, including future commands, rather than a test list.
+  const invocations: Readonly<Record<string, readonly (readonly string[])[]>> = {
+    usage: ['summary', 'daily', 'models', 'limits', 'export', 'open', 'serve'].map((action) => [
+      'usage',
+      action,
+    ]),
+    legal: [['legal'], ['exec', 'legal-scan']],
+    providersList: [['providers', 'list']],
+    providersAdd: [['providers', 'add']],
+    providersTest: [['providers', 'test']],
+    providersRemove: [['providers', 'remove']],
+    chatGptProvider: ['add', 'remove', 'status'].map((action) => ['providers', action, 'chatgpt']),
+    serve: [[]],
+    login: [['login']],
+    setup: [['setup']],
+    authSet: [['auth', 'set']],
+    authClear: [['auth', 'clear']],
+    authStatus: [['auth', 'status']],
+    exec: [['exec']],
+    'scan-secrets': [['scan-secrets']],
+    schedule: [
+      ...[
+        'add',
+        'list',
+        'remove',
+        'run-now',
+        'pause',
+        'resume',
+        'fire',
+        'timeline',
+        'run-due',
+        'background-maintain',
+      ].map((action) => ['schedule', action]),
+      ['schedule', 'background', 'off'],
+      ['schedule', 'background', 'status'],
+    ],
+    accounts: ['list', 'add', 'remove', 'order', 'thresholds'].map((action) => [
+      'providers',
+      'accounts',
+      action,
+    ]),
+    developer: ['status', 'enable', 'disable', 'reset', 'add', 'remove'].map((action) => [
+      'developer',
+      action,
+    ]),
+    playbook: ['status', 'record', 'settings'].map((action) => ['playbook', action]),
+    estimate: [['estimate']],
+    report: [['report'], ['report', 'problem']],
+    reports: [
+      ...REPORT_KINDS.map((kind) => ['report', kind]),
+      ['report', 'history'],
+      ...REPORT_KINDS.map((kind) => ['report', 'history', kind]),
+    ],
+    fontsInstall: [['fonts', 'install']],
+    help: [['help'], ['help', 'reference']],
+    share: [['share', 'chat']],
+    prompts: ['save', 'list', 'use', 'share'].map((action) => ['prompts', action]),
+    resources: [
+      ...['status', 'history', 'resume'].map((action) => ['resources', action]),
+      ['usage', 'resources'],
+    ],
+    vault: [
+      'status',
+      'unlock',
+      'lock',
+      'list',
+      'add',
+      'remove',
+      'grant',
+      'revoke',
+      'audit',
+      'import',
+      'public-key',
+      'watch',
+    ].map((action) => ['vault', action]),
+    vaultHelp: [['vault']],
+    acp: [],
+    version: [],
+  }
   return [
+    ...(shouldIncludeHeld || COMPANION_VOICE_RELEASE.isReady
+      ? [
+          {
+            route: 'dictate',
+            name: 'dictate [--muse-voice] [--trust-workspace]',
+            description: UI_TEXT.companionVoiceReference,
+            text: { ui: 'companionVoiceReference' },
+          },
+          {
+            route: 'acp',
+            name: '/dictate',
+            description: UI_TEXT.companionVoiceReference,
+            text: { ui: 'companionVoiceReference' },
+          },
+        ]
+      : []),
     {
       route: 'usage',
       name: 'usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json',
@@ -20,6 +124,18 @@ export function cliCommands() {
       name: 'providers list',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'openRouterConnect',
+      name: 'providers connect openrouter',
+      description: UI_TEXT.providerOpenRouterServices,
+      text: { ui: 'providerOpenRouterServices' },
+    },
+    {
+      route: 'providerKeyUsage',
+      name: 'providers usage <id>',
+      description: UI_TEXT.usageKeyUsage,
+      text: { ui: 'usageKeyUsage' },
     },
     {
       route: 'providersAdd',
@@ -40,8 +156,20 @@ export function cliCommands() {
       text: { ui: 'referenceProviders' },
     },
     {
+      route: 'providersModels',
+      name: 'providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'helpTopic',
+      name: 'help <command>',
+      description: UI_TEXT.referenceBriefHelp,
+      text: { ui: 'referenceBriefHelp' },
+    },
+    {
       route: 'chatGptProvider',
-      name: 'providers add|remove|status chatgpt',
+      name: 'providers add|remove|status chatgpt [--new-account]',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
     },
@@ -74,6 +202,12 @@ export function cliCommands() {
       name: 'auth clear',
       description: UI_TEXT.referenceAuthClear,
       text: { ui: 'referenceAuthClear' },
+    },
+    {
+      route: 'authGitHub',
+      name: 'auth github login|logout|status',
+      description: UI_TEXT.referenceAuthGitHub,
+      text: { ui: 'referenceAuthGitHub' },
     },
     {
       route: 'setup',
@@ -117,6 +251,12 @@ export function cliCommands() {
       text: { ui: 'estimateCliHelp' },
     },
     {
+      route: 'estimate',
+      name: 'estimate --check-plan',
+      description: UI_TEXT.referenceCliOptions['estimate-check-plan'],
+      text: { cli: 'estimate-check-plan' },
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,
@@ -135,6 +275,12 @@ export function cliCommands() {
       text: { ui: 'reportCliUsage' },
     },
     {
+      route: 'playbook',
+      name: 'playbook [status|record|settings]',
+      description: UI_TEXT.playbookCommandUsage,
+      text: { ui: 'playbookCommandUsage' },
+    },
+    {
       route: 'fontsInstall',
       name: 'fonts install [--from <directory>]',
       description: UI_TEXT.acpFontsUsage,
@@ -142,7 +288,7 @@ export function cliCommands() {
     },
     {
       route: 'help',
-      name: 'help --all',
+      name: 'help reference / help --all',
       description: UI_TEXT.referenceIntro,
       text: { ui: 'referenceIntro' },
     },
@@ -196,6 +342,12 @@ export function cliCommands() {
       text: { ui: 'shareReviewPrivacy' },
     },
     {
+      route: 'acp',
+      name: '/whatsnew',
+      description: UI_TEXT.paletteTips.whatsNew,
+      text: { ui: 'whatsNewOpen' },
+    },
+    {
       route: 'resources',
       name: 'resources [status|history|resume] [--json]; usage resources [--json]',
       description: UI_TEXT.resourceGovernorDescription,
@@ -219,7 +371,7 @@ export function cliCommands() {
       description: UI_TEXT.referenceVaultHelp,
       text: { ui: 'referenceVaultHelp' },
     },
-  ]
+  ].map((entry) => ({ ...entry, invocations: invocations[entry.route] ?? [[entry.route]] }))
 }
 
 /** ACP's available local commands and installed skills; panel commands live in the page. */
@@ -229,7 +381,11 @@ export function compactReference(skills: readonly string[]): string {
     UI_TEXT.referenceAcp.replaceAll(`/${SLASH_COMMAND_NAMES.help}`, () => SLASH_COMMAND_NAMES.help),
     `${UI_TEXT.groupSlashCommands}: ${[...new Set([SLASH_COMMAND_NAMES.help, ...skills])].map((name) => `/${name}`).join(', ')}`,
     `${UI_TEXT.referenceCommands}: ${cliCommands()
-      .filter((entry) => !['schedule', 'estimate', 'vault', 'vaultHelp'].includes(entry.route))
+      .filter(
+        (entry) =>
+          (entry.route !== 'schedule' || SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady) &&
+          !['estimate', 'vault', 'vaultHelp'].includes(entry.route),
+      )
       .map((entry) => entry.name)
       .join(', ')}`,
     `${UI_TEXT.referenceDocs}: ${REFERENCE_DOCS_URL}`,

@@ -66,12 +66,12 @@ const AUTOMATION_ORDER: readonly PermissionMode[] = [
 ]
 
 /**
- * The mode a child's approvals are answered under (M76 review, RV70x): the
- * less automatic of its parent's mode and its own `permission-mode`, the
- * parent's when the agent names none. So a Manual parent caps every child,
- * a Manual child asks under any parent, and an Edit automatically child
- * keeps its automation under an Auto or Bypass parent, which permits it.
- */
+The mode a child's approvals are answered under (M76 review, RV70x): the
+less automatic of its parent's mode and its own `permission-mode`, the
+parent's when the agent names none. So a Manual parent caps every child,
+a Manual child asks under any parent, and an Edit automatically child
+keeps its automation under an Auto or Bypass parent, which permits it.
+*/
 export function childPermissionMode(
   parent: PermissionMode,
   child: PermissionMode | undefined,
@@ -92,13 +92,13 @@ export function allowOnceChoice(
 }
 
 /**
- * Whether the Auto reviewer on Muse Code may be asked about an approval
- * (M90, PLAN.md D69): one Muse Code raised in Auto for `parentTurnId`,
- * the running parent turn (so never a child's), with an allow-once choice.
- * Never a request replayed to a later surface, a protected write, one the
- * CLI's own judge escalated, a subject kind MSP does not name, a child task
- * or a paid call.
- */
+Whether the Auto reviewer on Muse Code may be asked about an approval
+(M90, PLAN.md D69): one Muse Code raised in Auto for `parentTurnId`,
+the running parent turn (so never a child's), with an allow-once choice.
+Never a request replayed to a later surface, a protected write, one the
+CLI's own judge escalated, a subject kind MSP does not name, a child task
+or a paid call.
+*/
 export function isReviewableApproval(
   event: Extract<AgentEvent, { type: 'approvalRequested' }>,
   mode: PermissionMode,
@@ -129,10 +129,10 @@ export function isReviewableApproval(
 }
 
 /**
- * The allow-once choice "Edit Automatically" takes for a request answered
- * under `mode` (the client's own, for the parent conversation); undefined
- * for anything the user must see.
- */
+The allow-once choice "Edit Automatically" takes for a request answered
+under `mode` (the client's own, for the parent conversation); undefined
+for anything the user must see.
+*/
 export function editAutomaticallyChoice(
   event: Extract<AgentEvent, { type: 'approvalRequested' }>,
   mode: PermissionMode,
@@ -151,4 +151,47 @@ export function editAutomaticallyChoice(
     subject.kind === FILE_WRITE_SUBJECT ||
     (subject.kind === FILE_ACCESS_SUBJECT && subject.access === WRITE_ACCESS)
   return isFileWrite && subject.stages === undefined ? allowOnceChoice(event) : undefined
+}
+
+// The reject decision Muse Code offers on an approval card (`abort`, the
+// same vocabulary `MuseCodeHost` refuses a waiting stage with and the
+// captured `approval/requested` frames carry). Only this exact decision is
+// a refusal; anything else is passed through, never guessed.
+const REJECT_DECISION = 'abort'
+// MSP's approving decisions: `approved`, `approvedPolicyAmendment`, … (the
+// same prefix `mapNotification` filters protected-write choices by).
+const APPROVING_DECISION_PREFIX = 'approved'
+
+/** Whether a card choice would approve the action (a side chat refuses those). */
+export function isApprovingChoice(choice: Pick<ApprovalChoice, 'decision'>): boolean {
+  return choice.decision.startsWith(APPROVING_DECISION_PREFIX)
+}
+
+/**
+Whether a click on a shown side-chat card is refused (M53, C-M53-3):
+only a choice the retained card itself names, and that does not approve,
+passes. The host sends the choice id on without validating it against
+the card, so an unknown choice — or no retained card — fails closed
+instead of being guessed at.
+*/
+export function isSideChatClickRefused(
+  choices: readonly ApprovalChoice[] | undefined,
+  choiceId: string,
+): boolean {
+  const choice = choices?.find((held) => held.choiceId === choiceId)
+  return choice === undefined || isApprovingChoice(choice)
+}
+
+/**
+The choice a Muse Code side chat answers every approval with (M53,
+C-M53-3): Plan mode already selects MSP `denyUnmatched`, but the CLI
+still applies its own project and session allow rules, so a side fork is
+not strictly read only until the extension refuses what it asks. The
+refusal is the card's own reject choice; when the host offers none, the
+caller shows the card and refuses approving clicks instead.
+*/
+export function sideChatRefusalChoice(
+  event: Pick<Extract<AgentEvent, { type: 'approvalRequested' }>, 'availableChoices'>,
+): ApprovalChoice | undefined {
+  return event.availableChoices.find((choice) => choice.decision === REJECT_DECISION)
 }

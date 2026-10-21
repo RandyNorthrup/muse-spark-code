@@ -66,7 +66,16 @@ export type PaletteAction =
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
   /** Commit, push and pull requests in the panel (M71). */
-  | { readonly type: 'gitAction'; readonly action: 'openCommit' | 'push' | 'openPullRequest' }
+  | {
+      readonly type: 'gitAction'
+      readonly action:
+        | 'openCommit'
+        | 'push'
+        | 'openPullRequest'
+        // M123 (D104 §2): Muse Spark's own GitHub sign-in, in every editor.
+        | 'signInGitHubWithCode'
+        | 'signOutGitHub'
+    }
   | { readonly type: 'openPullRequestInConversation' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
   /** "Import Session…" (M84): resume a portable JSON file on the Model API backend. */
@@ -88,6 +97,8 @@ export type PaletteAction =
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
   | { readonly type: 'startReview' }
+  /** `/playback` in the prompt: the agent's own understanding, from memory only (D203). */
+  | { readonly type: 'startPlayback' }
   /** `/legal ` in the prompt, for the read-only legal scan (M97). */
   | { readonly type: 'startLegalScan' }
   /** A review preset (M70): the request as the host takes it. */
@@ -105,10 +116,10 @@ export interface PaletteItem {
   readonly widget?: PaletteWidget
   readonly action: PaletteAction
   /**
-   * The row's name in the prompt's "/" list (M38), without the slash, for a
-   * row whose label is not already `/name`: Claude Code's names where it has
-   * one.
-   */
+  The row's name in the prompt's "/" list (M38), without the slash, for a
+  row whose label is not already `/name`: Claude Code's names where it has
+  one.
+  */
   readonly slashName?: string
   /** Slider rows step their value on Left/Right instead of activating. */
   readonly isSlider?: boolean

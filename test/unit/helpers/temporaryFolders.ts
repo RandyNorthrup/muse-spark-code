@@ -5,7 +5,8 @@
 // orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
 import { readdirSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 const REMOVE_RETRIES = 5
@@ -18,6 +19,48 @@ export function removeFolder(folder: string): Promise<void> {
     maxRetries: REMOVE_RETRIES,
     retryDelay: REMOVE_RETRY_DELAY_MS,
   })
+}
+
+/**
+The temporary folders one suite makes, all removed afterwards. Suites
+share it instead of repeating the tracker, so the duplication gate stays
+silent and every folder still cleans up the same way.
+*/
+export function temporaryTracker() {
+  const folders: string[] = []
+  return {
+    cleanup: async (): Promise<void> => {
+      await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
+    },
+    make: async (prefix: string): Promise<string> => {
+      const folder = await mkdtemp(path.join(tmpdir(), prefix))
+      folders.push(folder)
+      return folder
+    },
+  }
+}
+
+/** A test's temporary folder for one body: created, handed over, removed. */
+export async function usingTempDir<T>(
+  prefix: string,
+  work: (folder: string) => T | Promise<T>,
+): Promise<T> {
+  // Resolved, like temporaryDir: a symlinked ancestor (macOS's /var) would
+  // otherwise hand a path the symlink-guarded stores must refuse.
+  const folder = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
+  try {
+    return await work(folder)
+  } finally {
+    await removeFolder(folder)
+  }
+}
+
+/**
+A fresh directory under the process temporary folder (resolved, so
+macOS's `/var` symlink never leaks into hashed paths).
+*/
+export async function temporaryDir(prefix: string): Promise<string> {
+  return await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
 }
 
 /** Every file under a folder, as absolute paths: what a key scan reads. */

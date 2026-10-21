@@ -117,11 +117,16 @@ export const USAGE_EN = {
   certaintyReported: 'Reported',
   certaintyComputed: 'Computed',
   certaintyUncertain: 'Uncertain',
+  reservedLabel: 'Reserved',
   certaintyPlan: 'Plan',
   certaintyLocal: 'Local',
   certaintyUnpriced: 'Unpriced',
   certaintyEstimated: 'Estimated',
   uncertainNote: 'The request was sent, but usage was not returned. Its liability is retained.',
+  unknownCalls: forms({
+    one: '{count} call with unknown cost',
+    other: '{count} calls with unknown cost',
+  }),
   unpricedNote: 'No price card is available. Unknown cost is not zero.',
   estimatedNote: 'Token counts are estimates.',
   localNote: 'Local model: no API charge.',
@@ -220,6 +225,10 @@ export const USAGE_EN = {
   sortDescending: 'Sort Descending',
   retentionNote:
     'Per-call detail is kept for {detailDays} days; daily summaries for {historyDays} days.',
+  // NOLIMITSSET (PLAN.md D121): with no day count set, daily summaries are
+  // kept until the person sets a number of days or clears them.
+  retentionNoteKept:
+    'Per-call detail is kept for {detailDays} days; daily summaries are kept until you set a number of days or clear them.',
   privacyNote:
     'History stays on this machine. It contains no prompts, replies, tool arguments, paths or keys.',
 }

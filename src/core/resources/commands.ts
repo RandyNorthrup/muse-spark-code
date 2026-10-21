@@ -1,35 +1,114 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 import path from 'node:path'
-import { resolveExecutable } from '../executables'
-import { environmentValue } from '../backends/musecode/launch'
-import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
-import { spawnResourceProcess } from './process'
 import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
 } from './launch'
+import { NO_WORKSPACE, type GuardedChildEnv } from '../executables'
+import {
+  isWorkspacePath,
+  noWorkspaceChildEnvironment,
+  resolveExecutable,
+  workspaceChildEnvironment,
+} from '../execGuard'
+import { environmentValue } from '../execGuard'
+import { existsSync, realpathSync } from 'node:fs'
+import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
+import { spawnResourceProcess } from './process'
 
-function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
-  const file = path.isAbsolute(command)
-    ? command
-    : resolveExecutable(command, {
-        platform: process.platform,
-        pathVariable: environmentValue(env, process.platform, 'PATH'),
-        fileExists: existsSync,
-      })
+/**
+The workspace a governed child runs in: product lookups (`xdg-open`,
+`open`, `rundll32.exe`, the governed probes) never resolve to a file
+inside it, and the child's PATH is the guarded child PATH for it.
+*/
+export interface GovernedWorkspace {
+  readonly workspaceRoot: string
+}
+
+/**
+The workspace a governed call guards when its caller names none: the given
+folder (the spawn's working directory, else this process's), unless it is
+a filesystem root or the home folder. An editor host starts in one of
+those (VS Code keeps its launch folder on macOS and Linux: `/` from the
+Dock or Finder, the home folder from a desktop launcher); such a folder is
+no project and holds every program, so it names no workspace, and lookups
+then read absolute PATH entries only, links followed.
+*/
+export function defaultGovernedWorkspace(folder: string): GovernedWorkspace | undefined {
+  const resolved = path.resolve(folder)
+  if (resolved === path.parse(resolved).root) return undefined
+  return comparablePath(resolved) === comparablePath(path.resolve(homedir()))
+    ? undefined
+    : { workspaceRoot: resolved }
+}
+
+/** A path as this platform compares it: Windows ignores case. */
+function comparablePath(value: string): string {
+  return process.platform === 'win32' ? value.toLowerCase() : value
+}
+
+function resolveCommand(
+  command: string,
+  env: NodeJS.ProcessEnv,
+  workspace: GovernedWorkspace | undefined,
+): string {
+  // The running runtime itself (the editor's Node, the agent's node) is no
+  // lookup a workspace can plant: this process already runs it. VS Code's
+  // extension host on Windows works in its own install folder, so Code.exe
+  // sat "inside the workspace" and every vault broker launch was refused.
+  if (command === process.execPath) return command
+  const scope =
+    workspace === undefined
+      ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+      : { workspaceRoot: workspace.workspaceRoot, realpath: realpathSync }
+  if (path.isAbsolute(command)) {
+    // An absolute configured path inside the workspace is refused like a
+    // bare name there: a planted absolute `gh` must not run with the
+    // person's login when a report reads GitHub.
+    if (
+      workspace !== undefined &&
+      isWorkspacePath(
+        process.platform,
+        { ...scope, workspaceRoot: workspace.workspaceRoot },
+        command,
+      )
+    )
+      throw new Error('Governed command unavailable')
+    if (!existsSync(command)) throw new Error('Governed command unavailable')
+    return command
+  }
+  const file = resolveExecutable(command, {
+    platform: process.platform,
+    pathVariable: environmentValue(env, process.platform, 'PATH'),
+    fileExists: existsSync,
+    scope,
+  })
   if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
   return file
 }
 
+/** The child's environment: the guarded child PATH for its workspace, if it has one. */
+function childEnvironment(
+  env: NodeJS.ProcessEnv,
+  workspace: GovernedWorkspace | undefined,
+): GuardedChildEnv {
+  return workspace === undefined
+    ? noWorkspaceChildEnvironment(process.platform, env, realpathSync)
+    : workspaceChildEnvironment(process.platform, env, {
+        workspaceRoot: workspace.workspaceRoot,
+        realpath: realpathSync,
+      })
+}
+
 /**
- * Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
- * the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
- * then is detached and counts as launched. Never waits for, or stops, what the
- * OS started for the user. `until: 'spawn'` is for a foreground handler
- * (xdg-open), launched once started; it takes no input.
- */
+Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
+the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
+then is detached and counts as launched. Never waits for, or stops, what the
+OS started for the user. `until: 'spawn'` is for a foreground handler
+(xdg-open), launched once started; it takes no input.
+*/
 export async function handoffResourceFile(
   command: string,
   args: readonly string[],
@@ -38,11 +117,20 @@ export async function handoffResourceFile(
     readonly input?: string
     signal?: AbortSignal
     readonly until?: ResourceHandoffUntil
+    /**
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
+    readonly workspaceRoot?: string | undefined
   },
 ): Promise<void> {
-  const file = resolveCommand(command, options.env)
+  const workspace =
+    options.workspaceRoot === undefined
+      ? defaultGovernedWorkspace(process.cwd())
+      : { workspaceRoot: options.workspaceRoot }
+  const file = resolveCommand(command, options.env, workspace)
   const { child, handedOff } = await spawnResourceProcess('handoff', file, args, {
-    env: options.env,
+    env: childEnvironment(options.env, workspace),
     ...(options.signal !== undefined && { signal: options.signal }),
     ...(options.until !== undefined && { handoffUntil: options.until }),
   })
@@ -72,15 +160,26 @@ export async function execResourceFile(
   profile: 'contained' | 'probe',
   command: string,
   args: readonly string[],
-  options: ExecFileOptionsWithStringEncoding,
+  options: ExecFileOptionsWithStringEncoding & {
+    /**
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
+    readonly workspaceRoot?: string | undefined
+  },
 ): Promise<{ stdout: string; stderr: string }> {
   const env = options.env ?? process.env
-  const file = resolveCommand(command, env)
+  const workspace =
+    options.workspaceRoot === undefined
+      ? defaultGovernedWorkspace(typeof options.cwd === 'string' ? options.cwd : process.cwd())
+      : { workspaceRoot: options.workspaceRoot }
+  const file = resolveCommand(command, env, workspace)
+  const childEnv = childEnvironment(env, workspace)
   const deadline = AbortSignal.timeout(options.timeout ?? PROCESS_TABLE_TIMEOUT_MS)
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
   const launched = await spawnResourceProcess(profile, file, args, {
-    env,
+    env: childEnv,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     signal,
   })
@@ -96,8 +195,10 @@ export async function execResourceFile(
     const abort = () => {
       isFailed = true
       stopping ??= stop()
-      void stopping.catch(() => {
-        reject(new Error('Governed command tree stop failed'))
+      void stopping.catch((error: unknown) => {
+        // The abort already reached the waiter; the stop failure keeps its
+        // cause so the record names the cleanup that failed.
+        reject(new Error('Governed command tree stop failed', { cause: error }))
       })
     }
     // One named deadline covers admission and the run (the launch also stops on it).

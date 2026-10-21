@@ -1,0 +1,19 @@
+{
+  "url": "https://norvig.com/big.txt",
+  "finalUrl": "https://www.norvig.com/big.txt",
+  "capturedAt": "2026-10-18T09:47:43Z",
+  "command": "curl -sSL -H 'Accept-Encoding: gzip' -D headers.gzip.txt -o big.gzip.bin https://norvig.com/big.txt",
+  "status": 200,
+  "requestHeaders": { "Accept-Encoding": "gzip" },
+  "responseHeaders": {
+    "content-type": "text/plain",
+    "content-encoding": "gzip",
+    "content-length": "2702205",
+    "last-modified": "Mon, 22 Apr 2019 17:44:41 GMT"
+  },
+  "wireFile": "big-txt.body.gz",
+  "wireBytes": 2702205,
+  "wireSha256": "f0162920b6352ea0cb39e60025849ab48c44543883a0c600f92edb5bd28e0a08",
+  "decompressedBytes": 6488666,
+  "note": "Peter Norvig's big.txt (Project Gutenberg texts, stable since 2019). The wire bytes are the server's gzip body byte-for-byte; the test feeds them at the injected-transport seam, which never dials."
+}

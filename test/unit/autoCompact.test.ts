@@ -4,8 +4,8 @@ import {
   measureAutoCompactRequest,
   type AutoCompactInput,
 } from '../../src/core/backends/modelapi/autoCompact'
-import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
-import type { InputItem } from '../../src/core/backends/modelapi/schemas'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPacking'
+import { restoredToolText, type InputItem } from '../../src/core/backends/modelapi/schemas'
 import type { ModelPricing } from '../../src/core/providers/priceCard'
 
 const PRICES: readonly { name: string; pricing: ModelPricing; ratio?: number }[] = [
@@ -112,7 +112,7 @@ describe('automatic compaction economics (D81.4)', () => {
       {
         type: 'function_call_output',
         call_id: 'large-output',
-        output: 'long output\n'.repeat(10_000),
+        output: restoredToolText('long output\n'.repeat(10_000)),
       },
     ]
     pack.noteSent(pack.project(original))

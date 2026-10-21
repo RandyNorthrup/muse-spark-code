@@ -6,12 +6,16 @@ import { compareLegalText } from '../files'
 // present `.nuspec` license expressions. Content hashes are not license
 // metadata: entries without a present nuspec stay unknown.
 
-import type {
-  EcosystemResult,
-  LegalDependencyScope,
-  ManifestLicenseDeclaration,
+import {
+  dependency,
+  parseJson,
+  recordOf,
+  countIncludedDependencies,
+  type EcosystemResult,
+  type LegalDependencyScope,
+  type ManifestLicenseDeclaration,
+  type LegalDependencyAdmission,
 } from '../dependencies'
-import { dependency, parseJson, recordOf } from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf } from '../files'
 
@@ -146,11 +150,15 @@ function readProjectAssets(text: string): Map<string, string> {
 }
 
 /**
- * Read NuGet evidence from the snapshot. License expressions come from
- * present `.nuspec` files only; lock and asset versions resolve
- * coordinates but never licenses.
- */
-export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
+Read NuGet evidence from the snapshot. License expressions come from
+present `.nuspec` files only; lock and asset versions resolve
+coordinates but never licenses.
+*/
+export function readNuGet(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: LegalDependencyAdmission,
+): EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []
   const references: (NuGetReference & {
@@ -295,12 +303,21 @@ export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
       }),
     )
   }
-  if (references.length > 0) incomplete.push(UI_TEXT.legalScanner.m181)
-  const unresolved = dependencies.filter((dep) => dep.version === undefined).length
+  if (isDependencyIncluded === undefined && references.length > 0)
+    incomplete.push(UI_TEXT.legalScanner.m181)
+  const unresolved = countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.version === undefined,
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m182, unresolved, { v0: unresolved }))
   }
-  const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
+  const withoutLicense = countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.licenseRaw === undefined,
+  )
   if (withoutLicense > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m183, withoutLicense, { v0: withoutLicense }))
   }

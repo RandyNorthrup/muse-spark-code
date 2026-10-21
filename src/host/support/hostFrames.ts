@@ -10,25 +10,33 @@ import { packageFramesOf, stackOf, type PackageFrame } from '../../shared/stackF
 const FILE_URL_PREFIX = 'file://'
 
 /**
- * A host stack frame's file as the package names it: a file under the
- * installed extension's root, one of REPORT_PACKAGE_FRAME_PATHS, with `/`
- * separators. Anything else (Node's own frames, other extensions, the user's
- * files) is undefined and dropped.
- */
+A host stack frame's file as the package names it: a file under the
+installed extension's root, one of REPORT_PACKAGE_FRAME_PATHS, with `/`
+separators. Anything else (Node's own frames, other extensions, the user's
+files) is undefined and dropped.
+*/
 export function hostPackagePath(location: string, extensionRoot: string): string | undefined {
   let file = location
   if (file.startsWith(FILE_URL_PREFIX)) {
     try {
       file = fileURLToPath(file)
-    } catch {
-      return undefined
+    } catch (error: unknown) {
+      // A malformed URL or its escapes drop the frame: anything else keeps
+      // its kind past the frame.
+      if (error instanceof TypeError || error instanceof URIError) return undefined
+      throw error
     }
   }
   if (!path.isAbsolute(file)) {
     return undefined
   }
   const relative = path.relative(path.toNamespacedPath(extensionRoot), path.toNamespacedPath(file))
-  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+  if (
+    relative === '' ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
     return undefined
   }
   const packaged = relative.split(path.sep).join('/')

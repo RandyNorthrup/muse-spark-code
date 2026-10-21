@@ -16,6 +16,7 @@ import type {
   TurnPart,
   TurnSubmission,
 } from '../../core/agent/agentBackend'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -31,6 +32,7 @@ import {
 } from '../../core/judge/same/batches'
 import { isJudgeTurnItemAllowed, judgeSessionOptions } from '../../core/judge/same/sessionSpec'
 import { judgeStandaloneTurn } from '../../core/judge/same/wording'
+import { usableReply } from '../../core/turns/usableReply'
 
 export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
   /** Host integration admits and accounts for the actual subscription dispatch. */
@@ -53,8 +55,6 @@ export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
   readonly removeTempRoot: (root: string) => Promise<void>
   /** Told each side session's id as it starts: no History lists it. */
   readonly onSideSession: (sessionId: string) => void
-  /** A failure as the log may name it (never the CLI's own words). */
-  readonly describeFailure: (error: unknown) => string
   readonly logInfo: (message: string) => void
   readonly logWarn: (message: string) => void
 }
@@ -68,7 +68,6 @@ export interface MuseCodeJudgeJob {
 }
 
 const STARTED_DISPOSITION = 'started'
-const COMPLETED_TERMINAL = 'completed'
 const COMPLETED_STATUS = 'completed'
 const AGENT_MESSAGE = 'agentMessage'
 
@@ -76,15 +75,17 @@ const AGENT_MESSAGE = 'agentMessage'
 interface TrackedTurn {
   reply: string | undefined
   terminal: string | undefined
+  /** The turn's error kind, so a capped turn's reply is never a verdict. */
+  errorKind: string | undefined
   /** The M90 item guard tripped: a tool item ran in this turn. */
   tripped: boolean
 }
 
 /**
- * Track every turn of the batch session from its start (attached before the
- * turn is sent, so no frame is missed): the first completed reply per turn,
- * each turn's terminal, and the item guard's trip.
- */
+Track every turn of the batch session from its start (attached before the
+turn is sent, so no frame is missed): the first completed reply per turn,
+each turn's terminal, and the item guard's trip.
+*/
 function trackBatchTurns(
   session: AgentSession,
   onUsage: MuseCodeJudgeDeps['onUsage'],
@@ -98,7 +99,12 @@ function trackBatchTurns(
     if (known !== undefined) {
       return known
     }
-    const fresh: TrackedTurn = { reply: undefined, terminal: undefined, tripped: false }
+    const fresh: TrackedTurn = {
+      reply: undefined,
+      terminal: undefined,
+      errorKind: undefined,
+      tripped: false,
+    }
     turns.set(turnId, fresh)
     return fresh
   }
@@ -125,6 +131,8 @@ function trackBatchTurns(
       if (!tracked.tripped) {
         tracked.tripped = true
         void session.cancel().catch(() => {
+          // The tripped turn is already discarded, and the session teardown
+          // cancels again: a cancel that fails here changes nothing.
           return
         })
       }
@@ -141,18 +149,19 @@ function trackBatchTurns(
       }
       return
     }
-    if (event.type === 'turnCompleted') {
-      at(event.turnId).terminal = event.terminal
-    }
+    if (event.type !== 'turnCompleted') return
+    const tracked = at(event.turnId)
+    tracked.terminal = event.terminal
+    tracked.errorKind = event.errorKind
   })
   return { turns, stop }
 }
 
 /**
- * The turn's first completed reply, once its turn ends as completed:
- * undefined when the turn tripped the item guard, ended otherwise, or the
- * wait was aborted first.
- */
+The turn's first completed reply, once its turn ends as completed:
+undefined when the turn tripped the item guard, ended otherwise, or the
+wait was aborted first.
+*/
 function awaitBatchReply(
   session: AgentSession,
   turns: Map<string, TrackedTurn>,
@@ -181,7 +190,13 @@ function awaitBatchReply(
       if (tracked.tripped) {
         finish(undefined)
       } else if (tracked.terminal !== undefined) {
-        finish(tracked.terminal === COMPLETED_TERMINAL ? tracked.reply : undefined)
+        // A capped turn's reply is never a verdict: only a turn that
+        // completed without a limit answers what was asked.
+        const usable = usableReply(
+          { terminal: tracked.terminal, errorKind: tracked.errorKind },
+          tracked.reply,
+        )
+        finish(usable.usable ? usable.reply : undefined)
       }
     }
     // The tracker above already holds every frame; this listener only wakes
@@ -296,18 +311,18 @@ export class MuseCodeSameJudge {
         await this.deps.removeTempRoot(root)
       } catch (error: unknown) {
         this.deps.logWarn(
-          `The Muse Code judge could not remove its folder: ${this.deps.describeFailure(error)}`,
+          `The Muse Code judge could not remove its folder: ${failureForLog(error)}`,
         )
       }
     }
   }
 
   /**
-   * Judge one held action: settle from the cache when judged before, stay
-   * off on standing always-allow rules, else judge each kind's batch in its
-   * own fresh hidden session in the background and return at once. Never
-   * rejects, never waits on the caller.
-   */
+  Judge one held action: settle from the cache when judged before, stay
+  off on standing always-allow rules, else judge each kind's batch in its
+  own fresh hidden session in the background and return at once. Never
+  rejects, never waits on the caller.
+  */
   public judge(job: MuseCodeJudgeJob): void {
     // The user-settings allow-rule check runs before any batch: a rule that
     // lands while earlier batches run stops the later ones at their own check

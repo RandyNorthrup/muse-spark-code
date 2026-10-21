@@ -1,21 +1,15 @@
+import { isPaidStop } from '../refusal'
 import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
-// The judge's admission (M98, PLAN.md D77): every paid judge call is
-// reserved worst-case before dispatch, settled at its known cost, refunded
-// when known not sent, and kept as liability when its outcome is uncertain.
-// A batch is one call; a retry is a new claim. Pure core, no `vscode`
-// import: the durable daily ledger arrives as an injected JudgeDailyLedger,
-// and this module keeps no store, lock or journal of its own.
-//
-// The seam for D78's `src/host/paid/paidDailyBudget.ts`: that ledger must
-// meet D77's entry criteria (one canonical namespace for VS Code windows and
-// standalone clients; a durable reservation committed before dispatch; crash
-// recovery that keeps a sent-or-possibly-sent claim as uncertain liability;
-// idempotent settlement by claim id; fail-closed refusal on an unreadable
-// store or lock failure; a stable lock; network filesystems refused). Until
-// FIXDEF merges, the host passes a ledger with this shape and lane A's
-// integration tests run against M82's journal, the store that ledger builds
-// on. Only ids, token counts and dollars cross this module: never state,
-// questions, answers or probabilities (D77 privacy).
+// The judge's admission (M98, PLAN.md D77; D208): under a daily limit the
+// person set, every paid judge call's worst-case price must fit what is left
+// of today before dispatch; it is settled at its known cost, settles zero
+// when known not sent, and adds nothing when its outcome is uncertain (its
+// cost is unknown). With no limit nothing is checked. A batch is one call;
+// a retry is a new claim. Pure core, no `vscode` import: the daily limit
+// arrives as an injected JudgeDailyLedger (D78's paidDailyBudget.ts), and
+// this module keeps no store of its own. Only ids, token counts and dollars
+// cross this module: never state, questions, answers or probabilities (D77
+// privacy).
 
 import { randomUUID } from 'node:crypto'
 import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../shared/constants'
@@ -29,10 +23,10 @@ export interface JudgeTokenPrices {
 }
 
 /**
- * The verified tariff for a model, or undefined when the extension knows no
- * price for it. Unpriced models are refused, never estimated (a suffix
- * display fallback is not a verified tariff or capped spending).
- */
+The verified tariff for a model, or undefined when the extension knows no
+price for it. Unpriced models are refused, never estimated (a suffix
+display fallback is not a verified tariff or capped spending).
+*/
 export function judgePriceOf(modelId: string): JudgeTokenPrices | undefined {
   const tier = modelApiPaidTier(modelId)
   if (tier === undefined) return undefined
@@ -54,8 +48,8 @@ export class JudgeUnpricedError extends Error {
 
 /** The daily ledger failed: admission refuses, settlement keeps liability. */
 export class JudgeLedgerError extends Error {
-  public constructor(detail: string) {
-    super(`Judge admission ledger failed: ${detail}`)
+  public constructor(detail: string, options?: { cause?: unknown }) {
+    super(`Judge admission ledger failed: ${detail}`, options)
     this.name = 'JudgeLedgerError'
   }
 }
@@ -83,11 +77,11 @@ function verifiedPrices(
 }
 
 /**
- * The worst-case uncached price of one judge call: the estimated input at
- * the full input rate plus the whole output allowance at the output rate,
- * with no cache discount assumed. Throws JudgeUnpricedError for a model
- * with no verified tariff, TypeError for caller-bug counts.
- */
+The worst-case uncached price of one judge call: the estimated input at
+the full input rate plus the whole output allowance at the output rate,
+with no cache discount assumed. Throws JudgeUnpricedError for a model
+with no verified tariff, TypeError for caller-bug counts.
+*/
 export function worstCaseJudgeCostUsd(args: {
   readonly modelId: string
   readonly estimatedInputTokens: number
@@ -117,10 +111,10 @@ export type JudgeAdmissionEngine = 'auto' | 'same'
 export type JudgeAdmissionConsent = 'granted' | 'not-required' | 'needed' | 'declined'
 
 /**
- * What a dispatch is bound to. After every wait (a held consent modal, a
- * delayed dispatch) the claim is re-bound to the current binding, and any
- * change refuses the dispatch while keeping the liability.
- */
+What a dispatch is bound to. After every wait (a held consent modal, a
+delayed dispatch) the claim is re-bound to the current binding, and any
+change refuses the dispatch while keeping the liability.
+*/
 interface JudgeBindingIdentity {
   readonly ownerId: string
   readonly modelId: string
@@ -139,35 +133,37 @@ export type JudgeAdmissionBinding = JudgeBindingIdentity &
   )
 
 /**
- * One durable claim in the daily ledger. Settlement is idempotent by claim
- * id for the same value; a conflicting re-settle throws JudgeLedgerError.
- * A store failure throws JudgeLedgerError: fail closed, never forgiven.
- */
+One call under a person-set daily limit (D78, D208). Nothing is held for
+it: `check` compares the limit with today's spend plus its worst-case
+price before the send, and `settle` adds its verified cost after. A store
+failure throws: fail closed, never forgiven.
+*/
 export interface JudgeLedgerClaim {
   readonly claimId: string
   readonly reservedUsd: UsdAmount
-  /** D78's synchronous guard: current cap/day/stop/cancellation and claim validity. */
+  /** D78's synchronous guard: current limit/day/stop/cancellation and claim validity. */
   check(): void
   settle(actualCostUsd: UsdAmount): Promise<void>
 }
 
 /**
- * D78's daily ledger as lane A requires it. The reservation is committed
- * durably before dispatch; `remainingUsd` already excludes open
- * reservations. A method throws JudgeLedgerError (or a ledger error this
- * module wraps) on an unreadable store, a lock failure or any other fault:
- * admission then refuses and settlement keeps the liability.
- */
+D78's daily limit as lane A requires it (D208): `undefined` from either
+method when the person set no daily limit, so nothing is checked or
+recorded. A method throws JudgeLedgerError on an unreadable store or any
+other ledger fault, and admission refuses it; a paid stop passes through,
+and any other failure is wrapped with its cause and rethrown, never
+refused as unavailable.
+*/
 export interface JudgeDailyLedger {
-  remainingUsd(): Promise<UsdAmount>
-  reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim>
+  remainingUsd(): Promise<UsdAmount | undefined>
+  reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim | undefined>
 }
 
 /**
- * Where the call is billed. On the Model API the `judge` paid feature bills
- * each call to the Model API key through the daily ledger; on Muse Code the
- * subscription covers it and no claim is made.
- */
+Where the call is billed. On the Model API the `judge` paid feature bills
+each call to the Model API key through the daily ledger; on Muse Code the
+subscription covers it and no claim is made.
+*/
 export type JudgeBilling =
   | { readonly kind: 'metered'; readonly ledger: JudgeDailyLedger }
   | { readonly kind: 'subscription' }
@@ -200,12 +196,12 @@ export interface JudgeKnownUsage {
 }
 
 /**
- * One admitted call. `settleKnown` settles the verified actual cost (cached
- * tokens discounted, as reported); `refundNonSend` settles zero for a call
- * known never sent. There is deliberately no third way out: a timeout, a
- * lost response or any other uncertain outcome keeps the full reservation
- * as liability by simply doing nothing.
- */
+One admitted call. `settleKnown` settles the verified actual cost (cached
+tokens discounted, as reported); `refundNonSend` settles zero for a call
+known never sent. A timeout, a lost response or any other uncertain
+outcome is simply not settled: its cost is unknown and nothing is added
+to the day's spend, never its worst-case price (D208).
+*/
 export interface JudgeAdmissionClaim {
   readonly claimId: string
   readonly reservedUsd: UsdAmount
@@ -218,7 +214,7 @@ export interface JudgeAdmissionClaim {
   status(): 'open' | 'settling' | 'settled' | 'refunded'
   /** Synchronous final guard; call again if the sender waits after verification. */
   check(): void
-  /** The reservation while open, the settled cost once closed. */
+  /** The worst-case price while open, the settled cost once closed. */
   outstandingUsd(): UsdAmount
   settleKnown(usage: JudgeKnownUsage): Promise<UsdAmount>
   refundNonSend(): Promise<void>
@@ -273,7 +269,7 @@ function isValidBinding(binding: JudgeAdmissionBinding): boolean {
 function wrapLedgerError(error: unknown): JudgeLedgerError {
   return error instanceof JudgeLedgerError
     ? error
-    : new JudgeLedgerError(error instanceof Error ? error.message : String(error))
+    : new JudgeLedgerError(error instanceof Error ? error.message : String(error), { cause: error })
 }
 
 interface ClaimState {
@@ -373,13 +369,13 @@ function createClaim(args: {
 }
 
 /**
- * Admit one judge call: reserve its worst-case uncached price before
- * dispatch. Fail-closed order: an invalid binding, a missing or declined
- * paid consent, an unpriced model, a call over the remaining budget, and an
- * unreadable ledger each refuse. Any owned known nonsent reservation is
- * refunded on refusal; a failed refund retains liability. A batch is one
- * call; a retry admits again for a new claim.
- */
+Admit one judge call: under a person-set daily limit, its worst-case
+uncached price must fit what is left before dispatch. Fail-closed order:
+an invalid binding, a missing or declined paid consent, an unpriced
+model, a call over the remaining limit, and an unreadable store each
+refuse. Any owned known nonsent claim settles zero on refusal. A batch is
+one call; a retry admits again for a new claim.
+*/
 export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<JudgeAdmission> {
   assertUsableCount(request.estimatedInputTokens, 'estimated input tokens')
   assertUsableCount(request.maxOutputTokens, 'max output tokens')
@@ -436,29 +432,54 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
     }
   }
   const { ledger } = request.billing
-  let remainingUsd: UsdAmount
+  let remainingUsd: UsdAmount | undefined
   try {
     remainingUsd = await ledger.remainingUsd()
-  } catch {
+  } catch (error: unknown) {
+    // A ledger fault refuses admission. A paid stop is never a ledger
+    // fault, and anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) throw error
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
     return { admitted: false, refusal: 'ledger-unavailable' }
   }
   const afterRemaining = bindingRefusal()
   if (afterRemaining !== undefined) return { admitted: false, refusal: afterRemaining }
   if (
-    !usdAmountSchema.safeParse(remainingUsd).success ||
-    Usd.from(remainingUsd).compare(Usd.from(0)) < 0
+    remainingUsd !== undefined &&
+    (!usdAmountSchema.safeParse(remainingUsd).success ||
+      Usd.from(remainingUsd).compare(Usd.from(0)) < 0)
   ) {
-    // A ledger that reports nonsense is unreadable: fail closed.
+    // A store that reports nonsense is unreadable: fail closed.
     return { admitted: false, refusal: 'ledger-unavailable' }
   }
-  if (Usd.from(reservedUsd).compare(Usd.from(remainingUsd)) > 0) {
+  if (remainingUsd !== undefined && Usd.from(reservedUsd).compare(Usd.from(remainingUsd)) > 0) {
     return { admitted: false, refusal: 'over-budget' }
   }
-  let reserved: JudgeLedgerClaim
+  let reserved: JudgeLedgerClaim | undefined
   try {
     reserved = await ledger.reserve(reservedUsd)
-  } catch {
+  } catch (error: unknown) {
+    // A paid stop refuses as over-budget; a ledger fault refuses as
+    // unavailable; anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) return { admitted: false, refusal: 'over-budget' }
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
     return { admitted: false, refusal: 'ledger-unavailable' }
+  }
+  if (reserved === undefined) {
+    // No daily limit is set: nothing backs the call, and nothing is checked.
+    const unlimitedRefusal = bindingRefusal()
+    if (unlimitedRefusal !== undefined) return { admitted: false, refusal: unlimitedRefusal }
+    return {
+      admitted: true,
+      claim: createClaim({
+        claimId: randomUUID(),
+        reservedUsd,
+        modelId: before.modelId,
+        binding: before,
+        priceOf,
+        ledger: undefined,
+      }),
+    }
   }
   let refusal = bindingRefusal()
   if (refusal === undefined) {
@@ -469,7 +490,11 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
       // A competing reservation, lowered cap, new day or Stop can invalidate
       // an earlier remainingUsd read. Only D78's per-claim guard admits it.
       reserved.check()
-    } catch {
+    } catch (error: unknown) {
+      // A paid stop is never a ledger fault. A ledger fault refuses; anything
+      // else is wrapped with its cause, never refused as unavailable.
+      if (isPaidStop(error)) throw error
+      if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
       refusal = 'ledger-unavailable'
     }
   }
@@ -477,7 +502,11 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
     // We own a known nonsent reservation even if its final guard refused it.
     try {
       await reserved.settle(Usd.from(0).toAmount())
-    } catch {
+    } catch (error: unknown) {
+      // A paid stop is never a ledger fault, and anything else is wrapped
+      // with its cause: a failed zero-settlement keeps its liability visible.
+      if (isPaidStop(error)) throw error
+      if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
       return { admitted: false, refusal: 'ledger-unavailable' }
     }
     return { admitted: false, refusal: bindingRefusal() ?? refusal }
@@ -508,11 +537,11 @@ export type JudgeRebindRefusal =
   | 'ledger-unavailable'
 
 /**
- * Re-bind a claim after a wait to the current owner, backend, model, engine,
- * confidential flag and consent. Pure: any change refuses, so the caller
- * keeps the liability (refunding only a known non-send) instead of
- * dispatching under a stale binding.
- */
+Re-bind a claim after a wait to the current owner, backend, model, engine,
+confidential flag and consent. Pure: any change refuses, so the caller
+keeps the liability (refunding only a known non-send) instead of
+dispatching under a stale binding.
+*/
 export function rebindJudgeClaim(
   claim: JudgeAdmissionClaim,
   current: JudgeAdmissionBinding,
@@ -547,12 +576,12 @@ function rebindBinding(
 }
 
 /**
- * The last check before dispatch, after every wait (a held consent modal, a
- * delayed batch): the binding is current, the claim is still open, and the
- * ledger is still reachable. Anything else refuses the dispatch; the
- * liability stays reserved until a known settlement or non-send refund.
- * Subscription claims need no ledger: pass none.
- */
+The last check before dispatch, after every wait (a held consent modal, a
+delayed batch): the binding is current, the claim is still open, and the
+ledger is still reachable. Anything else refuses the dispatch; the
+liability stays reserved until a known settlement or non-send refund.
+Subscription claims need no ledger: pass none.
+*/
 export async function verifyJudgeDispatch(
   claim: JudgeAdmissionClaim,
   current: JudgeAdmissionBinding | (() => JudgeAdmissionBinding),
@@ -576,7 +605,11 @@ export async function verifyJudgeDispatch(
   }
   try {
     await ledger.remainingUsd()
-  } catch {
+  } catch (error: unknown) {
+    // A ledger fault refuses dispatch. A paid stop is never one, and
+    // anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) throw error
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
     return { proceed: false, reason: 'ledger-unavailable' }
   }
   const afterWait = rebindJudgeClaim(claim, readBinding())
@@ -584,7 +617,11 @@ export async function verifyJudgeDispatch(
   if (claim.status() !== 'open') return { proceed: false, reason: 'already-settled' }
   try {
     claim.check()
-  } catch {
+  } catch (error: unknown) {
+    // A paid stop is never a ledger fault. A ledger fault refuses dispatch;
+    // anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) throw error
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
     return { proceed: false, reason: 'ledger-unavailable' }
   }
   return { proceed: true }

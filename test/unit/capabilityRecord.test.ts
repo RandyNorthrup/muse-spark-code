@@ -64,6 +64,10 @@ function samples(provider: string, file = '01-models-list.json'): unknown {
   return summary.sample
 }
 
+const contextOf = (row: unknown) =>
+  nativeCapabilityEvidence('llamacpp', row, { kind: 'models-list', ref: 'test' }).fields.limits
+    ?.contextTokens
+
 function catalogueModel(provider: string, id: string): unknown {
   const snapshot: unknown = JSON.parse(
     readFileSync(new URL('../../vendor/models-dev/snapshot.json', import.meta.url), 'utf8'),
@@ -323,6 +327,47 @@ describe('normalized capability record', () => {
     expect(resolved.sources['limits.inputTokens']).toEqual({ kind: 'models-list', ref: 'list' })
     expect(capabilityEffortLevels(resolved)).toEqual(['low', 'high'])
   })
+  it('lets dated preset facts shadow the pinned catalogue, never the live list or the user', () => {
+    // Lane REASONSHAPES: documented per-model facts beat the stale
+    // snapshot; fresher evidence still wins.
+    const catalogue: CapabilityEvidence = {
+      source: { kind: 'catalogue', ref: 'snapshot' },
+      fields: { reasoning: { effortLevels: yes(['high', 'max']) } },
+    }
+    const documented: CapabilityEvidence = {
+      source: { kind: 'preset', ref: 'https://docs.z.ai/guides/capabilities/thinking' },
+      fields: {
+        reasoning: {
+          effortLevels: yes(['minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
+          canDisable: yes(true),
+        },
+      },
+    }
+    const shadowed = resolveModelCapabilities(identity, [catalogue, documented])
+    expect(capabilityEffortLevels(shadowed)).toEqual([
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    const live: CapabilityEvidence = {
+      source: { kind: 'models-list', ref: 'list' },
+      fields: { reasoning: { effortLevels: yes(['low', 'high']) } },
+    }
+    expect(capabilityEffortLevels(resolveModelCapabilities(identity, [live, documented]))).toEqual([
+      'low',
+      'high',
+    ])
+    const user: CapabilityEvidence = {
+      source,
+      fields: { reasoning: { effortLevels: yes(['max']) } },
+    }
+    expect(capabilityEffortLevels(resolveModelCapabilities(identity, [user, documented]))).toEqual([
+      'max',
+    ])
+  })
   it('honors explicit negative reasoning overrides across the legacy view', () => {
     const capture: CapabilityEvidence = {
       source: { kind: 'capture' },
@@ -442,6 +487,14 @@ describe('normalized capability record', () => {
   })
   it('Meta constants preserve legacy policy', () => {
     const meta = metaCapabilityRecord('muse-spark-1.3')
+    // Lead live capture 2026-10-12: anything but tool_choice "auto" is a
+    // 400 (toolrounds-captures/meta/3-wrap-up-tools-kept-choice-none.json).
+    expect(meta.tools.choiceModes).toMatchObject({ state: 'yes', value: ['auto'] })
+    expect(capabilitiesOf({ capabilityRecord: meta }).toolChoiceModes).toEqual(['auto'])
+    // Unknown means auto only: no record lists a choice for this model.
+    expect(
+      capabilitiesOf({ capabilityRecord: resolveModelCapabilities(identity) }).toolChoiceModes,
+    ).toBeUndefined()
     expect(meta.limits.contextTokens).toBe(1_048_576)
     expect(meta.output.maxTokens).toBe(131_072)
     // Lead live capture 2026-10-10: max_output_tokens below 16 is a 400.
@@ -456,10 +509,20 @@ describe('normalized capability record', () => {
       'high',
       'xhigh',
     ])
+    // D121 (lane NOLIMITSINPUT): the record carries Meta's documented
+    // numbers (dev.meta.ai/docs, read 2026-10-19) — 50 MB inline images and
+    // documents, 50 images per request, 1–10 edit items — never product
+    // limits. The old 10 MiB / 32 MB constants refused what Meta takes.
     expect(meta.modalities.image).toMatchObject({
-      value: { maxBytes: 10 * 1024 * 1024, maxCount: 50 },
+      value: { maxBytes: 50_000_000, maxCount: 50, maxEditSources: 10 },
+      source: { ref: 'https://dev.meta.ai/docs/image-understanding' },
     })
-    expect(meta.modalities.pdf).toMatchObject({ value: { maxBytes: 32_000_000, maxPages: 50 } })
+    expect(meta.modalities.pdf).toMatchObject({
+      value: { maxBytes: 50_000_000, maxPages: 50, maxCount: 50 },
+      source: { ref: 'https://dev.meta.ai/docs/file-handling' },
+    })
+    // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier,
+    // mapped to the highest served tier at send time.
     expect(capabilityEffortLevels(meta)).toEqual([
       'minimal',
       'low',
@@ -467,6 +530,7 @@ describe('normalized capability record', () => {
       'high',
       'xhigh',
       'max',
+      'ultra',
     ])
   })
 })
@@ -504,35 +568,12 @@ describe('native metadata and reasoning encoding', () => {
         .body,
     ).toMatchObject({ thinking: { type: 'adaptive' }, output_config: { effort: 'high' } })
   })
-  it('Haiku manual thinking replays signed blocks without unsupported binding fields', () => {
-    const model = 'claude-haiku-4-5-20251001'
-    const input: CreateResponseBody['input'] = [
-      ...body.input,
-      {
-        type: 'reasoning',
-        id: 'thinking',
-        encrypted_content: JSON.stringify({
-          v: 1,
-          provider: 'anthropic',
-          kind: 'thinking',
-          model,
-          thinking: 'Captured-shape fixture',
-          signature: 'fixture-signature',
-        }),
-      },
-      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Answer' }] },
-    ]
-    const request = encodeAnthropicRequest(
-      { ...body, input },
-      { model, maxTokens: 4096, effort: 'high' },
-    )
-    expect(request.body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 })
-    expect(request.headers).not.toHaveProperty('anthropic-beta')
-    expect(request.body.messages[1]?.content).toEqual([
-      { type: 'thinking', thinking: 'Captured-shape fixture', signature: 'fixture-signature' },
-      { type: 'text', text: 'Answer', cache_control: { type: 'ephemeral', ttl: '5m' } },
-    ])
-  })
+  // Round 2 (GAPANTH-G01/G17) deleted the Haiku manual replay case: it
+  // replayed a hand-written envelope (a stand-in, not a capture) and
+  // pinned the old bytes (no interleave beta header). Replay through the
+  // real decoder awaits a thinking-bearing recording (ANTH-REPLAY-1);
+  // manual-mode bytes are pinned in `anthropicCodec.test.ts` through the
+  // real encoder with canonical bodies.
 
   it('Gemini retains version, thinking and sampling; 2.5 uses budget, 3.5 uses level', () => {
     const models = parseGeminiModelsList({ models: samples('gemini') })
@@ -586,6 +627,31 @@ describe('native metadata and reasoning encoding', () => {
       effortLevels: { value: ['max', 'xhigh', 'high', 'medium', 'low'] },
     })
   })
+  it('reads captured Fireworks tools/image flags and DeepSeek effort levels', () => {
+    // Captured 2026-10-04 list rows, through the real chat parser: without
+    // these fields a listed Fireworks model kept unknown tools and vision,
+    // and a listed DeepSeek model kept unknown effort levels, so supported
+    // features were never offered and images threw before send.
+    const fireworks = parseChatModelsList({ data: samples('fireworks') })
+    const gptOss = fireworks.find((row) => row['id'] === 'accounts/fireworks/models/gpt-oss-120b')
+    const fireworksEvidence = nativeCapabilityEvidence('fireworks', gptOss, {
+      kind: 'models-list',
+    }).fields
+    expect(fireworksEvidence.tools?.calling).toMatchObject({ state: 'yes', value: true })
+    expect(fireworksEvidence.modalities?.image).toMatchObject({ state: 'no' })
+    expect(fireworksEvidence.limits?.contextTokens).toBe(131_072)
+    const deepseek = parseChatModelsList({ data: samples('deepseek') })
+    const flash = deepseek.find((row) => row['id'] === 'deepseek-flash')
+    const deepseekEvidence = nativeCapabilityEvidence('deepseek', flash, {
+      kind: 'models-list',
+    }).fields
+    expect(deepseekEvidence.reasoning?.effortLevels).toMatchObject({
+      value: ['low', 'high', 'max'],
+    })
+    expect(deepseekEvidence.modalities?.image).toMatchObject({ state: 'yes' })
+    expect(deepseekEvidence.limits?.contextTokens).toBe(1_048_576)
+    expect(deepseekEvidence.output?.maxTokens).toBe(393_216)
+  })
   it('re-parses sealed catalogue efforts and partial budget bounds', () => {
     const entries = [
       ['openai', 'gpt-5.4', ['none', 'low', 'medium', 'high', 'xhigh']],
@@ -607,12 +673,50 @@ describe('native metadata and reasoning encoding', () => {
       record({ reasoning: { replay: { prefixEditPolicy: 'keep' } } }).reasoning.replay,
     ).toEqual({ envelope: 'none', prefixEditPolicy: 'keep' })
   })
+  it('reads the thinking disabled flag and the live default effort (round 2)', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G02, XAI-G01): the thinking table
+    // answers 400 to `disabled` on Opus 5.5, and xAI's list names
+    // `default_reasoning_effort` (`low` for grok-4.3 in the recorded
+    // list, m95-captures/xai/01-models-list.json).
+    const refused = nativeCapabilityEvidence(
+      'anthropic',
+      { capabilities: { thinking: { types: { disabled: { supported: false } } } } },
+      { kind: 'models-list' },
+    ).fields
+    expect(refused.reasoning?.canDisable).toMatchObject({ state: 'no' })
+    const allowed = nativeCapabilityEvidence(
+      'anthropic',
+      { capabilities: { thinking: { types: { disabled: { supported: true } } } } },
+      { kind: 'models-list' },
+    ).fields
+    expect(allowed.reasoning?.canDisable).toMatchObject({ state: 'yes', value: true })
+    const xai = nativeCapabilityEvidence(
+      'xai',
+      { capabilities: { default_reasoning_effort: 'low' } },
+      { kind: 'models-list' },
+    ).fields
+    expect(xai.reasoning?.defaultEffort).toBe('low')
+    expect(record({ reasoning: { offSwitch: 'between_tools' } }).reasoning.offSwitch).toBe(
+      'between_tools',
+    )
+  })
+
   it('Ollama tags retain details without claiming uncaptured support', () => {
     const rows = [
       { name: 'local', details: { family: 'qwen' }, model_info: { context_length: 8192 } },
     ]
     expect(parseOllamaModelsList({ models: rows })).toEqual(rows)
     expect(() => parseOllamaModelsList({ models: [{ name: 1 }] })).toThrow()
+  })
+  it('reads local server windows: llama.cpp live meta.n_ctx first, vLLM max_model_len', () => {
+    // C-M95-4 R2: the llama.cpp list names `n_ctx` as the window but the
+    // scan never read it, so a 4096-token server kept an unknown window
+    // and manual compact assumed Meta's. The live `--ctx-size` window wins
+    // over the trained one; a list with no window stays unknown.
+    expect(contextOf({ id: 'm', meta: { n_ctx: 4096, n_ctx_train: 40_960 } })).toBe(4096)
+    expect(contextOf({ id: 'm', meta: { n_ctx_train: 40_960 } })).toBe(40_960)
+    expect(contextOf({ id: 'm', max_model_len: 8192 })).toBe(8192)
+    expect(contextOf({ id: 'm', owned_by: 'llmster' })).toBeUndefined()
   })
 })
 

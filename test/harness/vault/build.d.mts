@@ -2,4 +2,9 @@ import type { Metafile } from 'esbuild'
 export function buildVaultSurfaces(
   outdir: string,
   hasHarness?: boolean,
-): Promise<{ browser: Metafile | undefined; host: Metafile | undefined }>
+): Promise<{
+  browser: Metafile | undefined
+  host: Metafile | undefined
+  actions: Metafile | undefined
+  migration: Metafile | undefined
+}>

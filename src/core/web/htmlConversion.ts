@@ -21,7 +21,12 @@ export interface HtmlJob {
   readonly charset: string | undefined
   /** The page's final URL, against which relative links resolve (unless a `<base>` says otherwise). */
   readonly url: string
-  readonly maxChars: number
+  /**
+  D121: absent, the page converts whole — web fetch passes no bound. An
+  explicit bound still stops the conversion there (isTruncated), for
+  callers that name one.
+  */
+  readonly maxChars?: number | undefined
 }
 
 /** Why a page was not converted: too slow, too large, in an encoding this runtime cannot decode, or the converter failed. */

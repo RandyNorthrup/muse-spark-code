@@ -5,10 +5,14 @@ import {
   AccountStoreError,
   accountBindingSchema,
 } from '../../core/providers/accountCredentialRecord'
+import { isRevokeUnsupportedError } from '../../acp/accountText'
 import { isValidModelApiKey } from '../../host/auth/credentialStore'
+import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, setUiText, uiLocale } from '../../shared/l10n/text'
 import type { AuthCommandDeps } from '../authCommands'
+import { providerKeyFailureText } from '../exec/keyInput'
+import { isNonTextStdin } from '../hiddenInput'
 
 import type { AccountTarget, AccountsCommand } from './accountArgs'
 export { parseAccountsCommand, type AccountTarget, type AccountsCommand } from './accountArgs'
@@ -20,7 +24,9 @@ export interface AccountsCommandDeps {
   readonly printError: (text: string) => void
 }
 
-function commandError(error: unknown): string {
+export function commandError(error: unknown): string {
+  // A refused revocation names its refusal: removing the sign-in never ran.
+  if (isRevokeUnsupportedError(error)) return UI_TEXT.accounts.revokeUnsupported
   if (error instanceof AccountStoreError) {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
     if (error.code === 'invalidAccount' || error.code === 'invalidCredential')
@@ -28,8 +34,19 @@ function commandError(error: unknown): string {
     // A refused providers file is not a connection problem: the runtime is
     // already on the account service, and the file was left untouched.
     if (error.code === 'invalidProvidersFile') return UI_TEXT.accounts.providersInvalid
+    // Every other store refusal names the concrete cause it kept: an
+    // unreadable providers file keeps its disk failure. A refusal that
+    // kept none stays on the plain unavailable sentence instead of
+    // printing its code word. The terminal runs on the account service,
+    // so the connection sentence would lie.
+    return error.cause instanceof Error && error.cause.message !== ''
+      ? fill(UI_TEXT.accounts.unavailableReason, { reason: error.cause.message })
+      : UI_TEXT.accounts.unavailable
   }
-  return UI_TEXT.accounts.unavailable
+  // A credential-store or disk failure names itself for the same reason.
+  return error instanceof Error && error.message !== ''
+    ? fill(UI_TEXT.accounts.unavailableReason, { reason: error.message })
+    : UI_TEXT.accounts.unavailable
 }
 
 export async function runAccountsCommand(
@@ -74,10 +91,10 @@ export async function runAccountsCommand(
 }
 
 /** Only the terminal's hidden stdin reader supplies a secret. No environment,
- * argument, file or child-process port exists in this flow. */
+argument, file or child-process port exists in this flow. */
 export async function runAccountAuthSet(
   target: AccountTarget,
-  deps: AccountsCommandDeps & Pick<AuthCommandDeps, 'readSecret' | 'storeName'>,
+  deps: AccountsCommandDeps & Pick<AuthCommandDeps, 'readSecret' | 'storeName' | 'confirmKeyUse'>,
 ): Promise<number> {
   const pending = { value: '' }
   try {
@@ -95,10 +112,39 @@ export async function runAccountAuthSet(
       target.provider === 'meta'
         ? UI_TEXT.acpKeyPrompt
         : fill(UI_TEXT.accounts.keyPrompt, { provider: target.provider, account: target.account })
-    pending.value = await deps.readSecret(prompt)
-    pending.value = pending.value.trim()
-    if (pending.value === '' || (target.provider === 'meta' && !isValidModelApiKey(pending.value)))
-      throw new AccountStoreError('invalidCredential')
+    // Any non-blank key is stored for the provider to judge, never its
+    // shape (PLAN.md D123). A value that looks like the wrong thing is
+    // named first: a pipe cannot answer, so the run continues to the
+    // store; a "no" on a terminal asks for the key again, like the
+    // panel's password box. The notice reads UI_TEXT at call time:
+    // install this command's table before formatting it.
+    setUiText(UI_TEXT, uiLocale())
+    for (;;) {
+      try {
+        pending.value = await deps.readSecret(prompt)
+      } catch (error: unknown) {
+        if (isNonTextStdin(error)) {
+          deps.printError(providerKeyFailureText('invalid'))
+          return 1
+        }
+        throw error
+      }
+      pending.value = pending.value.trim()
+      if (
+        pending.value === '' ||
+        (target.provider === 'meta' && !isValidModelApiKey(pending.value))
+      )
+        throw new AccountStoreError('invalidCredential')
+      if (target.provider === 'meta') break
+      const inspection = inspectProviderKey(pending.value)
+      if (
+        inspection === 'ok' ||
+        inspection === 'empty' ||
+        (await deps.confirmKeyUse(providerKeyNoticeText(inspection)))
+      ) {
+        break
+      }
+    }
     await deps.accounts.setCredential(target.provider, target.account, {
       ...binding,
       v: 1,

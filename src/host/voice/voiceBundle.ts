@@ -9,18 +9,20 @@
 // failed: …", the log has the cause), and the next press tries again.
 
 import type { DictationHandle, DictationListener } from '../../core/voice/dictation'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as VoiceEntry from './voiceEntry'
+import type * as VoiceLinuxEntry from './voiceLinuxEntry'
 
-/** The bundle's two drivers, shipped and loaded together. */
+/** The bundle's drivers, shipped and loaded together. */
 export interface VoiceBundle {
   readonly createDictation: typeof VoiceEntry.createDictation
   readonly createMuseVoice: typeof VoiceEntry.createMuseVoice
 }
 
-/** Whether a required module exports both drivers. */
+/** Whether a required module exports every voice entry point. */
 export function isVoiceBundle(value: unknown): value is VoiceBundle {
   return (
     typeof value === 'object' &&
@@ -29,6 +31,24 @@ export function isVoiceBundle(value: unknown): value is VoiceBundle {
     typeof value.createDictation === 'function' &&
     'createMuseVoice' in value &&
     typeof value.createMuseVoice === 'function'
+  )
+}
+
+/** Linux dictation's driver and model removal, shipped and loaded together. */
+export interface VoiceLinuxBundle {
+  readonly createLinuxDictation: typeof VoiceLinuxEntry.createLinuxDictation
+  readonly removeLinuxDictationModel: typeof VoiceLinuxEntry.removeLinuxDictationModel
+}
+
+/** Whether a required module exports every Linux voice entry point. */
+export function isVoiceLinuxBundle(value: unknown): value is VoiceLinuxBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createLinuxDictation' in value &&
+    typeof value.createLinuxDictation === 'function' &&
+    'removeLinuxDictationModel' in value &&
+    typeof value.removeLinuxDictationModel === 'function'
   )
 }
 
@@ -50,15 +70,39 @@ export function voiceLoader(deps: VoiceLoaderDeps): () => VoiceBundle {
   })
 }
 
+/** The Linux bundle, required on the first Linux recording and kept from then on. */
+export function voiceLinuxLoader(deps: VoiceLoaderDeps): () => VoiceLinuxBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: isVoiceLinuxBundle,
+    label: 'Linux voice bundle',
+    unavailable: () => UI_TEXT.dictationNotLoaded,
+  })
+}
+
 /**
- * A driver whose implementation is made on the first `start`, so the bundle
- * loads with the first recording rather than with the panel. A load that
- * fails is the listener's `onError` (the status is still idle), and the next
- * `start` tries again; `stop` and `dispose` reach the driver once there is one.
- */
+What the listener hears when the driver cannot start: the bundle
+loader's own remedy when the code did not load (it names the reinstall),
+otherwise the fixed failed words with the failure's kind. The log keeps
+the kind either way.
+*/
+export function voiceStartRefusal(error: unknown): string {
+  return error instanceof Error && error.message === UI_TEXT.dictationNotLoaded
+    ? `${UI_TEXT.dictationFailed}: ${UI_TEXT.dictationNotLoaded}`
+    : `${UI_TEXT.dictationFailed}: ${failureForLog(error)}`
+}
+
+/**
+A driver whose implementation is made on the first `start`, so the bundle
+loads with the first recording rather than with the panel. A load that
+fails is the listener's `onError` (the status is still idle) with the log
+keeping the failure's kind, and the next `start` tries again; `stop` and
+`dispose` reach the driver once there is one.
+*/
 export function deferredDriver(
   listener: DictationListener,
   make: () => DictationHandle,
+  log: Logger,
 ): DictationHandle {
   let driver: DictationHandle | undefined
   let isDisposed = false
@@ -71,7 +115,8 @@ export function deferredDriver(
         try {
           driver = make()
         } catch (error: unknown) {
-          listener.onError(error instanceof Error ? error.message : String(error))
+          log.warn(`Voice driver failed to start: ${failureForLog(error)}`)
+          listener.onError(voiceStartRefusal(error))
           return
         }
       }
@@ -82,7 +127,7 @@ export function deferredDriver(
     },
     dispose() {
       isDisposed = true
-      driver?.dispose()
+      return driver?.dispose()
     },
   }
 }

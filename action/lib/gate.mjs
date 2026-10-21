@@ -121,10 +121,10 @@ function checkEvent(input, payload) {
 }
 
 /**
- * The gate (SPEC §6.6): event, runner, sender, PR or comment or dispatch,
- * image and API checks, in that order. Only an allowed decision carries the
- * validated PR identity, task and metadata.
- */
+The gate (SPEC §6.6): event, runner, sender, PR or comment or dispatch,
+image and API checks, in that order. Only an allowed decision carries the
+validated PR identity, task and metadata.
+*/
 export function decide(input) {
   if (input.eventName === 'pull_request_target') return refuse('pull_request_target is refused')
   if (!EVENTS.has(input.eventName)) return refuse('this event cannot start a run')

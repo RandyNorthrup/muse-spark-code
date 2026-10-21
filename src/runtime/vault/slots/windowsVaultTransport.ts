@@ -1,8 +1,10 @@
 import { spawnResourceProcess } from '../../../core/resources/launcher'
+import { probeChildEnvironment } from '../../../core/executables'
+import { windowsPowerShellEnvironment } from '../../../core/execGuard'
 import path from 'node:path'
 import {
   UI_TEXT,
-  VAULT_APPROVAL_TTL_MS,
+  VAULT_TRANSPORT_TIMEOUT_MS,
   VAULT_KEY_BYTES,
   VAULT_LIMITS,
 } from '../../../shared/constants'
@@ -19,6 +21,21 @@ export interface WindowsVaultExecutable {
   readonly guardSource: string
   readonly rebuild: () => Promise<void>
   readonly report: () => void
+}
+
+/**
+The guard region of a packaged helper source (MuseSparkVault.cs): what the
+guard script compiles to verify and launch the helper. The client that
+builds a helper and the broker that launches it both read it from the
+installed source, so the guard never travels in a command line.
+*/
+export function windowsVaultGuardSource(source: string): string {
+  const guardSource = source
+    .split('// BEGIN VAULT PATH GUARD', 2)[1]
+    ?.split('// END VAULT PATH GUARD', 1)[0]
+  if (guardSource === undefined || guardSource.trim() === '')
+    throw new Error(UI_TEXT.vault.noAccess)
+  return guardSource
 }
 
 /** Trusted inline script, executed only by the absolute system PowerShell. */
@@ -47,6 +64,48 @@ try {
   }
 } catch { exit ${String(INTEGRITY_REFUSED_EXIT)} }
 `
+}
+
+/**
+Spawn the guarded helper: the packaged guard script through the absolute
+system PowerShell, without inheriting credentials, a shell, or a visible
+console window. Shared by the slot exchanges and the pipe relay, which
+launch the same binary the same way.
+*/
+export async function spawnGuardedVaultHelper(
+  helper: WindowsVaultExecutable,
+): Promise<Awaited<ReturnType<typeof spawnResourceProcess>>> {
+  // Do not inherit credentials, a shell, or a visible console window.
+  const systemRoot = path.win32.resolve(helper.powershell, '..', '..', '..', '..')
+  try {
+    return await spawnResourceProcess(
+      'contained',
+      helper.powershell,
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
+          'base64',
+        ),
+      ],
+      {
+        cwd: path.dirname(helper.powershell),
+        // Absolute PowerShell with only SystemRoot, the root its trusted path
+        // was built from (`<SystemRoot>\System32\WindowsPowerShell\v1.0`),
+        // and its own module path: a governed launch passes the block
+        // exactly, and without SystemRoot managed PowerShell cannot load
+        // (8009001d). Absolute entries only, links followed.
+        env: probeChildEnvironment(
+          windowsPowerShellEnvironment({ SystemRoot: systemRoot }, systemRoot),
+        ),
+        windowsHide: true,
+      },
+    )
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
+  }
 }
 
 /** One private helper per use; screen-lock waits last until the broker cancels. */
@@ -79,31 +138,7 @@ export function windowsVaultTransport(
       ) {
         throw new Error(UI_TEXT.vault.noAccess)
       }
-      // Do not inherit credentials, a shell, or a visible console window.
-      let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
-      try {
-        launched = await spawnResourceProcess(
-          'contained',
-          helper.powershell,
-          [
-            '-NoLogo',
-            '-NoProfile',
-            '-NonInteractive',
-            '-EncodedCommand',
-            Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
-              'base64',
-            ),
-          ],
-          {
-            cwd: path.dirname(helper.powershell),
-            env: {},
-            windowsHide: true,
-          },
-        )
-      } catch {
-        throw new Error(UI_TEXT.vault.noAccess)
-      }
-      const { child, stop } = launched
+      const { child, stop } = await spawnGuardedVaultHelper(helper)
       return await new Promise((resolve, reject) => {
         const chunks: Buffer[] = []
         let size = 0
@@ -125,6 +160,7 @@ export function windowsVaultTransport(
             resolve(output)
           } else {
             void stop().catch(() => {
+              // The exchange already failed; the stop is best-effort and the fixed refusal rejects.
               reject(new Error(UI_TEXT.vault.noAccess))
             })
             reject(new Error(UI_TEXT.vault.noAccess))
@@ -134,7 +170,8 @@ export function windowsVaultTransport(
         const abort = () => {
           finish(false)
         }
-        if (parsed.data.operation !== 'screenLock') timer = setTimeout(abort, VAULT_APPROVAL_TTL_MS)
+        if (parsed.data.operation !== 'screenLock')
+          timer = setTimeout(abort, VAULT_TRANSPORT_TIMEOUT_MS)
         watchSlotChildErrors(child, signal, abort)
         child.stdout.on('data', (chunk: Buffer) => {
           if (isSettled) {
@@ -155,6 +192,7 @@ export function windowsVaultTransport(
               child.stdin.write(header)
               child.stdin.end(key)
             } catch {
+              // A broken helper stdin fails the exchange; the chunk is still erased.
               chunk.fill(0)
               finish(false)
               return
@@ -178,6 +216,7 @@ export function windowsVaultTransport(
             try {
               rebuilding = helper.rebuild()
             } catch {
+              // A refused rebuild fails the exchange outright.
               finish(false)
               return
             }
@@ -186,6 +225,7 @@ export function windowsVaultTransport(
                 finish(false)
               })
               .catch(() => {
+                // A failed rebuild fails the exchange; the refusal below still holds.
                 finish(false)
               })
           } else finish(code === 0 && isReady)
@@ -193,6 +233,7 @@ export function windowsVaultTransport(
         try {
           child.stdin.write(Buffer.from(helper.guardSource, 'utf8').toString('base64') + '\n')
         } catch {
+          // The guard source never reached the helper; the exchange fails.
           finish(false)
         }
         if (signal?.aborted) abort()

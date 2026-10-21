@@ -1,11 +1,12 @@
 import { createServer, connect, type Socket, type Server } from 'node:net'
+import { type Duplex } from 'node:stream'
 import { chmod } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { UI_TEXT, VAULT_LIMITS, VAULT_APPROVAL_TTL_MS } from '../../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS, VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { vaultPrivateDirectory } from '../broker/files'
-import { type VaultSecuredListenerPort } from '../broker/channel'
+import { type VaultSecuredListenerPort } from '../broker/ports'
 
 const requestSchema = z
   .strictObject({
@@ -29,9 +30,9 @@ const replySchema = z
   )
 
 /** A disconnected client cannot keep the serialized owner waiting on late peer verification. */
-async function isHelperPeerAllowed(
-  socket: Socket,
-  isAllowed: (socket: Socket) => Promise<boolean>,
+async function isHelperPeerAllowed<S extends Duplex>(
+  socket: S,
+  isAllowed: (socket: S) => Promise<boolean>,
 ): Promise<boolean> {
   if (socket.destroyed) return false
   let onClose: (() => void) | undefined
@@ -50,7 +51,7 @@ async function isHelperPeerAllowed(
 
 export interface VaultExecHelperDeps {
   /** B/P checks OS peer identity, then the native launcher's exact command-tree membership. */
-  readonly authenticate: (socket: Socket) => Promise<boolean>
+  readonly authenticate: (socket: Duplex) => Promise<boolean>
   readonly git?: (operation: string, input: string) => Buffer
   readonly askpass?: () => Buffer
   readonly listener?: VaultSecuredListenerPort
@@ -60,7 +61,7 @@ export interface VaultExecHelperDeps {
 export class VaultExecHelperServer {
   private server: Server | undefined
   private listenerClose: (() => Promise<void>) | undefined
-  private readonly sockets = new Set<Socket>()
+  private readonly sockets = new Set<Duplex>()
   private readonly bytes = new Set<Buffer>()
   private isClosed = false
   private isStarting = false
@@ -71,7 +72,7 @@ export class VaultExecHelperServer {
   private canServe(generation: number): boolean {
     return !this.isClosed && this.generation === generation
   }
-  private accept(socket: Socket): void {
+  private accept(socket: Duplex): void {
     if (this.isClosed) {
       socket.destroy()
       return
@@ -80,7 +81,7 @@ export class VaultExecHelperServer {
     this.sockets.add(socket)
     let held = Buffer.alloc(0)
     let isDispatched = false
-    const timer = setTimeout(() => socket.destroy(), VAULT_APPROVAL_TTL_MS)
+    const timer = setTimeout(() => socket.destroy(), VAULT_TRANSPORT_TIMEOUT_MS)
     socket.on('error', () => {
       socket.destroy()
     })
@@ -144,6 +145,8 @@ export class VaultExecHelperServer {
             this.bytes.delete(owned)
           })
         } catch {
+          // Fail closed: the connection dies and nothing is served; the
+          // requester reports its own failure, so this teardown keeps no cause.
           socket.destroy()
         } finally {
           held.fill(0)
@@ -231,7 +234,7 @@ export async function callVaultExecHelper(
   let joined: Buffer | undefined
   const timer = setTimeout(
     () => socket.destroy(new Error(UI_TEXT.vault.noAccess)),
-    VAULT_APPROVAL_TTL_MS,
+    VAULT_TRANSPORT_TIMEOUT_MS,
   )
   try {
     await new Promise<void>((resolve, reject) => {
@@ -242,7 +245,7 @@ export async function callVaultExecHelper(
     if (!isAuthenticated || socket.destroyed) throw new Error(UI_TEXT.vault.noAccess)
     socket.end(outgoing, () => outgoing.fill(0))
     for await (const input of socket) {
-      if (!(input instanceof Buffer)) throw new Error(UI_TEXT.vault.noAccess)
+      if (!(input instanceof Buffer)) throw new TypeError(UI_TEXT.vault.noAccess)
       total += input.length
       if (total > VAULT_LIMITS.frameBytes) {
         input.fill(0)
@@ -264,8 +267,10 @@ export async function callVaultExecHelper(
     const result = Buffer.alloc(joined.length - 1)
     result.set(joined.subarray(1))
     return result
-  } catch {
-    throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    // A failed helper answer denies with fixed words; the transport failure
+    // rides along as the cause.
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   } finally {
     clearTimeout(timer)
     outgoing.fill(0)

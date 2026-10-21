@@ -1,22 +1,25 @@
-import { resourceEnvironment } from '../../core/resources/launch'
 // The processes and the socket behind voice (M9, M35): Node's child process
 // adapted to the driver's `HelperChild`, Linux's recorder, and the platform's
 // WebSocket to Meta. Part of dist/voice.js (PLAN.md D6), loaded on the first
 // recording; no `vscode` here.
 
-import { spawn } from 'node:child_process'
-import { PassThrough, type Readable, type Writable } from 'node:stream'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { admitResource, resourceWindowsJob, stopResourceTree } from '../../core/resources/admission'
 import type { ResourceLease } from '../../core/resources/launch'
-import { spawnMcpJob } from '../backend/mcpJobLaunch'
-import { observeResourceProcess } from '../resources/resourceAdmission'
-import { treeSpawnOptions } from '../processTree'
-import { withoutCredentials } from '../../core/credentialEnvironment'
 import type { HelperChild, HelperInvocation } from '../../core/voice/dictation'
-import { helperEnvironment } from '../../core/voice/helperLocation'
 import type { VoiceSocket, VoiceSocketHandlers } from '../../core/voice/museVoice'
 import type { RecorderProcess } from '../../core/voice/recorderHelper'
+import { treeSpawnOptions } from '../processTree'
+import { type GuardedChildEnv } from '../../core/executables'
+import { noWorkspaceChildEnvironment, workspaceChildEnvironment } from '../../core/execGuard'
+import { resourceEnvironment } from '../../core/resources/launch'
+import { realpathSync } from 'node:fs'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { PassThrough, type Readable, type Writable } from 'node:stream'
+import { admitResource, resourceWindowsJob, stopResourceTree } from '../../core/resources/admission'
+import { spawnMcpJob } from '../backend/mcpJobLaunch'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { withoutCredentials } from '../../core/credentialEnvironment'
+import { helperEnvironment } from '../../core/voice/helperLocation'
 
 const SIGNAL_EXIT = 'signal'
 
@@ -25,16 +28,29 @@ export interface HelperProcess {
   readonly stdin: Writable
   readonly stdout: Readable
   readonly stderr: Readable
+  on(event: 'spawn', listener: () => void): unknown
   on(event: 'error', listener: (error: Error) => void): unknown
   on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown
   kill(): unknown
+  /**
+  Fires when an explicit kill of a live process is refused (the recorder
+  may still hold the microphone): never an exit, which stays on `exit`.
+  */
+  onStopFailed(listener: (description: string) => void): void
 }
 
 function startProcess(invocation: HelperInvocation): HelperProcess {
   return admittedVoiceProcess(
     invocation.command,
     invocation.args,
-    helperEnvironment(process.env, invocation, process.platform),
+    // The dictation helper runs before any workspace is known (microphone
+    // availability at activation): absolute entries only, links followed.
+    noWorkspaceChildEnvironment(
+      process.platform,
+      helperEnvironment(process.env, invocation, process.platform),
+      realpathSync,
+    ),
+    process.cwd(),
   )
 }
 
@@ -42,12 +58,14 @@ function startProcess(invocation: HelperInvocation): HelperProcess {
 function admittedVoiceProcess(
   command: string,
   args: readonly string[],
-  env: NodeJS.ProcessEnv,
+  env: GuardedChildEnv,
+  cwd: string,
 ): HelperProcess {
   const stdin = new PassThrough()
   const stdout = new PassThrough()
   const stderr = new PassThrough()
   const events = stdout
+  const stopFailures = new Set<(description: string) => void>()
   const stop = new AbortController()
   let child: ChildProcessWithoutNullStreams | undefined
   let resource: ResourceLease | undefined
@@ -66,7 +84,8 @@ function admittedVoiceProcess(
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the fixed bundled dictation helper or absolute recorder command from helperLocation with fixed flags; nothing from the model or workspace reaches this command (PLAN.md §8).
       child =
         job === undefined
-          ? spawn(command, [...args], {
+          ? spawnGuarded(command, [...args], {
+              cwd,
               env: resourceEnvironment(withoutCredentials(env), resource),
               stdio: ['pipe', 'pipe', 'pipe'],
               windowsHide: true,
@@ -77,7 +96,7 @@ function admittedVoiceProcess(
               resourceAssembly: job.assemblyPath,
               file: command,
               args,
-              cwd: process.cwd(),
+              cwd,
               env: resourceEnvironment(withoutCredentials(env), resource),
               isVerbatim: false,
               resource,
@@ -86,6 +105,9 @@ function admittedVoiceProcess(
               },
             })
       if (job === undefined) observeResourceProcess(resource, child)
+      child.once('spawn', () => {
+        if (!stop.signal.aborted) events.emit('spawn')
+      })
       child.once('error', (error) => {
         events.emit('error', error)
       })
@@ -116,13 +138,21 @@ function admittedVoiceProcess(
     stdout,
     stderr,
     on: events.on.bind(events),
+    onStopFailed: (listener) => {
+      stopFailures.add(listener)
+    },
     kill: () => {
       stop.abort()
       if (child === undefined) return
       if (resource === undefined) child.kill()
       else
+        // A refused stop is reported on its own channel, never as an exit:
+        // the resource tree (and the microphone) may still be alive.
         void stopResourceTree(resource).catch((error: unknown) => {
-          events.emit('error', error)
+          const description = error instanceof Error ? error.message : String(error)
+          for (const listener of stopFailures) {
+            listener(description)
+          }
         })
     },
   }
@@ -132,9 +162,9 @@ function admittedVoiceProcess(
 type ExitEvents = Pick<HelperProcess, 'on'>
 
 /**
- * Reports a child's end once, however it ended: it could not start, it
- * exited with a code, or a signal ended it. Returns whether it has ended.
- */
+Reports a child's end once, however it ended: it could not start, it
+exited with a code, or a signal ended it. Returns whether it has ended.
+*/
 function watchExit(child: ExitEvents, onExit: (description: string) => void): () => boolean {
   let isExited = false
   const exited = (description: string) => {
@@ -147,8 +177,9 @@ function watchExit(child: ExitEvents, onExit: (description: string) => void): ()
   child.on('error', (error) => {
     exited(`could not start: ${error.message}`)
   })
+  // Node reports exactly one of the two: the signal when one ended the process.
   child.on('exit', (code, signal) => {
-    exited(code === null ? `${SIGNAL_EXIT} ${signal ?? 'unknown'}` : `exit code ${String(code)}`)
+    exited(signal === null ? `exit code ${String(code)}` : `${SIGNAL_EXIT} ${signal}`)
   })
   return () => isExited
 }
@@ -187,6 +218,9 @@ export function spawnHelper(
     onExit(listener) {
       exitListener = listener
     },
+    onStopFailed(listener) {
+      child.onStopFailed(listener)
+    },
     kill() {
       child.kill()
     },
@@ -224,14 +258,38 @@ export function openWebSocket(url: string, handlers: VoiceSocketHandlers): Voice
 }
 
 /** The system's recorder, one process per recording (Linux, M35). */
-export function startRecorder(command: string, args: readonly string[]): RecorderProcess {
-  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
-  const child = admittedVoiceProcess(command, args, process.env)
+export function startRecorder(
+  command: string,
+  args: readonly string[],
+  workspace: { readonly workspaceRoot: string; readonly realpath: (filePath: string) => string },
+): RecorderProcess {
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH outside the workspace (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
+  const child = admittedVoiceProcess(
+    command,
+    args,
+    workspaceChildEnvironment(process.platform, process.env, workspace),
+    workspace.workspaceRoot,
+  )
   let exitListener: ((description: string) => void) | undefined
+  let errorListener: ((description: string) => void) | undefined
+  let startedListener: (() => void) | undefined
+  child.on('spawn', () => startedListener?.())
+  // A launch failure is an error, never an exit: nothing was recorded and
+  // nothing can linger. A refused kill is an error too: the recorder may
+  // still hold the microphone, so it must never read as "stopped".
+  child.on('error', (error) => {
+    errorListener?.(`could not start: ${error.message}`)
+  })
+  child.onStopFailed((description) => {
+    errorListener?.(description)
+  })
   watchExit(child, (description) => {
     exitListener?.(description)
   })
   return {
+    onStarted: (listener) => {
+      startedListener = listener
+    },
     onData: (listener) => {
       child.stdout.on('data', listener)
     },
@@ -242,6 +300,9 @@ export function startRecorder(command: string, args: readonly string[]): Recorde
     },
     onExit: (listener) => {
       exitListener = listener
+    },
+    onError: (listener) => {
+      errorListener = listener
     },
     kill: () => {
       child.kill()

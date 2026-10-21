@@ -74,7 +74,12 @@ export async function readArchives(storageDir: string): Promise<readonly Archive
     let parsed: unknown
     try {
       parsed = JSON.parse(text)
-    } catch {
+    } catch (error: unknown) {
+      // Only malformed text fails here, always as a SyntaxError (the read
+      // above owns missing files); anything else is not this parse's to skip.
+      if (!(error instanceof SyntaxError)) {
+        throw error
+      }
       continue
     }
     const result = archiveSchema.safeParse(parsed)

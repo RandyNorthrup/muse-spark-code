@@ -34,6 +34,8 @@ export type PendingRecord =
 export interface WindowJournal {
   /** Sets this activation's marker and prunes; true when a crash should be offered. */
   startup(): Promise<boolean>
+  /** Clears this activation's marker at once when the editor asks it to stop. */
+  clearMarker(): Promise<void>
   /** Clears only this activation's marker (deactivate). */
   shutdown(): Promise<void>
   record(input: PendingRecord): Promise<void>
@@ -99,6 +101,12 @@ export class ReportRecorder {
     return (await journal?.startup()) ?? false
   }
 
+  /** The editor asked for this stop: the marker goes first, if the journal ever loaded. */
+  public async markOrderlyStop(): Promise<void> {
+    const journal = await this.journal
+    await journal?.clearMarker()
+  }
+
   /** Clears this activation's marker, if the journal ever loaded (deactivate). */
   public async shutdown(): Promise<void> {
     const journal = await this.journal
@@ -106,10 +114,10 @@ export class ReportRecorder {
   }
 
   /**
-   * Records one failure as facts and answers its sanitized reference, or
-   * undefined when this minute's budget is spent (nothing is written then).
-   * The journal scrubs and validates again before anything reaches the disk.
-   */
+  Records one failure as facts and answers its sanitized reference, or
+  undefined when this minute's budget is spent (nothing is written then).
+  The journal scrubs and validates again before anything reaches the disk.
+  */
   public record(
     kind: ReportEventKind,
     code: string,

@@ -2,7 +2,7 @@
 // --omit=dev alone is wrong here: zod, React and the Muse/ACP SDKs are bundled devDeps.
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
@@ -18,7 +18,23 @@ const BOM = z
     dependencies: z.array(z.object({ ref: z.string(), dependsOn: z.array(z.string()) })),
   })
   .passthrough()
-const ACP_STAGE = 'dist/acp-package'
+// The ACP packager removes its stage when it finishes, so the SBOM reads the
+// receipt it leaves behind (dist/acp-stage-files.json): the staged file list
+// the packager itself wrote, not a scan of a directory that may be stale.
+const ACP_STAGE_RECEIPT = path.join('dist', 'acp-stage-files.json')
+
+/** The staged file set, or a refusal when the packager has not run. */
+export function readAcpStageReceipt(read = readFileSync) {
+  let parsed
+  try {
+    parsed = JSON.parse(read(ACP_STAGE_RECEIPT, 'utf8'))
+  } catch {
+    throw new Error('ACP stage receipt is missing: run scripts/package-acp.mjs first')
+  }
+  if (!Array.isArray(parsed) || parsed.some((entry) => typeof entry !== 'string'))
+    throw new Error('ACP stage receipt is malformed: run scripts/package-acp.mjs again')
+  return new Set(parsed)
+}
 
 export function bundledPackages(metafiles, read = readFileSync, includesOutput = () => true) {
   const packages = new Set()
@@ -137,8 +153,7 @@ if (
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 ) {
-  if (!existsSync(path.join(ACP_STAGE, 'package.json')))
-    throw new Error('ACP package stage is missing: run scripts/package-acp.mjs first')
+  const staged = readAcpStageReceipt()
   const raw = execFileSync(
     'npm',
     [
@@ -162,9 +177,7 @@ if (
     ...extensionMeta,
     ...readdirSync('dist/meta-acp').map((file) => `dist/meta-acp/${file}`),
   ]
-  const acpBundled = bundledPackages(acpMeta, readFileSync, (file) =>
-    existsSync(path.join(ACP_STAGE, file)),
-  )
+  const acpBundled = bundledPackages(acpMeta, readFileSync, (file) => staged.has(file))
   const acp = new Set([
     ...acpBundled,
     ...nativePackages(JSON.parse(readFileSync('package-lock.json', 'utf8'))),

@@ -11,10 +11,6 @@ import {
   type McpVaultPoolPort,
   type McpVaultRoutePorts,
 } from '../../core/vault/mcpSecrets'
-import { environmentValue } from '../../core/backends/musecode/launch'
-import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
-import { UI_TEXT } from '../../shared/constants'
-import { readTextIfPresent } from '../cliFeatures'
 import type { Logger } from '../logger'
 import {
   isExistingDirectory,
@@ -22,14 +18,18 @@ import {
   mcpServerSpawner,
   resolveMcpVaultCommand,
 } from './mcpProcess'
-import { admitResource } from '../../core/resources/admission'
 import type { McpVaultBroker, McpVaultStartDeps } from './mcpVault'
+import { environmentValue } from '../../core/execGuard'
+import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
+import { UI_TEXT } from '../../shared/constants'
+import { readTextIfPresent } from '../fsAtomic'
+import { admitResource } from '../../core/resources/admission'
 
 /**
- * POSTSPAWN: the route checks stay here (the pool's fetchFor is synchronous);
- * the vault launch itself (scrubber, leases, governed start) loads as
- * dist/mcpVault.js on the first vault-backed server, never at activation.
- */
+POSTSPAWN: the route checks stay here (the pool's fetchFor is synchronous);
+the vault launch itself (scrubber, leases, governed start) loads as
+dist/mcpVault.js on the first vault-backed server, never at activation.
+*/
 function deferredMcpVaultRoutes(deps: McpVaultStartDeps, broker: McpVaultBroker): McpVaultPoolPort {
   let loading: Promise<McpVaultRoutePorts['start']> | undefined
   const load = async () => {

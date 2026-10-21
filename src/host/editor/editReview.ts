@@ -7,6 +7,7 @@
 
 import path from 'node:path'
 import type { ConditionalWrite } from '../../core/backends/modelapi/tools'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { revertHunks } from '../../core/patchApply'
 import { isSamePath } from '../../core/paths'
 import { fingerprint } from '../../core/verify/fingerprint'
@@ -27,9 +28,9 @@ export interface RevertWriteOptions {
 }
 
 /**
- * A Revert's conditional publication (M72's guarded file I/O): `changed`, and
- * nothing done, when the file is no longer what the Revert read.
- */
+A Revert's conditional publication (M72's guarded file I/O): `changed`, and
+nothing done, when the file is no longer what the Revert read.
+*/
 export interface RevertIo {
   /** Replaces the file while it holds the text read (`ToolIo.writeFileIfUnchanged`). */
   writeFileIfUnchanged(
@@ -66,11 +67,11 @@ export interface EditReviewDeps {
   /** Manual writes invalidate all live verification without creating an own edit round. */
   readonly beginEdit?: (file: EditedFile) => (wasWritten: boolean) => void
   /**
-   * Holds checkpoint admission (M72's restore lease) around one whole Revert:
-   * its read, rebuild, checks and publication. `assertAdmitted` is the
-   * admission's final word. A failure to let it go after the file changed
-   * rejects, which the Revert reports as a cleanup failure, not as unwritten.
-   */
+  Holds checkpoint admission (M72's restore lease) around one whole Revert:
+  its read, rebuild, checks and publication. `assertAdmitted` is the
+  admission's final word. A failure to let it go after the file changed
+  rejects, which the Revert reports as a cleanup failure, not as unwritten.
+  */
   readonly withAdmission: <T>(work: (assertAdmitted: () => void) => Promise<T>) => Promise<T>
   readonly io: RevertIo
   /** `vscode.diff(before, after, title)`; `beforeUri` is a `muse-edit:` URI string. */
@@ -150,10 +151,10 @@ export function stripExtendedLengthPrefix(filePath: string): string {
 export interface EditReviewActions {
   openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
   /**
-   * `check` is the caller's guard (M87: the conversation's session and no
-   * running turn), asked after every wait and, with the checkpoint
-   * admission's, just before each file changes; it throws to stop the Revert.
-   */
+  `check` is the caller's guard (M87: the conversation's session and no
+  running turn), asked after every wait and, with the checkpoint
+  admission's, just before each file changes; it throws to stop the Revert.
+  */
   revert(itemId: string, patchJson: string, check?: () => void): Promise<readonly ReviewNotice[]>
   /** The review pane's files (M70): workspace-relative, or refused with the reason. */
   describe(patchJson: string): Promise<readonly DescribedFile[]>
@@ -187,10 +188,10 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * Workspace-confined location of a patch file, or undefined when it
-   * escapes: by text, then by the canonical forms, so a link inside the
-   * workspace that leads outside it is refused (PLAN.md D24).
-   */
+  Workspace-confined location of a patch file, or undefined when it
+  escapes: by text, then by the canonical forms, so a link inside the
+  workspace that leads outside it is refused (PLAN.md D24).
+  */
   private async resolve(
     workspaceRoot: string,
     file: PatchFile,
@@ -217,7 +218,7 @@ export class EditReview implements EditReviewActions {
       canonicalRelativePath = this.paths.relative(realRoot, realTarget).replaceAll('\\', '/')
     } catch (error: unknown) {
       check?.()
-      this.deps.log.warn(`Edit review could not resolve ${relative}: ${String(error)}`)
+      this.deps.log.warn(`Edit review could not resolve ${relative}: ${failureForLog(error)}`)
       return undefined
     }
     return {
@@ -230,10 +231,10 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * Rebuilds the pre-edit text from `raw`, the file's text as read; a notice
-   * explains why when it cannot. A UTF-8 BOM is not part of any hunk: it is
-   * set aside for the match and kept on the text written back (PLAN.md D27).
-   */
+  Rebuilds the pre-edit text from `raw`, the file's text as read; a notice
+  explains why when it cannot. A UTF-8 BOM is not part of any hunk: it is
+  set aside for the match and kept on the text written back (PLAN.md D27).
+  */
   private rebuild(resolved: ResolvedFile, raw: string): Rebuilt {
     const hasBom = raw.startsWith(BOM)
     const current = hasBom ? raw.slice(BOM.length) : raw
@@ -309,10 +310,10 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * Under admission, after the read: the path still leads to the checked
-   * canonical target inside the workspace, and no editor holds unsaved text
-   * for it.
-   */
+  Under admission, after the read: the path still leads to the checked
+  canonical target inside the workspace, and no editor holds unsaved text
+  for it.
+  */
   private async writeRefusal(
     resolved: ResolvedFile,
     check?: () => void,
@@ -335,14 +336,14 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * One Revert of one file as one operation under checkpoint admission (M72):
-   * the saved text is read, the pre-edit text rebuilt from it, the path and
-   * the editor checked again, and the result published only while the file
-   * still holds what was read, so a save or a swap meanwhile refuses it.
-   * Reverts of one file queue behind each other; a failure frees the lane.
-   * `check`, the caller's guard (M87), is asked after each wait, and with
-   * the admission's final word just before the change.
-   */
+  One Revert of one file as one operation under checkpoint admission (M72):
+  the saved text is read, the pre-edit text rebuilt from it, the path and
+  the editor checked again, and the result published only while the file
+  still holds what was read, so a save or a swap meanwhile refuses it.
+  Reverts of one file queue behind each other; a failure frees the lane.
+  `check`, the caller's guard (M87), is asked after each wait, and with
+  the admission's final word just before the change.
+  */
   private async writeRevert(
     itemId: string,
     resolved: ResolvedFile,
@@ -390,7 +391,7 @@ export class EditReview implements EditReviewActions {
         throw error
       }
       this.deps.log.warn(
-        `Reverted ${resolved.relativePath}, but its checkpoint admission was not released: ${String(error)}`,
+        `Reverted ${resolved.relativePath}, but its checkpoint admission was not released: ${failureForLog(error)}`,
       )
       return outcome.committed
     } finally {
@@ -455,10 +456,10 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * The change, held to the text read (`raw`, undefined: no file): a created
-   * file emptied goes to the trash, other text replaces the file, and a file
-   * that was absent is written only while nothing is there.
-   */
+  The change, held to the text read (`raw`, undefined: no file): a created
+  file emptied goes to the trash, other text replaces the file, and a file
+  that was absent is written only while nothing is there.
+  */
   private async publish(
     resolved: ResolvedFile,
     raw: string | undefined,
@@ -503,10 +504,10 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * The patch's files as the review pane lists them (M70): each by its
-   * workspace-relative path, or, for one that resolves outside the
-   * workspace, by the path the tool named and the reason it is refused.
-   */
+  The patch's files as the review pane lists them (M70): each by its
+  workspace-relative path, or, for one that resolves outside the
+  workspace, by the path the tool named and the reason it is refused.
+  */
   public async describe(patchJson: string): Promise<readonly DescribedFile[]> {
     const { workspaceRoot } = this.deps
     const files = patchFilesOf(patchJson)
@@ -535,10 +536,10 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * One hunk of one file taken out again (M70's review pane): the file as it
-   * is now with that hunk reverse-applied, the rest of the edit left alone.
-   * True when the file was written back; the notices say why when it was not.
-   */
+  One hunk of one file taken out again (M70's review pane): the file as it
+  is now with that hunk reverse-applied, the rest of the edit left alone.
+  True when the file was written back; the notices say why when it was not.
+  */
   public async revertHunk(
     itemId: string,
     patchJson: string,
@@ -570,9 +571,9 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * Writes the pre-edit text back (or trashes a created file); returns the
-   * notices. `check` (M87) throws to stop it before any further read or change.
-   */
+  Writes the pre-edit text back (or trashes a created file); returns the
+  notices. `check` (M87) throws to stop it before any further read or change.
+  */
   public async revert(
     itemId: string,
     patchJson: string,

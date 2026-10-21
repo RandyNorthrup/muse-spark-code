@@ -1,0 +1,46 @@
+{
+  "drills": [
+    {
+      "after": "b9f750a3afae156c26af4360cf849622a605a0b6fb11198cd2e02dae77770874",
+      "before": "b9f750a3afae156c26af4360cf849622a605a0b6fb11198cd2e02dae77770874",
+      "id": "D1",
+      "mutation": "Removed the best-effort reload from the vaultImport catch in src/host/vault/vaultPanelHost.ts (the failed-Delete reload).",
+      "red": "npx vitest run test/unit/vault/vaultPanelBinding.test.ts -t 'failed Delete': 1 failed / 6 skipped. The section keeps the pre-import snapshot without the imported item.",
+      "rig": "linuxlt"
+    },
+    {
+      "after": "b9f750a3afae156c26af4360cf849622a605a0b6fb11198cd2e02dae77770874",
+      "before": "b9f750a3afae156c26af4360cf849622a605a0b6fb11198cd2e02dae77770874",
+      "id": "D2",
+      "mutation": "Made refusalMessage() in src/host/vault/vaultPanelHost.ts always return vault.operationFailed (no typed sentence kept).",
+      "red": "npx vitest run test/unit/vault/vaultPanelBinding.test.ts -t 'typed refusal': 1 failed / 6 skipped. A storeUnavailable refusal reports the generic failure instead of its repair sentence.",
+      "rig": "linuxlt"
+    },
+    {
+      "after": "f5a6a42006f04b6505fc7758c5cdd34b04f8c4f2dceaeafe435bf7fc323c7985",
+      "before": "f5a6a42006f04b6505fc7758c5cdd34b04f8c4f2dceaeafe435bf7fc323c7985",
+      "id": "D3",
+      "mutation": "Removed disabled={!canToggleLock} from the lock toggle in src/webview/models/sections/vault/VaultSection.tsx (Unlock offered while unavailable).",
+      "red": "npx vitest run test/unit/vault/vaultPanel.test.tsx -t 'unavailable and first-party-only': 1 failed / 29 skipped. The toggle stays enabled where the broker would refuse.",
+      "rig": "linuxlt"
+    },
+    {
+      "after": "847ffecf0981207e9bba07df6762603c124f26349b040def26c0e92815d66484",
+      "before": "847ffecf0981207e9bba07df6762603c124f26349b040def26c0e92815d66484",
+      "id": "D4",
+      "mutation": "Set importDone to undefined in nativeHostDeps() in src/host/vault/vaultPanelEntry.ts (the Models binding loses the Keep/Delete question).",
+      "red": "npx vitest run test/unit/vault/vaultPanelBinding.test.ts -t 'Keep or Delete': 1 failed / 6 skipped. The import throws before Keep/Delete and the source is never kept.",
+      "rig": "linuxlt"
+    },
+    {
+      "after": "847ffecf0981207e9bba07df6762603c124f26349b040def26c0e92815d66484",
+      "before": "847ffecf0981207e9bba07df6762603c124f26349b040def26c0e92815d66484",
+      "id": "D5",
+      "mutation": "Set confirmReset to undefined in nativeHostDeps() in src/host/vault/vaultPanelEntry.ts (the Models binding loses the typed-word step).",
+      "red": "npx vitest run test/unit/vault/vaultPanelBinding.test.ts -t 'typed word': 1 failed / 6 skipped. Reset throws before the word and resetConfirm is never called.",
+      "rig": "linuxlt"
+    }
+  ],
+  "lane": "CM1091DADOPT",
+  "restored": "byte-exact (SHA-256 before == after for every drilled file; the owning suites pass after each restore)"
+}

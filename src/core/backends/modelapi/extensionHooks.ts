@@ -28,7 +28,6 @@ import {
   HOOK_DISPLAY_MESSAGE_MAX_CHARS,
   HOOK_EXPANSION_MAX_CHARS,
   HOOK_FILE_CHANGED_DEBOUNCE_MS,
-  HOOK_FILE_CHANGED_MAX_PER_MINUTE,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MATCHER_VALUE_MAX_CHARS,
   HOOK_NEWLINE_CODE,
@@ -42,7 +41,6 @@ import {
   HOOK_THOUGHT_MAX_CHARS,
   HOOK_TOTAL_MAX_HANDLERS,
   MILLISECONDS_PER_SECOND,
-  SECONDS_PER_MINUTE,
 } from '../../../shared/constants'
 import {
   HOOK_EVENTS,
@@ -54,6 +52,11 @@ import {
 } from './hooks'
 import { sparkHooksFiles } from './hookNames'
 import { compileGlob } from './globLimits'
+import type {
+  ElicitationHookInput,
+  ElicitationHookVerdict,
+  ElicitationResultInput,
+} from './mcp/elicitation'
 import { boundedHookText } from './toolHookPayload'
 import type { ContextIo } from '../../context/contextFiles'
 import { decodeContextText } from '../../context/contextFiles'
@@ -83,10 +86,10 @@ const DECISION_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'TeammateIdle',
 ])
 /**
- * The turn-bound events whose `additionalContext` is appended at the tail of
- * the turn (SoL-Pi rule 2). Anywhere else a hook sends context, the answer is
- * refused: outside a turn it has nowhere to go.
- */
+The turn-bound events whose `additionalContext` is appended at the tail of
+the turn (SoL-Pi rule 2). Anywhere else a hook sends context, the answer is
+refused: outside a turn it has nowhere to go.
+*/
 const CONTEXT_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'InstructionsLoaded',
   'UserPromptExpansion',
@@ -129,7 +132,11 @@ export interface ExtensionHookDefinition {
   readonly event: ExtensionHookEvent
   readonly source: HookSource
   readonly command: string
-  readonly timeoutSeconds: number
+  /**
+  D121: no default deadline of ours — absent runs until it ends or the
+  caller stops it (the Tab request's own bound still applies).
+  */
+  readonly timeoutSeconds?: number | undefined
   readonly matcher: ExtensionHookMatcher | undefined
   readonly isAsync: boolean
   /** The group's own words, for the Run Hook pick (M91 lane E). */
@@ -215,7 +222,8 @@ export function isExtensionMatch(
   return matcher.patterns.some((pattern) => {
     try {
       return compileGlob(pattern)(value)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof RangeError)) throw error
       warn(`hook matcher glob ${pattern} is invalid`)
       return false
     }
@@ -328,10 +336,10 @@ export interface SparkHookConfigResult {
 }
 
 /**
- * Parse one spark-hooks.json file. A Muse Code event name is refused with a
- * warning (it belongs in `.muse/hooks.json`, where it runs once); an unknown
- * name warns and is skipped while the rest of the file stays in effect.
- */
+Parse one spark-hooks.json file. A Muse Code event name is refused with a
+warning (it belongs in `.muse/hooks.json`, where it runs once); an unknown
+name warns and is skipped while the rest of the file stays in effect.
+*/
 export function parseSparkHooksConfig(
   text: string | undefined,
   source: Extract<HookSource, 'user' | 'project'>,
@@ -340,13 +348,18 @@ export function parseSparkHooksConfig(
   if (text === undefined) {
     return { hooks: [], warnings: [] }
   }
-  let document: z.infer<typeof sparkDocumentSchema>
+  let raw: unknown
   try {
-    document = sparkDocumentSchema.parse(JSON.parse(text))
+    raw = JSON.parse(text)
   } catch (error: unknown) {
-    const reason = error instanceof SyntaxError ? 'invalid JSON' : 'missing hooks object'
-    return { hooks: [], warnings: [`${source} spark-hooks.json: ${reason}`] }
+    if (!(error instanceof SyntaxError)) throw error
+    return { hooks: [], warnings: [`${source} spark-hooks.json: invalid JSON`] }
   }
+  const parsed = sparkDocumentSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { hooks: [], warnings: [`${source} spark-hooks.json: missing hooks object`] }
+  }
+  const document: z.infer<typeof sparkDocumentSchema> = parsed.data
   const warnings: string[] = []
   const hooks: ExtensionHookDefinition[] = []
   for (const [name, groups] of Object.entries(document.hooks)) {
@@ -471,8 +484,9 @@ async function readSparkText(
       return SPARK_UNREADABLE
     }
     return { kind: 'text', text: decoded.text }
-  } catch (error: unknown) {
-    warn(`${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`)
+  } catch {
+    // The record names the unreadable file, never the failure's text.
+    warn(`${path.basename(file)}: hook configuration could not be read`)
     return SPARK_UNREADABLE
   }
 }
@@ -482,21 +496,21 @@ type SparkHookSource = Extract<HookSource, 'user' | 'project'>
 export interface SparkHookSnapshot {
   readonly hooks: readonly ExtensionHookDefinition[]
   /**
-   * The scopes whose spark-hooks.json is present but did not load whole:
-   * unreadable, too large, not text, linked out of the workspace, or with
-   * any diagnostic (RVM94KR 1). Other events keep what loaded; Tab's read
-   * guard refuses while one is listed, so a broken file never reads as none.
-   */
+  The scopes whose spark-hooks.json is present but did not load whole:
+  unreadable, too large, not text, linked out of the workspace, or with
+  any diagnostic (RVM94KR 1). Other events keep what loaded; Tab's read
+  guard refuses while one is listed, so a broken file never reads as none.
+  */
   readonly invalidSources: readonly SparkHookSource[]
 }
 
 /**
- * Load spark-hooks.json beside Muse Code's sources: the user's file next to
- * Muse Code's settings.json, then the project's inside the workspace. The
- * same gates as M51 hold: an untrusted workspace loads nothing, and the
- * caller keeps the per-session snapshot (this function reads the files, it
- * does not watch them).
- */
+Load spark-hooks.json beside Muse Code's sources: the user's file next to
+Muse Code's settings.json, then the project's inside the workspace. The
+same gates as M51 hold: an untrusted workspace loads nothing, and the
+caller keeps the per-session snapshot (this function reads the files, it
+does not watch them).
+*/
 export async function loadSparkHookSnapshot(deps: HookLoadDeps): Promise<SparkHookSnapshot> {
   if (!deps.isWorkspaceTrusted()) {
     return { hooks: [], invalidSources: [] }
@@ -557,12 +571,12 @@ export async function loadSparkHookDefinitions(
 // --- Payloads ---
 
 /**
- * What every extension hook receives: Claude Code's documented envelope
- * (`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
- * `permission_mode`), plus this runtime's additions: `turn_id` on a
- * turn-bound event, and `model` with `model_provider`, so a hook sees which
- * model it advises.
- */
+What every extension hook receives: Claude Code's documented envelope
+(`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
+`permission_mode`), plus this runtime's additions: `turn_id` on a
+turn-bound event, and `model` with `model_provider`, so a hook sees which
+model it advises.
+*/
 export interface ExtensionHookContext {
   readonly sessionId: string
   readonly workspaceRoot: string
@@ -673,11 +687,30 @@ export function directoryAddedFields(relativePath: string): Readonly<Record<stri
 }
 
 /**
- * What the user answered. A project hook sees the action and the field
- * names only; `values` are passed for user-scope hooks alone (the caller
- * decides the scope; lane M validates the answer against the schema).
- * @unwired M91 project hook elicitation fields
- */
+What an Elicitation hook sees before the form shows: the requesting
+server, its bounded message and the field names (which are required).
+Values are never sent up front: a user hook answers through the `answer`
+field, which the caller validates against the server's schema.
+*/
+export function elicitationFields(
+  server: string,
+  message: string,
+  fieldNames: readonly string[],
+  requiredNames: readonly string[],
+): Readonly<Record<string, unknown>> {
+  return {
+    server,
+    message: boundedHookText(message, HOOK_DISPLAY_MESSAGE_MAX_CHARS),
+    fields: [...fieldNames],
+    required: [...requiredNames],
+  }
+}
+
+/**
+What the user answered. A project hook sees the action and the field
+names only; `values` are passed for user-scope hooks alone (the caller
+decides the scope; lane M validates the answer against the schema).
+*/
 export function elicitationResultFields(options: {
   readonly server: string
   readonly action: 'accept' | 'decline' | 'cancel'
@@ -692,12 +725,107 @@ export function elicitationResultFields(options: {
   }
 }
 
-/** @unwired M91 team hook idle field names */
+/** The fields a TeammateIdle hook sees: the idling task and its running siblings. */
 export function teammateIdleFields(options: {
   readonly name: string
   readonly siblingsRunning: number
 }): Readonly<Record<string, unknown>> {
   return { name: options.name, siblings_running: options.siblingsRunning }
+}
+
+function isVerdictAnswerRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+The Elicitation verdict from the two scope-grouped dispatches (M91 D70).
+Policy hooks (project, managed) run first and can only decline; the
+user's own hooks run next and may also answer. A refusal declines with
+the hook's reason; cancel stays the caller's own stop/timeout path,
+because the hook protocol carries a single refusal. A user answer that
+is not a record declines rather than guessing.
+*/
+export function elicitationVerdictFromDispatch(
+  policy: ExtensionHookDispatch | undefined,
+  personal: ExtensionHookDispatch | undefined,
+): ElicitationHookVerdict {
+  if (policy?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'project', reason: policy.refusedReason }
+  }
+  if (personal?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'user', reason: personal.refusedReason }
+  }
+  if (personal?.hasAnswer === true) {
+    return isVerdictAnswerRecord(personal.answer)
+      ? { decision: 'answer', source: 'user', values: personal.answer }
+      : { decision: 'decline', source: 'user', reason: 'hook answer is not a record' }
+  }
+  return { decision: 'proceed' }
+}
+
+/** Fires one elicitation event for one scope group; the session binds it to its hook dispatch. */
+export type ElicitationHookFire = (
+  event: Extract<ExtensionHookEvent, 'Elicitation' | 'ElicitationResult'>,
+  fields: Readonly<Record<string, unknown>>,
+  matcherValue: string,
+  onlySources: readonly HookSource[],
+) => Promise<ExtensionHookDispatch | undefined>
+
+/**
+The Elicitation hook run before the form (M91 D70): policy hooks (project
+and managed) first, decline only; then the user's own hooks, which may
+also answer. A policy refusal settles it, so the user's hooks do not run
+at all: their answer could not be used, and they still observe the
+outcome through ElicitationResult.
+*/
+export async function dispatchElicitationHooks(
+  fire: ElicitationHookFire,
+  input: ElicitationHookInput,
+): Promise<ElicitationHookVerdict> {
+  const fields = elicitationFields(
+    input.server,
+    input.message,
+    input.fieldNames,
+    input.requiredNames,
+  )
+  const policy = await fire('Elicitation', fields, input.server, ['project', 'managed'])
+  if (policy?.refusedReason !== undefined) {
+    return elicitationVerdictFromDispatch(policy, undefined)
+  }
+  const personal = await fire('Elicitation', fields, input.server, ['user'])
+  return elicitationVerdictFromDispatch(policy, personal)
+}
+
+/**
+The ElicitationResult observation run (M91 D70): project and managed
+hooks see the field names and the action only; the accepted values go to
+the user's own hooks alone.
+*/
+export async function dispatchElicitationResultHooks(
+  fire: ElicitationHookFire,
+  input: ElicitationResultInput,
+): Promise<void> {
+  await fire(
+    'ElicitationResult',
+    elicitationResultFields({
+      server: input.server,
+      action: input.action,
+      fieldNames: input.fieldNames,
+    }),
+    input.server,
+    ['project', 'managed'],
+  )
+  await fire(
+    'ElicitationResult',
+    elicitationResultFields({
+      server: input.server,
+      action: input.action,
+      fieldNames: input.fieldNames,
+      ...(input.values !== undefined && { values: input.values }),
+    }),
+    input.server,
+    ['user'],
+  )
 }
 
 export function messageDisplayFields(message: string): Readonly<Record<string, unknown>> {
@@ -779,10 +907,10 @@ function isAnswerRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Parse one command answer. Anything outside the closed per-event schema
- * fails the hook, never the operation: an observation hook cannot block, and
- * a refusal carries the hook's own reason.
- */
+Parse one command answer. Anything outside the closed per-event schema
+fails the hook, never the operation: an observation hook cannot block, and
+a refusal carries the hook's own reason.
+*/
 export function parseExtensionHookAnswer(
   event: ExtensionHookEvent,
   exitCode: number | null,
@@ -829,7 +957,8 @@ export function parseExtensionHookAnswer(
   let value: unknown
   try {
     value = JSON.parse(trimmed)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { status: 'failed', reason: 'hook output is not valid JSON', hasAnswer: false, output }
   }
   if (!isAnswerRecord(value) || Object.keys(value).some((key) => !ANSWER_FIELDS.has(key))) {
@@ -935,7 +1064,7 @@ export interface ExtensionHookRunIo {
     command: string,
     payload: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
   ) => Promise<ShellResult>
@@ -1026,7 +1155,7 @@ async function runExtensionHandler(
       hook.command,
       serialized,
       cwd,
-      hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+      hook.timeoutSeconds === undefined ? undefined : hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
       signal,
       undefined,
     )
@@ -1090,12 +1219,12 @@ async function runExtensionHandler(
 }
 
 /**
- * Execute the matching extension hooks, one at a time: extension events are
- * rare, and sequential runs never exceed the host-wide hook cap from `hooks.ts`.
- * An async hook runs without waiting and its output is dropped. A refused
- * operation keeps the first reason; display text and tool narrowings take the
- * last answer, like `updatedInput` does.
- */
+Execute the matching extension hooks, one at a time: extension events are
+rare, and sequential runs never exceed the host-wide hook cap from `hooks.ts`.
+An async hook runs without waiting and its output is dropped. A refused
+operation keeps the first reason; display text and tool narrowings take the
+last answer, like `updatedInput` does.
+*/
 export async function dispatchExtensionHooks(options: {
   readonly hooks: readonly ExtensionHookDefinition[]
   readonly event: ExtensionHookEvent
@@ -1202,42 +1331,25 @@ export function isToolAllowedBySelection(
 
 // --- FileChanged throttle ---
 
-export type FileChangedVerdict = 'fire' | 'debounced' | 'capped'
+export type FileChangedVerdict = 'fire' | 'debounced'
 
 export interface FileChangedThrottle {
   check(relativePath: string, nowMs: number): FileChangedVerdict
 }
 
 /**
- * One FileChanged run per path per quiet window, at most
- * `HOOK_FILE_CHANGED_MAX_PER_MINUTE` runs a minute; the rest report
- * `capped` so the caller drops and counts them in the log. Pure time comes
- * from the caller, so tests drive it with a fake clock.
- */
+One FileChanged run per path per quiet window; every change past the
+window fires, whatever the minute's count. Pure time comes from the
+caller, so tests drive it with explicit timestamps.
+*/
 export function createFileChangedThrottle(): FileChangedThrottle {
-  const minuteMs = SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
-  let windowStart = 0
-  let windowCount = 0
-  let pauseUntil = 0
   const lastFire = new Map<string, number>()
   return {
     check(relativePath, nowMs) {
-      if (nowMs < pauseUntil) {
-        return 'capped'
-      }
-      if (nowMs - windowStart >= minuteMs) {
-        windowStart = nowMs
-        windowCount = 0
-      }
       const last = lastFire.get(relativePath)
       if (last !== undefined && nowMs - last < HOOK_FILE_CHANGED_DEBOUNCE_MS) {
         return 'debounced'
       }
-      if (windowCount >= HOOK_FILE_CHANGED_MAX_PER_MINUTE) {
-        pauseUntil = nowMs + minuteMs
-        return 'capped'
-      }
-      windowCount += 1
       lastFire.set(relativePath, nowMs)
       return 'fire'
     },

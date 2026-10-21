@@ -19,7 +19,6 @@
 import {
   type CommandRuleDecision,
   COMMAND_RULE_SHELLS,
-  COMMAND_RULES_MAX,
   EVALUATOR_COMMANDS,
   POWERSHELL_ENCODED_ALIASES,
   POWERSHELL_ENCODED_COMMAND,
@@ -55,8 +54,6 @@ export type RuleProblemKind =
   | 'allowInRepository'
   /** An allow rule for a command that runs text as code. */
   | 'allowsEvaluator'
-  /** Past the most rules read; the rest are not read. */
-  | 'tooMany'
 
 export interface RuleProblem {
   readonly kind: RuleProblemKind
@@ -130,10 +127,10 @@ function isMatchAnywhere(rule: CommandRule, command: string, dialect: ShellDiale
 }
 
 /**
- * An allow rule over one plain command: the command begins with its words
- * exactly (the name by case alone in PowerShell, never by a path: `./git`
- * is not `git`).
- */
+An allow rule over one plain command: the command begins with its words
+exactly (the name by case alone in PowerShell, never by a path: `./git`
+is not `git`).
+*/
 function isCommandAllowed(
   rule: CommandRule,
   words: readonly string[],
@@ -169,9 +166,9 @@ export function isEvaluator(words: readonly string[], dialect: ShellDialect): bo
 }
 
 /**
- * Whether one plain command is allowed by these rules and does not run text
- * as code. Its rule, or undefined.
- */
+Whether one plain command is allowed by these rules and does not run text
+as code. Its rule, or undefined.
+*/
 function allowingRule(
   rules: readonly CommandRule[],
   command: string,
@@ -304,14 +301,16 @@ function compileOne(
 }
 
 /**
- * The rules of one setting, each checked against its own examples. A rule
- * that is wrong is left out if it allows, and kept if it only tightens; a
- * repository's allow rules are always left out.
- */
+The rules of one setting, each checked against its own examples. A rule
+that is wrong is left out if it allows, and kept if it only tightens; a
+repository's allow rules are always left out.
+*/
 export function compileCommandRules(raw: readonly unknown[], source: RuleSource): CompiledRules {
   const rules: CommandRule[] = []
   const problems: RuleProblem[] = []
-  for (const [position, entry] of raw.slice(0, COMMAND_RULES_MAX).entries()) {
+  // NOLIMITSSET (PLAN.md D121): no rule-count ceiling of ours — every rule
+  // the person sets is read (the removed 500 was ours).
+  for (const [position, entry] of raw.entries()) {
     const { rule, problem } = compileOne(entry, position + 1, source)
     if (rule !== undefined) {
       rules.push(rule)
@@ -319,14 +318,6 @@ export function compileCommandRules(raw: readonly unknown[], source: RuleSource)
     if (problem !== undefined) {
       problems.push(problem)
     }
-  }
-  if (raw.length > COMMAND_RULES_MAX) {
-    problems.push({
-      kind: 'tooMany',
-      index: COMMAND_RULES_MAX + 1,
-      pattern: '',
-      detail: String(raw.length),
-    })
   }
   return { rules, problems }
 }

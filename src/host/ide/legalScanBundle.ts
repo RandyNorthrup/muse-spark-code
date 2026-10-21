@@ -16,7 +16,12 @@ import { uiLocale } from '../../shared/l10n/text'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import { isLegalScanBundle, type LegalScanBundle } from '../../shared/legalScanEntry'
+import {
+  isLegalFixBundle,
+  isLegalScanBundle,
+  type LegalFixBundle,
+  type LegalScanBundle,
+} from '../../shared/legalScanEntry'
 export { isLegalScanBundle } from '../../shared/legalScanEntry'
 
 export interface LegalScanLoaderDeps {
@@ -40,6 +45,25 @@ export function legalScanLoader(deps: LegalScanLoaderDeps): () => LegalScanBundl
     bundle.setLanguage?.(UI_TEXT, uiLocale())
     return bundle
   }
+}
+
+export interface LegalFixLoaderDeps {
+  /** dist/legalFix.js beside the running bundle. */
+  readonly bundlePath: string
+  readonly log: Logger
+  /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+}
+
+/** The header-fix planner, required on the first fix request and kept from then on. */
+export function legalFixLoader(deps: LegalFixLoaderDeps): () => LegalFixBundle {
+  const load = lazyBundleLoader({
+    ...deps,
+    isBundle: isLegalFixBundle,
+    label: 'legal fix',
+    unavailable: () => UI_TEXT.legalFixRefusedUnavailable,
+  })
+  return () => load()
 }
 
 interface LegalExplanationBundle {

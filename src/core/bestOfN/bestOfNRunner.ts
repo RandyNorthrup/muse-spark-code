@@ -30,7 +30,6 @@ import type { CoreLogger } from '../logging'
 import { isSamePath } from '../paths'
 import { pathModule } from '../workspaceRoot'
 import { worktreeAddArgs, worktreeHookPath, worktreeRemoveArgs } from '../worktrees'
-import { HOOK_MAX_STOP_CONTINUATIONS } from '../../shared/constants'
 import type { ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 import type { BestOfNRequest } from '../../shared/bestOfN'
 import { validateBestOfNRequest } from '../../shared/bestOfN'
@@ -59,10 +58,10 @@ export interface BestOfNAttemptDriver {
   cancel(): Promise<void>
   dispose(): void
   /**
-   * A TeammateIdle hook kept the attempt working (M91 lane E): send one more
-   * turn with the hook's reason. Absent until the host implements it; without
-   * it the attempt completes as before.
-   */
+  A TeammateIdle hook kept the attempt working (M91 lane E): send one more
+  turn with the hook's reason. Absent until the host implements it; without
+  it the attempt completes as before.
+  */
   readonly continueAttempt?: ((reason: string) => Promise<void>) | undefined
 }
 
@@ -78,11 +77,11 @@ export interface BestOfNTeammateIdleResult {
 }
 
 /**
- * The run's extension hooks (M91 lane E), fired from the parent session's
- * snapshot by the host: attempts run with hooks off, so the coordinator's
- * side fires. Absent until the host wires it; without it the run behaves as
- * before.
- */
+The run's extension hooks (M91 lane E), fired from the parent session's
+snapshot by the host: attempts run with hooks off, so the coordinator's
+side fires. Absent until the host wires it; without it the run behaves as
+before.
+*/
 export interface BestOfNExtensionHooks {
   readonly fireWorktreeHook: (
     event: Extract<ExtensionHookEvent, 'WorktreeCreate' | 'WorktreeRemove'>,
@@ -187,7 +186,7 @@ interface RunningAttempt {
   patch: string | undefined
   isCapturing: boolean
   gitDir: string | undefined
-  /** TeammateIdle keeps so far; past `HOOK_MAX_STOP_CONTINUATIONS` the attempt stops. */
+  /** TeammateIdle keeps so far, counted for the panel; keeps run until the hook releases the attempt. */
   teammateKeeps: number
 }
 
@@ -279,10 +278,10 @@ function snapshotOf(run: LiveRun): BestOfNRun {
 }
 
 /**
- * One best-of-N run per window. `start` asks once and fans out; driver
- * events settle attempts; `take` applies and stages the frozen tree; `cancel`
- * stops whatever still runs. Every change posts the run through `onUpdate`.
- */
+One best-of-N run per window. `start` asks once and fans out; driver
+events settle attempts; `take` applies and stages the frozen tree; `cancel`
+stops whatever still runs. Every change posts the run through `onUpdate`.
+*/
 export class BestOfNRunner {
   private run: LiveRun | undefined
 
@@ -566,7 +565,23 @@ export class BestOfNRunner {
           this.disposeOf(entry)
           break
         }
-        if (!event.ceilingReached && (await this.maybeKeepWorking(run, entry))) {
+        if (event.ceilingReached) {
+          // The one exit's typed outcome: the ceiling, not the model, ended
+          // the attempt. Never a success: failed with the typed reason, so
+          // the attempt can never be taken as the winner; its wrap-up text
+          // stays as what the attempt reached and its paid count is exact.
+          this.setAttempt(run, attemptId, {
+            ...entry.attempt,
+            status: 'failed',
+            requestsMade: event.requestsMade,
+            ceilingReached: true,
+            approvalsDenied: event.approvalsDenied,
+            failureReason: event.reason ?? event.terminal,
+          })
+          this.disposeOf(entry)
+          break
+        }
+        if (await this.maybeKeepWorking(run, entry)) {
           break
         }
         await this.completeAttempt(run, entry, event)
@@ -585,14 +600,14 @@ export class BestOfNRunner {
   }
 
   /**
-   * An attempt stopped while its siblings run (M91 lane E): TeammateIdle
-   * fires from the parent's snapshot, because attempts run with hooks off.
-   * A block keeps the attempt working inside its consented run — the driver
-   * sends one more turn, billed to the run's ceiling — up to
-   * `HOOK_MAX_STOP_CONTINUATIONS` keeps, then the attempt stops for good.
-   * True when the attempt keeps working; its completion waits for the next
-   * event.
-   */
+  An attempt stopped while its siblings run (M91 lane E): TeammateIdle
+  fires from the parent's snapshot, because attempts run with hooks off.
+  A block keeps the attempt working inside its consented run — the driver
+  sends one more turn, billed to the run's ceiling — for as many rounds as
+  the work needs, until the hook releases the attempt, its siblings finish,
+  or the person stops the run. True when the attempt keeps working; its
+  completion waits for the next event.
+  */
   private async maybeKeepWorking(run: LiveRun, entry: RunningAttempt): Promise<boolean> {
     const fireTeammateIdle = this.deps.extensionHooks?.fireTeammateIdle
     if (fireTeammateIdle === undefined) {
@@ -603,7 +618,7 @@ export class BestOfNRunner {
         candidate.attempt.attemptId !== entry.attempt.attemptId &&
         !isTerminal(candidate.attempt.status),
     ).length
-    if (siblingsRunning === 0 || entry.teammateKeeps >= HOOK_MAX_STOP_CONTINUATIONS) {
+    if (siblingsRunning === 0) {
       return false
     }
     let verdict: BestOfNTeammateIdleResult
@@ -767,6 +782,29 @@ export class BestOfNRunner {
     }
   }
 
+  /**
+  Failed setup tears down only what it made: the empty worktrees from
+  before launch, never a force-delete after a host could have written to
+  an attempt. Every attempt left behind reads cancelled.
+  */
+  private async cancelSetup(
+    run: LiveRun,
+    created: readonly RunningAttempt[],
+    repositoryRoot: string,
+  ): Promise<void> {
+    if (run.running.every((entry) => entry.attempt.status === 'queued')) {
+      await this.removeWorktrees(run, created, repositoryRoot)
+    }
+    for (const entry of run.running) {
+      if (isTerminal(entry.attempt.status)) {
+        continue
+      }
+
+      entry.attempt = { ...entry.attempt, status: 'cancelled' }
+      this.disposeOf(entry)
+    }
+  }
+
   private async removeWorktrees(
     run: LiveRun,
     entries: readonly RunningAttempt[],
@@ -842,11 +880,7 @@ export class BestOfNRunner {
     if (this.run !== undefined) {
       this.deps.coordinator.forget(this.run.ticket)
     }
-    for (let index = 0; index < start.attempts; index += 1) {
-      run.running.push(freshAttempt(runId, index, repositoryRoot, this.deps.platform))
-    }
     this.run = run
-    this.publish(run)
     const created: RunningAttempt[] = []
     try {
       this.requireCurrent(run)
@@ -895,8 +929,15 @@ export class BestOfNRunner {
       run.gitDir = canonicalGitDir
       run.baseRef = this.objectId(await this.git(run, HEAD_ARGS, repositoryRoot))
       this.requireCurrent(run)
-      for (const entry of run.running) {
+      // One entry at a time, after consent: nothing is allocated before the
+      // run is allowed, and every item creation is a cancellation point, so
+      // an uncapped request never blocks the host building entries it may
+      // never start. Each launch below still passes through background
+      // resource admission, governed by the person's machine resources.
+      for (let index = 0; index < start.attempts; index += 1) {
         this.requireCurrent(run)
+        const entry = freshAttempt(runId, index, repositoryRoot, this.deps.platform)
+        run.running.push(entry)
         await this.git(
           run,
           worktreeAddArgs(entry.attempt.worktreePath, entry.attempt.branch, run.baseRef),
@@ -939,30 +980,23 @@ export class BestOfNRunner {
           throw new BestOfNError('worktreeFailed')
         }
       }
+      this.publish(run)
       for (const entry of run.running) {
         this.requireCurrent(run)
         await this.launch(run, entry, start)
       }
     } catch (error: unknown) {
-      // Never force-delete an attempt after a host could have written to
-      // it. Failed setup removes only the empty worktrees made before launch.
-      if (run.running.every((entry) => entry.attempt.status === 'queued')) {
-        await this.removeWorktrees(run, created, repositoryRoot)
-      }
-      for (const entry of run.running) {
-        if (isTerminal(entry.attempt.status)) {
-          continue
-        }
-
-        entry.attempt = { ...entry.attempt, status: 'cancelled' }
-        this.disposeOf(entry)
-      }
+      // Failed setup tears down only what it made and aborts the run; a
+      // refusal keeps its kind, anything else refuses worktreeFailed with
+      // the failure as its cause. The notice names the failure's own words
+      // through `detail`, as the take path below does.
+      await this.cancelSetup(run, created, repositoryRoot)
       run.controller.abort()
       if (isBestOfNError(error)) {
         throw error
       }
       const detail = error instanceof Error ? error.message : String(error)
-      throw new BestOfNError('worktreeFailed', detail)
+      throw new BestOfNError('worktreeFailed', detail, { cause: error })
     } finally {
       run.isStarting = false
       this.publish(run)
@@ -1047,8 +1081,11 @@ export class BestOfNRunner {
       if (isBestOfNError(error)) {
         throw error
       }
+      // A foreign take failure refuses worktreeFailed, carrying the
+      // failure that proved it; the notice names its own words through
+      // `detail`.
       const detail = error instanceof Error ? error.message : String(error)
-      throw new BestOfNError('worktreeFailed', detail)
+      throw new BestOfNError('worktreeFailed', detail, { cause: error })
     } finally {
       try {
         completeEdit?.(wasWritten)

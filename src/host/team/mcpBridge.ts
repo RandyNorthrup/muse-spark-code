@@ -23,7 +23,6 @@ import {
   MCP_PROTOCOL_VERSION,
   MODEL_API_MODEL_TEXT,
   MCP_POOL_MODEL_TEXT,
-  CHECK_COMMANDS_MAX,
   CHECK_NAME_MAX_CHARS,
   GIT_PATH_MAX_DEFAULT,
   TEAM_WRITE_SET_MAX,
@@ -32,6 +31,7 @@ import {
   type CheckCommandSetting,
 } from '../../shared/constants'
 import { type Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 import { fill } from '../../shared/l10n/text'
 import {
@@ -101,10 +101,10 @@ export interface TeamBridgeDeps {
   readonly pool: TeamBridgePool
   readonly leases: ResourceRegistry
   /**
-   * This window's servers by origin, from the settings entries (M31's
-   * reader) at the glue: stdio entries are local, streamable-HTTP ones
-   * remote. Absent means unknown: treated as remote, never restarted.
-   */
+  This window's servers by origin, from the settings entries (M31's
+  reader) at the glue: stdio entries are local, streamable-HTTP ones
+  remote. Absent means unknown: treated as remote, never restarted.
+  */
   readonly serverOrigins: Readonly<Record<string, TeamServerOrigin>>
   /** Command and package per server, for the registry's defaults. */
   readonly serverIdentities?: Readonly<Record<string, ServerIdentity>> | undefined
@@ -178,10 +178,10 @@ export class TeamMcpBridge {
 
   public constructor(private readonly deps: TeamBridgeDeps) {}
 
-  private clientId(caller: LiveCaller, serverName?: string): string {
+  private clientId(caller: LiveCaller, serverName = ''): string {
     // The token identifies this registration, including after an id is reused.
     // Kept in memory only, never returned in call identities or logs.
-    const id = `${caller.token}\n${serverName ?? ''}`
+    const id = `${caller.token}\n${serverName}`
     caller.clients.add(id)
     return id
   }
@@ -252,7 +252,8 @@ export class TeamMcpBridge {
     let args: unknown
     try {
       args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       return this.refused(MCP_POOL_MODEL_TEXT.mcpArgumentsNotObject)
     }
     if (!bridgeArgumentsSchema.safeParse(args).success) {
@@ -404,6 +405,7 @@ export class TeamMcpBridge {
       callerId = decodeURIComponent(parts[0] ?? '')
       serverName = parts[1] === undefined ? undefined : decodeURIComponent(parts[1])
     } catch {
+      // A route that cannot be parsed names no caller: 404, never a throw.
       response.writeHead(HTTP_STATUS.notFound).end()
       return
     }
@@ -433,6 +435,7 @@ export class TeamMcpBridge {
     try {
       parsed = JSON.parse(body)
     } catch {
+      // An unparseable body answers the JSON-RPC parse error, never a throw.
       response
         .writeHead(HTTP_STATUS.ok, { 'content-type': JSON_CONTENT_TYPE })
         .end(this.errorBody(null, JSON_RPC_ERRORS.parseError, 'Parse error'))
@@ -498,7 +501,7 @@ export class TeamMcpBridge {
     try {
       await this.handle(request, response)
     } catch (error: unknown) {
-      this.deps.log.error(`Team MCP bridge request failed: ${describe(error)}`)
+      this.deps.log.error(`Team MCP bridge request failed: ${failureForLog(error)}`)
       if (response.headersSent) {
         response.end()
       } else {
@@ -538,10 +541,10 @@ export class TeamMcpBridge {
   }
 
   /**
-   * A call from an engine worker, in process: lease admission, the pool's raw
-   * result, and the lease's terminal answer. Refusals come back as tool
-   * errors, never thrown, so the worker hears them as the orchestrator does.
-   */
+  A call from an engine worker, in process: lease admission, the pool's raw
+  result, and the lease's terminal answer. Refusals come back as tool
+  errors, never thrown, so the worker hears them as the orchestrator does.
+  */
   public async callAs(
     callerId: string,
     functionName: string,
@@ -560,11 +563,11 @@ export class TeamMcpBridge {
   }
 
   /**
-   * The bridge's entries for `config.mcpServers` (Muse Code sessions) and
-   * `session/new` `mcpServers` (external agents): every allowed server under
-   * its own name, pointing at this caller's endpoint with its token. Merged
-   * after lane T's entries by the backend manager at integration.
-   */
+  The bridge's entries for `config.mcpServers` (Muse Code sessions) and
+  `session/new` `mcpServers` (external agents): every allowed server under
+  its own name, pointing at this caller's endpoint with its token. Merged
+  after lane T's entries by the backend manager at integration.
+  */
   public serverEntriesFor(callerId: string): Readonly<Record<string, SessionMcpServer>> {
     const live = this.liveCaller(callerId)
     return Object.fromEntries(
@@ -581,9 +584,9 @@ export class TeamMcpBridge {
   }
 
   /**
-   * Registers a caller and mints its endpoint and token. The bridge must be
-   * started first; registering the same id twice is refused.
-   */
+  Registers a caller and mints its endpoint and token. The bridge must be
+  started first; registering the same id twice is refused.
+  */
   public registerCaller(caller: BridgeCaller): BridgeEndpoint {
     if (this.closed || this.port === undefined) {
       throw new Error('The team bridge is not started')
@@ -640,11 +643,7 @@ export interface BridgeToolListing {
 // --- M96c lane O: bridge run_checks region. ---
 
 const argsSchema = z.strictObject({
-  names: z.optional(
-    z
-      .array(z.string().check(z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)))
-      .check(z.maxLength(CHECK_COMMANDS_MAX)),
-  ),
+  names: z.optional(z.array(z.string().check(z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)))),
   paths: z.optional(
     z
       .array(z.string().check(z.minLength(1), z.maxLength(GIT_PATH_MAX_DEFAULT)))
@@ -682,7 +681,10 @@ export function bridgeRunChecks(deps: BridgeChecksDeps): {
       }
       admit()
       if (checks.length === 0) throw new Error(MODEL_API_MODEL_TEXT.runChecksNone)
-      const names = args.names ?? checks.map((check) => check.name)
+      // One run per distinct check, in requested order: a repeated name
+      // would execute the same command again for every duplicate (PR229FIX
+      // T6). Distinct checks stay unbounded.
+      const names = [...new Set(args.names ?? checks.map((check) => check.name))]
       const paths = await deps.pathsFor(args.paths)
       admit()
       const chosen = names.map((name) => {

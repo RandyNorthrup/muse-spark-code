@@ -5,22 +5,23 @@
 // this record). A local server without auth stores nothing. Meta's key keeps
 // its own secret and flow (`CredentialStore`).
 
+import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import { CredentialStore } from '../auth/credentialStore'
 
 /**
- * The three-method subset of `vscode.SecretStorage` records use. Spelled
- * out here (rather than importing `SecretStore` from `../auth`) so the two
- * modules stay acyclic: the store wraps these functions, structurally.
- */
+The three-method subset of `vscode.SecretStorage` records use. Spelled
+out here (rather than importing `SecretStore` from `../auth`) so the two
+modules stay acyclic: the store wraps these functions, structurally.
+*/
 export interface RecordStore {
   get(key: string): PromiseLike<string | undefined>
   store(key: string, value: string): PromiseLike<void>
   delete(key: string): PromiseLike<void>
 }
 
-const credentialRecordSchema = z.object({
+export const credentialRecordSchema = z.object({
   v: z.literal(1),
   auth: z.enum(['apiKey', 'oauth', 'subscription']),
   origin: z.url(),
@@ -55,6 +56,15 @@ export function providerSecretKey(id: string): string {
   return `${PROVIDER_SECRET_PREFIX}${id}`
 }
 
+/**
+Refuses a malformed stored credential with its fixed sentence. A syntax
+failure's message quotes the stored text, which holds the secret, so the
+refusal carries no cause; the caller knows the provider id already.
+*/
+function refuseMalformedCredential(id: string): never {
+  throw new Error(`The stored credential for provider ${id} is not valid JSON`)
+}
+
 /** Stores a provider's credential record, bound to its origin. */
 export async function saveProviderCredential(
   secrets: RecordStore,
@@ -65,10 +75,10 @@ export async function saveProviderCredential(
 }
 
 /**
- * The stored record, or undefined when none was entered. Throws when a
- * stored value is not a record: a damaged entry must ask for the credential
- * again, never read as absent and never used.
- */
+The stored record, or undefined when none was entered. Throws when a
+stored value is not a record: a damaged entry must ask for the credential
+again, never read as absent and never used.
+*/
 export async function readProviderCredential(
   secrets: RecordStore,
   id: string,
@@ -80,8 +90,10 @@ export async function readProviderCredential(
   let parsed: unknown
   try {
     parsed = JSON.parse(stored)
-  } catch {
-    throw new Error(`The stored credential for provider ${id} is not valid JSON`)
+  } catch (error: unknown) {
+    // Only malformed JSON reads invalid here: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
+    refuseMalformedCredential(id)
   }
   const record = credentialRecordSchema.safeParse(parsed)
   if (!record.success) {
@@ -96,18 +108,53 @@ export async function deleteProviderCredential(secrets: RecordStore, id: string)
 }
 
 /**
- * Whether `requestOrigin` is the origin the record was entered for. Origins,
- * not hosts: `http` and `https` on one host, or two ports on one host, are
- * different origins, and either difference refuses the request (M95
- * acceptance 5).
- */
+The stored credential's identity (SHA-256 of its secret), or undefined
+when none is stored, the stored value is damaged, or the store cannot be
+read. Usage surfaces show only the budgets of this identity, so a rotated
+or removed key's numbers disappear; when the identity cannot be read no
+budget is shown at all (RVCM952D: like the runtime adapter, unknown is
+never a previous key to keep).
+*/
+export async function storedCredentialId(
+  secrets: RecordStore,
+  id: string,
+): Promise<string | undefined> {
+  let stored: string | undefined
+  try {
+    stored = await secrets.get(providerSecretKey(id))
+  } catch {
+    return undefined
+  }
+  if (stored === undefined || stored === '') return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stored)
+  } catch {
+    return undefined
+  }
+  const record = credentialRecordSchema.safeParse(parsed)
+  if (!record.success) return undefined
+  const identity = createHash('sha256').update(record.data.secret).digest('hex')
+  return identity
+}
+
+/**
+Whether `requestOrigin` is the origin the record was entered for. Origins,
+not hosts: `http` and `https` on one host, or two ports on one host, are
+different origins, and either difference refuses the request (M95
+acceptance 5).
+*/
 export function isOriginBound(record: CredentialRecord, requestOrigin: string): boolean {
   let stored: string
   let request: string
   try {
     stored = new URL(record.origin).origin
     request = new URL(requestOrigin).origin
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed origin refuses the request; a stored record passed
+    // the URL schema, so only the request origin can fail here. Anything
+    // else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
   return stored === request

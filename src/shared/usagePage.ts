@@ -3,12 +3,7 @@
 import * as z from 'zod/mini'
 import { isUsageText } from './l10n/usageTable'
 import type { UsageText } from './l10n/usageEn'
-import {
-  USAGE_DETAIL_DAYS,
-  USAGE_HISTORY_DAYS_MAX,
-  USAGE_HISTORY_DAYS_MIN,
-  USAGE_JOURNAL_VERSION,
-} from './constants'
+import { USAGE_DETAIL_DAYS, USAGE_HISTORY_DAY_MIN, USAGE_JOURNAL_VERSION } from './constants'
 import {
   usageAmountSchema,
   usageCertaintySchema,
@@ -77,6 +72,9 @@ const breakdownRowSchema = /* @__PURE__ */ z.strictObject({
 const bucketSchema = /* @__PURE__ */ z.strictObject({
   at: usageCountSchema,
   day: usageDaySchema,
+  // Date.getTimezoneOffset() of the records behind this bucket, so the hour
+  // label keeps the timezone they were written in. Absent for rollup months.
+  timezoneOffsetMins: z.optional(z.int()),
   totals: usageTotalsSchema,
   groups: z.array(breakdownRowSchema),
 })
@@ -86,6 +84,9 @@ export const usageBudgetSchema = /* @__PURE__ */ z.strictObject({
   spentUsd: usageUsdSchema,
   capUsd: z.optional(usageUsdSchema),
   uncertainUsd: z.optional(usageUsdSchema),
+  reservedUsd: z.optional(usageUsdSchema),
+  /** Calls that went out and reported no usage: counted, never costed. */
+  unknownChargeCalls: z.optional(usageCountSchema),
   stopped: z.boolean(),
   raisedToday: z.optional(z.boolean()),
   projectedUsd: z.optional(usageUsdSchema),
@@ -129,7 +130,8 @@ export const usagePageStateSchema = /* @__PURE__ */ z.strictObject({
     enabled: z.boolean(),
     host: usageLabelSchema,
     detailDays: z.literal(USAGE_DETAIL_DAYS),
-    historyDays: z.int().check(z.gte(USAGE_HISTORY_DAYS_MIN), z.lte(USAGE_HISTORY_DAYS_MAX)),
+    // NOLIMITSSET (PLAN.md D121): null keeps every day — no day count of ours.
+    historyDays: z.nullable(z.int().check(z.gte(USAGE_HISTORY_DAY_MIN))),
     recordCount: usageCountSchema,
     newerVersionRecords: usageCountSchema,
     tornLines: usageCountSchema,

@@ -117,10 +117,10 @@ function itemText(item: MarkdownNode): string {
 }
 
 /**
- * The items of the plan's top-level numbered lists, or, when it numbers
- * none, of its top-level bulleted lists, as the panel shows them, empty ones
- * left out. Nested items and further paragraphs belong to their item.
- */
+The items of the plan's top-level numbered lists, or, when it numbers
+none, of its top-level bulleted lists, as the panel shows them, empty ones
+left out. Nested items and further paragraphs belong to their item.
+*/
 export function listItems(body: string): readonly string[] {
   const ordered: string[] = []
   const bullets: string[] = []
@@ -140,10 +140,10 @@ export function listItems(body: string): readonly string[] {
 }
 
 /**
- * The plan as the model gets it: the tree the panel shows, written back as
- * Markdown. Every text in it is text the panel rendered (raw HTML aside,
- * which the caller refuses in a reply).
- */
+The plan as the model gets it: the tree the panel shows, written back as
+Markdown. Every text in it is text the panel rendered (raw HTML aside,
+which the caller refuses in a reply).
+*/
 export function briefText(text: string): string {
   return toMarkdown(shownTree(text), BRIEF_OPTIONS)
 }

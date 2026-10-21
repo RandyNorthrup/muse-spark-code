@@ -12,7 +12,6 @@ import {
   REPO_MAP_CHARS_PER_TOKEN,
   REPO_MAP_CONCURRENCY,
   REPO_MAP_MAX_FILE_CHARS,
-  REPO_MAP_MAX_FILES,
   REPO_MAP_MAX_LOOKUPS,
   REPO_MAP_MIN_NAME_CHARS,
   REPO_MAP_PROMPT_TIME_BUDGET_MS,
@@ -77,10 +76,10 @@ function countNames(text: string): ReadonlyMap<string, number> {
 }
 
 /**
- * The time budget and the Stop that end the map's work early. It listens
- * for the Stop once, and `close` takes the listener off again, so a turn
- * that asks for many maps collects none.
- */
+The time budget and the Stop that end the map's work early. It listens
+for the Stop once, and `close` takes the listener off again, so a turn
+that asks for many maps collects none.
+*/
 class Limits {
   private readonly stopped: Promise<typeof STOPPED>
   /** Takes the Stop listener off when the map is done. */
@@ -108,10 +107,10 @@ class Limits {
   }
 
   /**
-   * The value of the work `start` begins, or `undefined` once the time is up
-   * or the turn is stopped: when that is so already the work is not begun,
-   * and otherwise it is left to finish on its own.
-   */
+  The value of the work `start` begins, or `undefined` once the time is up
+  or the turn is stopped: when that is so already the work is not begun,
+  and otherwise it is left to finish on its own.
+  */
   public async within<T>(start: () => Promise<T>): Promise<T | undefined> {
     if (this.isOver()) {
       return undefined
@@ -138,11 +137,11 @@ class Limits {
 }
 
 /**
- * Runs `work` over `items`, a few at a time, until the limits say stop;
- * returns the results of the batches that finished, in order. A batch the
- * limits cut off is left to run, and its results are dropped: nothing it
- * finds later reaches the map or its counts.
- */
+Runs `work` over `items`, a few at a time, until the limits say stop;
+returns the results of the batches that finished, in order. A batch the
+limits cut off is left to run, and its results are dropped: nothing it
+finds later reaches the map or its counts.
+*/
 async function inBatches<T, R>(
   items: readonly T[],
   limits: Limits,
@@ -267,11 +266,11 @@ function joinedLength(lines: readonly string[]): number {
 }
 
 /**
- * The map as lines within `budget` characters, every line counted: the
- * lead, as many ranked files as fit, the line counting the rest, and the
- * notes. When the lead, that line and the notes alone do not fit, those
- * lines, and `fits` false.
- */
+The map as lines within `budget` characters, every line counted: the
+lead, as many ranked files as fit, the line counting the rest, and the
+notes. When the lead, that line and the notes alone do not fit, those
+lines, and `fits` false.
+*/
 function renderLines(
   ranked: readonly RankedFile[],
   budget: number,
@@ -312,15 +311,15 @@ function tooSmall(maxTokens: number, lines: readonly string[]): CodeIntelRefusal
 
 interface BuiltMap {
   readonly ranked: readonly RankedFile[]
-  /** What the map could not cover: lookups cut short, files past the cap. */
+  /** What the map could not cover: lookups cut short by the time or a Stop. */
   readonly notes: readonly string[]
 }
 
 /**
- * The ranked files, or the refusal when no language service answers
- * workspace symbols (the map would be empty for want of one, not for want
- * of code).
- */
+The ranked files, or the refusal when no language service answers
+workspace symbols (the map would be empty for want of one, not for want
+of code).
+*/
 async function buildMap(query: CodeIntelQuery, options: RepoMapOptions): Promise<BuiltMap> {
   const { now } = query.deps
   const limits = new Limits(now, now() + options.timeBudgetMs, options.signal)
@@ -337,18 +336,19 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
     return { ranked: [], notes: [CODE_INTEL_MODEL_TEXT.repoMapNoFiles] }
   }
   const listed = found.toSorted((a, b) => compareText(a, b))
-  // The cap counts readable files: a file the permission profile hides
-  // spends none of it, so the scan goes on past it (the review of PR #89).
+  // Every listed file is ranked: a file the permission profile hides is
+  // skipped, never counted (the review of PR #89). The scan still ends at
+  // the time budget or a Stop, and the map says it is partial then.
   const files: string[] = []
   let scanned = 0
-  while (files.length < REPO_MAP_MAX_FILES && scanned < listed.length) {
-    const pending = listed.slice(scanned, scanned + REPO_MAP_MAX_FILES - files.length)
+  while (scanned < listed.length) {
+    const pending = listed.slice(scanned)
     const placed = await inBatches(pending, limits, async (path) => ({
       path,
       file: await query.place(path),
     }))
     scanned += placed.length
-    files.push(...placed.flatMap((entry) => (entry.file === undefined ? [] : [entry.path])))
+    files.push(...placed.flatMap((entry) => (entry.file === undefined ? [] : entry.path)))
     if (placed.length < pending.length) break
   }
   if (files.length === 0 && query.hasDeniedResults) throw query.policyRefusal()
@@ -362,7 +362,7 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
         .map(async (symbol) => ({ symbol, file: await query.place(symbol.location.path) })),
     )
     const inside = exact.flatMap(({ symbol, file }) =>
-      file === undefined ? [] : [{ relative: file.relative, symbol }],
+      file === undefined ? [] : { relative: file.relative, symbol },
     )
     return { name, answered: found.length, inside }
   })
@@ -395,22 +395,14 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
           }),
         ]
       : []),
-    ...(files.length >= REPO_MAP_MAX_FILES && scanned < listed.length
-      ? [
-          fill(CODE_INTEL_MODEL_TEXT.repoMapFilesCapped, {
-            count: String(REPO_MAP_MAX_FILES),
-            total: String(listed.length),
-          }),
-        ]
-      : []),
   ]
   return { ranked: rank(definitions, uses), notes }
 }
 
 /**
- * The `repo_map` tool's answer within `maxTokens`, all of its text counted;
- * the refusal names the budget needed when its fixed text does not fit.
- */
+The `repo_map` tool's answer within `maxTokens`, all of its text counted;
+the refusal names the budget needed when its fixed text does not fit.
+*/
 export async function repoMap(query: CodeIntelQuery, options: RepoMapOptions): Promise<string> {
   const { ranked, notes } = await buildMap(query, options)
   query.checkReadable()
@@ -431,11 +423,11 @@ export async function repoMap(query: CodeIntelQuery, options: RepoMapOptions): P
 }
 
 /**
- * The system prompt's section (opt in, M67): the map within its own budget
- * and time, its heading counted, undefined when no file ranks (or, never
- * with the fixed budget, when its fixed text would not fit). Rejects with
- * the refusal when no language service answers.
- */
+The system prompt's section (opt in, M67): the map within its own budget
+and time, its heading counted, undefined when no file ranks (or, never
+with the fixed budget, when its fixed text would not fit). Rejects with
+the refusal when no language service answers.
+*/
 export async function repoMapSection(
   deps: CodeIntelDeps,
   signal: AbortSignal,

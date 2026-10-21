@@ -1,3 +1,4 @@
+import type { EstimateDiagnostic, EstimateViewState } from '../shared/estimateDiagnostic'
 import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import { retrySurface } from './surfaceRetry'
@@ -50,6 +51,7 @@ import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
+import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
 import type { EstimateRequest, EstimateSection } from '../shared/estimate'
@@ -292,10 +294,10 @@ export interface AppProps {
   /** U/M95: already-validated, lazy Vault cards; values never enter this slot or UI state. */
   readonly vaultApprovals?: ReactNode
   /**
-   * The UI store. main.tsx owns one that outlives a crashed tree and keeps
-   * reducing host messages under the crash screen (M25); without one the
-   * app makes its own and listens to the host itself (the tests).
-   */
+  The UI store. main.tsx owns one that outlives a crashed tree and keeps
+  reducing host messages under the crash screen (M25); without one the
+  app makes its own and listens to the host itself (the tests).
+  */
   readonly store?: UiStore
   /** Injected so tests get deterministic ids. */
   readonly newLocalId?: () => string
@@ -308,10 +310,10 @@ export interface AppProps {
 type RewindConversationRequest = Extract<WebviewToHostMessage, { type: 'rewindConversation' }>
 
 /**
- * The conversation rewind for a user card (M53): a fork cut before its turn
- * and its prompt back in the composer; undefined when the card cannot be
- * rewound (no cut, a running or a file card, no session).
- */
+The conversation rewind for a user card (M53): a fork cut before its turn
+and its prompt back in the composer; undefined when the card cannot be
+rewound (no cut, a running or a file card, no session).
+*/
 function rewindRequest(current: UiState, entryId: string): RewindConversationRequest | undefined {
   const entry = current.transcript.find((candidate) => candidate.id === entryId)
   const cut = forkCutBefore(current.transcript, entryId)
@@ -416,6 +418,12 @@ function isGated(state: UiState): boolean {
 
 /** The pill reads `model effort`, as the Claude Code pill does. */
 export function modelLabelFor(state: UiState): string {
+  // While the sign-in facts are still being read the pill says so (F60):
+  // neither "Not signed in" (unknown yet) nor "Starting Muse Code…" (the
+  // backend is not what is waited for).
+  if (state.auth.status === 'checking') {
+    return UI_TEXT.checkingSignIn
+  }
   if (state.auth.status !== 'signedIn') {
     return UI_TEXT.notSignedIn
   }
@@ -437,7 +445,9 @@ export function modelLabelFor(state: UiState): string {
 async function loadSchedulePrompt(): Promise<typeof SchedulePromptModule | undefined> {
   try {
     return await import('./schedules/prompt')
-  } catch {
+  } catch (error: unknown) {
+    // An unloadable mapping answers nothing: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     return undefined
   }
 }
@@ -448,11 +458,11 @@ function providerOf(modelId: string): string | undefined {
 }
 
 /**
- * The composer's paid badge (M33, PLAN.md D30): the paid features that are
- * on, named, with their prices in the tooltip. Shown on the Model API
- * backend only, the one that uses them. The names paint with startup; the
- * prices wait for the lazy money chunk, so the tooltip arrives just after.
- */
+The composer's paid badge (M33, PLAN.md D30): the paid features that are
+on, named, with their prices in the tooltip. Shown on the Model API
+backend only, the one that uses them. The names paint with startup; the
+prices wait for the lazy money chunk, so the tooltip arrives just after.
+*/
 function paidBadgeFeatures(state: UiState): readonly PaidFeature[] {
   // The features on that this backend uses (M44: the key's images and voice on Muse Code).
   const usable = usablePaidFeatures(state.auth.backend, state.paid.isKeyStored)
@@ -572,7 +582,7 @@ export function App({
     (selectedProvider === 'chatgpt' ||
       selectedProvider === 'copilot' ||
       selectedModel?.pricing === 'plan')
-  const [isPlanModalOpen, setPlanModalOpen] = useState<boolean>()
+  const [isPlanModalOpen = true, setPlanModalOpen] = useState<boolean>()
   const [chosenOverlay, setOverlay] = useState<Overlay | undefined>(undefined)
   const sharingAction = useCallback(
     (action: string, payload: unknown = {}) => {
@@ -731,7 +741,10 @@ export function App({
         .then((channel) => {
           if (isActive) stop = channel.subscribeChanges(listener)
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unloadable surface reads failed: only a non-error keeps its
+          // kind past the panel.
+          if (!(error instanceof Error)) throw error
           if (isActive)
             dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.surfaceLoadFailed })
         })
@@ -967,21 +980,31 @@ export function App({
   // reveals the panel and settles every pending run. Re-estimates are
   // legitimate (the panel's Refresh), so runs are never deduplicated here.
   const estimatePendings = useRef(
-    new Map<string, { resolve(section: EstimateSection): void; reject(error: Error): void }>(),
+    new Map<
+      string,
+      {
+        resolve(section: EstimateSection | EstimateDiagnostic): void
+        reject(error: DOMException): void
+      }
+    >(),
   )
-  const estimateStarts = useRef(new Map<string, { resolve(): void; reject(error: Error): void }>())
+  const estimateStarts = useRef(
+    new Map<
+      string,
+      { resolve(diagnostic?: EstimateDiagnostic): void; reject(error: DOMException): void }
+    >(),
+  )
   const estimateSequence = useRef(0)
   const estimateCurrentId = useRef<string | undefined>(undefined)
-  const [estimateDisplayId, setEstimateDisplayId] = useState<string | undefined>(undefined)
   const [estimateLastRequest, setEstimateLastRequest] = useState<EstimateRequest | undefined>(
     undefined,
   )
-  const estimateSubscribers = useRef(new Set<(section: EstimateSection) => void>())
+  const estimateSubscribers = useRef(new Set<(state: EstimateViewState) => void>())
   const postEstimateRun = useCallback(
     (request: EstimateRequest, requestId?: string) => {
       const id = requestId ?? `estimate-${String(++estimateSequence.current)}`
       estimateCurrentId.current = id
-      setEstimateDisplayId(id)
+      dispatch({ type: 'estimatorLoading', requestId: id })
       for (const [pendingId, pending] of estimatePendings.current) {
         if (pendingId === id) continue
         pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
@@ -990,9 +1013,10 @@ export function App({
       setEstimateLastRequest(request)
       postMessage({ type: 'estimateRun', requestId: id, request })
     },
-    [postMessage],
+    [postMessage, dispatch],
   )
-  const estimatorSection = state.estimator
+  const estimatorSection =
+    state.estimator.status === 'showing' ? state.estimator.section : undefined
   const estimatorRequestId = state.estimatorRequestId
   useEffect(() => {
     if (estimatorSection === undefined || estimatorRequestId !== estimateCurrentId.current) return
@@ -1000,42 +1024,49 @@ export function App({
       estimatePendings.current.get(estimatorRequestId)?.resolve(estimatorSection)
       estimatePendings.current.delete(estimatorRequestId)
     }
-    for (const listener of estimateSubscribers.current) listener(estimatorSection)
+    setEstimateLastRequest(estimatorSection.inputs.request)
   }, [estimatorSection, estimatorRequestId])
   const estimatorFailure = state.estimatorFailure
   useEffect(() => {
     if (estimatorFailure === undefined) return
     const requestId = estimatorFailure.requestId ?? estimateCurrentId.current
     if (requestId === undefined) return
-    estimatePendings.current.get(requestId)?.reject(new Error(estimatorFailure.reason))
+    estimatePendings.current.get(requestId)?.resolve(estimatorFailure.diagnostic)
     estimatePendings.current.delete(requestId)
   }, [estimatorFailure])
   const estimatorStarted = state.estimatorStarted
   useEffect(() => {
     if (estimatorStarted === undefined) return
     if (estimatorStarted.requestId === undefined) {
-      if (estimatorStarted.error !== undefined) {
+      if (estimatorStarted.diagnostic !== undefined) {
         for (const pending of estimateStarts.current.values())
-          pending.reject(new Error(estimatorStarted.error))
+          pending.resolve(estimatorStarted.diagnostic)
         estimateStarts.current.clear()
       }
       return
     }
     const pending = estimateStarts.current.get(estimatorStarted.requestId)
-    if (estimatorStarted.error === undefined) pending?.resolve()
-    else pending?.reject(new Error(estimatorStarted.error))
+    if (estimatorStarted.diagnostic === undefined) pending?.resolve()
+    else pending?.resolve(estimatorStarted.diagnostic)
     estimateStarts.current.delete(estimatorStarted.requestId)
   }, [estimatorStarted])
+  useEffect(() => {
+    if (state.estimator.status !== 'loading')
+      for (const listener of estimateSubscribers.current) listener(state.estimator)
+  }, [state.estimator])
   const estimatorSession = state.sessionId
   useEffect(() => {
     const estimates = estimatePendings.current
     const starts = estimateStarts.current
     return () => {
-      for (const pending of estimates.values()) pending.reject(new Error('estimate-replaced'))
+      for (const pending of estimates.values())
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
       estimates.clear()
-      for (const pending of starts.values()) pending.reject(new Error('estimate-replaced'))
+      for (const pending of starts.values())
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
       starts.clear()
       estimateCurrentId.current = undefined
+      setEstimateLastRequest(undefined)
     }
   }, [estimatorSession])
   const estimatorOptimize = state.settings?.['estimator.optimize'] ?? 'cost'
@@ -1043,7 +1074,7 @@ export function App({
     () => ({
       context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
       estimate: (request, signal) =>
-        new Promise<EstimateSection>((resolve, reject) => {
+        new Promise<EstimateSection | EstimateDiagnostic>((resolve, reject) => {
           if (signal.aborted) {
             reject(new DOMException('The estimate was replaced', 'AbortError'))
             return
@@ -1072,15 +1103,22 @@ export function App({
           estimateSubscribers.current.delete(listener)
         }
       },
+      // A foreign estimate failure the panel already said in words keeps its
+      // kind past the panel through the host log (D207), like any other
+      // rejected webview promise.
+      report: (error) => {
+        postMessage(webviewErrorReport('promise', error))
+      },
       startExisting: (_section, setup) =>
-        new Promise<void>((resolve, reject) => {
+        new Promise<EstimateDiagnostic | undefined>((resolve, reject) => {
           const requestId = `estimate-start-${String(++estimateSequence.current)}`
+          dispatch({ type: 'estimatorStarting', requestId })
           estimateStarts.current.set(requestId, { resolve, reject })
           postMessage({ type: 'estimateSpinUp', requestId, setup: setup.kind })
         }),
       provision: { state: 'waiting', dependency: 'M117-P-M109-provider' },
     }),
-    [postEstimateRun, postMessage, estimatorOptimize],
+    [postEstimateRun, postMessage, estimatorOptimize, dispatch],
   )
   // The extension's `museSpark.estimate` command (M117).
   const estimatorRequests = state.estimatorRequests
@@ -1114,6 +1152,17 @@ export function App({
     },
     [dispatch, newLocalId, postMessage],
   )
+  // `/playback` and the palette's playback row (D203): the card first, then
+  // the host's word on it, as for a message. The turn answers from working
+  // memory only, with no tools.
+  const onPlayback = useCallback((): boolean => {
+    const text = `/${SLASH_COMMAND_NAMES.playback}`
+    const localId = newLocalId()
+    dispatch({ type: 'cardSubmitted', localId, text })
+    postMessage({ type: 'startPlayback', localId, text })
+    setIsPinnedToEnd(true)
+    return true
+  }, [dispatch, newLocalId, postMessage])
   // `/legal …` and the palette's legal row (M97): the host runs the
   // deterministic scan and answers with the report (lane W renders it), so
   // no card is submitted. The parse is total over the schema, so the input
@@ -1183,6 +1232,19 @@ export function App({
       }
       return
     }
+    // `/playback` (D203): a memory-only turn, its card what was typed. With
+    // anything after it, usage instead: a playback takes no arguments.
+    const playback = parsePlaybackPrompt(text)
+    if (playback !== undefined) {
+      if (playback.kind === 'run') {
+        if (onPlayback()) {
+          dispatch({ type: 'draftChanged', draft: '' })
+        }
+      } else {
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.playbackUsage })
+      }
+      return
+    }
     // `/goal …` is a command to the backend, not a message (M45): no card.
     const goal = parseGoalPrompt(text)
     if (goal !== undefined) {
@@ -1199,7 +1261,7 @@ export function App({
     }
     // `/estimate …` opens the estimator panel, not a message (M117): the
     // draft clears and the host's `estimatorSection` reveals it. The full
-    // parse loads with the composer so startup carries only the prefix check.
+    // parse runs in the host so startup carries only the prefix check.
     if (isEstimateCommandText(text)) {
       if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator) {
         dispatch({
@@ -1214,16 +1276,27 @@ export function App({
       void import('./estimator/composer')
         .then(({ wasEstimateComposerHandled }) => {
           wasEstimateComposerHandled(text, {
-            context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
-            open: (request) => {
-              postEstimateRun(request)
-            },
-            notice: (noticeText) => {
-              dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+            submit: (command) => {
+              const id = `estimate-${String(++estimateSequence.current)}`
+              estimateCurrentId.current = id
+              dispatch({ type: 'estimatorLoading', requestId: id })
+              for (const [pendingId, pending] of estimatePendings.current) {
+                pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
+                estimatePendings.current.delete(pendingId)
+              }
+              postMessage({
+                type: 'estimateCommand',
+                requestId: id,
+                command,
+                context: { asOf: new Date().toISOString(), optimize: estimatorOptimize },
+              })
             },
           })
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unloadable estimator reads unavailable: only a non-error
+          // keeps its kind past the composer.
+          if (!(error instanceof Error)) throw error
           dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.estimateUnavailable })
         })
       return
@@ -1337,10 +1410,13 @@ export function App({
                 dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
             })
             .catch((error: unknown) => {
+              // A failed schedule command never shows its cause: only a
+              // non-error keeps its kind past the composer.
+              if (!(error instanceof Error)) throw error
               dispatch({
                 type: 'noticeRaised',
                 level: 'warning',
-                text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+                text: UI_TEXT.scheduleCommandFailed,
               })
             })
           return
@@ -1411,9 +1487,9 @@ export function App({
     postMessage,
     onGoalCommand,
     onReview,
+    onPlayback,
     onLegalScan,
     onHandoff,
-    postEstimateRun,
     estimatorOptimize,
   ])
   // Send exactly the payload the dialog previewed. The composer may now
@@ -2097,6 +2173,14 @@ export function App({
     },
     [postMessage],
   )
+  // History's Delete: the host confirms (naming the conversation) before it
+  // removes the stored session; the refreshed list drops the row.
+  const onDeleteSession = useCallback(
+    (sessionId: string) => {
+      postMessage({ type: 'deleteSession', sessionId })
+    },
+    [postMessage],
+  )
   const onRename = useCallback(
     (name: string) => {
       postMessage({ type: 'renameSession', name })
@@ -2294,6 +2378,9 @@ export function App({
     },
     [postMessage],
   )
+  const onToggleFast = useCallback(() => {
+    postMessage({ type: 'setFast', enabled: !store.getState().isFastEnabled })
+  }, [postMessage, store])
   const onSelectMode = useCallback(
     (id: string) => {
       const mode = availablePermissionModes(canBypass).find((candidate) => candidate === id)
@@ -2503,6 +2590,12 @@ export function App({
           closeOverlay()
           break
         }
+        case 'startPlayback': {
+          // `/playback` takes no arguments, so the row runs at once (D203).
+          onPlayback()
+          closeOverlay()
+          break
+        }
         case 'startLegalScan': {
           // The prompt becomes `/legal ` for a file subset (M97).
           dispatch({ type: 'draftChanged', draft: LEGAL_PROMPT_START })
@@ -2547,6 +2640,7 @@ export function App({
       openOverlay,
       onNewConversation,
       onReview,
+      onPlayback,
       openReviewPane,
       sharingAction,
     ],
@@ -2565,7 +2659,10 @@ export function App({
       .then(([, module]) => {
         if (isActive) setPaletteModule(module)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // An unloadable palette reads failed: only a non-error keeps its
+        // kind past the panel.
+        if (!(error instanceof Error)) throw error
         if (isActive) setPaletteFailure(true)
       })
     return () => {
@@ -2687,6 +2784,7 @@ export function App({
         onBack={onPaletteBack}
         onClose={slot.onClose}
         onRetryMoney={retrySurface}
+        label={UI_TEXT.paletteLabel}
         isAttached
         keepFocus
         keys={slashPaletteKeys}
@@ -2734,6 +2832,7 @@ export function App({
   const effortLevels =
     state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
     effortLevelsFor(state.model?.modelId)
+  const fastTier = state.models.find((model) => model.modelId === state.model?.modelId)?.fastTier
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
       if (effortLevels.length === 0) return false
@@ -2942,6 +3041,9 @@ export function App({
           onBack={onPaletteBack}
           onRetryMoney={retrySurface}
           onClose={closeOverlay}
+          // Names the deferred chunk's loading box (F60): "Models:
+          // Loading…" instead of a bare "Loading…".
+          label={overlay === 'models' ? UI_TEXT.modelListLabel : UI_TEXT.paletteLabel}
         />
       )
       break
@@ -2955,17 +3057,41 @@ export function App({
           entries={modeEntries}
           align="right"
           footer={
-            effortLevels.length === 0 ? undefined : (
-              <div className="effort-row">
-                <span className="effort-row-label">
-                  {UI_TEXT.effortItem} ({effortLabel(state.effort)})
-                </span>
-                <EffortSlider
-                  levels={effortLevels}
-                  current={state.effort}
-                  onSelect={onSelectEffort}
-                />
-              </div>
+            fastTier === undefined && effortLevels.length === 0 ? undefined : (
+              <>
+                {effortLevels.length === 0 ? undefined : (
+                  <div className="effort-row">
+                    <span className="effort-row-label">
+                      {UI_TEXT.effortItem} ({effortLabel(state.effort)})
+                    </span>
+                    <EffortSlider
+                      levels={effortLevels}
+                      current={state.effort}
+                      onSelect={onSelectEffort}
+                    />
+                  </div>
+                )}
+                {fastTier === undefined ? undefined : (
+                  <div className="effort-row">
+                    <span className="effort-row-label" aria-hidden="true">
+                      {fastTier.name}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={state.isFastEnabled}
+                      aria-label={`${fastTier.name}. ${fill(UI_TEXT.planUi.fastDetail, { description: fastTier.description })}`}
+                      className={state.isFastEnabled ? 'toggle toggle-on' : 'toggle'}
+                      onClick={onToggleFast}
+                    >
+                      <span className="toggle-knob" />
+                    </button>
+                    <span className="effort-row-label" aria-hidden="true">
+                      {fill(UI_TEXT.planUi.fastDetail, { description: fastTier.description })}
+                    </span>
+                  </div>
+                )}
+              </>
             )
           }
           onSelect={onSelectMode}
@@ -3053,6 +3179,7 @@ export function App({
         now={now}
         onResume={onResumeSession}
         onSetArchived={onSetSessionArchived}
+        onDelete={state.canDeleteSessions ? onDeleteSession : undefined}
         onClose={closeOverlay}
       />
     ) : null
@@ -3191,7 +3318,7 @@ export function App({
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isPlanDialogOpen = hasPlan && (isPlanModalOpen ?? true)
+  const isPlanDialogOpen = hasPlan && isPlanModalOpen
   const isModalOpen =
     isOtherModalOpen ||
     legalReport !== null ||
@@ -3337,6 +3464,7 @@ export function App({
               onCreatePullRequest={onGitCreatePullRequest}
               onGenerate={onGitGenerate}
               onOpenLink={onOpenExternal}
+              onCopy={onCopy}
             />
           </>
         )}
@@ -3395,22 +3523,18 @@ export function App({
         {/* A failed money load leaves every price out, said here with Retry,
             which rebuilds the document (the palette says it inside itself). */}
         <MoneyUnavailable isInert={isModalOpen} onRetry={retrySurface} />
-        {estimatorFailure?.reason === UI_TEXT.surfaceLoadFailed ? (
-          <div role="alert" inert={isModalOpen}>
-            {UI_TEXT.surfaceLoadFailed}
-            <button type="button" onClick={retrySurface}>
-              {UI_TEXT.surfaceLoadRetry}
-            </button>
-          </div>
+        {state.estimator.status === 'failed' &&
+        state.estimator.diagnostic.estimateDiagnostic === 'source-unavailable' ? (
+          <button type="button" onClick={retrySurface} inert={isModalOpen}>
+            {UI_TEXT.surfaceLoadRetry}
+          </button>
         ) : null}
-        {estimateLastRequest === undefined || state.estimator === undefined ? null : (
+        {state.estimator.status === 'idle' ? null : (
           <EstimatorPanel
             key={state.sessionId}
             port={estimatorPort}
             initial={estimateLastRequest}
-            initialSection={
-              state.estimatorRequestId === estimateDisplayId ? state.estimator : undefined
-            }
+            initialState={state.estimator}
             isInert={isModalOpen}
           />
         )}

@@ -1,20 +1,15 @@
 import { Usd } from '../../shared/usd'
 import { setUiText } from '../../shared/l10n/text'
 import { loadUsageTable, setUsageText } from '../../shared/l10n/usageTable'
-import { readUsageTableFile } from '../../runtime/usage/usageTableFile'
 import * as vscode from 'vscode'
 import { UsagePanel, type UsagePanelDeps } from './usagePanel'
 import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import { agentDataFolder } from '../../runtime/dataFolder'
 import { lazyUsageAdapter, type UsageAccessDeps } from '../../runtime/usage/usageAdapter'
-import {
-  SETTINGS_SECTION,
-  USAGE_FOLDER,
-  USAGE_HISTORY_DAYS_DEFAULT,
-  TAB_DAILY_BUDGET_DEFAULT_USD,
-} from '../../shared/constants'
+import { SETTINGS_SECTION, USAGE_FOLDER, TAB_NO_BUDGET_USD } from '../../shared/constants'
 import { createPaidDailyBudget } from '../paid/paidDailyBudget'
+import { readHostUsageTableText } from './usageTableText'
 
 import { createTabLedger } from '../tab/tabLedger'
 
@@ -40,15 +35,14 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
   setUiText(deps.l10n.table, deps.l10n.locale)
   const table = await loadUsageTable({
     language: deps.l10n.locale,
-    readTableFile: async (segments) => {
-      try {
-        return new TextDecoder().decode(
+    readTableFile: async (segments) =>
+      await readHostUsageTableText(
+        async () =>
           await vscode.workspace.fs.readFile(vscode.Uri.joinPath(deps.extensionUri, ...segments)),
-        )
-      } catch {
-        return await readUsageTableFile(deps.extensionUri.fsPath, segments)
-      }
-    },
+        deps.extensionUri.fsPath,
+        segments,
+        deps.log,
+      ),
     warn: (message) => {
       deps.log.warn(message)
     },
@@ -85,7 +79,9 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
             if (!total.ok) throw new Error('usageTabLedgerUnavailable')
             const capUsd = vscode.workspace
               .getConfiguration(SETTINGS_SECTION)
-              .get<number>('tabDailyBudgetUsd', TAB_DAILY_BUDGET_DEFAULT_USD)
+              .get<number>('tabDailyBudgetUsd', TAB_NO_BUDGET_USD)
+            // The setting is a JSON number; it reads as its exact decimal.
+            // 0 is no budget: spend is still reported, but nothing is capped.
             const resets = new Date()
             resets.setHours(0, 0, 0, 0)
             resets.setDate(resets.getDate() + 1)
@@ -97,7 +93,9 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
                   kind: 'tabDaily' as const,
                   // The setting is a JSON number; it reads as its exact decimal.
                   capUsd: Usd.from(capUsd).toAmount(),
-                  spentUsd: total.totalUsd,
+                  spentUsd: Usd.from(total.totalUsd)
+                    .subtract(Usd.from(total.uncertainUsd ?? 0))
+                    .toAmount(),
                   stopped: Usd.from(total.totalUsd).compare(Usd.from(capUsd)) >= 0,
                   resetsAt: resets.getTime(),
                   ...(total.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
@@ -107,11 +105,12 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
           },
         },
       }),
+      // NOLIMITSSET (PLAN.md D121): null keeps history — no day count of ours.
       historySettings: () => {
         const config = vscode.workspace.getConfiguration(SETTINGS_SECTION)
         return {
           enabled: config.get<boolean>('usageHistory', true),
-          days: config.get<number>('usageHistoryDays', USAGE_HISTORY_DAYS_DEFAULT),
+          days: config.get<number | null>('usageHistoryDays', null),
         }
       },
     }).access(),

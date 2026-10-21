@@ -1983,6 +1983,8 @@
         })
         switch (scenario) {
           case 'models-empty': {
+            // First run: the ChatGPT sign-in choices show, as in an editor
+            // that offers subscription sign-in.
             return {
               ...base,
               providers: [],
@@ -1990,6 +1992,7 @@
               totalModels: 0,
               scans: {},
               suggestions: [],
+              subscriptionsAvailable: true,
             }
           }
           case 'models-configure': {

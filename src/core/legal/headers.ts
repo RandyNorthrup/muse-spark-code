@@ -159,7 +159,7 @@ function hasSidecarProvenance(sidecar: string | undefined): sidecar is string {
   if (sidecar === undefined) return false
   const declarations = topLines(sidecar).flatMap((line) => {
     const raw = readHeader([line]).spdxRaw
-    return raw === undefined ? [] : [raw]
+    return raw ?? []
   })
   return (
     /SPDX-FileCopyrightText:\s*\S/.test(sidecar) &&
@@ -271,6 +271,50 @@ function isDep5Covered(pattern: string, file: string): boolean {
 }
 
 /** Filename and explicit source-reference leads, never an ownership verdict. */
+const VENDORED_SEGMENTS: ReadonlySet<string> = new Set([
+  'vendor',
+  'third_party',
+  'third-party',
+  'node_modules',
+])
+const GPL_NOTICE =
+  /\bGNU\s+(Affero\s+|Lesser\s+|Library\s+)?General\s+Public\s+License\b[\s\S]{0,200}?\bversion\s+(\d(?:\.\d)?)\b[\s\S]{0,120}?\bany\s+later\s+version\b/iu
+
+/**
+The licence grants the project's own sources make in their headers
+(M97 CM971-R3): each `SPDX-License-Identifier` expression as written,
+plus `<stem>-or-later` for a standard GNU notice granting "any later
+version". Vendored and generated files grant nothing for the project.
+*/
+export function projectHeaderGrants(snapshot: LegalFileSnapshot): string[] {
+  const grants = new Set<string>()
+  for (const file of snapshot.files) {
+    if (
+      !isSourceFile(file) ||
+      isLicenseFileName(baseNameOf(file)) ||
+      isGeneratedPath(file) ||
+      file.split('/').some((segment) => VENDORED_SEGMENTS.has(segment))
+    )
+      continue
+    const text = snapshot.readFile(file)
+    if (text === undefined || hasBinaryContent(text)) continue
+    const lines = topLines(text)
+    for (const line of lines) {
+      const raw = SPDX_LINE.exec(line)?.[1]
+      if (raw !== undefined) grants.add(raw)
+    }
+    const notice = GPL_NOTICE.exec(lines.join('\n'))
+    if (notice === null) continue
+    const kind = (notice[1] ?? '').trim().toLowerCase()
+    const version = notice[2] ?? ''
+    let prefix = 'GPL'
+    if (kind === 'affero') prefix = 'AGPL'
+    else if (kind !== '') prefix = 'LGPL'
+    grants.add(`${prefix}-${version.includes('.') ? version : `${version}.0`}-or-later`)
+  }
+  return [...grants].toSorted((a, b) => compareLegalText(a, b))
+}
+
 export function scanAttributionRisks(snapshot: LegalFileSnapshot): HeaderScanResult {
   const findings: LegalFindingDraft[] = []
   const reuse = readReuseCoverage(snapshot)
@@ -323,10 +367,10 @@ export function scanAttributionRisks(snapshot: LegalFileSnapshot): HeaderScanRes
 }
 
 /**
- * Check headers over the snapshot's source files. `projectLicenses` holds
- * the canonical ids the project declares; an empty list skips the
- * file-against-project comparison instead of flagging every header.
- */
+Check headers over the snapshot's source files. `projectLicenses` holds
+the canonical ids the project declares; an empty list skips the
+file-against-project comparison instead of flagging every header.
+*/
 export function scanHeaders(
   snapshot: LegalFileSnapshot,
   policy: LegalHeaderPolicy,
@@ -532,8 +576,15 @@ export function scanHeaders(
       }
       if (projectSet.size === 0) continue
       {
+        // A bare GPL-family stem (`GPL-3.0`, or `GPL-3.0+` once parsed)
+        // is the project's own `-only`/`-or-later` grant (M97 CM971-R3).
         const isCovered = orAlternatives(parsed.root).some((branch) =>
-          branch.every((id) => projectSet.has(id)),
+          branch.every(
+            (id) =>
+              projectSet.has(id) ||
+              projectSet.has(`${id}-only`) ||
+              projectSet.has(`${id}-or-later`),
+          ),
         )
         if (!isCovered) {
           findings.push({

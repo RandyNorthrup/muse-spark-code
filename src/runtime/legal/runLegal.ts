@@ -2,8 +2,8 @@
 // the injected scanner, optionally enrich from the public registries, render
 // the report as text or JSON, and answer with the documented exit code:
 // 0 is a complete scan with no blockers, 1 a complete scan with blockers,
-// 2 incomplete coverage, bad input or an operational failure. Advice alone
-// never fails CI: only `blocker` and `should-fix` findings take exit 1.
+// 2 incomplete coverage, bad input or an operational failure.
+// Advice and should-fix findings alone exit 0; only blockers take exit 1.
 //
 // No backend, no auth, no model: every dependency (scan, fetch, file write)
 // is injected, so the tests pin the exit codes, the lane-0 contract shape,
@@ -205,10 +205,10 @@ function renderText(result: LegalScanResult, registry: LegalRegistryReport): str
 }
 
 /**
- * Runs the read-only scan with no backend and no auth. stdout carries only
- * the rendered report (or nothing with `--out`); every other word goes to
- * stderr in the display language.
- */
+Runs the read-only scan with no backend and no auth. stdout carries only
+the rendered report (or nothing with `--out`); every other word goes to
+stderr in the display language.
+*/
 export async function runLegalCommand(input: {
   readonly options: LegalOptions
   readonly deps: RunLegalDeps
@@ -259,8 +259,12 @@ async function finish(input: {
   try {
     const envelope: unknown = options.format === 'json' ? JSON.parse(rendered) : envelopeBody
     legalReportEnvelopeSchema.parse(envelope)
-  } catch {
-    return { exitCode: LEGAL_EXIT.incomplete, out: '', err: UI_TEXT.execFileTooLarge }
+  } catch (error: unknown) {
+    return {
+      exitCode: LEGAL_EXIT.incomplete,
+      out: '',
+      err: fill(UI_TEXT.legalScanFailed, { reason: shortReason(error) }),
+    }
   }
   if (Buffer.byteLength(rendered, 'utf8') > LEGAL_REPORT_MAX_BYTES) {
     return { exitCode: LEGAL_EXIT.incomplete, out: '', err: UI_TEXT.execFileTooLarge }

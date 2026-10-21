@@ -6,7 +6,6 @@ import {
   MILLISECONDS_PER_SECOND,
   REPORT_GITHUB_RATE_FLOOR,
   REPORT_SOURCE_TIMEOUT_MS,
-  UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { ReportSourceRecord } from '../../../shared/reportSchema'
@@ -65,10 +64,10 @@ export const reportCacheEntrySchema = z.strictObject({
 type CacheEntry = z.infer<typeof reportCacheEntrySchema>
 
 /**
- * Shared host/runtime storage binding: owner-only, bounded reads and atomic
- * writes of reports/v1/cache/index.json outside the workspace. It must refuse
- * links and check confinement. No credential or raw response is passed to it.
- */
+Shared host/runtime storage binding: owner-only, bounded reads and atomic
+writes of reports/v1/cache/index.json outside the workspace. It must refuse
+links and check confinement. No credential or raw response is passed to it.
+*/
 export interface ReportCacheStorage {
   read(signal: AbortSignal): Promise<unknown>
   write(entries: readonly CacheEntry[], signal: AbortSignal): Promise<void>
@@ -270,7 +269,9 @@ export class ReportNetworkReader {
         throw new ReportNetworkFailure(
           limited === null
             ? `http-${String(response.status)}`
-            : fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(limited).toISOString() }),
+            : fill(context.reportText.reportUi.rateLimitedUntil, {
+                time: new Date(limited).toISOString(),
+              }),
         )
       }
       const raw = await this.body(response, signal)
@@ -353,8 +354,11 @@ export class ReportNetworkReader {
     for (const effect of result.effects) {
       try {
         this.execute(origin, effect)
-      } catch {
+      } catch (error) {
         this.step(origin, { type: 'effectFailed', generation: effect.generation })
+        // The generation already holds its failure; the execute failure itself
+        // must not hang the dispatch behind an unsettled promise.
+        throw error
       }
     }
     return result.effects
@@ -363,8 +367,8 @@ export class ReportNetworkReader {
   private refusal(generation: NetworkGeneration): string | null {
     if (this.allowed(generation.context, new URL(generation.request.url).hostname)) return null
     return this.allowed(generation.context)
-      ? UI_TEXT.reportUi.signInRequired
-      : UI_TEXT.reportUi.networkOff
+      ? generation.context.reportText.reportUi.signInRequired
+      : generation.context.reportText.reportUi.networkOff
   }
 
   private execute(origin: string, effect: ReportAdmissionEffect<NetworkGeneration>): void {
@@ -378,7 +382,7 @@ export class ReportNetworkReader {
         generation.completion.reject(
           new ReportNetworkFailure(
             typeof effect.reason === 'number'
-              ? fill(UI_TEXT.reportUi.rateLimitedUntil, {
+              ? fill(generation.context.reportText.reportUi.rateLimitedUntil, {
                   time: new Date(effect.reason).toISOString(),
                 })
               : effect.reason,
@@ -500,6 +504,8 @@ export class ReportNetworkReader {
       try {
         await reader.cancel()
       } catch {
+        // Reader cancel is advisory: the stream is abandoned and the abort and
+        // body-finally paths proceed regardless of whether it acknowledged.
         return
       }
     }
@@ -539,7 +545,8 @@ export class ReportNetworkReader {
       reason: string | null
     }>,
   ): Promise<SourceResult<T>> {
-    if (!this.allowed(context)) return unavailableReportSource(id, UI_TEXT.reportUi.networkOff)
+    if (!this.allowed(context))
+      return unavailableReportSource(id, context.reportText.reportUi.networkOff)
     const controller = new AbortController()
     const signal = AbortSignal.any([context.signal, controller.signal])
     let observedAt: string | null = null
@@ -587,7 +594,7 @@ export class ReportNetworkReader {
       const detail = error instanceof ReportNetworkFailure ? error.message : 'source-failed'
       return unavailableReportSource(
         id,
-        `${UI_TEXT.reportUi.generationFailed} (${this.deps.scrub(detail)})`,
+        `${context.reportText.reportUi.generationFailed} (${this.deps.scrub(detail)})`,
       )
     } finally {
       clearTimeout(timer)
@@ -596,9 +603,8 @@ export class ReportNetworkReader {
   }
 }
 
-/** Public fetch has no authorization and refuses redirects to another host.
- * @unwired M113 public report fetch transport
- */
+/** Public fetch has no authorization and refuses redirects to another host. */
+
 export function publicReportTransport(fetcher: typeof fetch): ReportNetworkTransport {
   return async (request, etag, signal) =>
     await fetcher(request.url, {

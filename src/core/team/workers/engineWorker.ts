@@ -24,7 +24,12 @@ import {
   type WorkerFenceIo,
 } from './workerFence'
 import { scrubWorkerEnv } from './workerEnv'
-import { extractTeamReport, parseReportJson, type WorkerReportOutcome } from './report'
+import {
+  extractTeamReport,
+  parseReportJson,
+  reportForStop,
+  type WorkerReportOutcome,
+} from './report'
 import { type WorkerPromptParts, type WorkerRolePolicy, type WorkerTask } from './workerTypes'
 import {
   routeChecks,
@@ -72,11 +77,11 @@ export class WorkerUntrustedError extends Error {
 export type WorkerFileIo = WorkerFenceIo
 
 /**
- * Assembles the worker's prompt in D75's order: the charter, the body, the
- * rules and skills, then the task with its id, branch, folder, brief and
- * files. It never takes the conversation: a worker that reads the parent's
- * history fails its context case.
- */
+Assembles the worker's prompt in D75's order: the charter, the body, the
+rules and skills, then the task with its id, branch, folder, brief and
+files. It never takes the conversation: a worker that reads the parent's
+history fails its context case.
+*/
 export async function buildWorkerPrompt(
   parts: WorkerPromptParts,
   task: WorkerTask,
@@ -155,12 +160,12 @@ export type WorkerShellSpawn = (input: {
 }) => Promise<WorkerShellChild>
 
 /**
- * The worker's shell: every command runs with the working copy (or scratch
- * copy) as its directory and the credential-free environment. Containment
- * of the tree itself is lane K's launcher behind `spawn` (M27's job object
- * on Windows); this runner's contract is never to run elsewhere.
- * @unwired M96 worker shell runner
- */
+The worker's shell: every command runs with the working copy (or scratch
+copy) as its directory and the credential-free environment. Containment
+of the tree itself is lane K's launcher behind `spawn` (M27's job object
+on Windows); this runner's contract is never to run elsewhere.
+@unwired M96 worker shell runner
+*/
 export function createWorkerShellRunner(input: {
   readonly root: string
   readonly workspaceRoot: string
@@ -235,10 +240,10 @@ export function createReportCapture(): ReportCapture {
 }
 
 /**
- * Resolves what the worker handed back: its `report` call wins when it made
- * one, else its last message's block. A report-shaped call that does not
- * parse is malformed, so the message decides instead of a half report.
- */
+Resolves what the worker handed back: its `report` call wins when it made
+one, else its last message's block. A report-shaped call that does not
+parse is malformed, so the message decides instead of a half report.
+*/
 export function resolveWorkerReport(input: {
   readonly reportedText: string | undefined
   readonly lastMessage: string | undefined
@@ -261,13 +266,13 @@ export interface EngineLimitMarks {
 export type WorkerLimitKind = 'rateLimited' | 'usageLimited'
 
 /**
- * Hands a worker's failure to lane A's marks. A Model API 429 (the fake
- * server's recorded shape, through the client's own `Retry-After` parser)
- * marks the agent rate-limited; a backend's recognised usage-limit handoff
- * marks it usage-limited. Anything the wire has not captured — a third
- * party's refusal, an uncaptured Muse Code shape — is a plain failure,
- * never a switch.
- */
+Hands a worker's failure to lane A's marks. A Model API 429 (the fake
+server's recorded shape, through the client's own `Retry-After` parser)
+marks the agent rate-limited; a backend's recognised usage-limit handoff
+marks it usage-limited. Anything the wire has not captured — a third
+party's refusal, an uncaptured Muse Code shape — is a plain failure,
+never a switch.
+*/
 export function classifyLimitError(
   error: unknown,
 ): { readonly kind: WorkerLimitKind; readonly retryAfterMs?: number } | undefined {
@@ -314,13 +319,13 @@ export interface EngineWorkerResult {
 }
 
 /**
- * Runs one engine worker's task on M77's attempt host: the prompt holds the
- * charter, the body, the rules and the task and nothing else; the host
- * confines every path to the task's folder; approvals and questions are
- * declined (no surface can ask); and a limit error marks the agent before
- * the failure reaches the caller.
- * @unwired M96 engine worker runner
- */
+Runs one engine worker's task on M77's attempt host: the prompt holds the
+charter, the body, the rules and the task and nothing else; the host
+confines every path to the task's folder; approvals and questions are
+declined (no surface can ask); and a limit error marks the agent before
+the failure reaches the caller.
+@unwired M96 engine worker runner
+*/
 export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWorkerResult> {
   if (!deps.isTrusted) {
     throw new WorkerUntrustedError()
@@ -373,6 +378,11 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
     reportedText === undefined || parseReportJson(reportedText) === undefined
       ? await deps.readTranscriptTail?.()
       : undefined
+  if (outcome.ceilingReached) {
+    // The typed outcome: the ceiling, not the model, ended the task. The
+    // wrap-up text stays as what the worker reached, never a success.
+    return { outcome, report: reportForStop(lastMessage ?? '', 'max_turn_requests') }
+  }
   return {
     outcome,
     report: resolveWorkerReport({ reportedText, lastMessage }),
@@ -380,8 +390,8 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
 }
 
 /** Guards M48's child loop shape: depth past `delegates` never starts.
- * @unwired M96 worker child-loop depth guard
- */
+@unwired M96 worker child-loop depth guard
+*/
 export function checkWorkerDepth(depth: number, role: WorkerRolePolicy): void {
   if (depth > WORKER_MAX_DEPTH || (depth > 1 && (role.delegates ?? []).length === 0)) {
     throw new WorkerDepthError()

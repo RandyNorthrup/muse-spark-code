@@ -5,11 +5,17 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-export function buildLinuxHelper() {
+/**
+Build the confined created-path helper for this Linux architecture.
+Sources resolve from the repository root; only the output directory
+moves, so the vault broker fixtures build the same binary into their
+install root.
+@param {string} [directory] the native tree receiving the helper.
+*/
+export function buildLinuxHelper(directory = path.join('native', 'linux', process.arch)) {
   if (process.platform !== 'linux') return
   if (!['x64', 'arm64'].includes(process.arch))
     throw new Error('Unsupported Linux helper architecture')
-  const directory = path.join('native', 'linux', process.arch)
   mkdirSync(directory, { recursive: true })
   execFileSync(
     '/usr/bin/cc',

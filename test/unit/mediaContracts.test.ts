@@ -18,17 +18,13 @@ import {
   MEDIA_AUDIO_ACTION_SETTING,
   MEDIA_CONTRIBUTOR_CHOICES,
   MEDIA_FILE_EXPIRY_DEFAULT_S,
-  MEDIA_FILE_EXPIRY_MAX_S,
-  MEDIA_FILE_EXPIRY_MIN_S,
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_KINDS,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
-  MEDIA_MAX_UPLOAD_MIB,
   MEDIA_MAX_UPLOAD_SETTING,
   MEDIA_UPLOAD_EXPIRY_SETTING,
   SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
   SCREEN_RECORDING_MAX_SECONDS_SETTING,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
 } from '../../src/shared/constants'
 import type { ScreenRecordingDriver } from '../../src/core/media/record/driver'
 
@@ -197,16 +193,21 @@ describe('M105 attachment bridge', () => {
 })
 
 describe('M105 recorder contract', () => {
-  it('requires explicit sound choices and bounds recording duration', () => {
+  it('requires explicit sound choices and takes the recording length as set', () => {
     const options = {
       maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
       microphone: false,
       systemAudio: false,
     }
     expect(screenRecordingOptionsSchema.parse(options)).toEqual(options)
-    for (const maxSeconds of [10, 600])
-      expect(screenRecordingOptionsSchema.safeParse({ ...options, maxSeconds }).success).toBe(true)
-    for (const maxSeconds of [9, 601, 10.5, Infinity])
+    // D121: 0 records until stopped (the default); any other whole number of
+    // seconds is used as set, with no floor or ceiling of ours.
+    for (const maxSeconds of [0, 1, 5, 9, 600, 601, 3600, 86_400])
+      expect(screenRecordingOptionsSchema.parse({ ...options, maxSeconds })).toEqual({
+        ...options,
+        maxSeconds,
+      })
+    for (const maxSeconds of [-1, 10.5, Infinity, NaN])
       expect(screenRecordingOptionsSchema.safeParse({ ...options, maxSeconds }).success).toBe(false)
     expect(screenRecordingOptionsSchema.safeParse({ maxSeconds: 120 }).success).toBe(false)
     expect(
@@ -241,10 +242,7 @@ describe('M105 recorder contract', () => {
   it('publishes the plan defaults without changing existing backend or paid defaults', () => {
     expect(MEDIA_FILE_ID_MIN_BYTES).toBe(1024 * 1024)
     expect(MEDIA_FILE_EXPIRY_DEFAULT_S).toBe(7 * 24 * 60 * 60)
-    expect(MEDIA_FILE_EXPIRY_MIN_S).toBe(3600)
-    expect(MEDIA_FILE_EXPIRY_MAX_S).toBe(30 * 24 * 60 * 60)
-    expect([MEDIA_MAX_UPLOAD_DEFAULT_MIB, MEDIA_MAX_UPLOAD_MIB]).toEqual([200, 1024])
-    expect(SCREEN_RECORDING_RECENT_MAX_AGE_MS).toBe(600_000)
+    expect(MEDIA_MAX_UPLOAD_DEFAULT_MIB).toBe(200)
     expect([
       MEDIA_UPLOAD_EXPIRY_SETTING,
       MEDIA_MAX_UPLOAD_SETTING,

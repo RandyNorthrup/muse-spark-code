@@ -32,7 +32,7 @@ function a(value: number | string): UsdAmount {
 }
 function record(extra: Partial<UsageRecord> = {}): UsageRecord {
   return usageRecordSchema.parse({
-    v: 2,
+    v: 3,
     id: 'call',
     type: 'usage',
     at: now,
@@ -426,6 +426,12 @@ describe('usage aggregation', () => {
     expect(usageWindowStatus({ ...window, resetsAt: now }, now, now)).toEqual({
       freshness: 'awaiting',
     })
+  })
+  it('keeps the recorded timezone on each hour bucket (T4)', () => {
+    const at = now - 30 * 60_000
+    const result = aggregateUsage([record({ at, timezoneOffsetMins: -120 })], [], query, now)
+    expect(result.buckets).toHaveLength(1)
+    expect(result.buckets[0]?.timezoneOffsetMins).toBe(-120)
   })
   it('projects only after thirty minutes of spend and never after reset', () => {
     expect(

@@ -104,7 +104,8 @@ export class ArgumentPreview {
           this.valueEnded()
         }
         this.string = undefined
-      } catch {
+      } catch (error: unknown) {
+        if (!(error instanceof SyntaxError)) throw error
         this.invalid = true
       }
     } else if (character < ' ') {
@@ -224,11 +225,17 @@ export class ArgumentPreview {
 
   /** Complete arguments are authoritative, but never bypass the allowlist or scrub. */
   public finish(args: string): void {
+    let value: unknown
     try {
-      const value: unknown = JSON.parse(args)
-      if (value === null || typeof value !== 'object' || Array.isArray(value))
-        throw new TypeError('Expected an argument object')
-    } catch {
+      value = JSON.parse(args)
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
+      this.invalid = true
+      this.bytes = Buffer.byteLength(args)
+      this.done = true
+      return
+    }
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       this.invalid = true
       this.bytes = Buffer.byteLength(args)
       this.done = true

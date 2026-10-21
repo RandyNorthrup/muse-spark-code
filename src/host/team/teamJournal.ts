@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { lstatSync } from 'node:fs'
 import { open, readFile, readdir, rename } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { canonicalPath } from '../canonicalPath'
 import { writeFileAtomically } from '../fsAtomic'
-import { storeErrorCode } from '../backend/storeErrors'
+import { isStoreErrorCode, storeErrorCode } from '../backend/storeErrors'
 import { settleTeamClaim, type TeamSettlementClaims } from '../../core/team/teamMeter'
 export type { TeamSettlementClaims } from '../../core/team/teamMeter'
 import type { WindowAuthority, WindowIdentity } from './windowIdentity'
@@ -80,10 +81,17 @@ export function createTeamJournal(options: {
     })()
     return result
   }
-  const assertPath = async (target: string) => {
-    if ((await canonicalPath(target)) !== path.resolve(target)) {
+  // The record still resolves to the journal's own file: both sides are
+  // canonical, so a stable link above the storage (macOS /tmp, a symlinked
+  // home) passes, while a record or folder swapped for a link to foreign
+  // ground fails and stays unreadable evidence, never followed.
+  const assertPath = async (target: string): Promise<string> => {
+    const canonicalTarget = await canonicalPath(target)
+    const canonicalParent = await canonicalPath(path.dirname(target))
+    if (canonicalTarget !== path.join(canonicalParent, path.basename(target))) {
       throw new Error('TEAM_JOURNAL_PATH_CHANGED')
     }
+    return canonicalTarget
   }
   const flush = async (target: string) => {
     // FlushFileBuffers on Windows requires write access. POSIX permits the
@@ -108,7 +116,7 @@ export function createTeamJournal(options: {
       await serialize(async () => {
         options.authority.assertCanWrite(options.owner)
         const target = targetFor(name)
-        await assertPath(target)
+        const canonicalTarget = await assertPath(target)
         const content = JSON.stringify({
           version: 1,
           owner: options.owner,
@@ -117,9 +125,13 @@ export function createTeamJournal(options: {
         if (Buffer.byteLength(content) > options.maxRecordBytes) {
           throw new Error('TEAM_JOURNAL_RECORD_TOO_LARGE')
         }
-        await writeFileAtomically(target, content, {
+        // The write itself goes through the canonical spelling: the atomic
+        // writer's temporary-file checks compare a path with its own
+        // canonical form, which only agrees above a stable link when the
+        // input is already canonical. Same file on disk either way.
+        await writeFileAtomically(canonicalTarget, content, {
           sleep: delay,
-          expectedCanonicalPath: target,
+          expectedCanonicalPath: canonicalTarget,
           assertCanWrite: () => {
             options.authority.assertCanWrite(options.owner)
           },
@@ -148,7 +160,11 @@ export function createTeamJournal(options: {
         try {
           content = await readFile(target, 'utf8')
         } catch (error: unknown) {
-          return storeErrorCode(error) === 'ENOENT'
+          // No entry is a missing record. An entry that is there but cannot
+          // be read through (a link to nothing; on Windows a junction to a
+          // file, which the path check above cannot see) is evidence.
+          return storeErrorCode(error) === 'ENOENT' &&
+            lstatSync(target, { throwIfNoEntry: false }) === undefined
             ? { kind: 'missing' }
             : { kind: 'broken', file: target, wasMovedAside: false }
         }
@@ -185,7 +201,7 @@ export function createTeamJournal(options: {
           .filter((name) => name.endsWith('.json'))
           .map((name) => name.slice(0, -'.json'.length))
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return []
+        if (isStoreErrorCode(error, 'ENOENT')) return []
         throw error
       }
     },
@@ -196,7 +212,7 @@ export function createTeamJournal(options: {
       try {
         instances = await readdir(root)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return { journals: [], unreadable: [] }
+        if (isStoreErrorCode(error, 'ENOENT')) return { journals: [], unreadable: [] }
         throw error
       }
       const journals: TeamJournal[] = []
@@ -209,6 +225,8 @@ export function createTeamJournal(options: {
           await assertPath(foreignDirectory)
           names = await readdir(foreignDirectory)
         } catch {
+          // A foreign window that cannot be listed is unreadable evidence,
+          // not a fatal error: named, and the walk continues.
           unreadable.push(foreignDirectory)
           continue
         }
@@ -231,6 +249,8 @@ export function createTeamJournal(options: {
               throw new Error('TEAM_JOURNAL_OWNER_CHANGED')
             owner = envelope.owner
           } catch {
+            // A record that cannot be read is unreadable evidence: named,
+            // never trusted, and the walk continues.
             unreadable.push(file)
           }
         }

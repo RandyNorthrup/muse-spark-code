@@ -3,9 +3,8 @@ import {
   MILLISECONDS_PER_SECOND,
   OPEN_QUESTIONS_MAX,
   QUESTION_DEFER_DEFAULT_SECONDS,
-  QUESTION_DEFER_MAX_SECONDS,
-  QUESTION_DEFER_MIN_SECONDS,
   QUESTION_DELIVERY_MODEL_TEXT,
+  TIMER_MAX_DELAY_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -45,9 +44,10 @@ export interface QuestionRequest {
 }
 
 export function questionDeferSeconds(value: number): number {
-  if (value === 0) return 0
-  const bounded = Math.min(QUESTION_DEFER_MAX_SECONDS, Math.max(QUESTION_DEFER_MIN_SECONDS, value))
-  return Number.isSafeInteger(value) ? bounded : QUESTION_DEFER_DEFAULT_SECONDS
+  // D121: no threshold of ours. Any whole number of seconds at or above
+  // zero is taken as set (0 never defers); anything else falls back to the
+  // default, never to a silently replaced value.
+  return Number.isSafeInteger(value) && value >= 0 ? value : QUESTION_DEFER_DEFAULT_SECONDS
 }
 
 /** One holding process per session. Persistence and marks precede external effects. */
@@ -98,32 +98,45 @@ export class QuestionRegistry {
     await this.publish()
   }
 
+  /** A failed question restores the publishable state above, timers stopped. */
+  private restoreRolledBack(rollback: {
+    entries: [string, OpenQuestion][]
+    requests: [string, QuestionRequest & { cardId: string }][]
+    replying: [string, OpenQuestion][]
+    endedTurns: string[]
+  }): void {
+    this.entries.clear()
+    this.requests.clear()
+    this.replying.clear()
+    this.endedTurns.clear()
+    for (const turn of rollback.endedTurns) this.endedTurns.add(turn)
+    for (const [id, entry] of rollback.entries) this.entries.set(id, entry)
+    for (const [id, request] of rollback.requests) this.requests.set(id, request)
+    for (const [id, entry] of rollback.replying) this.replying.set(id, entry)
+    for (const id of this.timers.keys()) this.stopTimer(id)
+    for (const entry of this.entries.values())
+      if (entry.deadlineAt !== undefined && entry.deadlineAt > this.deps.now()) this.armTimer(entry)
+  }
+
   private run<T>(work: () => Promise<T> | T): Promise<T> {
     const previous = this.tail
     const result = (async () => {
       await previous
       await this.loading
       if (this.isDisposed) throw new Error(UI_TEXT.questionAnswerFailed)
-      const entries = structuredClone([...this.entries])
-      const requests = structuredClone([...this.requests])
-      const replying = structuredClone([...this.replying])
-      const endedTurns = [...this.endedTurns]
+      const rollback = {
+        entries: structuredClone([...this.entries]),
+        requests: structuredClone([...this.requests]),
+        replying: structuredClone([...this.replying]),
+        endedTurns: [...this.endedTurns],
+      }
       const publication = this.publication
       try {
         return await work()
       } catch (error: unknown) {
-        this.entries.clear()
-        this.requests.clear()
-        this.replying.clear()
-        this.endedTurns.clear()
-        for (const turn of endedTurns) this.endedTurns.add(turn)
-        for (const [id, entry] of entries) this.entries.set(id, entry)
-        for (const [id, request] of requests) this.requests.set(id, request)
-        for (const [id, entry] of replying) this.replying.set(id, entry)
-        for (const id of this.timers.keys()) this.stopTimer(id)
-        for (const entry of this.entries.values())
-          if (entry.deadlineAt !== undefined && entry.deadlineAt > this.deps.now())
-            this.armTimer(entry)
+        // The publishable state above is restored first; the caller still
+        // receives the failure, and later operations still run in order.
+        this.restoreRolledBack(rollback)
         if (this.publication !== publication) {
           await this.deps.store.save(this.sessionId, this.snapshot(false).questions)
           this.deps.changed(this.snapshot())
@@ -148,18 +161,33 @@ export class QuestionRegistry {
   }
 
   private armTimer(entry: OpenQuestion): void {
-    if (
-      !this.deps.hasExternalTimer &&
-      entry.state === 'waiting' &&
-      entry.deadlineAt !== undefined
-    ) {
-      this.timers.set(
-        entry.userInputId,
-        this.deps.setTimer(Math.max(0, entry.deadlineAt - this.deps.now()), () => {
-          void this.defer(entry.userInputId).catch(this.deps.failed)
-        }),
-      )
+    if (this.deps.hasExternalTimer || entry.state !== 'waiting' || entry.deadlineAt === undefined)
+      return
+    // A delay past one timer's reach (2^31-1 ms, about 24.8 days) fires
+    // at once on a single setTimeout, so the wait runs as timer-sized
+    // pieces, re-armed while the deadline is still ahead.
+    const deadlineAt = entry.deadlineAt
+    const userInputId = entry.userInputId
+    let isCancelled = false
+    let cancelPiece: (() => void) | undefined
+    const arm = (): void => {
+      if (isCancelled) return
+      const delay = Math.max(0, deadlineAt - this.deps.now())
+      if (delay <= TIMER_MAX_DELAY_MS) {
+        cancelPiece = this.deps.setTimer(delay, () => {
+          void this.defer(userInputId).catch(this.deps.failed)
+        })
+      } else {
+        cancelPiece = this.deps.setTimer(TIMER_MAX_DELAY_MS, () => {
+          arm()
+        })
+      }
     }
+    arm()
+    this.timers.set(userInputId, () => {
+      isCancelled = true
+      cancelPiece?.()
+    })
   }
 
   private expireOldest(): void {

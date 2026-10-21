@@ -1,15 +1,13 @@
 // One M75 task's folders (PLAN.md D49): a fresh folder under the system's
 // temporary folder per task and arm, holding the workspace (the fixture
 // files, nothing else) and, beside it, the verifier the model never sees.
-// The verifier runs as its own Node process with an empty environment, so
-// nothing from the run's environment (the Model API key above all) reaches
-// the code the model wrote.
+// The verifier runs as its own Node process with none of the run's
+// environment (the Model API key above all), so nothing from it reaches the
+// code the model wrote; the guard's own safety variables still apply.
 
-import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { randomUUID } from 'node:crypto'
+import * as z from 'zod/mini'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import {
   EVAL_REMOVE_RETRIES,
   EVAL_REMOVE_RETRY_DELAY_MS,
@@ -21,8 +19,14 @@ import {
   EVAL_VERIFY_TIMEOUT_MS,
   EVAL_WORKSPACE_DIR,
 } from '../../shared/constants'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import { realpathSync } from 'node:fs'
+import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { EVAL_VERIFY_PRELUDE, isEvalPath, type EvalTask } from './tasks'
 import { wireWordForLog } from '../logging'
+import { execFileGuarded } from '../guardedChildProcess'
 
 export interface EvalFolders {
   /** The task's own temporary folder; removing it removes everything. */
@@ -38,9 +42,9 @@ export interface EvalVerdict {
 }
 
 /**
- * A fresh folder under `parent` (the system's temporary folder) holding the
- * task's fixture files, and nothing else.
- */
+A fresh folder under `parent` (the system's temporary folder) holding the
+task's fixture files, and nothing else.
+*/
 export async function createEvalWorkspace(task: EvalTask, parent = tmpdir()): Promise<EvalFolders> {
   // The canonical path: the host confines the tools to it (D24), and on
   // macOS the temporary folder is reached through a link.
@@ -107,6 +111,8 @@ function detailOf(output: string, root: string): string {
   return lines.join('\n').slice(-EVAL_VERIFY_DETAIL_MAX_CHARS)
 }
 
+const completionSchema = z.strictObject({ token: z.string(), assertions: z.number() })
+
 /** Runs the task's verifier over the workspace as it is now. */
 export async function runEvalVerifier(
   task: EvalTask,
@@ -117,18 +123,43 @@ export async function runEvalVerifier(
   // workspace cannot be in it or stand in its way.
   const folder = await mkdtemp(path.join(folders.root, EVAL_VERIFY_PREFIX))
   const script = path.join(folder, EVAL_VERIFY_FILE)
-  await writeFile(script, `${EVAL_VERIFY_PRELUDE}${task.verify}\n`)
+  const token = randomUUID()
+  await writeFile(script, `${EVAL_VERIFY_PRELUDE}${task.verify}\ncomplete()\n`)
   return await new Promise<EvalVerdict>((resolve) => {
-    execFile(
+    const child = execFileGuarded(
       process.execPath,
       [script, folders.workspace],
-      // An empty environment. On Windows, libuv adds back only what a
-      // process needs to start (PATH, SYSTEMROOT, TEMP, the profile's
-      // folders), never a variable of the run's own.
-      { cwd: folder, env: {}, timeout: timeoutMs, windowsHide: true },
+      // No variable of the run's own. On Windows, libuv adds back only
+      // what a process needs to start (PATH, SYSTEMROOT, TEMP, the
+      // profile's folders), and the guard sets its own
+      // `NoDefaultCurrentDirectoryInExePath` (the verifier runs
+      // model-written files, so its own bare-name lookups skip its
+      // working directory too).
+      {
+        cwd: folder,
+        env: noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
+        timeout: timeoutMs,
+        killSignal: 'SIGKILL',
+        windowsHide: true,
+      },
       (error, stdout, stderr) => {
         if (error === null) {
-          resolve({ passed: true, detail: '' })
+          const hasFinished = stdout.split(/\r?\n/u).some((line) => {
+            let value: unknown
+            try {
+              value = JSON.parse(line)
+            } catch {
+              return false
+            }
+            const report = completionSchema.safeParse(value).data
+            return report?.token === token && report.assertions === task.assertions
+          })
+          resolve({
+            passed: hasFinished,
+            detail: hasFinished
+              ? ''
+              : 'the verifier exited without completing its declared assertions',
+          })
           return
         }
         if (error.killed === true) {
@@ -144,5 +175,7 @@ export async function runEvalVerifier(
         resolve({ passed: false, detail: failure || printed || silent })
       },
     )
+    // execFile provides a private stdin pipe, closed before solution imports.
+    child.stdin?.end(token)
   })
 }

@@ -26,9 +26,8 @@ import {
   EDIT_MATCH_YIELD_LINES,
   IMAGE_EXTENSIONS,
   LIST_FILES_DEFAULT_LIMIT,
-  MAX_DOCUMENT_BYTES,
-  MAX_IMAGE_BYTES,
   BYTES_PER_MIB,
+  MEDIA_READ_MAX_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
@@ -45,8 +44,6 @@ import {
   SEARCH_MAX_RESULTS,
   SEARCH_PATTERN_MAX_LENGTH,
   SEARCH_TIMEOUT_MS,
-  SHELL_DEFAULT_TIMEOUT_MS,
-  SHELL_MAX_TIMEOUT_MS,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -92,7 +89,7 @@ import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools }
 
 import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
-import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
+import { SUBAGENT_TOOL_DEFINITIONS, subagentSpawnDescription } from './subagentTools'
 import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
@@ -103,10 +100,10 @@ import type { McpTool } from '../../mcp'
 export type { ShellResult } from '../../shellResult'
 
 /**
- * A running command's time limit, which its caller can lift (M46, PLAN.md
- * D39): a command the user moved to the background runs until it ends or is
- * stopped. The runner binds itself once its clock is running.
- */
+A running command's time limit, which its caller can lift (M46, PLAN.md
+D39): a command the user moved to the background runs until it ends or is
+stopped. The runner binds itself once its clock is running.
+*/
 export class ShellTimeLimit {
   private onLift: (() => void) | undefined
   private isLifted = false
@@ -139,9 +136,9 @@ export interface SearchJob {
   /** One hit is cut here (M101): a minified line cannot fill the whole budget. */
   readonly maxHitChars: number
   /**
-   * The deny-read globs of the permission settings (M78), lower case: a
-   * file whose canonical path one covers is skipped, as a link to it is.
-   */
+  The deny-read globs of the permission settings (M78), lower case: a
+  file whose canonical path one covers is skipped, as a link to it is.
+  */
   readonly denyRead: readonly string[]
   /** The glob limits, so the worker's bundle carries no constants table. */
   readonly globLimits: GlobLimits
@@ -187,17 +184,17 @@ export interface ToolIo {
   readonly runVaultShell?: (
     command: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     secrets: VaultShellSecrets,
     signal?: AbortSignal,
     limit?: ShellTimeLimit,
     assertCanRun?: () => void,
   ) => Promise<ShellResult>
   /**
-   * The file's text, a UTF-8 BOM kept; undefined when it does not exist.
-   * Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
-   * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
-   */
+  The file's text, a UTF-8 BOM kept; undefined when it does not exist.
+  Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
+  decoding it lossily and writing it back would corrupt it (PLAN.md D27).
+  */
   /** A canonical proof comes only from trusted workspace confinement, not tool arguments. */
   readFile(
     absolutePath: string,
@@ -206,9 +203,9 @@ export interface ToolIo {
     observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<string | undefined>
   /**
-   * The file's bytes (M44: an image to edit); undefined when it does not
-   * exist. Rejects, before reading, a file larger than `maxBytes`.
-   */
+  The file's bytes (M44: an image to edit); undefined when it does not
+  exist. Rejects, before reading, a file larger than `maxBytes`.
+  */
   readBytes(
     absolutePath: string,
     maxBytes: number,
@@ -224,12 +221,12 @@ export interface ToolIo {
     assertCanWrite?: () => void,
   ): Promise<void>
   /**
-   * `writeFile`, only while the file still holds the text whose fingerprint
-   * is `expectedFingerprint`, compared immediately before the rename (M68,
-   * `fsAtomic.writeFileIfUnchanged`): `changed`, and nothing written, when not.
-   * A function instead asks whether the file is still as expected; it may
-   * expect no file (M86's recorder: a new file's folders are then created).
-   */
+  `writeFile`, only while the file still holds the text whose fingerprint
+  is `expectedFingerprint`, compared immediately before the rename (M68,
+  `fsAtomic.writeFileIfUnchanged`): `changed`, and nothing written, when not.
+  A function instead asks whether the file is still as expected; it may
+  expect no file (M86's recorder: a new file's folders are then created).
+  */
   writeFileIfUnchanged(
     absolutePath: string,
     expectedFingerprint: string | (() => Promise<boolean>),
@@ -241,21 +238,21 @@ export interface ToolIo {
       /** The caller's live admission, checked synchronously beside final native publication. */
       readonly assertCanWrite?: () => void
       /**
-       * Runs once the content is staged beside the file, before the file is
-       * replaced: M86's recorder journals its intent here. A throw leaves the
-       * file as it was.
-       */
+      Runs once the content is staged beside the file, before the file is
+      replaced: M86's recorder journals its intent here. A throw leaves the
+      file as it was.
+      */
       readonly staged?: (file: StagedFile) => Promise<void>
     },
   ): Promise<ConditionalWrite>
   /** Whether anything (a file, a folder, a link) is at the path. */
   pathExists(absolutePath: string): Promise<boolean>
   /**
-   * Creates a new, empty file and holds it (M34: a generated image), its
-   * folders created. Rejects when something is already there: nothing is
-   * overwritten. The file is taken before the image is bought, so a path
-   * taken meanwhile costs nothing (the review of PR #27).
-   */
+  Creates a new, empty file and holds it (M34: a generated image), its
+  folders created. Rejects when something is already there: nothing is
+  overwritten. The file is taken before the image is bought, so a path
+  taken meanwhile costs nothing (the review of PR #27).
+  */
   reserveFile(
     absolutePath: string,
     expectedCanonicalPath?: string,
@@ -270,16 +267,18 @@ export interface ToolIo {
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
   searchFiles(job: SearchJob, signal?: AbortSignal): Promise<SearchOutcome>
   /**
-   * A timeout or the signal kills the whole process tree (PLAN.md D25);
-   * `limit` lets the caller lift the timeout while it runs (M46).
-   * `assertCanRun` is the owner's final admission, asked at the real entry
-   * after every wait of the adapter and the checkpoint wrapper: a throw
-   * refuses the command, which starts nothing (`isEntryRefused`).
-   */
+  A named timeout or the signal kills the whole process tree (PLAN.md
+  D25); unnamed, the command runs until it ends or is stopped, saying so
+  out loud while it runs. `limit` lets the caller lift the timeout while
+  it runs (M46). `assertCanRun` is the owner's final admission, asked at
+  the real entry after every wait of the adapter and the checkpoint
+  wrapper: a throw refuses the command, which starts nothing
+  (`isEntryRefused`).
+  */
   runShell(
     command: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     signal?: AbortSignal,
     limit?: ShellTimeLimit,
     assertCanRun?: () => void,
@@ -287,34 +286,38 @@ export interface ToolIo {
     isInteractive?: boolean,
     resourceKind?: ResourceKind,
   ): Promise<ShellResult>
-  /** An explicitly enabled M51 hook, with JSON stdin and a cleared environment. */
+  /**
+  An explicitly enabled M51 hook, with JSON stdin and a cleared
+  environment. D121: no default deadline of ours — an absent timeout runs
+  until it ends or the person stops it.
+  */
   runHook?(
     command: string,
     payload: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
   ): Promise<ShellResult>
   /**
-   * An M91 http hook's POST of its bounded JSON payload, through the host's
-   * pinned-request path (HTTPS to the pinned address, no redirects followed;
-   * fixed headers only). Absent until the host wires it: http hooks then skip.
-   */
+  An M91 http hook's POST of its bounded JSON payload, through the host's
+  pinned-request path (HTTPS to the pinned address, no redirects followed;
+  fixed headers only). Absent until the host wires it: http hooks then skip.
+  */
   runHookHttp?: (url: string, payload: string, signal: AbortSignal) => Promise<HookHttpResult>
   /**
-   * The canonical form of an absolute path: links, junctions and short
-   * names resolved through the nearest existing ancestor (PLAN.md D24).
-   * Rejects when the file system refuses to say (permissions, link loops).
-   */
+  The canonical form of an absolute path: links, junctions and short
+  names resolved through the nearest existing ancestor (PLAN.md D24).
+  Rejects when the file system refuses to say (permissions, link loops).
+  */
   realPath(absolutePath: string): Promise<string>
 }
 
 /**
- * A new file held empty until its bytes arrive, or removed if they never do.
- * Each step acts only while the path still names the reserved file and it is
- * still empty (M86): `changed` when not, and the file is left as it is.
- */
+A new file held empty until its bytes arrive, or removed if they never do.
+Each step acts only while the path still names the reserved file and it is
+still empty (M86): `changed` when not, and the file is left as it is.
+*/
 export interface FileReservation {
   /** Writes the bytes into the file and lets it go. A failure part way is not cleaned up. */
   fill(bytes: Uint8Array): Promise<ReservationStep>
@@ -334,19 +337,19 @@ export interface StagedFile {
 }
 
 /**
- * What one turn's tools write through while it runs (M86, PLAN.md D63): an io
- * and memory writes bound to the turn, each write recorded for a restore.
- */
+What one turn's tools write through while it runs (M86, PLAN.md D63): an io
+and memory writes bound to the turn, each write recorded for a restore.
+*/
 export interface TurnWrites {
   readonly io: ToolIo
   readonly memory: MemoryWrites
 }
 
 /**
- * Whether a turn's writes are recorded for a restore (M86, PLAN.md D63), and
- * what its tools write through while they are. A child turn inherits its top
- * turn's (spec 3.2).
- */
+Whether a turn's writes are recorded for a restore (M86, PLAN.md D63), and
+what its tools write through while they are. A child turn inherits its top
+turn's (spec 3.2).
+*/
 export type TurnCheckpoint =
   | { readonly kind: 'recording'; readonly owner: Owner; readonly writes: TurnWrites }
   /** Checkpoints are not on: nothing of the turn is recorded. */
@@ -355,10 +358,10 @@ export type TurnCheckpoint =
   | { readonly kind: 'failed' }
 
 /**
- * A child turn's top turn (M86, spec 3.2): the parent's turn that spawned
- * the child, whose decision it inherits. Reload keeps only the decision,
- * never the old window's io. An unknown historical decision fails closed.
- */
+A child turn's top turn (M86, spec 3.2): the parent's turn that spawned
+the child, whose decision it inherits. Reload keeps only the decision,
+never the old window's io. An unknown historical decision fails closed.
+*/
 export interface TopTurn {
   readonly checkpoint: TurnCheckpoint | undefined
   readonly recordsFiles?: boolean | undefined
@@ -369,10 +372,10 @@ export interface TurnEnd {
   /** What its admission gave it; undefined when the admission failed. */
   readonly checkpoint: TurnCheckpoint | undefined
   /**
-   * Whether it invoked the shell tool, a check or then_run, a hook or an MCP
-   * tool, or had a command of the conversation running in the background:
-   * what those changed a restore never undoes, and says so.
-   */
+  Whether it invoked the shell tool, a check or then_run, a hook or an MCP
+  tool, or had a command of the conversation running in the background:
+  what those changed a restore never undoes, and says so.
+  */
   readonly ranProcesses: boolean
 }
 
@@ -382,15 +385,20 @@ export interface ToolContext {
   readonly contextTokens?: number | undefined
   /** W binds selected-model admission, consent, exact reservation and the session upload ledger. */
   readonly media?:
-    | { readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef> }
+    | {
+        readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef>
+        /** The session's one media admission for an inline image/PDF read:
+        throws the honest refusal when capped and unmeasurable. */
+        readonly admitVisual?: (visual: ImagePart | DocumentPart) => void
+      }
     | { readonly reason: string }
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /**
-   * The shell tool's start directory (M91 lane S, PLAN.md D70): the
-   * session's kept directory. Absent runs at the workspace root, as before.
-   * Only the shell tool reads it; every other tool stays at the root.
-   */
+  The shell tool's start directory (M91 lane S, PLAN.md D70): the
+  session's kept directory. Absent runs at the workspace root, as before.
+  Only the shell tool reads it; every other tool stays at the root.
+  */
   readonly shellCwd?: string | undefined
   readonly io: ToolIo
   /** The checked write destination shown to the permission gate before approval. */
@@ -401,27 +409,20 @@ export interface ToolContext {
   /** The turn's: aborting it stops a running command (PLAN.md D25). */
   readonly signal?: AbortSignal
   /**
-   * The permission settings' file rules (M78): paths the tools refuse, and
-   * folders outside the workspace `read_file` may read. None when absent.
-   * They are the policy the call was let in under, which an await may have
-   * outlived: each outcome names what it touched (`touched`), and the host's
-   * dispatcher judges those names again under the policy as it stands.
-   */
+  The permission settings' file rules (M78): paths the tools refuse, and
+  folders outside the workspace `read_file` may read. None when absent.
+  They are the policy the call was let in under, which an await may have
+  outlived: each outcome names what it touched (`touched`), and the host's
+  dispatcher judges those names again under the policy as it stands.
+  */
   readonly files?: FileRules
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
   /**
-   * Keep shell output whole instead of eliding its middle (M101): set while
-   * the session packs observations, so a packed shell result stays
-   * recoverable through `recall_output`. Oversized originals are packed
-   * before their first model send.
-   */
-  readonly wholeShellOutput?: boolean
-  /**
-   * The session's record of each file as the model last read or wrote it
-   * (absolute path to a fingerprint): `write_file` replaces only what the
-   * model has seen (D27).
-   */
+  The session's record of each file as the model last read or wrote it
+  (absolute path to a fingerprint): `write_file` replaces only what the
+  model has seen (D27).
+  */
   readonly seen: ReadonlyMap<string, string>
   /** Call-owned fingerprints; the dispatcher commits them with the result. */
   readonly provisionalSeen: Map<string, string>
@@ -457,10 +458,10 @@ export interface EditFormatter {
 export type ConditionalWrite = 'written' | 'changed'
 
 /**
- * A PDF or an image for the model to see, in a user message after the
- * round's outputs (M54, PLAN.md D47): one `read_file` read whole, or the
- * browser check's screenshot (M81).
- */
+A PDF or an image for the model to see, in a user message after the
+round's outputs (M54, PLAN.md D47): one `read_file` read whole, or the
+browser check's screenshot (M81).
+*/
 export interface VisibleFile {
   /** The model's line before it: what it is and where it came from. */
   readonly lead: string
@@ -477,13 +478,13 @@ export interface ReadMediaFile {
 }
 
 /**
- * The workspace files a call touched (M78), for the dispatcher's live policy
- * fence: the policy as it stands when the outcome is built must still allow
- * every one of them, or nothing from the call reaches the model. An outcome
- * that names no files, or may carry text from files it cannot name (a
- * command's output, a server's, a child's), is incomplete: it fails closed,
- * refused if the file policy changed at all since the call was let in.
- */
+The workspace files a call touched (M78), for the dispatcher's live policy
+fence: the policy as it stands when the outcome is built must still allow
+every one of them, or nothing from the call reaches the model. An outcome
+that names no files, or may carry text from files it cannot name (a
+command's output, a server's, a child's), is incomplete: it fails closed,
+refused if the file policy changed at all since the call was let in.
+*/
 export interface TouchedFiles {
   /** Each file as named and after links are resolved, workspace-relative (or absolute under an extra root). */
   readonly names: readonly string[]
@@ -494,10 +495,10 @@ export interface TouchedFiles {
   /** A read recorded as seen (D27), by absolute path: forgotten when its outcome is refused. */
   readonly seen?: string
   /**
-   * The file-policy revisions under which earlier work this outcome carries
-   * was done (a child's, since its spawn): each must still stand, or the
-   * outcome is refused. Undefined is a revision nobody recorded.
-   */
+  The file-policy revisions under which earlier work this outcome carries
+  was done (a child's, since its spawn): each must still stand, or the
+  outcome is refused. Undefined is a revision nobody recorded.
+  */
   readonly revisions?: readonly (string | undefined)[]
 }
 
@@ -596,8 +597,8 @@ export function classifyTool(name: string): ToolClass | undefined {
 }
 
 /** Every tool the dispatcher knows by name (M78): what a fence must cover, external tools aside.
- * @unwired M96 tool inventory the team fence must cover
- */
+@unwired M96 tool inventory the team fence must cover
+*/
 export function classifiedToolNames(): readonly string[] {
   return Object.keys(TOOL_CLASSES)
 }
@@ -650,7 +651,7 @@ export interface ToolDefinitionOptions {
   /** Session setting AND selected-model support, resolved by the caller before cache-key generation. */
   readonly shouldUseStrictTools?: boolean
   /** M115 G: validated lazy schedule declarations, supplied only when the
-   * host's charter/capability admission offers them. No engine import here. */
+  host's charter/capability admission offers them. No engine import here. */
   readonly scheduleTools?: readonly FunctionToolDefinition[]
   /** Advertise private shell handles only when a vault runner is bound. */
   readonly hasVaultShell?: boolean
@@ -658,9 +659,9 @@ export interface ToolDefinitionOptions {
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
-   * Whether the edit tools take `then_run`, which runs any command line:
-   * with the shell unless a custom agent's tool list holds no shell tool (M76).
-   */
+  Whether the edit tools take `then_run`, which runs any command line:
+  with the shell unless a custom agent's tool list holds no shell tool (M76).
+  */
   readonly hasThenRun?: boolean
   /** True when the workspace context holds at least one skill. */
   readonly hasSkills: boolean
@@ -668,6 +669,8 @@ export interface ToolDefinitionOptions {
   readonly hasImageGeneration?: boolean
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
+  /** Concurrent subagents for the spawn description (M127 setting). */
+  readonly subagentCapacity?: number
   /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
   readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS
   /** Child sessions cannot ask the panel or set its task list. */
@@ -814,7 +817,8 @@ export function toolDefinitions(
               description: { type: 'string', description: 'One line saying what the command does' },
               timeout_ms: {
                 type: 'integer',
-                description: 'Milliseconds before the command is stopped',
+                description:
+                  'Milliseconds before the command is stopped; leave unset to wait until it ends or is stopped',
               },
             },
             ['command', 'description'],
@@ -917,7 +921,14 @@ export function toolDefinitions(
         )),
     ...(options.hasSubagents === true
       ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
-          define(tool.name, tool.description, tool.properties, tool.required),
+          define(
+            tool.name,
+            tool.name === MODEL_API_SUBAGENT_TOOLS.spawn && options.subagentCapacity !== undefined
+              ? subagentSpawnDescription(options.subagentCapacity)
+              : tool.description,
+            tool.properties,
+            tool.required,
+          ),
         )
       : []),
     // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.
@@ -988,10 +999,10 @@ export function readFileCharacterBudget(contextTokens: number | undefined): numb
       )
 }
 
-function clip(text: string, maxChars = TOOL_OUTPUT_MAX_CHARS): string {
+function clip(text: string): string {
   // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
-  return text.length > maxChars
-    ? `${text.slice(0, codePointBoundary(text, maxChars))}${TOOL_OUTPUT_CLIP_MARKER}`
+  return text.length > TOOL_OUTPUT_MAX_CHARS
+    ? `${text.slice(0, codePointBoundary(text, TOOL_OUTPUT_MAX_CHARS))}${TOOL_OUTPUT_CLIP_MARKER}`
     : text
 }
 
@@ -1081,13 +1092,13 @@ function fileText(text: string, shape: TextShape): string {
 }
 
 /**
- * Format on edit (M68): what the edit wrote, as the file's formatter leaves
- * it, written back when it changed; the text on disk either way. It runs
- * before the fingerprint is taken, so `then_run` checks the formatted file.
- * The edit has landed by now: a formatted text that cannot be written back
- * (the write is atomic, so the file still holds what the edit wrote) is
- * logged and the edit stands as written (the M68 review).
- */
+Format on edit (M68): what the edit wrote, as the file's formatter leaves
+it, written back when it changed; the text on disk either way. It runs
+before the fingerprint is taken, so `then_run` checks the formatted file.
+The edit has landed by now: a formatted text that cannot be written back
+(the write is atomic, so the file still holds what the edit wrote) is
+logged and the edit stands as written (the M68 review).
+*/
 async function formatWritten(
   written: string,
   target: FormatTarget,
@@ -1097,10 +1108,9 @@ async function formatWritten(
   let formatted: string | undefined
   try {
     formatted = await formatter?.format(target, written)
-  } catch (error: unknown) {
-    formatter?.warn(
-      `Format on edit failed; the edit stays as written: ${error instanceof Error ? error.message : String(error)}`,
-    )
+  } catch {
+    // The record names the outcome, never the formatter failure's text.
+    formatter?.warn('Format on edit failed; the edit stays as written')
     return written
   }
   if (formatter === undefined || formatted === undefined || formatted === written) {
@@ -1137,10 +1147,9 @@ async function formatWritten(
       )
       return written
     }
-  } catch (error: unknown) {
-    formatter.warn(
-      `Format on edit could not write ${target.relative}; the edit stays as written: ${error instanceof Error ? error.message : String(error)}`,
-    )
+  } catch {
+    // The record names the file and the outcome, never the failure's text.
+    formatter.warn(`Format on edit could not write ${target.relative}; the edit stays as written`)
     return written
   }
   return formatted
@@ -1152,12 +1161,12 @@ function editedLine(line: string, isFormatted: boolean): string {
 }
 
 /**
- * An edit's row and patch. The hunk is the changed lines (common prefix and
- * suffix trimmed) with their context, in unified-diff numbering (PLAN.md
- * D27, `changeHunk`, shared with M67's rename): an insertion's `oldStart` is
- * the line it follows, never a marker of a created file, and a Revert checks
- * the context, so it refuses a file that has moved on.
- */
+An edit's row and patch. The hunk is the changed lines (common prefix and
+suffix trimmed) with their context, in unified-diff numbering (PLAN.md
+D27, `changeHunk`, shared with M67's rename): an insertion's `oldStart` is
+the line it follows, never a marker of a created file, and a Revert checks
+the context, so it refuses a file that has moved on.
+*/
 function patchOutcome(
   relativePath: string,
   before: string | undefined,
@@ -1202,7 +1211,7 @@ async function readMediaFile(
   const unavailable =
     context.media !== undefined && 'reason' in context.media
       ? context.media.reason
-      : UI_TEXT.media.uploadStorageUnknown
+      : UI_TEXT.media.uploadUnavailable
   if (readMedia === undefined) return failure(unavailable)
   try {
     context.signal?.throwIfAborted()
@@ -1344,9 +1353,11 @@ function imageOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
 }
 
 /**
- * A PDF or an image read whole (M54, PLAN.md D47), within what an attachment
- * of its kind may be; the file itself reaches the model after the round.
- */
+A PDF or an image read whole (M54, PLAN.md D47): no size of ours — the
+read is bounded only by host memory (MEDIA_READ_MAX_BYTES), and the
+file itself reaches the model after the round, admitted through the
+session's one media path (the record's, then the provider's own).
+*/
 async function readVisual(
   file: { readonly relative: string; readonly checkedAbsolute: string },
   kind: 'pdf' | 'image',
@@ -1356,7 +1367,7 @@ async function readVisual(
   try {
     bytes = await context.io.readBytes(
       file.checkedAbsolute,
-      kind === 'pdf' ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES,
+      MEDIA_READ_MAX_BYTES,
       file.checkedAbsolute,
       context.signal,
     )
@@ -1375,7 +1386,23 @@ async function readVisual(
       fill(UI_TEXT.toolVisualFileMissing, { path: file.relative }),
     )
   }
-  return kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
+  const outcome =
+    kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
+  if (outcome.visibleFile === undefined) return outcome
+  // The read stays inline on the wire, admitted through the session's one
+  // media path before the model reads "the file follows": priced at the
+  // seeded bound, refused with the honest reason when capped and
+  // unmeasurable. The same admission runs again when the bytes are sent.
+  if (context.media === undefined || 'reason' in context.media) return outcome
+  const admitVisual = context.media.admitVisual
+  if (admitVisual === undefined) return outcome
+  try {
+    admitVisual(outcome.visibleFile.part)
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return failure(reason)
+  }
+  return outcome
 }
 
 /** Whether the permission settings deny the tools this confined path (M78). */
@@ -1387,11 +1414,11 @@ function isDenied(
 }
 
 /**
- * The path `read_file` reads: in the workspace, or given absolute under an
- * extra root of the permission profile (M78), confined to that root as the
- * workspace confines its own (links resolved). Such a file is named by its
- * absolute path, forward slashes, and carries the root it was confined to.
- */
+The path `read_file` reads: in the workspace, or given absolute under an
+extra root of the permission profile (M78), confined to that root as the
+workspace confines its own (links resolved). Such a file is named by its
+absolute path, forward slashes, and carries the root it was confined to.
+*/
 async function readablePath(
   given: string,
   context: ToolContext,
@@ -1491,8 +1518,10 @@ async function readFile(
   }
   const body = `${header}${shown.join('\n')}${continuation(shown.length)}`
   // A refused read leaves no trace: the host forgets `seen` with the outcome.
+  // D121: no trimming of ours — the page the model asked for rides whole;
+  // the host's one bound cuts with a spill where it enters the conversation.
   return {
-    output: clip(body),
+    output: body,
     visibleOutput: `${fill(UI_TEXT.toolReadText, { path: resolved.relative })}\n${shown.join('\n')}${start + shown.length < lines.length ? `\n[${fill(UI_TEXT.toolReadRange, { start: formatNumber(start + 1), end: formatNumber(start + shown.length), total: formatNumber(lines.length), offset: String(start + shown.length + 1) })}]` : ''}`,
     touched: { ...touched, seen: resolved.absolute },
   }
@@ -1647,10 +1676,10 @@ async function writeFile(
 }
 
 /**
- * One line for fuzzy matching (M101, Pi's edit-diff): NFKC, Unicode spaces
- * as spaces, curly quotes and dashes as their plain forms, no trailing
- * whitespace.
- */
+One line for fuzzy matching (M101, Pi's edit-diff): NFKC, Unicode spaces
+as spaces, curly quotes and dashes as their plain forms, no trailing
+whitespace.
+*/
 function fuzzyLine(line: string): string {
   return line
     .normalize('NFKC')
@@ -1662,11 +1691,11 @@ function fuzzyLine(line: string): string {
 }
 
 /**
- * The character range a `find` uniquely matches, exact first, then the
- * normalised line fallback (M101): at most one run of normalised lines may
- * match, and the untouched lines are copied back from the original, so only
- * the matched range changes. Undefined with the refusal when it does not.
- */
+The character range a `find` uniquely matches, exact first, then the
+normalised line fallback (M101): at most one run of normalised lines may
+match, and the untouched lines are copied back from the original, so only
+the matched range changes. Undefined with the refusal when it does not.
+*/
 async function matchRange(
   current: string,
   find: string,
@@ -1929,7 +1958,9 @@ async function search(
   ]
   const found = results.length === 0 ? 'No matches.' : results.join('\n')
   const body = [found, ...notes].join('\n')
-  return { output: clip(body), visibleOutput: clip(body), touched }
+  // D121: no trimming of ours — the matches ride whole; the row keeps the
+  // display clip, and the host's one bound cuts with a spill downstream.
+  return { output: body, visibleOutput: clip(body), touched }
 }
 
 async function listFiles(
@@ -1949,18 +1980,20 @@ async function listFiles(
     files.length > shown.length ? `\n[${String(files.length - shown.length)} more files]` : ''
   const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
   // Every file listed, shown or counted.
+  // D121: no trimming of ours — the listing rides whole; the row keeps the
+  // display clip, and the host's one bound cuts with a spill downstream.
   return {
-    output: clip(body),
+    output: body,
     visibleOutput: clip(body),
     touched: { names: files, complete: true },
   }
 }
 
 async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Promise<ToolOutcome> {
-  const timeoutMs = Math.min(
-    Math.max(args.timeout_ms ?? SHELL_DEFAULT_TIMEOUT_MS, 1),
-    SHELL_MAX_TIMEOUT_MS,
-  )
+  // The model's own timeout, honoured whole however long; unnamed, the
+  // command runs until it ends or is stopped (owner 2026-10-16: no
+  // arbitrary limits), saying so out loud while it runs.
+  const timeoutMs = args.timeout_ms === undefined ? undefined : Math.max(args.timeout_ms, 1)
   if (args.command.includes('secret://'))
     return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
   if (args.secrets && !context.io.runVaultShell)
@@ -1986,9 +2019,12 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
             context.assertCanRun,
             context.isInteractiveShell === true,
           )
+    // TOOLCAP: the runner's whole output rides the outcome; the host's one
+    // bound cuts it with a spill and notices on its way into the
+    // conversation, so no command's tail is ever dropped silently.
     return args.secrets && result.exitCode === null
       ? failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
-      : shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
+      : shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, true)
   } catch (error: unknown) {
     if (args.secrets) return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
     throw error
@@ -1996,28 +2032,28 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
 }
 
 /**
- * What a shell command carries so the session's kept directory survives it
- * (M91 lane S, PLAN.md D70; the lead's side-file decision): the trailer
- * reports the call's sequence and the shell's final directory to the
- * session's side file, then restores the command's own exit. The trailer
- * changes neither the output (it writes a file, not a stream) nor how the
- * command ended:
- * - bash keeps `$?` across the trailer and exits with it, so a failing
- *   command still fails; a trailer the command never reaches (`exit`,
- *   `set -e`, a parse error, a kill) leaves a stale sequence, which reads
- *   back as "no report".
- * - Windows PowerShell reports a `-Command`'s last statement, so a bare
- *   trailer would turn a failure into a success (probed: a failing cmdlet
- *   exits 1, a succeeding trailer after it exits 0). The trailer reads
- *   `$?` and `$LASTEXITCODE` first and exits with the same outcome: a
- *   success stays 0, a native failure keeps its code, anything else fails
- *   as 1. The 5.1-safe statements (no ternary) write through .NET, so a
- *   directory with spaces, quotes or `$` needs no quoting at all.
- * The host reads the file back (never the output, which can be truncated)
- * and keeps a directory inside the workspace, else resets to the root with
- * a note. Approval cards, session rules and hook payloads see the user's
- * own command, which the host wraps after admission.
- */
+What a shell command carries so the session's kept directory survives it
+(M91 lane S, PLAN.md D70; the lead's side-file decision): the trailer
+reports the call's sequence and the shell's final directory to the
+session's side file, then restores the command's own exit. The trailer
+changes neither the output (it writes a file, not a stream) nor how the
+command ended:
+- bash keeps `$?` across the trailer and exits with it, so a failing
+  command still fails; a trailer the command never reaches (`exit`,
+  `set -e`, a parse error, a kill) leaves a stale sequence, which reads
+  back as "no report".
+- Windows PowerShell reports a `-Command`'s last statement, so a bare
+  trailer would turn a failure into a success (probed: a failing cmdlet
+  exits 1, a succeeding trailer after it exits 0). The trailer reads
+  `$?` and `$LASTEXITCODE` first and exits with the same outcome: a
+  success stays 0, a native failure keeps its code, anything else fails
+  as 1. The 5.1-safe statements (no ternary) write through .NET, so a
+  directory with spaces, quotes or `$` needs no quoting at all.
+The host reads the file back (never the output, which can be truncated)
+and keeps a directory inside the workspace, else resets to the root with
+a note. Approval cards, session rules and hook payloads see the user's
+own command, which the host wraps after admission.
+*/
 export function shellDirectoryTrailer(
   platform: NodeJS.Platform,
   sideFile: string,
@@ -2029,12 +2065,12 @@ export function shellDirectoryTrailer(
 }
 
 /**
- * A side file's report for `sequence`: the shell's final directory.
- * Undefined when the trailer never ran (an `exit`, a kill, a timeout, a
- * parse error) or the file holds another call's report: the caller then
- * keeps the previous directory. Newlines inside a name survive: everything
- * after the first line is the directory, less its one trailing newline.
- */
+A side file's report for `sequence`: the shell's final directory.
+Undefined when the trailer never ran (an `exit`, a kill, a timeout, a
+parse error) or the file holds another call's report: the caller then
+keeps the previous directory. Newlines inside a name survive: everything
+after the first line is the directory, less its one trailing newline.
+*/
 export function parseShellDirectoryReport(
   text: string | undefined,
   sequence: number,
@@ -2054,31 +2090,32 @@ export function parseShellDirectoryReport(
 }
 
 /**
- * What a finished command printed: each stream keeps its beginning and its
- * end within its share of the output budget (D27).
- */
+What a finished command printed: each stream keeps its beginning and its
+end within its share of the output budget (D27).
+*/
 export function shellText(
   result: ShellResult,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
   shouldKeepWhole = false,
 ): string {
   const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()].filter((part) => part !== '')
-  // The runner already bounds each stream. Preserve that original in
-  // replay; the packer projects oversized results before their first send.
+  // The runner already bounds each stream (SHELL_OUTPUT_MAX_CHARS). The
+  // shell tool keeps that original whole: the host's one bound cuts it with
+  // a spill and notices (TOOLCAP). Other callers elide per stream.
   if (shouldKeepWhole) return parts.join('\n')
   const streamBudget = Math.floor(maxChars / SHELL_STREAMS)
   return parts.map((part) => clipMiddle(part, streamBudget)).join('\n')
 }
 
 /**
- * A finished command as the model and the row read it (the shell tool, and
- * the user's own `!` command on this backend, M46): what it printed, then an
- * exit line that is never clipped, so a flood of output still says how the
- * command ended (D27). A check's output takes its share of one budget (M68).
- */
+A finished command as the model and the row read it (the shell tool, and
+the user's own `!` command on this backend, M46): what it printed, then an
+exit line that is never clipped, so a flood of output still says how the
+command ended (D27). A check's output takes its share of one budget (M68).
+*/
 export function shellOutcome(
   result: ShellResult,
-  timeoutMs: number,
+  timeoutMs: number | undefined,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
   shouldKeepWhole = false,
 ): ToolOutcome {
@@ -2086,7 +2123,10 @@ export function shellOutcome(
   if (result.isCancelled) {
     exit = SHELL_STOPPED_BY_USER
   } else if (result.isTimedOut) {
-    exit = `stopped after ${String(timeoutMs)} ms`
+    exit =
+      timeoutMs === undefined
+        ? 'stopped at its time limit'
+        : `stopped after ${String(timeoutMs)} ms`
   }
   const body = `${shellText(result, maxChars, shouldKeepWhole)}\n[${exit}]`.trim()
   // The row keeps the elided text it always showed; only what the model
@@ -2101,9 +2141,9 @@ export function shellOutcome(
 }
 
 /**
- * Runs a file or shell tool. `ask_user` and `todo_write` are the session's
- * (they need the transcript), so they are refused here.
- */
+Runs a file or shell tool. `ask_user` and `todo_write` are the session's
+(they need the transcript), so they are refused here.
+*/
 export async function executeTool(
   name: string,
   argsJson: string,
@@ -2112,7 +2152,8 @@ export async function executeTool(
   let raw: unknown
   try {
     raw = JSON.parse(argsJson)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return failure('arguments are not valid JSON')
   }
   switch (name) {
@@ -2151,7 +2192,9 @@ export async function executeTool(
         if (!args.success) return argumentFailure(args.error)
         try {
           const output = await tool.call(args.data, context.signal ?? new AbortController().signal)
-          return { output: clip(output), visibleOutput: clip(output) }
+          // D121: no trimming of ours — a vault tool's answer rides whole;
+          // the row keeps the display clip.
+          return { output, visibleOutput: clip(output) }
         } catch {
           return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
         }
@@ -2168,7 +2211,8 @@ export function parseQuestions(argsJson: string): readonly Question[] | string {
     return parsed.success
       ? parsed.data.questions
       : `invalid arguments: ${z.prettifyError(parsed.error)}`
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return 'arguments are not valid JSON'
   }
 }

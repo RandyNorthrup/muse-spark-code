@@ -57,7 +57,9 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
       if (modelText === undefined || values?.error) return
       try {
         return parseReferenceModel(JSON.parse(modelText))
-      } catch {
+      } catch (error: unknown) {
+        // An unreadable model reads nothing: anything else keeps its kind.
+        if (!(error instanceof Error)) throw error
         return
       }
     }, [modelText, values?.error])

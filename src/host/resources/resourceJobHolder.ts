@@ -1,12 +1,13 @@
-import { spawn } from 'node:child_process'
-import { powerShellQuoted } from '../../core/shellQuote'
 import type { ResourceJob, ResourceLease } from '../../core/resources/launch'
 import {
   RESOURCE_SAMPLE_MS,
   SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
-import { loadJobAssembly, windowsPowerShell } from '../processTree'
+import { loadJobAssembly } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { powerShellQuoted } from '../../core/shellQuote'
 
 /** A sampler infrastructure process, excluded from the job it keeps queryable. */
 export async function holdResourceJob(
@@ -16,7 +17,7 @@ export async function holdResourceJob(
 ): Promise<ResourceLease> {
   const ps = windowsPowerShell(systemRoot)
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- absolute Windows PowerShell, the packaged verified job assembly and a fresh generated job name only; the holder never receives a model/workspace command or credentials (M107 C1, PLAN.md §8).
-  const child = spawn(
+  const child = spawnGuarded(
     ps.file,
     [
       ...WINDOWS_POWERSHELL_COMMAND_ARGS,

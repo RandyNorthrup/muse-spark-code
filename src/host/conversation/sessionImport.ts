@@ -6,11 +6,9 @@
 import { UI_TEXT } from '../../shared/constants'
 import { parseSessionExport, type SessionExportParse } from '../../core/export/sessionTransfer'
 
-/** A picked file: dismissed, refused for its size, or its text. */
+/** A picked file: dismissed, or its text (reads are unbounded). */
 export type PickedTransferFile =
-  | { readonly kind: 'dismissed' }
-  | { readonly kind: 'tooLarge' }
-  | { readonly kind: 'read'; readonly content: string }
+  { readonly kind: 'dismissed' } | { readonly kind: 'read'; readonly content: string }
 
 export interface SessionTransferFiles {
   /** The open dialog under `title`; throws when the file cannot be read or is not UTF-8. */
@@ -24,8 +22,9 @@ export function readTransferDocument(content: string): SessionExportParse {
   let raw: unknown
   try {
     raw = JSON.parse(content)
-  } catch {
+  } catch (error: unknown) {
     // JSON.parse can quote the hostile file's contents, including credentials.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: UI_TEXT.transferNotAnExport }
   }
   return parseSessionExport(raw)

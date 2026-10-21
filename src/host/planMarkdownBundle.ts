@@ -11,6 +11,7 @@
 import type { PlanMarkdown } from '../core/plans/planDocument'
 import { UI_TEXT } from '../shared/constants'
 import { forgetFile, requireFile } from './lazyBundle'
+import { describeStoreError } from './backend/storeErrors'
 import type { Logger } from './logger'
 
 const READER_FUNCTIONS = ['topHeading', 'listItems', 'hasRawHtml', 'briefText'] as const
@@ -21,10 +22,10 @@ interface PlanMarkdownBundle {
 }
 
 /**
- * Whether a required module is the bundle: its reader has the three
- * functions. Their signatures are taken on trust (PLAN.md §8): both bundles
- * come from one source tree, one `npm run build` and one package.
- */
+Whether a required module is the bundle: its reader has the three
+functions. Their signatures are taken on trust (PLAN.md §8): both bundles
+come from one source tree, one `npm run build` and one package.
+*/
 export function isPlanMarkdownBundle(value: unknown): value is PlanMarkdownBundle {
   if (typeof value !== 'object' || value === null || !('planMarkdown' in value)) {
     return false
@@ -45,15 +46,11 @@ export interface PlanMarkdownLoaderDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 /**
- * The reader, required the first time it is asked for and kept from then
- * on. A missing or corrupt bundle throws `planMarkdownUnavailable` (the log
- * has the cause) and is tried again on the next call.
- */
+The reader, required the first time it is asked for and kept from then
+on. A missing or corrupt bundle throws `planMarkdownUnavailable` (the log
+has the cause) and is tried again on the next call.
+*/
 export function planMarkdownLoader(deps: PlanMarkdownLoaderDeps): () => PlanMarkdown {
   let reader: PlanMarkdown | undefined
   return () => {
@@ -65,7 +62,9 @@ export function planMarkdownLoader(deps: PlanMarkdownLoaderDeps): () => PlanMark
     try {
       loaded = loadBundle(bundlePath)
     } catch (error: unknown) {
-      deps.log.error(`The plan reader ${bundlePath} could not be loaded: ${describe(error)}`)
+      deps.log.error(
+        `The plan reader ${bundlePath} could not be loaded: ${describeStoreError(error)}`,
+      )
       throw new Error(UI_TEXT.planMarkdownUnavailable, { cause: error })
     }
     if (!isPlanMarkdownBundle(loaded)) {

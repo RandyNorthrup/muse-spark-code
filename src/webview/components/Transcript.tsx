@@ -35,10 +35,10 @@ import { useReplyUsageText } from '../moneyHooks'
 import type { UsdAmount } from '../../shared/usdSchema'
 
 /**
- * A reply's usage line with its exact cost (STARTUP017): the line appears
- * once the lazy money chunk arrives, never with a guessed cost. The tokens
- * are known at startup; the exact dollars are not.
- */
+A reply's usage line with its exact cost (STARTUP017): the line appears
+once the lazy money chunk arrives, never with a guessed cost. The tokens
+are known at startup; the exact dollars are not.
+*/
 function ReplyUsage({
   inputTokens,
   outputTokens,
@@ -112,9 +112,9 @@ export interface TranscriptProps {
   readonly onOpenLink: (url: string) => void
   readonly onCopy: (text: string) => void
   /**
-   * Code block Insert; absent, with Apply, in a conversation that holds
-   * imported history (M84): someone else's file never writes into the editor.
-   */
+  Code block Insert; absent, with Apply, in a conversation that holds
+  imported history (M84): someone else's file never writes into the editor.
+  */
   readonly onInsert: ((text: string) => void) | undefined
   readonly onReadOutput: (itemId: string, outputRef: string, offsetBytes: number) => void
   /** A tool output as an editor tab (M15). */
@@ -148,9 +148,9 @@ export interface TranscriptProps {
   readonly onForkRewind?: ((entryId: string) => void) | undefined
   readonly onRewindConversation?: ((entryId: string) => void) | undefined
   /**
-   * Turn checkpoints (M72): the turns with one, their card's "Restore Files"
-   * and "Rewind Conversation and Restore Files", and a restore's Redo.
-   */
+  Turn checkpoints (M72): the turns with one, their card's "Restore Files"
+  and "Rewind Conversation and Restore Files", and a restore's Redo.
+  */
   readonly checkpointTurnIds?: ReadonlySet<string> | undefined
   readonly legacyCheckpointTurnIds?: ReadonlySet<string> | undefined
   readonly onRestoreFiles?: ((entryId: string) => void) | undefined
@@ -159,10 +159,10 @@ export interface TranscriptProps {
   /** A Muse Code fault's way on (D26): Restart now, New conversation. */
   readonly onNoticeAction?: ((entryId: string, action: NoticeAction) => void) | undefined
   /**
-   * "Report This" on a failure the host recorded (M93 lane W): hands the
-   * row's sanitized event reference to the report workflow, never its text.
-   * Rows offer it only while they carry a reference.
-   */
+  "Report This" on a failure the host recorded (M93 lane W): hands the
+  row's sanitized event reference to the report workflow, never its text.
+  Rows offer it only while they carry a reference.
+  */
   readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
   readonly restoreNote?: string | undefined
@@ -186,24 +186,24 @@ export interface TranscriptProps {
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
   /**
-   * The team's waiting and merge cards' answers (M96 lane U2); absent
-   * where the host takes none (history, single-model mode): the cards read
-   * only then.
-   */
+  The team's waiting and merge cards' answers (M96 lane U2); absent
+  where the host takes none (history, single-model mode): the cards read
+  only then.
+  */
   readonly teamActions?: TeamCardActions | undefined
   /**
-   * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
-   * `withdrawQueued`. Absent while nothing can take a message back.
-   */
+  Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
+  `withdrawQueued`. Absent while nothing can take a message back.
+  */
   /** M118-P-REACT-BRIDGE: same handler as the native Save Prompt command. */
   readonly onSharePrompt?: ((text: string) => void) | undefined
   readonly onSavePrompt?: ((text: string) => void) | undefined
   readonly onEditQueued?: ((card: QueuedCardRef) => void) | undefined
   /**
-   * Whether a steered message can still be taken back before a request reads
-   * it: the Model API's can; Muse Code's is delivered at once, and its card's
-   * menu says so instead (D66).
-   */
+  Whether a steered message can still be taken back before a request reads
+  it: the Model API's can; Muse Code's is delivered at once, and its card's
+  menu says so instead (D66).
+  */
   readonly canEditSteered?: boolean | undefined
 }
 
@@ -217,10 +217,10 @@ export interface QueuedCardRef {
 type RewindChoice = 'fork' | 'conversation' | 'restore' | 'rewind' | 'restoreBoth' | 'forkRewind'
 
 /**
- * The rows of the user card's menu, in Claude Code's order. A turn with a
- * checkpoint (M72) offers "Restore Files" and the conversation rewind with
- * it; one without keeps M13's fork and code rewind together.
- */
+The rows of the user card's menu, in Claude Code's order. A turn with a
+checkpoint (M72) offers "Restore Files" and the conversation rewind with
+it; one without keeps M13's fork and code rewind together.
+*/
 function rewindMenu(): readonly { readonly id: RewindChoice; readonly label: string }[] {
   return [
     { id: 'fork', label: UI_TEXT.forkFromHere },
@@ -280,11 +280,11 @@ function focusSegments(entries: readonly TranscriptEntry[]): Segment[] {
 }
 
 /**
- * The default view (M87, PLAN.md D66): in a run of steps with no other row
- * between them, two or more finished steps fold into one group. A step
- * waiting on the user never folds, and a running one stays below the group
- * until it finishes; one finished step alone stays as it is.
- */
+The default view (M87, PLAN.md D66): in a run of steps with no other row
+between them, two or more finished steps fold into one group. A step
+waiting on the user never folds, and a running one stays below the group
+until it finishes; one finished step alone stays as it is.
+*/
 function defaultSegments(entries: readonly TranscriptEntry[]): Segment[] {
   const segments: Segment[] = []
   let run: StepEntry[] = []
@@ -315,11 +315,11 @@ export function segment(entries: readonly TranscriptEntry[], isFocusView: boolea
 }
 
 /**
- * A message's time at its card's corner (M87, PLAN.md D66): the time alone
- * for today, else the date and time, in the display language; the full date
- * and time in its title. Revealed on hover and on focus inside the card; a
- * card with no button of its own makes the time itself a keyboard stop.
- */
+A message's time at its card's corner (M87, PLAN.md D66): the time alone
+for today, else the date and time, in the display language; the full date
+and time in its title. Revealed on hover and on focus inside the card; a
+card with no button of its own makes the time itself a keyboard stop.
+*/
 function MessageTime({
   atMs,
   template,
@@ -581,10 +581,10 @@ const UserCard = memo(function UserCard({
 })
 
 /**
- * The web pages a reply cites (M33, `url_citation`), each once, under the
- * reply. They open like the reply's own links: http and https in the
- * browser, anything else refused.
- */
+The web pages a reply cites (M33, `url_citation`), each once, under the
+reply. They open like the reply's own links: http and https in the
+browser, anything else refused.
+*/
 function Citations({
   citations,
   onOpenLink,
@@ -614,14 +614,14 @@ function Citations({
 }
 
 /**
- * Assistant text. While a reply streams it is rendered in two parts: a
- * stable head (memoised, re-rendered only when the split point moves) and a
- * tail that re-parses per delta, so the per-delta cost stays that of one
- * paragraph rather than the whole reply (docs/certification/m4.md). A code
- * fence still open at the end of the tail is shown as plain text outside the
- * markdown and highlighted once it closes (M25). The value is also deferred
- * so React never blocks input on that render.
- */
+Assistant text. While a reply streams it is rendered in two parts: a
+stable head (memoised, re-rendered only when the split point moves) and a
+tail that re-parses per delta, so the per-delta cost stays that of one
+paragraph rather than the whole reply (docs/certification/m4.md). A code
+fence still open at the end of the tail is shown as plain text outside the
+markdown and highlighted once it closes (M25). The value is also deferred
+so React never blocks input on that render.
+*/
 interface AssistantRowProps {
   readonly entry: Extract<TranscriptEntry, { kind: 'assistant' }>
   readonly onOpenLink: (url: string) => void
@@ -643,11 +643,11 @@ interface AssistantRowProps {
 }
 
 /**
- * A MessageDisplay hook's display-only rewrite (M91, PLAN.md D70): the panel
- * marks it whenever the hook's version differs from the reply, outside the
- * Markdown the hook wrote, so no hook can hide the marker. The original is
- * one click away; copy, history and export always use the original.
- */
+A MessageDisplay hook's display-only rewrite (M91, PLAN.md D70): the panel
+marks it whenever the hook's version differs from the reply, outside the
+Markdown the hook wrote, so no hook can hide the marker. The original is
+one click away; copy, history and export always use the original.
+*/
 function HookEditedMarker({
   isOriginalShown,
   onToggle,
@@ -874,9 +874,9 @@ function StepsGroup({
 }
 
 /**
- * A workflow run's card (M47): it stays in its place and keeps changing
- * after the turn that launched it ends, as the run goes on in the background.
- */
+A workflow run's card (M47): it stays in its place and keeps changing
+after the turn that launched it ends, as the run goes on in the background.
+*/
 const WorkflowRow = memo(function WorkflowRow({
   entry,
 }: {
@@ -895,10 +895,10 @@ const WorkflowRow = memo(function WorkflowRow({
 })
 
 /**
- * "Report This" on a recorded failure (M93): posts the row's sanitized event
- * reference — which journal event it means, never its text. Nothing renders
- * for a row without one, or without a handler.
- */
+"Report This" on a recorded failure (M93): posts the row's sanitized event
+reference — which journal event it means, never its text. Nothing renders
+for a row without one, or without a handler.
+*/
 function ReportThisButton({
   entry,
   onReportProblem,
@@ -993,9 +993,9 @@ function OtherRow({
 }
 
 /**
- * How many times a notice was said (D26): a small muted count after its
- * text, read out in words, as the count's glyph alone says little.
- */
+How many times a notice was said (D26): a small muted count after its
+text, read out in words, as the count's glyph alone says little.
+*/
 function RepeatCount({ count }: { readonly count: number | undefined }) {
   if (count === undefined) {
     return null
@@ -1015,9 +1015,9 @@ function RepeatCount({ count }: { readonly count: number | undefined }) {
 const MemoOtherRow = memo(OtherRow)
 
 /**
- * A file restore's notice with its Redo (M72): unavailable while the host
- * answers, gone once spent, kept when a file could not be put back yet.
- */
+A file restore's notice with its Redo (M72): unavailable while the host
+answers, gone once spent, kept when a file could not be put back yet.
+*/
 const RestoreNotice = memo(function RestoreNotice({
   entry,
   restoreId,

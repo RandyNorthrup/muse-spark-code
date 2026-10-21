@@ -3,8 +3,10 @@ import {
   UI_TEXT,
   VAULT_TOTP_DIGITS,
   VAULT_ID_BYTES,
+  VAULT_LIMITS,
   VAULT_TOTP_PERIOD_SECONDS,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import {
   type VaultItem,
   type VaultItemMetadata,
@@ -13,7 +15,11 @@ import {
   vaultItemSchema,
   vaultItemMetadataSchema,
   vaultBindingSchema,
+  vaultOriginSchema,
+  vaultIssuerSchema,
+  vaultResourceSchema,
 } from '../../shared/vault'
+import { readVaultExpiry } from '../../shared/vaultExpiry'
 import * as z from 'zod/mini'
 
 export interface VaultNativeInput {
@@ -28,6 +34,109 @@ export interface VaultNativeInput {
   now(): number
 }
 class Cancelled extends Error {}
+
+type GuidedTargetKind = 'ssh' | 'sshAnyHost' | 'sshSign' | 'git' | 'origin'
+
+function isGuidedTargetKind(id: string): id is GuidedTargetKind {
+  switch (id) {
+    case 'ssh':
+    case 'sshAnyHost':
+    case 'sshSign':
+    case 'git':
+    case 'origin': {
+      return true
+    }
+    default: {
+      return false
+    }
+  }
+}
+
+function targetKindOptions(isKeepOffered: boolean): { label: string; id: string }[] {
+  const options = [
+    { label: UI_TEXT.vault.targetNone, id: 'none' },
+    { label: UI_TEXT.vault.targetSsh, id: 'ssh' },
+    { label: UI_TEXT.vault.targetSshAny, id: 'sshAnyHost' },
+    { label: UI_TEXT.vault.targetSshSign, id: 'sshSign' },
+    { label: UI_TEXT.vault.targetGit, id: 'git' },
+    { label: UI_TEXT.vault.targetOrigin, id: 'origin' },
+    { label: UI_TEXT.vault.disclosureUse, id: 'disclosure' },
+    { label: UI_TEXT.vault.targetCustom, id: 'custom' },
+  ]
+  if (isKeepOffered) options.unshift({ label: UI_TEXT.vault.targetKeep, id: 'keep' })
+  return options
+}
+
+function guidedTargetFields(kind: GuidedTargetKind): { key: string; prompt: string }[] {
+  switch (kind) {
+    case 'ssh': {
+      return [
+        { key: 'host', prompt: UI_TEXT.vault.targetHostName },
+        { key: 'remoteUser', prompt: UI_TEXT.vault.remoteUser },
+        { key: 'hostKeyFingerprint', prompt: UI_TEXT.vault.hostKey },
+      ]
+    }
+    case 'sshAnyHost': {
+      return [{ key: 'remoteUser', prompt: UI_TEXT.vault.remoteUser }]
+    }
+    case 'sshSign': {
+      return [{ key: 'keyFingerprint', prompt: UI_TEXT.vault.targetKeyFingerprint }]
+    }
+    case 'git': {
+      return [
+        { key: 'host', prompt: UI_TEXT.vault.targetHostName },
+        { key: 'path', prompt: UI_TEXT.vault.targetPath },
+      ]
+    }
+    case 'origin': {
+      return [{ key: 'origin', prompt: UI_TEXT.vault.origin }]
+    }
+  }
+}
+
+function guidedBindingCandidate(
+  kind: GuidedTargetKind,
+  answers: Readonly<Record<string, string>>,
+  isForwarding: boolean,
+): unknown {
+  switch (kind) {
+    case 'ssh': {
+      return {
+        kind,
+        host: answers['host'],
+        remoteUser: answers['remoteUser'],
+        hostKeyFingerprint: answers['hostKeyFingerprint'],
+        forwarding: isForwarding,
+      }
+    }
+    case 'sshAnyHost': {
+      return { kind, remoteUser: answers['remoteUser'], forwarding: isForwarding }
+    }
+    case 'sshSign': {
+      return { kind, keyFingerprint: answers['keyFingerprint'], namespace: 'git' }
+    }
+    case 'git': {
+      return { kind, protocol: 'https', host: answers['host'], path: answers['path'] }
+    }
+    case 'origin': {
+      return { kind, origin: answers['origin'] }
+    }
+  }
+}
+
+function firstIssueFields(issues: readonly { path: readonly unknown[] }[]): string[] {
+  const issue = issues.find((entry) => entry.path.some((part) => typeof part === 'string'))
+  return issue === undefined
+    ? []
+    : issue.path.filter((part): part is string => typeof part === 'string')
+}
+
+function bindingsProblem(issues: readonly { path: readonly unknown[] }[]): string {
+  const names = firstIssueFields(issues)
+  return names.length === 0
+    ? UI_TEXT.vault.targetListInvalid
+    : fill(UI_TEXT.vault.targetFieldIssue, { field: names.join('.') })
+}
 
 /** Returned bytes transfer to the controller, which wipes after the transaction. */
 export async function editVaultItem(
@@ -82,6 +191,134 @@ export async function editVaultItem(
     ])
     return selected === 'keep' ? isOn : !isOn
   }
+  /** Asks a box again with the reason until the answer fits; the typed text stays. */
+  async function ask(
+    prompt: string,
+    value: string | undefined,
+    problem: (answer: string) => string | null,
+  ): Promise<string> {
+    let asking = prompt
+    let keeping = value
+    for (;;) {
+      const answer = await input(asking, false, keeping)
+      const reason = problem(answer)
+      if (reason === null) return answer
+      asking = `${reason} ${prompt}`
+      keeping = answer
+    }
+  }
+  /**
+  Reads an expiry the person types, in the two shapes its prompt names; empty
+  stays empty only where allowed. `stored` is the item's own expiry an edit
+  pre-fills, or null: keeping it unchanged is never refused as passed.
+  */
+  async function readExpiry(
+    stored: number | null,
+    isEmptyAllowed: boolean,
+  ): Promise<number | null> {
+    const prompt = isEmptyAllowed
+      ? `${UI_TEXT.vault.expiresPrompt} ${UI_TEXT.vault.expiresNone}`
+      : UI_TEXT.vault.expiresPrompt
+    let asking = prompt
+    let keeping = stored === null ? undefined : new Date(stored).toISOString()
+    for (;;) {
+      const answer = await input(asking, false, keeping)
+      if (answer === '') {
+        if (isEmptyAllowed) return null
+        asking = `${UI_TEXT.vault.fieldMissing} ${prompt}`
+        keeping = answer
+        continue
+      }
+      const reading = readVaultExpiry(answer, native.now(), stored)
+      if (reading.refusal === null) return reading.at
+      asking = `${reading.refusal} ${prompt}`
+      keeping = answer
+    }
+  }
+  async function readGuidedBinding(kind: GuidedTargetKind): Promise<VaultBinding> {
+    const fields = guidedTargetFields(kind)
+    const answers: Record<string, string> = {}
+    for (const field of fields) {
+      answers[field.key] = await ask(field.prompt, undefined, (answer) =>
+        answer === '' ? UI_TEXT.vault.fieldMissing : null,
+      )
+    }
+    const isForwarding =
+      kind === 'ssh' || kind === 'sshAnyHost'
+        ? await isToggleOn(UI_TEXT.vault.forwarding, false)
+        : false
+    for (;;) {
+      const checked = vaultBindingSchema.safeParse(
+        guidedBindingCandidate(kind, answers, isForwarding),
+      )
+      if (checked.success) return checked.data
+      const names = firstIssueFields(checked.error.issues)
+      const wanted = names.at(-1)
+      const retry = fields.find((field) => field.key === wanted) ?? fields[0]
+      if (retry === undefined) {
+        // Every guided kind asks at least one field: unreachable.
+        throw new Error(UI_TEXT.vault.targetListInvalid)
+      }
+      answers[retry.key] = await ask(retry.prompt, answers[retry.key] ?? '', (answer) =>
+        answer === '' ? UI_TEXT.vault.fieldMissing : UI_TEXT.vault.fieldInvalid,
+      )
+    }
+  }
+  async function readBindingsJson(prefill: readonly VaultBinding[]): Promise<VaultBinding[]> {
+    let asking = UI_TEXT.vault.targetHelp
+    let keeping: string | undefined = JSON.stringify(prefill)
+    for (;;) {
+      const text = await input(asking, false, keeping)
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(text)
+      } catch (error: unknown) {
+        // Malformed JSON asks again; anything else keeps its kind.
+        if (!(error instanceof SyntaxError)) throw error
+        asking = `${UI_TEXT.vault.targetNotJson} ${UI_TEXT.vault.targetHelp}`
+        keeping = text
+        continue
+      }
+      const checked = z.array(vaultBindingSchema).safeParse(parsed)
+      if (checked.success) return checked.data
+      asking = `${bindingsProblem(checked.error.issues)} ${UI_TEXT.vault.targetHelp}`
+      keeping = text
+    }
+  }
+  async function selectedBinding(kind: string): Promise<VaultBinding | null> {
+    if (kind === 'disclosure') return { kind: 'disclosure', recipient: 'person' }
+    return isGuidedTargetKind(kind) ? await readGuidedBinding(kind) : null
+  }
+  async function readBindings(
+    existing: readonly VaultBinding[] | undefined,
+  ): Promise<VaultBinding[]> {
+    const selected = await choice(targetKindOptions(existing !== undefined && existing.length > 0))
+    if (selected === 'keep') return [...(existing ?? [])]
+    if (selected === 'none') return []
+    if (selected === 'custom') return await readBindingsJson(existing ?? [])
+    const list: VaultBinding[] = []
+    const first = await selectedBinding(selected)
+    if (first === null) {
+      // The picker only offers known kinds: keep the entries so far.
+      return list
+    }
+    list.push(first)
+    for (;;) {
+      const again = await choice([
+        { label: UI_TEXT.vault.targetAddAnother, id: 'another' },
+        { label: UI_TEXT.vault.targetDone, id: 'done' },
+      ])
+      if (again !== 'another') return list
+      const kind = await choice(targetKindOptions(false).filter((option) => option.id !== 'none'))
+      if (kind === 'custom') return await readBindingsJson(list)
+      const next = await selectedBinding(kind)
+      if (next === null) {
+        // The picker only offers known kinds: keep the entries so far.
+        return list
+      }
+      list.push(next)
+    }
+  }
   try {
     const kind =
       current?.kind ??
@@ -95,23 +332,25 @@ export async function editVaultItem(
         { label: UI_TEXT.vault.sshKey, id: 'sshKey' },
         { label: UI_TEXT.vault.session, id: 'session' },
       ]))
-    const name = await input(
+    const name = await ask(
       `${UI_TEXT.vault.name}: ${UI_TEXT.vault.labelWarning}`,
-      false,
       current?.name,
+      (answer) => {
+        if (answer === '') return UI_TEXT.vault.fieldMissing
+        return /^[a-z][a-z0-9-]{0,47}$/u.test(answer) ? null : UI_TEXT.vault.nameInvalid
+      },
     )
-    const label = await input(
+    const label = await ask(
       `${UI_TEXT.vault.label}: ${UI_TEXT.vault.labelWarning}`,
-      false,
       current?.label,
+      (answer) => {
+        if (answer === '') return UI_TEXT.vault.fieldMissing
+        return answer.length > VAULT_LIMITS.label || /[\0\r\n]/u.test(answer)
+          ? UI_TEXT.vault.labelInvalid
+          : null
+      },
     )
-    const bindingsText = await input(
-      UI_TEXT.vault.target,
-      false,
-      JSON.stringify(current?.bindings ?? []),
-    )
-    const bindingArray = z.array(vaultBindingSchema).parse(JSON.parse(bindingsText))
-    const bindings: VaultBinding[] = bindingArray
+    const bindings = await readBindings(current?.bindings)
     const isFirstParty = current?.firstParty ?? false
     const isRestricted = isFirstParty || kind === 'internal' || kind === 'devicePair'
     // The current mode stays first so accepting every default preserves it.
@@ -133,12 +372,7 @@ export async function editVaultItem(
       `${UI_TEXT.vault.requirePresence}: ${UI_TEXT.vault.presenceAdvice}`,
       current?.requirePresence ?? false,
     )
-    const expiresAt = current?.dates.expiresAt
-    const expiry = await input(
-      UI_TEXT.vault.expires,
-      false,
-      expiresAt == null ? '' : new Date(expiresAt).toISOString(),
-    )
+    const expiry = await readExpiry(current?.dates.expiresAt ?? null, true)
     const metadata = vaultItemMetadataSchema.parse({
       id: current?.id ?? randomBytes(VAULT_ID_BYTES).toString('hex'),
       name,
@@ -166,7 +400,7 @@ export async function editVaultItem(
           expiresAt: null,
           lastUsedAt: null,
         }),
-        expiresAt: expiry === '' ? null : new Date(expiry).getTime(),
+        expiresAt: expiry,
       },
       publicKey: current?.publicKey ?? null,
       fingerprint: current?.fingerprint ?? null,
@@ -190,7 +424,10 @@ export async function editVaultItem(
             { label: UI_TEXT.vault.apiKey, id: 'apiKey' },
             { label: UI_TEXT.vault.headerUse, id: 'header' },
           ]),
-          origin: await input(UI_TEXT.vault.origin, false),
+          origin: await ask(UI_TEXT.vault.origin, undefined, (answer) => {
+            if (answer === '') return UI_TEXT.vault.fieldMissing
+            return vaultOriginSchema.safeParse(answer).success ? null : UI_TEXT.vault.originInvalid
+          }),
         }
         break
       }
@@ -203,10 +440,22 @@ export async function editVaultItem(
         break
       }
       case 'webLogin': {
-        const origins = await input(UI_TEXT.vault.origin, false)
+        const origins = await ask(UI_TEXT.vault.origin, undefined, (answer) => {
+          if (answer === '') return UI_TEXT.vault.fieldMissing
+          const entries = answer.split(',').map((part) => part.trim())
+          const isValid =
+            entries.length > 0 &&
+            entries.every(
+              (entry) =>
+                entry !== '' &&
+                entry.startsWith('https://') &&
+                vaultOriginSchema.safeParse(entry).success,
+            )
+          return isValid ? null : UI_TEXT.vault.originsInvalid
+        })
         material = {
           kind: 'webLogin',
-          origins: origins.split(','),
+          origins: origins.split(',').map((part) => part.trim()),
           username: await requiredBytes(UI_TEXT.vault.username),
           password: await requiredBytes(UI_TEXT.vault.password),
           totpSeed: await bytes(UI_TEXT.vault.seed, true),
@@ -228,9 +477,17 @@ export async function editVaultItem(
           kind: 'oauth',
           accessToken: await requiredBytes(`${UI_TEXT.vault.value} (accessToken)`),
           refreshToken: await bytes(`${UI_TEXT.vault.value} (refreshToken)`, true),
-          issuer: await input('issuer', false),
-          resource: await input(UI_TEXT.vault.resource, false),
-          expiresAt: new Date(await input(UI_TEXT.vault.expires, false)).getTime(),
+          issuer: await ask('issuer', undefined, (answer) => {
+            if (answer === '') return UI_TEXT.vault.fieldMissing
+            return vaultIssuerSchema.safeParse(answer).success ? null : UI_TEXT.vault.issuerInvalid
+          }),
+          resource: await ask(UI_TEXT.vault.resource, undefined, (answer) => {
+            if (answer === '') return UI_TEXT.vault.fieldMissing
+            return vaultResourceSchema.safeParse(answer).success
+              ? null
+              : UI_TEXT.vault.resourceInvalid
+          }),
+          expiresAt: await readExpiry(null, false),
         }
         break
       }
@@ -238,8 +495,13 @@ export async function editVaultItem(
         material = {
           kind: 'session',
           cookies: await requiredBytes(UI_TEXT.vault.session),
-          origin: await input(UI_TEXT.vault.origin, false),
-          expiresAt: new Date(await input(UI_TEXT.vault.expires, false)).getTime(),
+          origin: await ask(UI_TEXT.vault.origin, undefined, (answer) => {
+            if (answer === '') return UI_TEXT.vault.fieldMissing
+            return !answer.startsWith('https://') || !vaultOriginSchema.safeParse(answer).success
+              ? UI_TEXT.vault.originHttpsInvalid
+              : null
+          }),
+          expiresAt: await readExpiry(null, false),
         }
         break
       }
@@ -269,10 +531,11 @@ export async function editVaultItem(
     checkCancellation()
     isTransferred = true
     return item
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Cancelled) return null
+    // A refused edit keeps the fixed sentence with its cause for the caller.
+    throw new Error(UI_TEXT.vault.operationFailed, { cause: error })
   } finally {
     if (!isTransferred) for (const buffer of buffers) buffer.fill(0)
   }
-  throw new Error(UI_TEXT.vault.operationFailed)
 }

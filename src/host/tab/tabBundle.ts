@@ -1,4 +1,4 @@
-import { Usd, type UsdAmount } from '../../shared/usd'
+import { Usd, isPositiveUsd, type UsdAmount } from '../../shared/usd'
 // Tab completions as the activation bundle sees them (M94, PLAN.md D73):
 // dist/tab.js, built from tabEntry.ts and required on the first Tab request
 // (PLAN.md D6). Only types cross from the lazy side into activation: a value
@@ -71,11 +71,11 @@ export interface CopilotPosture {
 }
 
 /**
- * Whether automatic Tab requests wait while Copilot is on for the language
- * (D73): yielded by default, while a Copilot extension is present,
- * `github.copilot.enable` is on for the language and AI features are not
- * turned off. Whether Copilot actually holds a token cannot be seen (V13).
- */
+Whether automatic Tab requests wait while Copilot is on for the language
+(D73): yielded by default, while a Copilot extension is present,
+`github.copilot.enable` is on for the language and AI features are not
+turned off. Whether Copilot actually holds a token cannot be seen (V13).
+*/
 export function shouldYieldToCopilot(posture: CopilotPosture): boolean {
   return (
     posture.tabWithCopilot === 'yield' &&
@@ -125,9 +125,9 @@ export interface TabSpendFacts {
 export type TabReportedUsage = TabEngineUsage
 
 /**
- * One admitted request's reservation, settled with its own worst case into
- * its own local day's ledger file, also after midnight (RVM94LC finding 1).
- */
+One admitted request's reservation, settled with its own worst case into
+its own local day's ledger file, also after midnight (RVM94LC finding 1).
+*/
 export interface TabReservation {
   readonly model: string
   readonly worstCaseUsd: UsdAmount
@@ -136,14 +136,14 @@ export interface TabReservation {
 }
 
 /**
- * Lane L's spend side (src/host/tab/tabLedger.ts through tabSpendGate.ts,
- * M94): the hard daily budget across windows. `reserve` writes this
- * request's worst case first and returns its reservation only when it fits
- * (undefined: at the budget, or a missing, corrupt or unreadable ledger);
- * `settle` replaces that reservation with the reported usage (zero for a
- * request never sent; a request that never reports keeps it);
- * `todayTotalUsd` is what the status bar shows.
- */
+Lane L's spend side (src/host/tab/tabLedger.ts through tabSpendGate.ts,
+M94): the hard daily budget across windows. `reserve` writes this
+request's worst case first and returns its reservation only when it fits
+(undefined: at the budget, or a missing, corrupt or unreadable ledger);
+`settle` replaces that reservation with the reported usage (zero for a
+request never sent; a request that never reports keeps it);
+`todayTotalUsd` is what the status bar shows.
+*/
 export interface TabSpendGate {
   reserve(facts: TabSpendFacts): Promise<TabReservation | undefined>
   settle(reservation: TabReservation, usage: TabReportedUsage): void
@@ -152,26 +152,26 @@ export interface TabSpendGate {
 }
 
 /**
- * What an allowing answer covers (RVM94KR2): `once` this request only,
- * `window` this window (memory only), `always` this workspace (persisted).
- */
+What an allowing answer covers (RVM94KR2): `once` this request only,
+`window` this window (memory only), `always` this workspace (persisted).
+*/
 export type TabConsentScope = 'once' | 'window' | 'always'
 
 /**
- * A request's consent, bound to its key (feature `tab`, model id, price
- * fingerprint). `isCurrent` is read after every wait and last at the send:
- * a revoked grant, a lapsed price acceptance or a moved price sends nothing.
- */
+A request's consent, bound to its key (feature `tab`, model id, price
+fingerprint). `isCurrent` is read after every wait and last at the send:
+a revoked grant, a lapsed price acceptance or a moved price sends nothing.
+*/
 export interface TabConsentGrant {
   readonly scope: TabConsentScope
   isCurrent(): boolean
 }
 
 /**
- * Lane L's question (Q-M94a, PLAN.md D48) for the request's own model and
- * price (RVM94KR 3, RVM94KR2): a grant proceeds, undefined sends nothing
- * (Deny snoozes the window).
- */
+Lane L's question (Q-M94a, PLAN.md D48) for the request's own model and
+price (RVM94KR 3, RVM94KR2): a grant proceeds, undefined sends nothing
+(Deny snoozes the window).
+*/
 export interface TabUseConsent {
   requestUse(model: string): Promise<TabConsentGrant | undefined>
 }
@@ -222,14 +222,14 @@ export interface TabConsentDeps {
 }
 
 /**
- * Tab's keyed consent (RVM94KR2, PLAN.md D73): one key per (model, price).
- * The paid gate's grants for the feature alone are necessary, never
- * sufficient: a kept "always" counts only for the key its record names, and
- * a window once only for the keys answered in this window. A legacy grant
- * with no record asks the migration question: only Always records its key,
- * so Allow once asks again in the next window. An open question is shared
- * only by requests with its full key.
- */
+Tab's keyed consent (RVM94KR2, PLAN.md D73): one key per (model, price).
+The paid gate's grants for the feature alone are necessary, never
+sufficient: a kept "always" counts only for the key its record names, and
+a window once only for the keys answered in this window. A legacy grant
+with no record asks the migration question: only Always records its key,
+so Allow once asks again in the next window. An open question is shared
+only by requests with its full key.
+*/
 export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
   const windowKeys = new Map<string, string>()
   const pending = new Map<string, Promise<TabConsentGrant | undefined>>()
@@ -344,14 +344,14 @@ export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
 export type TabCompletionSnapshot = TabEngineRequest
 
 /**
- * Lane C's completion pipeline (src/core/tab/tabEngine.ts, M94): the
- * typing-through cache, the debounce and caps, the request, and the
- * filters. The completion is already filtered; undefined means no
- * suggestion. It is published at the closing tag; `usage` settles when the
- * request ends, so the ledger stays exact even for a refusal the provider
- * drops. A sent request is never aborted: cancelling the token drops the
- * ghost text, never the request.
- */
+Lane C's completion pipeline (src/core/tab/tabEngine.ts, M94): the
+typing-through cache, the debounce and caps, the request, and the
+filters. The completion is already filtered; undefined means no
+suggestion. It is published at the closing tag; `usage` settles when the
+request ends, so the ledger stays exact even for a refusal the provider
+drops. A sent request is never aborted: cancelling the token drops the
+ghost text, never the request.
+*/
 export type TabCompletionEngine = TabEngine
 
 /** One accept lane K observes (src/core/tab/tabHooks.ts, M94 step 7). */
@@ -380,13 +380,13 @@ export interface TabAcceptedEdit {
 }
 
 /**
- * Lane K's hook bridge (M94 step 7, after M91 merges): `beforeRead` answers
- * whether a file's text may enter a request (every failure refuses, and an
- * oversize payload is refused unrun); `afterEdit` observes an accept and
- * never blocks. With no hook configuration at all every read is allowed and
- * every accept is unobserved; a hook file that did not load whole refuses
- * every read (RVM94KR 1).
- */
+Lane K's hook bridge (M94 step 7, after M91 merges): `beforeRead` answers
+whether a file's text may enter a request (every failure refuses, and an
+oversize payload is refused unrun); `afterEdit` observes an accept and
+never blocks. With no hook configuration at all every read is allowed and
+every accept is unobserved; a hook file that did not load whole refuses
+every read (RVM94KR 1).
+*/
 export interface TabHookBridge {
   beforeRead(absolutePath: string, content: string, context: TabHookContext): Promise<boolean>
   afterEdit(edit: TabAcceptedEdit): void
@@ -420,10 +420,10 @@ export interface TabProviderDeps {
   /** The snooze tabStatus.ts keeps; while set the provider stays quiet. */
   readonly isSnoozed: () => boolean
   /**
-   * Resolves an absolute path through links (`canonicalPath` in production);
-   * rejects when it cannot. A file whose target leaves its workspace folder,
-   * or whose target is private, is never read (RVM94HU 12).
-   */
+  Resolves an absolute path through links (`canonicalPath` in production);
+  rejects when it cannot. A file whose target leaves its workspace folder,
+  or whose target is private, is never read (RVM94HU 12).
+  */
   readonly realPath: (absolutePath: string) => Promise<string>
   /** Non-`museSpark` configuration the yield reads (`github.copilot`, `chat`). */
   readonly foreignSetting: (section: string, key: string) => unknown
@@ -432,9 +432,9 @@ export interface TabProviderDeps {
   /** `files.exclude` for the file's scope, as VS Code configured it (conditions kept). */
   readonly filesExclude: (uri: TabUri) => TabFilesExclude
   /**
-   * Whether a file exists at an absolute path: the ignore files, and the
-   * sibling a `files.exclude` `when` condition names.
-   */
+  Whether a file exists at an absolute path: the ignore files, and the
+  sibling a `files.exclude` `when` condition names.
+  */
   readonly ignoreFileExists: (absolutePath: string) => boolean
   /** Runs git with `args` in `cwd` and resolves stdout; rejects on any failure. */
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
@@ -476,16 +476,16 @@ export interface TabProviderDeps {
 }
 
 /**
- * Over `vscode.Uri` in production (type-only: erased, so the activation
- * bundle carries none of the Tab side). Tests hand in the mock's `FakeUri`.
- */
+Over `vscode.Uri` in production (type-only: erased, so the activation
+bundle carries none of the Tab side). Tests hand in the mock's `FakeUri`.
+*/
 export type TabUri = vscode.Uri
 
 /**
- * A `files.exclude` table as VS Code reads it: a switch per glob, or a
- * condition (`{ "when": "$(basename).ts" }`) that excludes a match only
- * while the named sibling exists (RVM94HU 14).
- */
+A `files.exclude` table as VS Code reads it: a switch per glob, or a
+condition (`{ "when": "$(basename).ts" }`) that excludes a match only
+while the named sibling exists (RVM94HU 14).
+*/
 export type TabFilesExclude = Readonly<Record<string, boolean | { readonly when: string }>>
 
 /** One document change the provider watches (over `vscode.TextDocumentChangeEvent` in production). */
@@ -550,9 +550,9 @@ export const TAB_QUIET_REASONS = [
 export type TabQuietReason = (typeof TAB_QUIET_REASONS)[number]
 
 /**
- * The reasons a trigger stops at before the hook configuration is read: they
- * say nothing about it, so they leave its status as it was.
- */
+The reasons a trigger stops at before the hook configuration is read: they
+say nothing about it, so they leave its status as it was.
+*/
 const TAB_REASONS_BEFORE_HOOKS: ReadonlySet<TabQuietReason> = new Set([
   'suggest-selection',
   'trigger-setting',
@@ -569,15 +569,15 @@ const TAB_REASONS_BEFORE_HOOKS: ReadonlySet<TabQuietReason> = new Set([
 /** The provider's handle: the provider the shim registers, plus the accept command's entry. */
 export interface TabProviderHandle {
   /**
-   * The provider itself. The shim holds the one registration and delegates
-   * to it, so dist/tab.js loads on the first request (D73, RVM94HU 7).
-   */
+  The provider itself. The shim holds the one registration and delegates
+  to it, so dist/tab.js loads on the first request (D73, RVM94HU 7).
+  */
   readonly provider: vscode.InlineCompletionItemProvider
   dispose(): void
   /**
-   * The item command's handler (`TAB_COMMAND_IDS.afterAccept`), registered
-   * once by the shim. Foreign args are ignored (a stale accept).
-   */
+  The item command's handler (`TAB_COMMAND_IDS.afterAccept`), registered
+  once by the shim. Foreign args are ignored (a stale accept).
+  */
   acceptNotified(args: unknown): void
 }
 
@@ -695,7 +695,7 @@ export interface TabServicesDeps {
   readonly ledgerDirectory: string
   /** This window's ledger file name: letters, digits, `_` and `-` only. */
   readonly windowId: string
-  /** `museSpark.tabDailyBudgetUsd`, read at each request. */
+  /** `museSpark.tabDailyBudgetUsd`, read at each request; 0 is no budget. */
   readonly budgetUsd: () => UsdAmount
   /** A request is about to be sent (PaidUsage counts it). */
   readonly onSent: (model: string) => void
@@ -809,13 +809,20 @@ export function createTabStatusItem(
     setTabOn(true)
     const spend = deps.todaySpend()
     const spendText = formatUsd(spend.totalUsd, 2)
-    const budgetText = formatUsd(deps.budgetUsd(), 2)
-    const tooltip = fill(table.tabStatusTooltip, {
-      model: deps.model(),
-      requests: spend.requests,
-      spend: spendText,
-      budget: budgetText,
-    })
+    // 0 is no budget: the tooltip says so instead of naming a $0.00 cap.
+    const budget = deps.budgetUsd()
+    const tooltip = isPositiveUsd(budget)
+      ? fill(table.tabStatusTooltip, {
+          model: deps.model(),
+          requests: spend.requests,
+          spend: spendText,
+          budget: formatUsd(budget, 2),
+        })
+      : fill(table.tabStatusTooltipNoBudget, {
+          model: deps.model(),
+          requests: spend.requests,
+          spend: spendText,
+        })
     if (deps.snooze.isSnoozed(Date.now())) {
       const left = deps.snooze.minutesLeft(Date.now())
       const snoozedText =
@@ -944,13 +951,13 @@ export function tabLoader(deps: TabLoaderDeps): () => TabBundle {
 }
 
 /**
- * Defers the secret read (`refreshKeyPresence`, PLAN.md D73) to the first
- * view, panel, command or Tab request: the first call runs the refresh, and
- * every call answers its one promise, so a Tab request can wait for the
- * read instead of finding no key. Activation with no view, panel or Tab
- * request then reads no secret, starts no process and requires no lazy
- * bundle.
- */
+Defers the secret read (`refreshKeyPresence`, PLAN.md D73) to the first
+view, panel, command or Tab request: the first call runs the refresh, and
+every call answers its one promise, so a Tab request can wait for the
+read instead of finding no key. Activation with no view, panel or Tab
+request then reads no secret, starts no process and requires no lazy
+bundle.
+*/
 export function deferredRefresh(refresh: () => Promise<void> | void): () => Promise<void> {
   let started: Promise<void> | undefined
   return () => {
@@ -1019,9 +1026,9 @@ export interface TabActivationDeps {
   /** `files.exclude` for the file's scope, as VS Code configured it (conditions kept). */
   readonly filesExclude: (uri: TabUri) => TabFilesExclude
   /**
-   * Registers the one inline completion provider for `file` documents
-   * (`languages.registerInlineCompletionItemProvider` in production).
-   */
+  Registers the one inline completion provider for `file` documents
+  (`languages.registerInlineCompletionItemProvider` in production).
+  */
   readonly registerProvider: (provider: vscode.InlineCompletionItemProvider) => {
     dispose(): void
   }
@@ -1056,9 +1063,9 @@ export interface TabActivationDeps {
   /** Today's ledger total moved: Account & usage follows (RVM94HU 23). */
   readonly onTodayTotalChanged?: (() => void) | undefined
   /**
-   * Lane L's once-per-window question (Q-M94a, D48): the first request asks
-   * with the price and the daily budget; nothing is sent before the answer.
-   */
+  Lane L's once-per-window question (Q-M94a, D48): the first request asks
+  with the price and the daily budget; nothing is sent before the answer.
+  */
   readonly consent: TabUseConsent
   /** An injected bridge; production constructs it in the lazy Tab bundle. */
   readonly hooks?: TabHookBridge | undefined
@@ -1116,10 +1123,14 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       totalUsd: active?.spend.todayTotalUsd() ?? Usd.from(0).toAmount(),
       requests: active?.spend.todayRequests() ?? 0,
     }),
-    isBudgetReached: () =>
-      Usd.from(active?.spend.todayTotalUsd() ?? 0).compare(
-        Usd.from(deps.tabSettings().tabDailyBudgetUsd),
-      ) >= 0,
+    // 0 is no budget: nothing is ever reached, so the bar never warns.
+    isBudgetReached: () => {
+      const budget = deps.tabSettings().tabDailyBudgetUsd
+      return (
+        isPositiveUsd(budget) &&
+        Usd.from(active?.spend.todayTotalUsd() ?? 0).compare(Usd.from(budget)) >= 0
+      )
+    },
     model: () => deps.tabSettings().tabModel,
     budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
     snooze,
@@ -1233,11 +1244,11 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
   }
 
   /**
-   * The one registration, delegating to the bundle's provider: the first
-   * request waits for the secret read, then loads dist/tab.js. A bundle that
-   * cannot load answers nothing (the loader logged why) and is tried again on
-   * the next request.
-   */
+  The one registration, delegating to the bundle's provider: the first
+  request waits for the secret read, then loads dist/tab.js. A bundle that
+  cannot load answers nothing (the loader logged why) and is tried again on
+  the next request.
+  */
   const delegating: vscode.InlineCompletionItemProvider = {
     provideInlineCompletionItems: async (document, position, context, token) => {
       await deps.ensureKeyPresence()

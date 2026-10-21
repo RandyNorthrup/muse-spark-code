@@ -17,7 +17,7 @@ import {
 } from '../../core/fs/fileIdentity'
 import { GIT_API_VERSION, GIT_EXTENSION_ID, UI_TEXT } from '../../shared/constants'
 import { isSameFolder } from '../../core/worktrees'
-import { canonicalPath } from '../canonicalPath'
+import { canonicalPath, isMissingPath } from '../canonicalPath'
 
 export interface GitChange {
   readonly uri: { readonly fsPath: string }
@@ -57,9 +57,9 @@ export interface GitRepository {
   /** The staged changes with `cached`, else the unstaged ones. */
   diff(isCached?: boolean): Promise<string>
   /**
-   * `all: true` stages every change first; `postCommitCommand: null` runs
-   * nothing after (VS Code's `git.postCommitCommand` could push or sync).
-   */
+  `all: true` stages every change first; `postCommitCommand: null` runs
+  nothing after (VS Code's `git.postCommitCommand` could push or sync).
+  */
   commit(
     message: string,
     options: { readonly all?: boolean; readonly postCommitCommand: null },
@@ -68,6 +68,15 @@ export interface GitRepository {
   fetch(options: { readonly remote: string; readonly ref: string }): Promise<void>
   log(options: { readonly range: string }): Promise<readonly GitCommit[]>
   diffBetween(ref1: string, ref2: string): Promise<readonly GitChange[]>
+}
+
+/**
+The part of a repository the pull request checkout reads: VS Code's Git
+extension's, or the user's own git where the extension is missing (M123,
+nativeRepository.ts).
+*/
+export type CheckoutRepository = Pick<GitRepository, 'rootUri' | 'status' | 'fetch'> & {
+  readonly state: Pick<GitRepository['state'], 'HEAD' | 'remotes'>
 }
 
 /** A request's physical directory; observing loss never rebinds it to a later root. */
@@ -101,8 +110,18 @@ export const captureGitOwner: CaptureGitOwner = async (root, check) => {
           const current = statIdentitySync(directory)
           return current.isDirectory() && sameFile(current, identity)
         })
-      } catch {
-        isOwned = false
+      } catch (error: unknown) {
+        // A failed check, or a folder that vanished, is not current: the
+        // operation is already refused elsewhere. Anything else is not
+        // this predicate's to hide.
+        if (error instanceof GitUnavailableError) {
+          isOwned = false
+        } else {
+          if (!isMissingPath(error)) {
+            throw error
+          }
+          isOwned = false
+        }
       }
       return isOwned
     },
@@ -114,10 +133,10 @@ export const captureGitOwner: CaptureGitOwner = async (root, check) => {
 }
 
 /** The selected directory and a cached Git API repository must keep the same physical owner. */
-export async function openOwnedRepository(
+export async function openOwnedRepository<R extends Pick<GitRepository, 'rootUri' | 'status'>>(
   root: string,
   platform: NodeJS.Platform,
-  repositoryAtRoot: (root: string) => Promise<GitRepository>,
+  repositoryAtRoot: (root: string) => Promise<R>,
   captureOwner: CaptureGitOwner,
   check: () => void,
 ) {
@@ -150,8 +169,8 @@ export async function openOwnedRepository(
 }
 
 /** A workspace may name its repository through a link; an ancestor repository is still refused.
- * @unwired M123 repository root check
- */
+@unwired M123 repository root check
+*/
 export async function isRepositoryRoot(
   repository: GitRepository,
   root: string,
@@ -234,11 +253,11 @@ export class GitUnavailableError extends Error {
 }
 
 /**
- * Whether this VS Code-family host ships the `vscode.git` extension at all.
- * Without it (Arduino IDE 2, some forks) conversations take M123's native
- * route in-process (PLAN.md D104); a git extension the user disabled keeps
- * its own answer.
- */
+Whether this VS Code-family host ships the `vscode.git` extension at all.
+Without it (Arduino IDE 2, some forks) conversations take M123's native
+route in-process (PLAN.md D104); a git extension the user disabled keeps
+its own answer.
+*/
 export function isGitExtensionInstalled(): boolean {
   return vscode.extensions.getExtension(GIT_EXTENSION_ID) !== undefined
 }

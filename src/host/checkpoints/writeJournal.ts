@@ -83,12 +83,12 @@ export interface WriteJournalDeps {
 export interface InstanceJournal {
   readonly entries: JournalEntry[]
   /**
-   * `none`: every line whole. `intent`: the last line was cut short but
-   * parses as an intent, which is its last entry (an unsettled write).
-   * `unparsed`: a line that does not parse, skipped (its unit is unknown).
-   * A cut-short last line that parses as any other entry is left out: it
-   * was never durable, and what it would have settled stays unsettled.
-   */
+  `none`: every line whole. `intent`: the last line was cut short but
+  parses as an intent, which is its last entry (an unsettled write).
+  `unparsed`: a line that does not parse, skipped (its unit is unknown).
+  A cut-short last line that parses as any other entry is left out: it
+  was never durable, and what it would have settled stays unsettled.
+  */
   readonly tornTail: 'none' | 'unparsed' | 'intent'
 }
 
@@ -143,7 +143,12 @@ function parsedEntry(line: string, instance: string): JournalEntry | undefined {
   let value: unknown
   try {
     value = JSON.parse(line)
-  } catch {
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to drop.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
     return undefined
   }
   const parsed = entrySchema.safeParse(value)
@@ -321,6 +326,9 @@ export class WriteJournal {
       await handle.truncate(this.durableLength)
       await handle.sync()
     } catch {
+      // The journal is already broken by the write failure, which stays
+      // the one reported: the cut-back failure adds nothing the next
+      // append can act on.
       this.brokenBy = cause
     }
   }
@@ -374,6 +382,18 @@ export class WriteJournal {
     }
   }
 
+  /**
+  Best-effort stage removal after a failed blob write: the failure that
+  stopped the blob stays the one reported; a stage left is never read.
+  */
+  private async removeStage(stage: string): Promise<void> {
+    try {
+      await this.fs.rm(stage, { force: true })
+    } catch {
+      // The failure that stopped the blob is the one reported; a stage left is never read.
+    }
+  }
+
   /** Keeps the bytes, flushed, under their blob id; resolves to the id. */
   public async writeBlob(bytes: Uint8Array): Promise<string> {
     const oid = gitBlobOid(bytes)
@@ -395,11 +415,7 @@ export class WriteJournal {
       }
       await this.fs.rename(stage, file)
     } catch (error: unknown) {
-      try {
-        await this.fs.rm(stage, { force: true })
-      } catch {
-        // The failure that stopped the blob is the one reported; a stage left is never read.
-      }
+      await this.removeStage(stage)
       throw error
     }
     await this.syncFolder(folder)

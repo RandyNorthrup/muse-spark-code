@@ -1,11 +1,7 @@
 // Reinterpret captured native metadata without discarding its JSON fields.
 // A field absent from a list stays unknown; a price never proves a feature.
 import * as z from 'zod/mini'
-import {
-  ANTHROPIC_MAX_IMAGE_BYTES,
-  IMAGE_MEDIA_TYPES,
-  MAX_IMAGE_BYTES,
-} from '../../shared/constants'
+import { ANTHROPIC_MAX_IMAGE_BYTES, IMAGE_MEDIA_TYPES } from '../../shared/constants'
 import type { CapabilityEvidence, CapabilityOverrides, CapabilitySource } from './capabilityRecord'
 
 export const nativeModelMetadataSchema = z.record(z.string(), z.json())
@@ -47,23 +43,35 @@ export function nativeCapabilityEvidence(
   const limits: NonNullable<CapabilityOverrides['limits']> = {}
   const modalities: NonNullable<CapabilityOverrides['modalities']> = {}
   const sampling: NonNullable<CapabilityOverrides['sampling']> = {}
-  // Native support is required. Research supplies Anthropic's provider bound;
-  // other providers retain the product's existing conservative image bound.
-  const imagePolicy = {
-    mimes: [...IMAGE_MEDIA_TYPES],
-    maxBytes: preset === 'anthropic' ? ANTHROPIC_MAX_IMAGE_BYTES : MAX_IMAGE_BYTES,
-  }
+  // Native support is required. Research supplies Anthropic's documented
+  // provider bound; other providers state no image byte bound here, so none
+  // is enforced locally for them (D121) — the provider's own refusal reaches
+  // the caller in words.
+  const imagePolicy: { mimes: string[]; maxBytes?: number } = { mimes: [...IMAGE_MEDIA_TYPES] }
+  if (preset === 'anthropic') imagePolicy.maxBytes = ANTHROPIC_MAX_IMAGE_BYTES
   const context =
     read(numeric, 'limit', 'context') ??
     read(numeric, 'context_length') ??
     read(numeric, 'context_window') ??
     read(numeric, 'max_context_length') ??
     read(numeric, 'inputTokenLimit') ??
-    read(numeric, 'max_input_tokens')
+    read(numeric, 'max_input_tokens') ??
+    // Local servers (captured 2026-10-10, C-M95-4 R2): llama.cpp lists the
+    // live `--ctx-size` window as `meta.n_ctx` with the trained window in
+    // `meta.n_ctx_train`, and vLLM uses `max_model_len`. Without these a
+    // scanned local model keeps an unknown window and manual compact
+    // assumes Meta's window.
+    read(numeric, 'meta', 'n_ctx') ??
+    read(numeric, 'meta', 'n_ctx_train') ??
+    read(numeric, 'max_model_len') ??
+    read(numeric, 'n_ctx')
   const maxOutput =
     read(numeric, 'limit', 'output') ??
     read(numeric, 'max_tokens') ??
     read(numeric, 'outputTokenLimit') ??
+    // DeepSeek lists `max_output_tokens` per model (captured 2026-10-04,
+    // docs/certification/m95-captures/deepseek/01-models-list.json).
+    read(numeric, 'max_output_tokens') ??
     read(numeric, 'max_completion_tokens') ??
     read(numeric, 'top_provider', 'max_completion_tokens')
   const maxInput =
@@ -79,7 +87,11 @@ export function nativeCapabilityEvidence(
   const parameters = read(strings, 'supported_parameters') ?? read(strings, 'supported_features')
   const samplingParameters = read(strings, 'supported_sampling_parameters') ?? parameters
   const toolCalling =
-    read(z.boolean(), 'tool_call') ?? read(z.boolean(), 'capabilities', 'function_calling')
+    read(z.boolean(), 'tool_call') ??
+    // Fireworks lists `supports_tools` per model (captured 2026-10-04,
+    // docs/certification/m95-captures/fireworks/01-models-list.json).
+    read(z.boolean(), 'supports_tools') ??
+    read(z.boolean(), 'capabilities', 'function_calling')
   if (toolCalling !== undefined) tools.calling = flag(toolCalling)
   else if (parameters !== undefined) tools.calling = flag(parameters.includes('tools'))
   if (parameters?.includes('parallel_tool_calls') === true) tools.parallel = yes(true)
@@ -89,11 +101,16 @@ export function nativeCapabilityEvidence(
     read(z.boolean(), 'capabilities', 'reasoning')
   if (reasoningFlag !== undefined) reasoning.supported = flag(reasoningFlag)
   if (parameters?.includes('reasoning') === true) reasoning.supported = yes(true)
+  const defaultEffort = read(z.string(), 'capabilities', 'default_reasoning_effort')
+  if (defaultEffort !== undefined) reasoning.defaultEffort = defaultEffort
   const reasoningOptions = read(reasoningOptionsSchema, 'reasoning_options')
   const efforts =
     reasoningOptions?.find((option) => option.type === 'effort')?.values ??
     read(strings, 'capabilities', 'reasoning_effort') ??
-    read(strings, 'reasoning', 'supported_efforts')
+    read(strings, 'reasoning', 'supported_efforts') ??
+    // DeepSeek lists `effort.supported_levels` per model (captured
+    // 2026-10-04, docs/certification/m95-captures/deepseek/01-models-list.json).
+    read(strings, 'effort', 'supported_levels')
   if (efforts !== undefined) {
     reasoning.effortLevels = yes(efforts)
     if (efforts.some((effort) => effort !== 'none')) {
@@ -127,6 +144,11 @@ export function nativeCapabilityEvidence(
   }
   const vision = read(z.boolean(), 'capabilities', 'vision')
   if (vision !== undefined) modalities.image = vision ? yes(imagePolicy) : { state: 'no', source }
+  // Fireworks lists `supports_image_input` per model (captured 2026-10-04,
+  // docs/certification/m95-captures/fireworks/01-models-list.json).
+  const supportsImageInput = read(z.boolean(), 'supports_image_input')
+  if (supportsImageInput !== undefined)
+    modalities.image = supportsImageInput ? yes(imagePolicy) : { state: 'no', source }
   const temperature = native['temperature']
   if (typeof temperature === 'boolean') sampling.temperature = flag(temperature)
   if (typeof temperature === 'number' || read(numeric, 'default_model_temperature') !== undefined)
@@ -152,6 +174,13 @@ export function nativeCapabilityEvidence(
   if (preset === 'anthropic') {
     const supported = read(z.boolean(), 'capabilities', 'thinking', 'supported')
     if (supported !== undefined) reasoning.supported = flag(supported)
+    // Whether `thinking: {type: "disabled"}` is accepted (lane
+    // REASONSHAPESR2, GAPANTH-G02): the thinking table answers 400 for it
+    // on Opus 5.5, Sonnet 5.5, Fable 5.1, Mythos 5.1, Fable 5 and Mythos 5.
+    // Sonnet 5.5 turns off up-front thinking with `between_tools` instead
+    // (a preset fact, not this flag).
+    const disabled = read(z.boolean(), 'capabilities', 'thinking', 'types', 'disabled', 'supported')
+    if (disabled !== undefined) reasoning.canDisable = flag(disabled)
     const modes: ('off' | 'manual' | 'adaptive')[] = []
     if (read(z.boolean(), 'capabilities', 'thinking', 'types', 'enabled', 'supported') === true)
       modes.push('manual')

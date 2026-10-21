@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { isRulesFileBundle, loadRulesFileBundle } from '../../src/host/commands/rulesFileBundle'
 import * as entry from '../../src/host/commands/rulesFileEntry'
 import type { CreateRulesFileDeps } from '../../src/host/commands/createRulesFile'
-import type { Logger } from '../../src/host/logger'
+import { recordingLogger } from './helpers/recordingLogger'
 import { EN } from '../../src/shared/l10n/en'
 
 const folders: string[] = []
@@ -33,21 +33,7 @@ function deps(
 } {
   const shown: string[] = []
   const opened: string[] = []
-  const logged: string[] = []
-  const log: Logger = {
-    trace: (message) => {
-      logged.push(`trace:${message}`)
-    },
-    info: (message) => {
-      logged.push(`info:${message}`)
-    },
-    warn: (message) => {
-      logged.push(`warn:${message}`)
-    },
-    error: (message) => {
-      logged.push(`error:${message}`)
-    },
-  }
+  const { log, logged } = recordingLogger()
   return {
     logged,
     deps: {

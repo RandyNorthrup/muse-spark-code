@@ -4,6 +4,7 @@
 // Linux helper but an empty arm64 helper and no macOS artifacts; D6's
 // 25 x ceil(3,196.2 KiB x 1.15 / 25) = 3700 KiB. The hosted CI universal
 // VSIX on the release PR sets the final cap (lead decision, PLAN.md D6).
+// D209: one package per platform, each meeting this same unchanged budget.
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -14,7 +15,7 @@ export function checkVsixSize(file) {
   const size = statSync(file).size
   if (size > MAX_VSIX_BYTES) {
     throw new Error(
-      `VSIX is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (${MAX_VSIX_BYTES / 1024} KiB)`,
+      `${file} is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (${MAX_VSIX_BYTES / 1024} KiB)`,
     )
   }
   return size
@@ -25,8 +26,12 @@ if (
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 ) {
   try {
-    if (process.argv.length !== 3) throw new Error('Exactly one VSIX path required')
-    console.log(`VSIX: ${checkVsixSize(process.argv[2])} bytes (budget ${MAX_VSIX_BYTES})`)
+    // One package per platform (PLAN.md D209): every target meets the
+    // same unchanged budget, so every artifact is checked, not just one.
+    const artifacts = process.argv.slice(2)
+    if (artifacts.length === 0) throw new Error('At least one VSIX path required')
+    for (const artifact of artifacts)
+      console.log(`VSIX: ${checkVsixSize(artifact)} bytes (budget ${MAX_VSIX_BYTES})`)
   } catch (error) {
     console.error(error.message)
     process.exitCode = 1

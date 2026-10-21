@@ -51,10 +51,10 @@ export interface ResourceGovernorOptions {
   settings: ResourceSettings
   events: ResourceEvents
   /**
-   * R binds approved paired-device/runner availability; off never calls it.
-   * null declares that this host has no relocation route at all: pressure goes
-   * from throttle to pause and status reports `noRoute` for the UI to explain.
-   */
+  R binds approved paired-device/runner availability; off never calls it.
+  null declares that this host has no relocation route at all: pressure goes
+  from throttle to pause and status reports `noRoute` for the UI to explain.
+  */
   hasRelocationTarget: (() => boolean) | null
   onError: (error: unknown) => void
 }
@@ -144,6 +144,21 @@ export class ResourceGovernor {
     }
   }
 
+  /** A trip needs a limit the person set behind it. Metrics the person left
+  unset contribute no reading; the transport and OS-service signals trip
+  only while at least one person-set threshold is governing. */
+  private hasPersonLimits(): boolean {
+    const settings = this.settings
+    return (
+      settings.cpuMaxPercent !== null ||
+      settings.memoryMaxPercent !== null ||
+      settings.memoryMinFreeGiB !== null ||
+      settings.gpuMaxPercent !== null ||
+      settings.diskBusyMaxPercent !== null ||
+      settings.diskMinFreeGiB !== null
+    )
+  }
+
   private thresholds(sample: ResourceSample): Threshold[] {
     const percentage = (metric: Metric, value: number | null, limit: number): Threshold => ({
       metric,
@@ -167,25 +182,31 @@ export class ResourceGovernor {
             RESOURCE_MEMORY_HYSTERESIS_GIB * RESOURCE_GIB_BYTES,
             Math.max(1, (sample.memoryTotalBytes * RESOURCE_HYSTERESIS_POINTS) / 100),
           )
-    const readings: Threshold[] = [
-      percentage('cpu', sample.cpuPercent, this.settings.cpuMaxPercent),
-      percentage('memoryUsed', sample.memoryUsedPercent, this.settings.memoryMaxPercent),
-      {
+    // An unset threshold contributes no reading: the machine is measured,
+    // never held against a limit the person did not set.
+    const readings: Threshold[] = []
+    if (this.settings.cpuMaxPercent !== null)
+      readings.push(percentage('cpu', sample.cpuPercent, this.settings.cpuMaxPercent))
+    if (this.settings.memoryMaxPercent !== null)
+      readings.push(
+        percentage('memoryUsed', sample.memoryUsedPercent, this.settings.memoryMaxPercent),
+      )
+    if (this.settings.memoryMinFreeGiB !== null)
+      readings.push({
         metric: 'memoryFree',
         high: free === null || floor === null ? null : free < floor,
         recovered:
           free !== null && floor !== null && memoryMargin !== null && free > floor + memoryMargin,
-      },
-    ]
+      })
     if (this.settings.gpuMaxPercent !== null)
       readings.push(percentage('gpu', sample.gpuPercent, this.settings.gpuMaxPercent))
     if (this.settings.diskBusyMaxPercent !== null)
       readings.push(percentage('disk', sample.diskBusyPercent, this.settings.diskBusyMaxPercent))
-    if (sample.diskVolumes !== undefined) {
+    if (sample.diskVolumes !== undefined && this.settings.diskMinFreeGiB !== null) {
       const disk = diskPressure(sample.diskVolumes, this.settings)
       readings.push({ metric: 'diskFree', high: disk.high, recovered: disk.hasRecovered })
     }
-    if (sample.pressure !== null || this.serviceObserved) {
+    if ((sample.pressure !== null || this.serviceObserved) && this.hasPersonLimits()) {
       this.serviceObserved = true
       const values = [
         sample.pressure?.cpuSomePercent ?? null,
@@ -203,7 +224,7 @@ export class ResourceGovernor {
       service.recovered &&= [...this.observedServiceFields].every((index) => values[index] != null)
       readings.push(service)
     }
-    if (sample.transportFailurePercent !== undefined)
+    if (sample.transportFailurePercent !== undefined && this.hasPersonLimits())
       readings.push(
         percentage('transport', sample.transportFailurePercent, RESOURCE_TRANSPORT_FAILURE_PERCENT),
       )
@@ -258,7 +279,13 @@ export class ResourceGovernor {
           : now - since >= RESOURCE_CPU_WINDOW_MS)
       if (isSustained) enter ??= reading.metric
     }
-    if (sample.cpuPercent !== null && sample.cpuPercent >= RESOURCE_CRITICAL_CPU_PERCENT)
+    // The critical CPU trip judges CPU, so it needs the person's CPU limit
+    // behind it; without one, extreme readings are measured, never held.
+    if (
+      sample.cpuPercent !== null &&
+      this.settings.cpuMaxPercent !== null &&
+      sample.cpuPercent >= RESOURCE_CRITICAL_CPU_PERCENT
+    )
       this.criticalSince ??= now
     else this.criticalSince = undefined
     const floor =
@@ -266,11 +293,15 @@ export class ResourceGovernor {
         ? null
         : resourceMemoryFloorBytes(this.settings, sample.memoryTotalBytes)
     const disk = diskPressure(sample.diskVolumes ?? [], this.settings)
-    if (disk.high === true || disk.isPaused || disk.isCritical) this.diskHeld = true
+    // The disk hold judges free space, so it needs the person's disk floor
+    // behind it; a volume past it refuses writes through assertWrite too.
+    const hasDiskFloor = this.settings.diskMinFreeGiB !== null
+    const isDiskPaused = hasDiskFloor && disk.isPaused
+    if (!hasDiskFloor) this.diskHeld = false
+    else if (isDiskPaused || disk.high === true) this.diskHeld = true
     else if (disk.hasRecovered && this.current === 'normal') this.diskHeld = false
     const isCritical =
-      disk.isCritical ||
-      disk.isPaused ||
+      isDiskPaused ||
       (this.criticalSince !== undefined &&
         now - this.criticalSince >= RESOURCE_CRITICAL_CPU_WINDOW_MS) ||
       (sample.memoryAvailableBytes !== null &&
@@ -421,10 +452,10 @@ export class ResourceGovernor {
   }
 
   /**
-   * The caller's signal ends only the caller's wait. The sample is shared and
-   * bounded by RESOURCE_SAMPLE_MS; aborting it would record an all-unknown
-   * reading for every waiter.
-   */
+  The caller's signal ends only the caller's wait. The sample is shared and
+  bounded by RESOURCE_SAMPLE_MS; aborting it would record an all-unknown
+  reading for every waiter.
+  */
   refresh(signal?: AbortSignal): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('Resource governor disposed'))
     const reason = () =>

@@ -26,7 +26,7 @@ export interface CompanionUploadCredentials {
 const failureSchema = z.strictObject({ reason: z.string() })
 
 /** M104 C supplies its current per-window bearer after the one-use launch exchange.
- * @unwired M104 read only by tests deleted 2026-10-17 (no fakes) */
+@unwired M104 read only by tests deleted 2026-10-17 (no fakes) */
 export function companionMediaTransport(
   credentials: () => CompanionUploadCredentials,
   sendRequest: typeof fetch = (input, init) => fetch(input, init),
@@ -69,8 +69,13 @@ export function companionMediaTransport(
           body: file,
         })
         body = await response.json()
-      } catch {
-        throw new Error(signal.aborted ? UI_TEXT.media.uploadStop : UI_TEXT.attachmentUnreadable)
+      } catch (error: unknown) {
+        // A stop stays a stop (an abort throws past Error) and a failure
+        // reads unreadable, both with their cause: only a non-error keeps
+        // its kind past the transport.
+        if (signal.aborted) throw new Error(UI_TEXT.media.uploadStop, { cause: error })
+        if (!(error instanceof Error)) throw error
+        throw new Error(UI_TEXT.attachmentUnreadable, { cause: error })
       }
       if (signal.aborted) throw new Error(UI_TEXT.media.uploadStop)
       const parsed = companionMediaUploadSchema.safeParse(body)

@@ -112,16 +112,18 @@ const JSON_INDENT = 2
 function json(text: string): unknown {
   try {
     return JSON.parse(text) as unknown
-  } catch {
+  } catch (error: unknown) {
+    // Unparseable text reads as it came: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
 
 /**
- * A generic row's arguments or result: JSON objects and arrays indented so
- * they read as data (an MCP server's tool, a tool the panel does not know),
- * anything else as it came.
- */
+A generic row's arguments or result: JSON objects and arrays indented so
+they read as data (an MCP server's tool, a tool the panel does not know),
+anything else as it came.
+*/
 export function readableText(text: string): string {
   const parsed = json(text)
   return typeof parsed === 'object' && parsed !== null
@@ -166,12 +168,12 @@ export function goalDetails(output: string): GoalDetails | undefined {
 }
 
 /**
- * The prompts a schedule call names: the one `cron_create` asked for, or
- * every job `cron_list` returned. `cron_delete` names none (its row says
- * which id it removed). Undefined when a `cron_list` result is not the
- * captured shape, so its text is shown instead of "none" (the review of
- * PR #29).
- */
+The prompts a schedule call names: the one `cron_create` asked for, or
+every job `cron_list` returned. `cron_delete` names none (its row says
+which id it removed). Undefined when a `cron_list` result is not the
+captured shape, so its text is shown instead of "none" (the review of
+PR #29).
+*/
 export function scheduledPrompts(
   tool: string,
   args: string,
@@ -206,10 +208,10 @@ export function scheduledPrompts(
 }
 
 /**
- * A web search's results: Muse Code's `web_search` answers
- * `{ query, results: [{ url, title, snippet }] }`, and the Model API
- * backend's rows carry the same shape (M43). Undefined for any other text.
- */
+A web search's results: Muse Code's `web_search` answers
+`{ query, results: [{ url, title, snippet }] }`, and the Model API
+backend's rows carry the same shape (M43). Undefined for any other text.
+*/
 export function webResults(output: string): readonly WebResult[] | undefined {
   const parsed = webResultsSchema.safeParse(json(output))
   return parsed.success
@@ -233,12 +235,12 @@ export function imageRequestOf(args: string): {
 }
 
 /**
- * A shell call Muse Code moved to the background: its result is JSON with
- * `execution_state` (`background_running` while it runs) and the run's
- * `work_id` instead of the command's text; both are required, so output
- * that merely looks like it is not taken for one (the review of PR #29).
- * Undefined for an ordinary result.
- */
+A shell call Muse Code moved to the background: its result is JSON with
+`execution_state` (`background_running` while it runs) and the run's
+`work_id` instead of the command's text; both are required, so output
+that merely looks like it is not taken for one (the review of PR #29).
+Undefined for an ordinary result.
+*/
 export function backgroundRun(output: string): BackgroundRun | undefined {
   const parsed = backgroundSchema.safeParse(json(output))
   return parsed.success

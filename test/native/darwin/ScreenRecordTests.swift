@@ -118,9 +118,21 @@ func options(replacing flag: String, with value: String) throws -> ScreenRecordO
     return try ScreenRecordOptions(arguments: arguments)
 }
 
-for value in ["0", "9", "601", "10.5"] {
+for value in ["-1", "10.5", "ten"] {
     refuses("duration \(value) is refused", code: .invalidOptions) { _ = try options(replacing: "--max-seconds", with: value) }
 }
+// D121: no floor and no ceiling of ours; a set length is used as set.
+for value in ["5", "3600"] {
+    let set = try options(replacing: "--max-seconds", with: value)
+    check(set.seconds == Int(value), "duration \(value) is used as set")
+}
+// D121: 0 records until stopped (no stop of ours); the product default.
+// Positive durations a person sets still bound the run (base uses 10).
+let unlimited = try options(replacing: "--max-seconds", with: "0")
+check(unlimited.seconds == 0, "duration 0 records until stopped")
+let unlimitedFallback = try unlimited.fallbackArguments(audioDevice: 0)
+check(unlimitedFallback == ["-v", "-D", "1", folder.appendingPathComponent("capture.mov").path], "unlimited fallback records until stopped with no duration bound")
+check(unlimited.conversionArguments(source: folder.appendingPathComponent("both.mp4").path) == ["--source", folder.appendingPathComponent("both.mp4").path, "--output", output.path, "--preset", "Preset1920x1080", "--duration", "0"], "unlimited conversion carries the uncapped duration")
 for value in ["0", "-1", "209715201"] {
     refuses("byte cap \(value) is refused", code: .invalidOptions) { _ = try options(replacing: "--max-bytes", with: value) }
 }

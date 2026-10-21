@@ -1,7 +1,7 @@
 import {
   PAID_PRICES_VERIFIED_ON,
   MILLISECONDS_PER_SECOND,
-  TAB_DAILY_BUDGET_DEFAULT_USD,
+  TAB_NO_BUDGET_USD,
   type PaidFeature,
   UI_TEXT,
 } from '../../shared/constants'
@@ -14,13 +14,14 @@ import {
   type PaidTally,
 } from '../../shared/paid'
 import { formatUsd } from '../../core/usage/insights'
+import { Usd } from '../../shared/usd'
 import { formatDurationMs } from '../agentFormat'
 
 /**
- * The paid features this backend uses (D30 rule 5; on Muse Code, the key's
- * images and voice, M44): each one's state, this window's use and its
- * estimated cost at the published prices.
- */
+The paid features this backend uses (D30 rule 5; on Muse Code, the key's
+images and voice, M44): each one's state, this window's use and its
+estimated cost at the published prices.
+*/
 export function PaidSection({
   paid,
   features,
@@ -97,15 +98,15 @@ function UnknownPaidRequests({ count }: { readonly count: number }) {
 }
 
 /**
- * The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
- * the daily budget, the request count, and the on/off state. "Today" is the
- * ledger's total for the local day across every window, shown once Tab has
- * run in this window (the ledger is read by dist/tab.js); "This Window" is
- * this window's reported cost; the budget is the configured one (RVM94HU
- * 23–24). While Tab is off and has never run here, the row says off with the
- * budget instead of zeros that read as use. The facts wrap, as the other
- * token rows do (RVM94HU 25).
- */
+The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
+the daily budget, the request count, and the on/off state. "Today" is the
+ledger's total for the local day across every window, shown once Tab has
+run in this window (the ledger is read by dist/tab.js); "This Window" is
+this window's reported cost; the budget is the configured one (RVM94HU
+23–24). While Tab is off and has never run here, the row says off with the
+budget instead of zeros that read as use. The facts wrap, as the other
+token rows do (RVM94HU 25).
+*/
 
 function TabRow({ paid }: { readonly paid: PaidState }) {
   const { tally } = paid
@@ -115,7 +116,16 @@ function TabRow({ paid }: { readonly paid: PaidState }) {
   const hasRun = requests > 0 || paid.features.includes('tab')
   const cost = formatUsd(paidCostUsd('tab', paid.tally))
   const todayUsd = paid.tab?.todayUsd
-  const budget = formatUsd(paid.tab?.budgetUsd ?? TAB_DAILY_BUDGET_DEFAULT_USD)
+  // Before Tab state arrives there is no budget to show, so the row says the
+  // value is not known yet instead of the old $1.00 fallback. A zero budget
+  // is the person having set none.
+  let budgetLine = UI_TEXT.usagePaidTabBudgetUnknown
+  if (paid.tab !== undefined) {
+    budgetLine =
+      Usd.from(paid.tab.budgetUsd).compare(Usd.from(TAB_NO_BUDGET_USD)) === 0
+        ? UI_TEXT.usagePaidTabBudgetNone
+        : fill(UI_TEXT.usagePaidTabBudget, { budget: formatUsd(paid.tab.budgetUsd) })
+  }
   const windowText = fill(UI_TEXT.usagePaidTabCostWindow, { cost })
   return (
     <>
@@ -133,10 +143,10 @@ function TabRow({ paid }: { readonly paid: PaidState }) {
                 ? windowText
                 : `${fill(UI_TEXT.usagePaidTabCostToday, { cost: formatUsd(todayUsd) })} · ${windowText}`}
             </p>
-            <p className={'usage-row-meta'}>{fill(UI_TEXT.usagePaidTabBudget, { budget })}</p>
+            <p className={'usage-row-meta'}>{budgetLine}</p>
           </>
         ) : (
-          <span className={'usage-row-meta'}>{fill(UI_TEXT.usagePaidTabBudget, { budget })}</span>
+          <span className={'usage-row-meta'}>{budgetLine}</span>
         )}
       </dd>
     </>

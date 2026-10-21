@@ -131,8 +131,31 @@ public static class VaultPathGuard
     }
     private static SafeFileHandle Hold(string name, bool strict, bool directory)
     {
+        return Hold(name, strict, directory, false);
+    }
+    private static SafeFileHandle Hold(string name, bool strict, bool directory, bool shareWrite)
+    {
         // FILE_LIST_DIRECTORY makes directory handles participate in sharing checks; metadata-only opens do not.
-        var handle = CreateFile(name, ReadControl | (directory ? 0x81u : 0x80000000u), directory ? 3u : 1u, IntPtr.Zero, OpenExisting, OpenReparse | BackupSemantics, IntPtr.Zero);
+        // A file is held against writers unless the caller shares writing:
+        // delete sharing lets the owner publish or retire a record (a link, a
+        // rename, a delete) while another process checks it, instead of
+        // refusing that check. The hold ends with the check, so it pins
+        // nothing a delete could take away. Only a launch keeps writers out
+        // (the binary it hashes must not change before it starts); a file
+        // check reads the owner, DACL and attributes, which no writer can
+        // change, so it shares writing with the owner's own open writer (the
+        // audit log appends through one while its reads are checked).
+        uint share = directory ? 3u : (shareWrite ? 7u : 5u);
+        var handle = CreateFile(name, ReadControl | (directory ? 0x81u : 0x80000000u), share, IntPtr.Zero, OpenExisting, OpenReparse | BackupSemantics, IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            int error = Marshal.GetLastWin32Error();
+            handle.Dispose();
+            // A missing file or folder (ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND)
+            // is absence, the TS side's `missing`; every other failure refuses.
+            if (error == 2 || error == 3) throw new FileNotFoundException();
+            throw new InvalidDataException();
+        }
         try
         {
             FileInformation information;
@@ -157,6 +180,58 @@ public static class VaultPathGuard
         var handles = new List<SafeFileHandle>();
         try { foreach (string name in names) handles.Add(Hold(name, false, true)); return handles; }
         catch { foreach (var handle in handles) handle.Dispose(); throw; }
+    }
+    // The pipe helper's owner-only file commands (the broker's private files
+    // on Windows). Missing files throw FileNotFoundException (the TS side's
+    // `missing`); anything else throws InvalidDataException (`refused`).
+    // Reparse points are always refused, in the path and its ancestors.
+    public static void Protect(string target, bool directory)
+    {
+        var held = Parents(target);
+        try
+        {
+            var attributes = File.GetAttributes(target);
+            if ((attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException();
+            if (directory ? (attributes & FileAttributes.Directory) == 0 : (attributes & FileAttributes.Directory) != 0)
+                throw new InvalidDataException();
+            var owner = new SecurityIdentifier(CurrentUser);
+            if (directory)
+            {
+                var security = Directory.GetAccessControl(target);
+                security.SetAccessRuleProtection(true, false);
+                security.SetOwner(owner);
+                foreach (FileSystemAccessRule rule in security.GetAccessRules(true, false, typeof(SecurityIdentifier)))
+                    security.RemoveAccessRule(rule);
+                security.AddAccessRule(new FileSystemAccessRule(owner, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+                Directory.SetAccessControl(target, security);
+            }
+            else
+            {
+                var security = File.GetAccessControl(target);
+                security.SetAccessRuleProtection(true, false);
+                security.SetOwner(owner);
+                foreach (FileSystemAccessRule rule in security.GetAccessRules(true, false, typeof(SecurityIdentifier)))
+                    security.RemoveAccessRule(rule);
+                security.AddAccessRule(new FileSystemAccessRule(owner, FileSystemRights.FullControl, AccessControlType.Allow));
+                File.SetAccessControl(target, security);
+            }
+            using (Hold(target, true, directory, true)) { }
+        }
+        catch (FileNotFoundException) { throw; }
+        catch (DirectoryNotFoundException) { throw new FileNotFoundException(); }
+        catch (IOException) { throw new InvalidDataException(); }
+        catch (UnauthorizedAccessException) { throw new InvalidDataException(); }
+        finally { foreach (var handle in held) handle.Dispose(); }
+    }
+    public static void Verify(string target, bool directory)
+    {
+        var held = Parents(target);
+        try { using (Hold(target, true, directory, true)) { } }
+        catch (FileNotFoundException) { throw; }
+        catch (DirectoryNotFoundException) { throw new FileNotFoundException(); }
+        catch (IOException) { throw new InvalidDataException(); }
+        catch (UnauthorizedAccessException) { throw new InvalidDataException(); }
+        finally { foreach (var handle in held) handle.Dispose(); }
     }
     public static void Prepare(string target)
     {

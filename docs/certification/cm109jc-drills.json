@@ -1,0 +1,209 @@
+[
+  {
+    "guard": "disappeared-record",
+    "source": "src/runtime/vault/posixClientPlatform.ts",
+    "sha256": "d536772d9e10b5fec1e3fd226c6b53a7d7bd4091f5396e02c82f4c0ad238ffe1",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition recovers the protected audit intent after an interruption afterStore",
+      "installed POSIX binding composition treats orderly broker shutdown at record-read as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at identity as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at token-open as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at token-read as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at readiness as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at recheck-record as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at recheck-identity as absence"
+    ]
+  },
+  {
+    "guard": "successor-connect",
+    "source": "src/host/vault/brokerProcess.ts",
+    "sha256": "55ec21bf233b8e47f2a01a0a7e2cb076fe38cbde95d18111f076ab8bd5ef2ee7",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition starts a successor after orderly shutdown during connect",
+      "installed POSIX binding composition starts a successor after orderly shutdown during peer",
+      "installed POSIX binding composition starts a successor after orderly shutdown during hello"
+    ]
+  },
+  {
+    "guard": "successor-ready",
+    "source": "src/host/vault/brokerProcess.ts",
+    "sha256": "55ec21bf233b8e47f2a01a0a7e2cb076fe38cbde95d18111f076ab8bd5ef2ee7",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition retries a broker that closes between launch readiness and final discovery once"
+    ]
+  },
+  {
+    "guard": "epoch-contention",
+    "source": "src/runtime/vault/vaultBrokerEntry.ts",
+    "sha256": "6d29de89a5b02d35993bfe5d17f8e2b635e00ed4044563429e76480cb10811f6",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition serializes shared epoch writers across real brokers from different user sessions",
+      "installed POSIX binding composition refuses an epoch commit after its kernel guardian is lost"
+    ]
+  },
+  {
+    "guard": "epoch-guardian-loss",
+    "source": "src/runtime/vault/vaultBrokerEntry.ts",
+    "sha256": "6d29de89a5b02d35993bfe5d17f8e2b635e00ed4044563429e76480cb10811f6",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition refuses an epoch commit after its kernel guardian is lost"
+    ]
+  },
+  {
+    "guard": "fixture-lifetime",
+    "source": "test/unit/helpers/vault/sessionBrokerChild.ts",
+    "sha256": "b25d5f63868b5c06427ed199a5a8ad50cb24bfe624c2d822abd05263fb384b5b",
+    "exit": 1,
+    "failedTests": [
+      "session-owned POSIX broker survives orderly launcher resource shutdown and locks only after its last client leaves",
+      "session-owned POSIX broker connects simultaneous real clients to one broker through the kernel launch lock",
+      "session-owned POSIX broker survives its launcher dying between spawn and readiness"
+    ]
+  },
+  {
+    "guard": "production-idle",
+    "source": "src/runtime/vault/brokerProcess.ts",
+    "sha256": "1d7800d96dc3d728e73383cf45f0e5a848866806f82b04c357f1e3d747b07ef8",
+    "exit": 1,
+    "failedTests": [
+      "POSIX vault broker lifecycle retains the production 30-second empty idle period with an injected clock"
+    ]
+  },
+  {
+    "guard": "warning-kind",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings keeps live groups, unknown work and unrelated resource errors fatal"
+    ]
+  },
+  {
+    "guard": "warning-frame",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings keeps live groups, unknown work and unrelated resource errors fatal"
+    ]
+  },
+  {
+    "guard": "warning-known",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"known\":true}",
+      "installed vault receipt sampler warnings keeps live groups, unknown work and unrelated resource errors fatal"
+    ]
+  },
+  {
+    "guard": "warning-ticket",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"ticket\":{}}"
+    ]
+  },
+  {
+    "guard": "warning-ended",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"ended\":false}"
+    ]
+  },
+  {
+    "guard": "warning-group",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"process\":{\"pid\":42,\"group\":false,\"profile\":\"contained\"}}"
+    ]
+  },
+  {
+    "guard": "warning-profile",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"process\":{\"pid\":42,\"group\":true,\"profile\":\"handoff\"}}"
+    ]
+  },
+  {
+    "guard": "warning-pid",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"process\":{\"pid\":42.5,\"group\":true,\"profile\":\"contained\"},\"binding\":{\"root\":{\"pid\":42.5}}}"
+    ]
+  },
+  {
+    "guard": "warning-positive-pid",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"process\":{\"pid\":0,\"group\":true,\"profile\":\"contained\"},\"binding\":{\"root\":{\"pid\":0}}}"
+    ]
+  },
+  {
+    "guard": "warning-root",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"binding\":{\"root\":{\"pid\":43}}}",
+      "installed vault receipt sampler warnings refuses a live, registered or unproved tree: {\"binding\":{\"root\":null}}"
+    ]
+  },
+  {
+    "guard": "warning-kernel-gone",
+    "source": "test/unit/helpers/vault/receiptWarnings.mjs",
+    "sha256": "dbe2f7c79d6aa8058e5117fadc49d65780eb364f3f6882f902d58670dd590dd4",
+    "exit": 1,
+    "failedTests": [
+      "installed vault receipt sampler warnings uses the kernel to refuse a live process group and recognize its exact exit",
+      "installed vault receipt sampler warnings keeps live groups, unknown work and unrelated resource errors fatal"
+    ]
+  },
+  {
+    "guard": "epoch-contention-same-broker",
+    "source": "src/runtime/vault/vaultBrokerEntry.ts",
+    "sha256": "6d29de89a5b02d35993bfe5d17f8e2b635e00ed4044563429e76480cb10811f6",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition serializes shared epoch writers on one broker",
+      "installed POSIX binding composition serializes shared epoch writers on different user sessions",
+      "installed POSIX binding composition refuses an epoch commit after its kernel guardian is lost"
+    ]
+  },
+  {
+    "guard": "native-identity-exit-retry",
+    "source": "src/runtime/vault/posixNative.ts",
+    "sha256": "cb56b233f8a60edd057f2e9161410717fb0d8b983af3e3ae10ce2634b042ed2d",
+    "exit": 1,
+    "failedTests": [
+      "POSIX vault broker lifecycle retries one interrupted native identity read after the real broker closes orderly",
+      "POSIX vault broker lifecycle refuses persistent native identity failures after one retry and never retries a malformed identity"
+    ]
+  },
+  {
+    "guard": "owned-startup-cleanup-once",
+    "source": "src/host/vault/brokerProcess.ts",
+    "sha256": "971d3e0248cf99ce8071a91b60f6eae7ab6b58709269cc25d4f0eb121cfb20c4",
+    "exit": 1,
+    "failedTests": [
+      "native authenticated broker channel a failed owned startup cleanup runs once and stops successor retries"
+    ]
+  }
+]

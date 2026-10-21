@@ -1,4 +1,3 @@
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure
@@ -13,46 +12,37 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 // location is resolved once per set of inputs instead of probing PATH on
 // every message.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import path from 'node:path'
-import { type FingerprintWarning } from '@muse-code/sdk'
+// The SDK's fingerprint advisory, type-only through its own module: any
+// import of the package root keeps the SDK's side effects in the activation
+// bundle under verbatimModuleSyntax, so activation never names the root.
+import type { FingerprintWarning } from '@muse-code/sdk/dist/src/fingerprint.js'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
 import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
-import {
-  type CommandTimeouts,
-  type MuseCodeFeaturePorts,
+import type {
+  CommandTimeouts,
+  MuseCodeFeaturePorts,
   MuseCodeHost,
-  type spawnAccountMspConnection,
-  type MspHost,
+  spawnAccountMspConnection,
+  MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
 import {
-  buildChildEnvironment,
-  credentialFilePath,
-  environmentValue,
-  type LaunchResolution,
-  type MuseLaunch,
-  resolveMuseLaunch,
-  withLoopbackBypass,
-} from '../../core/backends/musecode/launch'
-import {
+  isLinuxSandboxBlocked,
   isSandboxNetworkApplied,
+  type LinuxSandboxReadiness,
+  probeLinuxSandboxShell,
   resolveShellSandbox,
+  sandboxAvailabilityWarning,
   serveArguments,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
-import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
-import { clipForLog } from '../../core/logging'
-import { isSamePath } from '../../core/paths'
-import { withSlowDeadline } from '../../core/timeouts'
-import { resolveWorkspacePath } from '../../core/workspacePath'
+import { isMissingPath } from '../canonicalPath'
+import { describeStoreError } from './storeErrors'
+import { stillWaitingText, waitForAnswer } from '../../core/timeouts'
 import {
-  MILLISECONDS_PER_SECOND,
   MSP_CLIENT_NAME,
-  MSP_HANDSHAKE_TIMEOUT_MS,
   MSP_KNOWN_SCHEMA_FINGERPRINTS,
   MSP_REQUESTED_CAPABILITIES,
-  MSP_SLOW_HANDSHAKE_TIMEOUT_MS,
   MUSE_VERSION_FILE,
   type EnvironmentVariable,
   MUSE_CERTIFICATE_VARIABLES,
@@ -64,14 +54,31 @@ import {
   type ShellSandboxMode,
   UI_TEXT,
 } from '../../shared/constants'
-import { readCredentialFile } from '../auth/cliAccount'
+import { isContributorModeEnabled } from './museSettings'
+import type { UsageRecording } from '../../core/usage/recording'
 import type { Logger } from '../logger'
+import { requireFile } from '../lazyBundle'
+import { isUsageNotesBundle, museCodeBundleLoader, type MuseCodeBundle } from './museCodeBundle'
 import { systemPath } from './memoryIo'
 import { admitResource } from '../../core/resources/admission'
+import { spawnResourceConnection } from '../resources/museResourceLaunch'
 import {
-  spawnResourceMuseConnection,
-  spawnResourceAccountConnection,
-} from '../resources/museResourceLaunch'
+  credentialFilePath,
+  type LaunchResolution,
+  type MuseLaunch,
+  resolveMuseLaunch,
+  withLoopbackBypass,
+} from '../../core/backends/musecode/launch'
+import { buildChildEnvironment, environmentValue } from '../../core/execGuard'
+import { type GuardedChildEnv, NO_WORKSPACE } from '../../core/executables'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
+import { clipForLog } from '../../core/logging'
+import { isSamePath } from '../../core/paths'
+import { resolveWorkspacePath } from '../../core/workspacePath'
+import { readCredentialFile } from '../auth/cliAccount'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -81,11 +88,11 @@ export interface ProxySettings {
 }
 
 /**
- * What the window does when Muse Code stops answering (the watchdog, CLI
- * recovery 2026-10-03): whether a turn runs on Muse Code in any of its
- * conversations, Muse Code's own restart (the conversations hear it first,
- * then the next message resumes them), and what the panels on it say.
- */
+What the window does when Muse Code stops answering (the watchdog, CLI
+recovery 2026-10-03): whether a turn runs on Muse Code in any of its
+conversations, Muse Code's own restart (the conversations hear it first,
+then the next message resumes them), and what the panels on it say.
+*/
 export interface UnresponsiveHostDeps {
   readonly isTurnRunning: () => boolean
   readonly restart: () => Promise<void>
@@ -97,15 +104,21 @@ export interface UnresponsiveHostDeps {
 
 export interface BackendManagerDeps {
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
+  /** dist/museCode.js beside the running bundle, required the first time the backend starts. */
+  readonly bundlePath: string
+  /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+  /** This manager's usage recorder, put on the bundle's host class at every bundle load. */
+  readonly usageRecording?: UsageRecording | undefined
   /** One manager per capture-gated CLI account. Absent preserves today's single account. */
   readonly accountHome?: MuseCodeAccountHome
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
   /**
-   * The window's answer to a Muse Code that stopped answering. The ACP agent
-   * has none (its editor owns its lifetime): there, while Muse Code answers
-   * nothing, commands fail at once and the log says why.
-   */
+  The window's answer to a Muse Code that stopped answering. The ACP agent
+  has none (its editor owns its lifetime): there, while Muse Code answers
+  nothing, commands fail at once and the log says why.
+  */
   readonly unresponsive?: UnresponsiveHostDeps
   readonly log: Logger
   readonly extensionVersion: string
@@ -126,10 +139,6 @@ export interface BackendManagerDeps {
   readonly isWorkspaceTrusted: () => boolean
   /** VS Code's proxy settings, read at each spawn. */
   readonly getProxySettings: () => ProxySettings
-  /** The handshake's deadline; the constant unless a test shortens it. */
-  readonly handshakeTimeoutMs?: number
-  /** The whole wait for a slow start whose process still runs; likewise. */
-  readonly slowHandshakeTimeoutMs?: number
   /** The commands' deadlines and the watchdog's silence; the constants unless a test shortens them. */
   readonly featurePorts?: MuseCodeFeaturePorts | undefined
   readonly commandTimeouts?: CommandTimeouts
@@ -141,22 +150,23 @@ const META_API_KEY = 'META_API_KEY'
 // The variables VS Code's `http.proxy` is handed over as.
 const PROXY_VARIABLES = ['HTTPS_PROXY', 'HTTP_PROXY'] as const
 
-// A path that is not there, as opposed to one that is there and unreadable.
-const MISSING_CODES: ReadonlySet<string> = new Set(['ENOENT', 'ENOTDIR'])
-
 /**
- * The CLI lookup's reads (M39): a missing file or folder is simply absent,
- * but one that cannot be read is said in the log, or "CLI not found" would
- * hide a permission problem.
- */
+The CLI lookup's reads (M39): a missing file or folder is simply absent,
+but one that cannot be read is said in the log, or "CLI not found" would
+hide a permission problem.
+*/
 function unlessMissing<T>(log: Logger, what: string, read: () => T, absent: T): T {
   try {
     return read()
   } catch (error: unknown) {
-    const code = error instanceof Error && 'code' in error ? String(error.code) : ''
-    if (!MISSING_CODES.has(code)) {
-      log.warn(`Could not read ${what} while looking for the Muse Code CLI: ${String(error)}`)
+    // A missing file or folder is simply absent (M39); anything else is
+    // said in the log, or "CLI not found" would hide a permission problem.
+    if (isMissingPath(error)) {
+      return absent
     }
+    log.warn(
+      `Could not read ${what} while looking for the Muse Code CLI: ${describeStoreError(error)} (${failureForLog(error)})`,
+    )
     return absent
   }
 }
@@ -169,21 +179,84 @@ function listDirectoryOrEmpty(log: Logger, directory: string): readonly string[]
   return unlessMissing(log, directory, () => readdirSync(directory), [])
 }
 
+/**
+The feature ports the host is built with: while contributor mode is on,
+the host's `serve` runs with `--contributor-mode on` (see `resolveLaunch`
+and `contributorModeEnabled`), so its catalogue carries each listed
+model's `-contributor` counterpart. Off leaves the caller's ports
+untouched.
+*/
+function withContributorMode(
+  ports: MuseCodeFeaturePorts | undefined,
+  isEnabled: boolean,
+): MuseCodeFeaturePorts | undefined {
+  return isEnabled ? { ...ports, contributorMode: true } : ports
+}
+
 export class MuseCodeBackendManager {
+  /**
+  The runtime's journal when no manager carries its own (the ACP agent
+  installs it through `installUsageRecording`): forwarded onto the
+  bundle's host class at every bundle load, since dist/museCode.js
+  carries its own copy of that class and its static.
+  */
+  public static usageRecording: UsageRecording | undefined
   private hostPromise: Promise<MuseCodeHost> | undefined
+  /** The Linux capability probe of the last started host (F91); one probe per start. */
+  private linuxSandboxReadiness: LinuxSandboxReadiness | undefined
   /** Bumped by every spawn and every dispose: an attempt only clears its own slot. */
   private generation = 0
   private resourceStop = new AbortController()
   private launchCache: { readonly key: string; readonly resolution: LaunchResolution } | undefined
+  /**
+  How the last host's run ended in failure (`HostExit.isFailure`): the
+  replacement host carries it, so the first turn that fails for a lost
+  sign-in names the restart instead of failing quietly (F94). Only the
+  restart that carries it clears it: a fault's Restart goes through
+  `dispose`, and the failure it follows must still name the next start.
+  */
+  private failedExit: string | undefined
+  /**
+  The spawn generation the watchdog's own restart is stopping: that
+  stop answers an unresponsive backend, so its exit still names the
+  next start (Codex on PR #211). Stamped in `hostUnresponsive`, consumed
+  by the stale exit. A user-asked Restart or an account-ending stop
+  never stamps it; a stale stamp can never match a later generation.
+  */
+  private recoveryStopGeneration: number | undefined
 
-  public constructor(private readonly deps: BackendManagerDeps) {}
+  private readonly loadBackend: () => MuseCodeBundle
+
+  public constructor(private readonly deps: BackendManagerDeps) {
+    const load = museCodeBundleLoader({
+      bundlePath: deps.bundlePath,
+      log: deps.log,
+      loadBundle: deps.loadBundle,
+    })
+    this.loadBackend = () => {
+      const bundle = load()
+      bundle.MuseCodeHost.usageRecording =
+        deps.usageRecording ?? MuseCodeBackendManager.usageRecording
+      // The live journal writers ride with the usage service bundle (PLAN.md
+      // D6): sessions construct them on first use instead of carrying them
+      // at startup.
+      bundle.MuseCodeHost.usageNotesLoader = () => {
+        const notes: unknown = requireFile(
+          path.join(path.dirname(deps.bundlePath), 'usageService.js'),
+        )
+        if (!isUsageNotesBundle(notes)) throw new Error(UI_TEXT.actionFailed)
+        return notes
+      }
+      return bundle
+    }
+  }
 
   /**
-   * Whether any of `names` is set, non-empty, in what the CLI would see
-   * without VS Code's proxy: the inherited environment and
-   * `museSpark.environmentVariables`, in either case on POSIX, so a
-   * lowercase `https_proxy` set either way is never contradicted.
-   */
+  Whether any of `names` is set, non-empty, in what the CLI would see
+  without VS Code's proxy: the inherited environment and
+  `museSpark.environmentVariables`, in either case on POSIX, so a
+  lowercase `https_proxy` set either way is never contradicted.
+  */
   private isOwnVariableSet(names: readonly string[]): boolean {
     const own = buildChildEnvironment({
       platform: process.platform,
@@ -191,6 +264,13 @@ export class MuseCodeBackendManager {
       extraVariables: this.deps.getEnvironmentVariables(),
       systemRoot: process.env['SystemRoot'],
       programFiles: process.env['ProgramFiles'],
+      scope:
+        this.deps.workspaceRoot === undefined
+          ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+          : {
+              workspaceRoot: this.deps.workspaceRoot,
+              realpath: realpathSync,
+            },
     })
     return names.some((name) => (environmentValue(own, process.platform, name) ?? '') !== '')
   }
@@ -209,10 +289,10 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * The SDK reports a host whose schema fingerprint differs from its pin. A
-   * build known to be an additive successor is an info line naming it; any
-   * other difference stays a warning (0.9.1: every 1.4.0 start warned).
-   */
+  The SDK reports a host whose schema fingerprint differs from its pin. A
+  build known to be an additive successor is an info line naming it; any
+  other difference stays a warning (0.9.1: every 1.4.0 start warned).
+  */
   private logFingerprint(warning: FingerprintWarning | undefined): void {
     if (warning === undefined) {
       return
@@ -227,19 +307,29 @@ export class MuseCodeBackendManager {
     )
   }
 
+  /** A process that never finished its handshake is ended, not left behind. */
+  private async closeUnstarted(handshake: { close(): Promise<unknown> }): Promise<void> {
+    try {
+      await handshake.close()
+    } catch (closeError: unknown) {
+      this.deps.log.warn(`Closing the unstarted muse serve failed: ${failureForLog(closeError)}`)
+    }
+  }
+
   /** A capture-gated account's host: the same admission, with its tree registered on the lease. */
   private async spawnAccountHost(
+    backend: MuseCodeBundle,
     options: Parameters<typeof spawnAccountMspConnection>[0],
     accountHome: MuseCodeAccountHome,
     resource: ResourceLease | undefined,
     assertCanRun: () => Promise<void>,
   ): Promise<ReturnType<typeof spawnAccountMspConnection>> {
-    return await spawnResourceAccountConnection(
+    return await spawnResourceConnection(
+      (launch) => backend.spawnAccountMspConnection(launch, accountHome),
       options,
-      accountHome,
       resource,
       () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
-      environmentValue(options.env ?? {}, process.platform, 'SystemRoot'),
+      environmentValue(options.env, process.platform, 'SystemRoot'),
       async () => {
         await assertCanRun()
         accountHome.assertCurrent()
@@ -254,6 +344,9 @@ export class MuseCodeBackendManager {
     }
     const launch: MuseLaunch = resolution.launch
     await this.admitWorkspaceHost()
+    // Loaded before the lease is taken: a bundle that will not load must
+    // refuse without holding resource admission.
+    const backend = this.loadBackend()
     const resource = await admitResource('museServe', this.resourceStop.signal)
     if (this.generation !== generation) {
       resource?.complete(true)
@@ -263,6 +356,24 @@ export class MuseCodeBackendManager {
     this.deps.log.info(
       `Shell sandbox ${posture.isSandboxed ? 'on' : 'off'} (${posture.reason}) for this host`,
     )
+    // F91: while sandboxed on Linux, learn whether Muse Code's sandbox can
+    // start on this machine at all, and say so once in words when it cannot,
+    // instead of letting every unasked command fail with bwrap's raw line.
+    // Turning the sandbox off stays the person's choice: the posture stands.
+    // A fresh probe per start: the person may have allowed user namespaces
+    // since the last one, then restarted the host.
+    this.linuxSandboxReadiness = undefined
+    const readiness = await this.readShellSandboxReadiness(posture)
+    if (isLinuxSandboxBlocked(readiness)) {
+      this.deps.log.warn(UI_TEXT.sandboxCannotStartNotice)
+    } else if (readiness !== undefined && !readiness.canStart) {
+      // The system-bwrap measurement failed without proving the sandbox
+      // cannot start (Muse Code may use its embedded fallback), so this is
+      // a log line in fixed words, never the cannot-start notice.
+      this.deps.log.info(
+        'Shell sandbox check: the system bwrap probe did not pass here; Diagnostics has the detail',
+      )
+    }
     if (!posture.isSandboxed) {
       // Meta's permissions page: --disable-sandbox "also removes workspace
       // confinement from the file tools" (musecode-write-asks, 2026-10-04).
@@ -303,56 +414,46 @@ export class MuseCodeBackendManager {
     const accountHome = this.deps.accountHome
     const handshake =
       accountHome === undefined
-        ? await spawnResourceMuseConnection(
+        ? await spawnResourceConnection(
+            backend.spawnMspConnection,
             spawnOptions,
             resource,
             () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
             environmentValue(env, process.platform, 'SystemRoot'),
             assertCanRun,
           )
-        : await this.spawnAccountHost(spawnOptions, accountHome, resource, assertCanRun)
-    const firstMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
-    const totalMs = this.deps.slowHandshakeTimeoutMs ?? MSP_SLOW_HANDSHAKE_TIMEOUT_MS
-    const seconds = (ms: number) => String(Math.round(ms / MILLISECONDS_PER_SECOND))
-    // A process that exits fails the handshake at once; one still running at
-    // the first deadline is starting slowly, and is waited for once more.
-    let hasExited = false
-    const noteExit = () => {
-      hasExited = true
-    }
-    void handshake.exited.then(noteExit).catch(noteExit)
+        : await this.spawnAccountHost(backend, spawnOptions, accountHome, resource, assertCanRun)
+    // No deadline of our own (owner 2026-10-16: no arbitrary limits): the
+    // handshake is waited on until the server answers or the wait is
+    // stopped, saying so out loud each minute. A process that exits fails
+    // the handshake through its own rejection; dispose aborts
+    // `resourceStop`, which ends this wait and reaps the process below.
     let spawned: Awaited<ReturnType<typeof handshake.initialize>>
     try {
-      spawned = await withSlowDeadline<Awaited<ReturnType<typeof handshake.initialize>>>(
+      spawned = await waitForAnswer<Awaited<ReturnType<typeof handshake.initialize>>>(
         handshake.initialize({
           clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
           // The panel renders question cards (M4), so the host may send
           // `userInput/requested` instead of answering questions itself; the IDE
-          // tool server (M5) needs the `sessionMcp` grant.
+          // tool server (M5) needs the `sessionMcp` grant. `experimentalApi`
+          // unlocks `session/setPermissionProfile`, which keeps a mode switch
+          // on the mode's reviewer (Manual asks the person, Auto the judge);
+          // stable behavior is unchanged, and a host without the method
+          // answers `methodNotFound`, which the sync tolerates.
           capabilities: {
             userInputDialogs: true,
             requestedCapabilities: [...MSP_REQUESTED_CAPABILITIES],
+            experimentalApi: true,
           },
         }),
-        {
-          firstMs,
-          totalMs,
-          isRunning: () => !hasExited,
-          message: (ms) => `Muse Code did not finish starting within ${seconds(ms)} s`,
-          onSlow: () => {
-            this.deps.log.info(
-              `muse serve is still starting after ${seconds(firstMs)} s and its process runs; waiting up to ${seconds(totalMs)} s in all`,
-            )
-          },
+        this.resourceStop.signal,
+        () => new Error(UI_TEXT.questionCancelled),
+        (elapsedMs) => {
+          this.deps.log.info(stillWaitingText({ key: 'museServeStarting' }, elapsedMs))
         },
       )
     } catch (error: unknown) {
-      // A process that never finished its handshake is ended, not left behind.
-      try {
-        await handshake.close()
-      } catch (closeError: unknown) {
-        this.deps.log.warn(`Closing the unstarted muse serve failed: ${failureForLog(closeError)}`)
-      }
+      await this.closeUnstarted(handshake)
       throw error
     }
     this.logFingerprint(spawned.fingerprintWarning)
@@ -364,15 +465,24 @@ export class MuseCodeBackendManager {
       close: () => spawned.close(),
     }
     let host: MuseCodeHost
+    // The restart carries the crash that caused it, once: a later spawn
+    // starts clean, and a failed spawn keeps it for the retry.
+    const restartCause = this.failedExit
     try {
       this.deps.accountHome?.assertCurrent()
-      host = new MuseCodeHost(
+      host = new backend.MuseCodeHost(
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
-        this.deps.featurePorts,
+        // The per-model effort reader is always on (META-G05); an
+        // injected port still wins where it speaks.
+        {
+          ...backend.museCodeEffortPort,
+          ...withContributorMode(this.deps.featurePorts, this.contributorModeEnabled()),
+        },
         undefined,
         this.deps.accountHome,
+        restartCause,
       )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
@@ -384,12 +494,45 @@ export class MuseCodeBackendManager {
         `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${host.info.grantedCapabilities.join(', ')})`,
       )
     }
+    this.failedExit = undefined
+    // The handshake result overrules the configuration log above: a host
+    // that cannot enforce the sandbox says so, with its reason when sent.
+    const sandboxWarning = sandboxAvailabilityWarning(posture, {
+      availability: host.info.sandboxAvailability,
+      unavailableReason: host.info.sandboxUnavailableReason,
+    })
+    if (sandboxWarning !== undefined) {
+      this.deps.log.warn(sandboxWarning)
+    }
     this.deps.log.info(
       `Connected to ${host.info.serverName} ${host.info.serverVersion} in ${String(Date.now() - spawnedAt)} ms (museHome ${host.info.museHome})`,
     )
-    host.onExit(() => {
-      if (this.generation === generation) {
-        this.hostPromise = undefined
+    if (restartCause !== undefined) {
+      this.deps.log.warn(
+        `The previous run ${restartCause}; the replacement starts with the CLI's own credentials, as logged above`,
+      )
+    }
+    host.onExit((exit) => {
+      if (this.generation !== generation) {
+        // A failure that lands while its stop was already asked for (the
+        // incident's "exited as asked" at code 1) still names the next
+        // start, unless a replacement already holds the slot. So does the
+        // exit of a watchdog-stopped host: the stop answered a failure,
+        // even though the close asked for it (Codex on PR #211).
+        const isRecoveryStop = this.recoveryStopGeneration === generation
+        if (isRecoveryStop) {
+          this.recoveryStopGeneration = undefined
+        }
+        if (this.hostPromise === undefined && (isRecoveryStop || exit.isFailure)) {
+          this.failedExit = exit.description
+        }
+        return
+      }
+      this.hostPromise = undefined
+      // A run that ended in failure names the restart its replacement
+      // carries; a clean stop leaves nothing behind.
+      if (exit.isFailure) {
+        this.failedExit = exit.description
       }
     })
     const { unresponsive } = this.deps
@@ -404,11 +547,11 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Muse Code stopped answering (the watchdog, CLI recovery), told once an
-   * episode: new commands already fail at once. With no turn running in any
-   * conversation of this window, it is restarted now and that is said;
-   * while one runs, its panel offers the restart, which stops that turn.
-   */
+  Muse Code stopped answering (the watchdog, CLI recovery), told once an
+  episode: new commands already fail at once. With no turn running in any
+  conversation of this window, it is restarted now and that is said;
+  while one runs, its panel offers the restart, which stops that turn.
+  */
   private async hostUnresponsive(unresponsive: UnresponsiveHostDeps): Promise<void> {
     if (unresponsive.isTurnRunning()) {
       this.deps.log.warn('Muse Code is not answering while a turn runs: its panel offers a restart')
@@ -416,6 +559,11 @@ export class MuseCodeBackendManager {
       return
     }
     this.deps.log.warn('Muse Code is not answering and no turn runs: restarting it')
+    // Stamp the generation this restart stops: the stop answers a failure,
+    // so its exit still names the next start (Codex on PR #211). Stamping
+    // is harmless when the restart never stops anything: no later
+    // generation can match it.
+    this.recoveryStopGeneration = this.generation
     try {
       await unresponsive.restart()
     } catch (error: unknown) {
@@ -438,12 +586,20 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * The environment `muse serve` runs in: the extension host's, the
-   * Windows PowerShell module path, VS Code's proxy when none is set, and
-   * `museSpark.environmentVariables` on top; with any proxy, loopback
-   * bypasses it so Muse Code reaches the extension's `ide` server (M56).
-   */
-  public childEnvironment(): NodeJS.ProcessEnv {
+  The environment `muse serve` runs in: the extension host's, the
+  Windows PowerShell module path, VS Code's proxy when none is set, and
+  `museSpark.environmentVariables` on top; with any proxy, loopback
+  bypasses it so Muse Code reaches the extension's `ide` server (M56).
+  */
+  /**
+  The Muse Code backend's bundle (dist/museCode.js), required the first
+  time the backend starts: the host class and the two SDK spawn paths.
+  */
+  public museCodeBundle(): MuseCodeBundle {
+    return this.loadBackend()
+  }
+
+  public childEnvironment(): GuardedChildEnv {
     const env = withLoopbackBypass(
       buildChildEnvironment({
         platform: process.platform,
@@ -452,6 +608,13 @@ export class MuseCodeBackendManager {
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
         ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
+        scope:
+          this.deps.workspaceRoot === undefined
+            ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+            : {
+                workspaceRoot: this.deps.workspaceRoot,
+                realpath: realpathSync,
+              },
       }),
       process.platform,
     )
@@ -461,11 +624,11 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Where `muse serve` gets its proxy, for the Diagnostics report (M56):
-   * its own environment (inherited or `environmentVariables`), VS Code's
-   * `http.proxy`, or nowhere. Muse Code reads the proxy variables only; a
-   * proxy VS Code finds in the system settings or a PAC file does not reach it.
-   */
+  Where `muse serve` gets its proxy, for the Diagnostics report (M56):
+  its own environment (inherited or `environmentVariables`), VS Code's
+  `http.proxy`, or nowhere. Muse Code reads the proxy variables only; a
+  proxy VS Code finds in the system settings or a PAC file does not reach it.
+  */
   public proxySource(): 'environment' | 'vscode' | 'none' {
     if (this.isOwnVariableSet(PROXY_VARIABLE_SPELLINGS)) {
       return 'environment'
@@ -489,11 +652,61 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Where the CLI is, or why it could not be found. Resolved once per set of
-   * inputs (the setting, PATH, the serve flags); a found CLI is re-checked
-   * with one file probe, so an uninstall is noticed. `invalidateLaunch`
-   * forgets the answer (a retry, a sign-in).
-   */
+  What the Linux capability probe measured (F91): whether Muse Code's
+  sandbox can start on this machine. Undefined where the probe does not
+  apply (off Linux, or the sandbox off) or while no host has started. A
+  stale cache never answers while the current posture is off: turning
+  `museSpark.shellSandbox` off after a probe ran reads as not checked.
+  */
+  public shellSandboxReadiness(): LinuxSandboxReadiness | undefined {
+    return process.platform !== 'linux' || !this.shellSandboxPosture().isSandboxed
+      ? undefined
+      : this.linuxSandboxReadiness
+  }
+
+  /**
+  The cached probe, or one fresh probe when it applies and none ran yet
+  (the Diagnostics report reads this before any host has started).
+  Applicability is checked before the cache, so a posture change is
+  honoured even when only an earlier run populated it.
+  */
+  public async readShellSandboxReadiness(
+    posture?: ShellSandboxPosture,
+  ): Promise<LinuxSandboxReadiness | undefined> {
+    const active = posture ?? this.shellSandboxPosture()
+    if (process.platform !== 'linux' || !active.isSandboxed) {
+      return undefined
+    }
+    if (this.linuxSandboxReadiness !== undefined) {
+      return this.linuxSandboxReadiness
+    }
+    this.linuxSandboxReadiness = await probeLinuxSandboxShell(this.deps.workspaceRoot)
+    return this.linuxSandboxReadiness
+  }
+
+  /**
+  Whether the person's own Muse Code settings enable contributor mode, as
+  the `serve` this manager starts will see them: the settings file in the
+  config home of the child's own environment (an account home moves it,
+  like the credential file). Read at each spawn — a running host keeps
+  its lifetime posture — and never defaulted on: missing, unreadable or
+  malformed reads as off.
+  */
+  public contributorModeEnabled(): boolean {
+    return isContributorModeEnabled({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: environmentValue(this.childEnvironment(), process.platform, XDG_CONFIG_HOME),
+      readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
+    })
+  }
+
+  /**
+  Where the CLI is, or why it could not be found. Resolved once per set of
+  inputs (the setting, PATH, the serve flags); a found CLI is re-checked
+  with one file probe, so an uninstall is noticed. `invalidateLaunch`
+  forgets the answer (a retry, a sign-in).
+  */
   public resolveLaunch(): LaunchResolution {
     const env = process.env
     const pathValue = environmentValue(env, process.platform, 'PATH') ?? ''
@@ -502,6 +715,7 @@ export class MuseCodeBackendManager {
       this.shellSandboxPosture(),
       this.deps.isWorkspaceTrusted(),
       this.deps.getSandboxNetwork(),
+      this.contributorModeEnabled(),
     )
     const key = JSON.stringify([configuredPath, pathValue, serveArgs])
     const cached = this.launchCache
@@ -511,6 +725,9 @@ export class MuseCodeBackendManager {
     ) {
       return cached.resolution
     }
+    // The workspace the child runs in: PATH entries inside it are never
+    // probed, so a planted `muse` on an absolute workspace PATH entry never
+    // resolves (docs/certification/pathguard.md).
     const resolution = resolveMuseLaunch({
       platform: process.platform,
       configuredPath,
@@ -521,6 +738,13 @@ export class MuseCodeBackendManager {
       readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
       listDirectory: (directory) => listDirectoryOrEmpty(this.deps.log, directory),
       serveArgs,
+      scope:
+        this.deps.workspaceRoot === undefined
+          ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+          : {
+              workspaceRoot: this.deps.workspaceRoot,
+              realpath: realpathSync,
+            },
     })
     this.launchCache = { key, resolution }
     return resolution
@@ -537,10 +761,10 @@ export class MuseCodeBackendManager {
   }
 
   /**
-   * Where the CLI keeps its sign-in, as `muse serve` will see it: an
-   * `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moves it (the
-   * check and the CLI would otherwise disagree, Claude Code #66499).
-   */
+  Where the CLI keeps its sign-in, as `muse serve` will see it: an
+  `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moves it (the
+  check and the CLI would otherwise disagree, Claude Code #66499).
+  */
   public credentialFilePath(): string {
     return credentialFilePath({
       platform: process.platform,
@@ -566,7 +790,9 @@ export class MuseCodeBackendManager {
       this.deps.accountHome?.assertCurrent()
     } catch (error: unknown) {
       return Promise.reject(
-        error instanceof Error ? error : new Error(UI_TEXT.accounts.invalidAccount),
+        error instanceof Error
+          ? error
+          : new Error(UI_TEXT.accounts.invalidAccount, { cause: error }),
       )
     }
     if (this.hostPromise !== undefined) {
@@ -628,8 +854,8 @@ export class MuseCodeBackendManager {
       let folder: string
       try {
         ;[root, folder] = await Promise.all([systemPath(workspaceRoot), systemPath(cwd)])
-      } catch {
-        throw new Error(UI_TEXT.checkpointFailed)
+      } catch (error: unknown) {
+        throw new Error(UI_TEXT.checkpointFailed, { cause: error })
       }
       check()
       if (
@@ -646,11 +872,21 @@ export class MuseCodeBackendManager {
     return this.hostPromise !== undefined
   }
 
-  public async dispose(): Promise<void> {
+  public async dispose(options?: { readonly accountEnding?: boolean }): Promise<void> {
     this.resourceStop.abort()
     this.resourceStop = new AbortController()
     const pending = this.hostPromise
     this.hostPromise = undefined
+    // A recorded failure is kept: a fault's Restart stops through here,
+    // and the failure it follows still names the next start (F94). The
+    // exit this stop is about to cause records itself above if it fails.
+    // An account-ending stop (sign-out, shutdown) discards it instead: the
+    // next sign-in starts clean, never blaming the previous account's run
+    // (Codex on PR #211).
+    if (options?.accountEnding === true) {
+      this.failedExit = undefined
+      this.recoveryStopGeneration = undefined
+    }
     this.generation += 1
     if (pending === undefined) {
       return

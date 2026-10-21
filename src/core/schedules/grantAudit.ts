@@ -12,6 +12,8 @@ export type ScheduleGrantAudit = z.infer<typeof scheduleGrantAuditSchema>
 
 /** S binds one durable transaction: a stale edit must change neither authority nor audit. */
 export interface ScheduleAuthorityStore {
+  /** Local mutations invalidate dispatch synchronously; reads observe other holders. */
+  generation?(workspaceKey: string, scheduleId: string): number
   read(workspaceKey: string, scheduleId: string): Promise<ScheduleV2 | undefined>
   /** `created` admits an absent id at revision zero; other mutations use CAS. */
   commit(next: ScheduleV2, audit: ScheduleGrantAudit): Promise<boolean>

@@ -4,7 +4,7 @@
 // route to local bare repositories through `insteadOf`).
 
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -32,6 +32,11 @@ import type { RemoteFacts } from '../../src/core/git/pushPlan'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 
 const NUL = '\0'
+// Building the fixture repositories runs dozens of real git processes
+// (inits, clones, commits, pushes between local bare repositories); on a
+// loaded machine that passes the 10 s hook default while every case
+// still passes, so the build hook carries its own named budget.
+const FIXTURE_BUILD_TIMEOUT_MS = 60_000
 
 function contextFor(repos: FixtureRepositories, cwd: string): NativeGitContext {
   return { cwd, env: repos.environment }
@@ -286,13 +291,15 @@ describe('native Git against the fixture repositories', () => {
       platform: process.platform,
       env: repos().environment,
       fileExists: existsSync,
+      realpath: realpathSync,
       spawn,
     })
-  })
+  }, FIXTURE_BUILD_TIMEOUT_MS)
 
+  // Removing the fixture tree is the same long operation the build timeout covers.
   afterAll(() => {
     rmSync(root, { recursive: true, force: true })
-  })
+  }, FIXTURE_BUILD_TIMEOUT_MS)
 
   it('reads the own fixture one commit ahead of its upstream', async () => {
     const { snapshot, remotes } = await readNativeStatus(runner(), contextFor(repos(), repos().own))

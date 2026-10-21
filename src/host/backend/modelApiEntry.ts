@@ -1,9 +1,12 @@
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import {
   IS_AUTO_COMPACTION_EVALUATED,
-  MODEL_API_MAX_RETRIES,
+  MODEL_API_CONTEXT_WINDOW,
+  MODEL_API_LEGACY_CONTEXT_MODELS,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../../shared/constants'
+import type { ContextModel } from '../../core/context/overflow'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import {
   type ResponseAttemptGuard,
@@ -33,13 +36,30 @@ export {
   isModelApiError,
   rateLimitHeaders,
   parseJsonResponse,
+  readBoundedText,
   redactModelApiError,
+  rethrowStreamError,
+  redactStreamDiagnostics,
+  retryAfterMs,
+  providerWaitMs,
   ignoreClosingError,
+  // Lane RETRYLIMITS: read by dist/configuredProviders.js
+  // (UNBOUNDED_RETRIES) and dist/reviewer.js and dist/tab.js
+  // (noRetryBudget), so the names exist here or they are `undefined` in the
+  // built product (HOTFIX0181).
+  UNBOUNDED_RETRIES,
+  noRetryBudget,
+  // Lane PR225FIX2: read by dist/configuredProviders.js, dist/extension.js
+  // and dist/acp.js (the production retry-wait sleep), same rule.
+  abortableSleep,
   redactSecrets,
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
+  canRetryWithinBudget,
+  whenAborted,
 } from '../../core/backends/modelapi/transport'
+import { noRetryBudget } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
 // Lane PROVERR: the typed refusal other bundles require from this bundle
@@ -71,21 +91,24 @@ import {
 
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
-import { ModelApiHost, type ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
+import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import type { MediaReplaySession } from '../../core/media/replayMedia'
 import { resolveAutoCompactModel } from '../../core/backends/modelapi/autoCompactionAdmission'
 import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
 import { Usd } from '../../shared/usd'
+import { failureForLog } from '../../core/backends/musecode/logText'
 
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
+import type { ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
 
 /**
- * Whether a spark-hooks.json exists, user's or project's, in a trusted
- * workspace: only then do its readers' bundles load (M91, D6). Hooks are on
- * by default (D78), so a session without the file never loads them. One byte
- * at most is read; the readers confine and check the file themselves.
- */
+Whether a spark-hooks.json exists, user's or project's, in a trusted
+workspace: only then do its readers' bundles load (M91, D6). Hooks are on
+by default (D78), so a session without the file never loads them. One byte
+at most is read; the readers confine and check the file themselves.
+*/
 async function hasSparkHooksFile(sources: HookLoadDeps): Promise<boolean> {
   if (!sources.isWorkspaceTrusted()) return false
   const { user, project } = sparkHooksFiles(sources)
@@ -96,18 +119,20 @@ async function hasSparkHooksFile(sources: HookLoadDeps): Promise<boolean> {
 }
 
 /**
- * Hooks imported in another agent's format, read by the adapters' own bundle
- * (dist/foreignHooks.js, M91 lane W) when a spark-hooks.json exists. A bundle
- * that cannot load leaves them out and says so in the log, as an unreadable
- * file does.
- */
+Hooks imported in another agent's format, read by the adapters' own bundle
+(dist/foreignHooks.js, M91 lane W) when a spark-hooks.json exists. A bundle
+that cannot load leaves them out and says so in the log, as an unreadable
+file does.
+*/
 async function loadForeignHooks(sources: HookLoadDeps): Promise<readonly HookDefinition[]> {
   if (!(await hasSparkHooksFile(sources))) return []
   let entry
   try {
     entry = await import('../../core/backends/modelapi/foreignHooksEntry.js')
-  } catch {
-    sources.warn('the imported hooks bundle could not be loaded; imported hooks are off')
+  } catch (error: unknown) {
+    sources.warn(
+      `the imported hooks bundle could not be loaded; imported hooks are off (${failureForLog(error)})`,
+    )
     return []
   }
   return await entry.loadForeignHookDefinitions(sources)
@@ -119,8 +144,10 @@ async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly Extension
   let entry
   try {
     entry = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
-  } catch {
-    sources.warn('the hook runtime bundle could not be loaded; spark-hooks.json is off')
+  } catch (error: unknown) {
+    sources.warn(
+      `the hook runtime bundle could not be loaded; spark-hooks.json is off (${failureForLog(error)})`,
+    )
     return []
   }
   return await entry.loadSparkHookDefinitions(sources)
@@ -151,13 +178,16 @@ function autoCompactionAdmission(
           : {
               reserveCompaction: async (amount, signal) => {
                 if (config.reserveAutoCompaction === undefined)
-                  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                  throw new SpendLedgerError('integrity', {
+                    scope: 'session',
+                    file: 'modelApiEntry',
+                  })
                 return await config.reserveAutoCompaction(amount, signal)
               },
             },
       allowsPaidUse: host.allowsPaidUse,
       isOn: () => host.isPaidFeatureOn('autoCompaction') && host.autoCompaction?.() !== false,
-      isTrusted: host.isWorkspaceTrusted,
+      isTrusted: config.autoCompactionTrusted ?? host.isWorkspaceTrusted,
       isEvaluated: () => host.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
       paidUseFence: (sessionId) =>
         config.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
@@ -166,7 +196,6 @@ function autoCompactionAdmission(
         (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
       notePaidUse: host.notePaidUse,
       log: host.log,
-      storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
     })(request)
   }
 }
@@ -174,7 +203,13 @@ function autoCompactionAdmission(
 /** The host over the given dependencies, its stored sessions read. */
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
   setUiText(deps.uiText, deps.uiLocale)
-  const { host: hostDeps, hookSettingsPath } = deps
+  const { hookSettingsPath } = deps
+  // One audio path (RVMEDIAW2 2): the bundle binds it itself, so a caller's
+  // callback, typed away or not, is dropped here and never runs.
+  const { prepareAudioMessage: strayAudioPort, ...hostDeps } = deps.host as typeof deps.host &
+    Pick<ModelApiHostDeps, 'prepareAudioMessage'>
+  if (strayAudioPort !== undefined)
+    hostDeps.log.warn('A caller-supplied audio preparation port was ignored')
   const sourcesFor = () =>
     hookSettingsPath === undefined || hostDeps.isHooksEnabled?.() !== true
       ? undefined
@@ -201,11 +236,50 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   }
   const meta = new ModelApiClient(deps.client)
   const client = (await deps.createProviderClient?.(meta)) ?? meta
+  // C-M95-4 R3: the configured registry owns every M95 model's live
+  // window (scanned locals carry their server's report in `modelLimits`).
+  // The host sizes compaction from `contextModel`, so feed it from the
+  // registry's synchronous peek; an explicitly supplied one still wins,
+  // and an unlisted model keeps the previous fallback.
+  const peekContextModel = 'peekContextModel' in client ? client.peekContextModel : undefined
+  // The legacy Meta window the host applied before the registry seam;
+  // installing the seam must never unlist it (the host's own legacy
+  // branch only fires while `contextModel` is absent entirely).
+  const legacyContextModel = (modelId: string): ContextModel | undefined =>
+    MODEL_API_LEGACY_CONTEXT_MODELS.includes(modelId)
+      ? { format: 'responses', contextTokens: MODEL_API_CONTEXT_WINDOW }
+      : undefined
   const mcp =
     deps.createMcpServers === undefined
       ? undefined
       : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
   mcp?.setUiText(deps.uiText, deps.uiLocale)
+  // Production media (MONEY017D, D85.2/D85.6): the session replay through
+  // the real upload storage and calibration. Every production host lands
+  // here (VS Code, the CLI/ACP runtime), so one wiring covers them all. The
+  // port stays absent while no storage directory is supplied (eval, tests),
+  // keeping the established refusal.
+  // The Files upload rides the Meta client; a subscription-wrapped provider
+  // client without it keeps the established refusal.
+  const requestFile =
+    'requestFile' in client && typeof client.requestFile === 'function'
+      ? client.requestFile.bind(client)
+      : undefined
+  const filesClient = requestFile === undefined ? undefined : { requestFile }
+  const mediaDirectory = hostDeps.uploadLedgerDir
+  const mediaAccountId = mediaDirectory === undefined ? undefined : await hostDeps.getAccountId()
+  // One production media service per session, built by one factory in its
+  // own deferred bundle (dist/productionMedia.js, D85.13): the Model API
+  // bundle never carries it, nor transcription or conversion.
+  const productionMedia =
+    mediaDirectory !== undefined && filesClient !== undefined && mediaAccountId !== undefined
+      ? await import('./productionMediaEntry.js')
+      : undefined
+  productionMedia?.setUiText(deps.uiText, deps.uiLocale)
+  // Attached video and audio (lane V seam 1): the host's registry resolves a
+  // `media` part to its record and its reverifying source; a tool-read file
+  // reopens through the workspace as before.
+  const attached = hostDeps.attachedMedia
   // The host carries the exact resolved record through each request.
   // The session client's own resolver is authoritative in every production
   // path (RVCM1062B P1/P2): the runtime's accounting-wrapped headless client
@@ -220,8 +294,61 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   // members off the ModelApiClient | ProviderClient union.
   const clientModels = 'models' in client ? client.models : undefined
   const isPlanModel = 'isPlanModel' in client ? client.isPlanModel : undefined
-  const host = new ModelApiHost({
+  const host: ModelApiHost = new ModelApiHost({
     ...hostDeps,
+    // The one audio path (lane V seam 3B): a turn with attached sound loads
+    // dist/productionAudio.js and transcribes over the Meta client's narrow
+    // POST, under the hosts' paid consent and ledgers; any other turn
+    // loads nothing and is byte-identical.
+    ...(productionMedia !== undefined &&
+      attached !== undefined &&
+      mediaAccountId !== undefined && {
+        prepareAudioMessage: async (request) => {
+          if (request.parts.every((part) => part.type !== 'media')) return
+          const audio = await import('./productionAudioEntry.js')
+          // The owner's running total for the batch cost (D208): read at
+          // request time, once the host below exists. A lookup failure
+          // carries its true reason; the audio entry fails closed under a
+          // cap for callers with no scope.
+          const scope = await host.getOwnedBudgetScope(request.sessionId)
+          return await audio.productionAudioFor(
+            deps,
+            hostDeps,
+            client,
+            mediaAccountId,
+            scope,
+          )?.(request)
+        },
+      }),
+    ...(productionMedia !== undefined &&
+      filesClient !== undefined &&
+      mediaAccountId !== undefined &&
+      mediaDirectory !== undefined && {
+        // The replay assembly (and its expiry forwarding) resolves on
+        // demand inside the production-media bundle (C-M105-8 diet).
+        createMediaReplay: (sessionId: string, session: MediaReplaySession) =>
+          productionMedia.createHostMediaReplay(
+            hostDeps,
+            filesClient,
+            mediaAccountId,
+            mediaDirectory,
+            attached,
+            sessionId,
+            session,
+          ),
+      }),
+    // The host carries the exact resolved record through each request.
+    // The session client's own resolver is authoritative in every production
+    // path (RVCM1062B P1/P2): the runtime's accounting-wrapped headless client
+    // keeps its daily reservation and run-ledger admission, and the
+    // subscription-aware extension/ACP client keeps its plan routing and
+    // shared usage ownership. A standalone registry is only the fallback for
+    // a client without one; a plan ref it cannot name still resolves against
+    // the session client, as it did before any registry was supplied. Bare
+    // Meta models never reach the resolver (the host answers them from M95's
+    // own policy), so they fall through to the shared Meta default.
+    // The `in` narrowings (not truthiness reads) carry the optional
+    // members off the ModelApiClient | ProviderClient union.
     autoCompactModel: hostDeps.autoCompactModel ?? resolveAutoCompactModel,
     admitAutoCompaction: hostDeps.admitAutoCompaction ?? autoCompactionAdmission(deps),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
@@ -231,6 +358,10 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       hostDeps.argumentPreviewCapabilities ?? metaArgumentPreviewCapabilities,
     modelOutputMaxTokens: hostDeps.modelOutputMaxTokens ?? metaOutputMaxTokens,
     client,
+    ...(peekContextModel !== undefined &&
+      hostDeps.contextModel === undefined && {
+        contextModel: (modelId: string) => peekContextModel(modelId) ?? legacyContextModel(modelId),
+      }),
     ...((clientModels !== undefined || deps.createProviders !== undefined) && {
       models: {
         resolve: async (ref: string) => {
@@ -242,7 +373,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             return await registry.resolve(ref)
           } catch (error: unknown) {
             if (isPlanModel?.(ref) === true) {
-              return metaResolvedModel(ref, client)
+              const planFacts =
+                'planModelFacts' in client ? await client.planModelFacts(ref) : undefined
+              return metaResolvedModel(ref, client, planFacts)
             }
             throw error
           }
@@ -304,12 +437,6 @@ export async function* streamLegalExplanation(
   locale: string,
 ): AsyncGenerator<StreamEvent> {
   setUiText(table, locale)
-  yield* new ModelApiClient(deps).streamResponse(
-    body,
-    signal,
-    undefined,
-    { retriesUsed: MODEL_API_MAX_RETRIES },
-    guard,
-  )
+  yield* new ModelApiClient(deps).streamResponse(body, signal, undefined, noRetryBudget(), guard)
 }
 export { setUiText } from '../../shared/l10n/text'

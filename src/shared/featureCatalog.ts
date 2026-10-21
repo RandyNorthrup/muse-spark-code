@@ -1,7 +1,14 @@
 import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
+import {
+  COMMAND_IDS,
+  type SETTING_DEFAULTS,
+  PROMPT_COMMAND_IDS,
+  UI_TEXT,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
+} from './constants'
+import { COMPANION_VOICE_RELEASE } from './companionVoice'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -23,16 +30,27 @@ export type ReferenceText =
     }
 
 // Conditional descriptions must opt into a typed field, never a content heuristic.
+// The other-CI paragraph explains the launcher's per-system states (M80 R5):
+// the condition names the system dimension the launcher branches on.
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceCiOther: 'system',
   referenceScreenRecording: 'nativeRecorder=absent',
+  // Review repairs cover dispatch authority, resolved-file policy and window
+  // lifetime; the delivery certification switch still owns availability.
+  referenceSchedules: 'scheduleDeliveryCertified=false',
+  referenceSchedulesCertified: 'scheduleDeliveryCertified=true',
+  referenceRuntimeSchedulesCertified: 'scheduleDeliveryCertified=true',
+  referenceSchedulePaidConsentCertified: 'scheduleDeliveryCertified=true',
+  referenceSchedulePaidConsent: 'scheduleDeliveryCertified=false',
+  referenceRuntimeSchedules: 'scheduleDeliveryCertified=false',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
   resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
-  providerOpenRouterServices: 'openRouterServices=absent',
+  providerOpenRouterServices: 'provider=openrouter',
   privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
   referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
@@ -87,13 +105,24 @@ const SETTING_CONDITIONS: Readonly<
   // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
 
-  schedules: 'scheduleRuntime=unbound&backend=museCode',
   modelApiObservationPacking: 'conversationStart',
+  modelApiMaxToolOutputBytes: 'conversationStart',
   modelApiAutoCompaction: 'conversationStart&modelPricing',
   modelApiStrictTools: 'conversationStart&tools.strict',
   modelApiParallelReads: 'conversationStart',
   webSearchMaxPerRequest: 'conversationStart&hosted.webSearch',
+  hooksMaxStopContinuations: 'hooks',
+  hooksMaxRunningCommands: 'hooks',
+  subagentMaxConcurrent: 'sessionBoard&subagents',
+  pluginHookTimeoutSeconds: 'hooks',
+  pluginChildMaxMemoryMiB: 'hooks',
+  pluginAnswerMaxBytes: 'hooks',
+  pluginMaxFailures: 'hooks',
   showWhatsNewOnUpdate: 'releaseHighlights',
+  schedules: 'scheduleDeliveryCertified=true',
+  scheduleDefaultDelivery: 'scheduleDeliveryCertified=true',
+  scheduleAgentCreation: 'scheduleDeliveryCertified=true',
+  schedulePauseAfterFailures: 'scheduleDeliveryCertified=true',
   modelApiPermissionProfile: 'permissionProfile',
   tabLanguages: 'language',
   tabMultiline: 'multilineMode',
@@ -156,6 +185,8 @@ interface Feature {
   readonly summary: ReferenceText
   readonly description: ReferenceText
   readonly commands: readonly string[]
+  /** Runtime command discriminators documented by this feature. */
+  readonly cliRoutes?: readonly string[] | undefined
   readonly settings: readonly string[]
   readonly docs: string
   readonly editors: readonly ('vscode' | 'acp')[]
@@ -241,9 +272,26 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
-  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: false },
-  showSchedules: { description: { tip: 'schedule' }, canRun: false },
-  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: false },
+  schedulePrompt: {
+    description: { tip: 'schedulePrompt' },
+    get canRun() {
+      return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+    },
+  },
+  showSchedules: {
+    description: { tip: 'schedule' },
+    get canRun() {
+      return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+    },
+  },
+  showScheduleTimeline: {
+    description: { tip: 'scheduleTimeline' },
+    get canRun() {
+      return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+    },
+  },
+  // Import completions reconcile changes on failure too; Lock cancels sent imports.
+  // Reset detects impossible public framing/anchor state, needs a terminal, and retires the exact anchor.
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
   lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
@@ -284,7 +332,6 @@ export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
-  'auto-compaction',
 ]
 
 export function featureCatalog(): readonly Feature[] {
@@ -324,6 +371,7 @@ export function featureCatalog(): readonly Feature[] {
     // restores its measured box. Lazy price/usage rows announce loading.
     feature(
       'providers',
+      // M95: configured clients preserve local refusals; ACP auth lists sign-ins only.
       { ui: 'modelsPanelTitle' },
       { ui: 'startWithOwnModelDetail' },
       [
@@ -333,6 +381,13 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
+      // OpenRouter Connect is composed with the pinned exchange transport;
+      // local callbacks need no paste and remote/ACP terminal flows paste an
+      // authorization code. Cancellation reaches both exchange and usage transport;
+      // both usage surfaces discard missing/changed/failed key observations.
+      // Panel usage reads only on open, Save and Refresh, sharing pending reads.
+      // Terminal replacement asks first and preserves the previous credential on
+      // cancellation; exact usage decimals and discarded-key removal notices are shared.
       // Saved custom limits persist directly from Edit without a new test
       // while the connection is unchanged; pre-write failures retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,
@@ -349,6 +404,10 @@ export function featureCatalog(): readonly Feature[] {
       // changes conflict. Confirmed limit retries retain all completed receipts.
       // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
       // Earlier steps remain navigable while final Save validates limits.
+      // ChatGPT sign-in reuses the account's saved registration (its issued
+      // client survives sign-out); "Use a Different ChatGPT Account" (the
+      // panel, the ACP sign-in method, `providers add chatgpt --new-account`)
+      // registers another account instead.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',
       ['museCode', 'modelApi'],
@@ -360,7 +419,14 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'reportShowCommand' },
       { ui: 'reportSlashDescription' },
       ['showReport'],
-      ['reports.network', 'reports.keepHistory', 'reports.agentSources'],
+      [
+        'reports.network',
+        'reports.keepHistory',
+        'reports.planMaxBytes',
+        'reports.agentSources',
+        'usageHistory',
+        'usageHistoryDays',
+      ],
       'report',
       ['museCode', 'modelApi'],
       false,
@@ -391,6 +457,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'uploads',
+      { ui: 'uploadsName' },
+      { ui: 'referenceUploadedFiles' },
+      ['deleteUploadedFiles'],
+      ['mediaUploadExpiryDays'],
+      'the-panel',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'team-workers',
       { ui: 'paidTeamWorkersName' },
       { setting: 'modelApiTeamWorkers' },
@@ -403,9 +480,10 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'legal',
       { ui: 'legalScanTitle' },
-      { ui: 'legalScanItemDetail' },
+      { ui: 'legalScanReceiptHelp' },
       ['legalScan'],
       ['legalHeaderPolicy', 'legalRegistryLookups'],
+      // Exact slots admit measured benign notice forms, reject restrictions and follow shipped material.
       'legal-scan-m97',
       ['museCode', 'modelApi'],
       false,
@@ -428,6 +506,17 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'observation-packing-model-api',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'tool-result-bound',
+      { setting: 'modelApiMaxToolOutputBytes' },
+      { setting: 'modelApiMaxToolOutputBytes' },
+      [],
+      ['modelApiMaxToolOutputBytes'],
+      'limits',
       ['modelApi'],
       false,
       ['vscode', 'acp'],
@@ -480,19 +569,23 @@ export function featureCatalog(): readonly Feature[] {
       'paid-features',
       ['museCode'],
     ),
-    feature(
-      'attachments',
-      { ui: 'attachmentsLabel' },
-      { ui: 'referenceAttachments' },
-      ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
-      [
-        'mediaMaxUploadMiB',
-        'mediaUploadExpiryDays',
-        'screenRecordingMaxSeconds',
-        'mediaAudioAction',
-      ],
-      'the-panel',
-    ),
+    {
+      ...feature(
+        'attachments',
+        { ui: 'attachmentsLabel' },
+        { ui: 'referenceAttachments' },
+        ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
+        [
+          'mediaMaxUploadMiB',
+          'mediaUploadExpiryDays',
+          'screenRecordingMaxSeconds',
+          'mediaAudioAction',
+          'mediaConverterPath',
+        ],
+        'the-panel',
+      ),
+      details: [{ setting: 'mediaAudioAction' }],
+    },
     feature(
       'strict-tools',
       { setting: 'modelApiStrictTools' },
@@ -515,11 +608,22 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    feature(
+      'retry-limits',
+      { setting: 'modelApiMaxRetries' },
+      { setting: 'modelApiMaxRetries' },
+      [],
+      ['modelApiMaxRetries'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode'],
+    ),
     {
       ...feature(
         'auto-compaction',
         { ui: 'autoCompactionName' },
-        { ui: 'autoCompactionAwaitingEvaluation' },
+        { setting: 'modelApiAutoCompaction' },
         [],
         ['modelApiAutoCompaction'],
         'agent-loop-guarantees',
@@ -569,9 +673,22 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'headless-runs',
+      // JSON progress uses stderr; stopped runs retain redacted incomplete answers.
+      // M80/M95: one atomic spend admission; estimates include a margin and each ambiguous attempt retains its reservation.
       ['modelApi'],
       false,
       ['acp'],
+    ),
+    feature(
+      'fast-tier',
+      { cli: 'fast' },
+      { cli: 'fast' },
+      [],
+      [],
+      'headless-runs',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'service-status',
@@ -591,6 +708,8 @@ export function featureCatalog(): readonly Feature[] {
       'agent-loop-guarantees',
       ['museCode'],
     ),
+    // Deep CLI help follows the public command table; full reference is explicit.
+    // ACP and exec use the selected provider summary's known effort levels.
     feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
     feature(
       'custom-agents',
@@ -644,6 +763,19 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['acp'],
     ),
+    // The linked guide owns the per-system contract: Azure's measured bootstrap,
+    // 10-minute setup reserve/45-minute job and the reserved alias namespaces.
+    feature(
+      'ci-other-systems',
+      { ui: 'referenceCiOtherTitle' },
+      { ui: 'referenceCiOther' },
+      [],
+      [],
+      'other-ci-systems',
+      ['modelApi'],
+      false,
+      ['acp'],
+    ),
     feature(
       'web-fetch',
       { ui: 'referenceWebFetchTitle' },
@@ -691,12 +823,27 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'dictationLabel' },
       { ui: 'referenceDictation' },
       [],
-      [],
+      ['linuxDictationModel'],
       'voice-dictation',
       undefined,
       false,
       ['vscode'],
     ),
+    ...(COMPANION_VOICE_RELEASE.isReady
+      ? [
+          feature(
+            'companion-dictation',
+            { ui: 'companionVoiceTitle' },
+            { ui: 'companionVoiceReference' },
+            [],
+            [],
+            'voice-dictation',
+            undefined,
+            false,
+            ['acp'],
+          ),
+        ]
+      : []),
     feature(
       'chat',
       { ui: 'transcriptLabel' },
@@ -776,6 +923,17 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature(
+      'windows-paths',
+      { ui: 'referenceWindowsPaths' },
+      { ui: 'referenceWindowsPathsDetail' },
+      [],
+      [],
+      'safer-windows-paths',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'context',
       { ui: 'mentionFile' },
       { tip: 'mentionFile' },
@@ -813,7 +971,17 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'hooksItem' },
       { ui: 'hooksItemDetail' },
       ['hooks', 'runSetupHooks', 'runHook', 'retryPluginHooks'],
-      ['modelApiHooks', 'hookHttpAllowedHosts', 'modelApiShellKeepsDirectory'],
+      [
+        'modelApiHooks',
+        'hookHttpAllowedHosts',
+        'modelApiShellKeepsDirectory',
+        'hooksMaxStopContinuations',
+        'hooksMaxRunningCommands',
+        'pluginHookTimeoutSeconds',
+        'pluginChildMaxMemoryMiB',
+        'pluginAnswerMaxBytes',
+        'pluginMaxFailures',
+      ],
       'hooks',
     ),
     // M123P9: runtime checkout uses the same installed display language;
@@ -823,7 +991,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'groupGit' },
       { tip: 'newWorktree' },
       ['newWorktree', 'removeWorktree', 'openPullRequestInConversation'],
-      [],
+      ['github.useGhLogin'],
       'git-and-pull-requests',
     ),
     feature(
@@ -843,6 +1011,19 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('review', { ui: 'groupReview' }, { tip: 'review' }, [], [], 'review'),
+    feature(
+      'playback',
+      { ui: 'playbackItem' },
+      { ui: 'playbackDetail' },
+      [],
+      [],
+      'playback',
+      // D203: no zero-tool turn exists on Muse Code, so playback runs on the
+      // Model API backend only and is refused on Muse Code.
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     feature('plans', { ui: 'plansItem' }, { tip: 'plans' }, [], [], 'plans-as-files'),
     feature('goals', { ui: 'goalItem' }, { tip: 'goal' }, [], [], 'session-goals'),
     feature(
@@ -910,9 +1091,9 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidVoiceName' },
       { ui: 'referenceVoice' },
       [],
-      ['dictationEngine', 'modelApiVoice'],
+      ['dictationEngine', 'modelApiVoice', 'modelApiSessionBudgetUsd', 'paidDailyBudgetUsd'],
       'voice-dictation',
-      ['museCode'],
+      ['museCode', 'modelApi'],
       true,
       ['vscode'],
     ),
@@ -947,20 +1128,58 @@ export function featureCatalog(): readonly Feature[] {
           'schedules',
           'scheduleDefaultDelivery',
           'scheduleAgentCreation',
+          'schedulePauseAfterFailures',
         ],
         'scheduled-prompts-model-api',
         ['modelApi'],
         true,
         ['vscode'],
       ),
-      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaSupport' }] as const,
+      details: [
+        {
+          ui: SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+            ? 'referenceSchedulesCertified'
+            : 'referenceSchedules',
+        },
+        {
+          ui: SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+            ? 'referenceSchedulePaidConsentCertified'
+            : 'referenceSchedulePaidConsent',
+        },
+        { ui: 'scheduledMediaSupport' },
+      ] as const,
+    },
+    {
+      ...feature(
+        'runtime-schedules',
+        { ui: 'runtimeSchedulesItem' },
+        { ui: 'runtimeSchedulesItemDetail' },
+        [],
+        [],
+        'runtime-scheduled-delivery',
+        ['museCode', 'modelApi'],
+        false,
+        ['acp'],
+      ),
+      facts: {
+        unattended: true,
+        durableClaims: true,
+        terminal: true,
+      },
+      details: [
+        {
+          ui: SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+            ? 'referenceRuntimeSchedulesCertified'
+            : 'referenceRuntimeSchedules',
+        },
+      ] as const,
     },
     feature(
       'subagents',
       { ui: 'agentsCommand' },
       { tip: 'paid:subagents' },
       [],
-      ['modelApiSubagents'],
+      ['modelApiSubagents', 'subagentMaxConcurrent'],
       'session-board-and-best-of-n',
       ['modelApi'],
       true,
@@ -1004,7 +1223,7 @@ export function featureCatalog(): readonly Feature[] {
       { setting: 'paidDailyBudgetUsd' },
       { setting: 'paidDailyBudgetUsd' },
       [],
-      ['paidDailyBudgetUsd'],
+      ['paidDailyBudgetUsd', 'modelApiSessionBudgetUsd'],
       'paid-features',
       ['modelApi'],
       false,
@@ -1070,11 +1289,24 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'estimateTitle' },
       { ui: 'referenceEstimate' },
       ['estimate'],
-      ['estimator.optimize', 'estimator.priceLookup'],
+      ['estimator.optimize', 'estimator.priceLookup', 'reports.network'],
       'estimates',
       ['museCode', 'modelApi'],
       false,
       ['vscode', 'acp'],
+    ),
+    // M124 (D106): the local MCP connector, a runtime command for every editor.
+    // Its approval page restarts after idle or a failed opener; our UI still decides every write.
+    feature(
+      'mcp-connector',
+      { ui: 'mcpConnectorTitle' },
+      { ui: 'referenceMcpCommand' },
+      [],
+      [],
+      'mcp-connector-for-other-agents-m124',
+      ['museCode', 'modelApi'],
+      false,
+      ['acp'],
     ),
     feature(
       'support',
@@ -1083,7 +1315,12 @@ export function featureCatalog(): readonly Feature[] {
       ['showLogs', 'diagnostics', 'reportProblem', 'openWalkthrough', 'showWhatsNew', 'openHelp'],
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
+    // MSM109 connects the broker-backed panel and commands on the reviewed
+    // availability switch; the Windows pipe helper still waits on lane C-M109-1c.
     feature(
       'vault',
       { command: COMMAND_IDS.vault },
@@ -1106,6 +1343,8 @@ export function featureCatalog(): readonly Feature[] {
     const surfaces = isInProgress ? [] : (REFERENCE_SURFACES[entry.id] ?? entry.surfaces)
     return {
       ...entry,
+      ...(entry.id === 'providers' && { cliRoutes: ['providersModels'] }),
+      ...(entry.id === 'acp' && { cliRoutes: ['helpTopic'] }),
       ...(isInProgress && {
         summary: { ui: 'referenceInProgress' },
         description: { ui: 'referenceInProgress' },
@@ -1130,7 +1369,13 @@ export function featureCatalog(): readonly Feature[] {
       // combine: neither source may silently erase the other.
       details: isInProgress
         ? []
-        : [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
+        : [
+            ...entry.details,
+            ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+            ...(entry.id === 'providers'
+              ? ([{ cli: 'add' }, { cli: 'remove' }, { cli: 'force' }] as const)
+              : []),
+          ],
       facts: {},
     }
   })
@@ -1150,13 +1395,19 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  // Reset also recovers unknown writer ownership through its confirmed path.
+  vault: ['referenceVault'],
   providers: [
     'providerOpenRouterServices',
     'pricePerMillion',
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
+    'customLimitsMissing',
+    'localContextWindowHint',
   ],
-  estimator: ['estimateCliHelp'],
+  acp: ['referenceBriefHelp'],
+  // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
+  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
@@ -1171,11 +1422,16 @@ const REFERENCE_DETAILS: Readonly<
   browser: ['referenceBrowser'],
   images: ['referencePaidContexts'],
   search: ['referencePaidContexts'],
-  git: ['structuredOutputRepair', 'structuredOutputFallback'],
-  judge: ['structuredOutputRepair', 'structuredOutputFallback'],
-  'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
+  git: ['structuredOutputRepair', 'structuredOutputRetry', 'structuredOutputFallback'],
+  judge: ['structuredOutputRepair', 'structuredOutputRetry', 'structuredOutputFallback'],
+  'structured-side-calls': [
+    'structuredOutputRepair',
+    'structuredOutputRetry',
+    'structuredOutputFallback',
+  ],
   budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
+  schedules: ['referenceAttachments'],
   auto: ['referencePaidContexts'],
   subagents: ['referencePaidContexts'],
   'best-of-n': ['referenceBestOfNRequirements', 'referencePaidContexts'],
@@ -1183,6 +1439,7 @@ const REFERENCE_DETAILS: Readonly<
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': [
+    'referenceTurnLimit',
     'referenceWindowsSessions',
     'restoreFilesToHere',
     'rewindAndRestore',
@@ -1274,44 +1531,50 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
     {
       id: 'share-cli',
       surface: 'cli',
-      syntax: 'share chat SESSION_ID [--mode full|conversation] [--format md|html|json]',
+      syntax:
+        'share chat SESSION_ID [--mode full|conversation] [--format md|html|json] [--destination copy|file|browser] [--out FILE] [--json] [--confirm PREVIEW_ID --exported-at TIME]',
       label: table.shareChat,
       detail: table.shareConfirm,
     },
     {
       id: 'prompts-save-cli',
       surface: 'cli',
-      syntax: 'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt',
+      syntax:
+        'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] [--json] < prompt.txt',
       label: table.promptLibrary,
-      detail: table.promptRun,
+      detail: table.promptSave,
     },
     {
       id: 'prompts-list-cli',
       surface: 'cli',
-      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]',
+      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER] [--json]',
       label: table.promptLibrary,
       detail: table.promptScopeUser,
     },
     {
       id: 'prompts-use-cli',
       surface: 'cli',
-      syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
+      syntax:
+        'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER] [--json] [--var name=value ...] [--confirm]',
       label: table.promptUseSaved,
-      detail: `${table.promptVariables}; ${table.promptInsert}`,
+      detail: table.promptVariables,
     },
     {
       id: 'prompts-share-cli',
       surface: 'cli',
       syntax:
-        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]',
+        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE] [--json] [--confirm PREVIEW_ID --exported-at TIME]',
       label: table.sharePrompt,
       detail: table.shareConfirm,
     },
   ]
 }
 
+// Terminal and ACP help only: the editor's own commands and settings
+// (museSpark.*) cannot be run there, so they stay out of this text.
 export function sharingHelp(table: UiText = UI_TEXT): string {
   return sharingFeatures(table)
+    .filter((feature) => feature.surface !== 'editor' && feature.surface !== 'setting')
     .map((feature) => `${feature.syntax}\n${feature.label}: ${feature.detail}`)
     .join('\n\n')
 }

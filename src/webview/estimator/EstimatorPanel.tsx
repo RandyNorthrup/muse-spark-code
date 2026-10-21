@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { estimateFailureText, type EstimateViewState } from '../../shared/estimateView'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import {
   estimateRequestSchema,
-  estimateSectionSchema,
+  isEstimateRefusal,
   parseEstimateGoal,
   type CatalogPrice,
   type EstimateRequest,
@@ -19,9 +20,9 @@ import { useFormatUsd } from '../money'
 import './estimator.css'
 
 /**
- * A machine's hourly price (STARTUP017): the port's fake in tests, otherwise
- * the lazy money chunk's exact display. Nothing renders until one is known.
- */
+A machine's hourly price (STARTUP017): the port's fake in tests, otherwise
+the lazy money chunk's exact display. Nothing renders until one is known.
+*/
 function MachinePrice({
   port,
   price,
@@ -37,48 +38,48 @@ export interface EstimatorPanelPort {
   context(): Pick<EstimateRequest, 'asOf' | 'optimize'>
   estimate(request: EstimateRequest, signal: AbortSignal): Promise<unknown>
   /** Validated refreshed sections from U's view session, bound to M115 by W. */
-  subscribe(listener: (section: unknown) => void): () => void
-  startExisting?(section: EstimateSection, setup: EstimateSection['setups'][number]): Promise<void>
+  subscribe(listener: (state: EstimateViewState) => void): () => void
+  /**
+  The host log's copy of a failure the panel already said in words: the
+  run and spin-up boundaries hand a foreign failure here with its kind
+  (D207). The host reports it through its webview-error channel, so the
+  kind never depends on the document's ambient unhandled-rejection hook.
+  */
+  report(error: unknown): void
+  startExisting?(
+    section: EstimateSection,
+    setup: EstimateSection['setups'][number],
+  ): Promise<unknown>
   price?(price: CatalogPrice): string
   readonly provision:
     | { readonly state: 'waiting'; readonly dependency: string }
     | {
         readonly state: 'ready'
-        spinUp(section: EstimateSection, setup: EstimateSection['setups'][number]): Promise<void>
+        spinUp(section: EstimateSection, setup: EstimateSection['setups'][number]): Promise<unknown>
       }
 }
 
 function setupName(kind: EstimateSection['setups'][number]['kind']): string {
-  const names = {
-    current: UI_TEXT.estimateCurrent,
-    minimumP50: `${UI_TEXT.estimateMinimum} · ${UI_TEXT.estimateP50}`,
-    minimumP90: `${UI_TEXT.estimateMinimum} · ${UI_TEXT.estimateP90}`,
-    optimumCost: `${UI_TEXT.estimateOptimum} · ${UI_TEXT.estimateCost}`,
-    optimumSpeed: `${UI_TEXT.estimateOptimum} · ${UI_TEXT.estimateSpeed}`,
-  }
-  return names[kind]
+  if (kind === 'current') return UI_TEXT.estimateCurrent
+  const label = kind.startsWith('min') ? UI_TEXT.estimateMinimum : UI_TEXT.estimateOptimum
+  const detail = setupDetail(kind)
+  return `${label} · ${detail}`
 }
-function resourceName(kind: EstimateSection['limitingResource']['kind']): string {
-  return {
-    machines: UI_TEXT.estimateMachines,
-    slots: UI_TEXT.estimateSlots,
-    accountRate: UI_TEXT.estimateAccounts,
-    ci: UI_TEXT.estimateCi,
-    disk: UI_TEXT.estimateDisk,
-    criticalPath: UI_TEXT.estimateCriticalPath,
-  }[kind]
+function setupDetail(kind: EstimateSection['setups'][number]['kind']): string {
+  if (kind === 'minimumP50') return UI_TEXT.estimateP50
+  if (kind === 'minimumP90') return UI_TEXT.estimateP90
+  return kind === 'optimumCost' ? UI_TEXT.estimateCost : UI_TEXT.estimateSpeed
 }
-
 /** Entry for W's dedicated lazy panel chunk; no host, backend or runtime import. */
 export default function EstimatorPanel({
   port,
   initial,
-  initialSection,
+  initialState,
   isInert = false,
 }: {
   readonly port: EstimatorPanelPort
-  readonly initial?: EstimateRequest
-  readonly initialSection?: EstimateSection | undefined
+  readonly initial?: EstimateRequest | undefined
+  readonly initialState?: EstimateViewState | undefined
   readonly isInert?: boolean
 }) {
   const id = useId()
@@ -88,56 +89,48 @@ export default function EstimatorPanel({
   const [optimize, setOptimize] = useState<EstimateRequest['optimize']>(
     () => initial?.optimize ?? port.context().optimize,
   )
-  const [section, setSection] = useState<EstimateSection | undefined>(() =>
-    initialSection === undefined ? undefined : estimateSectionSchema.parse(initialSection),
-  )
+  const [view, setView] = useState<EstimateViewState>(initialState ?? { status: 'idle' })
+  const section = view.status === 'showing' ? view.section : undefined
+  const isBusy = view.status === 'loading'
   // A section without a current setup still opens on its first available
   // setup; the radio must never point at a card that is not rendered.
-  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>(() => {
-    if (initialSection === undefined) return 'current'
-    const parsed = estimateSectionSchema.parse(initialSection)
-    return parsed.setups[0]?.kind ?? 'current'
-  })
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>(
+    section?.setups[0]?.kind ?? 'current',
+  )
   const [spinning, setSpinning] = useState(false)
-  const active = useRef<EstimateRequest | undefined>(initialSection?.inputs.request)
+  const active = useRef<EstimateRequest | undefined>(section?.inputs.request)
   const pending = useRef<AbortController | undefined>(undefined)
   const spinCycle = useRef(0)
-  const latestAsOf = useRef(initialSection?.asOf ?? '')
+  const latestAsOf = useRef(section?.asOf ?? '')
 
-  const [received, setReceived] = useState(initialSection)
-  if (received !== initialSection) {
-    setReceived(initialSection)
-    if (initialSection !== undefined) {
-      const next = estimateSectionSchema.parse(initialSection)
-      setSection(next)
+  const [received, setReceived] = useState(initialState)
+  if (received !== initialState) {
+    setReceived(initialState)
+    setView(initialState ?? { status: 'idle' })
+    if (initialState?.status === 'showing') {
+      const next = initialState.section
       setGoal(goalText(next.inputs.request))
       setDeadline(next.inputs.request.deadline ?? '')
       setFleet(next.inputs.request.fleet)
       setOptimize(next.inputs.request.optimize)
-      setSelected((previous) =>
-        next.setups.some((setup) => setup.kind === previous)
-          ? previous
-          : (next.setups[0]?.kind ?? 'current'),
-      )
+      setSelected((previous) => chooseSetup(next, previous))
     }
   }
   useEffect(() => {
-    if (initialSection === undefined) return
-    active.current = initialSection.inputs.request
-    latestAsOf.current = initialSection.asOf
-  }, [initialSection])
+    if (initialState?.status !== 'showing') return
+    active.current = initialState.section.inputs.request
+    latestAsOf.current = initialState.section.asOf
+  }, [initialState])
 
   useEffect(() => {
     const unsubscribe = port.subscribe((value) => {
-      const parsed = estimateSectionSchema.safeParse(value)
-      if (!parsed.success) {
-        setError(UI_TEXT.estimateDisclosureMissing)
+      if (value.status !== 'showing') {
+        pending.current?.abort()
+        setView(value)
         return
       }
       const request = active.current
-      const next = parsed.data
+      const next = value.section
       if (
         request === undefined ||
         !isSameView(next.inputs.request, request) ||
@@ -146,14 +139,8 @@ export default function EstimatorPanel({
         return
       pending.current?.abort()
       latestAsOf.current = next.asOf
-      setBusy(false)
-      setError('')
-      setSection(next)
-      setSelected((previous) =>
-        next.setups.some((setup) => setup.kind === previous)
-          ? previous
-          : (next.setups[0]?.kind ?? 'current'),
-      )
+      setView({ status: 'showing', section: next })
+      setSelected((previous) => chooseSetup(next, previous))
     })
     return () => {
       // The adapter is being replaced (or the panel closed): drop its request,
@@ -164,15 +151,15 @@ export default function EstimatorPanel({
       pending.current = undefined
       active.current = undefined
       latestAsOf.current = ''
-      setBusy(false)
       setSpinning(false)
-      setSection(undefined)
-      setError('')
+      setView({ status: 'idle' })
       unsubscribe()
     }
   }, [port])
 
   async function run() {
+    spinCycle.current += 1
+    setSpinning(false)
     pending.current?.abort()
     const parsedGoal = parseEstimateGoal(goal)
     let date: string | undefined
@@ -186,79 +173,87 @@ export default function EstimatorPanel({
       ...(initial?.seed && { seed: initial.seed }),
     })
     if (!parsed.success) {
-      setError(UI_TEXT.estimateInvalidGoal)
+      setView({ status: 'failed', diagnostic: { estimateDiagnostic: 'invalid-input' } })
       active.current = undefined
-      setSection(undefined)
-      setBusy(false)
       return
     }
     const controller = new AbortController()
     pending.current = controller
-    const expectedRequest = JSON.stringify(parsed.data)
-    active.current = estimateRequestSchema.parse(parsed.data)
+    active.current = structuredClone(parsed.data)
     latestAsOf.current = parsed.data.asOf
-    setBusy(true)
-    setError('')
-    setSection(undefined)
+    setView({ status: 'loading' })
+    let next: EstimateViewState
     try {
-      const next = estimateSectionSchema.parse(await port.estimate(parsed.data, controller.signal))
-      if (controller.signal.aborted) return
-      if (JSON.stringify(next.inputs.request) !== expectedRequest)
-        throw new Error('request-mismatch')
-      setSection(next)
-      setSelected(
-        next.setups.some((setup) => setup.kind === selected)
-          ? selected
-          : (next.setups[0]?.kind ?? 'current'),
-      )
-    } catch (error: unknown) {
-      if (
-        !controller.signal.aborted &&
-        !(error instanceof DOMException && error.name === 'AbortError')
-      )
-        setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
-    } finally {
-      if (pending.current === controller && !controller.signal.aborted) setBusy(false)
+      const boundary = await import('../../shared/estimateDiagnostic')
+      try {
+        next = await boundary.collectEstimateView(
+          parsed.data,
+          () => port.estimate(parsed.data, controller.signal),
+          controller.signal,
+        )
+      } catch (error: unknown) {
+        // A cancelled run stays silent: a stillborn run reads failed. A
+        // refusal said everything on the panel; only a foreign failure
+        // keeps its kind past the panel through the port's report for the
+        // host log (D207).
+        if (controller.signal.aborted) return
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        next = boundary.failedEstimate(error)
+        if (!isEstimateRefusal(error)) port.report(error)
+      }
+    } catch {
+      next = { status: 'failed', diagnostic: { estimateDiagnostic: 'source-unavailable' } }
     }
+    if (controller.signal.aborted) return
+    setView(next)
+    if (next.status === 'showing') setSelected(chooseSetup(next.section, selected))
   }
 
   async function spinUp() {
-    const setup = section?.setups.find((candidate) => candidate.kind === selected)
-    if (
-      spinning ||
-      section === undefined ||
-      setup === undefined ||
-      setup.provisioning === 'adviceOnly' ||
-      ((setup.provisioning !== 'existing' || port.startExisting === undefined) &&
-        port.provision.state !== 'ready')
-    )
-      return
+    if (spinning || section === undefined || setup === undefined || !canStart()) return
     setSpinning(true)
-    setError('')
     const cycle = spinCycle.current
     try {
-      if (setup.provisioning === 'existing' && port.startExisting !== undefined)
-        await port.startExisting(section, setup)
-      else if (port.provision.state === 'ready') await port.provision.spinUp(section, setup)
-    } catch {
-      if (cycle === spinCycle.current)
-        setError(fill(UI_TEXT.estimateFailed, { detail: 'start-unavailable' }))
+      let failure: unknown
+      try {
+        if (canUseExisting() && port.startExisting !== undefined)
+          failure = await port.startExisting(section, setup)
+        else if (port.provision.state === 'ready')
+          failure = await port.provision.spinUp(section, setup)
+      } catch (error: unknown) {
+        // A thrown start keeps its kind past the panel through the port's
+        // report for the host log (D207); a resolved failure value is the
+        // host's own verdict, already on its side.
+        failure = error
+        port.report(error)
+      }
+      if (failure !== undefined) {
+        const diagnostic = await import('../../shared/estimateDiagnostic')
+        if (cycle === spinCycle.current) setView(diagnostic.failedEstimate(failure))
+      }
     } finally {
       if (cycle === spinCycle.current) setSpinning(false)
     }
   }
 
   const setup = section?.setups.find((candidate) => candidate.kind === selected)
+  const provisioning = setup?.provisioning
+  function canUseExisting(): boolean {
+    return provisioning === 'existing' && port.startExisting !== undefined
+  }
+  function canStart(): boolean {
+    return (
+      provisioning !== undefined &&
+      provisioning !== 'adviceOnly' &&
+      (port.provision.state === 'ready' || canUseExisting())
+    )
+  }
   let waiting = ''
   // With no selected setup there is nothing to spin up: report nothing
   // rather than the rental-provider wait for a card that is not selected.
-  if (
-    setup !== undefined &&
-    port.provision.state === 'waiting' &&
-    (setup.provisioning !== 'existing' || port.startExisting === undefined)
-  )
+  if (setup !== undefined && port.provision.state === 'waiting' && !canUseExisting())
     waiting = fill(UI_TEXT.estimateWaiting, { dependency: port.provision.dependency })
-  else if (setup?.provisioning === 'adviceOnly') waiting = UI_TEXT.estimateAdvice
+  else if (provisioning === 'adviceOnly') waiting = UI_TEXT.estimateAdvice
   return (
     <section className="estimator" aria-labelledby={`${id}-title`} inert={isInert}>
       <h1 id={`${id}-title`}>{UI_TEXT.estimateTitle}</h1>
@@ -290,10 +285,7 @@ export default function EstimatorPanel({
         <select
           id={`${id}-fleet`}
           value={fleet}
-          onChange={(event) => {
-            const value = estimateRequestSchema.shape.fleet.safeParse(event.target.value)
-            if (value.success) setFleet(value.data)
-          }}
+          onChange={selectValue(estimateRequestSchema.shape.fleet, setFleet)}
         >
           <option value="current">{UI_TEXT.estimateCurrent}</option>
           <option value="minimum">{UI_TEXT.estimateMinimum}</option>
@@ -303,34 +295,40 @@ export default function EstimatorPanel({
         <select
           id={`${id}-optimize`}
           value={optimize}
-          onChange={(event) => {
-            const value = estimateRequestSchema.shape.optimize.safeParse(event.target.value)
-            if (value.success) setOptimize(value.data)
-          }}
+          onChange={selectValue(estimateRequestSchema.shape.optimize, setOptimize)}
         >
           <option value="cost">{UI_TEXT.estimateCost}</option>
           <option value="speed">{UI_TEXT.estimateSpeed}</option>
         </select>
-        <button type="submit" disabled={busy}>
+        <button type="submit" disabled={isBusy}>
           {section === undefined ? UI_TEXT.estimateRun : UI_TEXT.estimateRefresh}
         </button>
       </form>
-      <p role="status">{busy ? UI_TEXT.estimateRunning : ''}</p>
-      {error !== '' && <p role="alert">{error}</p>}
+      <p role="status">{isBusy ? UI_TEXT.estimateRunning : ''}</p>
+      {view.status === 'failed' && <p role="alert">{estimateFailureText(view.diagnostic)}</p>}
       {section !== undefined && (
         <>
           <dl className="estimator-forecast">
-            <dt>{UI_TEXT.estimateP50}</dt>
-            <dd>
-              <time dateTime={section.p50}>{formatDateTime(Date.parse(section.p50))}</time>
-            </dd>
-            <dt>{UI_TEXT.estimateP90}</dt>
-            <dd>
-              <time dateTime={section.p90}>{formatDateTime(Date.parse(section.p90))}</time>
-            </dd>
+            {QUANTILES.map((key) => (
+              <Fragment key={key}>
+                <dt>{quantileName(key)}</dt>
+                <dd>
+                  <time dateTime={section[key]}>{formatInstant(section[key])}</time>
+                </dd>
+              </Fragment>
+            ))}
             <dt>{UI_TEXT.estimateBottleneck}</dt>
             <dd>
-              {resourceName(section.limitingResource.kind)}
+              {
+                {
+                  machines: UI_TEXT.estimateMachines,
+                  slots: UI_TEXT.estimateSlots,
+                  accountRate: UI_TEXT.estimateAccounts,
+                  ci: UI_TEXT.estimateCi,
+                  disk: UI_TEXT.estimateDisk,
+                  criticalPath: UI_TEXT.estimateCriticalPath,
+                }[section.limitingResource.kind]
+              }
               {section.limitingResource.resourceId && ` (${section.limitingResource.resourceId})`}
             </dd>
           </dl>
@@ -352,7 +350,9 @@ export default function EstimatorPanel({
             </p>
           )}
           {section.currentRefusal !== undefined && (
-            <p role="alert">{fill(UI_TEXT.estimateFailed, { detail: section.currentRefusal })}</p>
+            <p role="alert">
+              {estimateFailureText({ estimateDiagnostic: section.currentRefusal })}
+            </p>
           )}
           {(section.qualifications ?? []).map((row) =>
             row.unknownLimits.length === 0 ? null : (
@@ -379,12 +379,11 @@ export default function EstimatorPanel({
                   />
                   {setupName(card.kind)}
                 </span>
-                <span>
-                  {UI_TEXT.estimateP50}: {formatDateTime(Date.parse(card.p50))}
-                </span>
-                <span>
-                  {UI_TEXT.estimateP90}: {formatDateTime(Date.parse(card.p90))}
-                </span>
+                {QUANTILES.map((key) => (
+                  <span key={key}>
+                    {quantileName(key)}: {formatInstant(card[key])}
+                  </span>
+                ))}
                 {card.machines.map((machine) => (
                   <span key={machine.classId}>
                     {machine.classId}: {UI_TEXT.estimateMachines}: {formatNumber(machine.count)} ·{' '}
@@ -419,7 +418,7 @@ export default function EstimatorPanel({
           </fieldset>
           <button
             type="button"
-            disabled={waiting !== '' || setup === undefined || spinning}
+            disabled={!canStart() || spinning}
             aria-describedby={`${id}-waiting`}
             onClick={() => {
               void spinUp()
@@ -460,14 +459,40 @@ export default function EstimatorPanel({
               </pre>
             </details>
             <p>
-              {UI_TEXT.estimateAsOf}: {formatDateTime(Date.parse(section.asOf))} ·{' '}
-              {UI_TEXT.estimateSeed}: {section.seed}
+              {UI_TEXT.estimateAsOf}: {formatInstant(section.asOf)} · {UI_TEXT.estimateSeed}:{' '}
+              {section.seed}
             </p>
           </section>
         </>
       )}
     </section>
   )
+}
+
+function selectValue<T>(
+  schema: { safeParse(value: unknown): { success: true; data: T } | { success: false } },
+  set: (value: T) => void,
+) {
+  return (event: { target: { value: string } }) => {
+    const parsed = schema.safeParse(event.target.value)
+    if (parsed.success) set(parsed.data)
+  }
+}
+
+const QUANTILES = ['p50', 'p90'] as const
+function quantileName(key: (typeof QUANTILES)[number]): string {
+  return key === 'p50' ? UI_TEXT.estimateP50 : UI_TEXT.estimateP90
+}
+function formatInstant(value: string): string {
+  return formatDateTime(Date.parse(value))
+}
+function chooseSetup(
+  section: EstimateSection,
+  preferred: EstimateSection['setups'][number]['kind'],
+) {
+  return section.setups.some((setup) => setup.kind === preferred)
+    ? preferred
+    : (section.setups[0]?.kind ?? 'current')
 }
 
 function isSameView(a: EstimateRequest, b: EstimateRequest): boolean {
@@ -513,8 +538,11 @@ function Gantt({ section }: { readonly section: EstimateSection }) {
       <h2 id={`${id}-schedule`}>{UI_TEXT.estimateSchedule}</h2>
       <p>{fill(UI_TEXT.estimateGantt, { goal: goalText(section.inputs.request) })}</p>
       <div className="estimator-marks" aria-hidden="true">
-        <span style={{ left: `${String(position(section.p50))}%` }}>P50</span>
-        <span style={{ left: `${String(position(section.p90))}%` }}>P90</span>
+        {QUANTILES.map((key) => (
+          <span key={key} style={{ left: `${String(position(section[key]))}%` }}>
+            {key.toUpperCase()}
+          </span>
+        ))}
       </div>
       {section.schedule.length === 0 && <p>{UI_TEXT.estimateEmpty}</p>}
       <ul>
@@ -531,7 +559,7 @@ function Gantt({ section }: { readonly section: EstimateSection }) {
               {row.laneId}
               {row.critical && ` · ${UI_TEXT.estimateCriticalPath}`}
               <br />
-              {formatDateTime(Date.parse(row.start))} → {formatDateTime(Date.parse(row.end))}
+              {formatInstant(row.start)} → {formatInstant(row.end)}
             </button>
             <div className="estimator-track" aria-hidden="true">
               <span

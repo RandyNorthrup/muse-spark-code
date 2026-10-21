@@ -1,0 +1,237 @@
+Security
+
+Scope: fixture-workspace
+Generated as of 2026-10-06T12:00:00+00:00
+Version: 0.14.2
+SHA-256: e656eb2e6f4323c7d2f80093d261b86e40cbc2131de273dc1642cdc8914bf801
+
+Needs You
+Name: Q-M12
+Reason: Choose the target
+Status: Open
+Sources: plan
+
+Name: npm
+Reason: Waiting for publication
+Status: Lagging
+Sources: stores
+
+Name: Quality
+Reason: https://example.invalid/actions/runs/2
+Status: Failed
+Sources: github
+
+Vault
+Name: state
+Kind: unlocked
+Status: Available
+Reason:
+Sources: security
+
+Name: items
+Kind: 2
+Status: Available
+Reason:
+Sources: security
+
+Name: tier
+Kind: osStore
+Status: Available
+Reason:
+Sources: security
+
+Breakdown
+Kind: password
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Kind: apiKey
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Grants
+Kind: named/named
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Usage
+Kind: ssh
+Outcome: locked
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Kind: environment
+Outcome: succeeded
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Denials
+Kind: environment
+Outcome: denied
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Locks
+Kind: ssh
+Outcome: locked
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Developer Audit
+Name: enable
+Kind: page
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Name: unlock
+Kind: palette
+Count: 1
+Status: Available
+Reason:
+Sources: security
+
+Plan Format
+Name: plan-format-v1
+Count: Unknown
+Reason:
+Status: Available
+Sources: plan
+
+Sources
+Name: accounts
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: agentUsage
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: certification
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: changelog
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: checkRuns
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: estimate
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: fleet
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: git
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: github
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: issues
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: keybindings
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: package
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: plan
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: playbook
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: questions
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: schedules
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: security
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: session
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: stores
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: usage
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Renderer 1; ICU 77.1; locale en

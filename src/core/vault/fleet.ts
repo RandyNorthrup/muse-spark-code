@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
-import { UI_TEXT, VAULT_APPROVAL_TTL_MS, VAULT_LIMITS } from '../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
 import {
   vaultBindingSchema,
   vaultGrantSchema,
@@ -40,7 +40,6 @@ export const vaultDelegationCardSchema = z.strictObject({
   requester: vaultRequesterSchema,
   scopes: scopesSchema,
   digest: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
-  expiresAt: z.number().check(z.int(), z.nonnegative()),
 })
 export type VaultDelegationCard = z.infer<typeof vaultDelegationCardSchema>
 const answerSchema = z.strictObject({
@@ -80,7 +79,7 @@ export interface VaultFleetDelegationPort {
   /** U/H bind the authenticated host UI; no hook, reviewer or model answers this port. */
   approve(card: VaultDelegationCard, signal: AbortSignal): Promise<unknown>
   /** B installs no standing grant. It rechecks policy/presence/taint and calls canAdmit
-   * synchronously at admission for temporary task authority, before minting a ticket. */
+  synchronously at admission for temporary task authority, before minting a ticket. */
   request(
     requester: VaultRequester,
     proposal: Proposal,
@@ -148,26 +147,23 @@ function delegationDigest(card: Omit<VaultDelegationCard, 'digest'>): string {
   return createHash('sha256').update(JSON.stringify(card)).digest('hex')
 }
 
-/** UI promises own no bytes. Bound their wait even if an adapter ignores cancellation. */
+/** The person's answer ends the wait; only stopping it ends it sooner (owner 2026-10-16). */
 export async function awaitVaultApproval(
   answer: Promise<unknown>,
   signal: AbortSignal,
 ): Promise<unknown> {
-  let timer: ReturnType<typeof setTimeout> | undefined
   let cancel: (() => void) | undefined
-  const denied = new Promise<never>((_resolve, reject) => {
+  const stopped = new Promise<never>((_resolve, reject) => {
     cancel = () => {
-      reject(new Error(UI_TEXT.vault.approvalExpired))
+      const reason: unknown = signal.reason
+      reject(reason instanceof Error ? reason : new Error(String(reason)))
     }
     signal.addEventListener('abort', cancel, { once: true })
-    timer = setTimeout(cancel, VAULT_APPROVAL_TTL_MS)
-    timer.unref()
     if (signal.aborted) cancel()
   })
   try {
-    return await Promise.race([answer, denied])
+    return await Promise.race([answer, stopped])
   } finally {
-    clearTimeout(timer)
     if (cancel) signal.removeEventListener('abort', cancel)
   }
 }
@@ -195,12 +191,16 @@ export class VaultFleet {
           try {
             this.retire(access)
           } catch {
+            // The sweep retires every worker whatever one costs it; the
+            // aggregate denial below reaches the broker's audit signal.
             hasFailed = true
           }
           const task = this.endRequesters(ids)
           this.cleanup.add(task)
           void task
             .catch(() => {
+              // A failed requester end is aggregate disposal state; the
+              // broker's audit signal below carries the denial.
               this.cleanupFailed = true
             })
             .finally(() => {
@@ -217,6 +217,28 @@ export class VaultFleet {
   }
   private current(access: VaultWorkerAccess, worker: Worker): boolean {
     return this.workers.get(access) === worker && !worker.controller.signal.aborted
+  }
+  /**
+  Rolls a failed access back: the worker stops, its route closes, its
+  registration goes, and the broker ends the requester. The failure keeps
+  its kind past the rollback.
+  */
+  private async abortAccess(
+    worker: Worker,
+    route: VaultWorkerRoute,
+    access: VaultWorkerAccess | undefined,
+    requester: { readonly id: string },
+  ): Promise<void> {
+    worker.controller.abort()
+    try {
+      route.close()
+      if (access) {
+        this.workers.delete(access)
+        this.sockets.delete(socketKey(route.socket))
+      }
+    } finally {
+      await this.ports.broker.endRequester(requester.id)
+    }
   }
   private descendants(access: VaultWorkerAccess): Set<VaultWorkerAccess> {
     const retired = new Set([access])
@@ -336,16 +358,7 @@ export class VaultFleet {
       if (!this.current(access, worker)) throw new Error(UI_TEXT.vault.noAccess)
       return access
     } catch (error: unknown) {
-      worker.controller.abort()
-      try {
-        route.close()
-        if (access) {
-          this.workers.delete(access)
-          this.sockets.delete(socketKey(route.socket))
-        }
-      } finally {
-        await this.ports.broker.endRequester(requester.id)
-      }
+      await this.abortAccess(worker, route, access, requester)
       throw error
     }
   }
@@ -368,7 +381,6 @@ export class VaultFleet {
       id: randomBytes(VAULT_LIMITS.idBytes).toString('hex'),
       requester: structuredClone(worker.requester),
       scopes,
-      expiresAt: this.ports.broker.clock.now() + VAULT_APPROVAL_TTL_MS,
     }
     const card = vaultDelegationCardSchema.parse({
       ...unsigned,
@@ -382,13 +394,8 @@ export class VaultFleet {
           worker.controller.signal,
         ),
       )
-      if (
-        !this.current(access, worker) ||
-        this.ports.broker.clock.now() >= card.expiresAt ||
-        answer.id !== card.id ||
-        answer.digest !== card.digest
-      )
-        throw new Error(UI_TEXT.vault.approvalExpired)
+      if (!this.current(access, worker) || answer.id !== card.id || answer.digest !== card.digest)
+        throw new Error(UI_TEXT.vault.useChanged)
       if (answer.decision === 'deny') return false
       worker.delegation = { card, scopes: structuredClone(scopes), uses: new Map() }
       return true
@@ -495,7 +502,8 @@ export class VaultFleet {
         (!scope || canUse()) &&
         result.ticket.requesterId === worker.requester.id &&
         result.ticket.digest === vaultUseDigest(proposal.use) &&
-        this.ports.broker.clock.now() < result.ticket.expiresAt
+        (result.ticket.expiresAt === null ||
+          this.ports.broker.clock.now() < result.ticket.expiresAt)
       if (!canSend()) return { kind: 'denied', reason: 'digest' }
       if (!worker.route) throw new Error(UI_TEXT.vault.noAccess)
       await worker.route.handoff(result.ticket, proposal.use, canSend)
@@ -525,6 +533,8 @@ export class VaultFleet {
     try {
       this.unsubscribe()
     } catch {
+      // Disposal continues past a failing unsubscribe; the aggregate denial
+      // below is the report.
       hasFailed = true
     }
     const ids = Array.from(this.workers.values(), (worker) => worker.requester.id)
@@ -533,6 +543,8 @@ export class VaultFleet {
         try {
           this.retire(access)
         } catch {
+          // Disposal retires every worker whatever one costs it; the
+          // aggregate denial below is the report.
           hasFailed = true
         }
     } finally {

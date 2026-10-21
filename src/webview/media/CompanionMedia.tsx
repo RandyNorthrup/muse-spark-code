@@ -114,8 +114,22 @@ function MediaControls({
       onAttached(companionMediaUploadSchema.parse(result))
       setStatus('')
       if (isScreenRecording) discard()
-    } catch (error) {
-      if (isLive()) setStatus(error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable)
+    } catch (error: unknown) {
+      // A stop clears back to idle; a refusal shows the host's own reason;
+      // anything else says the file could not be read. Only a non-error
+      // keeps its kind past the controls (P2-7).
+      if (!(error instanceof Error)) throw error
+      if (!isLive()) return
+      if (error.message === UI_TEXT.media.uploadStop) {
+        setStatus('')
+      } else if (
+        error.message === UI_TEXT.attachmentUnreadable ||
+        error.message.startsWith(fill(UI_TEXT.media.uploadFailed, { reason: '' }))
+      ) {
+        setStatus(error.message)
+      } else {
+        setStatus(UI_TEXT.attachmentUnreadable)
+      }
     } finally {
       upload.current = undefined
       if (isLive()) setBusy(false)
@@ -149,12 +163,15 @@ function MediaControls({
     recordingIntent.current = true
     setRecording(true)
     try {
-      const started = await recorder.start(options.data, (remaining) => {
+      const isUncapped = options.data.maxSeconds === 0
+      const started = await recorder.start(options.data, (ticked) => {
         if (isLive())
           setStatus(
-            fill(UI_TEXT.media.recordingCountdown, {
-              remaining: formatUnit(remaining, 'second'),
-            }),
+            isUncapped
+              ? fill(UI_TEXT.media.recordingElapsed, { elapsed: formatUnit(ticked, 'second') })
+              : fill(UI_TEXT.media.recordingCountdown, {
+                  remaining: formatUnit(ticked, 'second'),
+                }),
           )
       })
       if (isLive()) {
@@ -179,9 +196,20 @@ function MediaControls({
       currentPreview.current = ready
       setPreview(ready)
       setStatus('')
-    } catch (error) {
-      if (isLive())
-        setStatus(error instanceof Error ? error.message : UI_TEXT.media.recordingPermissionDenied)
+    } catch (error: unknown) {
+      // A refused permission names itself and its remedy; any other failure
+      // keeps the generic recording sentence. Only a non-error keeps its
+      // kind past the controls (P2-7).
+      if (!(error instanceof Error)) throw error
+      if (!isLive()) return
+      if (
+        error.message === UI_TEXT.media.recordingPermissionDenied ||
+        error.message === UI_TEXT.media.recordingAccessDenied
+      ) {
+        setStatus(error.message)
+      } else {
+        setStatus(UI_TEXT.media.recordingFailed)
+      }
     } finally {
       recordingIntent.current = false
       run.current = undefined

@@ -7,6 +7,7 @@
 // implies live data.
 
 import * as z from 'zod/mini'
+import { legacyUsdSchema } from './usdSchema'
 import {
   HOURS_PER_DAY,
   MILLISECONDS_PER_SECOND,
@@ -15,8 +16,13 @@ import {
   SECONDS_PER_MINUTE,
   UI_TEXT,
 } from './constants'
-import { type DurationUnit, formatUnit, plural } from './l10n/text'
-import { legacyUsdSchema } from './usdSchema'
+import {
+  type DurationUnit,
+  formatDateTime,
+  formatDateTimeUtc,
+  formatUnit,
+  plural,
+} from './l10n/text'
 
 export const subscriptionUsageSchema = z.object({
   observedAtMs: z.number(),
@@ -57,12 +63,12 @@ export const accountFactsSchema = z.object({
 export type AccountFacts = z.infer<typeof accountFactsSchema>
 
 /**
- * One BYO provider's row in Account & usage (M95, PLAN.md D74): this
- * window's tokens with their settled cost (absent while unpriced), and an
- * account-connected key's own usage, limit and remainder where the provider
- * reports them (OpenRouter's `/key`, in USD). The host fills it (lane I
- * tallies per reference); the dialog only renders it.
- */
+One BYO provider's row in Account & usage (M95, PLAN.md D74): this
+window's tokens with their settled cost (absent while unpriced), and an
+account-connected key's own usage, limit and remainder where the provider
+reports them (OpenRouter's `/key`, in USD). The host fills it (lane I
+tallies per reference); the dialog only renders it.
+*/
 export const providerUsageRowSchema = z.object({
   providerId: z.string(),
   providerLabel: z.string(),
@@ -70,8 +76,12 @@ export const providerUsageRowSchema = z.object({
   inputTokens: z.number(),
   outputTokens: z.number(),
   costUsd: z.optional(legacyUsdSchema),
+  keyUsageError: z.optional(z.string()),
   keyUsage: z.optional(
     z.object({
+      totalUsd: z.optional(legacyUsdSchema),
+      unlimited: z.optional(z.boolean()),
+      weekUsd: z.optional(legacyUsdSchema),
       todayUsd: legacyUsdSchema,
       monthUsd: legacyUsdSchema,
       limitUsd: z.optional(legacyUsdSchema),
@@ -124,9 +134,9 @@ function unitPair(
 }
 
 /**
- * "2h 5m", "3d 4h", "1m" in the display language's short units (PLAN.md
- * D33); its word for "now" once the moment has passed.
- */
+"2h 5m", "3d 4h", "1m" in the display language's short units (PLAN.md
+D33); its word for "now" once the moment has passed.
+*/
 export function formatDuration(untilMs: number, nowMs: number): string {
   if (untilMs <= nowMs) {
     return UI_TEXT.durationNow
@@ -144,12 +154,49 @@ export function formatDuration(untilMs: number, nowMs: number): string {
 const OPAQUE_TIER = /^[\d-]+$/
 
 /**
- * The plan line: the tier id verbatim when it reads as a name, or a generic
- * label when Meta sends an opaque numeric id (verified live 2026-09-22:
- * `tier: "27681393394859588"`).
- */
+The plan line: the tier id verbatim when it reads as a name, or a generic
+label when Meta sends an opaque numeric id (verified live 2026-09-22:
+`tier: "27681393394859588"`).
+*/
 export function planLabel(tier: string): string {
   return tier === '' || OPAQUE_TIER.test(tier) ? UI_TEXT.usagePlanSubscription : tier
+}
+
+/**
+Whose plan the spend rode on: the latest observed Muse Code meter's own
+plan name. Undefined when no stored meter names one, and plan rows keep
+their generic label then rather than guessing.
+*/
+export function planDisplayName(
+  limits: readonly {
+    readonly provider: string
+    readonly observedAt: number
+    readonly plan?: string | undefined
+  }[],
+): string | undefined {
+  let latest: { readonly observedAt: number; readonly plan: string } | undefined
+  for (const limit of limits) {
+    if (limit.provider !== 'museCode' || limit.plan === undefined) continue
+    if (latest === undefined || limit.observedAt >= latest.observedAt)
+      latest = { observedAt: limit.observedAt, plan: limit.plan }
+  }
+  return latest === undefined ? undefined : planLabel(latest.plan)
+}
+
+/**
+An hour bucket's label in the timezone its records were written in. The
+bucket keeps its hour-start instant; shifting it back by the recorded
+offset recovers the recorded-local wall clock, so a later timezone change
+(or DST) cannot move the hour onto another day. Buckets without a
+recorded offset (rollup months) keep the viewer's local rendering.
+*/
+export function bucketHourLabel(bucket: {
+  readonly at: number
+  readonly timezoneOffsetMins?: number | undefined
+}): string {
+  return bucket.timezoneOffsetMins === undefined
+    ? formatDateTime(bucket.at)
+    : formatDateTimeUtc(bucket.at - bucket.timezoneOffsetMins * MILLISECONDS_PER_MINUTE)
 }
 
 /** "5-hour window" / "90-minute window" from the provider's duration. */

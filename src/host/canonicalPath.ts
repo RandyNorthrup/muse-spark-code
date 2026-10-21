@@ -29,6 +29,20 @@ export function isMissingPath(error: unknown): boolean {
   )
 }
 
+/**
+A failure's operating-system code (`EACCES`), for fixed-words detail;
+undefined when it names none. Reads only `.code`, never the message,
+which can quote a path.
+*/
+export function errnoCode(error: unknown): string | undefined {
+  return typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+    ? error.code
+    : undefined
+}
+
 export interface CanonicalPathOptions {
   /** Follow a link whose target does not exist, as an append or an editor would. */
   readonly followsBrokenLinks?: boolean
@@ -84,10 +98,10 @@ async function resolveThrough(
 }
 
 /**
- * Resolves `absolutePath` through the file system. Rejects on anything but
- * a missing component (a permission error, a link loop), so a caller never
- * mistakes an unreadable path for a confined one.
- */
+Resolves `absolutePath` through the file system. Rejects on anything but
+a missing component (a permission error, a link loop), so a caller never
+mistakes an unreadable path for a confined one.
+*/
 export async function canonicalPath(
   absolutePath: string,
   options: CanonicalPathOptions = {},

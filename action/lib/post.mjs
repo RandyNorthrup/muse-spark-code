@@ -108,9 +108,9 @@ function fixNotice({ result, artifactName, patchWithheld, patchPublished }) {
 }
 
 /**
- * The comment body: marker, the redacted and defused final message cut to
- * fit, the fix notice (fix mode) and the footer, ACTION_COMMENT_MAX_CHARS in all.
- */
+The comment body: marker, the redacted and defused final message cut to
+fit, the fix notice (fix mode) and the footer, ACTION_COMMENT_MAX_CHARS in all.
+*/
 export function commentBody({
   result,
   runUrl,
@@ -143,7 +143,7 @@ async function findSticky({ fetch, apiUrl, repository, prNumber, token, signal }
       signal,
       maxBytes: ACTION_RESULT_MAX_BYTES,
     })
-    if (!Array.isArray(comments)) throw new Error('the comment list is malformed')
+    if (!Array.isArray(comments)) throw new TypeError('the comment list is malformed')
     const sticky = comments.find(
       (comment) =>
         comment?.user?.type === 'Bot' &&

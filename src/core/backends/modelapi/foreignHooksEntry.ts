@@ -22,6 +22,7 @@
 // session) holds their children, and `dispose` ends them with the session.
 
 import { Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
 import {
   HOOK_CURSOR_DEFAULT_LOOP_LIMIT,
@@ -58,7 +59,7 @@ import {
   type HookEvent,
 } from './hooks'
 import type { PluginFormat } from './pluginFormats'
-import type { PluginContainment, PluginSession } from './pluginHost'
+import type { PluginContainment, PluginPersonBounds, PluginSession } from './pluginHost'
 import type * as PluginHooks from './pluginHooksEntry'
 
 /** What plugin children need from the host (M91b). */
@@ -66,16 +67,25 @@ export interface PluginHostDeps {
   /** M51's allowlisted hook environment (the host's `hookEnvironment`). */
   readonly env: NodeJS.ProcessEnv
   /**
-   * What children run in: a kill-on-close job on Windows, a process group
-   * elsewhere, or a notice in the user's language saying why neither, and
-   * the hook then fails by its fail-closed rule.
-   */
+  What children run in: a kill-on-close job on Windows, a process group
+  elsewhere, or a notice in the user's language saying why neither, and
+  the hook then fails by its fail-closed rule.
+  */
   readonly containment: () => Promise<PluginContainment>
   /** Fixed-text notes for the log (refused registrations). */
   readonly warn: (message: string) => void
   /** A process the running turn started (M86's checkpoint mark). */
   readonly onProcess?: (() => void) | undefined
   readonly now: () => number
+  /**
+  The person's plugin bounds, re-read per call so a changed setting
+  applies without rebinding; without it none apply.
+  */
+  readonly bounds?: (() => PluginPersonBounds) | undefined
+  /** Still-waiting notices go here; without it the wait stays silent. */
+  readonly notice?: ((message: string) => void) | undefined
+  /** Tests only: the still-waiting cadence; production keeps the shared one. */
+  readonly noticeMs?: number | undefined
 }
 
 export { loadForeignHookDefinitions } from './hooks'
@@ -90,9 +100,9 @@ export interface ForeignHookAdapterDeps {
   /** Plugin hooks' host side; without it they are refused. */
   readonly plugins?: PluginHostDeps | undefined
   /**
-   * A regular-expression match's deadline for Cursor's command pattern.
-   * Tests only: production keeps HOOK_MATCHER_TIMEOUT_MS.
-   */
+  A regular-expression match's deadline for Cursor's command pattern.
+  Tests only: production keeps HOOK_MATCHER_TIMEOUT_MS.
+  */
   readonly matcherTimeoutMs?: number | undefined
 }
 
@@ -126,11 +136,11 @@ function commandOf(payload: Readonly<Record<string, unknown>>): string | undefin
 }
 
 /**
- * Whether Cursor's command pattern selects this command. Cursor tests the
- * full command (CH:745); here the hook sees a bounded preview, so a clipped
- * command, an unreadable one, or a pattern the bounded engine cannot finish
- * runs the guard: running it more often is never weaker than its source.
- */
+Whether Cursor's command pattern selects this command. Cursor tests the
+full command (CH:745); here the hook sees a bounded preview, so a clipped
+command, an unreadable one, or a pattern the bounded engine cannot finish
+runs the guard: running it more often is never weaker than its source.
+*/
 function isCommandSelected(
   pattern: string,
   payload: Readonly<Record<string, unknown>>,
@@ -164,17 +174,17 @@ function isCommandSelected(
 }
 
 /**
- * The command line a Windows source runs in PowerShell, or undefined to keep
- * the hook's own. Copilot CLI runs `powershell`, and `command` copied to it,
- * in PowerShell (gh/copilot_reference_hooks-configuration.md:124,128);
- * Windsurf runs both through `powershell -Command` (devin
- * cascade_hooks_md.out:104-119); Cline runs its `<HookName>.ps1` with
- * PowerShell (cline-hooks-901d1b5c97.md:157,169). A hook here runs through
- * cmd.exe, as Muse Code's do, so a guard written for PowerShell would fail
- * there and, where its source fails open, let the call through. It goes to
- * Windows PowerShell as an encoded command instead: nothing in it crosses
- * cmd's quoting, and its output is UTF-8.
- */
+The command line a Windows source runs in PowerShell, or undefined to keep
+the hook's own. Copilot CLI runs `powershell`, and `command` copied to it,
+in PowerShell (gh/copilot_reference_hooks-configuration.md:124,128);
+Windsurf runs both through `powershell -Command` (devin
+cascade_hooks_md.out:104-119); Cline runs its `<HookName>.ps1` with
+PowerShell (cline-hooks-901d1b5c97.md:157,169). A hook here runs through
+cmd.exe, as Muse Code's do, so a guard written for PowerShell would fail
+there and, where its source fails open, let the call through. It goes to
+Windows PowerShell as an encoded command instead: nothing in it crosses
+cmd's quoting, and its output is UTF-8.
+*/
 function powerShellCommand(
   hook: HookDefinition,
   spec: ForeignHookSpec,
@@ -312,15 +322,25 @@ class ForeignHooks implements ForeignHookAdapter {
         this.plugins ??= new PluginSession({
           env: host.env,
           platform: this.deps.platform,
+          workspaceRoot: this.deps.workspaceRoot,
+          realpath: realpathSync,
           processTree: tree,
           warn: host.warn,
+          ...(host.bounds !== undefined && { bounds: host.bounds }),
+          ...(host.notice !== undefined && { notice: host.notice }),
+          ...(host.noticeMs !== undefined && { noticeMs: host.noticeMs }),
         })
         host.onProcess?.()
         const answer = await this.plugins.run(
           {
             ...request.call,
             pluginPath: plugin,
-            timeoutMs: hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+            // D121: no default of ours — an explicit per-hook timeout wins;
+            // otherwise the person's own plugin wait bounds the call, or it
+            // waits for the child's answer or Stop.
+            ...(hook.timeoutSeconds !== undefined && {
+              timeoutMs: hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+            }),
           },
           signal,
         )

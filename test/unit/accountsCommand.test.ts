@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
-import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
+import { parseChatGptProviderAction, parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseAccountsCommand } from '../../src/runtime/providers/accountsCommand'
+import { UI_TEXT } from '../../src/shared/constants'
 import {
   fileAccountsMetadata,
   runtimeProvidersFile,
@@ -103,6 +105,16 @@ describe('terminal account command parsing and real metadata files', () => {
     expect(JSON.stringify(parsed)).not.toContain('account-secret-canary')
   })
 
+  it.each([[], ['list']].map((args) => ({ args })))(
+    'exits 2 with usage for accounts misuse: %j',
+    ({ args }) => {
+      expect(parseCommandLine(['providers', 'accounts', ...args])).toMatchObject({
+        command: 'invalid',
+        exitCode: 2,
+      })
+    },
+  )
+
   it.each(
     [
       ['auth', 'set', 'account-secret-canary'],
@@ -147,5 +159,42 @@ describe('terminal account command parsing and real metadata files', () => {
     })
     await expect(async () => await metadata.read('meta')).rejects.toBeInstanceOf(AccountStoreError)
     expect(await readFile(file, 'utf8')).toBe(before)
+  })
+})
+
+// ChatGPT provider command boundary (moved from the overhaul-deleted
+// runtimeChatGpt.test.ts as a real-module replacement): pure command/text
+// boundaries only. Authenticated lifecycle behavior requires the real OS
+// store and dated captured OpenAI exchanges, not an invented issuer.
+describe('terminal ChatGPT command boundary', () => {
+  it.each(['add', 'remove', 'status'])('parses the local %s action', (action) => {
+    const argv = ['providers', action, 'chatgpt']
+    expect(parseChatGptProviderAction(argv)).toBe(action)
+    expect(parseCommandLine(argv)).toEqual({ command: 'chatGptProvider', action })
+  })
+
+  it.each([
+    ['providers', 'add', 'chatgpt', 'private-value'],
+    ['providers', 'add', 'chatgpt', '--key-stdin'],
+    ['providers', 'status', 'chatgpt', '--backend', 'modelApi'],
+    ['providers', 'other', 'chatgpt'],
+  ])('rejects unexpected inputs without echoing them: %j', (...argv) => {
+    expect(parseChatGptProviderAction(argv)).toBeUndefined()
+    expect(parseCommandLine(argv)).toEqual({
+      command: 'invalid',
+      reason: UI_TEXT.acpChatGpt.usage,
+      exitCode: 2,
+    })
+  })
+
+  it('names a dead credential store with the ChatGPT sign-in guidance', () => {
+    // R7 gives local ChatGPT causes their own sentence: the shared
+    // outage line other surfaces use would not tell a person how to
+    // unlock a store.
+    const failure = chatGptCommandText().failure('store-unavailable')
+    expect(failure).toBe(UI_TEXT.acpChatGpt.storeUnavailable)
+    expect(failure).toContain('Secret Service')
+    expect(chatGptCommandText().status('signed-out')).toBe(UI_TEXT.acpChatGpt.states['signed-out'])
+    expect(chatGptCommandText().failure('expired')).toBe(UI_TEXT.planUi.expired)
   })
 })

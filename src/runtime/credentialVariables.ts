@@ -42,11 +42,11 @@ export function museCodeEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 }
 
 /**
- * Provider credential variables no `*_API_KEY` rule catches (M95, PLAN.md
- * D74 headless; research §3.3 names all four as not stripped today). Lane S
- * owns the names in `constants.ts` at integration; this set is lane X's
- * seam so the agent strips them meanwhile.
- */
+Provider credential variables no `*_API_KEY` rule catches (M95, PLAN.md
+D74 headless; research §3.3 names all four as not stripped today). Lane S
+owns the names in `constants.ts` at integration; this set is lane X's
+seam so the agent strips them meanwhile.
+*/
 export const PROVIDER_CREDENTIAL_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_BEARER_TOKEN_BEDROCK',
   'ANTHROPIC_AUTH_TOKEN',
@@ -63,7 +63,7 @@ export function isProviderCredentialVariable(name: string): boolean {
 function credentialsIn(env: NodeJS.ProcessEnv): EnvironmentVariable[] {
   return Object.entries(env).flatMap(([name, value]) =>
     value !== undefined && (isCredentialVariable(name) || isProviderCredentialVariable(name))
-      ? [{ name, value }]
+      ? { name, value }
       : [],
   )
 }

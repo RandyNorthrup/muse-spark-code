@@ -18,6 +18,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import type { McpTool } from './mcp'
+import type { UnattendedRun } from './schedules/unattended'
 import { resolveAgainstRoot } from './workspaceRoot'
 
 export type DiagnosticSeverity = 'error' | 'warning' | 'information' | 'hint'
@@ -32,9 +33,9 @@ export const DIAGNOSTIC_SEVERITIES: readonly DiagnosticSeverity[] = [
 
 export interface DiagnosticEntry {
   /**
-   * Relative to the root with forward slashes (`rootRelativePath`);
-   * undefined for a resource outside it, which is never reported.
-   */
+  Relative to the root with forward slashes (`rootRelativePath`);
+  undefined for a resource outside it, which is never reported.
+  */
   readonly path: string | undefined
   readonly severity: DiagnosticSeverity
   /** 1-based. */
@@ -86,11 +87,11 @@ type PathRequest =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * The workspace-relative path a request names: a `file:` URI (as VS Code
- * writes one, `file:///c%3A/…`), an absolute path, or a path relative to the
- * root. A malformed URI (bad percent-encoding throws in the decoder) or a
- * path that names no file in the workspace comes back with the reason.
- */
+The workspace-relative path a request names: a `file:` URI (as VS Code
+writes one, `file:///c%3A/…`), an absolute path, or a path relative to the
+root. A malformed URI (bad percent-encoding throws in the decoder) or a
+path that names no file in the workspace comes back with the reason.
+*/
 function requestedPath(given: string, deps: DiagnosticsToolDeps): PathRequest {
   let fsPath: string
   try {
@@ -115,9 +116,9 @@ function formatEntry(entry: WorkspaceDiagnostic): string {
 }
 
 /**
- * The tool's text for `entries`, worst first, capped at `max` with a count
- * (the verify loop sends fewer than the tool, M68).
- */
+The tool's text for `entries`, worst first, capped at `max` with a count
+(the verify loop sends fewer than the tool, M68).
+*/
 export function formatDiagnostics(
   entries: readonly WorkspaceDiagnostic[],
   max: number = DIAGNOSTICS_MAX_ENTRIES,
@@ -146,11 +147,11 @@ export interface DiagnosticsToolDeps {
   /** An absolute path relative to the root, undefined outside it (`rootRelativePath`). */
   readonly relativeInRoot: (absolutePath: string) => string | undefined
   /**
-   * Shows a file the request names, waits for its language server and reads
-   * its diagnostics while it shows (M68): the servers report only on files
-   * an editor shows, and may clear them when its tab closes. Undefined when
-   * none were read; absent, the tool reads what VS Code holds now.
-   */
+  Shows a file the request names, waits for its language server and reads
+  its diagnostics while it shows (M68): the servers report only on files
+  an editor shows, and may clear them when its tab closes. Undefined when
+  none were read; absent, the tool reads what VS Code holds now.
+  */
   readonly settleFile?: (
     absolutePath: string,
     signal: AbortSignal | undefined,
@@ -163,6 +164,33 @@ function pathKey(relativePath: string, platform: NodeJS.Platform): string {
 }
 
 export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
+  const call = async (
+    args: Readonly<Record<string, unknown>>,
+    signal: AbortSignal,
+    run?: UnattendedRun,
+  ) => {
+    const uri = args[URI_ARGUMENT]
+    const { platform } = deps
+    const checked = async (entries: readonly WorkspaceDiagnostic[]) => {
+      for (const entry of entries) await run?.checkFile(entry.path)
+      signal.throwIfAborted()
+      return formatDiagnostics(entries)
+    }
+    const inWorkspace = () => deps.getDiagnostics().filter((entry) => isInWorkspace(entry))
+    if (typeof uri !== 'string' || uri === '') return await checked(inWorkspace())
+    const request = requestedPath(uri, deps)
+    if (!request.ok) throw new Error(request.reason)
+    await run?.checkFile(request.path)
+    const read = await deps.settleFile?.(request.fsPath, signal)
+    if (read !== undefined)
+      return await checked(read.map((entry) => ({ ...entry, path: request.path })))
+    const wanted = pathKey(request.path, platform)
+    const found = inWorkspace().filter((entry) => pathKey(entry.path, platform) === wanted)
+    await run?.checkFile(request.path)
+    return deps.settleFile !== undefined && found.length === 0
+      ? fill(MODEL_TEXT.diagnosticsNotSettled, { path: request.path })
+      : await checked(found)
+  }
   return {
     name: IDE_MCP_TOOL_DIAGNOSTICS,
     description:
@@ -180,27 +208,7 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
     annotations: MCP_ANNOTATIONS_READ_ONLY,
     // A request that names no workspace file rejects, so the server answers
     // with an error result the model can read.
-    call: async (args, signal) => {
-      const uri = args[URI_ARGUMENT]
-      const { platform } = deps
-      const inWorkspace = () => deps.getDiagnostics().filter((entry) => isInWorkspace(entry))
-      if (typeof uri !== 'string' || uri === '') {
-        return formatDiagnostics(inWorkspace())
-      }
-      const request = requestedPath(uri, deps)
-      if (!request.ok) {
-        throw new Error(request.reason)
-      }
-      const read = await deps.settleFile?.(request.fsPath, signal)
-      if (read !== undefined) {
-        return formatDiagnostics(read.map((entry) => ({ ...entry, path: request.path })))
-      }
-      const wanted = pathKey(request.path, platform)
-      const found = inWorkspace().filter((entry) => pathKey(entry.path, platform) === wanted)
-      // A file its server never reported on is not checked, never clean (M68).
-      return deps.settleFile !== undefined && found.length === 0
-        ? fill(MODEL_TEXT.diagnosticsNotSettled, { path: request.path })
-        : formatDiagnostics(found)
-    },
+    call,
+    callUnattended: call,
   }
 }

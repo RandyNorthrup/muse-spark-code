@@ -260,9 +260,9 @@ function checkExtra(extra: Buffer): void {
 }
 
 /**
- * The archive's entries, every header checked and the local headers read
- * against the central ones, before anything is extracted.
- */
+The archive's entries, every header checked and the local headers read
+against the central ones, before anything is extracted.
+*/
 export async function readZipEntries(
   file: FileHandle,
   size: number,
@@ -421,9 +421,9 @@ async function privateFolder(folder: string): Promise<void> {
 }
 
 /**
- * Extracts the checked entries of `archive` into `destination` (a fresh
- * folder), each streamed, bounded, counted and checked. Stops at `signal`.
- */
+Extracts the checked entries of `archive` into `destination` (a fresh
+folder), each streamed, bounded, counted and checked. Stops at `signal`.
+*/
 export async function extractZipEntries(
   archive: string,
   entries: readonly ZipEntry[],
@@ -437,7 +437,12 @@ export async function extractZipEntries(
     signal.throwIfAborted()
     const target = path.resolve(root, ...entry.name.split('/'))
     const relative = path.relative(root, target)
-    if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+    if (
+      relative === '' ||
+      relative === '..' ||
+      relative.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relative)
+    ) {
       throw new ZipRefused('outside the destination')
     }
     await privateFolder(path.dirname(target))

@@ -11,7 +11,7 @@ still open, so this page does not claim certified headless or Action support,
 nor npm-registry Action support. Command receipts and precise claim limits live in
 [m80.md](certification/m80.md).
 
-ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+ACP and headless Model API/BYO requests can share a daily spending limit that you set in the agent data folder's `settings.json`: `{"paidDailyBudgetUsd":5}` (USD; none by default), matching the extension's `museSpark.paidDailyBudgetUsd`. With no limit set, nothing is checked, read or written before a request. With one, a request whose estimate would pass what is left of today is not sent and the reason says so; each request's reported cost joins today's total after it ends, in one file per process with no lock, and a request that ended without its usage counts as cost unknown, never as its estimate. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search runs in this runtime only with a verified per-request call bound, because its returned fees have no other dispatch bound.
 
 ## One prompt, one workspace, one turn
 
@@ -37,32 +37,35 @@ muse-spark-code-acp exec --backend modelApi --allow-contributor-models --model m
 muse-spark-code-acp scan-secrets fix.patch
 ```
 
-| Exec option                         | Default                | Validation                                                                                                                  |
-| ----------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| --backend museCode\|modelApi        | museCode               | Must be an ACP backend.                                                                                                     |
-| --cwd <dir>                         | process.cwd()          | Resolve absolute; existing directory.                                                                                       |
-| <prompt>, --prompt-file, -          | required               | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin.                                |
-| --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                          |
-| --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                 |
-| --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                       |
-| --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`). |
-| --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                 |
-| --max-budget-usd <usd>              | required for Model API | Finite, 0 < value ≤ 20; must cover the model minimum below before billable dispatch. Refuse on Muse Code.                   |
-| --max-requests <n>                  | 30 for Model API       | Integer 1–500; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.          |
-| --timeout <seconds>                 | 1800                   | Integer 10–21,600; deadline counts from process start.                                                                      |
-| --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                     |
-| --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                           |
-| --fail-on-denial                    | off                    | First ordinary approval denial stops if enabled.                                                                            |
-| --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                 |
-| --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                              |
-| --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                             |
-| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                 |
-| --verbose                           | off                    | Trace on redacted stderr.                                                                                                   |
+| Exec option                         | Default                | Validation                                                                                                                                                                 |
+| ----------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --backend museCode\|modelApi        | museCode               | Must be an ACP backend.                                                                                                                                                    |
+| --cwd <dir>                         | process.cwd()          | Resolve absolute; existing directory.                                                                                                                                      |
+| <prompt>, --prompt-file, -          | required               | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin.                                                                               |
+| --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                                                                         |
+| --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                                                                |
+| --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                                                                      |
+| --fast                              | off                    | The plan catalogue’s Fast tier (2x speed, increased usage) where the model lists a priority tier; refused elsewhere.                                                       |
+| --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`).                                                |
+| --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                                                                |
+| --max-budget-usd <usd>              | required for Model API | Finite positive USD decimal (grammar below, no upper bound); must cover the model minimum below before billable dispatch. Refuse on Muse Code.                             |
+| --max-requests <n>                  | none (no limit)        | Any positive safe integer when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.                                    |
+| --timeout <seconds>                 | none (no deadline)     | Any positive safe integer when set; without it the run has no deadline of ours. A set deadline counts from process start.                                                  |
+| --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                                                                    |
+| --auto-compaction                   | off                    | Model API plus budget; the summary request is admitted against the run cap like any request and shown in its usage. Without the flag the context-full stop names the flag. |
+| --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                                                                          |
+| --fail-on-denial                    | off                    | First ordinary approval denial stops if enabled.                                                                                                                           |
+| --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                                                                |
+| --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                                                                             |
+| --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                                                                            |
+| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                                                                |
+| --verbose                           | off                    | Trace on redacted stderr.                                                                                                                                                  |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
-range 1–20,000,000 micro-USD. Signs, exponents, whitespace, non-ASCII digits
+any positive integer number of micro-USD with no upper bound. Signs,
+exponents, whitespace, non-ASCII digits
 and more than six fractional digits are usage errors. The raw string is parsed
-directly into integer micro-USD; `Number` never parses that budget string.
+directly into exact integer micro-USD; `Number` never parses that budget string.
 Exactly one nonempty UTF-8 prompt is required (262,144-byte maximum).
 Stdin prompt conflicts with stdin key. Files must be readable regular files.
 Untrusted resources: at most 8 files, 1 MiB each, 2 MiB total and 48 chunks.
@@ -136,7 +139,8 @@ Required fields and numeric/status invariants are validated by the runtime;
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
 In v2 every USD field is a canonical decimal string, exactly representable in
 micro-USD. Numeric v1 output is historical and the current Action refuses it.
-Budgets still require explicit flags and obey the same hard bounds.
+Budgets still require explicit flags and obey the same grammar: positive, at
+most six decimals, no upper bound.
 The runtime zod schemas (`src/runtime/exec/execProtocol.ts`) are normative.
 The shipped event schema also enforces the update egress rule itself:
 `$defs.execSafeUpdateValue` refuses chunk/tool `sessionUpdate` values and
@@ -162,7 +166,7 @@ event variant against a structural mirror of the event schema, parity-tested.
 | usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, a pending reservation or any latched stop.                                                |
 | usage.paid                                                  | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code.                                                                                                                                 |
 | ledger                                                      | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
-| limits                                                      | {budgetUsd:string\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
+| limits                                                      | {budgetUsd:string\|null,maxRequests:number\|null,timeoutSeconds:number\|null}. Null timeoutSeconds without --timeout.                                                                                                                     |
 | durationMs                                                  | Nonnegative finite elapsed time from process start.                                                                                                                                                                                       |
 | error                                                       | null for completed; otherwise {kind,message}, whole-redacted.                                                                                                                                                                             |
 
@@ -216,9 +220,16 @@ Total provider billing attributable to this run is at most its USD budget, provi
 
 Only supported priced models, client-side function tools and fixed n=1 image
 requests are admitted. Hosted response tools, background/previous_response_id,
-arbitrary hosts, uploads, polling and hosted search are refused before forwarding.
+arbitrary hosts, polling and hosted search are refused before forwarding.
+M105 additionally admits U6's Files routes: streamed multipart POST /v1/files,
+GET /v1/files (only its captured `after=file-…` pagination), and GET/DELETE
+/v1/files/file-…. Uploads are bounded to 200 MiB plus 4 KiB multipart overhead
+and inherit the same redirect, origin and lifetime fences. Production Files
+sets expiry, verifies the confined source and validates each receipt. This
+uses U6c's selected not-billed storage policy; the conditional budget claim
+also requires that storage/upload tariff to remain zero.
 Exact Meta HTTPS origin, empty user-info/fragment/unexpected query, string POST
-body and `redirect:error` are required. Only GET /v1/models and POST
+body for inference and `redirect:error` are required. Besides Files, GET /v1/models and POST
 /v1/responses, /v1/images/generations, /v1/images/edits may pass.
 
 With W=1,048,576 and M=max_output_tokens, context liability is
@@ -286,7 +297,7 @@ Scanner reads exact bounded staged bytes locally, valid UTF-8, at most 16 MiB.
 It prints only a localized count, never matches, excerpts or a path. Exits:
 0 clean, 10 secrets found, 2 unreadable/oversize/invalid-key/cancelled/error;
 On POSIX, a repeated signal forces the earliest latched stop code: 130/143
-if a signal came first, or 6 if the deadline had already latched timeout.
+if a signal came first, or 6 if a set deadline had already latched timeout.
 An earlier non-signal stop keeps its own code. Windows forced process exit
 is 1; a delivered result retains its logical first-stop code.
 Its 30-second deadline includes key reading and output flush. Private key stdin
@@ -315,11 +326,11 @@ Main Action is `action/`; apply sub-action is `action/apply/`. Frozen contract:
 | Input                                   | Default             | Rule                                                                                                               |
 | --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | model-api-key                           | required            | secrets.MUSE_MODEL_API_KEY; only run step gets MUSE_SPARK_MODEL_API_KEY.                                           |
-| max-budget-usd                          | required            | Same CLI budget grammar/range above; includes text and images.                                                     |
+| max-budget-usd                          | required            | Same CLI budget grammar above (positive, no upper bound); includes text and images.                                |
 | mode                                    | review              | review→plan, fix→acceptEdits.                                                                                      |
 | image-generation                        | false               | Exact boolean; true only in fix.                                                                                   |
-| max-requests                            | 30                  | Same CLI request-count bounds above.                                                                               |
-| timeout-minutes                         | 20                  | Integer; converted into allowed exec seconds.                                                                      |
+| max-requests                            | empty (no limit)    | Empty sets no request limit; a set value follows the CLI request-count rule above (any positive safe integer).     |
+| timeout-minutes                         | empty (no deadline) | Empty sets no run deadline; a set value is positive integer minutes, converted into exec seconds (no maximum).     |
 | model, effort, allow-contributor-models | empty, empty, false | Selected model validation; contributor explicitly opted in.                                                        |
 | max-diff-bytes                          | 262144              | Integer 1–1,048,576; truncation reported.                                                                          |
 | trigger-phrase                          | @muse-spark         | Comment must start with it.                                                                                        |
@@ -419,35 +430,35 @@ lifecycle; the download step runs before it. The gate, install and checkout
 steps have bounded owners of their own; the tools and input-staging steps have
 no owner or bound; no process spans composite steps.
 
-| Constant                      |      Value | Bound                                                                     |
-| ----------------------------- | ---------: | ------------------------------------------------------------------------- |
-| ACTION_GATE_MS                |  30,000 ms | API gate phase.                                                           |
-| ACTION_INSTALL_MS             | 300,000 ms | Install plus verifier.                                                    |
-| ACTION_CHECKOUT_MS            | 120,000 ms | Entire initial checkout phase.                                            |
-| ACTION_INPUT_MS               |  30,000 ms | Run step input read, then diff plus prompt rendering.                     |
-| ACTION_EXEC_OVERHEAD_MS       |  10,000 ms | Exec phase wall limit = exec timeout + this.                              |
-| ACTION_GIT_MS                 |  30,000 ms | One local Git child; total patch generation also 30 s.                    |
-| ACTION_SCAN_MS                |  30,000 ms | Scanner including key stdin/body/output.                                  |
-| ACTION_EXTRACT_MS             |  10,000 ms | Event/result extraction.                                                  |
-| ACTION_PUBLISH_MS             |  10,000 ms | Atomic patch/manifest publication and outputs/summary.                    |
-| ACTION_DOWNLOAD_MS            |  60,000 ms | Apply artifact validation after download.                                 |
-| ACTION_APPLY_MS               | 180,000 ms | Apply owner total, excluding caller's tests.                              |
-| ACTION_PUSH_MS                |  60,000 ms | Push network child within apply total.                                    |
-| ACTION_STOP_GRACE_MS          |   5,000 ms | Exact signal forwarding, waiting.                                         |
-| ACTION_KILL_AFTER_MS          |   7,000 ms | Grace + 2 s; force-kill current child.                                    |
-| ACTION_REAP_MS                |   2,000 ms | Bounded wait after force-kill before wrapper error exit.                  |
-| ACTION_CLEANUP_MS             |   5,000 ms | Bounded staging/key-reference final cleanup.                              |
-| ACTION_STDERR_MAX_BYTES       |  1,048,576 | Per child, buffered (exec redacted after exit); overflow stops the owner. |
-| ACTION_CHILD_STDOUT_MAX_BYTES | 16,777,216 | Git/install/verifier/download; overflow stops the owner.                  |
-| ACTION_EVENTS_MAX_BYTES       | 67,108,864 | Exec JSONL; capped while streaming to events file.                        |
-| ACTION_RESULT_MAX_BYTES       | 16,777,216 | One parsed result/final publication.                                      |
-| ACTION_PATCH_MAX_BYTES        | 16,777,216 | Exact Git patch and scanner file.                                         |
-| ACTION_SCAN_STDOUT_MAX_BYTES  |     65,536 | Scanner's counts-only output.                                             |
-| ACTION_COMMENT_MAX_CHARS      |     60,000 | Redacted comment.                                                         |
-| ACTION_META_MAX_BYTES         |     65,536 | PR metadata.                                                              |
-| ACTION_TASK_MAX_CHARS         |      4,000 | Collaborator task.                                                        |
-| ACTION_DEFAULT_MAX_DIFF_BYTES |    262,144 | Input default; maximum 1,048,576.                                         |
-| ACTION_W_BUDGET_USD           |       1.00 | W test fixture cap.                                                       |
+| Constant                      |      Value | Bound                                                                                                     |
+| ----------------------------- | ---------: | --------------------------------------------------------------------------------------------------------- |
+| ACTION_GATE_MS                |  30,000 ms | API gate phase.                                                                                           |
+| ACTION_INSTALL_MS             | 300,000 ms | Install plus verifier.                                                                                    |
+| ACTION_CHECKOUT_MS            | 120,000 ms | Entire initial checkout phase.                                                                            |
+| ACTION_INPUT_MS               |  30,000 ms | Run step input read, then diff plus prompt rendering.                                                     |
+| ACTION_EXEC_OVERHEAD_MS       |  10,000 ms | Added to a set exec timeout for the exec phase wall limit; no wall limit of ours without timeout-minutes. |
+| ACTION_GIT_MS                 |  30,000 ms | One local Git child; total patch generation also 30 s.                                                    |
+| ACTION_SCAN_MS                |  30,000 ms | Scanner including key stdin/body/output.                                                                  |
+| ACTION_EXTRACT_MS             |  10,000 ms | Event/result extraction.                                                                                  |
+| ACTION_PUBLISH_MS             |  10,000 ms | Atomic patch/manifest publication and outputs/summary.                                                    |
+| ACTION_DOWNLOAD_MS            |  60,000 ms | Apply artifact validation after download.                                                                 |
+| ACTION_APPLY_MS               | 180,000 ms | Apply owner total, excluding caller's tests.                                                              |
+| ACTION_PUSH_MS                |  60,000 ms | Push network child within apply total.                                                                    |
+| ACTION_STOP_GRACE_MS          |   5,000 ms | Exact signal forwarding, waiting.                                                                         |
+| ACTION_KILL_AFTER_MS          |   7,000 ms | Grace + 2 s; force-kill current child.                                                                    |
+| ACTION_REAP_MS                |   2,000 ms | Bounded wait after force-kill before wrapper error exit.                                                  |
+| ACTION_CLEANUP_MS             |   5,000 ms | Bounded staging/key-reference final cleanup.                                                              |
+| ACTION_STDERR_MAX_BYTES       |  1,048,576 | Per child, buffered (exec redacted after exit); overflow stops the owner.                                 |
+| ACTION_CHILD_STDOUT_MAX_BYTES | 16,777,216 | Git/install/verifier/download; overflow stops the owner.                                                  |
+| ACTION_EVENTS_MAX_BYTES       | 67,108,864 | Exec JSONL; capped while streaming to events file.                                                        |
+| ACTION_RESULT_MAX_BYTES       | 16,777,216 | One parsed result/final publication.                                                                      |
+| ACTION_PATCH_MAX_BYTES        | 16,777,216 | Exact Git patch and scanner file.                                                                         |
+| ACTION_SCAN_STDOUT_MAX_BYTES  |     65,536 | Scanner's counts-only output.                                                                             |
+| ACTION_COMMENT_MAX_CHARS      |     60,000 | Redacted comment.                                                                                         |
+| ACTION_META_MAX_BYTES         |     65,536 | PR metadata.                                                                                              |
+| ACTION_TASK_MAX_CHARS         |      4,000 | Collaborator task.                                                                                        |
+| ACTION_DEFAULT_MAX_DIFF_BYTES |    262,144 | Input default; maximum 1,048,576.                                                                         |
+| ACTION_W_BUDGET_USD           |       1.00 | W test fixture cap.                                                                                       |
 
 The pinned download-artifact step runs before the apply owner exists, so its
 transfer is bounded only by the caller job's `timeout-minutes` (the recipes set
@@ -458,7 +469,7 @@ keep their own bounds (ACTION_INPUT_MS, ACTION_PUBLISH_MS); a stuck final write
 ends the step by self-SIGKILL, because process.exit would wait for the blocked
 file worker.
 
-Standalone exec timeout counts from process start, before async localization.
+A set standalone exec timeout counts from process start, before async localization; without --timeout there is no deadline of ours.
 Grace totals 5000 ms, forced output at most 300 ms; duplicate same signal within
 500 ms is deduplicated, distinct/repeated later signal forces bounded exit.
 Async fd writers avoid blocking event-loop timers. EPIPE/EBADF or >16 MiB queue
@@ -646,9 +657,10 @@ are recorded in [BADGEFIX](certification/badgefix.md).
 ## Evidence and troubleshooting
 
 M105 parses repeatable `exec --attach <path>` flags and confines each source
-before credential handling. Production video/audio dispatch remains refused
-until captured capabilities, Files storage/ownership and exact per-attempt
-media liability are bound. Receipts carry name/size and completion metadata,
+before credential handling. Captured Meta contributor video dispatch uses expiring Files uploads, the
+owned replay ledger and exact per-attempt admission/settlement. Standalone
+audio is explicitly refused: exec has no Muse Voice flag or transcription
+spend admission. Uncaptured models and uncalibrated capped media still refuse. Receipts carry name/size and completion metadata,
 never file bytes. Headless `--record`, `/record` and `/attach` are usage errors
 (exit 2); there is no unattended screen recorder or implicit paid transcription.
 These flags do not change M80's pending live/hosted certification.

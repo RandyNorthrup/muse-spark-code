@@ -7,7 +7,6 @@ import {
   MODELS_WEBVIEW_STYLE_FILE,
   PROVIDER_HARNESS_MIN_CONTEXT_TOKENS,
   UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
 } from '../../shared/constants'
 import {
   parsePanelToHostMessage,
@@ -15,6 +14,7 @@ import {
   presetCardSchema,
   customFormatSchema,
   providerStateSchema,
+  providerKeyUsageSchema,
   wizardStepSchema,
   type ModelsPanelState,
   type PanelDraft,
@@ -23,10 +23,16 @@ import {
   type ModelRow,
   type ProviderTest,
 } from '../../shared/modelsPanel'
+import {
+  vaultClientMessageSchema,
+  vaultHostMessageSchema,
+  type VaultHostMessage,
+} from '../../shared/hostApi/vaultMessages'
 import { buildWebviewHtml, createNonce } from '../html'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
-import { modelLimitsSchema } from '../../shared/providerRouting'
+import { editedOutputTokens, modelLimitsSchema } from '../../shared/providerRouting'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ImportPreview } from '../providers/importExport'
@@ -38,38 +44,88 @@ import type {
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import { isOriginBound, type CredentialRecord } from '../providers/credentialRecords'
-import type { WizardSaveOutcome } from '../providers/wizardSave'
+import { scannedLocalModelLimits, type WizardSaveOutcome } from '../providers/wizardSave'
 import type { ScanOutcome } from '../providers/modelScans'
-import { OPENROUTER_ORIGIN } from '../providers/openRouter'
+import {
+  OPENROUTER_ORIGIN,
+  createOpenRouterPanelUsage,
+  clearOpenRouterPanelUsage,
+  createOpenRouterDraftDiscard,
+} from '../backend/providersEntry'
 import { Usd } from '../../shared/usd'
+import { distinctProviderLabels } from '../../shared/providerLabels'
 import { redactSecrets } from '../../shared/redact'
+import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
+import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
 
 export interface ModelsPanelDeps {
-  readonly connectChatGpt?: (() => Promise<void>) | undefined
+  /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
+  readonly connectChatGpt?: ((isNewAccount: boolean) => Promise<void>) | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
   readonly extensionUri: vscode.Uri
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   readonly l10n: UiTable
   readonly log: Logger
   readonly providers: ProvidersHost
   /**
-   * The conversation spending limit setting: read for the suggestions
-   * step's prefill and written when the wizard's number changed. Backed by
-   * VS Code's configuration in production, by memory in tests.
-   */
+  The conversation spending limit setting: read for the suggestions
+  step's prefill and written when the wizard's number changed. Backed by
+  VS Code's configuration in production, by memory in tests.
+  */
   readonly sessionBudget: SessionBudgetConfig
   readonly isRemote?: boolean
   readonly writeExportFile: (text: string) => Promise<void>
   readonly readImportFile: () => Promise<string | undefined>
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
   readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
+  /**
+  The vault binding factory (C-M109-1 P1). Without it the section stays
+  hidden; a factory that throws leaves the panel without the section too.
+  */
+  readonly vault?: ModelsVaultFactory | undefined
 }
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
   readonly presetId?: string | undefined
   readonly wizard?: boolean | undefined
+}
+/**
+The vault section's host side (C-M109-1 P1): built in dist/vault.js and
+owned by this panel while its tab lives. The factory and the binding
+never import this file, and this file never imports the vault's host
+files, so the bundle-split gate keeps them in their own bundles; only
+the shared message schemas are carried by both.
+*/
+export interface ModelsVaultBinding {
+  readonly handle: (raw: unknown) => Promise<void>
+  readonly refresh: () => Promise<void>
+  /** Idempotent: the panel disposes its tab and the binding together. */
+  readonly dispose: () => void
+}
+/** Builds the binding with its publisher into this panel's webview. */
+export type ModelsVaultFactory = (
+  publish: (message: VaultHostMessage) => void,
+) => ModelsVaultBinding
+/** The navigate target the host posts; a vault link needs the binding. */
+function navigateSection(
+  section: string,
+  isVaultOffered: boolean,
+): 'providers' | 'models' | 'vault' {
+  switch (section) {
+    case 'models': {
+      return 'models'
+    }
+    case 'vault': {
+      return isVaultOffered ? 'vault' : 'providers'
+    }
+    default: {
+      return 'providers'
+    }
+  }
 }
 export interface ModelsPanel {
   readonly reveal: (navigate?: ModelsPanelNavigate) => void
@@ -108,6 +164,8 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
         : `http://${loopbackProbe.host}:${String(loopbackProbe.port)}`),
     ...(loopbackProbe !== undefined && { loopbackPort: loopbackProbe.port }),
     auth: entry?.auth ?? preset?.auth ?? 'apiKey',
+    // An Azure edit reopens with its deployment; the resource stays in the address.
+    ...(entry?.deployment !== undefined && { deployment: entry.deployment }),
     keyPresent: false,
     keyShapeOk: false,
     connected: false,
@@ -133,7 +191,24 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     vscode.ViewColumn.One,
     { retainContextWhenHidden: true },
   )
-  const root = vscode.Uri.joinPath(deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  const resolved = deps.resolveWebviewBundle()
+  if (!resolved.ok) {
+    deps.log.error(`Models webview bundle failed: ${resolved.detail}`)
+    panel.webview.options = { enableScripts: true, localResourceRoots: [] }
+    panel.webview.html = resolved.html
+    // No verified bundle behind the panel: it shows the fixed sentence,
+    // and revealing still brings the failure into view.
+    return {
+      reveal: () => {
+        panel.reveal(vscode.ViewColumn.One)
+      },
+      onDidDispose: (run) => panel.onDidDispose(run),
+      dispose: () => {
+        panel.dispose()
+      },
+    }
+  }
+  const root = vscode.Uri.file(resolved.dir)
   panel.webview.options = { enableScripts: true, localResourceRoots: [root] }
   panel.webview.html = buildWebviewHtml({
     scriptUri: panel.webview
@@ -161,7 +236,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     drafts: { edits: {} },
     pendingRemovals: [],
   }
-  const credentials = new Map<string, { secret: string; origin: string }>()
+  const credentials = new Map<string, { secret: string; origin: string; connected?: boolean }>()
+  const discardCredential = createOpenRouterDraftDiscard(
+    credentials,
+    providers.discardOpenRouterKey,
+  )
   const rows = new Map<string, readonly ProviderModelRow[]>()
   const newModels = new Set<string>()
   // A failed limit write can leave a saved provider. Retrying that draft
@@ -182,6 +261,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   >()
   const enteredCredentials = new WeakSet<PanelDraft>()
   let isDisposed = false
+  const lifetime = new AbortController()
+  let connectionRequest: AbortController | undefined
+  let usageRequest: AbortController | undefined
+  let isUsageQueued = false
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
   const post = (message: HostToPanelMessage): void => {
@@ -195,23 +278,67 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     void panel.webview.postMessage(parsed.message)
   }
+  const publishVault = (message: VaultHostMessage): void => {
+    if (isDisposed) {
+      return
+    }
+    const parsed = vaultHostMessageSchema.safeParse(message)
+    if (!parsed.success) {
+      log.warn('Dropped malformed vault host message')
+      return
+    }
+    void panel.webview.postMessage(parsed.data)
+  }
+  // The gate: no factory, no vault section. The binding is built on first
+  // vault use (navigation or message), never for an unrelated panel action,
+  // so opening Models & Agents never connects to or launches the broker. A
+  // factory that throws leaves the panel without the section too, refusing
+  // exactly as 0.17.0 does.
+  let vault: ModelsVaultBinding | undefined
+  let hasVaultFailed = false
   const publish = (): void => {
+    state.vaultOffered = !hasVaultFailed && (vault !== undefined || deps.vault !== undefined)
     post({ type: 'modelsPanel/state', state })
+  }
+  const ensureVault = (): ModelsVaultBinding | undefined => {
+    if (vault === undefined && !hasVaultFailed && deps.vault !== undefined) {
+      try {
+        vault = deps.vault(publishVault)
+      } catch {
+        log.warn('Vault section unavailable')
+        hasVaultFailed = true
+        vault = undefined
+        publish()
+      }
+    }
+    return vault
+  }
+  // A vault navigation builds the binding first; when the factory throws,
+  // the section falls back to providers and hides, as if never offered.
+  const vaultSection = (section: string | undefined): 'providers' | 'models' | 'vault' => {
+    if (section !== 'vault') return navigateSection(section ?? 'providers', false)
+    return ensureVault() === undefined ? 'providers' : 'vault'
   }
   const fail = (draft?: PanelDraft, error?: unknown): void => {
     // Exception text can contain a bare key even before it is retained.
     log.warn('Models panel operation failed')
     if (draft === undefined) {
-      state.notice = UI_TEXT.actionFailed
+      // Only our validated error code/reason may leave sign-in. Never show
+      // arbitrary exception text here: it can contain a credential or path.
+      state.notice =
+        error instanceof ChatGptSignInError
+          ? chatGptFailureText(error.code, error.reason)
+          : UI_TEXT.actionFailed
     } else {
-      // Save failures name their cause with every retained key redacted.
+      // Save failures name their cause with every retained key redacted. A
+      // foreign failure (or none at all) names no cause: the sentence says
+      // only that it did not work, never a write conflict it was not (P3-1).
       state.notice = undefined
       draft.saveConflict = error instanceof Error && error.message === UI_TEXT.providerEditConflict
+      const cause = error instanceof Error ? error.message : ''
       draft.errors = [
         redactSecrets(
-          error instanceof Error && error.message !== '' && error.message !== UI_TEXT.actionFailed
-            ? error.message
-            : UI_TEXT.providerSaveWriteConflict,
+          cause !== '' && cause !== UI_TEXT.actionFailed ? cause : UI_TEXT.actionFailed,
           Array.from(credentials.values(), (record) => record.secret),
         ),
       ]
@@ -237,14 +364,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     let credential: CredentialRecord | undefined
     try {
       credential = await providers.credentialSnapshot(entry.id)
-      if (entry.auth !== 'none' && entry.auth !== 'subscription') {
-        if (credential !== undefined && !isOriginBound(credential, entry.address)) {
-          throw new Error(UI_TEXT.importNeedsKey)
-        }
+    } catch (error: unknown) {
+      // A credential the store cannot produce is not a missing key: the row
+      // says the store failed, and only the failure's kind reaches the log.
+      // Anything that is not an error keeps its kind.
+      if (!(error instanceof Error)) throw error
+      log.warn(`Models panel could not read a credential snapshot (${wireWordForLog(error.name)})`)
+      draft.errors = [UI_TEXT.providerSaveSecretFailed]
+    }
+    if (entry.auth !== 'none' && entry.auth !== 'subscription') {
+      if (credential !== undefined && !isOriginBound(credential, entry.address)) {
+        draft.errors = [UI_TEXT.importNeedsKey]
+      } else {
         secret = credential?.secret
       }
-    } catch {
-      draft.errors = [UI_TEXT.importNeedsKey]
     }
     editSnapshots.set(draft, { entry, fields: structuredClone(draft), credential })
     if (secret !== undefined) {
@@ -268,19 +401,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (preset === undefined) {
       throw new Error(UI_TEXT.actionFailed)
     }
-    // A custom entry saves only complete limits per chosen model; the
-    // blockers below keep Save disabled until each one is valid, and the
-    // production store rejects the entry if one is still missing.
+    // An entry saves only complete limits per chosen model; the blockers
+    // below keep Save disabled until each one is valid, and the production
+    // store rejects the entry if one is still missing. Custom entries always
+    // carry the validated map; other presets carry it only when at least one
+    // model validated, so a windowless draft keeps its existing entry shape.
+    const parsedModelLimits = Object.fromEntries(
+      draft.models.flatMap((model): [string, { contextTokens: number; outputTokens: number }][] => {
+        const parsed = modelLimitsSchema.safeParse(draft.modelLimits?.[model])
+        return parsed.success ? [[model, parsed.data]] : []
+      }),
+    )
     const modelLimits =
-      preset.id === 'custom'
-        ? Object.fromEntries(
-            draft.models.flatMap(
-              (model): [string, { contextTokens: number; outputTokens: number }][] => {
-                const parsed = modelLimitsSchema.safeParse(draft.modelLimits?.[model])
-                return parsed.success ? [[model, parsed.data]] : []
-              },
-            ),
-          )
+      preset.id === 'custom' || Object.keys(parsedModelLimits).length > 0
+        ? parsedModelLimits
         : undefined
     const snapshot = editSnapshots.get(draft)
     if (snapshot !== undefined) {
@@ -321,6 +455,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         ...(JSON.stringify(draft.modelLimits) !== JSON.stringify(initial.modelLimits) && {
           modelLimits: { ...base.modelLimits, ...editedLimits },
         }),
+        ...(base.preset === 'azure' &&
+          draft.deployment !== initial.deployment && { deployment: draft.deployment }),
         ...(preset.id === 'openrouter' &&
           (isPrivacyChanged || isOrderChanged || isFallbacksChanged) && {
             routing: {
@@ -342,6 +478,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       address: draft.address ?? preset.origin,
       auth: draft.auth,
       models: draft.models,
+      // The deployment rides the entry, never the models: records resolve
+      // by the model family the user ticked (PROVM95).
+      ...(preset.id === 'azure' &&
+        draft.deployment !== undefined && { deployment: draft.deployment }),
       ...(modelLimits !== undefined && { modelLimits }),
       ...(draft.customFormat !== undefined && { format: draft.customFormat }),
       ...(preset.id === 'openrouter' && {
@@ -386,14 +526,31 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       ? UI_TEXT.signInNotOffered
       : undefined
   }
-  const draftSecret = (entry: ProviderEntry, id?: string): string | undefined => {
-    const record = credentials.get(id ?? 'wizard')
+  /** One subscription sign-in; only ChatGPT can register a different account. */
+  const connectSubscription = async (id: string, isNewAccount: boolean): Promise<void> => {
+    if (id === 'chatgpt') {
+      if (deps.connectChatGpt === undefined) throw new Error(UI_TEXT.actionFailed)
+      await deps.connectChatGpt(isNewAccount)
+      return
+    }
+    if (deps.connectCopilot === undefined) throw new Error(UI_TEXT.actionFailed)
+    await deps.connectCopilot()
+  }
+  const draftSecret = (entry: ProviderEntry, id = 'wizard'): string | undefined => {
+    const record = credentials.get(id)
     if (record !== undefined && record.origin !== new URL(entry.address).origin) {
       throw new Error(UI_TEXT.importNeedsKey)
     }
     return record?.secret
   }
-  const refresh = async (): Promise<void> => {
+  const refreshUsage = createOpenRouterPanelUsage(providers, (usage) =>
+    providerKeyUsageSchema.parse(usage),
+  )
+  const refresh = async (shouldReadUsage = false): Promise<void> => {
+    usageRequest?.abort()
+    usageRequest = new AbortController()
+    const signal = AbortSignal.any([lifetime.signal, usageRequest.signal])
+    clearOpenRouterPanelUsage(state.providers)
     state.presets = providers.presetIds().flatMap((id) => {
       const preset = providers.preset(id)
       if (preset === undefined) {
@@ -444,54 +601,55 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
     }
     const providerStates = await providers.providerStates()
-    state.providers = providerStates.flatMap(({ entry, hasKey, origin }) => {
-      const preset = state.presets.find((candidate) => candidate.id === entry.preset)
-      const info = providers.preset(entry.preset)
-      if (preset === undefined) {
-        // One stale card never hides a valid saved provider: the affected
-        // row stays, marked unavailable with its reason. Names ids only.
-        const label = info?.name ?? entry.id
-        // Only a known wire format rides along; anything else stays absent.
-        let infoFormat: 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama' | undefined
-        switch (info?.format) {
-          case 'responses':
-          case 'chat':
-          case 'anthropic':
-          case 'gemini':
-          case 'ollama': {
-            infoFormat = info.format
-            break
+    // Two providers made from one preset are told apart by id (two Anthropic keys).
+    state.providers = distinctProviderLabels(
+      providerStates.flatMap(({ entry, hasKey, origin }) => {
+        const preset = state.presets.find((candidate) => candidate.id === entry.preset)
+        const info = providers.preset(entry.preset)
+        if (preset === undefined) {
+          // One stale card never hides a valid saved provider: the affected
+          // row stays, marked unavailable with its reason. Names ids only.
+          const label = info?.name ?? entry.id
+          // Only a known wire format rides along; anything else stays absent.
+          let infoFormat: 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama' | undefined
+          switch (info?.format) {
+            case 'responses':
+            case 'chat':
+            case 'anthropic':
+            case 'gemini':
+            case 'ollama': {
+              infoFormat = info.format
+              break
+            }
+            default: {
+              infoFormat = undefined
+              break
+            }
           }
-          default: {
-            infoFormat = undefined
-            break
-          }
+          const parsed = providerStateSchema.safeParse({
+            id: entry.id,
+            presetId: entry.preset,
+            unavailable: fill(UI_TEXT.providerPresetUnsupported, {
+              provider: label,
+              preset: entry.preset,
+            }),
+            label,
+            address: entry.address,
+            format: entry.format ?? infoFormat,
+            auth: entry.auth,
+            key: {
+              state: hasKey ? 'stored' : 'missing',
+              origin,
+            },
+            test: { status: 'untested' },
+            models: [...entry.models],
+            pinned: [...(entry.pinned ?? [])],
+          })
+          log.warn(`Provider ${entry.id} left out of the panel: ${entry.preset}`)
+          return parsed.success ? [parsed.data] : []
         }
-        const parsed = providerStateSchema.safeParse({
-          id: entry.id,
-          presetId: entry.preset,
-          unavailable: fill(UI_TEXT.providerPresetUnsupported, {
-            provider: label,
-            preset: entry.preset,
-          }),
-          label,
-          address: entry.address,
-          format: entry.format ?? infoFormat,
-          auth: entry.auth,
-          key: {
-            state: hasKey ? 'stored' : 'missing',
-            origin,
-          },
-          test: { status: 'untested' },
-          models: [...entry.models],
-          pinned: [...(entry.pinned ?? [])],
-        })
-        log.warn(`Provider ${entry.id} left out of the panel: ${entry.preset}`)
-        return parsed.success ? [parsed.data] : []
-      }
-      const isBound = origin === undefined || origin === new URL(entry.address).origin
-      return [
-        {
+        const isBound = origin === undefined || origin === new URL(entry.address).origin
+        return {
           id: entry.id,
           presetId: entry.preset,
           label: preset.label,
@@ -505,10 +663,17 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           },
           test: { status: 'untested' },
           models: [...entry.models],
+          modelLimits: entry.modelLimits,
           pinned: [...(entry.pinned ?? [])],
-        },
-      ]
-    })
+        }
+      }),
+    )
+    await refreshUsage(
+      state.providers,
+      providerStates.map(({ entry }) => entry),
+      shouldReadUsage,
+      signal,
+    )
     const all: ModelRow[] = []
     const families = new Map<string, string>()
     for (const [providerId, models] of rows) {
@@ -527,7 +692,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           toolCalling: model.toolCapable,
           vision: model.vision,
           reasoning: model.reasoning,
-          contextTokens: model.context,
+          contextTokens:
+            draft?.modelLimits?.[model.id]?.contextTokens ??
+            saved?.modelLimits?.[model.id]?.contextTokens ??
+            model.context,
           inputPerMillion: model.inputPerMillion,
           outputPerMillion: model.outputPerMillion,
           cachedPerMillion: model.cachedPerMillion,
@@ -673,19 +841,19 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ]
     }
   }
-  const handle = async (message: PanelToHostMessage): Promise<void> => {
+  const handle = async (message: PanelToHostMessage, shouldReadUsage: boolean): Promise<void> => {
     switch (message.type) {
       case 'modelsPanel/ready': {
         const cachedScans = await providers.cachedScans()
         for (const cached of cachedScans) {
           rows.set(cached.providerId, cached.rows)
         }
-        await refresh()
+        await refresh(true)
         publish()
         if (navigation !== undefined) {
           post({
             type: 'modelsPanel/navigate',
-            section: navigation.section === 'models' ? 'models' : 'providers',
+            section: vaultSection(navigation.section),
             itemId: navigation.presetId,
           })
         }
@@ -711,9 +879,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           state.notice = refusal
           break
         }
-        const connect = message.providerId === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
-        if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
-        await connect()
+        await connectSubscription(message.providerId, message.isNewAccount === true)
         await scan(await entryOf(message.providerId))
         break
       }
@@ -730,13 +896,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             state.notice = refusal
             break
           }
-          const connect = preset.id === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
-          if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
-          await connect()
+          await connectSubscription(preset.id, false)
           await scan(await entryOf(preset.id))
           break
         }
-        credentials.delete('wizard')
+        discardCredential('wizard')
         state.drafts.wizard = newDraft(preset)
         break
       }
@@ -745,7 +909,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           state.drafts.edits = Object.fromEntries(
             Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
           )
-          credentials.delete(message.providerId)
+          discardCredential(message.providerId)
         }
         await createEditDraft(message.providerId)
         break
@@ -773,7 +937,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }
         if (oldAddress !== draft.address) {
           savedConnections.delete(draft)
-          credentials.delete(id ?? 'wizard')
+          discardCredential(id ?? 'wizard')
           draft.keyPresent = false
           draft.keyShapeOk = false
           draft.privateConfirmed = false
@@ -797,18 +961,32 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         ) {
           throw new Error(UI_TEXT.actionFailed)
         }
-        const connection =
-          message.type === 'providers/connect'
-            ? await providers.connectOpenRouter(deps.isRemote === true)
-            : undefined
+        let connection: { readonly key: string } | undefined
+        if (message.type === 'providers/connect') {
+          draft.connecting = true
+          publish()
+          try {
+            connection = await providers.connectOpenRouter(
+              deps.isRemote === true,
+              AbortSignal.any([
+                lifetime.signal,
+                ...(connectionRequest === undefined ? [] : [connectionRequest.signal]),
+              ]),
+            )
+          } finally {
+            draft.connecting = false
+          }
+        }
         const secret =
           message.type === 'providers/connect'
             ? connection?.key
             : await providers.promptForKey({ ...preset, origin: new URL(entry.address).origin })
         if (secret !== undefined && !isDisposed) {
           enteredCredentials.add(draft)
+          discardCredential(id ?? 'wizard')
           credentials.set(id ?? 'wizard', {
             secret,
+            connected: message.type === 'providers/connect',
             origin:
               message.type === 'providers/connect'
                 ? OPENROUTER_ORIGIN
@@ -820,6 +998,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           savedConnections.delete(draft)
           draft.test = undefined
         }
+        break
+      }
+      case 'providers/readUsage': {
         break
       }
       case 'providers/test': {
@@ -877,7 +1058,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       case 'providers/wizard': {
         if (message.event === 'cancel') {
           state.drafts = { edits: {} }
-          credentials.clear()
+          discardCredential()
           break
         }
         const draft = draftOf()
@@ -894,10 +1075,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         // Every outcome refreshes through this catch. Earlier outcome text survives.
         const finish = async (isSaved: boolean): Promise<void> => {
           try {
-            await refresh()
-          } catch {
+            await refresh(true)
+          } catch (error: unknown) {
+            // A failed refresh still acknowledges the save; anything that is
+            // not an error keeps its kind past the queue.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
-            log.warn('Models panel could not refresh after provider save')
+            log.warn(
+              `Models panel could not refresh after provider save (${wireWordForLog(error.name)})`,
+            )
             if (isSaved) {
               state.notice =
                 state.notice === undefined
@@ -935,9 +1121,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             await finish(false)
             return
           }
+          // Carry scanned windows; explicit saved or draft limits retain priority.
+          const scanned = rows.get(entry.id)
+          const carried =
+            scanned === undefined
+              ? undefined
+              : scannedLocalModelLimits(entry.auth, entry.models, scanned)
+          const carriedLimits =
+            carried === undefined && entry.modelLimits === undefined
+              ? undefined
+              : { ...carried, ...entry.modelLimits }
           outcome = await providers.saveDraft(
             {
-              provider: { ...entry, ...(verdict.kind === 'private' && { privateNetwork: true }) },
+              provider: {
+                ...entry,
+                ...(verdict.kind === 'private' && { privateNetwork: true }),
+                ...(carriedLimits !== undefined && { modelLimits: carriedLimits }),
+              },
               credential:
                 snapshot === undefined || enteredCredentials.has(draft)
                   ? draftSecret(entry, message.providerId)
@@ -959,12 +1159,24 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             },
             { config: deps.sessionBudget, expectedUsd: draft.sessionBudgetExpectedUsd },
           )
-        } catch (error) {
+        } catch (error: unknown) {
+          // A failed save reaches its draft through fail(); anything that is
+          // not an error keeps its kind past the queue. The kind reaches the
+          // record; the words carry nothing raw.
+          if (!(error instanceof Error)) throw error
+          log.warn(`Models panel save failed (${wireWordForLog(error.name)})`)
           fail(draft, error)
           await finish(false)
           return
         }
         savedDrafts.add(draft)
+        if (
+          outcome.receipts?.includes(UI_TEXT.providerKeySaved) ||
+          outcome.failedStep === undefined
+        ) {
+          const record = credentials.get(message.providerId ?? 'wizard')
+          if (record !== undefined) record.connected = false
+        }
         const snapshot = editSnapshots.get(draft)
         if (
           snapshot !== undefined &&
@@ -975,9 +1187,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             snapshot.credential = await providers.credentialSnapshot(snapshot.entry.id)
             snapshot.fields = structuredClone(draft)
             enteredCredentials.delete(draft)
-          } catch {
+          } catch (error: unknown) {
+            // A saved provider whose snapshot cannot be refreshed keeps its
+            // save; the notice stays fixed and only the kind reaches the log.
+            // Anything that is not an error keeps its kind.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
-            log.warn('Models panel saved provider but could not refresh its snapshot')
+            log.warn(
+              `Models panel saved provider but could not refresh its snapshot (${wireWordForLog(error.name)})`,
+            )
           }
         }
         state.notice = outcome.notice
@@ -989,13 +1207,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (outcome.composerSet) {
           try {
             deps.onWizardSaved(outcome)
-          } catch {
+          } catch (error: unknown) {
+            // A host that cannot be told still keeps the save; anything that
+            // is not an error keeps its kind past the queue.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
             state.notice =
               state.notice === undefined
                 ? UI_TEXT.providerSavedRefreshFailed
                 : [state.notice, UI_TEXT.providerRefreshFailed].join(' ')
-            log.warn('Models panel saved provider but could not notify its host')
+            log.warn(
+              `Models panel saved provider but could not notify its host (${wireWordForLog(error.name)})`,
+            )
           }
         }
         await finish(true)
@@ -1013,7 +1236,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           if (outcome.budget?.status === 'conflict')
             draft.sessionBudgetExpectedUsd = outcome.budget.effectiveUsd
         } else {
-          credentials.delete(message.providerId ?? 'wizard')
+          discardCredential(message.providerId ?? 'wizard')
           enteredCredentials.delete(draft)
           if (message.providerId === undefined) state.drafts.wizard = undefined
           else
@@ -1029,6 +1252,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return
       }
       case 'providers/remove': {
+        discardCredential(message.providerId)
+        state.drafts.edits = Object.fromEntries(
+          Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
+        )
         const entry = await entryOf(message.providerId)
         if (entry.auth === 'subscription') {
           if (deps.removeSubscription === undefined) throw new Error(UI_TEXT.actionFailed)
@@ -1117,21 +1344,70 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ...draft.models.filter((value) => value !== model),
             ...(message.ticked ? [model] : []),
           ]
-          // An unticked model drops its custom limits with it.
-          if (!message.ticked && draft.modelLimits?.[model] !== undefined) {
-            draft.modelLimits = Object.fromEntries(
-              Object.entries(draft.modelLimits).filter(([id]) => id !== model),
+          // Limits exist only for ticked models. Unticking drops the
+          // manual window, so a later save cannot store (and a later
+          // re-tick cannot resurrect) a window for an unticked model.
+          if (!message.ticked && draft.modelLimits !== undefined) {
+            const kept = Object.fromEntries(
+              Object.entries(draft.modelLimits).filter(([key]) => key !== model),
             )
+            draft.modelLimits = Object.keys(kept).length > 0 ? kept : undefined
           }
         } else {
           const entry = await entryOf(id)
+          const models = [
+            ...entry.models.filter((value) => value !== model),
+            ...(message.ticked ? [model] : []),
+          ]
+          // C-M95-4 R3: a ticked scanned local model carries its window;
+          // an unticked one drops its stale limit.
+          const carried =
+            message.ticked && entry.auth === 'none'
+              ? (scannedLocalModelLimits(entry.auth, [model], rows.get(id) ?? []) ?? {})
+              : {}
+          const kept = Object.fromEntries(
+            Object.entries(entry.modelLimits ?? {}).filter(
+              ([key]) => message.ticked || key !== model,
+            ),
+          )
+          const modelLimits = { ...carried, ...kept }
           await providers.updateProvider({
             ...entry,
-            models: [
-              ...entry.models.filter((value) => value !== model),
-              ...(message.ticked ? [model] : []),
-            ],
+            models,
+            ...((entry.modelLimits !== undefined || Object.keys(modelLimits).length > 0) && {
+              modelLimits,
+            }),
           })
+        }
+        break
+      }
+      case 'models/contextWindow': {
+        const id = message.scope.providerId ?? draftOf().presetId ?? ''
+        const draft =
+          message.scope.scope === 'wizard' ? draftOf(message.scope.providerId) : undefined
+        const entry = draft === undefined ? await entryOf(id) : draftEntry(draft, id)
+        const prefix = `${id}/`
+        if (entry.auth !== 'none' || !message.ref.startsWith(prefix))
+          throw new Error(UI_TEXT.actionFailed)
+        const model = message.ref.slice(prefix.length)
+        if (!entry.models.includes(model) && rows.get(id)?.some((row) => row.id === model) !== true)
+          throw new Error(UI_TEXT.actionFailed)
+        // A scanned-but-unticked model is ticked atomically with its edit:
+        // the file reader prunes limits for unlisted models on refresh, so
+        // storing the window without selecting it would lose the edit.
+        const models = entry.models.includes(model) ? [...entry.models] : [...entry.models, model]
+        const previous = entry.modelLimits?.[model]
+        const modelLimits = {
+          ...entry.modelLimits,
+          [model]: {
+            contextTokens: message.contextTokens,
+            outputTokens: editedOutputTokens(previous, message.contextTokens),
+          },
+        }
+        if (draft === undefined) await providers.updateProvider({ ...entry, models, modelLimits })
+        else {
+          draft.models = models
+          draft.modelLimits = modelLimits
         }
         break
       }
@@ -1181,10 +1457,24 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
     }
     syncDraftBlockers()
-    await refresh()
+    if (
+      (message.type !== 'providers/wizard' || message.event === 'next') &&
+      !connectionRequest?.signal.aborted
+    )
+      await refresh(shouldReadUsage)
     publish()
   }
   const enqueue = (message: PanelToHostMessage): void => {
+    const shouldReadUsage =
+      message.type === 'providers/readUsage' || message.type === 'modelsPanel/ready'
+    if (shouldReadUsage) {
+      if (isUsageQueued) return
+      isUsageQueued = true
+    }
+    if (message.type === 'providers/connect') {
+      if (connectionRequest !== undefined) return
+      connectionRequest = new AbortController()
+    }
     let savingDraft: PanelDraft | undefined
     if (message.type === 'providers/save') {
       savingDraft =
@@ -1198,29 +1488,62 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       publish()
     }
     const previous = operations
-    operations = (async () => {
-      await previous
+    const failedDraft =
+      message.type === 'providers/save' && message.providerId !== undefined
+        ? savingDraft
+        : undefined
+    const current = (async () => {
+      try {
+        await previous
+      } catch {
+        // A prior message owned its failure: the queue tail below recorded
+        // it on that message's draft, so this message runs instead of the
+        // failure poisoning every later message.
+      }
       if (isDisposed) {
         return
       }
       try {
-        await handle(message)
-      } catch (error) {
-        fail(
-          message.type === 'providers/save' && message.providerId !== undefined
-            ? savingDraft
-            : undefined,
-          error,
-        )
+        await handle(message, shouldReadUsage)
+      } catch (error: unknown) {
+        // A failed panel message reaches its draft through fail(); anything
+        // that is not an error keeps its kind past the queue. The kind
+        // reaches the record; the words carry nothing raw.
+        if (!(error instanceof Error)) throw error
+        log.warn(`Models panel message failed (${wireWordForLog(error.name)})`)
+        fail(failedDraft, error)
       } finally {
+        if (shouldReadUsage) isUsageQueued = false
+        if (message.type === 'providers/connect') connectionRequest = undefined
         if (savingDraft !== undefined) {
           savingDraft.saving = false
           publish()
         }
       }
     })()
+    operations = current
+    void current.catch(() => {
+      // A foreign failure from the handler reached no draft above: record it
+      // on this message's draft with the fixed sentence. The next message
+      // observes this tail and continues, so the queue survives it and no
+      // rejection escapes the pump.
+      fail(failedDraft, new Error(UI_TEXT.actionFailed))
+    })
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
+    // The vault's own messages ride the same webview; its host validates
+    // them again before acting. Without the binding they fall through to
+    // the panel's parser, which drops them. A first vault message builds
+    // the binding, so the broker stays untouched until the vault is used.
+    if (vaultClientMessageSchema.safeParse(raw).success) {
+      const binding = ensureVault()
+      if (binding !== undefined) {
+        void binding.handle(raw).catch(() => {
+          log.warn('Vault panel operation failed')
+        })
+        return
+      }
+    }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {
       log.warn('Dropped malformed models panel message')
@@ -1230,12 +1553,24 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       providers.cancelScan(parsed.message.providerId)
       return
     }
+    if (
+      (parsed.message.type === 'providers/wizard' && parsed.message.event !== 'next') ||
+      ['providers/remove', 'providers/select', 'providers/enterKey', 'providers/edit'].includes(
+        parsed.message.type,
+      )
+    ) {
+      connectionRequest?.abort()
+      usageRequest?.abort()
+    }
     enqueue(parsed.message)
   })
   const cleanup = (): void => {
     isDisposed = true
-    credentials.clear()
+    lifetime.abort()
+    discardCredential()
     subscription.dispose()
+    vault?.dispose()
+    vault = undefined
   }
   panel.onDidDispose(cleanup)
   return {
@@ -1243,18 +1578,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       panel.reveal(vscode.ViewColumn.One)
       navigation = navigate
       if (navigate?.wizard === true) {
+        connectionRequest?.abort()
         state.drafts.wizard = newDraft()
-        credentials.clear()
+        discardCredential()
       }
       if (navigate?.presetId !== undefined) {
+        connectionRequest?.abort()
         state.drafts.wizard = newDraft(providers.preset(navigate.presetId))
-        credentials.clear()
+        discardCredential()
       }
       publish()
       if (navigate !== undefined) {
         post({
           type: 'modelsPanel/navigate',
-          section: navigate.section === 'models' ? 'models' : 'providers',
+          section: vaultSection(navigate.section),
           itemId: navigate.presetId,
         })
       }

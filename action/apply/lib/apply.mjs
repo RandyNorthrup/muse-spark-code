@@ -78,9 +78,9 @@ export class ApplyRefusal extends Error {
 }
 
 /**
- * The downloaded proposal: exactly a manifest bound to this run and artifact,
- * and a nonempty patch whose SHA-256 is the manifest's.
- */
+The downloaded proposal: exactly a manifest bound to this run and artifact,
+and a nonempty patch whose SHA-256 is the manifest's.
+*/
 export async function validateProposal({ directory, artifactName, runId, signal }) {
   // Only what out/ can hold, each a regular file within its bound, checked
   // before anything is read (RVM80CD P2-4): an unrelated or oversized
@@ -144,9 +144,9 @@ export function checkPullForPush(pull, repository, headSha) {
 }
 
 /**
- * prepare or push, under the apply owner (SPEC §6.6). `remote` is the https
- * remote from validated names (a local path only in tests).
- */
+prepare or push, under the apply owner (SPEC §6.6). `remote` is the https
+remote from validated names (a local path only in tests).
+*/
 export async function applyProposal(input) {
   const { owner, paths, git, mode, baseEnv, remote } = input
   const { manifest, patchFile } = await owner.phase('validate', ACTION_DOWNLOAD_MS, (signal) =>

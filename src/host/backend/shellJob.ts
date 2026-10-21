@@ -13,8 +13,6 @@
 // fails, the log says so, and commands run as before, their kill falling
 // back to taskkill and the orphan sweep (`processTree.ts`).
 
-import { randomUUID } from 'node:crypto'
-import { access } from 'node:fs/promises'
 import path from 'node:path'
 import {
   SHELL_JOB_FOLDER,
@@ -22,16 +20,14 @@ import {
   SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
-import { powerShellQuoted } from '../../core/shellQuote'
-import {
-  loadJobAssembly,
-  type RunProgram,
-  runProgram,
-  type ShellJob,
-  windowsPowerShell,
-} from '../processTree'
-import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
+import { loadJobAssembly, type RunProgram, runProgram, type ShellJob } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
+import { randomUUID } from 'node:crypto'
+import { access } from 'node:fs/promises'
+import { powerShellQuoted } from '../../core/shellQuote'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import { isResourcePaused } from '../../core/resources/launch'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
@@ -55,8 +51,12 @@ async function isPresent(file: string): Promise<boolean> {
   try {
     await access(file)
     return true
-  } catch {
-    return false
+  } catch (error: unknown) {
+    // Anything but a missing file is not this probe's to swallow.
+    if (isStoreErrorCode(error, 'ENOENT')) {
+      return false
+    }
+    throw error
   }
 }
 
@@ -104,7 +104,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
   } catch (error: unknown) {
     if (isResourcePaused(error)) throw error
     deps.log(
-      `Windows job objects are unavailable (${String(error)}); a stopped command is ended with taskkill and a sweep for its orphans`,
+      `Windows job objects are unavailable (${describeStoreError(error)}); a stopped command is ended with taskkill and a sweep for its orphans`,
     )
     return undefined
   }
@@ -138,18 +138,18 @@ export function newShellJob(assemblyPath: string): ShellJob {
 }
 
 /**
- * The statement a command starts with to join its job. A failure (the
- * assembly gone, a policy) is swallowed: the command runs as it would
- * without one, and its kill finds no job and falls back.
- *
- * Governed launches stop before running a payload if membership cannot be proved.
- *
- * It names no cmdlet (`loadJobAssembly`): a hook runs in a narrow
- * environment without `PSModuleAnalysisCachePath`, and on GitHub's Windows
- * runner the module analysis an `Add-Type` here set off took 20 s or more
- * and, on a fresh runner, ran past the hook test's 60 s budget before the
- * hook began.
- */
+The statement a command starts with to join its job. A failure (the
+assembly gone, a policy) is swallowed: the command runs as it would
+without one, and its kill finds no job and falls back.
+
+Governed launches stop before running a payload if membership cannot be proved.
+
+It names no cmdlet (`loadJobAssembly`): a hook runs in a narrow
+environment without `PSModuleAnalysisCachePath`, and on GitHub's Windows
+runner the module analysis an `Add-Type` here set off took 20 s or more
+and, on a fresh runner, ran past the hook test's 60 s budget before the
+hook began.
+*/
 export function joinStatement(job: ShellJob, isGoverned = false): string {
   return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch {${isGoverned ? ' exit 1' : ''} }; `
 }

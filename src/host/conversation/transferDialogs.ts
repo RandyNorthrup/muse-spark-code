@@ -1,19 +1,19 @@
 // The import and share-file dialogs behind the conversation controller
-// (M84, PLAN.md D49): picking a portable JSON file within the size cap and
+// (M84, PLAN.md D49): picking a portable JSON file of any size and
 // confirming an import. They need `vscode`; the controller takes them as a
 // `SessionTransferFiles` dep, and the portable parse lives in
 // `./sessionImport`.
 
 import * as vscode from 'vscode'
-import { SESSION_EXPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
-import { readPickedFile } from '../backend/toolIo'
+import { UI_TEXT } from '../../shared/constants'
+import { decodeTransferBytes, readPickedFile } from '../backend/toolIo'
 import { canonicalPath } from '../canonicalPath'
 import type { SessionTransferFiles } from './sessionImport'
 
 const JSON_FILTER = 'JSON'
 const JSON_EXTENSION = 'json'
 
-/** The open dialog, the size cap, and the import confirmation behind the controller. */
+/** The open dialog and the import confirmation behind the controller. */
 export function createSessionTransferFiles(): SessionTransferFiles {
   return {
     async pickTransferFile(title) {
@@ -30,27 +30,25 @@ export function createSessionTransferFiles(): SessionTransferFiles {
         throw new Error(UI_TEXT.transferLocalFileOnly)
       }
       const expectedCanonicalPath = await canonicalPath(target.fsPath)
+      // A share file reads whole at any size (D121: the removed 16 MiB
+      // ceiling and the removed 20,000-item bound were invented), so every
+      // file written can be read back; a transcript of any length parses.
       const { bytes, isMissing } = await readPickedFile(
         target.fsPath,
-        SESSION_EXPORT_MAX_BYTES,
+        Infinity,
         expectedCanonicalPath,
-        SESSION_EXPORT_MAX_BYTES,
+        Infinity,
       )
       // Moved or deleted (a sync client) between the dialog and the read.
-      if (isMissing) {
+      // The read is unbounded, so missing bytes mean the same: the file
+      // went away.
+      if (isMissing || bytes === undefined) {
         throw new Error(UI_TEXT.transferFileMissing)
-      }
-      if (bytes === undefined) {
-        return { kind: 'tooLarge' }
       }
       // Invalid UTF-8 is refused rather than read as replacement characters,
       // in the panel's language (the decoder's own message is English); a
-      // byte-order mark is dropped.
-      try {
-        return { kind: 'read', content: new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
-      } catch {
-        throw new Error(UI_TEXT.textFileInvalid)
-      }
+      // byte-order mark is dropped. The refusal carries its cause.
+      return { kind: 'read', content: decodeTransferBytes(bytes) }
     },
     async confirmImport(title, detail) {
       return (

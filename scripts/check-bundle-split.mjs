@@ -30,11 +30,22 @@
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
 //   requires the first time one is used.
-// - the vault's window (M109: the panel host and the native editor) is in
+// - the vault's window (M109: the panel host and the broker client) is in
 //   dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
 //   dist/vault.js, which dist/extension.js requires on the first vault
 //   command. Only types and the loader (vaultPanelBundle.ts) stay at
-//   activation.
+//   activation. The vault's explicit-action code (RVAPP-CM1091D5: the native
+//   editor, the write-only crypto, the action dialogs) is in
+//   dist/extension.js, dist/modelApi.js, dist/acp.js or dist/vault.js, or
+//   missing from dist/vaultActions.js, which dist/vault.js requires on the
+//   first action that needs it. Only types and the loader
+//   (vaultActionsBundle.ts) stay in the opening bundle.
+// - the Muse Code backend (PR206: the host, its notification mapping and
+//   the SDK) is in dist/extension.js, or missing from dist/museCode.js,
+//   which the backend manager requires the first time that backend starts.
+//   Only types and the loader (museCodeBundle.ts) stay at activation; the
+//   governor's spawn glue (museResourceLaunch.ts) stays too and takes its
+//   spawn paths from the loaded bundle.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -95,7 +106,10 @@ import {
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
   MODEL_API_TOOLS_ONLY,
+  MODEL_API_VERIFY_ONLY,
+  MODEL_API_IMAGE_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
+  EXEC_GUARD_BUNDLE,
   checkDeferredBundles,
   checkResourceBundles,
 } from './lib/deferredBundles.mjs'
@@ -148,7 +162,9 @@ const ACTIVATION_ALLOWED = new Map([
     'shared paid admission bound by panel and runtime managers (M101)',
   ],
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
-  ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
+  // imageGeneration.ts loads with the image chunk on the backend's first
+  // image call (MODEL_API_IMAGE_ONLY); activation keeps its own copy for
+  // the `ide` image tools (M44), whose MODEL_TEXT keys it reads.
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
@@ -199,22 +215,27 @@ const LAZY_ONLY = [
   // MODELAPIDIET: the hook call fields load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
   // M95-I: policy stays out of activation/ACP; the provider/reviewer bundles also read it.
   'modelPolicy.ts',
+  // The plan catalogue's facts type and send-path resolution beside the policy.
+  'planFacts.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
+  // TOOLCAP: the one tool-result bound every result passes before the conversation.
+  'toolResultBound.ts',
   'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).
   'reviewer.ts',
+  // A playback's instructions and refusal (D203): the Model API backend's no-tools turn.
+  'playback.ts',
   'sessionBudget.ts',
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
   // M81: what a browser check hands the model and the row.
   'browserCalls.ts',
-  // The verify loop's session side and its tool surface (M68).
-  'verifyLedger.ts',
-  'verifyLoop.ts',
+  // The verify loop's tool surface (M68): its loop, ledger and history
+  // load with dist/modelApiVerify.js (MODEL_API_VERIFY_ONLY).
   'verifyTools.ts',
 
   // M91-M: MCP forms' types and log text load with the backend; their checks
@@ -283,6 +304,8 @@ for (const name of onDisk) {
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
     Number(MODEL_API_TOOLS_ONLY.includes(name)) +
+    Number(MODEL_API_VERIFY_ONLY.includes(name)) +
+    Number(MODEL_API_IMAGE_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -304,6 +327,8 @@ for (const name of [
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
   ...MODEL_API_TOOLS_ONLY,
+  ...MODEL_API_VERIFY_ONLY,
+  ...MODEL_API_IMAGE_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -336,6 +361,22 @@ for (const source of [
   for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi])
     if (inputsOf(bundle).has(source))
       problems.push(`${bundle.output} carries lazy sharing implementation ${source}`)
+}
+// M124 (D106): the MCP connector loads only on `muse-spark-code-acp mcp`;
+// dist/acp.js keeps the loader alone, and activation carries none of it.
+const CONNECTOR = { output: 'dist/connector.js', metafile: 'dist/meta/connector.json' }
+for (const source of [
+  'src/runtime/connector/entry.ts',
+  'src/core/connector/registry.ts',
+  'src/core/connector/approval.ts',
+  'src/core/connector/protocol.ts',
+  'src/runtime/connector/approvalPage.ts',
+]) {
+  if (!inputsOf(CONNECTOR).has(source))
+    problems.push(`${CONNECTOR.output} no longer carries ${source}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi])
+    if (inputsOf(bundle).has(source))
+      problems.push(`${bundle.output} carries lazy connector implementation ${source}`)
 }
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
@@ -526,6 +567,7 @@ const MODEL_API_SESSIONS = {
   metafile: 'dist/meta/modelApiSessions.json',
 }
 const RULES_FILE = { output: 'dist/rulesFile.js', metafile: 'dist/meta/rulesFile.json' }
+const NATIVE_GIT = { output: 'dist/nativeGit.js', metafile: 'dist/meta/nativeGit.json' }
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
@@ -643,6 +685,7 @@ for (const bundle of [
   CHECKPOINT_STORE,
   PROMPTS,
   SHARING_RUNTIME,
+  CONNECTOR,
   REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,
@@ -699,10 +742,17 @@ for (const file of REVIEW_ONLY) {
 // loads on the first vault command. Only types and the loader
 // (vaultPanelBundle.ts) stay at activation.
 const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
-const VAULT_ONLY = [
-  'src/host/vault/vaultPanelEntry.ts',
-  'src/host/vault/vaultPanelHost.ts',
+const VAULT_ONLY = ['src/host/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPanelHost.ts']
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (the native editor,
+// the write-only crypto, the action dialogs) loads on the first action that
+// needs it as dist/vaultActions.js. The fault class moved to its own small
+// module so ambient discovery no longer pulls the migration record schema.
+const VAULT_ACTIONS = { output: 'dist/vaultActions.js', metafile: 'dist/meta/vaultActions.json' }
+const VAULT_ACTIONS_ONLY = [
+  'src/host/vault/vaultActionsEntry.ts',
+  'src/host/vault/vaultActionDialogs.ts',
   'src/host/vault/vaultNativeEditor.ts',
+  'src/core/vault/crypto.ts',
 ]
 const vault = inputsOf(VAULT)
 for (const file of VAULT_ONLY) {
@@ -713,6 +763,128 @@ for (const file of VAULT_ONLY) {
   }
   if (!vault.has(file)) {
     problems.push(`${VAULT.output} no longer carries ${file}`)
+  }
+}
+// C-M109-1b: portable broker composition and POSIX native adapters load in their child only.
+const VAULT_BROKER = { output: 'dist/vaultBroker.js', metafile: 'dist/meta/vaultBroker.json' }
+const vaultBroker = inputsOf(VAULT_BROKER)
+for (const file of [
+  'src/runtime/vault/vaultBrokerEntry.ts',
+  'src/runtime/vault/brokerProcess.ts',
+  'src/runtime/vault/posixNative.ts',
+  'src/runtime/vault/slots/osStoreVaultSlot.ts',
+  'src/runtime/vault/slots/linuxVaultSlots.ts',
+  'src/runtime/vault/slots/macVaultSlots.ts',
+  'src/runtime/vault/slots/windowsVaultSlots.ts',
+]) {
+  if (!vaultBroker.has(file)) problems.push(`${VAULT_BROKER.output} no longer carries ${file}`)
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]])
+    if (inputs.has(file))
+      problems.push(`${output} carries ${file}, which belongs to the broker child`)
+}
+const VAULT_BINDINGS = {
+  output: 'dist/vaultBrokerBindings.js',
+  metafile: 'dist/meta/vaultBrokerBindings.json',
+}
+const vaultBindings = inputsOf(VAULT_BINDINGS)
+if (!vaultBindings.has('src/runtime/vault/brokerBindings.ts'))
+  problems.push(`${VAULT_BINDINGS.output} no longer carries the installed binding factory`)
+for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]])
+  if (inputs.has('src/runtime/vault/brokerBindings.ts'))
+    problems.push(`${output} carries the child-only vault binding factory`)
+const VAULT_STORE = { output: 'dist/vaultStore.js', metafile: 'dist/meta/vaultStore.json' }
+const vaultStore = inputsOf(VAULT_STORE)
+for (const file of ['src/core/vault/store.ts', 'src/core/vault/crypto.ts']) {
+  if (!vaultStore.has(file)) problems.push(`${VAULT_STORE.output} no longer carries ${file}`)
+  for (const [output, inputs] of [
+    [VAULT.output, vault],
+    [VAULT_BROKER.output, vaultBroker],
+    [VAULT_BINDINGS.output, vaultBindings],
+  ])
+    if (inputs.has(file))
+      problems.push(`${output} duplicates the shared vault store/error identity`)
+}
+const VAULT_POSIX = { output: 'dist/vaultPosix.js', metafile: 'dist/meta/vaultPosix.json' }
+const vaultPosix = inputsOf(VAULT_POSIX)
+if (!vaultPosix.has('src/runtime/vault/posixClientPlatform.ts'))
+  problems.push(`${VAULT_POSIX.output} no longer carries POSIX discovery and launch`)
+for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
+  if (inputs.has('src/runtime/vault/posixClientPlatform.ts'))
+    problems.push(`${output} duplicates the first-use POSIX vault platform`)
+const VAULT_WINDOWS = { output: 'dist/vaultWindows.js', metafile: 'dist/meta/vaultWindows.json' }
+const vaultWindows = inputsOf(VAULT_WINDOWS)
+if (!vaultWindows.has('src/runtime/vault/windowsClientPlatform.ts'))
+  problems.push(`${VAULT_WINDOWS.output} no longer carries Windows discovery and launch`)
+for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
+  if (inputs.has('src/runtime/vault/windowsClientPlatform.ts'))
+    problems.push(`${output} duplicates the first-use Windows vault platform`)
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code loads on the first
+// action that needs it, never with the panel, the activation or the agents.
+const vaultActions = inputsOf(VAULT_ACTIONS)
+for (const file of VAULT_ACTIONS_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [VAULT.output, vault],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which loads only on first action`)
+    }
+  }
+  if (!vaultActions.has(file)) {
+    problems.push(`${VAULT_ACTIONS.output} no longer carries ${file}`)
+  }
+}
+// The migration record schema stays broker-side: the opening bundle names
+// only the fault class from its own small module.
+if (vault.has('src/core/vault/migrate/ports.ts')) {
+  problems.push(
+    `${VAULT.output} carries src/core/vault/migrate/ports.ts, which loads only broker-side`,
+  )
+}
+// RVMEDIAV 8 (M105): the window's attached-media registry, the attach port's
+// open hook and D85.7's contributor consent load with dist/mediaHost.js on
+// the first attach. Activation keeps only the registry's delegating holder
+// and the loader: never the entry, the registry's class (its duplicate-token
+// refusal is the marker) or the consent's question (its one reader).
+const MEDIA_HOST = { output: 'dist/mediaHost.js', metafile: 'dist/meta/mediaHost.json' }
+const mediaHost = inputsOf(MEDIA_HOST)
+if (activation.has('src/host/media/mediaHostEntry.ts'))
+  problems.push(`${BUNDLES.activation.output} carries src/host/media/mediaHostEntry.ts`)
+for (const file of ['src/core/media/attachedMedia.ts', 'src/core/media/contributorConsent.ts'])
+  if (!mediaHost.has(file)) problems.push(`${MEDIA_HOST.output} no longer carries ${file}`)
+const activationText = readFileSync(BUNDLES.activation.output, 'utf8')
+if (activationText.includes('Duplicate media path token'))
+  problems.push(`${BUNDLES.activation.output} carries the attached-media registry`)
+if (/\.contributorQuestion\b/u.test(activationText))
+  problems.push(`${BUNDLES.activation.output} carries the contributor consent`)
+// The key-store migration's own chunk (D89.14 lane M, dist/vaultMigration.js)
+// loads on the first unlock edge, never with the panel or at activation:
+// the engine, its codecs and the first-party reader travel here.
+const VAULT_MIGRATION = {
+  output: 'dist/vaultMigration.js',
+  metafile: 'dist/meta/vaultMigration.json',
+}
+const VAULT_MIGRATION_ONLY = [
+  'src/host/vault/vaultMigrationEntry.ts',
+  'src/host/vault/migrateCredentials.ts',
+  'src/core/vault/migrate/migrate.ts',
+  'src/core/vault/broker/firstParty.ts',
+]
+const vaultMigration = inputsOf(VAULT_MIGRATION)
+for (const file of VAULT_MIGRATION_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [VAULT.output, vault],
+    [VAULT_ACTIONS.output, vaultActions],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which loads only on the first unlock edge`)
+    }
+  }
+  if (!vaultMigration.has(file)) {
+    problems.push(`${VAULT_MIGRATION.output} no longer carries ${file}`)
   }
 }
 // M83: the import from other agents loads on the first import.
@@ -769,6 +941,9 @@ const GIT_ONLY = [
   'src/host/git/gitWindow.ts',
   'src/host/git/gitExtension.ts',
   'src/host/git/githubSession.ts',
+  'src/host/git/nativeGitBundle.ts',
+  'src/host/git/nativeRepository.ts',
+  'src/core/git/githubSignIn.ts',
   'src/host/git/heldCheckout.ts',
   'src/host/git/pullRequestCheckout.ts',
   'src/host/git/pullRequestLinks.ts',
@@ -799,6 +974,10 @@ for (const file of GIT_ONLY) {
 const MODEL_API_SESSIONS_ONLY = [
   'src/host/backend/fileSessionStore.ts',
   'src/host/backend/fileSessionStoreEntry.ts',
+  // PR226W1: the uploaded-files binding ships beside the store (ACTBUD017);
+  // activation builds the conversation port through the sessions loader.
+  'src/host/backend/uploadedFilesBinding.ts',
+  'src/core/media/uploadedFiles.ts',
 ]
 const modelApiSessions = inputsOf(MODEL_API_SESSIONS)
 for (const file of MODEL_API_SESSIONS_ONLY) {
@@ -812,6 +991,29 @@ for (const file of MODEL_API_SESSIONS_ONLY) {
   }
 }
 
+// M123: the native Git route (the runtime adapter, its service and lease, the
+// runtime's pull requests) loads only in a host without `vscode.git`; the
+// conversation Git bundle keeps its checked loader and the route's types.
+const NATIVE_GIT_ONLY = [
+  'src/runtime/panel/git/nativeGitEntry.ts',
+  'src/runtime/panel/git/adapter.ts',
+  'src/runtime/panel/git/service.ts',
+  'src/runtime/panel/git/transaction.ts',
+  'src/runtime/panel/git/confinedFiles.ts',
+  'src/runtime/panel/pullRequests/pullRequests.ts',
+]
+const nativeGit = inputsOf(NATIVE_GIT)
+for (const file of NATIVE_GIT_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, CONVERSATION_GIT]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the native Git route`)
+    }
+  }
+  if (!nativeGit.has(file)) {
+    problems.push(`${NATIVE_GIT.output} no longer carries ${file}`)
+  }
+}
+
 // ACTROOM: the Create AGENTS.md command loads when that command runs;
 // activation keeps the checked loader and the command's types.
 const RULES_FILE_ONLY = [
@@ -819,6 +1021,20 @@ const RULES_FILE_ONLY = [
   'src/host/commands/rulesFileEntry.ts',
   'src/core/context/rulesTemplate.ts',
 ]
+// The guarded process-start layer ships beside activation (PLAN.md D24);
+// every Node bundle requires it instead of carrying it.
+const EXEC_GUARD_ONLY = ['src/core/execGuardEntry.ts', 'src/core/execGuard.ts']
+const execGuard = inputsOf(EXEC_GUARD_BUNDLE)
+for (const file of EXEC_GUARD_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the guarded layer`)
+    }
+  }
+  if (!execGuard.has(file)) {
+    problems.push(`${EXEC_GUARD_BUNDLE.output} no longer carries ${file}`)
+  }
+}
 const rulesFile = inputsOf(RULES_FILE)
 for (const file of RULES_FILE_ONLY) {
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
@@ -834,10 +1050,12 @@ for (const file of RULES_FILE_ONLY) {
 }
 
 // M89: the bundled skills installer loads on its first install, removal or
-// offer; the activation bundle has its loader, its offer and its types only.
+// offer, and its two commands load with it; the activation bundle has its
+// loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
   'src/host/skills/bundledSkillsInstall.ts',
+  'src/host/skills/bundledSkillsCommands.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {
@@ -879,9 +1097,16 @@ const legalScannerFiles = existsSync('src/core/legal')
 const legalScanInputs = inputsOf(
   ON_FIRST_USE.find((bundle) => bundle.output === 'dist/legalScan.js'),
 )
+// The header-fix planner loads with dist/legalFix.js instead (guarded by its
+// own DEFERRED descriptor); it must be absent here, not present.
+const legalFixInputs = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/legalFix.js'))
 for (const file of legalScannerFiles) {
   // finding.ts exports only an erased type; the barrel can also be erased.
-  if (!legalScanInputs.has(file) && !['index.ts', 'finding.ts'].includes(path.basename(file)))
+  if (
+    !legalScanInputs.has(file) &&
+    !legalFixInputs.has(file) &&
+    !['index.ts', 'finding.ts'].includes(path.basename(file))
+  )
     problems.push(`dist/legalScan.js no longer carries ${file}`)
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
     if (inputsOf(bundle).has(file)) {
@@ -1005,7 +1230,24 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
+            // D89.14 lane M: the migration codecs parse the installed
+            // provider records, so the migration chunk carries their
+            // schemas beside the engine.
+            !(
+              output === VAULT_MIGRATION.output &&
+              ['modelRef.ts', 'accountCredentialRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
+            ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
+            // C-M113-2: the session and usage inputs read M102's journal
+            // through its store, whose static record import carries the card.
+            // Reporting never prices; the bytes ride the journal machinery.
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/reportInputs.js') &&
+            !(
+              input === 'src/core/providers/keyInspection.ts' &&
+              (output === 'dist/modelsPanel.js' || output === 'dist/runtimeAccounts.js')
+            ) &&
             !(
               output === 'dist/runtimeAccounts.js' &&
               ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
@@ -1082,6 +1324,14 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'SCHEDULE_MODEL_TEXT',
+    sentinels: ['unattendedNote', 'eventUntrusted'],
+    // SCHEDULEDELIVERY: the deferred editor delivery carries the block with
+    // the unattended run; dist/schedules.js no longer does once the binding
+    // loads beside it instead of inside it.
+    readers: ['dist/runtimeEngine.js', 'dist/scheduleDelivery.js'],
+  },
+  {
     block: 'MCP_POOL_MODEL_TEXT',
     sentinels: ['mcpArgumentsNotObject', 'mcpToolUnavailable'],
     readers: ['dist/modelApi.js', 'dist/modelApiMcp.js', 'dist/mcpPool.js'],
@@ -1121,7 +1371,11 @@ const TEXT_BLOCKS = [
     readers: [
       PROMPTS.output,
       SHARING_RUNTIME.output,
+      // M124's prompt share preview reuses M118's share contract with it.
+      CONNECTOR.output,
       'dist/conversation.js',
+      // CONVBUDGET: the session-transfer flows read the export redactions.
+      'dist/conversationTransfer.js',
       BUNDLES.modelApi.output,
       'dist/reporting.js',
       'dist/reportingNetwork.js',
@@ -1147,13 +1401,56 @@ const TEXT_BLOCKS = [
   },
   {
     block: 'MODEL_API_MODEL_TEXT',
-    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js', 'dist/modelApiMcp.js'],
+    // verifyUncheckedCodeLoading lives in VERIFY_MODEL_TEXT (its own entry
+    // below), not here.
+    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyAccessRefused'],
+    // The verify chunk reads two skip/outcome keys of this block, so it
+    // carries the block whole (one object is carried whole, D6).
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/mcpPool.js',
+      'dist/modelApiMcp.js',
+      'dist/modelApiVerify.js',
+      'dist/productionMedia.js',
+    ],
+  },
+  // The verify loop's own words (M68): the loop, its ledger and the
+  // diagnostics history read them through the lazy verify chunk. The two
+  // skip reasons the session itself reads stay in MODEL_API_MODEL_TEXT.
+  {
+    block: 'VERIFY_MODEL_TEXT',
+    sentinels: ['verifyChecksHeading', 'verifyUncheckedCodeLoading'],
+    readers: ['dist/modelApiVerify.js'],
+  },
+  // The packing store's own words (M73): the placeholder, the recalled
+  // pages and the background-note lead read through the lazy tools chunk.
+  // The session reads the lead too, so both bundles are declared readers.
+  {
+    block: 'PACK_MODEL_TEXT',
+    sentinels: ['packPlaceholder', 'backgroundEndedLead'],
+    readers: [BUNDLES.modelApi.output, 'dist/modelApiTools.js'],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
     readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
+  },
+  // A picked text file's template (M54): the backends' bundles and the
+  // conversation carry it; activation reads it no longer (PR206). The
+  // runtime media port formats picked text files over ACP/exec (M105),
+  // so it reads the block too.
+  {
+    block: 'TEXT_ATTACHMENT_MODEL_TEXT',
+    sentinels: ['attachedTextFile'],
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/museCode.js',
+      'dist/conversation.js',
+      'dist/runtimeEngine.js',
+      // M105 seam 5: the runtime media port formats text attachments on
+      // ingest through the attached-media registry.
+      'dist/runtimeMedia.js',
+    ],
   },
   {
     block: 'CHECKPOINT_MODEL_TEXT',
@@ -1168,7 +1465,8 @@ const TEXT_BLOCKS = [
   {
     block: 'GIT_MODEL_TEXT',
     sentinels: ['gitCommitInstructions', 'gitPullRequestInstructions'],
-    readers: [CONVERSATION_GIT.output],
+    // M123's native route builds the same drafts' prompts where vscode.git is missing.
+    readers: [CONVERSATION_GIT.output, NATIVE_GIT.output],
   },
   // The review turn's text (M70): the review's bundle, the Model API's
   // built-in Reviewer. The pane's one comment template has its own block.
@@ -1176,6 +1474,14 @@ const TEXT_BLOCKS = [
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
     readers: [REVIEW.output, BUNDLES.modelApi.output],
+  },
+  // The playback turn's text (D203): the review bundle builds it for the
+  // panel, the Model API's built-in no-tools turn reads it, and the runtime
+  // engine's ACP agent (editors and headless runs) sends it.
+  {
+    block: 'PLAYBACK_MODEL_TEXT',
+    sentinels: ['playbackRole', 'playbackNoTools'],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
   },
   // M116 K's charter is read through the existing lazy skills bundle only.
   {
@@ -1225,6 +1531,12 @@ const TEXT_BLOCKS = [
     block: 'JUDGE_MODEL_TEXT',
     sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
     readers: ['dist/judge.js'],
+  },
+  // M124: what another agent's model reads from the connector, `mcp` only.
+  {
+    block: 'CONNECTOR_MODEL_TEXT',
+    sentinels: ['reasonNoFleetStore', 'reasonScheduleGrant'],
+    readers: [CONNECTOR.output],
   },
 ].map((entry) => ({
   ...entry,
@@ -1415,6 +1727,8 @@ const deferredWebviewSources = [
   'src/webview/components/TeamCards.tsx',
   'src/core/prompts/promptSearch.ts',
   'src/shared/slashCommands.ts',
+  // Refusal validation loads with the boundary; it stays in the unchanged deferred aggregate.
+  'src/shared/estimateDiagnostic.ts',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
@@ -1514,6 +1828,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'referencePage.json',
         'modelsWebview.json',
         'usageWebview.json',
+        'voiceCompanionWebview.json',
         'resourceSurface.json',
         'resourceHistory.json',
         'reportingPageWebview.json',

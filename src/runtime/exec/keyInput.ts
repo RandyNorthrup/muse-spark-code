@@ -1,7 +1,6 @@
 // Bounded, cancellable stdin readers; never load a native credential module.
 import type { Readable } from 'node:stream'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
-import type { KeyShape } from '../../core/providers/presets'
 import { EXEC_KEY_MAX_BYTES, SECRET_KEYS, UI_TEXT } from '../../shared/constants'
 
 export interface MemorySecretStore extends SecretStore {
@@ -14,10 +13,10 @@ export function memorySecretStore(key: string): MemorySecretStore {
 }
 
 /**
- * Headless secrets held only in memory: each account's key, cleared when
- * the run ends. The map is exactly what the caller gave: a provider run
- * holds its provider's account, never the Meta key's alongside it.
- */
+Headless secrets held only in memory: each account's key, cleared when
+the run ends. The map is exactly what the caller gave: a provider run
+holds its provider's account, never the Meta key's alongside it.
+*/
 export function memorySecretStoreFor(entries: Readonly<Record<string, string>>): MemorySecretStore {
   const held = new Map(Object.entries(entries))
   return {
@@ -107,32 +106,49 @@ function readBytes(
   })
 }
 
-/** One bounded, wiped UTF-8 line, with the caller's key-shape validator. */
-async function readValidatedKeyLine(
+/**
+One bounded, wiped UTF-8 line from stdin. One CRLF line ending is
+accepted; any other white space or CR stays part of the value.
+*/
+async function readRawKeyLine(
   input: Readable,
   signal: AbortSignal,
-  isValid: (key: string) => boolean,
-): Promise<
-  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
-> {
+): Promise<{ ok: true; line: string } | { ok: false; reason: 'tty' | 'invalid' | 'tooLong' }> {
   if ('isTTY' in input && input.isTTY === true) {
     input.destroy()
     return { ok: false, reason: 'tty' }
   }
   const bytes = await readBytes(input, EXEC_KEY_MAX_BYTES, signal, true)
   if (bytes === undefined) return { ok: false, reason: 'tooLong' }
-  let key: string
   try {
-    // One CRLF line ending is accepted; any other white space or CR is part
-    // of the value and fails validation, as the Action's intake refuses it.
+    // Malformed bytes fail before validation: the replacement character is
+    // non-whitespace, so a key-shaped line around it would wrongly validate.
     const line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    key = line.endsWith('\r') ? line.slice(0, -1) : line
-  } catch {
+    return { ok: true, line: line.endsWith('\r') ? line.slice(0, -1) : line }
+  } catch (error: unknown) {
+    // Only malformed bytes fail here; anything else is not this read's answer.
+    if (!(error instanceof TypeError)) throw error
     return { ok: false, reason: 'invalid' }
   } finally {
     bytes.fill(0)
   }
+}
+
+/** A stdin key line: the key, or why none can be used. */
+export type KeyLineResult =
+  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
+
+/** One bounded stdin line, with the caller's key validator. */
+async function readValidatedKeyLine(
+  input: Readable,
+  signal: AbortSignal,
+  isValid: (key: string) => boolean,
+): Promise<KeyLineResult> {
+  const raw = await readRawKeyLine(input, signal)
+  if (!raw.ok) return raw
+  const key = raw.line
   if (key === '') return { ok: false, reason: 'empty' }
+  // Padded input fails validation, as the Action's intake refuses it.
   return key === key.trim() && isValid(key) ? { ok: true, key } : { ok: false, reason: 'invalid' }
 }
 
@@ -145,16 +161,40 @@ export async function readKeyLine(
   return await readValidatedKeyLine(input, signal, isValidModelApiKey)
 }
 
-/** Provider keys use the same bounded input and cleanup as Meta, with their own shape. */
+/**
+Provider keys use the same bounded input and cleanup as Meta. Any
+non-blank value is accepted: the provider judges it, never its shape.
+*/
 export async function readProviderKeyLine(
   input: Readable,
   signal: AbortSignal,
-  shape: KeyShape,
-): Promise<
-  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
-> {
-  const { presets } = await import('../../host/backend/providersEntry')
-  return await readValidatedKeyLine(input, signal, (key) => presets.isKeyShape(shape, key))
+): Promise<KeyLineResult> {
+  const raw = await readRawKeyLine(input, signal)
+  if (!raw.ok) return raw
+  const trimmed = raw.line.trim()
+  return trimmed === '' ? { ok: false, reason: 'empty' } : { ok: true, key: trimmed }
+}
+
+/**
+One sentence for each failed provider-key stdin read. Every caller that
+turns a failed stdin key read into words shares this mapping, so a cause
+is never answered with a sentence that is false for it.
+*/
+export function providerKeyFailureText(reason: 'tty' | 'empty' | 'invalid' | 'tooLong'): string {
+  switch (reason) {
+    case 'tty': {
+      return UI_TEXT.execKeyStdinTerminal
+    }
+    case 'empty': {
+      return UI_TEXT.providerKeyNotStored
+    }
+    case 'tooLong': {
+      return UI_TEXT.execKeyTooLong
+    }
+    case 'invalid': {
+      return UI_TEXT.providerKeyNotText
+    }
+  }
 }
 
 export async function readPromptStdin(

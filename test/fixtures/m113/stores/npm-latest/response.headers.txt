@@ -1,0 +1,6 @@
+HTTP/1.1 200 OK
+Date: Sun, 11 Oct 2026 17:17:43 GMT
+Content-Type: application/json
+Content-Length: 2377
+Cache-Control: max-age=300
+Vary: accept-encoding, accept

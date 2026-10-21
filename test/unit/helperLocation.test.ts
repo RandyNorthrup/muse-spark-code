@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { LINUX_DICTATION } from '../../src/shared/constants'
 import {
   helperEnvironment,
   locateCaptureHelper,
@@ -63,30 +64,92 @@ describe('locateDictationHelper', () => {
     expect(location.isAvailable ? '' : location.reason).toContain('Windows PowerShell')
   })
 
-  it('runs the compiled helper on macOS, naming the app macOS asks, when the build shipped it', () => {
-    const command = path.join(helperDir, 'darwin', 'muse-dictate')
+  it('runs each architecture’s own signed helper on macOS, naming the app macOS asks', () => {
+    for (const arch of ['arm64', 'x64'] as const) {
+      const app = `muse-dictate-screen-${arch}.app`
+      const command = path.join(helperDir, 'darwin', app, 'Contents', 'MacOS', 'muse-dictate')
+      const location = locateDictationHelper({
+        ...local,
+        platform: 'darwin',
+        systemRoot: undefined,
+        helperDir,
+        arch,
+        fileExists: (fsPath) => fsPath === command,
+      })
+      expect(location).toMatchObject({
+        isAvailable: true,
+        invocation: { command, args: ['--app-name', 'Visual Studio Code'] },
+      })
+      expect(location.isAvailable ? location.invocation.earlyExitHint : '').toMatch(
+        /^macOS ended the dictation helper before it was ready\./,
+      )
+      const missing = locateDictationHelper({
+        ...local,
+        platform: 'darwin',
+        systemRoot: undefined,
+        helperDir,
+        arch,
+        fileExists: () => false,
+      })
+      expect(missing.isAvailable ? '' : missing.reason).toContain(
+        `native/darwin/${app}/Contents/MacOS/muse-dictate`,
+      )
+    }
+  })
+
+  it('refuses macOS dictation on an architecture no helper ships for', () => {
     const location = locateDictationHelper({
       ...local,
       platform: 'darwin',
       systemRoot: undefined,
       helperDir,
-      fileExists: (fsPath) => fsPath === command,
+      arch: 'riscv64',
+      fileExists: () => true,
     })
-    expect(location).toMatchObject({
-      isAvailable: true,
-      invocation: { command, args: ['--app-name', 'Visual Studio Code'] },
-    })
-    expect(location.isAvailable ? location.invocation.earlyExitHint : '').toMatch(
-      /^macOS ended the dictation helper before it was ready\./,
-    )
-    const missing = locateDictationHelper({
+    expect(location).toMatchObject({ isAvailable: false })
+    expect(location.isAvailable ? '' : location.reason).toContain('muse-dictate-screen-riscv64.app')
+  })
+
+  it('locates the downloaded Linux helper beside the model before any download', () => {
+    for (const arch of ['x64', 'arm64']) {
+      const command = path.join('/storage', LINUX_DICTATION.helperBinary)
+      const location = locateDictationHelper({
+        ...local,
+        platform: 'linux',
+        systemRoot: undefined,
+        helperDir,
+        arch,
+        linuxModelPath: '/storage/model.bin',
+        // Nothing is bundled: availability never depends on files on disk.
+        fileExists: () => false,
+      })
+      expect(location).toEqual({
+        isAvailable: true,
+        invocation: {
+          command,
+          args: ['--model', '/storage/model.bin'],
+          stopGraceMs: LINUX_DICTATION.stopGraceMs,
+          environment: LINUX_DICTATION.environment,
+        },
+      })
+    }
+    const probe = {
       ...local,
-      platform: 'darwin',
+      platform: 'linux',
       systemRoot: undefined,
       helperDir,
-      fileExists: () => false,
-    })
-    expect(missing.isAvailable ? '' : missing.reason).toContain('native/darwin/muse-dictate')
+      linuxModelPath: '/storage/model.bin',
+    } as const
+    expect(
+      locateDictationHelper({ ...probe, arch: 'ia32', fileExists: () => true }).isAvailable,
+    ).toBe(false)
+    expect(
+      locateDictationHelper({ ...probe, arch: 'x64', fileExists: () => true }).isAvailable,
+    ).toBe(true)
+    expect(
+      locateDictationHelper({ ...probe, arch: 'x64', remoteName: 'ssh', fileExists: () => true })
+        .isAvailable,
+    ).toBe(false)
   })
 
   it('says why Linux and other platforms have no microphone', () => {
@@ -159,6 +222,43 @@ describe('helperEnvironment', () => {
     expect(env).toEqual({ Path: 'x', PSModulePath: String.raw`C:\Windows\Modules` })
   })
 
+  it('drops audio-server selectors from a Linux helper so capture stays local (RVCM9LNX P2)', () => {
+    const base = {
+      PULSE_SERVER: 'tcp:audio.example:4713',
+      PULSE_SINK: 'tunnel',
+      PULSE_SOURCE: 'tunnel.monitor',
+      PIPEWIRE_REMOTE: 'pipewire-0',
+      PIPEWIRE_CORE: 'remote',
+      PULSE_COOKIE: 'local-auth',
+      XDG_RUNTIME_DIR: '/run/user/1000',
+      HOME: '/home/user',
+      PATH: '/usr/bin',
+    }
+    const env = helperEnvironment(base, { command: 'muse-dictate', args: [] }, 'linux')
+    for (const name of [
+      'PULSE_SERVER',
+      'PULSE_SINK',
+      'PULSE_SOURCE',
+      'PIPEWIRE_REMOTE',
+      'PIPEWIRE_CORE',
+    ] as const) {
+      expect(env[name], name).toBeUndefined()
+    }
+    expect(env).toMatchObject({
+      PULSE_COOKIE: 'local-auth',
+      XDG_RUNTIME_DIR: '/run/user/1000',
+      HOME: '/home/user',
+      PATH: '/usr/bin',
+    })
+    expect(base.PULSE_SERVER).toBe('tcp:audio.example:4713')
+  })
+
+  it('leaves audio-server selectors alone off Linux', () => {
+    const base = { PULSE_SERVER: 'tcp:audio.example:4713' }
+    expect(helperEnvironment(base, { command: 'helper', args: [] }, 'darwin')).toMatchObject(base)
+    expect(helperEnvironment(base, { command: 'helper', args: [] }, 'win32')).toMatchObject(base)
+  })
+
   it('matches names exactly elsewhere, and leaves the base untouched', () => {
     const base = { PATH: 'x', PSMODULEPATH: 'keep' }
     expect(helperEnvironment(base, invocation, 'darwin')).toEqual({
@@ -177,7 +277,12 @@ function onPath(present: readonly string[]): (file: string) => boolean {
 }
 
 describe('locateCaptureHelper (M35)', () => {
-  const capture = { ...local, pathVariable: undefined }
+  const capture = {
+    ...local,
+    pathVariable: undefined,
+    workspaceRoot: '/home/person/work',
+    realpath: (filePath: string) => filePath,
+  }
 
   it('runs the capture script on Windows and the Swift helper in capture mode on macOS', () => {
     const windows = locateCaptureHelper({
@@ -197,13 +302,21 @@ describe('locateCaptureHelper (M35)', () => {
       platform: 'darwin',
       systemRoot: undefined,
       helperDir,
+      arch: 'arm64',
       fileExists: () => true,
     })
     expect(darwin).toMatchObject({
       isAvailable: true,
       kind: 'helper',
       invocation: {
-        command: path.join(helperDir, 'darwin', 'muse-dictate'),
+        command: path.join(
+          helperDir,
+          'darwin',
+          'muse-dictate-screen-arm64.app',
+          'Contents',
+          'MacOS',
+          'muse-dictate',
+        ),
         args: ['--capture', '--app-name', 'Visual Studio Code'],
       },
     })

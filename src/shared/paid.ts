@@ -1,3 +1,4 @@
+import { UserRefusalError } from './refusal'
 import { tokenRatePrice } from './tokenRatePrice'
 export { autoReviewPrice } from './reviewPriceText'
 import * as z from 'zod/mini'
@@ -34,7 +35,6 @@ import {
   type SETTING_DEFAULTS,
   PAID_PRICES_USD,
   type PaidFeature,
-  SUBAGENT_TASK_MAX_REQUESTS,
   UI_TEXT,
 } from './constants'
 import { fill, formatNumber } from './l10n/text'
@@ -89,11 +89,51 @@ export function searchSettlement(
 }
 export type PaidUseDecision = boolean | PaidQuote | undefined
 
+/**
+Why the paid-choice store could not be read or written, as a closed kind:
+the person is told its translated word (`paidStoreReasonText`), never an
+errno or an error's name.
+*/
+export type PaidStoreFailureKind = 'denied' | 'diskFull' | 'unknown'
+
+/** Maps a store throw onto the closed kind, from its errno code only. */
+export function paidStoreFailureKind(error: unknown): PaidStoreFailureKind {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : undefined
+  if (code !== undefined && ['EACCES', 'EPERM'].includes(code)) return 'denied'
+  return code !== undefined && ['ENOSPC', 'EDQUOT', 'EROFS'].includes(code) ? 'diskFull' : 'unknown'
+}
+
+/** The kind word for people: a closed translated phrase, read at call time. */
+export function paidStoreReasonText(kind: PaidStoreFailureKind): string {
+  switch (kind) {
+    case 'denied': {
+      return UI_TEXT.paidStoreReasonDenied
+    }
+    case 'diskFull': {
+      return UI_TEXT.paidStoreReasonDiskFull
+    }
+    case 'unknown': {
+      return UI_TEXT.paidStoreReasonUnknown
+    }
+  }
+}
+
+/**
+Saved "always" choices the quote store could not list when the question
+was asked: the store failure's closed kind, never its message. The surface
+shows its word with the question, so asking again never looks unexplained.
+*/
+export interface PaidQuoteNotice {
+  readonly kind: PaidStoreFailureKind
+}
+
 export interface SubagentTaskConfirmation {
   readonly role: string
   readonly objective: string
   readonly modelId: string
-  readonly attemptLimit: number
 }
 
 export interface SubagentUsage {
@@ -188,8 +228,12 @@ export function paidWindowOnceFeatures(): ReadonlySet<PaidFeature> {
   return new Set(PAID_FEATURES.filter((feature) => PAID_USE_REGISTRY[feature].once === 'window'))
 }
 
-/** Exact published rates and the task's HTTP attempt cap, in the installed locale. */
-export function subagentTaskPrice(modelId: string, attemptLimit: number): string {
+/**
+Exact published rates, in the installed locale. D121: no request cap of
+ours — the card prices the task from the rates, and every request is
+tallied as it goes until the task ends or is stopped.
+*/
+export function subagentTaskPrice(modelId: string): string {
   const tier = modelApiPaidTier(modelId)
   if (tier === undefined) {
     return UI_TEXT.subagentTariffUnknown
@@ -200,16 +244,15 @@ export function subagentTaskPrice(modelId: string, attemptLimit: number): string
     input: formatUsd(rates.input, MODEL_API_PRICE_DECIMALS),
     cached: formatUsd(rates.cachedInput, MODEL_API_PRICE_DECIMALS),
     output: formatUsd(rates.output, MODEL_API_PRICE_DECIMALS),
-    limit: formatNumber(attemptLimit),
   })
 }
 
 /**
- * One paid use the user is asked about (M58, PLAN.md D48): what the popup
- * names before anything is billed. Interactive web search Once covers the window
- * under the same model and price binding; each response still carries its own
- * validated quote and bounded search reservation.
- */
+One paid use the user is asked about (M58, PLAN.md D48): what the popup
+names before anything is billed. Interactive web search Once covers the window
+under the same model and price binding; each response still carries its own
+validated quote and bounded search reservation.
+*/
 export type PaidUseRequest =
   | {
       readonly feature: 'autoCompaction'
@@ -221,6 +264,7 @@ export type PaidUseRequest =
       readonly feature: 'webSearch'
       readonly priceUsd: UsdAmount
       readonly quote?: PaidQuote
+      readonly quoteNotice?: PaidQuoteNotice
       readonly isCurrent?: () => boolean
     }
   | { readonly feature: 'voice' }
@@ -233,7 +277,21 @@ export type PaidUseRequest =
       readonly sources: readonly string[]
       readonly prompt: string
     }
-  | { readonly feature: 'scheduledPrompts'; readonly prompt: string; readonly modelId: string }
+  | {
+      readonly feature: 'scheduledPrompts'
+      readonly prompt: string
+      readonly modelId: string
+      /** D95 consent belongs to this schedule, never the workspace's extra grant. */
+      readonly schedule?: {
+        readonly id: string
+        readonly price: string
+        readonly cadence: string
+        readonly dailyCapUsd: UsdAmount
+        readonly sharedDailyBudgetUsd: UsdAmount
+        readonly extras: readonly PaidFeature[]
+        readonly payerKind: 'paidKey'
+      }
+    }
   | { readonly feature: 'subagents'; readonly task: SubagentTaskConfirmation }
   | {
       readonly feature: 'autoReviewer'
@@ -281,10 +339,10 @@ export type PaidUseRequest =
 export { paidFeatureName, usablePaidFeatures } from './paidBoundary'
 
 /**
- * The paid features Account & usage lists (the review of PR #30): the ones
- * this backend can use, and any this window has already used, whatever the
- * backend now, so its total is the sum of the rows it shows.
- */
+The paid features Account & usage lists (the review of PR #30): the ones
+this backend can use, and any this window has already used, whatever the
+backend now, so its total is the sum of the rows it shows.
+*/
 export function listedPaidFeatures(
   usable: readonly PaidFeature[],
   tally: PaidTally,
@@ -325,10 +383,10 @@ function tokenRatesByTier(): string {
 }
 
 /**
- * What a best-of-N run may bill (M77, PLAN.md D49): the per-token rates of
- * the model, the attempt count and the request ceiling per attempt. The
- * total cannot be known in advance, so the popup quotes exactly these.
- */
+What a best-of-N run may bill (M77, PLAN.md D49): the per-token rates of
+the model, the attempt count and the request ceiling per attempt. The
+total cannot be known in advance, so the popup quotes exactly these.
+*/
 export function bestOfNPrice(
   modelId: string,
   attempts: number,
@@ -350,10 +408,10 @@ export function bestOfNPrice(
 }
 
 /**
- * What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
- * rates of the model. The total cannot be known in advance, so the popup
- * quotes exactly these; unknown models cannot authorize a hook run.
- */
+What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
+rates of the model. The total cannot be known in advance, so the popup
+quotes exactly these; unknown models cannot authorize a hook run.
+*/
 export function hookModelPrice(modelId: string): string {
   const tier = modelApiPaidTier(modelId)
   return tier === undefined ? UI_TEXT.subagentTariffUnknown : tokenRatePrice(tier)
@@ -370,7 +428,7 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
         !nonnegativeUsdSchema.safeParse(price).success ||
         Usd.from(price).compare(Usd.from(0)) < 0
       )
-        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
       return fill(UI_TEXT.paidWebSearchPrice, {
         price: formatUsd(multiplyUsd(price, SEARCHES_PER_PRICE_UNIT), 2),
       })
@@ -392,11 +450,8 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
     }
     case 'subagents': {
       return [
-        subagentTaskPrice(DEFAULT_MODEL_ID, SUBAGENT_TASK_MAX_REQUESTS),
-        subagentTaskPrice(
-          `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
-          SUBAGENT_TASK_MAX_REQUESTS,
-        ),
+        subagentTaskPrice(DEFAULT_MODEL_ID),
+        subagentTaskPrice(`${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`),
       ].join('\n')
     }
     case 'bestOfN': {

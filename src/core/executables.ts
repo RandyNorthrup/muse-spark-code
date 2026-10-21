@@ -1,3 +1,6 @@
+import { realpathSync } from 'node:fs'
+import { noWorkspaceChildEnvironment } from './execGuard'
+
 // Finding a program on PATH without the working directory (PLAN.md D24).
 // A bare name handed to `spawn` / `execFile` is looked up by the platform:
 // libuv on Windows tries the current directory before PATH, and an empty or
@@ -8,53 +11,84 @@
 // shell (a `.cmd` needs one, and a shell string is banned, D4). Pure: the
 // file probe is injected.
 
-import path from 'node:path'
+/**
+The explicit "no workspace" scope for a capability probe before any folder
+is known: absolute PATH entries only, links followed. Grep for
+`NO_WORKSPACE` to review every such probe: each must never execute a
+program planted in a workspace, so it resolves fixed absolute paths or
+re-resolves once a workspace is known.
+*/
+export const NO_WORKSPACE = 'absolute-entries-only-links-followed' as const
+
+/**
+Where an executable lookup runs: a workspace root with its link resolver
+(directories inside it are never probed), or the explicit no-workspace
+scope above. Both carry the realpath function: forgetting either is a
+type error, so the compiler lists every call site that skipped the guard.
+*/
+export type ExecutableScope =
+  | {
+      readonly workspaceRoot: string
+      readonly realpath: (filePath: string) => string
+    }
+  | {
+      readonly noWorkspace: typeof NO_WORKSPACE
+      readonly realpath: (filePath: string) => string
+    }
 
 export interface ExecutableProbe {
   readonly platform: NodeJS.Platform
   /** The PATH value, unsplit. */
   readonly pathVariable: string | undefined
   readonly fileExists: (filePath: string) => boolean
+  /** REQUIRED: the workspace the child runs in, or the explicit no-workspace scope. */
+  readonly scope: ExecutableScope
 }
 
-// `execFile` starts these directly; batch files need a shell.
-const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.com'] as const
+export interface WorkspacePathSanitizeProbe {
+  readonly platform: NodeJS.Platform
+  /** The PATH value, unsplit. */
+  readonly pathVariable: string | undefined
+  /** The workspace the child runs in (its working directory). */
+  readonly workspaceRoot: string
+  /**
+  Resolves links in an entry or the workspace root; may throw (an entry
+  that cannot be resolved is compared lexically instead). Injected so the
+  Windows, macOS and Linux branches are all unit-tested on any OS.
+  */
+  readonly realpath: (filePath: string) => string
+}
 
-/** The absolute, non-empty entries of a PATH value, in order. */
-export function absolutePathEntries(
-  platform: NodeJS.Platform,
-  pathVariable: string | undefined,
-): readonly string[] {
-  const p = platform === 'win32' ? path.win32 : path.posix
-  const separator = platform === 'win32' ? ';' : ':'
-  return (pathVariable ?? '')
-    .split(separator)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== '' && p.isAbsolute(entry))
+export interface WorkspaceChild {
+  /** The workspace the child runs in (its working directory). */
+  readonly workspaceRoot: string
+  /**
+  Resolves links in an entry or the workspace root; may throw (an entry
+  that cannot be resolved is compared lexically instead). REQUIRED: a
+  lexical-only comparison keeps a symlink into the workspace on PATH.
+  */
+  readonly realpath: (filePath: string) => string
+}
+
+declare const guardedChildEnvBrand: unique symbol
+
+/**
+A child environment the guard produced: only `workspaceChildEnvironment`
+(or `noWorkspaceChildEnvironment` for the explicit no-workspace probe)
+can make one. Every spawn helper for a product-chosen program takes this
+type, so passing a raw `process.env` is a type error the compiler lists.
+*/
+export type GuardedChildEnv = NodeJS.ProcessEnv & {
+  readonly [guardedChildEnvBrand]: true
 }
 
 /**
- * The absolute path of `name` on PATH, or undefined when it is not there. On
- * Windows a name that already ends in `.exe` or `.com` (the OS adapters'
- * `rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
- * any other name gets those extensions, so a batch file never resolves.
- */
-export function resolveExecutable(name: string, probe: ExecutableProbe): string | undefined {
-  const p = probe.platform === 'win32' ? path.win32 : path.posix
-  const isNamedExecutable = WINDOWS_EXECUTABLE_EXTENSIONS.some((extension) =>
-    name.toLowerCase().endsWith(extension),
-  )
-  const candidates =
-    isNamedExecutable || probe.platform !== 'win32'
-      ? [name]
-      : WINDOWS_EXECUTABLE_EXTENSIONS.map((extension) => `${name}${extension}`)
-  for (const directory of absolutePathEntries(probe.platform, probe.pathVariable)) {
-    for (const candidate of candidates) {
-      const full = p.join(directory, candidate)
-      if (probe.fileExists(full)) {
-        return full
-      }
-    }
-  }
-  return undefined
+The guarded environment for a fixed absolute probe (`/bin/ps`,
+`/usr/bin/getconf`, the compiled tree helpers, SystemRoot PowerShell):
+absolute PATH entries only, links followed — never a PATH search, so a
+planted program never runs. The call sites name this form explicitly
+instead of leaving the environment unguarded.
+*/
+export function probeChildEnvironment(env: NodeJS.ProcessEnv): GuardedChildEnv {
+  return noWorkspaceChildEnvironment(process.platform, env, realpathSync)
 }

@@ -8,7 +8,7 @@ import { Buffer } from 'node:buffer'
 import { randomBytes } from 'node:crypto'
 import {
   BROWSER_CHECK_MARKER_BYTES,
-  MAX_IMAGE_BYTES,
+  META_IMAGE_MAX_BYTES,
   MODEL_API_MODEL_TEXT,
   PNG_MEDIA_TYPE,
   UI_TEXT,
@@ -45,9 +45,12 @@ export function browserCheckOutcome(url: string, result: BrowserCheckResult): To
   if (!result.ok) {
     return browserCheckRefused(browserRefusal(result.failure))
   }
-  // The image limit is the model's: a screenshot past it is left out.
+  // D121: the image limit is the model's own documented one (Meta: 50 MB
+  // inline) — a screenshot past it is left out with the report still whole,
+  // never a refusal. Other providers answer for their own sizes at send.
   const report =
-    result.report.screenshot !== undefined && result.report.screenshot.png.length > MAX_IMAGE_BYTES
+    result.report.screenshot !== undefined &&
+    result.report.screenshot.png.length > META_IMAGE_MAX_BYTES
       ? { ...result.report, screenshot: undefined }
       : result.report
   const output = browserReportText(

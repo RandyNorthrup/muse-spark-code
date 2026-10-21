@@ -2,8 +2,10 @@
 // default loopback ports and reports what answered, so the panel prefills
 // it. Plain HTTP, but loopback only (D74's transport rule): the targets come
 // from the presets, and the fetch runs with a short timeout per port. The
-// fetch itself is injected (VS Code's patched fetch, or `node:http`
-// directly where that would proxy loopback: M95 step 1).
+// fetch itself is injected; production passes `fetchLoopback` (`node:http`
+// directly: VS Code's patched fetch honors `http.proxy`, and its loopback
+// bypass depends on the user's settings and VS Code version, so the probe
+// never uses it. Loopback needs no proxy at all.)
 
 import {
   HTTP_STATUS,
@@ -25,10 +27,10 @@ export interface LocalProbeResult {
 }
 
 /**
- * Probes every target at once. A refused connection, a timeout and a
- * non-2xx answer all read as unanswered: the panel only prefills what
- * answered.
- */
+Probes every target at once. A refused connection, a timeout and a
+non-2xx answer all read as unanswered: the panel only prefills what
+answered.
+*/
 export async function probeLocalServers(
   targets: readonly LocalProbeTarget[],
   fetchImpl: typeof fetch,
@@ -57,15 +59,31 @@ export async function probeLocalServers(
           status: response.status,
           snippet: isAnswered ? body.slice(0, LOCAL_PROBE_SNIPPET_CHARS) : '',
         }
-      } catch {
-        return {
-          host: target.host,
-          port: target.port,
-          path: target.path,
-          answered: false,
-          status: undefined,
-          snippet: '',
+      } catch (error: unknown) {
+        // Our own timeout aborts the probe, and a refused loopback
+        // connection answers nothing: both read as unanswered. A failure
+        // from the fetch itself is not an answer either way, so it rejects.
+        if (controller.signal.aborted) {
+          return {
+            host: target.host,
+            port: target.port,
+            path: target.path,
+            answered: false,
+            status: undefined,
+            snippet: '',
+          }
         }
+        if (error instanceof TypeError) {
+          return {
+            host: target.host,
+            port: target.port,
+            path: target.path,
+            answered: false,
+            status: undefined,
+            snippet: '',
+          }
+        }
+        throw error
       } finally {
         clearTimeout(timer)
       }

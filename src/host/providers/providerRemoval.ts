@@ -37,17 +37,17 @@ export interface ProviderRemovalDeps {
 
 export interface ProviderRemoval {
   /**
-   * Removes the provider from the file and schedules its secret's
-   * deletion. The removed entry, for the Undo bar; undefined when no such
-   * provider is configured.
-   */
+  Removes the provider from the file and schedules its secret's
+  deletion. The removed entry, for the Undo bar; undefined when no such
+  provider is configured.
+  */
   remove(id: string): Promise<ProviderEntry | undefined>
   /** Restores a removed provider with its key; false when its window passed. */
   undo(id: string): Promise<boolean>
   /**
-   * Finishes removals a closed window left behind: deletes their secrets.
-   * Throws naming the ids whose secret survived, after attempting them all.
-   */
+  Finishes removals a closed window left behind: deletes their secrets.
+  Throws naming the ids whose secret survived, after attempting them all.
+  */
   completePending(): Promise<void>
 }
 
@@ -63,12 +63,11 @@ export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemova
         await previous
         return await run()
       })()
+      // A failure already reached the caller through `next`: the chain
+      // only sequences later work, so observing its settlement (never its
+      // rejection) keeps every later operation running.
       operations = (async () => {
-        try {
-          await next
-        } catch {
-          return
-        }
+        await Promise.allSettled([next])
       })()
       return next
     })

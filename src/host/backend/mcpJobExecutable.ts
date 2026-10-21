@@ -2,16 +2,19 @@
 // starts this executable directly; its compiler is started directly too.
 // M27's shell-job DLL remains separate for shell commands.
 
-import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import {
   MCP_JOB_SELF_TEST_ARGUMENT,
   MCP_JOB_SELF_TEST_TOKEN,
   SHELL_JOB_FOLDER,
 } from '../../shared/constants'
-import { runProgram } from '../processTree'
-import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { ShellJobDeps } from './shellJob'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { runProgram } from '../processTree'
+import { realpathSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import { isResourceHelperChanged, sealHelper, wasHelperChanged } from './helperIntegrity'
 
 /** A self-tested helper and its per-use check (SPAWN017C): never run once changed. */
@@ -31,8 +34,12 @@ async function isPresent(file: string): Promise<boolean> {
   try {
     const fileInfo = await stat(file)
     return fileInfo.isFile()
-  } catch {
-    return false
+  } catch (error: unknown) {
+    // Anything but a missing file is not this probe's to swallow.
+    if (isStoreErrorCode(error, 'ENOENT')) {
+      return false
+    }
+    throw error
   }
 }
 
@@ -53,9 +60,12 @@ export function mcpJobExecutableName(csharp: string): string {
 async function verify(executable: string, deps: McpJobExecutableDeps): Promise<void> {
   let answer: string
   try {
-    answer = await (deps.run ?? runProgram)(executable, [MCP_JOB_SELF_TEST_ARGUMENT], {
-      SystemRoot: deps.systemRoot,
-    })
+    answer = await (deps.run ?? runProgram)(
+      executable,
+      [MCP_JOB_SELF_TEST_ARGUMENT],
+      // The self-test answers for its own binary: absolute entries only, links followed.
+      noWorkspaceChildEnvironment('win32', { SystemRoot: deps.systemRoot }, realpathSync),
+    )
   } catch (error: unknown) {
     throw new Error(`the MCP job executable self-test failed (${String(error)})`, { cause: error })
   }
@@ -65,9 +75,9 @@ async function verify(executable: string, deps: McpJobExecutableDeps): Promise<v
 }
 
 /**
- * Undefined means unavailable. The bytes are sealed around the self-test; a
- * changed helper is refused with a typed error, and the next call recompiles.
- */
+Undefined means unavailable. The bytes are sealed around the self-test; a
+changed helper is refused with a typed error, and the next call recompiles.
+*/
 export function sealedMcpJobExecutable(
   deps: McpJobExecutableDeps,
 ): () => Promise<SealedMcpJob | undefined> {
@@ -97,7 +107,7 @@ export function sealedMcpJobExecutable(
         },
       }
     } catch (error: unknown) {
-      deps.log(`Windows MCP job executable is unavailable (${String(error)})`)
+      deps.log(`Windows MCP job executable is unavailable (${describeStoreError(error)})`)
       // Fail closed for this binding, as before; only a changed helper is rebuilt.
       if (isResourceHelperChanged(error)) ready = undefined
       return
@@ -115,7 +125,7 @@ export function mcpJobExecutable(deps: McpJobExecutableDeps): () => Promise<stri
     try {
       await helper.verify()
     } catch (error: unknown) {
-      deps.log(`Windows MCP job executable changed and is refused (${String(error)})`)
+      deps.log(`Windows MCP job executable changed and is refused (${describeStoreError(error)})`)
       return
     }
     return helper.path

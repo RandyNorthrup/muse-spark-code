@@ -442,7 +442,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `bridge run_checks and engine test-command region > rechecks trust, cancellation and refusal after the destination-command guard`
 - `bridge run_checks and engine test-command region > dispatches the command after a hook rewrite and refuses an empty hook command`
 - `bridge run_checks and engine test-command region > refuses guarded tests and then_run before any runner probe, snapshot or install`
-- `bridge run_checks and engine test-command region > rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls`
+- `bridge run_checks and engine test-command region > rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls` (NOLIMITS1FIN 2026-10-18: the "oversized calls" half is withdrawn — over-limit calls now stand, proven by `checkCommands.test.ts` "takes any number of checks (D121)"; the rest stays unproven)
 - `bridge run_checks and engine test-command region > binds access to the current authenticated attempt and rechecks it after waits`
 
 ### test/unit/browserRestartReadiness.test.mjs
@@ -1037,6 +1037,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `package.json manifest > contributes the walkthrough the command opens, completed by our own events (D15)`
 - `package.json manifest > binds nothing on Windows that Windows itself takes first (M26)`
 - `package.json manifest > lists a command in the Command Palette only where it can act (M26)`
+  - Pull request 207 (M115 schedules) moved this claim before the deletion: Schedule a prompt, Show schedules and the schedule timeline are listed in the Command Palette only while `museSpark.scheduleDeliveryCertified` is set (after the lead qualifies scheduled delivery), no longer never.
 - `package.json manifest > links What’s New to the repository the manifest names (M99)`
 - `package.json manifest > lists the extension under the AI and Chat categories only (M26)`
 - `package.json manifest > pins @types/vscode to the engines.vscode minimum`
@@ -1046,6 +1047,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `packaging (M26) > bounds every CI job, keeps tokens out of checkouts and the PAT in one step (M26)`
 - `packaging (M26) > takes the macOS helper’s version from package.json when it is built, never by hand`
 - `packaging (M26) > keeps exact-tree reuse behind tag checks and preserves full-build fallback (RELFAST)`
+  - Pull request 158 (rule 2 gate) moved this claim before the deletion: `release.yml` has seven jobs with `actions: read`; the two new ones are the job that runs the rule 2 release door (`scripts/rule2-gate.mjs release`) and the call to `build.yml`, whose `first-attempt` job reads the runs (`docs/certification/rule2-gate.md`).
 - `packaging (M26) > keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)`
 - `packaging (M26) > blocks every release publisher and tag mover after cancellation (RELFAST2)`
 - `packaging (M26) > starts the live Action receipt by the owner’s hand only, under a hard cap (M80 LA)`
@@ -1053,8 +1055,10 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `tiered CI (CIFLOW) > carries the whole production dist, not a hand list, to the accessibility job`
 - `tiered CI (CIFLOW) > runs every shard per OS (eight on Windows and macOS, four on Ubuntu) with no coverage gate`
 - `tiered CI (CIFLOW) > keeps all required names and wires fail-closed checks for each selected-tier dependency`
+  - Pull request 158 (rule 2 gate) extended this claim before the deletion: the `first-attempt` job is needed on every tier, and the required aggregate fails unless its `FIRST_ATTEMPT` result is `success`.
 - `tiered CI (CIFLOW) > scans a merge group with the checked CLI, since the action refuses that event`
 - `tiered CI (CIFLOW) > passes a required name only when its whole tier succeeded`
+  - Pull request 158 (rule 2 gate) extended this claim before the deletion: a required name passes only on the run's first attempt (`github.run_attempt`) and only for the attempt the `first-attempt` job judged (`needs.first-attempt.outputs.attempt`). Its hosted first execution is in `docs/certification/rule2-gate.md`.
 - `toolchain pins (AGENTS.md) > keeps Dependabot from proposing TypeScript 7 while typescript-eslint cannot take it`
 - `npm scripts on Windows (CIFIX017W2) > fit cmd.exe’s command line as npm runs them and as a node_modules/.bin shim expands them`
 
@@ -1282,8 +1286,8 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `prompt import > previews all text/variables, imports untrusted, and never resolves or runs anything`
 - `prompt import > rejects stale/cancelled previews and isolates returned preview mutations`
 - `prompt import > fences overlapping and cancelled reads before a stale preview can be accepted`
-- `prompt import > enforces the byte cap even on otherwise valid portable files`
-- `prompt import > refuses malformed/oversized inputs and remote import in a confidential workspace`
+- `prompt import > enforces the byte cap even on otherwise valid portable files` (NOLIMITS1FIN 2026-10-18: withdrawn — the 128 KiB cap is removed; past-cap preview is proven by `promptBoundsRemoved.test.ts`)
+- `prompt import > refuses malformed/oversized inputs and remote import in a confidential workspace` (NOLIMITS1FIN 2026-10-18: only the "oversized" half is withdrawn; malformed and confidential-remote refusals stay unproven)
 - `prompt sharing > invalidates an in-flight release on %s`
 - `prompt sharing > scrubs preview and exports valid portable Markdown only on the final click`
 - `prompt sharing > keeps ordinary export bytes deterministic and round trips without losing metadata`
@@ -1306,13 +1310,13 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `portable prompt store and library > validates editable fields and strips caller-owned trust and identities`
 - `portable prompt store and library > round trips exact Markdown and shows both scopes in any workspace`
 - `portable prompt store and library > retains damaged files and refuses every mutation`
-- `portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files`
-- `portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit`
+- `portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files` (NOLIMITS1FIN 2026-10-18: only "overlarge files" is withdrawn — they now read whole, proven by `promptBoundsRemoved.test.ts`; the rest stays unproven)
+- `portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit` (NOLIMITS1FIN 2026-10-18: the limits half is withdrawn — any title/body/count stands, proven by `promptBoundsRemoved.test.ts`; untrusted-on-edit stays unproven)
 - `portable prompt store and library > refuses a concurrent writer and preserves the lock`
 - `portable prompt store and library > syncs only user scope, newest wins, and validates before any writes`
 - `portable prompt store and library > merges unrelated remote edits while keeping an explicitly removed prompt deleted`
 - `insert-only variable review > reviews all sources and expanded text before inserting, without recursive substitution`
-- `insert-only variable review > cancelled variables/review and oversized expansion never insert`
+- `insert-only variable review > cancelled variables/review and oversized expansion never insert` (NOLIMITS1FIN 2026-10-18: the "oversized never insert" half is withdrawn — the 10000-character cap is removed and any length inserts; that removal is unproven real-use backlog, cancelled-never-inserts stays unproven)
 
 ### test/unit/promptWorkspaceIntegration.test.ts
 
@@ -1785,6 +1789,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 
 - `lazy runtime schedule binding > loads once on use and installs the caller table before creating the runtime`
 - `lazy runtime schedule binding > rejects a missing factory and retries a failed engine creation`
+  - Pull request 207 (M115 schedules) rewrote this file on the real loader, but still handed it a hand-written log object in place of the log channel, so the merge with main kept main's deletion. Its claim stays here too: a bundle path that is not on disk refuses with the unavailable words, and each call tries the load again.
 
 ### test/unit/scheduleEvents.signals.test.ts
 
@@ -2675,6 +2680,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `team caps, intensity and machine values > sets each role base effort from D75`
 - `team caps, intensity and machine values > maps every intensity level to D75 counts, shifts and budgets`
 - `team caps, intensity and machine values > estimates a worker at 6 RPM and 250K TPM inside the researched limits`
+  - Pull request 206 (Muse Code SDK and CLI 1.4.10, M127) moved this claim before the deletion: the contributor tier's documented 150 requests a minute (was 100), and the fixed Muse Code host ceiling of 4 (`TEAM_MUSE_CODE_HOST_CEILING`) replaced by Muse Code's own loaded-session ceiling for the CLI's version (32 through 1.4.4, 256 from 1.4.5). `test/unit/museCodeLatest.test.ts` tests the ceiling function on those versions.
 - `team caps, intensity and machine values > recovers throttled entries one step a minute after a 30-minute usage mark`
 - `team caps, intensity and machine values > bounds delegation depth, call size and per-role defaults`
 - `team caps, intensity and machine values > bounds queues, requests, briefs, pages and leases from D75`
@@ -2849,3 +2855,376 @@ These tests drove real code but through stand-ins (`vi.fn` and mock return value
 - denial, changed preview and live admission loss each prevent publication
 - rechecks admission between patches and reports per-file failures
 - refuses evidence changes during ownership approval
+
+## Lane STANDINS (2026-10-17, branch chore/no-standins)
+
+The hand-written stand-ins the lint gate could not see. Full classification in `docs/certification/standins.md`; per-claim notes in the records named below. Rewritten-without-the-double cases (`teamPreview.test.ts` constant `select`, `teamResources.test.ts` production `systemClock`, `prompts.test.ts` inline arrays) keep their proofs and are not listed here.
+
+### test/e2e/schedulesStdio.e2e.test.ts (one case; the rest of the file stays)
+
+- a committed accepted id survives on stdout while a failing cleanup reports exit 3 without leaking private detail (record: `docs/certification/m115-x.md`)
+
+### test/packaging/moduleExports.test.mjs (four exercise branches; parity proof stays)
+
+- the reviewer's paid-call path through the packaged bundles
+- the session board read through the packaged bundles
+- the report-problem handler through the packaged bundles
+- foreign-hook adapter creation through the packaged bundles (record: `docs/certification/vsix-diet-2.md`)
+
+### test/unit/pluginDispatch.test.ts (two cases; real-children and refusal-path cases stay)
+
+- plugin hooks run under the host-wide cap
+- a grant is stripped from a plugin answer (record: `docs/certification/m91.md`)
+
+### test/unit/marketplaceHook.test.mjs (whole file)
+
+- the purchased-minus-cancelled counter in both badge formats
+- the non-negative floor on unreadable counts
+- the 404/405 answers (record: `docs/certification/badge017.md`)
+
+### test/unit/teamResources.test.ts (twelve time-driven cases; the rest of the file stays on the real clock)
+
+Restored on the real clock by RVSTANDINS: busy past the wait, idle
+release after the last terminal answer, replayed-completion isolation,
+command resources held past idleness, timer shutdown on close. Still
+unproven:
+
+- exact idle release boundaries
+- take-back admission timeout and pending-admission expiry
+- replay after replacement (record: `docs/certification/m96-b.md`)
+
+### test/unit/modelApiLegalScan.test.ts (the runner-driven block; definition and unoffered-tool cases stay)
+
+Restored through the real scanner by RVSTANDINS, then through the
+production `runLegalScan` entry by PR223FIX (Codex thread): validated-JSON
+answers with the installed disclaimer, whole-workspace scans, subset scope,
+header-policy forwarding, write/exec refusal before the scan runs,
+restricted-mode and stopped-turn pre-checks. Still
+unproven:
+
+- failure passthrough and invalid-result refusal (record: `docs/certification/m97-b.md`)
+
+### Composition note (no unit proof was ever real)
+
+- the team preview composes with lane A's real selection strategy (the deleted helper was a reduced reimplementation, not the strategy; record: `docs/certification/m96-f.md`)
+
+## Lane no-standins-2 (2026-10-17, branch chore/no-standins-2)
+
+The stand-ins PR #223 left. Per-item record: `docs/certification/no-standins.md`. Rewritten-to-real cases (evalTasks environment, the screen recorder's random-access sink cap, Amp plugin dispatch, the reporting harness) keep their proofs and are not listed here.
+
+### test/unit/windowsScreenRecorderNative.test.ts (four cases over hand-written WinRT operations)
+
+- Stop cancels and closes a pending selection, file, open or prepare operation before recording starts
+- Cancel stays atomic when a concurrent normal Stop finishes later
+- an operation registered after Cancel was latched is cancelled
+- a normal Stop finalizes encoding while a later Cancel cancels it
+
+### test/unit/helpers/vault/windowsVault*.cs (test-only Hello, KSP and DPAPI stand-ins; no test compiled them)
+
+- the native Windows vault guard capture: Hello signing projection, KSP named-key lifecycle, DPAPI current-user scope
+
+### test/unit/pluginDispatch.test.ts (one case over a scripted containment answer)
+
+- without containment, a plugin hook fails by its rule and says why in the user's language
+
+## Withdrawn on lane PR161FIX (2026-10-18)
+
+PR #161's own stand-in tests went the same way as the sweep above: they drove real code through hand-written ports (`connection()`, dispatch `{allowEndpoint, fetch}` literals, the `meta` catalogue double) that the owner's rule refuses. Each behaviour below waits for proof by real use of the packed product. (The merge with current main had already withdrawn `fileSessionStore`, `moneyDisplay`, `sessionBudget` and `companionMediaTransport`; their entries stand above.)
+
+### test/unit/accountReadFailures.test.ts
+
+- `account read failures > reads a host failure as unsigned-in, with the kind in words`
+- `account read failures > stays silent when the answer comes in another shape`
+- `account read failures > keeps a foreign failure past the boundary`
+
+### test/unit/subscriptionStreamFailures.test.ts
+
+- `subscription stream failures > keeps an unknown failure’s kind past the boundary`
+- `subscription stream failures > keeps a foreign failure past the boundary`
+- `subscription stream failures > still yields a lapsed sign-in as its words`
+- `subscription stream failures > still yields a Copilot failure as its message`
+
+### test/unit/mcpOAuthDenied.test.ts (two tests; the port-free denial test stays)
+
+- `mcp oauth denial > maps a dispatch failure onto the denial with its cause`
+- `mcp oauth denial > keeps a foreign dispatch failure past the boundary`
+
+## Withdrawn on lane PR161FIX3 (2026-10-18)
+
+The Codex review of PR #161 found the warn-once case below fed an invented keyring failure through a hand-written port. No real keyring or store exists in unit, so the case is deleted rather than repaired with another fake; its behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161FIX3).
+
+### test/unit/credentialReadFailures.test.ts (one test; the rest of the file stays)
+
+- `credential read failures > warns once per owner while the store stays unreadable, re-armed by a healthy read`
+
+## Withdrawn on lane PR161W1 (2026-10-18)
+
+The Codex re-review of PR #161 found the remaining cases in the file below still fed invented keyring failures through a hand-written port. No real keyring or store exists in unit, so the whole file is deleted rather than repaired with another fake; the guarded-scan warn-once-per-kind behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161W1: on Linux without a usable keyring, trigger repeated operational key reads and guarded scans and observe one warning per kind in the runtime log; restore the keyring for one healthy scan and observe the warnings re-arm).
+
+### test/unit/credentialReadFailures.test.ts (whole file)
+
+- `credential read failures > reads a store failure as no key, with the kind in words`
+- `credential read failures > reads a denied store as unreadable with its kind`
+- `credential read failures > stays silent when the store answers`
+- `credential read failures > scans past an unreadable provider entry instead of calling it absent`
+
+## RVMSM105 review deletions (2026-10-17)
+
+Review lane RVMSM105 merged current main (81dacaf5a) into the MSM105 lane and deleted the suites below under the same rule: each drove its behaviour through a hand-answered provider, converter, ledger, host or filesystem stand-in. The behaviours are unproven until real use proves them. Suites trimmed rather than deleted (`vendorMediaCodecs`, `transcribeBatchHttp`, `uploadedFiles`, `privateRootLease`) keep their real-code tests; the removed cases are named in `docs/certification/msm105.md` (RVMSM105 section).
+
+### test/unit/mediaProductionService.test.ts
+
+- `prices an attached image at the seeded bound in a capped session (RVMONEY017D 6, RVMEDIAW 3)`
+- `refuses an attached PDF with no page rate in a capped session before inference (RVMEDIAW 3)`
+- `sends an attached PDF in an uncapped session at its byte count (capped-only refusal)`
+- `keeps a tool-read image inline on later turns, saved and reopened (RVMEDIAW 1, P1)`
+- `sends a standard-model image read in an uncapped session (RVMEDIAW 2)`
+- `sends a contributor PDF read in an uncapped session (RVMEDIAW 2)`
+- `refuses a contributor PDF read under a session cap before its bytes go`
+- `drops a caller-supplied audio port: the bundle binds the only one (RVMEDIAW2 2)`
+- `prices an MCP image at the seeded bound in a capped contributor turn (RVMEDIAW2 3)`
+- `refuses an MP3 read honestly: a tool read is never transcribed`
+- `uploads an attached video once and replays its file id on the next turn`
+- `holds a queued turn’s video from acceptance: the bound never evicts it (RVMEDIAV2)`
+- `releases a withdrawn queued turn’s and a withdrawn steer’s claims (RVMEDIAV2)`
+- `drops a waiting steer when its session is disposed: released, never read or uploaded (RVMEDIAV3 2)`
+- `refuses a media part the registry does not hold, before any upload or inference`
+- `refuses an attached video whose bytes changed since it was attached`
+- `refuses an attached video when the session has no media service, never sending its name alone`
+- `refuses an attached video on a model with no captured video record`
+- `transcribes an attached WAV once, under the daily ledger and the tally`
+- `leaves a turn without attached sound byte-identical, with no transcription request`
+- `refuses attached audio when Muse Voice is off, posting and reserving nothing`
+- `shows the server refusal as sent and settles nothing billed`
+
+### test/unit/mediaAttachmentComposition.test.ts
+
+- `VS Code attaches video plus audio; consent and exact claims precede transcription and model delivery (2,3,5,6,7)`
+- `sendAudio explicitly refuses Meta audio at attach without silently transcribing (4,6,7)`
+- `ACP session/prompt carries video/audio with linked video=%s and the inverse embedded form (2,3,5,6,8)`
+- `exec repeats existing-file attachments and explicitly refuses audio without a voice flag (4,6,9)`
+- `exec delivers an existing video through the runtime and settles its exact run claim (2,3,5,9)`
+- `a sendAudio setting change after attach refuses at the production session instead of transcribing (4,6)`
+- `refuses an audio setting changed inside production consent before any ASR request`
+- `capped first-turn audio preparation waits for the owned session save (5,6; deterministic guard regression)`
+- `keeps the attachment file name out of every log line on a %s refusal (RVM105 4)`
+- `keeps the attachment name out of the session-save log when ownership expired (RVM105 4)`
+
+### test/unit/uploadedFilesComposition.test.ts
+
+- `threads the configured expiry days into the provider upload`
+- `expires_after[seconds]`
+- `reads the expiry setting on every upload, not once per session`
+- `expires_after[seconds]`
+- `expires_after[seconds]`
+- `serves the VS Code consumers from the production port and deletes the chosen file`
+- `deletes an unseen orphan through the Delete command`
+- `serves ACP /uploads from the same production ledger`
+- `purges expired sessions through the ledger: old orphans go, referenced and young ones stay`
+- `cleans the same ledger from two windows exactly once without corrupting it`
+- `holds a pinned file across a stale window and cancels a listing cleanly`
+- `records a provider-removed file as gone during the production purge`
+- `serves the production uploads port on Model API runtimes, and none on Muse Code`
+- `keeps the retained list read-only after the key is removed`
+- `keeps the retained list across a runtime restart after key removal`
+- `serves the lazy production media entry both hosts import`
+- `serves serve ACP /uploads from the runtime backend uploads port`
+- `posts activation-shaped uploaded-files messages that validate against the protocol`
+- `keeps the ephemeral headless port keyless and provider-silent`
+
+### test/unit/acpUploads.test.ts
+
+- `lists the ledger files, says empty, and ignores other text`
+- `deletes the chosen own file and lists what remains`
+- `deletes by listed number and shows the id the delete needs`
+- `refuses zero and other invalid one-based selectors with a sentence`
+- `refuses a leading-zero selector even when its number is listed`
+- `keeps a foreign file with its reason and deletes nothing`
+- `deletes a foreign file the confirmer allows`
+- `deletes all ours, refuses unknown ids and bad syntax, and says so without a ledger`
+- `shows a failed provider delete with its reason and keeps the row`
+- `renders the shared list text`
+- `deletes nothing when cancelled before the read`
+- `deletes nothing when cancelled during the report read`
+- `passes the signal into the provider delete`
+- `carries the signal into the listing after the delete (P2-4)`
+- `announces, lists and deletes through the ledger`
+- `says so and deletes nothing without the ledger`
+- `confirms and deletes a foreign file through the editor permission`
+- `keeps a foreign file when the editor cannot answer the permission`
+- `cancels a delete held on its report read without touching the provider`
+
+### test/unit/uploadedFilesBinding.test.ts
+
+- `supplies the conversation port from the current account ledger`
+- `reads empty while no account backs the ledger`
+- `deletes the chosen files and shows a failed delete with its reason`
+- `says so and deletes nothing with no uploads, and stops on dismissal`
+- `deletes nothing once cancelled at any await of the command`
+- `asks before deleting a file another app may still use`
+- `keeps each read on its own stamp when an older read lands later`
+- `stamps a read with the account it started under, not one resolved later`
+- `recovers the last account ledger once the key is gone`
+- `stamps each posted report with its read account and generation`
+- `keeps the retained list read-only after the key is removed`
+
+### test/unit/mediaUploadStores.test.ts
+
+- `serializes two contenders while the holder pauses mid-acquire`
+- `never steals a live lock: a pre-existing holder fails closed`
+- `rides through runtime accounting when the inner client carries it`
+- `stays absent through runtime accounting when the inner client lacks it`
+- `rides through configured providers to the Meta delegate`
+- `rides through the subscription client to Meta`
+- `saves and reopens a media turn through the real file session store`
+- `releases the session provider uploads on delete, confirmed by the provider`
+- `releases uploads on retention purge`
+- `reports a failed provider deletion honestly, and the next sweep cleans it`
+- `isolates accounts: B uploads fresh after A, replaying only its own files`
+- `moves the last-account pointer only for the current account, and only once`
+- `reads a corrupt or non-digest last-account pointer as none`
+- `keeps both sessions settlements: 25 points, not 24`
+- `writes staging files with unique names per writer`
+- `has durable cleanup intent before the iterator-close await and upload publication`
+- `deletes the known receipt when the final iterator-close await fails`
+- `keeps provider cleanup ownership when interrupted during %s`
+- `$name`
+- `cancels before any receipt without a clean-up: no DELETE, no intent`
+- `deletes at the provider when cancellation lands after the receipt`
+- `records a clean-up intent when DELETE fails (first write fails: %s)`
+- `deletes at the provider when the ledger write after a good upload fails`
+- `resolves cancel after a committed publication when DELETE and the first intent write fail`
+- `forgets a cancelled upload whose remote copy is already gone when the forget write fails`
+- `forgets a deleted file even when its sweep write fails once`
+- `never deletes a referenced upload during a failing sweep`
+
+### test/unit/productionAudio.test.ts
+
+- `probes nothing and returns nothing for a turn with no attached sound`
+- `says why standalone audio cannot be transcribed when no converter is found`
+- `sendAudio refuses unsupported MP3 audio instead of a transcription converter error`
+- `refuses with the configured path’s reason and never falls back`
+- `sends a video without its sound when no converter is installed or configured`
+- `refuses an audio-action change during %s before dispatch`
+- `transcribes the attached bytes, reserved and settled on their duration`
+- `admits at the dispatch itself: %s during the key read sends nothing (finding 2)`
+- `abandons preparation when Muse Voice is switched off during consent, before reserving (finding 2)`
+- `refuses a sendAudio change during consent with its reason, before reserving (RVM105 2)`
+- `refuses a sendAudio change during the key read with its reason, sending nothing (RVM105 2)`
+- `refunds a known local non-send and counts no usage: no key stored (finding 3)`
+- `checks the host model revision before dispatch: a change during consent spends nothing (finding 4)`
+- `runs Windows conversion in the job under a kernel cap, never sampling RSS`
+- `samples macOS RSS per encoder child through the governor bundle, Linux on /proc`
+- `makes each folder inside the host private root, opened once; no root refuses`
+- `reads the agent data folder, and the daily ledger still reads the same file`
+
+### test/unit/transcriptionTransport.test.ts
+
+- `posts once to the captured route and returns the captured 400 body unthrown`
+- `never retries a failed charged POST`
+- `refuses a body that is not the adapter multipart`
+- `redacts the key from any body it hands back`
+- `admits immediately before the fetch, after the key; a revoked admission sends nothing (RVMEDIAV 2)`
+- `checks the account digest after reading the key and before dispatch`
+- `rides through runtime accounting when the inner client carries it`
+- `carries the captured refusal through the adapter to the user verbatim`
+
+### test/unit/converterTrust.test.ts
+
+- `accepts a private executable and returns its canonical path`
+- `resolves a symlink first and returns its canonical target, never the link`
+- `refuses a symlink whose target sits under an other-writable ancestor`
+- `refuses a group-writable ancestor when the group is not the user-private group`
+- `refuses a target at mode %o (%s)`
+- `refuses a non-regular target`
+- `refuses a foreign owner`
+- `refuses a target replaced between its open and its pathname check`
+- `serves as the converter port on POSIX`
+- `judges a path through a junction by its canonical target`
+- `refuses when PowerShell cannot be located from SystemRoot`
+- `probes and returns the verified canonical path, not the name it was given`
+- `refuses the launcher shim %s before probing`
+- `resolves Windows locations from the environment on any drive, winget included`
+- `names the fix when a documented converter sits under a shared-writable folder`
+- `takes a configured path alone: a refusal says why and never falls back`
+- `refuses to encode when the recheck before encoding resolves elsewhere`
+- `encodes through the kernel-limited launch, with the cap and no sampler`
+- `says `
+
+### test/unit/mediaVerifiedCopy.test.ts
+
+- `writes every verified byte across short writes: the encoder reads all of them`
+- `refuses %s before the encoder runs or anything is posted`
+
+### test/unit/audioMessagePreparation.test.ts
+
+- `converts an attached MP3 before the batch POST and returns its transcript`
+- `keeps a video beside its soundtrack transcript, never replacing it (RVMEDIAW 5)`
+- `resolves undefined when no part is transcribable, like an absent port`
+- `sends a video without its sound when transcription is declined; declined audio refuses (lane V)`
+- `leaves the turn untouched when the voice feature is off, like an absent port`
+- `honors explicit %s on a synthetic model that hears audio`
+- `refuses a sendAudio change during %s without a transcription POST`
+- `ignores an audio-action change for a video part, which has no audio action`
+
+## Removed with the other-CI lane's review (RVMSM80, 2026-10-17)
+
+The M80 other-CI lane's process suites ran the launcher and the templates
+against the Action's fake agent (`test/action/fake-agent.mjs`, itself deleted
+above) inside locally simulated GitLab, Azure, Jenkins and Bitbucket hosts,
+with scripted filesystem operations. Under the owner's rule that proof does
+not stand: the suites were deleted or reduced to pure logic through the real
+modules, real template data and the real shells. The behaviours below now
+wait for hosted vendor receipts; nothing local may claim them. Kept, in
+rewritten real form: the adapters, trust gate, key intake and scrubbing,
+input grammar, remaining-time admission and private-temp checks
+(`test/unit/ciRun.test.ts`); the generated bootstrap matching its source,
+GitLab/Azure defaults parsing, Azure's declared deadline, the unpinned
+bootstrap's refusal and the parent trap's cleanup with a missing Node
+(`test/unit/ciTemplates.test.ts`).
+
+### test/unit/ciTemplatesRun.test.ts (whole file, with test/unit/helpers/ciFixtures.ts)
+
+- on each system the key reaches exec's stdin and no program's environment, argv or log
+- aliases and an exported holder never reach a child
+- each system refuses a reserved key alias before a bootstrap child starts
+- GitLab's File variable is read only by Node, with no key-file copying child
+- an early bootstrap failure never selects repository artifacts
+- malformed launcher facts and a launcher module-load failure still clean the bootstrap directory
+- a tarball whose digest differs is never unpacked or run
+- Bitbucket keeps an explicitly empty budget, which the launcher refuses
+
+### test/unit/ciRun.test.ts (the end-to-end, publication and pipe suites; the pure suites stay)
+
+- on each system an end-to-end review completes, publishes outputs and keeps the key on exec's stdin only
+- fix mode publishes the scanned patch, the scanner getting the key on stdin only
+- the diff is cut to max-diff-bytes and says so; empty or malformed agent output is never published as completed
+- SIGTERM stops the run and kills the agent child
+- lifecycle scripts and a checked-out .npmrc are ignored; only the pinned bytes install; an impostor package is refused by identity
+- forks, untrusted pull requests, unprotected refs and an uncoverable deadline refuse before installing or spawning
+- a repository-planted output directory or symlink is ignored; publication happens only in job temp
+- stale-output removal, late publication and final cleanup abort at their bounds in the real filesystem subprocess, without claiming a removal that did not happen
+- a child writing megabytes to both pipes finishes instead of blocking
+
+### test/unit/ciTemplates.test.ts (the template-text guards; the suites named above stay)
+
+- each vendor's own rules, conditions and credential bindings as written in its template (GitLab rules, Azure job condition and secret mapping, Jenkins `when` and `withCredentials`, Bitbucket step placement)
+- the templates carrying only the launcher's inputs, their timeout declarations matching, and Azure conditions using only documented words
+- the package carrying the launcher as `ci/`, as the packaging script's text
+
+## Removed when the host budget needed the editor host (PR #207 follow-up)
+
+`src/host/paid/paidDailyBudget.ts` imports the `vscode` module, so no unit
+test can load it with real code only (the hand-written `vscode` stand-in was
+deleted as a fake on 2026-10-17). The runtime-family half of the claim is
+proven by `test/unit/runtimeDailyBudget.test.ts` over the real settings file
+and data folder; the host half leaves the suite here until a real-use run
+proves it.
+
+### test/unit/scheduleLegacyDailyBudget.test.ts (withdrawn with the journal, D208)
+
+The journal-backed migration suite was deleted with the reservation journal
+it measured; nothing in the merged tree replaces its migration claims. The
+schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
+fire could run while delivery is uncertified
+(`docs/real-life/pr207-2026-10-18.md`).

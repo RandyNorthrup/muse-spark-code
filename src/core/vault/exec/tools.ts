@@ -24,8 +24,10 @@ export function vaultExecTools(
   const safely = async (work: () => Promise<string>) => {
     try {
       return await work()
-    } catch {
-      throw new Error(text.refused)
+    } catch (error: unknown) {
+      // The tool boundary keeps fixed words (no value or parser text reaches
+      // the model); the failure rides along as the cause for the local record.
+      throw new Error(text.refused, { cause: error })
     }
   }
   return [

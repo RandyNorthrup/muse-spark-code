@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../paid/spendLedgerError'
 // D88.11. M102 supplies validated journal projections; labels stay local.
 import * as z from 'zod/mini'
 import {
@@ -41,7 +42,7 @@ const catalogSchema = z.strictObject({
 })
 export interface AccountUsageSource {
   /** Return each current projection once: period history plus every unresolved
-   * reservation/uncertainty before end, even when created before start. */
+  reservation/uncertainty before end, even when created before start. */
   records(range: Range & { readonly includeOutstanding: true }): unknown
   events(range: Range): unknown
 }
@@ -99,7 +100,7 @@ function rangeFor(period: Period, now: Date): Range {
 function safeSum(left: number, right: number): number {
   const result = BigInt(left) + BigInt(right)
   if (result > BigInt(Number.MAX_SAFE_INTEGER))
-    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    throw new SpendLedgerError('integrity', { scope: 'account', file: 'accountUsage' })
   return Number(result)
 }
 
@@ -222,7 +223,8 @@ function metersFor(
     if (threshold === undefined) continue
     const live = snapshot?.rateLimits?.[window]
     const cap = parseUsd(threshold)
-    if (usdNumber(cap) !== threshold) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    if (usdNumber(cap) !== threshold)
+      throw new SpendLedgerError('integrity', { scope: 'account', file: 'accountUsage' })
     let remaining: bigint | null = null,
       limit = parseUsd(0),
       resetAt: string | null = null
@@ -234,7 +236,8 @@ function metersFor(
           resetAt: z.iso.datetime(),
         })
         .parse(live)
-      if (parsed.remaining > parsed.limit) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      if (parsed.remaining > parsed.limit)
+        throw new SpendLedgerError('integrity', { scope: 'account', file: 'accountUsage' })
       resetAt = parsed.resetAt
       limit = BigInt(parsed.limit)
       if (isActive(resetAt)) remaining = BigInt(parsed.remaining)
@@ -266,7 +269,8 @@ export function readAccountUsage(deps: {
   readonly now: number
 }): AccountUsageReport {
   const now = new Date(deps.now)
-  if (!Number.isFinite(now.getTime())) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  if (!Number.isFinite(now.getTime()))
+    throw new SpendLedgerError('integrity', { scope: 'account', file: 'accountUsage' })
   const period = z.enum(['day', 'week', 'month']).parse(deps.period)
   const ranges = {
     day: rangeFor('day', now),

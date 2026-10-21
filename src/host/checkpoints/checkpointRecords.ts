@@ -50,10 +50,10 @@ const unitRecordSchema = z.object({
   status: z.enum(['complete', 'incomplete']),
   ranProcesses: z.boolean(),
   /**
-   * Its journal says writes may exist that no intent describes: the unit
-   * passed its intent budget, or a journal line of it could not be read. Any
-   * range that holds it is refused whole.
-   */
+  Its journal says writes may exist that no intent describes: the unit
+  passed its intent budget, or a journal line of it could not be read. Any
+  range that holds it is refused whole.
+  */
   isMarkedIncomplete: z.boolean(),
   /** Retention keeps identity/sequence only, so old journal owners are explained. */
   isRetired: z.optional(z.boolean()),
@@ -75,7 +75,12 @@ export function parseUnit(text: string): StoredUnit | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to drop.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
     return undefined
   }
   const result = unitRecordSchema.safeParse(parsed)
@@ -120,7 +125,12 @@ export function parseRecord(text: string): StoredRecord | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to drop.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
     return undefined
   }
   const result = storedRecordSchema.safeParse(parsed)

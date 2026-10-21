@@ -96,6 +96,10 @@ describe('index lines', () => {
     expect(isIndexPath('MEMORY.md')).toBe(true)
     expect(isIndexPath('notes/MEMORY.md')).toBe(false)
   })
+
+  it('keeps a malformed escape in its spelling instead of failing', () => {
+    expect(hasIndexLine('- [broken](notes/a%XX.md)', 'notes/a%XX.md')).toBe(true)
+  })
 })
 
 describe('noteSummary', () => {

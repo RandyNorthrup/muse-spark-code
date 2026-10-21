@@ -32,7 +32,7 @@ function normalized(value: string): string {
 }
 
 /** Filesystem operations are serialized by DeveloperOptions' machine owner.
- * No independent per-window service may share this root (X-W-OWNER). */
+No independent per-window service may share this root (X-W-OWNER). */
 type ProfileFolders = LocalProfilePorts['folders']
 export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
   private readonly root: string
@@ -41,8 +41,8 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
   }
 
   /** Where `target` must resolve. The root may sit below links the OS or the
-   * user chose (macOS /var, a relocated or redirected profile, a Windows short
-   * name); only a link at or below the root is refused. */
+  user chose (macOS /var, a relocated or redirected profile, a Windows short
+  name); only a link at or below the root is refused. */
   private async anchored(target: string): Promise<string> {
     return normalized(path.join(await realpath(this.root), path.relative(this.root, target)))
   }
@@ -202,7 +202,7 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
   }
 
   /** Only a profile in the owner's persisted ledger may reach this method.
-   * Links/junctions are unlinked; never recursively followed. */
+  Links/junctions are unlinked; never recursively followed. */
   public async remove(id: string): Promise<void> {
     accountIdSchema.parse(id)
     await this.initialize()

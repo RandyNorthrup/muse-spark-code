@@ -26,12 +26,13 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import {
   UsageJournalStore,
+  toAggregateRow,
   type UsageJournalRead as StoredJournal,
 } from '../../core/usage/journalStore'
 import { NodeUsageFs } from './nodeUsageFs'
 import { loadUsageTable } from '../../shared/l10n/usageTable'
 import { readUsageTableFile } from './usageTableFile'
-import { readUsageHistorySettings } from './usageSettingsFile'
+import { isInvalidUsageSettings, readUsageHistorySettings } from './usageSettingsFile'
 import { resourceHistoryReader } from '../resources/history'
 import { CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
 import {
@@ -50,51 +51,43 @@ export { runUsageCommand } from './usageCli'
 
 export { createInsightsReader } from './traceLogs'
 
+export { MuseUsageDeltas, museCodeLimitInput } from '../../core/backends/musecode/usageDeltas'
+
 const readSettings = readUsageHistorySettings
 function unsupported(): never {
   throw new Error('unsupportedUsageAction')
 }
 export const createUsageWriter: UsageWriterBundle['createUsageWriter'] = (options) => {
+  // An invalid settings file pauses history (never a guess) and says so
+  // specifically, once: without this the writer fails every note with only
+  // the generic write warning and no hint at the repair (EXECPROV E).
+  let hasReportedInvalidSettings = false
+  const isEnabled = () => {
+    if (!options.isEnabled()) return false
+    try {
+      return readSettings(options.dataFolder).enabled
+    } catch (error) {
+      if (isInvalidUsageSettings(error)) {
+        if (hasReportedInvalidSettings) return false
+        hasReportedInvalidSettings = true
+        if (options.onInvalidSettings === undefined) options.onWriteError()
+        else options.onInvalidSettings()
+        return false
+      }
+      throw error
+    }
+  }
   return Promise.resolve(
     new UsageJournalStore(new NodeUsageFs(options.dataFolder, options.now), {
       ...options,
-      isEnabled: () => options.isEnabled() && readSettings(options.dataFolder).enabled,
+      isEnabled,
     }),
   )
 }
 
 /** Adapt validated stored rollups without inventing unknown paired rates. */
 function aggregateRows(journal: StoredJournal): UsageAggregateRow[] {
-  return journal.rollups.map((row) => ({
-    day: row.day,
-    client: row.client,
-    backend: row.backend,
-    provider: row.provider,
-    model: row.model,
-    kind: row.kind,
-    histogram: row.latencyHistogram,
-    ...(row.measurements !== undefined && { measurements: row.measurements }),
-    totals: {
-      records: row.records,
-      tokens: row.tokens,
-      units: row.units,
-      costs: [
-        {
-          certainty: row.cost.certainty,
-          records: row.records,
-          ...(row.cost.usd !== undefined && { usd: row.cost.usd }),
-          ...(row.cost.apiEquivalentUsd !== undefined && {
-            apiEquivalentUsd: row.cost.apiEquivalentUsd,
-          }),
-        },
-      ],
-      retries: row.retries,
-      rateLimited: row.rateLimited,
-      ...(row.durationMs !== undefined && { durationMs: row.durationMs }),
-      ...(row.firstTokenMs !== undefined && { firstTokenMs: row.firstTokenMs }),
-      ...(row.packedAvoided !== undefined && { packedAvoided: row.packedAvoided }),
-    },
-  }))
+  return journal.rollups.map((row) => toAggregateRow(row))
 }
 
 /** J's store, S's service and formatter are shared by every editor surface. */
@@ -185,6 +178,9 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       countResources: () => resources.count(),
       readBudgets: deps.live?.readBudgets ?? (() => Promise.resolve([])),
       readLiveLimits: deps.live?.readLiveLimits ?? (() => Promise.resolve([])),
+      ...(deps.live?.currentCredentialId !== undefined && {
+        currentCredentialId: deps.live.currentCredentialId,
+      }),
       readAttempts: deps.live?.readAttempts ?? (() => readTraceAttempts({ homeDir: homedir() })),
       providerConsoles: () => {
         const consoles = deps.live?.providerConsoles() ?? []
@@ -294,6 +290,34 @@ export function createUsageFeatures(
   return { ...createUsageService(deps), text: usageText }
 }
 
+/**
+One NDJSON line's replies. Malformed lines refuse as invalid; a failing
+read reports readFailed so one backend blip never kills the stdio
+session. Anything else keeps its kind.
+*/
+async function repliesForUsageLine(
+  service: UsageService,
+  line: string,
+): Promise<UsageServiceToPageMessage[]> {
+  if (Buffer.byteLength(line, 'utf8') >= USAGE_RECORD_MAX_BYTES)
+    return [{ type: 'usage/error', code: 'invalidMessage' }]
+  let input: unknown
+  try {
+    input = JSON.parse(line)
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error
+    return [{ type: 'usage/error', code: 'invalidMessage' }]
+  }
+  try {
+    return await service.handle(input)
+  } catch (error) {
+    // Malformed input stays invalid; a failed read reports itself.
+    const code =
+      error instanceof Error && error.name === '$ZodError' ? 'invalidMessage' : 'readFailed'
+    return [{ type: 'usage/error', code }]
+  }
+}
+
 /** NDJSON transport for native plugins; CLI routing belongs to lane E. */
 export async function serveUsageStdio(
   service: UsageService,
@@ -303,15 +327,7 @@ export async function serveUsageStdio(
   },
 ): Promise<void> {
   for await (const line of ports.requests) {
-    let replies: UsageServiceToPageMessage[]
-    try {
-      if (Buffer.byteLength(line, 'utf8') >= USAGE_RECORD_MAX_BYTES)
-        throw new Error('oversized usage request')
-      const input: unknown = JSON.parse(line)
-      replies = await service.handle(input)
-    } catch {
-      replies = [{ type: 'usage/error', code: 'invalidMessage' }]
-    }
+    const replies = await repliesForUsageLine(service, line)
     for (const reply of replies) {
       await ports.sendLine(`${JSON.stringify(usageServiceToPageMessageSchema.parse(reply))}\n`)
     }

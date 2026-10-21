@@ -19,7 +19,9 @@ const record: SessionRecord = {
   turnCount: 1,
   forkedFrom: null,
   workspaceRoot: String.raw`C:\muse-live-ws`,
-  title: 'Edit notes.md <ide_opened_file>The user opened notes.md</ide_opened_file>',
+  // The person's words, as the record schema reads a derived title
+  // (sessionTitles.test.ts reads the captured ones).
+  title: 'Edit notes.md',
   firstUserPrompt: 'Edit notes.md',
 }
 
@@ -34,7 +36,7 @@ const userItem = {
 }
 
 describe('toSessionRow', () => {
-  it('builds the dialog row: stripped title, activity, fork and name flags', () => {
+  it('builds the dialog row: title, activity, fork and name flags', () => {
     expect(toSessionRow(record)).toEqual({
       sessionId: record.sessionId,
       title: 'Edit notes.md',
@@ -226,5 +228,44 @@ describe('historyOutcome', () => {
       viewCursor: 'v',
     })
     expect(inline).not.toHaveProperty('goal')
+  })
+})
+
+/**
+The `session/resume` record captured live 2026-10-18 (Muse Code 1.4.7,
+`muse-bin serve --provider echo`, worktree temp/probe0-shapes.ts): the
+host serves the approval mode it runs beside the permission profile, so
+a resumed handle starts knowing which mode to put back.
+*/
+const resumedRecord = {
+  ...record,
+  approvalMode: {
+    lastCommandId: '01a15164-9def-7000-a3fc-278826e723ce',
+    mode: 'onRequest',
+    source: 'approvalReconfigure',
+  },
+  permissionState: {
+    profileId: ':ask-me',
+    reviewerAttached: true,
+    reviewerAuthority: 'human',
+  },
+}
+
+describe('resume envelope approval mode', () => {
+  it('keeps the mode the host runs, and tolerates a record that serves none', () => {
+    const resumed = sessionEnvelopeSchema.parse({
+      session: resumedRecord,
+      history: { mode: 'snapshot', items: null, snapshot: null },
+      viewCursor: 'v',
+    })
+    expect(resumed.session.approvalMode?.mode).toBe('onRequest')
+    // A 1.3.0 record or a `session/list` row serves no mode: the handle
+    // starts unseeded and quarantines on the first failed profile step.
+    const unseeded = sessionEnvelopeSchema.parse({
+      session: record,
+      history: { mode: 'inline', items: [], snapshot: null },
+      viewCursor: 'v',
+    })
+    expect(unseeded.session.approvalMode).toBeUndefined()
   })
 })

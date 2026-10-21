@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../paid/spendLedgerError'
 import { Usd, legacyUsdSchema, sumUsd as sumExactUsd } from '../../shared/usd'
 // D88.3–4: local admission data, supplied by the journal and captured codecs.
 // This module never parses a vendor frame or chooses another account.
@@ -59,7 +60,7 @@ export class AccountThresholdExceededError extends Error {
 }
 
 function unavailable(): never {
-  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  throw new SpendLedgerError('integrity', { scope: 'account', file: 'thresholds' })
 }
 
 function periodRange(period: 'day' | 'week' | 'month', now: number) {
@@ -85,7 +86,7 @@ export function evaluateAccountThresholds(deps: {
   readonly journal: AccountJournalReader
   readonly limits?: AccountLimitsReader
   /** Not yet in the reader's totals (or exclude this request's owned claim).
-   * Equality may admit the last request; a reached cap cannot admit another. */
+  Equality may admit the last request; a reached cap cannot admit another. */
   readonly request?: AccountUsageTotals
 }): readonly AccountTrigger[] {
   if (

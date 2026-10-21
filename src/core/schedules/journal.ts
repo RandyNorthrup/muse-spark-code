@@ -17,11 +17,38 @@ export interface ScheduleFsPort {
   /** Complete, synced bytes and atomic replacement; old bytes survive failure. */
   replace(file: string, content: string, guard?: () => Promise<void>): Promise<void>
   remove(file: string, canRetryTransient?: boolean): Promise<void>
-  lock<T>(key: string, work: (guard: ScheduleLeaseGuard) => Promise<T>): Promise<T>
+  lock<T>(
+    key: string,
+    work: (guard: ScheduleLeaseGuard) => Promise<T>,
+    options?: ScheduleLockOptions,
+  ): Promise<T>
+}
+/**
+A waiting lock acquisition stops, never abandons. The deadline binds
+first: a lease still held by a valid writer past the waiter's deadline is
+busy (`scheduleLeaseBusy`), never a silent abandon; an explicit abort ends
+the wait at once. Past acquisition only the abort binds. A NaN deadline
+disables the bound and leaves a pure signal wait.
+*/
+export interface ScheduleLockOptions {
+  readonly signal?: AbortSignal
+  readonly deadlineMs?: number
 }
 export interface ScheduleLeaseGuard {
   (): Promise<void>
   readonly fencingToken?: number
+}
+/** A held OS handle refuses the pointer-hint replace with a lock-coded
+failure while read-only fencing still holds authority through the epoch
+CAS. Only this shape is a tolerable hint miss; every other failure keeps
+its kind and fails the takeover. */
+export function isHintBlockedError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    ['EPERM', 'EACCES', 'EBUSY'].includes(error.code)
+  )
 }
 export function newestScheduleSlots(names: readonly string[], pattern: RegExp): string[] {
   return names
@@ -40,23 +67,22 @@ export const SCHEDULE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Stored corruption must not quote private prompts or event contents. A
- * version 1 dollar whose written digits a double cannot carry is refused
- * here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
- * never the reviver's source text, so the refusal holds on Node 20 as well
- * as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
- * is a no-op there.
- */
-export function parseScheduleStoredJson(content: string | undefined): unknown {
+Stored corruption must not quote private prompts or event contents. A
+version 1 dollar whose written digits a double cannot carry is refused
+here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
+never the reviver's source text, so the refusal holds on Node 20 as well
+as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
+is a no-op there.
+*/
+export function parseScheduleStoredJson(content: string | undefined = 'null'): unknown {
   try {
-    const { value, isExact } = parseJsonWithExactNumbers(
-      content ?? 'null',
-      SCHEDULE_LEGACY_MONEY_KEYS,
-    )
+    const { value, isExact } = parseJsonWithExactNumbers(content, SCHEDULE_LEGACY_MONEY_KEYS)
     if (!isExact) throw new Error('scheduleStoredJsonInvalid')
     return value
-  } catch {
-    throw new Error('scheduleStoredJsonInvalid')
+  } catch (error) {
+    // The stored text stays unreadable under one fixed refusal; the parse
+    // failure rides along as the cause, never in the refusal itself.
+    throw new Error('scheduleStoredJsonInvalid', { cause: error })
   }
 }
 
@@ -213,7 +239,7 @@ export function createScheduleJournal<T extends Collections>(
       }
       revision = delta.revision
       if (delta.fencingToken !== undefined) {
-        if (delta.fencingToken < fencingToken) throw new Error('scheduleJournalOwnershipLost')
+        if (delta.fencingToken < fencingToken) throw new Error('scheduleJournalFencingRegression')
         fencingToken = delta.fencingToken
       }
       bytes += Buffer.byteLength(deltaContent)
@@ -258,6 +284,9 @@ export function createScheduleJournal<T extends Collections>(
         }
         await fs.remove(`${directory}/${name}`, false)
       } catch {
+        // Retirement is debt, not the committed transaction: a generation
+        // left behind is retried on every later mutation, so a failed
+        // entry waits for the next pass instead of failing this one.
         continue
       }
     }
@@ -328,8 +357,10 @@ export function createScheduleJournal<T extends Collections>(
       } catch (error: unknown) {
         // Read-only fencing preserves exactly the committed value. Its epoch
         // CAS can advance authority while a Windows handle blocks the hint;
-        // an actual state mutation still requires successful activation.
-        if (!isReadOnly) throw error
+        // an actual state mutation still requires successful activation. Any
+        // other failure in any mode keeps its kind: only a blocked hint in
+        // read-only mode re-checks fencing instead of failing the takeover.
+        if (!isReadOnly || !isHintBlockedError(error)) throw error
         await guard()
       }
       if (

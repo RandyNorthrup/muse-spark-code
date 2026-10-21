@@ -30,17 +30,17 @@ function Svg({ title, children }: IconProps & { readonly children: ReactNode }) 
 }
 
 /**
- * The product's own mark: the squiggled handwritten "m" of
- * media/marketplace-icon.svg (two humps and a flick, no loops), the same
- * geometry as media/icon.svg, drawn here as a stroke in the brand blue
- * (--ms-brand-mark, set by styles.css; currentColor keeps forced-colors honest).
- * The box matches the old logo's (24x16) so the empty state's layout does
- * not shift. Crop to the path bounds plus half the stroke on every side;
- * meet the existing box: fill it in the limiting dimension (the width) and
- * sit centred in the other, so the mark keeps the Marketplace proportions
- * without clipping the round caps. Decorative next to the product name:
- * no animation.
- */
+The product's own mark: the squiggled handwritten "m" of
+media/marketplace-icon.svg (two humps and a flick, no loops), the same
+geometry as media/icon.svg, drawn here as a stroke in the brand blue
+(--ms-brand-mark, set by styles.css; currentColor keeps forced-colors honest).
+The box matches the old logo's (24x16) so the empty state's layout does
+not shift. Crop to the path bounds plus half the stroke on every side;
+meet the existing box: fill it in the limiting dimension (the width) and
+sit centred in the other, so the mark keeps the Marketplace proportions
+without clipping the round caps. Decorative next to the product name:
+no animation.
+*/
 export function ProductMark({ title }: IconProps) {
   const isDecorative = title === undefined
   return (
@@ -171,6 +171,16 @@ export function CodeIcon(props: IconProps) {
   return (
     <Svg {...props}>
       <path d="m5.5 5-3 3 3 3M10.5 5l3 3-3 3" />
+    </Svg>
+  )
+}
+
+/** The vault section's padlock (C-M109-1 P1). */
+export function LockIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" />
     </Svg>
   )
 }

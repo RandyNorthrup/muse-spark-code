@@ -9,8 +9,8 @@
 // files, roster data) comes from the product's own listed records or from the
 // recorded M91-G harness capture (`test/fixtures/golden-requests/`, harness
 // date 1970-01-01, workspace /ws), never invented. The remaining values are
-// the functions' own scenario parameters (ledger days, token counts, the
-// approval answers), documented where they are used. No mocks, no fakes, no
+// the functions' own scenario parameters (token counts, the approval
+// answers), documented where they are used. No mocks, no fakes, no
 // timers, no loopback provider.
 
 import { createHash, randomUUID } from 'node:crypto'
@@ -33,6 +33,7 @@ import { Usd, multiplyUsd, type UsdAmount } from '../../src/shared/usd'
 import type { PaidQuote } from '../../src/shared/paid'
 import { RULES_PREAMBLE } from '../../src/shared/constants'
 import { toolDefinitions, type ToolDefinitionOptions } from '../../src/core/backends/modelapi/tools'
+import { restoredToolText } from '../../src/core/backends/modelapi/schemas'
 import {
   instructionsFor,
   type InstructionFacts,
@@ -43,10 +44,8 @@ import { parseSkillFile, type SkillDefinition } from '../../src/core/context/ski
 import { buildStableRosterSection } from '../../src/core/team/roster'
 import { TEAM_TOOL_DEFINITIONS } from '../../src/core/team/teamTools'
 import { webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
-import {
-  ObservationPack,
-  estimatePackTokens,
-} from '../../src/core/backends/modelapi/observationPack'
+import { estimatePackTokens } from '../../src/core/backends/modelapi/observationPack'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPacking'
 import {
   functionCallItemSchema,
   withStrictTools,
@@ -207,9 +206,18 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   const CALL_ID = RECORDED.call.call_id
   const BIG = RECORDED.output
 
-  function send(pack: ObservationPack, output: string): InputItem[] {
+  function recordedPair(): [InputItem, InputItem] {
     const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output }
+    const result: InputItem = {
+      type: 'function_call_output',
+      call_id: CALL_ID,
+      output: restoredToolText(BIG),
+    }
+    return [call, result]
+  }
+
+  function send(pack: ObservationPack): InputItem[] {
+    const [call, result] = recordedPair()
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     return projected
@@ -223,7 +231,7 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
     // Checked narrowing, not a cast: a non-string output fails the test here.
     if (result === undefined) throw new Error(`missing function_call_output for ${CALL_ID}`)
     if (typeof result.output !== 'string')
-      throw new Error(`function_call_output for ${CALL_ID} is not a string`)
+      throw new TypeError(`function_call_output for ${CALL_ID} is not a string`)
     return result.output
   }
 
@@ -240,13 +248,13 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
     expect(BIG.length).toBeGreaterThan(OBS_PACK_THRESHOLD_CHARS)
     const pack = new ObservationPack()
     for (let sendIndex = 0; sendIndex < OBS_PACK_WHOLE_SENDS; sendIndex += 1) {
-      expect(outputOf(send(pack, BIG))).toBe(BIG)
+      expect(outputOf(send(pack))).toBe(BIG)
     }
-    const packed = outputOf(send(pack, BIG))
+    const packed = outputOf(send(pack))
     expect(packed).not.toBe(BIG)
     expect(packed.length).toBeLessThan(BIG.length)
     expect(packed).toContain(CALL_ID)
-    expect(outputOf(send(pack, BIG))).not.toBe(BIG)
+    expect(outputOf(send(pack))).not.toBe(BIG)
     expect(pack.packedCallIds()).toContain(CALL_ID)
     // The ledger counts exactly what the two packed sends left out.
     expect(pack.savings()).toBe(
@@ -256,18 +264,21 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
 
   it('does not count a retried send of the same request twice', () => {
     const pack = new ObservationPack()
-    const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
+    const [call, result] = recordedPair()
     const projected = pack.project([call, result])
     pack.noteSent(projected)
     pack.noteSent(projected)
     // One real send so far: the output still rides whole.
-    expect(outputOf(send(pack, BIG))).toBe(BIG)
+    expect(outputOf(send(pack))).toBe(BIG)
   })
 
   it('keeps the swap sticky across a resume and forgets it after a reset', () => {
     const call: InputItem = { ...RECORDED.call }
-    const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
+    const result: InputItem = {
+      type: 'function_call_output',
+      call_id: CALL_ID,
+      output: restoredToolText(BIG),
+    }
     const resumed = new ObservationPack()
     resumed.restorePackedCallIds([CALL_ID], [call, result])
     // A resumed session packs from its first request, not after whole sends.
@@ -282,7 +293,7 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   it('pages the archived original back through recall_output', () => {
     const pack = new ObservationPack()
     for (let sendIndex = 0; sendIndex <= OBS_PACK_WHOLE_SENDS; sendIndex += 1) {
-      send(pack, BIG)
+      send(pack)
     }
     const first = pack.recall(JSON.stringify({ id: CALL_ID, offset: 0 }))
     expect(first.output).toContain(BIG.slice(0, 100))
@@ -334,21 +345,10 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     // like the packing thresholds above.
     expect(tariff).toBe('0.0025')
     expect(paidAuthorityKey(searchA)).not.toBe(paidAuthorityKey(searchB))
-    // The day, cap and spend are the scenario's ledger state (the reducer
-    // only mirrors them for the host's budget wiring; the cap itself is
-    // refused by the budget journal's claim check, not here — see the
-    // certification record).
+    // D208 keeps no daily ledger state in the reducer: no cap by default,
+    // nothing reserved before a send. The gate below is quotes and grants
+    // only; each claim still settles its own tally.
     let state = initialPaidAuthorityState()
-    state = step(state, {
-      type: 'day',
-      day: '2026-01-01',
-      capUsd: Usd.from('1').toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-    }).state
-    expect(state.days.get('2026-01-01')).toEqual({
-      capUsd: Usd.from('1').toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-    })
 
     const first = step(state, { type: 'quote', quote: searchA, generation: 'g1', ask: true })
     state = first.state
@@ -705,8 +705,10 @@ describe('invariant 6: the eval stays comparable', () => {
       expect(evalTaskSchema.safeParse(task).success).toBe(true)
     }
     const payload = JSON.stringify({ prelude: EVAL_VERIFY_PRELUDE, tasks: EVAL_TASKS })
+    // TRAINFIX: the release train measures its own task set (M101/M75 arms
+    // main simplified away); e613f70a is main's digest for main's set.
     expect(createHash('sha256').update(payload).digest('hex')).toBe(
-      'e613f70a55d6872733e40f1f9a55e0cb6376c3d8237ecef563181a0f7a051a48',
+      '2606a640921fdec49b0c38a623892fee5c6026c1a24780dd5c4ef75e84854895',
     )
     const accept = evalTasksOfSplit('accept')
     const heldout = evalTasksOfSplit('heldout')
@@ -760,8 +762,8 @@ const fixtureItemSchema = z.object({
 })
 
 /** One recorded tool call and its output from a golden fixture: the first
- * function_call (parsed under the product's own item schema) and the
- * string output of its function_call_output, narrowed by a typeof guard. */
+function_call (parsed under the product's own item schema) and the
+string output of its function_call_output, narrowed by a typeof guard. */
 function recordedCallAndOutput(
   relativePath: string,
   requestIndex: number,
@@ -784,7 +786,7 @@ function recordedCallAndOutput(
     )
   const output = outputItem?.success === true ? outputItem.data.output : undefined
   if (typeof output !== 'string')
-    throw new Error(
+    throw new TypeError(
       `no recorded string tool output in ${relativePath} request ${String(requestIndex)}`,
     )
   return { call, output }
@@ -794,7 +796,7 @@ interface GoldenPrefix {
   readonly options: ToolDefinitionOptions
   readonly facts: (base: InstructionFacts) => InstructionFacts
   /** The host appends the hosted-search tool when paid web search is
-   * offered (`ModelApiHost`: `isWebSearchOffered`). */
+  offered (`ModelApiHost`: `isWebSearchOffered`). */
   readonly hostedSearch?: boolean
 }
 
@@ -916,8 +918,8 @@ function prefixTools(prefix: GoldenPrefix): readonly ToolDefinition[] {
 }
 
 /** Rebuilds a recorded turn's body with the real builders and returns the
- * complete serialized body: the byte comparison then covers every field,
- * not selected ones. */
+complete serialized body: the byte comparison then covers every field,
+not selected ones. */
 function rebuildGoldenTurn(file: string, tools: readonly ToolDefinition[]): string {
   const body = goldenBodySchema.parse(JSON.parse(goldenRequests(file)[0]!) as unknown)
   const instructions = instructionsFor(baseFacts())
@@ -972,12 +974,24 @@ describe('invariant 7: golden request bytes with new features off', () => {
   ]
 
   it('keeps every recorded golden request in the sent key order', () => {
+    // A tools-disabled wrap-up declares no tools, so the wire carries no
+    // `tools` or `tool_choice` keys either (xAI answers 400 to a choice
+    // with no tools): golden 10-turn-limit-wrap-up pins that shape beside
+    // the full one, request by request.
+    const wrapUpKeys = BODY_KEYS.filter((key) => key !== 'tools' && key !== 'tool_choice')
     const files = goldenFiles()
     expect(files.length).toBeGreaterThan(0)
     for (const file of files) {
-      for (const request of goldenRequests(file)) {
+      const shapes = file === '10-turn-limit-wrap-up.json' ? [BODY_KEYS, wrapUpKeys] : undefined
+      const requests = goldenRequests(file)
+      if (shapes !== undefined) {
+        expect(requests.length).toBe(shapes.length)
+      }
+      for (const [index, request] of requests.entries()) {
         const parsed: unknown = JSON.parse(request)
-        expect(Object.keys(z.record(z.string(), z.unknown()).parse(parsed))).toEqual(BODY_KEYS)
+        expect(Object.keys(z.record(z.string(), z.unknown()).parse(parsed))).toEqual(
+          shapes?.[index] ?? BODY_KEYS,
+        )
       }
     }
   })

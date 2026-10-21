@@ -1,8 +1,12 @@
+import { SpendLedgerError } from '../paid/spendLedgerError'
 // M105 C / D85.6–7. Metadata and billed usage only; never encoded media or
 // input_tokens media counts. The caller injects evidence, tariffs and stores.
 import * as z from 'zod/mini'
+import { UserRefusalError } from '../refusal'
 import {
-  MEDIA_CONTRIBUTOR_CHOICES,
+  MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT,
+  MEDIA_CALIBRATION_IMAGE_MAX_WIDTH,
+  MEDIA_CALIBRATION_VIDEO_MAX_SECONDS,
   MEDIA_ID_MAX_CHARS,
   MODEL_API_MEDIA_PER_REQUEST,
   TOKENS_PER_MILLION,
@@ -24,7 +28,7 @@ const variantSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('image'), detail: z.enum(['auto', 'low', 'high', 'original']) }),
 ])
 
-const pointSchema = z.strictObject({
+export const calibrationPointSchema = z.strictObject({
   provider: id,
   modelId: id,
   variant: variantSchema,
@@ -35,13 +39,17 @@ const pointSchema = z.strictObject({
   // bill supplies an upper observation for each item, never a typical rate.
   upperOnly: z.boolean(),
 })
-type CalibrationPoint = z.infer<typeof pointSchema>
+export type CalibrationPoint = z.infer<typeof calibrationPointSchema>
+const pointSchema = calibrationPointSchema
 
 export interface MediaCostItem {
   readonly info: MediaInfo
   /** null/absent means provider default, kept distinct from explicit fps. */
   readonly fps?: number | undefined
   readonly detail?: 'auto' | 'low' | 'high' | 'original' | undefined
+  /** Inline-priced visuals (image/PDF reads): the bound reserves, but the
+  provider-counted inline bytes never become a calibration observation. */
+  readonly inlinePriced?: boolean
 }
 
 function measurement(item: MediaCostItem):
@@ -87,6 +95,8 @@ export class MediaCostEstimator {
     private readonly deps: {
       readonly read: () => unknown
       readonly write: (points: readonly CalibrationPoint[]) => Promise<void>
+      /** Merges settlements under the calibration store's mutex when bound. */
+      readonly withLock?: <T>(operation: () => Promise<T>) => Promise<T>
       /** Lane W supplies MEDIA_ESTIMATE_SAFETY_FACTOR; no rate is invented here. */
       readonly safetyFactor: number
     },
@@ -100,11 +110,29 @@ export class MediaCostEstimator {
     const measured = measurement(item)
     if (measured === undefined) throw new Error('Text belongs to the text estimator')
     const variant = variantSchema.parse(measured.variant)
+    // The calibration envelope (D85.6): size changes image usage and no
+    // image above 3000x2000 was captured, so a larger image has no rate to
+    // match even though its detail variant does. Video past 600 seconds
+    // extrapolates a rate curve evidenced only to there. Both stay refused
+    // under a cap rather than bounded on a guess. Higher fps values refuse
+    // through the variant match below: only seeded fps values match.
+    const isOversizeImage =
+      variant.kind === 'image' &&
+      item.info.kind === 'image' &&
+      ((item.info.width !== undefined && item.info.width > MEDIA_CALIBRATION_IMAGE_MAX_WIDTH) ||
+        (item.info.height !== undefined && item.info.height > MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT))
+    const isOverlongVideo =
+      variant.kind === 'video' &&
+      measured.units !== null &&
+      measured.units > MEDIA_CALIBRATION_VIDEO_MAX_SECONDS
+    const isUnmeasured = isOversizeImage || isOverlongVideo
+    if (!isCapped && isUnmeasured) return
+    if (isUnmeasured) throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: modelId }))
     const matches = this.points.filter((point) => hasSameRate(point, provider, modelId, variant))
     const calibrated = matches.filter((point) => !point.upperOnly)
     if (measured.units === null || calibrated.length === 0) {
       if (isCapped) {
-        throw new Error(
+        throw new UserRefusalError(
           measured.units === null && ['video', 'audio'].includes(variant.kind)
             ? UI_TEXT.media.cappedDurationUnknown
             : fill(UI_TEXT.media.cappedRateUnknown, { model: modelId }),
@@ -168,9 +196,14 @@ export class MediaCostEstimator {
     items: readonly MediaCostItem[],
     usage: Usage,
     captureId: string,
+    options?: { readonly mixed?: boolean },
   ): Promise<void> {
     const reported = usageSchema.parse(usage)
     tokens.parse(reported.input_tokens)
+    // The caller filters inline-priced visuals before observing: the bill
+    // still covers them, so one remaining item of a mixed request is an upper
+    // observation, never a typical rate.
+    const isMixed = options?.mixed === true || items.length !== 1
     const additions = items.flatMap((item) => {
       const measured = measurement(item)
       if (measured?.units === undefined || measured.units === null) return []
@@ -181,7 +214,7 @@ export class MediaCostEstimator {
           ...measured,
           inputTokens: reported.input_tokens,
           captureId,
-          upperOnly: items.length !== 1,
+          upperOnly: isMixed,
         }),
       ]
     })
@@ -192,9 +225,26 @@ export class MediaCostEstimator {
       } catch {
         // Its caller already received the failure; a later bill still saves.
       }
-      const next = [...this.points, ...additions]
-      await this.deps.write(next)
-      this.points = next
+      if (this.deps.withLock === undefined) {
+        const next = [...this.points, ...additions]
+        await this.deps.write(next)
+        this.points = next
+        return
+      }
+      // Two live sessions settle under the shared mutex: re-read inside it
+      // and merge by capture id, so the second settlement keeps the first.
+      await this.deps.withLock(async () => {
+        const fresh = z.array(pointSchema).parse(this.deps.read())
+        const known = new Set(fresh.map((point) => point.captureId))
+        const unseen = additions.filter((point) => !known.has(point.captureId))
+        if (unseen.length === 0) {
+          this.points = fresh
+          return
+        }
+        const merged = [...fresh, ...unseen]
+        await this.deps.write(merged)
+        this.points = merged
+      })
     }
     const saving = save()
     this.pendingSave = saving
@@ -202,19 +252,18 @@ export class MediaCostEstimator {
   }
 }
 
-/** Metadata, selected-model tariff and both existing ledgers are injected. */
+/** A scheduled run's own day claim for a media request (D95): checked before the send, settled after. */
 export interface MediaCostClaim {
   check(): void
-  settle(costUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
-}
-export interface MediaCostLedger {
-  reserve(costUsd: UsdAmount): Promise<MediaCostClaim>
+  /** Its cost from the reported usage; `undefined` when it went out and none came back. */
+  settle(costUsd: UsdAmount | undefined): Promise<unknown>
 }
 export interface MediaRequestAccounting {
   readonly modelId: string
   readonly maxOutputTokens: number
   readonly inputTokens: number
-  readonly reservedUsd: UsdAmount
+  /** The whole request at list price: compared with a limit, never counted as spent (D208). */
+  readonly estimateUsd: UsdAmount
   check(): void
   started(): void
   refused(): void
@@ -223,8 +272,8 @@ export interface MediaRequestAccounting {
   finish(): Promise<void>
 }
 
-/** Reserve the whole request at list price; cache discounts only settle bills. */
-export async function reserveMediaRequest(request: {
+/** Estimate the whole request at list price; cache discounts only settle bills. */
+export function reserveMediaRequest(request: {
   readonly provider: string
   readonly modelId: string
   readonly items: readonly MediaCostItem[]
@@ -238,9 +287,7 @@ export async function reserveMediaRequest(request: {
     readonly output: UsdAmount
     readonly cachedInput: UsdAmount
   }
-  readonly session: MediaCostLedger
-  readonly daily?: MediaCostLedger
-}): Promise<MediaRequestAccounting> {
+}): MediaRequestAccounting {
   // Snapshot what is admitted, so later model/attachment changes cannot
   // alter a dispatched request's tariff or calibration observation.
   request = {
@@ -255,12 +302,12 @@ export async function reserveMediaRequest(request: {
   tokens.parse(request.maxOutputTokens)
   for (const price of Object.values(request.prices))
     if (!usdAmountSchema.safeParse(price).success || Usd.from(price).compare(Usd.from(0)) < 0)
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'account', file: 'mediaCost' })
   let inputTokens = request.textInputTokens
   for (const item of request.items) {
     const estimate = request.estimator.estimate(request.provider, request.modelId, item, true)
     if (estimate === undefined)
-      throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: request.modelId }))
+      throw new UserRefusalError(fill(UI_TEXT.media.cappedRateUnknown, { model: request.modelId }))
     inputTokens += estimate.upperBoundInputTokens
   }
   tokens.parse(inputTokens)
@@ -269,27 +316,21 @@ export async function reserveMediaRequest(request: {
     output: Usd.from(request.prices.output),
     cachedInput: Usd.from(request.prices.cachedInput),
   }
-  const reservedUsd = prices.input
+  const estimateUsd = prices.input
     .times(inputTokens)
     .add(prices.output.times(request.maxOutputTokens))
     .divide(TOKENS_PER_MILLION)
     .toAmount()
   if (prices.cachedInput.compare(prices.input) > 0)
     throw new Error('Cache tariff exceeds list price')
-  const session = await request.session.reserve(reservedUsd)
+  // A scheduled run binds its own day claim before the send (rebindDaily).
   let daily: MediaCostClaim | undefined
-  try {
-    daily = await request.daily?.reserve(reservedUsd)
-  } catch (error: unknown) {
-    await session.settle(Usd.from(0).toAmount())
-    throw error
-  }
   let wasSent = false
   let isRebinding = false
-  const closed = new Set<MediaCostClaim>()
+  let isDailyClosed = false
   // Selecting the terminal outcome is synchronous. Every settle/finish caller
-  // then shares its write; a failed ledger write retries only unclosed claims.
-  let settled: { costUsd: UsdAmount; hasUnknownCost: boolean; usage?: Usage } | undefined
+  // then shares its write; a failed write retries on the next call.
+  let settled: { costUsd: UsdAmount | undefined; usage?: Usage } | undefined
   let completion: Promise<void> | undefined
   const complete = () => {
     if (completion !== undefined) return completion
@@ -299,23 +340,24 @@ export async function reserveMediaRequest(request: {
       // Publish completion before a ledger can reenter settle/finish.
       await Promise.resolve()
       try {
-        const results = await Promise.allSettled(
-          [session, ...(daily === undefined ? [] : [daily])]
-            .filter((claim) => !closed.has(claim))
-            .map(async (claim) => {
-              await claim.settle(bill.costUsd, bill.hasUnknownCost)
-              closed.add(claim)
-            }),
-        )
-        for (const result of results) if (result.status === 'rejected') throw result.reason
+        if (daily !== undefined && !isDailyClosed) {
+          await daily.settle(bill.costUsd)
+          isDailyClosed = true
+        }
         if (bill.usage !== undefined) {
           try {
+            // Inline-priced visuals settle their bound but teach nothing. The
+            // bill still covers them, so the request stays mixed for the
+            // remaining items even when one is left.
+            const observed = request.items.filter((item) => item.inlinePriced !== true)
+            if (observed.length === 0) return
             await request.estimator.observe(
               request.provider,
               request.modelId,
-              request.items,
+              observed,
               bill.usage,
               request.captureId,
+              { mixed: observed.length !== request.items.length },
             )
           } catch {
             // Local calibration is optional evidence, not the provider result.
@@ -335,55 +377,31 @@ export async function reserveMediaRequest(request: {
     modelId: request.modelId,
     maxOutputTokens: request.maxOutputTokens,
     inputTokens,
-    reservedUsd,
+    estimateUsd,
     async rebindDaily(reserve) {
-      // The schedule replaces the shared-day claim; retaining both would double charge.
-      if (
-        wasSent ||
-        settled !== undefined ||
-        isRebinding ||
-        (daily !== undefined && closed.has(daily))
-      )
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      // One day claim per request, bound before it is sent.
+      if (wasSent || settled !== undefined || isRebinding || daily !== undefined)
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       isRebinding = true
       try {
-        const replacement = await reserve()
-        try {
-          await daily?.settle(Usd.from(0).toAmount())
-        } catch (error: unknown) {
-          await replacement.settle(Usd.from(0).toAmount())
-          throw error
-        }
-        if (daily !== undefined) closed.add(daily)
-        daily = replacement
+        daily = await reserve()
       } finally {
         isRebinding = false
       }
     },
     check() {
-      // An uncertain first dispatch never spends the same claims on a retry.
-      if (
-        wasSent ||
-        settled !== undefined ||
-        isRebinding ||
-        (daily !== undefined && closed.has(daily))
-      )
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-      session.check()
+      if (settled !== undefined || isRebinding)
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       daily?.check()
     },
     started() {
-      if (
-        wasSent ||
-        settled !== undefined ||
-        isRebinding ||
-        (daily !== undefined && closed.has(daily))
-      )
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (settled !== undefined || isRebinding)
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       wasSent = true
     },
     refused() {
-      if (settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (settled !== undefined)
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       wasSent = false
     },
     async settle(usage) {
@@ -403,74 +421,13 @@ export async function reserveMediaRequest(request: {
         .add(prices.output.times(output))
         .divide(TOKENS_PER_MILLION)
         .toAmount()
-      // D85.6 admits the worst case; D95.3 never posts unadmitted scheduled spend.
-      if (Usd.from(costUsd).compare(Usd.from(reservedUsd)) > 0)
-        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-      settled = { costUsd, hasUnknownCost: false, usage: reported }
+      settled = { costUsd, usage: reported }
       await complete()
     },
     async finish() {
-      settled ??= {
-        costUsd: wasSent ? reservedUsd : Usd.from(0).toAmount(),
-        hasUnknownCost: wasSent,
-      }
+      // Sent with no usage: its cost is unknown, never its estimate (D208).
+      settled ??= { costUsd: wasSent ? undefined : Usd.from(0).toAmount() }
       await complete()
     },
-  }
-}
-
-/** Every editor asks through its own modal/permission bridge, before upload.
- * @unwired M105 per-editor media consent bridge
- */
-export class MediaContributorConsent {
-  private readonly allowed = new Set<string>()
-  private readonly pending = new Map<string, Promise<'send' | 'useStandard' | 'remove'>>()
-
-  public constructor(
-    private readonly ask: (question: {
-      readonly title: string
-      readonly detail: string
-      readonly choices: typeof MEDIA_CONTRIBUTOR_CHOICES
-    }) => Promise<'send' | 'useStandard' | 'remove'>,
-  ) {}
-
-  public async choose(request: {
-    readonly conversationId: string
-    readonly name: string
-    readonly info: MediaInfo
-    readonly contributor: boolean
-    readonly isScreenRecording: boolean
-  }) {
-    const isSensitive = ['video', 'audio'].includes(request.info.kind)
-    if (
-      !request.isScreenRecording &&
-      (!isSensitive || !request.contributor || this.allowed.has(request.conversationId))
-    )
-      return 'send'
-    const decide = async () => {
-      const choice = z.enum(MEDIA_CONTRIBUTOR_CHOICES).parse(
-        await this.ask({
-          title: request.contributor
-            ? fill(UI_TEXT.media.contributorQuestion, { name: request.name })
-            : UI_TEXT.media.recordingWarning,
-          detail: request.isScreenRecording
-            ? UI_TEXT.media.recordingWarning
-            : UI_TEXT.media.contributorWarning,
-          choices: MEDIA_CONTRIBUTOR_CHOICES,
-        }),
-      )
-      if (choice === 'send' && request.contributor) this.allowed.add(request.conversationId)
-      return choice
-    }
-    if (request.isScreenRecording) return await decide()
-    const pending = this.pending.get(request.conversationId)
-    if (pending !== undefined) return await pending
-    const decision = decide()
-    this.pending.set(request.conversationId, decision)
-    try {
-      return await decision
-    } finally {
-      this.pending.delete(request.conversationId)
-    }
   }
 }

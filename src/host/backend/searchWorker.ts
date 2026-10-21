@@ -41,10 +41,10 @@ function isBinary(text: string): boolean {
 const ASTRAL_PLANE_START = 0x1_00_00
 
 /**
- * One hit within `max` characters (M101, Pi's truncate): a minified line
- * cannot fill the whole search budget. Cut on a code point boundary, saying
- * how far the line goes.
- */
+One hit within `max` characters (M101, Pi's truncate): a minified line
+cannot fill the whole search budget. Cut on a code point boundary, saying
+how far the line goes.
+*/
 function clipHit(line: string, max: number): string {
   if (line.length <= max) {
     return line
@@ -86,9 +86,9 @@ function isInside(root: string, target: string): boolean {
 }
 
 /**
- * The file's text when it is a small, confined, readable text file that the
- * permission settings do not deny by its canonical path (M78).
- */
+The file's text when it is a small, confined, readable text file that the
+permission settings do not deny by its canonical path (M78).
+*/
 async function searchableText(
   realRoot: string,
   absolute: string,
@@ -121,10 +121,15 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- the model's pattern, evaluated on this worker so the host can terminate a runaway match (PLAN.md §8)
     regex = new RegExp(job.pattern)
   } catch (error: unknown) {
-    return {
-      ok: false,
-      reason: `invalid pattern: ${error instanceof Error ? error.message : String(error)}`,
+    // A pattern the RegExp constructor rejects is invalid; anything else is
+    // not this search's to swallow.
+    if (error instanceof SyntaxError) {
+      return {
+        ok: false,
+        reason: `invalid pattern: ${error.message}`,
+      }
     }
+    throw error
   }
   const realRoot = await realpath(job.root)
   const isDenied = compileDenyGlobsWithin(job.denyRead, job.globLimits)

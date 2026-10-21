@@ -13,20 +13,29 @@ import { SessionOwner, type SessionToken, type SessionEffect } from '../../sched
 import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
 import { mspApprovalMode } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
 import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
-import { type ChildProcess, spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { spawnGuarded } from '../../guardedChildProcess'
+import type { GuardedChildEnv } from '../../executables'
 // Exact SDK pin: reuse bounded process teardown while wrapping actual submission.
 import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
-import type { MuseCodeAccountHome } from './accountHomes'
+// Deep SDK imports (never the barrel): the barrel's facade, fold and
+// pending layers would ride into dist/museCode.js unused. `connection.js`
+// and `fingerprint.js` take only node:crypto and nothing, respectively.
 import {
   Connection,
-  type DuplexTransport,
   MspError,
   ProtocolError,
-  checkServedFingerprint,
-  type MspHandshake,
-  type SpawnMspConnectionOptions,
-} from '@muse-code/sdk'
+  type DuplexTransport,
+} from '@muse-code/sdk/dist/src/connection/connection.js'
+import { checkServedFingerprint } from '@muse-code/sdk/dist/src/fingerprint.js'
+import type {
+  MspHandshake,
+  SpawnMspConnectionOptions,
+} from '@muse-code/sdk/dist/src/connection/spawn.js'
+import type { MuseCodeAccountHome } from './accountHomes'
+import type { ModeSyncOps } from './approvalModesEntry'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
@@ -40,33 +49,38 @@ import {
   APPROVAL_REJECT_ATTEMPTS,
   APPROVAL_REJECT_DEADLINE_MS,
   CLARIFICATION_FORMAT,
+  CONTRIBUTOR_MODEL_SUFFIX,
   GOAL_RECOVERY_MAX_PAGES,
   GOAL_RECOVERY_PAGE_LIMIT,
   JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
   MSP_COMMAND_ATTEMPTS,
-  MSP_COMMAND_TIMEOUT_MS,
   MSP_FRAME_LIMIT_BYTES,
-  MSP_LONG_COMMAND_TIMEOUT_MS,
   MSP_LONG_COMMANDS,
   MSP_RETRY_BASE_DELAY_MS,
   MSP_RETRY_MAX_DELAY_MS,
   MSP_RETRYABLE_REFUSALS,
   MSP_SESSION_LIST_MAX_LIMIT,
   MSP_STEER_NO_TURN_REASONS,
+  QUESTION_DEFER_DEFAULT_SECONDS,
   MSP_UNRESPONSIVE_MISSES,
   MSP_UNRESPONSIVE_SILENCE_MS,
+  STILL_WAITING_NOTICE_MS,
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
+  MUSE_AUTO_REVIEW_PROFILE,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
+  type EffortLevel,
+  RECAP_SETTLE_TIMEOUT_MS,
   type SubagentAction,
   UI_TEXT,
 } from '../../../shared/constants'
+import { isEffortLevel } from '../../../shared/effort'
 import { fill } from '../../../shared/l10n/text'
-import { DeadlineError, withDeadline } from '../../timeouts'
+import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
 import {
   type SubscriptionUsage,
@@ -77,6 +91,8 @@ import {
   type AgentHost,
   type ApprovalDecision,
   type CompactOutcome,
+  type ComputerUseSetup,
+  type ForeignSkillImport,
   type GoalCommand,
   type GoalCommandOutcome,
   type GoalRefusal,
@@ -86,14 +102,18 @@ import {
   type LoadedSession,
   type ModelSummary,
   type MuseCodeFault,
+  type BackgroundTaskSummary,
   type OutputPage,
   type OutputPageRequest,
   type QueuedMessageRef,
   type SessionEventListener,
   type SessionHistoryOutcome,
+  type SessionHookRow,
   type SessionListEvent,
   type SessionMcpServer,
   type SessionPage,
+  type SessionPluginRow,
+  type SessionRecap,
   type SkillSummary,
   type StartSessionOptions,
   type TurnPart,
@@ -121,6 +141,7 @@ import {
   UNKNOWN_METHOD,
   type WireNotification,
 } from './mapNotification'
+import type { MuseUsageDeltas, UsageNotesBundle } from './usageDeltas'
 import { failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
@@ -148,6 +169,10 @@ export interface MspHost {
 /** The MSP host's identity plus what the extension logs about it. */
 export interface MuseHostInfo extends HostInfo {
   readonly museHome: string
+  /** Whether the host can enforce the sandbox (1.4.7); unknown when the host predates the field. */
+  readonly sandboxAvailability?: string | undefined
+  /** Why enforcement is impossible; set only when unavailable. */
+  readonly sandboxUnavailableReason?: string | undefined
 }
 
 export interface MuseCodeEffortInfo {
@@ -159,6 +184,66 @@ export interface MuseCodeEffortInfo {
   readonly defaultReasoningEffort?: string
 }
 
+/**
+Reads one `model/list` row's effort metadata (Muse Code 1.4.0/1.4.1 carry
+the tiers a model serves, a described subset and the default). The row
+shape is UNVERIFIED until a 1.4.x live capture lands (capture plan
+META-LIST): unknown fields stay absent, never guessed.
+*/
+export function parseMuseCodeEffortInfo(row: unknown): MuseCodeEffortInfo {
+  const parsed = museCodeEffortRowSchema.safeParse(row)
+  if (!parsed.success) return {}
+  const { variants, reasoningEffortVariants, defaultReasoningEffort } = parsed.data
+  return {
+    ...(variants !== undefined && { variants }),
+    ...(reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: reasoningEffortVariants.map((variant) => ({
+        tier: variant.tier,
+        ...(variant.description !== undefined && { description: variant.description }),
+      })),
+    }),
+    ...(defaultReasoningEffort !== undefined && { defaultReasoningEffort }),
+  }
+}
+
+const museCodeEffortRowSchema = z.looseObject({
+  variants: z.optional(z.union([z.literal('unknown'), z.array(z.string())])),
+  reasoningEffortVariants: z.optional(
+    z.array(z.looseObject({ tier: z.string(), description: z.optional(z.string()) })),
+  ),
+  defaultReasoningEffort: z.optional(z.string()),
+})
+
+/**
+The slider steps and default for one model's effort metadata: the row's
+tiers in order, kept only where they name a UI tier, deduplicated; the
+row's default where it names one. Empty where the row carries nothing
+the UI can offer (the static family table applies downstream).
+*/
+export function museModelEffortTiers(info: MuseCodeEffortInfo): {
+  readonly levels: readonly EffortLevel[]
+  readonly defaultEffort: EffortLevel | undefined
+} {
+  const names: readonly string[] =
+    Array.isArray(info.variants) && info.variants.length > 0
+      ? info.variants
+      : (info.reasoningEffortVariants ?? []).map((variant) => variant.tier)
+  const levels: EffortLevel[] = []
+  for (const name of names) {
+    if (isEffortLevel(name) && !levels.includes(name)) levels.push(name)
+  }
+  const fallback = info.defaultReasoningEffort
+  return {
+    levels,
+    defaultEffort: fallback !== undefined && isEffortLevel(fallback) ? fallback : undefined,
+  }
+}
+
+/** The default effort port: every host construction site supplies it. */
+export const museCodeEffortPort = {
+  modelEfforts: { parseModel: parseMuseCodeEffortInfo },
+} satisfies Required<Pick<MuseCodeFeaturePorts, 'modelEfforts'>>
+
 export interface MuseCodeModelSummary extends ModelSummary, MuseCodeEffortInfo {}
 
 /** Readers are injected only after their raw frames have captured zod schemas. */
@@ -168,6 +253,16 @@ export interface MuseCodeFeaturePorts {
   readonly modelEfforts?: {
     parseModel(row: unknown): MuseCodeEffortInfo
   }
+  /**
+  True while this host's `serve` runs with `--contributor-mode on` (the
+  person's own Muse Code settings enabled it); absent reads as off. The
+  CLI's `model/list` never names contributor-tier models (verified
+  2026-10-18 on 1.4.10: the same four ids with and without the flag), so
+  `listModels` derives each listed model's `-contributor` counterpart by
+  name while this holds. The provider, not the product, decides whether
+  the person may use one.
+  */
+  readonly contributorMode?: boolean
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -191,6 +286,11 @@ const initializeResultSchema = z.object({
   serverInfo: z.object({ name: z.string(), version: z.string() }),
   museHome: z.string(),
   grantedCapabilities: z.optional(z.array(z.string())),
+  // Whether this host can enforce the sandbox (1.4.7): absent reads as
+  // unknown, never as available. Served 2026-10-17 by 1.4.9-R6297.1.
+  sandboxAvailability: z.optional(z.string()),
+  // Sent only when enforcement is impossible; never inferred when absent.
+  sandboxUnavailableReason: z.optional(z.string()),
   // Logged once per start (D26); `platformOs` also gates rename and fork.
   platformOs: z.optional(z.string()),
   schema: z.optional(
@@ -284,23 +384,291 @@ function unqueueRefusal(error: unknown): string | undefined {
   return typeof reason === 'string' ? reason : undefined
 }
 
-const modelListResultSchema = z.object({
+/** Exported for the M127 capture tests: parses the recorded `model/list` result. */
+export const modelListResultSchema = z.object({
   models: z.array(
     z.looseObject({
       modelId: z.string(),
       displayLabel: z.string(),
       contextLimit: z.nullable(z.number()),
+      // The row's `outputLimit` (M127): `null` when the catalog source
+      // declared nothing; absent on older hosts. Served 2026-10-17 by
+      // 1.4.9-R6297.1 (`muse schema generate-json-schema`).
+      outputLimit: z.optional(z.nullable(z.number())),
       isDefault: z.boolean(),
       isActive: z.optional(z.boolean()),
     }),
   ),
 })
 
-const skillListResultSchema = z.object({
+/**
+One recorded `model/list` row as the summary the picker reads (M127):
+`null` limits read as absent. Exported for the capture tests.
+*/
+export function toModelSummary(
+  model: z.infer<typeof modelListResultSchema>['models'][number],
+  modelEfforts?: { parseModel(row: unknown): MuseCodeEffortInfo },
+): MuseCodeModelSummary {
+  const info = modelEfforts?.parseModel(model)
+  const tiers = info === undefined ? undefined : museModelEffortTiers(info)
+  return {
+    modelId: model.modelId,
+    displayLabel: model.displayLabel,
+    contextLimit: model.contextLimit ?? undefined,
+    outputLimit: model.outputLimit ?? undefined,
+    isDefault: model.isDefault,
+    isActive: model.isActive ?? false,
+    ...info,
+    // The row's own tiers light the slider; absent, the static family
+    // table applies downstream (META-G05).
+    ...(tiers !== undefined && tiers.levels.length > 0 && { effortLevels: [...tiers.levels] }),
+    ...(tiers?.defaultEffort !== undefined && { defaultEffort: tiers.defaultEffort }),
+  }
+}
+
+/**
+One listed base model's contributor counterpart, by name: the CLI accepts
+`<base>-contributor` at `session/start` for every listed base (verified
+2026-10-18 on 1.4.10 for all four served ids, and the CLI's own bundled
+code-review agent names `muse-wonder-full-1.0-contributor`), while
+`model/list` never serves the row itself. Limits and effort support are
+the base row's own; the label is the id, never an invented name; a
+contributor session is never flagged active on the wire, so neither is
+the derived row.
+*/
+export function toContributorSummary(base: MuseCodeModelSummary): MuseCodeModelSummary {
+  return {
+    modelId: `${base.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`,
+    displayLabel: `${base.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`,
+    contextLimit: base.contextLimit,
+    ...(base.outputLimit !== undefined && { outputLimit: base.outputLimit }),
+    isDefault: false,
+    isActive: false,
+    ...(base.variants !== undefined && { variants: base.variants }),
+    ...(base.reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: base.reasoningEffortVariants,
+    }),
+    ...(base.defaultReasoningEffort !== undefined && {
+      defaultReasoningEffort: base.defaultReasoningEffort,
+    }),
+  }
+}
+
+/**
+The contributor counterparts of a `model/list` reading: one per listed
+base model, skipping rows that already name the tier (so a future CLI
+that serves the rows itself never doubles them).
+*/
+export function contributorModelSummaries(
+  models: readonly MuseCodeModelSummary[],
+): readonly MuseCodeModelSummary[] {
+  const listed = new Set(models.map((model) => model.modelId))
+  return models
+    .filter(
+      (model) =>
+        !model.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) &&
+        !listed.has(`${model.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`),
+    )
+    .map((model) => toContributorSummary(model))
+}
+
+/**
+One recorded `skill/list` row as the summary the palette reads (M127):
+the declared `title` rides along only when the skill sets one.
+*/
+export function toSkillSummary(
+  skill: z.infer<typeof skillListResultSchema>['skills'][number],
+): SkillSummary {
+  return {
+    selector: skill.selector,
+    displayName: skill.displayName,
+    ...(skill.title !== undefined && { title: skill.title }),
+    description: skill.description,
+    argumentHint: skill.argumentHint,
+  }
+}
+
+/** Exported for the M127 capture tests. */
+export const backgroundTaskListResultSchema = z.object({
+  tasks: z.array(
+    z.object({
+      taskId: z.string(),
+      kind: z.string(),
+      status: z.string(),
+      startedAt: z.optional(z.string()),
+      tool: z.optional(z.string()),
+      backgroundInitiator: z.optional(z.string()),
+    }),
+  ),
+})
+
+/** One recorded `task/list` row as the summary readers get. */
+export function toBackgroundTaskSummary(
+  task: z.infer<typeof backgroundTaskListResultSchema>['tasks'][number],
+): BackgroundTaskSummary {
+  return {
+    taskId: task.taskId,
+    kind: task.kind,
+    status: task.status,
+    ...(task.startedAt !== undefined && { startedAt: task.startedAt }),
+    ...(task.tool !== undefined && { tool: task.tool }),
+    ...(task.backgroundInitiator !== undefined && {
+      backgroundInitiator: task.backgroundInitiator,
+    }),
+  }
+}
+
+/** Exported for the M127 capture tests. */
+export const hookListResultSchema = z.object({
+  hooks: z.array(
+    z.object({
+      key: z.string(),
+      event: z.string(),
+      handlerKind: z.string(),
+      enabled: z.boolean(),
+    }),
+  ),
+})
+
+/** One recorded `hook/list` row as readers get it. */
+export function toSessionHookRow(
+  hook: z.infer<typeof hookListResultSchema>['hooks'][number],
+): SessionHookRow {
+  return { key: hook.key, event: hook.event, handlerKind: hook.handlerKind, enabled: hook.enabled }
+}
+
+/** Exported for the M127 capture tests. */
+export const pluginListResultSchema = z.object({
+  plugins: z.array(
+    z.object({
+      id: z.string(),
+      version: z.string(),
+      enabled: z.boolean(),
+      source: z.unknown(),
+    }),
+  ),
+})
+
+/** One recorded `plugin/list` row as readers get it. */
+export function toSessionPluginRow(
+  plugin: z.infer<typeof pluginListResultSchema>['plugins'][number],
+): SessionPluginRow {
+  return { id: plugin.id, version: plugin.version, enabled: plugin.enabled, source: plugin.source }
+}
+
+const skillImportFailureSchema = z.object({
+  id: z.nullable(z.string()),
+  reason: z.string(),
+})
+
+const skillImportQuarantineSchema = z.object({
+  id: z.string(),
+  reasons: z.array(z.string()),
+})
+
+/** Exported for the M127 capture tests. */
+export const skillImportResultSchema = z.object({
+  source: z.string(),
+  dryRun: z.boolean(),
+  status: z.string(),
+  counts: z.object({
+    installed: z.number(),
+    quarantined: z.number(),
+    skipped: z.number(),
+    failed: z.number(),
+  }),
+  installed: z.array(z.string()),
+  skipped: z.array(z.string()),
+  quarantined: z.array(skillImportQuarantineSchema),
+  failed: z.array(skillImportFailureSchema),
+})
+
+/** A recorded `skill/import` receipt as readers get it. */
+export function toForeignSkillImport(
+  result: z.infer<typeof skillImportResultSchema>,
+): ForeignSkillImport {
+  return {
+    source: result.source,
+    dryRun: result.dryRun,
+    status: result.status,
+    counts: result.counts,
+    installed: result.installed,
+    skipped: result.skipped,
+    quarantined: result.quarantined.map((entry) => ({
+      id: entry.id,
+      reasons: entry.reasons,
+    })),
+    failed: result.failed.map((entry) => ({ id: entry.id, reason: entry.reason })),
+  }
+}
+
+const recapRequestResultSchema = z.object({
+  commandId: z.string(),
+  status: z.string(),
+})
+
+/**
+Claims a `recap/completed` settlement for its waiter by the request's
+commandId (M127): removes the waiter and answers the recap, or answers
+undefined when nobody asked (a late settlement past the wait). Exported
+for the capture tests.
+*/
+export function claimRecapSettlement(
+  pending: Map<
+    string,
+    { readonly sessionId: string; readonly settle: (recap: SessionRecap) => void }
+  >,
+  params: z.infer<typeof recapCompletedSchema>,
+): SessionRecap | undefined {
+  const waiting = pending.get(params.commandId)
+  if (waiting === undefined) {
+    return undefined
+  }
+  pending.delete(params.commandId)
+  const recap: SessionRecap = {
+    outcome: params.outcome,
+    ...(params.title !== undefined && { title: params.title }),
+    ...(params.text !== undefined && { text: params.text }),
+    ...(params.reason !== undefined && { reason: params.reason }),
+  }
+  waiting.settle(recap)
+  return recap
+}
+
+const recapCompletedSchema = z.object({
+  commandId: z.string(),
+  // Open vocabularies: later splits stay additive (tdd SS3.28.2).
+  outcome: z.string(),
+  sessionId: z.string(),
+  title: z.optional(z.string()),
+  text: z.optional(z.string()),
+  reason: z.optional(z.string()),
+})
+
+const computerUseSetupSchema = z.object({
+  accessibility: z.string(),
+  inputMonitoring: z.string(),
+  screenRecording: z.string(),
+  setup: z.string(),
+  message: z.optional(z.string()),
+  refused: z.optional(z.string()),
+})
+
+const workflowResumeResultSchema = z.object({
+  commandId: z.string(),
+  status: z.string(),
+  turnId: z.string(),
+})
+
+/** Exported for the M127 capture tests: parses the recorded `skill/list` result. */
+export const skillListResultSchema = z.object({
   skills: z.array(
     z.object({
       selector: z.string(),
       displayName: z.string(),
+      // The skill's declared human-readable name (1.4.7
+      // `metadata.display-name`); absent when the skill declares none.
+      title: z.optional(z.string()),
       description: z.string(),
       argumentHint: z.optional(z.string()),
     }),
@@ -325,8 +693,8 @@ function parseOutputPage(result: unknown): OutputPage {
   let text: string
   try {
     text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
-  } catch {
-    throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
+  } catch (error: unknown) {
+    throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`, { cause: error })
   }
   return { ...page, content: text, encoding: UTF8_ENCODING }
 }
@@ -418,38 +786,50 @@ const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true })
 // The worst-case JSON-RPC envelope around a command's params, for the size check.
 const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 
-/** How long a command may wait (PLAN.md D25); overridable for tests. */
+/**
+How long a command may wait (PLAN.md D25); overridable for tests. An
+unnamed wait has no deadline: the command is waited on until Muse Code
+answers or the wait is stopped, saying so out loud while it waits (owner
+2026-10-16: no arbitrary limits, no silent hangs).
+*/
 export interface CommandTimeouts {
-  readonly normalMs: number
-  readonly longMs: number
-  /** Deletion's admission and terminal notification; defaults to the long command deadline. */
-  readonly deleteTerminalMs?: number
+  readonly normalMs?: number | undefined
+  readonly longMs?: number | undefined
   /** The watchdog's silence (`MSP_UNRESPONSIVE_SILENCE_MS` unless a test shortens it). */
   readonly unresponsiveSilenceMs?: number
 }
 
-const DEFAULT_TIMEOUTS: CommandTimeouts = {
-  normalMs: MSP_COMMAND_TIMEOUT_MS,
-  longMs: MSP_LONG_COMMAND_TIMEOUT_MS,
+export const DEFAULT_COMMAND_TIMEOUTS: CommandTimeouts = {}
+
+/** Which wait a command gets: the long one for whole-session loads, else the ordinary one. */
+export function commandTimeoutMs(method: string, timeouts: CommandTimeouts): number | undefined {
+  return MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
 }
 
 /**
- * Whether `muse serve` still answers at all (the unresponsive-host watchdog,
- * CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
- * server request) is heard here and clears the count. A command that
- * misses its deadline counts once; at `MSP_UNRESPONSIVE_MISSES` in a row
- * with nothing heard for the silence, Muse Code is not answering: that is
- * logged and told once, and new commands fail at once until a frame comes.
- */
-class HostLiveness {
+Whether `muse serve` still answers at all (the unresponsive-host watchdog,
+CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
+server request) is heard here and clears the count. A command that
+misses its named deadline counts once; a wait with none counts once per
+notice period it spends silent, however many commands wait in that
+period (PR #214 review: two long commands no longer count twice as fast
+as one). At `MSP_UNRESPONSIVE_MISSES` in a row with nothing heard for the
+silence, Muse Code is not answering: that is logged and told once, and
+new commands fail at once until a frame comes. The waiting commands
+themselves keep waiting.
+*/
+export class HostLiveness {
   private lastHeardAt = Date.now()
   private misses = 0
   private isSilent = false
+  /** The notice period that last counted a still-waiting notice; -1 for none since a frame. */
+  private lastNoticePeriod = -1
 
   public constructor(
     private readonly silenceMs: number,
     private readonly log: CoreLogger,
     private readonly onUnresponsive: () => void,
+    private readonly noticeEveryMs: number,
   ) {}
 
   public get isUnresponsive(): boolean {
@@ -460,6 +840,7 @@ class HostLiveness {
   public heard(): void {
     this.lastHeardAt = Date.now()
     this.misses = 0
+    this.lastNoticePeriod = -1
     if (!this.isSilent) {
       return
     }
@@ -467,7 +848,21 @@ class HostLiveness {
     this.log.info('Muse Code answers again; commands are sent again')
   }
 
-  /** A command missed its deadline. */
+  /**
+  A wait with no deadline is still waiting past a notice. Every waiting
+  command tells once a notice period, so the period counts once.
+  */
+  public stillWaiting(method: string): void {
+    // Periods count from the last frame heard: a frame resets both the
+    // clock and the dedup, so a period counts once however many commands
+    // wait in it, before a frame as after.
+    const period = Math.floor((Date.now() - this.lastHeardAt) / this.noticeEveryMs)
+    if (period === this.lastNoticePeriod) return
+    this.lastNoticePeriod = period
+    this.missed(method)
+  }
+
+  /** A command missed its named deadline. */
   public missed(method: string): void {
     this.misses += 1
     const silentMs = Date.now() - this.lastHeardAt
@@ -639,10 +1034,10 @@ function isRetryableRefusal(error: unknown): boolean {
 }
 
 /**
- * A card that waits on the user, an approval or a question: shown again to a
- * later surface, it is marked replayed, so it is never approved on its own
- * and raises no new notice (M82).
- */
+A card that waits on the user, an approval or a question: shown again to a
+later surface, it is marked replayed, so it is never approved on its own
+and raises no new notice (M82).
+*/
 function isPendingPrompt(
   event: AgentEvent,
 ): event is Extract<AgentEvent, { type: 'approvalRequested' | 'questionRequested' }> {
@@ -656,16 +1051,19 @@ function pause(ms: number): Promise<void> {
 }
 
 /**
- * A turn's parts as MSP takes them. `TurnInputPart` is text, image or skill
- * in 1.3.0. Text files are named text parts; PDFs are refused because an
- * unknown type is `invalidParams` (msp.d.ts, M54, sdk issue #48).
- */
+A turn's parts as MSP takes them. `TurnInputPart` is text, image or skill
+in 1.3.0. Text files are named text parts; PDFs are refused because an
+unknown type is `invalidParams` (msp.d.ts, M54, sdk issue #48).
+*/
 function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
   const input: TurnPart[] = []
   let attachmentBytes = 0
   for (const part of parts) {
     // U16 is not captured on this base. Never disguise media as an MSP image/file.
-    if ('mediaType' in part && /^(?:video|audio)\//u.test(part.mediaType)) {
+    if (
+      part.type === 'media' ||
+      ('mediaType' in part && /^(?:video|audio)\//u.test(part.mediaType))
+    ) {
       throw new Error(UI_TEXT.media.museCodeRefusal)
     }
     if (part.type === 'file') {
@@ -689,22 +1087,23 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
 }
 
 /**
- * `Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
- * kept the canonical payload of every command for the connection's life,
- * an image turn's base64 included, to check replays across reconnects this
- * extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
- * still never evicted; this stays because each attempt here is also fenced
- * by the host generation and heard by the watchdog (SDK144). The same
- * contract otherwise: the command id rides in the params, the ack must echo
- * it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
- * is retried with the same id after a short, growing, jittered wait.
- */
+`Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
+kept the canonical payload of every command for the connection's life,
+an image turn's base64 included, to check replays across reconnects this
+extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
+still never evicted; this stays because each attempt here is also fenced
+by the host generation and heard by the watchdog (SDK144). The same
+contract otherwise: the command id rides in the params, the ack must echo
+it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
+is retried with the same id after a short, growing, jittered wait.
+*/
 async function sendCommand(
   channel: CommandChannel,
   generation: number,
   method: string,
   params: Record<string, unknown>,
   commandId: string,
+  run?: UnattendedRun,
 ): Promise<Record<string, unknown>> {
   const { log } = channel
   const commandParams = { ...params, commandId }
@@ -715,7 +1114,8 @@ async function sendCommand(
   }
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const ack = await answered(channel, generation, method, commandParams)
+      const send = () => answered(channel, generation, method, commandParams)
+      const ack = await (run === undefined ? send() : run.dispatch(send))
       if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
         throw new Error(`${method} ack did not echo its commandId ${commandId}`)
       }
@@ -735,9 +1135,9 @@ async function sendCommand(
 }
 
 /**
- * One request's answer, heard by the watchdog: a result, or an error the
- * host wrote. A late answer, after its deadline, is heard too.
- */
+One request's answer, heard by the watchdog: a result, or an error the
+host wrote. A late answer, after its deadline, is heard too.
+*/
 async function answered(
   channel: CommandChannel,
   generation: number,
@@ -760,34 +1160,48 @@ async function answered(
 }
 
 /**
- * A request with a deadline, refused at once while Muse Code is not
- * answering (the watchdog); a missed deadline counts toward that.
- */
+A request with the wait its timeouts name, refused at once while Muse
+Code is not answering (the watchdog). A wait with no deadline is waited
+on until Muse Code answers or the wait is stopped, saying so out loud
+(owner 2026-10-16); each notice period counts toward the watchdog like a
+missed deadline did, so a truly wedged host is still detected.
+*/
 async function requestWithin<T>(
   channel: CommandChannel,
   generation: number,
   method: string,
-  timeoutMs: number,
+  timeoutMs: number | undefined,
   request: () => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
   if (channel.liveness.isUnresponsive) {
     channel.log.info(`${method} was not sent: Muse Code is not answering`)
     throw new Error(UI_TEXT.museCodeNotAnswering)
   }
   channel.assertCurrent(generation)
+  // A caller's stop (PR #214 review) ends the wait like the channel going.
+  const stopSignal =
+    signal === undefined ? channel.signal : AbortSignal.any([channel.signal, signal])
   let onAbort: (() => void) | undefined
   const cancelled = new Promise<never>((_resolve, reject) => {
     onAbort = () => {
       reject(new Error(UI_TEXT.questionCancelled))
     }
-    channel.signal.addEventListener('abort', onAbort, { once: true })
+    stopSignal.addEventListener('abort', onAbort, { once: true })
   })
+  const stopNoticing =
+    timeoutMs === undefined
+      ? startStillWaiting((elapsedMs) => {
+          channel.log.info(stillWaitingText({ key: 'museCodeCommand', method }, elapsedMs))
+          channel.liveness.stillWaiting(method)
+        })
+      : undefined
   try {
-    const answer = await withDeadline(
-      Promise.race([request(), cancelled]),
-      timeoutMs,
-      `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
-    )
+    const raced = Promise.race([request(), cancelled])
+    const answer =
+      timeoutMs === undefined
+        ? await raced
+        : await withDeadline(raced, timeoutMs, `Muse Code did not answer ${method} in time`)
     channel.assertCurrent(generation)
     return answer
   } catch (error: unknown) {
@@ -797,28 +1211,36 @@ async function requestWithin<T>(
     }
     throw error
   } finally {
-    if (onAbort !== undefined) channel.signal.removeEventListener('abort', onAbort)
+    stopNoticing?.()
+    if (onAbort !== undefined) stopSignal.removeEventListener('abort', onAbort)
   }
 }
 
 /**
- * One MSP command with a deadline. `sessionNotLoaded` (the host evicted or
- * closed the session) becomes a `SessionNotLoadedError` the controller
- * answers by resuming the session.
- */
+One MSP command with the wait its timeouts name (none by default).
+`sessionNotLoaded` (the host evicted or closed the session) becomes a
+`SessionNotLoadedError` the controller answers by resuming the session.
+*/
 async function commandWithin(
   channel: CommandChannel,
   generation: number,
   method: string,
   params: Record<string, unknown>,
+  signal?: AbortSignal,
   commandId: string = channel.connection.mintCommandId(),
+  run?: UnattendedRun,
 ): Promise<unknown> {
   const { log, timeouts } = channel
-  const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
+  const timeoutMs = commandTimeoutMs(method, timeouts)
   const startedAt = Date.now()
   try {
-    const answer = await requestWithin(channel, generation, method, timeoutMs, () =>
-      sendCommand(channel, generation, method, params, commandId),
+    const answer = await requestWithin(
+      channel,
+      generation,
+      method,
+      timeoutMs,
+      () => sendCommand(channel, generation, method, params, commandId, run),
+      signal,
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -848,6 +1270,8 @@ export function describeExit(
       }),
       isExpected,
       isPersistent: false,
+      // A signal the close itself sent is the stop that was asked for.
+      isFailure: !isExpected,
     }
   }
   // Exit codes are ids, not amounts: no digit grouping.
@@ -858,78 +1282,14 @@ export function describeExit(
         description: fill(UI_TEXT.museExitedWithCode, { code }),
         isExpected,
         isPersistent: false,
+        isFailure: exit.code !== 0,
       }
     : {
         description: fill(UI_TEXT.museExitMeaning, { meaning, code }),
         isExpected,
         isPersistent: MUSE_EXIT_PERSISTENT_CODES.has(exit.code),
+        isFailure: exit.code !== 0,
       }
-}
-
-/** Each cumulative MSP report is journaled immediately as a known delta. */
-export class MuseUsageDeltas {
-  private baseline: { inputTokens: number; outputTokens: number } | undefined
-  private startedAt: number | undefined
-  private currentModel: string
-  public constructor(
-    private readonly recording: UsageRecording,
-    private readonly sessionId: string,
-    modelId: string,
-    isNew: boolean,
-    private readonly now: () => number = Date.now,
-  ) {
-    this.currentModel = modelId
-    if (isNew) this.baseline = { inputTokens: 0, outputTokens: 0 }
-  }
-  public receive(event: AgentEvent, isReplay = false): void {
-    if (isReplay) {
-      if (event.type === 'tokenUsage')
-        this.baseline = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
-      return
-    }
-    if (event.type === 'turnStarted') {
-      this.startedAt = this.now()
-      return
-    }
-    if (event.type === 'turnCompleted') {
-      this.startedAt = undefined
-      return
-    }
-    if (event.type === 'modelChanged') {
-      this.currentModel = event.modelId
-      return
-    }
-    if (event.type !== 'tokenUsage') return
-    const next = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
-    const prior = this.baseline
-    this.baseline = next
-    if (event.modelId !== undefined) this.currentModel = event.modelId
-    if (
-      prior === undefined ||
-      next.inputTokens < prior.inputTokens ||
-      next.outputTokens < prior.outputTokens
-    )
-      return
-    const input = next.inputTokens - prior.inputTokens
-    const output = next.outputTokens - prior.outputTokens
-    if (input === 0 && output === 0) return
-    const at = this.now()
-    const startedAt = this.startedAt ?? at
-    this.recording.note(
-      { input_tokens: input, output_tokens: output },
-      {
-        backend: 'museCode',
-        provider: 'museCode',
-        model: this.currentModel,
-        session: this.sessionId,
-        kind: 'turn',
-        pricing: { kind: 'plan' },
-        startedAt,
-        durationMs: Math.max(0, at - startedAt),
-        outcome: 'incomplete',
-      },
-    )
-  }
 }
 
 interface NativeFireToken {
@@ -946,11 +1306,11 @@ export class MuseSession implements ScheduledAgentSession {
   /** A stage's callers share its eventual result, and Stop waits for it. */
   private readonly decisionsInFlight = new Map<string, Promise<void>>()
   /**
-   * What arrived before anyone listened (D26): the events right after
-   * `session/resume` (the re-issued prompts, a running turn's stream) land
-   * before the surface that asked for the session has attached. Held until
-   * the first listener, released with the handle.
-   */
+  What arrived before anyone listened (D26): the events right after
+  `session/resume` (the re-issued prompts, a running turn's stream) land
+  before the surface that asked for the session has attached. Held until
+  the first listener, released with the handle.
+  */
   private early: AgentEvent[] | undefined = []
   /** The surfaces holding this handle (PLAN.md D25): the last release disposes it. */
   private holders = 1
@@ -958,18 +1318,28 @@ export class MuseSession implements ScheduledAgentSession {
   /** Told when Muse Code reports this session's event log failed (CLI recovery). */
   private readonly logDamagedListeners = new Set<() => void>()
   /**
-   * Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
-   * which a lost or failed `turn/unqueue` ack does not undo.
-   */
+  Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
+  which a lost or failed `turn/unqueue` ack does not undo.
+  */
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
-  private readonly timeouts: CommandTimeouts
   private readonly owner: SessionOwner
   private readonly scheduledItems = new Map<string, NativeFireToken>()
   private readonly scheduledApprovals = new Map<string, NativeFireToken>()
   private readonly scheduledQuestions = new Set<string>()
   private heldScheduleEvents: { event: AgentEvent; fire: NativeFireToken | undefined }[] | undefined
   private restoringScheduleMode: Promise<void> = Promise.resolve()
+  /** Local M87 admission: queued authority cannot replace the user's live fire. */
+  private readonly scheduledQueue = new Map<
+    string,
+    {
+      readonly parts: readonly TurnPart[]
+      readonly run: UnattendedRun
+      readonly displayText: string | undefined
+    }
+  >()
+  private drainingSchedules = false
+  private modeOpsCache: ModeSyncOps | undefined
   private readonly leaseGeneration: number
 
   public constructor(
@@ -984,7 +1354,6 @@ export class MuseSession implements ScheduledAgentSession {
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
-    this.timeouts = channel.timeouts
     this.leaseGeneration = channel.generation
   }
 
@@ -1038,7 +1407,11 @@ export class MuseSession implements ScheduledAgentSession {
           : await run.decide(action, !isAutomatic)
       isAllowed = decision.allowed && this.owner.matches(token) && this.owner.run() === run
       reason = decision.reason
-    } catch {
+    } catch (error: unknown) {
+      // The decider failed; the turn is refused and the failure is recorded.
+      this.log.warn(
+        `Scheduled approval ${event.approvalId} decision failed: ${failureForLog(error)}; the turn is refused`,
+      )
       reason = run.refuse(action, run.modelText.approvalRefused)
     }
     const choice = event.availableChoices.find((candidate) =>
@@ -1062,11 +1435,22 @@ export class MuseSession implements ScheduledAgentSession {
     expectedTurnId?: string,
   ): Promise<TurnSubmission> {
     await this.restoringScheduleMode
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.claim(waiter, run, expectedTurnId)
     if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     this.heldScheduleEvents = []
     try {
-      await this.changeApprovalMode(mspApprovalMode(run.context.mode), token, run)
+      const admittedMode = mspApprovalMode(run.context.mode)
+      const modes = await import('./approvalModesEntry')
+      await modes.applyModeChange(this.modeOps(), admittedMode, token, run)
+      // While the unattended run is in charge the session reviews with the
+      // host default `:auto-review`: the run answers what the grant allows
+      // and refuses the rest itself, so the human reviewer must not be
+      // installed here — on a Manual conversation `:ask-me` would turn every
+      // unmatched command into a refusal instead of letting the judge allow
+      // it, as it did before profiles existed.
+      await modes.setSessionProfile(this.modeOps(), MUSE_AUTO_REVIEW_PROFILE, admittedMode)
       if (!run.isActive())
         throw expectedTurnId === undefined
           ? new Error(UI_TEXT.scheduleBusy)
@@ -1076,12 +1460,7 @@ export class MuseSession implements ScheduledAgentSession {
       return result
     } catch (error: unknown) {
       this.restoreScheduleMode(this.owner.admissionFailed(token))
-      const cancellation = this.owner.token()
-      try {
-        if (this.owner.canCancel(cancellation, run)) await this.command('turn/cancel', {})
-      } catch {
-        this.log.warn('Scheduled admission failed; the turn could not be stopped')
-      }
+      await this.stopAfterFailedAdmission(run)
       throw error
     } finally {
       const events = this.heldScheduleEvents
@@ -1090,12 +1469,49 @@ export class MuseSession implements ScheduledAgentSession {
     }
   }
 
+  /**
+  Best effort after a failed admission: a turn that kept running is
+  stopped. A stop that fails is recorded and left running; the admission
+  failure stays the failure the caller sees.
+  */
+  private async stopAfterFailedAdmission(run: UnattendedRun): Promise<void> {
+    const cancellation = this.owner.token()
+    try {
+      if (this.owner.canCancel(cancellation, run)) await this.command('turn/cancel', {})
+    } catch {
+      this.log.warn('Scheduled admission failed; the turn could not be stopped')
+    }
+  }
+
+  /**
+  What the deferred mode sync needs from this session (built once, never at
+  activation): the owner, the effect runners, the profile command and the log.
+  */
+  private modeOps(): ModeSyncOps {
+    return (this.modeOpsCache ??= {
+      owner: this.owner,
+      applyEffect: (effect) => this.applyModeEffect(effect),
+      sendProfile: (profileId) => this.command('session/setPermissionProfile', { profileId }),
+      log: (level, message) => {
+        this.log[level](message)
+      },
+    })
+  }
+
   private restoreScheduleMode(effect: SessionEffect | undefined): void {
     if (effect === undefined) return
-    this.restoringScheduleMode = this.applyModeEffect(effect)
-    void this.restoringScheduleMode.catch(() => {
-      this.log.warn('Scheduled mode could not be restored; new turns are refused')
-    })
+    // The gate resolves once the outcome is recorded: a failed restore must
+    // not reject every later turn and mode change on the handle.
+    this.restoringScheduleMode = (async () => {
+      try {
+        const modes = await import('./approvalModesEntry')
+        await modes.restoreScheduleEffect(this.modeOps(), effect)
+      } catch (error: unknown) {
+        this.log.warn(
+          `Scheduled mode or reviewer could not be restored (${failureForLog(error)}); new turns are refused until the permission mode is set again`,
+        )
+      }
+    })()
   }
 
   private stopScheduledRun(run: UnattendedRun): void {
@@ -1105,12 +1521,71 @@ export class MuseSession implements ScheduledAgentSession {
     })
   }
 
-  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
+  private async drainScheduledQueue(): Promise<void> {
+    const isOpen = () => !this.isDisposed
+    if (this.drainingSchedules || !isOpen()) return
+    this.drainingSchedules = true
     try {
-      return await commandWithin(this.channel, this.leaseGeneration, method, {
-        sessionId: this.sessionId,
-        ...params,
-      })
+      await this.restoringScheduleMode
+      if (!this.owner.isIdle || !isOpen()) return
+      const next = this.scheduledQueue.entries().next().value
+      if (next === undefined) return
+      const [id, queued] = next
+      this.scheduledQueue.delete(id)
+      try {
+        const submission = await this.sendScheduledTurn(
+          queued.parts,
+          queued.run,
+          queued.displayText,
+          id,
+        )
+        if (submission.turnId !== id)
+          this.emit({
+            type: 'userMessageTurnChanged',
+            userMessageId: id,
+            turnId: submission.turnId,
+          })
+      } catch (error: unknown) {
+        // A failed scheduled turn is reported twice: the session sees its
+        // terminal failure, and the log keeps the redacted cause.
+        this.log.warn(`Scheduled turn failed (${failureForLog(error)})`)
+        if (isOpen())
+          this.emit({
+            type: 'turnCompleted',
+            turnId: id,
+            terminal: 'failed',
+            reason: UI_TEXT.scheduleCommandFailed,
+          })
+      }
+    } catch {
+      // Failed restoration quarantines the session; no queued authority is dispatched.
+      this.log.warn('Scheduled queue could not restore its session mode')
+    } finally {
+      this.drainingSchedules = false
+      if (this.owner.isIdle && isOpen() && this.scheduledQueue.size > 0)
+        void this.drainScheduledQueue()
+    }
+  }
+
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    commandId?: string,
+    run?: UnattendedRun,
+  ): Promise<unknown> {
+    try {
+      return await commandWithin(
+        this.channel,
+        this.leaseGeneration,
+        method,
+        {
+          sessionId: this.sessionId,
+          ...params,
+        },
+        undefined,
+        commandId ?? this.channel.connection.mintCommandId(),
+        run,
+      )
     } catch (error: unknown) {
       this.noteLogFault(error)
       throw error
@@ -1118,10 +1593,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Muse Code 1.4.2 answers every message of a session whose event log
-   * failed with that failure (the owner's session of 2026-10-02/03): the
-   * conversation is told, which takes no new message in it after this.
-   */
+  Muse Code 1.4.2 answers every message of a session whose event log
+  failed with that failure (the owner's session of 2026-10-02/03): the
+  conversation is told, which takes no new message in it after this.
+  */
   private noteLogFault(error: unknown): void {
     if (!(error instanceof MspError) || !error.message.includes(MUSE_EVENT_LOG_FAULT)) {
       return
@@ -1135,6 +1610,7 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   private finishDispose(): void {
+    this.scheduledQueue.clear()
     this.isDisposed = true
     this.listeners.clear()
     this.logDamagedListeners.clear()
@@ -1144,12 +1620,12 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * A Stop under a multi-stage approval with a stage already decided rejects
-   * its waiting stage first, through `approval/decide`: a turn cancelled
-   * under such an approval leaves Muse Code 1.4.2 refusing every later
-   * `turn/start` of the session (the `approvalReplay` fault, captured live
-   * 2026-10-02), while one whose approval was rejected first runs on.
-   */
+  A Stop under a multi-stage approval with a stage already decided rejects
+  its waiting stage first, through `approval/decide`: a turn cancelled
+  under such an approval leaves Muse Code 1.4.2 refusing every later
+  `turn/start` of the session (the `approvalReplay` fault, captured live
+  2026-10-02), while one whose approval was rejected first runs on.
+  */
   private async rejectPartlyDecided(): Promise<void> {
     // A click locks the stage before its command settles. Let the host's
     // answer and stage update land before deciding what Stop must reject.
@@ -1174,7 +1650,7 @@ export class MuseSession implements ScheduledAgentSession {
         `Stop: approval ${approvalId} stage ${String(approval.requirementId.sourceIndex)} is rejected before the turn stops`,
       )
       // Bounded: a Stop never waits long on a host that does not answer.
-      const deadlineMs = Math.min(APPROVAL_REJECT_DEADLINE_MS, this.timeouts.normalMs)
+      const deadlineMs = APPROVAL_REJECT_DEADLINE_MS
       try {
         await withDeadline(
           this.decideApproval({
@@ -1210,6 +1686,11 @@ export class MuseSession implements ScheduledAgentSession {
         ...(decision.feedback !== undefined && { feedback: decision.feedback }),
       })
     } catch (error: unknown) {
+      // The mapped failure below is what the caller sees; the failure as it
+      // arrived is recorded here, never echoed.
+      this.log.info(
+        `Approval ${approvalId} stage ${String(requirementId.sourceIndex)} decision failed: ${failureForLog(error)}`,
+      )
       throw await this.decisionFailed(requirementId, error)
     }
     // `terminal: true` closed the whole approval; a trailing stage update the
@@ -1265,10 +1746,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Whether the host, which answered the decision with a refusal, still
-   * waits on this very stage: then the decision did not apply and may be
-   * made again. A check that fails cannot tell, and the stage stays decided.
-   */
+  Whether the host, which answered the decision with a refusal, still
+  waits on this very stage: then the decision did not apply and may be
+  made again. A check that fails cannot tell, and the stage stays decided.
+  */
   private async isStillWaiting(requirementId: RequirementRef): Promise<boolean> {
     let pending: z.infer<typeof listPendingResultSchema>
     try {
@@ -1288,13 +1769,13 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * What a failed `turn/steer` means for its message (CLI recovery,
-   * 2026-10-03). On 2026-10-02 a steer Muse Code answered after the 60 s
-   * deadline had been taken for a refusal and sent again as a new turn, and
-   * Muse Code applied both. So only a refusal that says no turn was there is
-   * a `SteerRefusedError`; no answer (the deadline, a closed connection) is
-   * said as such; any other refusal keeps its own words.
-   */
+  What a failed `turn/steer` means for its message (CLI recovery,
+  2026-10-03). On 2026-10-02 a steer Muse Code answered after the 60 s
+  deadline had been taken for a refusal and sent again as a new turn, and
+  Muse Code applied both. So only a refusal that says no turn was there is
+  a `SteerRefusedError`; no answer (the deadline, a closed connection) is
+  said as such; any other refusal keeps its own words.
+  */
   private steerFailure(expectedTurnId: string, error: unknown): unknown {
     if (error instanceof MspError) {
       const reason = error.data['reason']
@@ -1313,7 +1794,15 @@ export class MuseSession implements ScheduledAgentSession {
     return error
   }
 
-  private async applyModeEffect(effect: SessionEffect): Promise<void> {
+  /**
+  Run the mode command for an effect. Returns the mode the host runs when
+  the adoption tore (the ack arrived but a turn ended while it was in
+  flight, so the host runs the mode with a reviewer that was never
+  confirmed): the deferred caller quarantines with that mode named, so the
+  surface shows it. A refused command releases the effect but keeps the
+  mode (the host never changed).
+  */
+  private async applyModeEffect(effect: SessionEffect): Promise<string | undefined> {
     if (!this.owner.matches(effect.token)) {
       this.owner.modeApplied(effect, false)
       throw new Error(UI_TEXT.scheduleBusy)
@@ -1328,21 +1817,11 @@ export class MuseSession implements ScheduledAgentSession {
           `Muse Code runs approval mode ${wireWordForLog(effective)} instead of the requested ${effect.mode}`,
         )
       }
-      if (!this.owner.modeApplied(effect, true)) throw new Error(UI_TEXT.scheduleBusy)
+      return this.owner.modeApplied(effect, true) ? undefined : (effective ?? effect.mode)
     } catch (error: unknown) {
       this.owner.modeApplied(effect, false)
       throw ceilingOr(error)
     }
-  }
-
-  private async changeApprovalMode(
-    mode: string,
-    token: SessionToken,
-    run?: UnattendedRun,
-  ): Promise<void> {
-    const effect = this.owner.modeEffect(token, mode, run)
-    if (effect === undefined) throw new Error(UI_TEXT.scheduleBusy)
-    await this.applyModeEffect(effect)
   }
 
   /** Merge captured native attempt history for both live updates and local inspection. */
@@ -1376,10 +1855,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * The first listener gets what arrived before it; a later one (a second
-   * surface on the same session) gets the prompts still open, which the
-   * host will not announce again.
-   */
+  The first listener gets what arrived before it; a later one (a second
+  surface on the same session) gets the prompts still open, which the
+  host will not announce again.
+  */
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
     const backlog = this.early ?? this.prompts.open()
@@ -1554,6 +2033,8 @@ export class MuseSession implements ScheduledAgentSession {
     notify(this.listeners, admitted, this.log, 'museCode.event', (event) => {
       this.reportListenerFailure(event)
     })
+    if (!wasObserved && (admitted.type === 'turnCompleted' || admitted.type === 'sessionStatus'))
+      void this.drainScheduledQueue()
   }
 
   /** @internal Diagnostic delivery cannot recursively report a broken observer. */
@@ -1570,9 +2051,19 @@ export class MuseSession implements ScheduledAgentSession {
     parts: readonly TurnPart[],
     run: UnattendedRun,
     displayText?: string,
+    queuedMessageId?: string,
   ): Promise<TurnSubmission> {
     const waiter = this.owner.token()
     await run.checkParts(parts)
+    await this.restoringScheduleMode
+    if (!this.owner.isIdle) {
+      if (!this.owner.canQueue) throw new Error(UI_TEXT.scheduleBusy)
+      if (this.isDisposed) throw new Error(UI_TEXT.surfaceClosed)
+      const id = queuedMessageId ?? randomUUID()
+      this.scheduledQueue.set(id, { parts, run, displayText })
+      void this.drainScheduledQueue()
+      return { turnId: id, userMessageId: id, disposition: QUEUED_DISPOSITION }
+    }
     return await this.admitScheduled(waiter, run, () =>
       this.sendTurn(run.parts(parts), displayText, run),
     )
@@ -1585,6 +2076,7 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const waiter = this.owner.token()
     await run.checkParts(parts)
+    await this.restoringScheduleMode
     return await this.admitScheduled(
       waiter,
       run,
@@ -1595,10 +2087,10 @@ export class MuseSession implements ScheduledAgentSession {
 
   /** Submit one user turn; queued behind a running turn by host default. */
   /**
-   * Submit a turn. `displayText` is the transcript's presentation form of the
-   * prompt (MSP: durable, never model-visible), used when the parts carry
-   * more than the user typed (editor context, M5).
-   */
+  Submit a turn. `displayText` is the transcript's presentation form of the
+  prompt (MSP: durable, never model-visible), used when the parts carry
+  more than the user typed (editor context, M5).
+  */
   public async sendTurn(
     parts: readonly TurnPart[],
     displayText?: string,
@@ -1606,14 +2098,21 @@ export class MuseSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const token = this.owner.token()
     await this.restoringScheduleMode
+    if (this.owner.quarantined)
+      throw new Error(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
     try {
-      ack = await this.command('turn/start', {
-        input: mspInput(parts),
-        ...(displayText !== undefined && { displayText }),
-      })
+      ack = await this.command(
+        'turn/start',
+        {
+          input: mspInput(parts),
+          ...(displayText !== undefined && { displayText }),
+        },
+        undefined,
+        scheduledOwner,
+      )
     } catch (error: unknown) {
       this.owner.startFailed(token)
       throw faultOr(error, 'approvalReplay')
@@ -1625,17 +2124,26 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Inject input into the turn believed to be running. The host rejects the
-   * steer when that turn is no longer the running one, so input meant for one
-   * turn never leaks into the next. That refusal is a `SteerRefusedError`,
-   * after which the caller may send the input as a new turn; a steer with no
-   * answer may still reach the turn, and fails in words that say so.
-   */
+  Required by `AgentSession`; a no-op here. Muse Code manages its own
+  turn bounds over MSP, so no caller allowance is bound.
+  */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- AgentSession requires the member so the compiler lists every implementer; Muse Code manages its own turn bounds over MSP, so this intentionally binds nothing (PLAN.md §8).
+  public setModelCallAllowance(_remaining: (() => number) | undefined): void {}
+
+  /**
+  Inject input into the turn believed to be running. The host rejects the
+  steer when that turn is no longer the running one, so input meant for one
+  turn never leaks into the next. That refusal is a `SteerRefusedError`,
+  after which the caller may send the input as a new turn; a steer with no
+  answer may still reach the turn, and fails in words that say so.
+  */
   public async steer(
     expectedTurnId: string,
     parts: readonly TurnPart[],
     scheduledOwner?: UnattendedRun,
   ): Promise<TurnSubmission> {
+    if (this.owner.quarantined)
+      throw new SteerRefusedError(this.owner.quarantineCause ?? UI_TEXT.permissionReviewerMissing)
     const token = this.owner.token()
     const run = scheduledOwner ?? this.getScheduledRun(expectedTurnId)
     if (run !== undefined) await run.checkParts(parts)
@@ -1644,7 +2152,7 @@ export class MuseSession implements ScheduledAgentSession {
     const input = mspInput(parts)
     let result: unknown
     try {
-      result = await this.command('turn/steer', { expectedTurnId, input })
+      result = await this.command('turn/steer', { expectedTurnId, input }, undefined, run)
     } catch (error: unknown) {
       throw this.steerFailure(expectedTurnId, error)
     }
@@ -1652,24 +2160,31 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Take back a submit acknowledged `queued` before it launches (M87, PLAN.md
-   * D66): MSP `turn/unqueue`. A steered message is in the running turn
-   * already, which `turn/unqueue` does not reach: too late. As captured live
-   * on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
-   * race at once (`turn/unqueued` follows, or comes first); a reclaim after
-   * the launch is refused `run_active`, and one already won `already_applied`
-   * (it will not run either way). Once `turn/unqueued` named the turn, a
-   * timed-out or failed ack still reports the withdrawal (the review of lane
-   * C); any other failure or refusal fails as Muse Code said it. Muse Code
-   * keeps no image bytes, so none come back.
-   */
+  Take back a submit acknowledged `queued` before it launches (M87, PLAN.md
+  D66): MSP `turn/unqueue`. A steered message is in the running turn
+  already, which `turn/unqueue` does not reach: too late. As captured live
+  on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
+  race at once (`turn/unqueued` follows, or comes first); a reclaim after
+  the launch is refused `run_active`, and one already won `already_applied`
+  (it will not run either way). Once `turn/unqueued` named the turn, a
+  timed-out or failed ack still reports the withdrawal (the review of lane
+  C); any other failure or refusal fails as Muse Code said it. Muse Code
+  keeps no image bytes, so none come back.
+  */
   public async withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
     if (ref.disposition !== QUEUED_DISPOSITION) {
       return TOO_LATE
     }
+    if (ref.userMessageId === ref.turnId && this.scheduledQueue.delete(ref.turnId)) {
+      this.emit({ type: 'turnWithdrawn', turnId: ref.turnId, reason: UI_TEXT.turnUnqueued })
+      return { status: 'withdrawn', images: undefined }
+    }
     try {
       turnUnqueueResultSchema.parse(await this.command('turn/unqueue', { turnId: ref.turnId }))
     } catch (error: unknown) {
+      // Every refusal below is a named `turn/unqueue` outcome; anything else
+      // is rethrown. The failure as it arrived is recorded here, never echoed.
+      this.log.info(`turn/unqueue for turn ${ref.turnId} failed: ${failureForLog(error)}`)
       const reason = unqueueRefusal(error)
       if (reason === UNQUEUE_LAUNCHED) {
         return TOO_LATE
@@ -1714,11 +2229,21 @@ export class MuseSession implements ScheduledAgentSession {
     await this.command('session/setReasoningEffort', { reasoningEffort })
   }
 
-  /** Select one of the host's preconfigured approval modes. */
+  /**
+  Select one of the host's preconfigured approval modes and keep the
+  session's reviewer on the mode's. The orchestration (profile sync, put
+  the previous mode back when it fails, quarantine with the running mode
+  named when it cannot) lives in the deferred mode sync
+  (`approvalModesEntry`, loaded on the first mode change), so activation
+  carries only this shell. Every failure names the wire mode the host runs
+  (`ModeKeptError` when the host kept running it, `PermissionReviewerError`
+  with quarantine when it runs a mode whose reviewer is unconfirmed).
+  */
   public async setApprovalMode(mode: string): Promise<void> {
     const token = this.owner.token()
     await this.restoringScheduleMode
-    await this.changeApprovalMode(mode, token)
+    const modes = await import('./approvalModesEntry')
+    await modes.runSetApprovalMode(this.modeOps(), token, mode)
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
@@ -1728,12 +2253,12 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Answer a gated tool call: one decision per stage (PLAN.md D26).
-   * `requirementId` is the stage token from the request; a stale one is
-   * rejected by the host, never silently applied. A second decision for a
-   * stage already decided is not sent (a repeated click, a re-rendered card,
-   * a second surface), nor one for a stage the approval has left.
-   */
+  Answer a gated tool call: one decision per stage (PLAN.md D26).
+  `requirementId` is the stage token from the request; a stale one is
+  rejected by the host, never silently applied. A second decision for a
+  stage already decided is not sent (a repeated click, a re-rendered card,
+  a second surface), nor one for a stage the approval has left.
+  */
   public async decideApproval(decision: ApprovalDecision): Promise<void> {
     const { approvalId, requirementId } = decision
     const key = `${approvalId}\u{0}${String(requirementId.sourceIndex)}`
@@ -1799,7 +2324,9 @@ export class MuseSession implements ScheduledAgentSession {
       () => {
         this.prompts.unmarkQuestionDeferred(userInputId)
       },
-      this.timeouts.normalMs,
+      // The deferral's own wait is the questions lane's (B22/C4), not an MSP
+      // command wait: the questions' own default, as before.
+      QUESTION_DEFER_DEFAULT_SECONDS * MILLISECONDS_PER_SECOND,
       UI_TEXT.questionAnswerUncertain,
     )
   }
@@ -1840,9 +2367,9 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * `session/userShell` (M46): the command runs at once, outside any turn;
-   * its row and output arrive as a `userShell` item.
-   */
+  `session/userShell` (M46): the command runs at once, outside any turn;
+  its row and output arrive as a `userShell` item.
+  */
   public async runUserShell(command: string): Promise<void> {
     if (!this.canRunUserShell) {
       throw new Error(UI_TEXT.userShellNotGranted)
@@ -1876,11 +2403,11 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * `goal/set`, `edit`, `pause`, `resume` or `clear` (M45, PLAN.md D38).
-   * An idle set, edit or resume wakes a goal-driving turn, which then
-   * arrives as its own `turn/started`; the goal arrives as
-   * `session/goalChanged`.
-   */
+  `goal/set`, `edit`, `pause`, `resume` or `clear` (M45, PLAN.md D38).
+  An idle set, edit or resume wakes a goal-driving turn, which then
+  arrives as its own `turn/started`; the goal arrives as
+  `session/goalChanged`.
+  */
   public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
     let ack: unknown
     try {
@@ -1906,10 +2433,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Set the durable session name; resolves to the canonical name the host
-   * settled, or undefined when it will arrive as `session/nameChanged`.
-   * Muse Code 1.3.0 refuses this on Windows (UnsupportedPlatform, PLAN.md M6).
-   */
+  Set the durable session name; resolves to the canonical name the host
+  settled, or undefined when it will arrive as `session/nameChanged`.
+  Muse Code 1.3.0 refuses this on Windows (UnsupportedPlatform, PLAN.md M6).
+  */
   public async rename(name: string): Promise<string | undefined> {
     const result = sessionRenameResultSchema.parse(await this.command('session/rename', { name }))
     return result.name
@@ -1918,12 +2445,63 @@ export class MuseSession implements ScheduledAgentSession {
   /** The user-invocable skills in this session's workspace and plugins. */
   public async listSkills(): Promise<readonly SkillSummary[]> {
     const result = await this.command('skill/list', {})
-    return skillListResultSchema.parse(result).skills.map((skill) => ({
-      selector: skill.selector,
-      displayName: skill.displayName,
-      description: skill.description,
-      argumentHint: skill.argumentHint,
-    }))
+    return skillListResultSchema.parse(result).skills.map((skill) => toSkillSummary(skill))
+  }
+
+  /** The session's live background-task inventory, oldest first (M127, `task/list` query). */
+  public async listBackgroundTasks(): Promise<readonly BackgroundTaskSummary[]> {
+    const result = await this.command('task/list', {})
+    return backgroundTaskListResultSchema
+      .parse(result)
+      .tasks.map((task) => toBackgroundTaskSummary(task))
+  }
+
+  /** The session's installed hook rows (M127, `hook/list` query). */
+  public async listSessionHooks(): Promise<readonly SessionHookRow[]> {
+    const result = await this.command('hook/list', {})
+    return hookListResultSchema.parse(result).hooks.map((hook) => toSessionHookRow(hook))
+  }
+
+  /** The installed plugin records (M127, `plugin/list` query). */
+  public async listSessionPlugins(): Promise<readonly SessionPluginRow[]> {
+    const result = await this.command('plugin/list', {})
+    return pluginListResultSchema.parse(result).plugins.map((plugin) => toSessionPluginRow(plugin))
+  }
+
+  /**
+  Import foreign skills through the host seam (M127, `skill/import`):
+  `source` is `claude` or `codex`; `dryRun` previews without writing.
+  The receipt answers per-skill ids plus counts, commandId-idempotent.
+  */
+  public async importForeignSkills(
+    source: string,
+    options?: { readonly dryRun?: boolean; readonly force?: boolean },
+  ): Promise<ForeignSkillImport> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command(
+      'skill/import',
+      {
+        source,
+        ...(options?.dryRun === true && { dryRun: true }),
+        ...(options?.force === true && { force: true }),
+      },
+      commandId,
+    )
+    return toForeignSkillImport(skillImportResultSchema.parse(result))
+  }
+
+  /**
+  Resume a paused workflow run (M127, `workflow/resume`): host-driven,
+  the reply names the driven turn. The read-only Tasks surface shows
+  runs; resuming one from it is an owner UI decision (certification).
+  */
+  public async resumeWorkflowRun(
+    workflowRunId: string,
+  ): Promise<{ readonly status: string; readonly turnId: string }> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command('workflow/resume', { workflowRunId }, commandId)
+    const parsed = workflowResumeResultSchema.parse(result)
+    return { status: parsed.status, turnId: parsed.turnId }
   }
 
   /** Releases this surface's hold; the last one forgets the session (D25). */
@@ -1959,6 +2537,11 @@ export class MuseSession implements ScheduledAgentSession {
 export class MuseCodeHost implements AgentHost {
   /** Injected once by the editor/runtime before hosts are constructed. */
   public static usageRecording: UsageRecording | undefined
+  /**
+  The deferred usage writers (dist/usageService.js), loaded on the first
+  session. Unset outside the editor (unit tests drive the writers directly).
+  */
+  public static usageNotesLoader: (() => UsageNotesBundle) | undefined
   private readonly observedUsage = new Set<number>()
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
@@ -1966,17 +2549,22 @@ export class MuseCodeHost implements AgentHost {
   private readonly lifecycleListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
   private readonly deletionTerminalListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
   private readonly deletionStopped = new AbortController()
+  /** In-flight `recap/request` settlements by request commandId (M127). */
+  private readonly pendingRecaps = new Map<
+    string,
+    { readonly sessionId: string; readonly settle: (recap: SessionRecap) => void }
+  >()
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
   private readonly commandOwner: MuseCodeCommandOwner
   /**
-   * Session starts, resumes and forks in flight (D26). The SDK hands every
-   * frame of one read to the handlers before the awaiting command resumes,
-   * so the prompts re-issued right after a resume answer arrive before the
-   * handle exists. While one is in flight, events for an unknown session
-   * wait here for `track`.
-   */
+  Session starts, resumes and forks in flight (D26). The SDK hands every
+  frame of one read to the handlers before the awaiting command resumes,
+  so the prompts re-issued right after a resume answer arrive before the
+  handle exists. While one is in flight, events for an unknown session
+  wait here for `track`.
+  */
   private opening = 0
   private readonly unclaimed = new Map<string, MappedNotification[]>()
   /** Methods already logged as unshown or malformed: one line each per host (D26). */
@@ -1990,10 +2578,11 @@ export class MuseCodeHost implements AgentHost {
   public constructor(
     private readonly host: MspHost,
     private readonly log: CoreLogger,
-    private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
+    private readonly timeouts: CommandTimeouts = DEFAULT_COMMAND_TIMEOUTS,
     private readonly features: MuseCodeFeaturePorts = {},
     private readonly usageRecording = MuseCodeHost.usageRecording,
     private readonly accountHome?: MuseCodeAccountHome,
+    private restartCause?: string | undefined,
   ) {
     if (
       accountHome !== undefined &&
@@ -2025,6 +2614,7 @@ export class MuseCodeHost implements AgentHost {
             },
           )
         },
+        STILL_WAITING_NOTICE_MS,
       ),
     }
     const parsed = initializeResultSchema.parse(host.initializeResult)
@@ -2035,13 +2625,26 @@ export class MuseCodeHost implements AgentHost {
       serverVersion,
       museHome: parsed.museHome,
       grantedCapabilities: parsed.grantedCapabilities ?? [],
+      ...(parsed.sandboxAvailability !== undefined && {
+        sandboxAvailability: parsed.sandboxAvailability,
+      }),
+      ...(parsed.sandboxUnavailableReason !== undefined && {
+        sandboxUnavailableReason: parsed.sandboxUnavailableReason,
+      }),
       // Muse Code refuses `session/rename` and `session/fork` on Windows
       // (meta-models/muse-code-sdk#30, #31): verified on 1.3.0 (2026-09-22)
       // and 1.4.0 (2026-09-27), still refused on 1.4.3 (2026-10-05,
-      // docs/certification/muse143.md). No release has fixed them, so every version
+      // docs/certification/muse143.md) and 1.4.4-R5419.1 (2026-10-10,
+      // docs/certification/m53.md). No release has fixed them, so every version
       // is limited there until one is verified (D26). A 1.3.0 ceiling showed
       // the failing actions again on 1.4.0 (0.9.1, release-0.9.1.md).
       canEditSessions: parsed.platformOs !== WINDOWS_OS,
+      // No `canDeleteSessions`: the delete gate
+      // (`./museDeleteGate.ts`, version plus the injected lifecycle reader)
+      // lives outside the activation graph so the budget holds, so a Muse
+      // Code host omits the field and History offers no Delete there.
+      // Nothing is sent the CLI cannot answer (PLAN.md D26); the reader
+      // injection wires the offer when it lands.
     }
     this.log.info(
       `MSP host on ${parsed.platformOs ?? 'an unreported OS'}, schema v${String(parsed.schema?.version ?? 'unreported')} ${parsed.schema?.fingerprint ?? ''}, sessions ${parsed.sessionDurability ?? DURABLE_SESSIONS}`,
@@ -2173,9 +2776,9 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Runs a session start, resume or fork with early events held for its
-   * handle (D26); whatever no handle claimed by the end is logged and dropped.
-   */
+  Runs a session start, resume or fork with early events held for its
+  handle (D26); whatever no handle claimed by the end is logged and dropped.
+  */
   private async opened<T>(open: () => Promise<T>): Promise<T> {
     this.opening += 1
     try {
@@ -2193,17 +2796,33 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.channel, this.channel.generation, method, params)
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    return await commandWithin(this.channel, this.channel.generation, method, params, signal)
   }
 
   /**
-   * Host-level notifications bypass the per-session routing: the list
-   * stream (`sessionListStream` grant) is about stored sessions, loaded here
-   * or not, and `usage/changed` is about the account. True when the method
-   * was one of them.
-   */
+  Host-level notifications bypass the per-session routing: the list
+  stream (`sessionListStream` grant) is about stored sessions, loaded here
+  or not, and `usage/changed` is about the account. True when the method
+  was one of them.
+  */
   private dispatchHostEvent(method: string, params: unknown): boolean {
+    // A requested recap's settlement never reaches the conversation: it
+    // resolves the waiter by the request's commandId. Anything else with
+    // this method (a late settlement past the wait, or one nobody asked
+    // for) falls through to the notice mapping.
+    if (method === 'recap/completed') {
+      const parsed = recapCompletedSchema.safeParse(params)
+      if (!parsed.success) {
+        this.warnShape(method)
+        return true
+      }
+      return claimRecapSettlement(this.pendingRecaps, parsed.data) !== undefined
+    }
     if (
       this.features.lifecycle !== undefined &&
       (method === 'session/started' || method === 'session/deleteCompleted')
@@ -2230,25 +2849,7 @@ export class MuseCodeHost implements AgentHost {
         const usage = parsed.data
         if (!this.observedUsage.has(usage.observedAtMs)) {
           this.observedUsage.add(usage.observedAtMs)
-          this.usageRecording?.limit({
-            backend: 'museCode',
-            provider: 'museCode',
-            source: 'museCode',
-            observedAt: usage.observedAtMs,
-            windows: [
-              {
-                id: 'window',
-                usedPercent: usage.window.usedPercent,
-                resetsAt: usage.window.resetsAtMs,
-                windowMins: usage.window.windowDurationMins,
-              },
-              {
-                id: 'weekly',
-                usedPercent: usage.weekly.usedPercent,
-                resetsAt: usage.weekly.resetsAtMs,
-              },
-            ],
-          })
+          this.recordLimitSnapshot(usage)
         }
         this.accountHome?.assertCurrent()
         this.accountHome?.observeUsage(parsed.data)
@@ -2276,6 +2877,41 @@ export class MuseCodeHost implements AgentHost {
 
   private warnShape(method: string): void {
     this.log.warn(`MSP ${method} had an unexpected shape; ignored`)
+  }
+
+  /**
+  The deferred usage writers, or undefined when the service bundle is not
+  loaded (outside the editor) or cannot be read: journaling is best-effort,
+  so a session without writers is kept but not recorded.
+  */
+  private usageNotes(): UsageNotesBundle | undefined {
+    const loader = MuseCodeHost.usageNotesLoader
+    if (loader === undefined) return undefined
+    try {
+      return loader()
+    } catch {
+      this.log.warn('Usage notes bundle unavailable; usage is not recorded for this session')
+      return undefined
+    }
+  }
+
+  /** One `usage/changed` meter reading, journaled through the deferred writers. */
+  private recordLimitSnapshot(usage: SubscriptionUsage): void {
+    const input = this.usageNotes()?.museCodeLimitInput(usage)
+    if (input !== undefined) this.usageRecording?.limit(input)
+  }
+
+  /** The session's journal writers, loaded with the service bundle on first use. */
+  private createUsageDeltas(
+    recording: UsageRecording,
+    sessionId: string,
+    modelId: string,
+    isNew: boolean,
+  ): MuseUsageDeltas | undefined {
+    const notes = this.usageNotes()
+    return notes === undefined
+      ? undefined
+      : new notes.MuseUsageDeltas(recording, sessionId, modelId, isNew)
   }
 
   private parseListEvent(method: string, params: unknown): SessionListEvent | undefined {
@@ -2312,7 +2948,7 @@ export class MuseCodeHost implements AgentHost {
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
       this.usageRecording === undefined
         ? undefined
-        : new MuseUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
+        : this.createUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
       initialApprovalMode,
     )
     this.sessions.set(record.sessionId, handle)
@@ -2326,7 +2962,9 @@ export class MuseCodeHost implements AgentHost {
 
   private loaded(envelope: SessionEnvelope, modelId: string): LoadedSession {
     return {
-      session: this.track(envelope.session, modelId),
+      // The envelope serves the mode the host runs: the handle starts
+      // knowing it, so the first mode change rolls back like a live one.
+      session: this.track(envelope.session, modelId, false, envelope.session.approvalMode?.mode),
       record: envelope.session,
       history: historyOutcome(envelope),
       activeTurnId: envelope.session.activeTurnId ?? undefined,
@@ -2334,11 +2972,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The pending prompts a resume's pointers name, pulled with
-   * `approval/listPending` (the documented dual of the re-issued requests,
-   * tdd SS5.7), so the cards appear however the re-issue was delivered; the
-   * ledger shows each once (D26).
-   */
+  The pending prompts a resume's pointers name, pulled with
+  `approval/listPending` (the documented dual of the re-issued requests,
+  tdd SS5.7), so the cards appear however the re-issue was delivered; the
+  ledger shows each once (D26).
+  */
   private async presentPending(sessionId: string): Promise<void> {
     try {
       const pending = listPendingResultSchema.parse(
@@ -2442,10 +3080,27 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Told once each time Muse Code stops answering (the watchdog): commands
-   * missed their deadlines and nothing came from it for a while. It answers
-   * again on its own only if a frame arrives; the window restarts it.
-   */
+  Why the host this one replaced went away (`AgentHost.peekRestartCause`):
+  every turn that fails for the lost sign-in names it — concurrent
+  conversations on this shared host classify the same loss (Codex on PR
+  #211) — until `clearRestartCause` proves the host. Set at construction
+  by the backend manager, never over the wire: a restart cause is local
+  process knowledge.
+  */
+  public peekRestartCause(): string | undefined {
+    return this.restartCause
+  }
+
+  /** A turn that ran to completion proves the host (F94). */
+  public clearRestartCause(): void {
+    this.restartCause = undefined
+  }
+
+  /**
+  Told once each time Muse Code stops answering (the watchdog): commands
+  missed their deadlines and nothing came from it for a while. It answers
+  again on its own only if a frame arrives; the window restarts it.
+  */
   public onUnresponsive(listener: () => void): () => void {
     this.unresponsiveListeners.add(listener)
     return () => {
@@ -2479,6 +3134,87 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
+  /**
+  A "while you were away" recap (M127): the ack admits, then the request
+  settles exactly once on `recap/completed` matched by commandId. Past
+  `RECAP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes
+  a notice instead of a hang. One in flight per session, host-enforced.
+  */
+  public async requestSessionRecap(sessionId: string): Promise<SessionRecap> {
+    for (const pending of this.pendingRecaps.values()) {
+      if (pending.sessionId === sessionId) {
+        throw new Error(`a recap is already in flight for session ${sessionId}`)
+      }
+    }
+    // Arm before dispatch: the settlement can be in the same read as admission.
+    const commandId = this.channel.connection.mintCommandId()
+    let settle!: (recap: SessionRecap) => void
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so the settlement always has one.
+    const settled = new Promise<SessionRecap>((resolve) => {
+      settle = resolve
+    })
+    this.pendingRecaps.set(commandId, { sessionId, settle })
+    try {
+      const ack = recapRequestResultSchema.parse(
+        await commandWithin(
+          this.channel,
+          this.channel.generation,
+          'recap/request',
+          { sessionId },
+          undefined,
+          commandId,
+        ),
+      )
+      if (ack.commandId !== commandId) {
+        throw new Error(`recap/request ack did not echo its commandId ${commandId}`)
+      }
+      return await withDeadline(
+        settled,
+        RECAP_SETTLE_TIMEOUT_MS,
+        `recap for session ${sessionId} did not settle in time`,
+      )
+    } finally {
+      this.pendingRecaps.delete(commandId)
+    }
+  }
+
+  /**
+  Cancel the session's in-flight recap (M127): it settles `cancelled`;
+  idle is an accepted no-op. Answers the cancel's admission status.
+  */
+  public async cancelSessionRecap(sessionId: string): Promise<string> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = recapRequestResultSchema.parse(
+      await commandWithin(
+        this.channel,
+        this.channel.generation,
+        'recap/cancel',
+        { sessionId },
+        undefined,
+        commandId,
+      ),
+    )
+    return result.status
+  }
+
+  /**
+  The host's computer-use setup state (M127, `computerUseSetup/check`):
+  the three macOS grants with no prompt, never requesting one. Refusals
+  (a Linux host answers `computerUseUnavailable`) flow as the MSP error.
+  */
+  public async checkComputerUseSetup(): Promise<ComputerUseSetup> {
+    const result = await this.command('computerUseSetup/check', {})
+    const parsed = computerUseSetupSchema.parse(result)
+    return {
+      accessibility: parsed.accessibility,
+      inputMonitoring: parsed.inputMonitoring,
+      screenRecording: parsed.screenRecording,
+      setup: parsed.setup,
+      ...(parsed.message !== undefined && { message: parsed.message }),
+      ...(parsed.refused !== undefined && { refused: parsed.refused }),
+    }
+  }
+
   /** Includes every returned deletion outcome; only known terminals settle a command. */
   public onMuseCodeLifecycleEvent(listener: (event: MuseCodeLifecycleEvent) => void): () => void {
     this.lifecycleListeners.add(listener)
@@ -2487,8 +3223,13 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  /** The caller confirms permanent deletion before invoking this operation. */
-  public async deleteSession(sessionId: string): Promise<MuseCodeLifecycleEvent> {
+  /**
+  The caller confirms permanent deletion before invoking this operation.
+  Resolves once the terminal `deleteCompleted` notification arrives; that
+  terminal itself reaches `onMuseCodeLifecycleEvent` listeners. (No caller
+  uses the terminal return, so this resolves `void`.)
+  */
+  public async deleteSession(sessionId: string): Promise<void> {
     const reader = this.features.lifecycle
     if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
     const signal = this.deletionStopped.signal
@@ -2526,32 +3267,43 @@ export class MuseCodeHost implements AgentHost {
       }
       signal.addEventListener('abort', onAbort, { once: true })
     })
+    const raced = Promise.race([
+      (async () => {
+        reader.parseDeleteAdmission(
+          await commandWithin(
+            this.channel,
+            this.channel.generation,
+            'session/delete',
+            { sessionId },
+            undefined,
+            commandId,
+          ),
+          commandId,
+        )
+        return await terminal
+      })(),
+      stopped,
+    ])
+    // The deletion is waited on until it is confirmed or the wait is
+    // stopped, saying so out loud (owner 2026-10-16); no test names this
+    // wait, so it names no deadline at all.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      this.log.info(stillWaitingText({ key: 'sessionDeletion' }, elapsedMs))
+    })
     try {
-      return await withDeadline(
-        Promise.race([
-          (async () => {
-            reader.parseDeleteAdmission(
-              await commandWithin(
-                this.channel,
-                this.channel.generation,
-                'session/delete',
-                { sessionId },
-                commandId,
-              ),
-              commandId,
-            )
-            return await terminal
-          })(),
-          stopped,
-        ]),
-        this.timeouts.deleteTerminalMs ?? this.timeouts.longMs,
-        UI_TEXT.sessionDeleteTimedOut,
-      )
+      await raced
+      return
     } catch (error: unknown) {
       // Dispatch validated the terminal before shutdown; async admission may still be resuming.
-      if (deletion.state.phase === 'terminalValidated') return deletion.state.event
+      if (deletion.state.phase === 'terminalValidated') {
+        this.log.info(
+          `session/delete for session ${sessionId} failed after its terminal was validated (${failureForLog(error)}); the validated terminal stands`,
+        )
+        return
+      }
       throw error
     } finally {
+      stopNoticing()
       deletion.state = { phase: 'reported' }
       if (onTerminal !== undefined) this.deletionTerminalListeners.delete(onTerminal)
       if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
@@ -2578,22 +3330,28 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Load a stored session on this connection with its history as a folded
-   * snapshot where the host's budget allows (the served mode is reported):
-   * the items, and the name, todo list and goal beside them (M45).
-   * `modelId` is the caller's standing selection: the record's own
-   * `modelId` is the metadata fold's and not to be trusted (PLAN.md M6).
-   */
+  Load a stored session on this connection with its history as a folded
+  snapshot where the host's budget allows (the served mode is reported):
+  the items, and the name, todo list and goal beside them (M45).
+  `modelId` is the caller's standing selection: the record's own
+  `modelId` is the metadata fold's and not to be trusted (PLAN.md M6).
+  */
   public async resumeSession(
     sessionId: string,
     modelId: string,
     mcpServers?: Readonly<Record<string, SessionMcpServer>>,
+    options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession> {
     const { loaded, hasPending } = await this.opened(async () => {
       const envelope = sessionEnvelopeSchema.parse(
         await this.command('session/resume', {
           sessionId,
           history: HISTORY_PREFERENCE_SNAPSHOT,
+          // The launch permission-profile pick (1.4.8): refused before
+          // anything is written when the host does not offer it.
+          ...(options?.permissionProfile !== undefined && {
+            permissionProfile: options.permissionProfile,
+          }),
           ...this.mcpConfig(mcpServers),
         }),
       )
@@ -2644,10 +3402,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Copy a session's completed turns (through `lastTurnId`, or all of them)
-   * into a new session, loaded here. Muse Code 1.3.0 refuses this on
-   * Windows ("invalid fork boundary ... WriteFailed", PLAN.md M6).
-   */
+  Copy a session's completed turns (through `lastTurnId`, or all of them)
+  into a new session, loaded here. Muse Code 1.3.0 refuses this on
+  Windows ("invalid fork boundary ... WriteFailed", PLAN.md M6).
+  */
   public async forkSession(
     sessionId: string,
     modelId: string,
@@ -2665,19 +3423,32 @@ export class MuseCodeHost implements AgentHost {
     })
   }
 
-  /** The visible model catalogue; with a session id the active row is flagged. */
-  public async listModels(sessionId?: string): Promise<readonly MuseCodeModelSummary[]> {
-    const result = await this.command('model/list', {
-      ...(sessionId !== undefined && { sessionId }),
-    })
-    return modelListResultSchema.parse(result).models.map((model) => ({
-      modelId: model.modelId,
-      displayLabel: model.displayLabel,
-      contextLimit: model.contextLimit ?? undefined,
-      isDefault: model.isDefault,
-      isActive: model.isActive ?? false,
-      ...this.features.modelEfforts?.parseModel(model),
-    }))
+  /**
+  The visible model catalogue; with a session id the active row is
+  flagged. While this host runs with `--contributor-mode on`, each
+  listed model's `-contributor` counterpart rides along (the CLI serves
+  no such row itself); otherwise the wire reading stands as served.
+  */
+  public async listModels(
+    sessionId?: string,
+    signal?: AbortSignal,
+  ): Promise<readonly MuseCodeModelSummary[]> {
+    // The caller's stop joins the channel's own cancel in the shared wait
+    // (PR #214 review); the read-only listing still settles underneath.
+    signal?.throwIfAborted()
+    const result = await this.command(
+      'model/list',
+      {
+        ...(sessionId !== undefined && { sessionId }),
+      },
+      signal,
+    )
+    const models = modelListResultSchema
+      .parse(result)
+      .models.map((model) => toModelSummary(model, this.features.modelEfforts))
+    return this.features.contributorMode === true
+      ? [...models, ...contributorModelSummaries(models)]
+      : models
   }
 
   /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */
@@ -2727,6 +3498,12 @@ export class MuseCodeHost implements AgentHost {
           workspaceRoot: options.workspaceRoot,
           modelId: options.modelId,
           approvalMode: options.approvalMode,
+          // The initial permission profile (1.4.6): select, never create.
+          // An older host ignores the unknown member and keeps its default
+          // profile; 1.4.7 commits it (amendment 42624).
+          ...(options.permissionProfile !== undefined && {
+            permissionProfile: options.permissionProfile,
+          }),
           ...this.mcpConfig(options.mcpServers),
         })
       } catch (error: unknown) {
@@ -2762,17 +3539,23 @@ export class MuseCodeHost implements AgentHost {
 export function spawnAccountMspConnection(
   options: Pick<
     SpawnMspConnectionOptions,
-    'command' | 'args' | 'cwd' | 'env' | 'onStderr' | 'shutdownTimeoutMs'
-  >,
+    'command' | 'args' | 'cwd' | 'onStderr' | 'shutdownTimeoutMs'
+  > & {
+    /**
+    The child's whole environment: the guarded serve environment for its
+    cwd, so a raw environment does not type-check here.
+    */
+    readonly env: GuardedChildEnv
+  },
   accountHome: MuseCodeAccountHome,
   /** The resource governor's registration of the spawned tree (M107). */
   onSpawn?: (child: ChildProcess) => void,
 ) {
   accountHome.assertCurrent()
   const hasProcessGroup = process.platform !== 'win32'
-  const child = spawn(options.command, [...(options.args ?? [])], {
+  const child = spawnGuarded(options.command, [...(options.args ?? [])], {
     ...(options.cwd !== undefined && { cwd: options.cwd }),
-    ...(options.env !== undefined && { env: options.env }),
+    env: options.env,
     detached: hasProcessGroup,
     windowsHide: true,
   })

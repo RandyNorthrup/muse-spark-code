@@ -8,9 +8,9 @@ import {
 } from '../../src/core/verify/diagnosticsReport'
 import { applyOffsetEdits } from '../../src/core/verify/textEdits'
 import {
-  MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   VERIFY_DIAGNOSTICS_MAX_ENTRIES,
+  VERIFY_MODEL_TEXT,
   VERIFY_NOTE_MAX_CHARS,
   VERIFY_SHOWN_FILES_MAX,
 } from '../../src/shared/constants'
@@ -57,7 +57,7 @@ describe('DiagnosticsHistory', () => {
     )
     expect(report).toEqual({
       text: [
-        MODEL_API_MODEL_TEXT.verifyDiagnosticsHeading,
+        VERIFY_MODEL_TEXT.verifyDiagnosticsHeading,
         'src/a.ts: errors 1, warnings 1',
         'src/b.ts: no errors or warnings',
         'src/a.ts:3:1: error: bad [ts]\nsrc/a.ts:1:1: warning: unused [eslint]',
@@ -87,7 +87,7 @@ describe('DiagnosticsHistory', () => {
     // All fixed: clean, with the count of what went.
     const fourth = delivered(history, [{ file: A, entries: [] }])
     expect(fourth.text).toBe(
-      `${MODEL_API_MODEL_TEXT.verifyDiagnosticsHeading}\nsrc/a.ts: no errors or warnings (0 new, 2 fixed since the previous check)`,
+      `${VERIFY_MODEL_TEXT.verifyDiagnosticsHeading}\nsrc/a.ts: no errors or warnings (0 new, 2 fixed since the previous check)`,
     )
   })
 
@@ -102,20 +102,20 @@ describe('DiagnosticsHistory', () => {
     )
     expect(report).toEqual({
       text: [
-        MODEL_API_MODEL_TEXT.verifyDiagnosticsHeading,
-        fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, {
+        VERIFY_MODEL_TEXT.verifyDiagnosticsHeading,
+        fill(VERIFY_MODEL_TEXT.verifyFileUnchecked, {
           path: 'src/a.ts',
-          reason: MODEL_API_MODEL_TEXT.verifyUncheckedNoReport,
+          reason: VERIFY_MODEL_TEXT.verifyUncheckedNoReport,
         }),
-        fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, {
+        fill(VERIFY_MODEL_TEXT.verifyFileUnchecked, {
           path: 'src/b.ts',
-          reason: fill(MODEL_API_MODEL_TEXT.verifyUncheckedCodeLoading, {
+          reason: fill(VERIFY_MODEL_TEXT.verifyUncheckedCodeLoading, {
             file: 'eslint.config.js',
           }),
         }),
-        fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, {
+        fill(VERIFY_MODEL_TEXT.verifyFileUnchecked, {
           path: 'src/a.ts',
-          reason: fill(MODEL_API_MODEL_TEXT.verifyUncheckedTooMany, {
+          reason: fill(VERIFY_MODEL_TEXT.verifyUncheckedTooMany, {
             count: String(VERIFY_SHOWN_FILES_MAX),
           }),
         }),

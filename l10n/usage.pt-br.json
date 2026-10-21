@@ -40,12 +40,21 @@
     "other": "A exportação CSV por chamada só está disponível para os últimos {count} dias."
   },
   "exportComplete": "Uso exportado.",
+  "exportTooLarge": "Esta exportação é grande demais para o navegador. Escolha um período menor ou exporte pela CLI.",
+  "exportBound": "As exportações do navegador são limitadas a {limit}, incluindo a codificação JSON.",
+  "editorActionsUnavailable": "Esta página não pode abrir as configurações do editor, mostrar a pasta do histórico nem editar os preços dos modelos. Use as configurações do editor e os controles de Modelos e agentes. Leitura, filtros, gráficos e exportações continuam disponíveis aqui.",
+  "readOnlyActions": "Esta interface de texto é somente leitura. Abra a página complementar para gráficos, controles do histórico e downloads.",
   "deleteHistory": "Excluir o histórico de uso…",
   "deleteTitle": "Excluir o histórico de uso?",
   "deleteConfirm": {
     "one": "Excluir {count} registro de uso nesta máquina? Os livros de gastos e as permissões concedidas são mantidos.",
     "many": "Excluir {count} de registros de uso nesta máquina? Os livros de gastos e as permissões concedidas são mantidos.",
     "other": "Excluir {count} registros de uso nesta máquina? Os livros de gastos e as permissões concedidas são mantidos."
+  },
+  "deleteConfirmResources": {
+    "one": "Também exclui {count} entrada do histórico de recursos.",
+    "many": "Também exclui {count} entradas do histórico de recursos.",
+    "other": "Também exclui {count} entradas do histórico de recursos."
   },
   "deleteAction": "Excluir o histórico",
   "deleteComplete": "Histórico de uso excluído.",
@@ -118,11 +127,17 @@
   "certaintyReported": "Informado",
   "certaintyComputed": "Calculado",
   "certaintyUncertain": "Incerto",
+  "reservedLabel": "Reservado",
   "certaintyPlan": "Plano",
   "certaintyLocal": "Local",
   "certaintyUnpriced": "Sem preço",
   "certaintyEstimated": "Estimado",
   "uncertainNote": "A solicitação foi enviada sem retorno de uso. Seu custo continua vigente.",
+  "unknownCalls": {
+    "one": "{count} solicitação com custo desconhecido",
+    "many": "{count} solicitações com custo desconhecido",
+    "other": "{count} solicitações com custo desconhecido"
+  },
   "unpricedNote": "Sem tabela de preços disponível. Custo desconhecido não é zero.",
   "estimatedNote": "As contagens de tokens são estimativas.",
   "localNote": "Modelo local: sem cobrança de API.",
@@ -227,14 +242,6 @@
   "sortAscending": "Ordem crescente",
   "sortDescending": "Ordem decrescente",
   "retentionNote": "O detalhe por chamada é mantido por {detailDays} dias; os resumos diários, por {historyDays} dias.",
-  "privacyNote": "O histórico permanece nesta máquina. Não contém prompts, respostas, argumentos de ferramentas, caminhos nem chaves.",
-  "exportTooLarge": "Esta exportação é grande demais para o navegador. Escolha um período menor ou exporte pela CLI.",
-  "exportBound": "As exportações do navegador são limitadas a {limit}, incluindo a codificação JSON.",
-  "editorActionsUnavailable": "Esta página não pode abrir as configurações do editor, mostrar a pasta do histórico nem editar os preços dos modelos. Use as configurações do editor e os controles de Modelos e agentes. Leitura, filtros, gráficos e exportações continuam disponíveis aqui.",
-  "readOnlyActions": "Esta interface de texto é somente leitura. Abra a página complementar para gráficos, controles do histórico e downloads.",
-  "deleteConfirmResources": {
-    "one": "Também exclui {count} entrada do histórico de recursos.",
-    "many": "Também exclui {count} entradas do histórico de recursos.",
-    "other": "Também exclui {count} entradas do histórico de recursos."
-  }
+  "retentionNoteKept": "O detalhe por chamada é mantido por {detailDays} dias; os resumos diários são mantidos até você definir um número de dias ou limpá-los.",
+  "privacyNote": "O histórico permanece nesta máquina. Não contém prompts, respostas, argumentos de ferramentas, caminhos nem chaves."
 }

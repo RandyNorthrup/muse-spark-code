@@ -55,6 +55,20 @@ export const SLASH_REFERENCE = {
       modelApi: { ui: 'gitCheckoutItemDetail' },
     },
   },
+  'github-login': {
+    syntax: ['/github-login'],
+    descriptions: {
+      museCode: { ui: 'gitHubSignInWithCodeDetail' },
+      modelApi: { ui: 'gitHubSignInWithCodeDetail' },
+    },
+  },
+  'github-logout': {
+    syntax: ['/github-logout'],
+    descriptions: {
+      museCode: { ui: 'gitHubSignOutItemDetail' },
+      modelApi: { ui: 'gitHubSignOutItemDetail' },
+    },
+  },
   model: {
     syntax: ['/model'],
     descriptions: { museCode: { ui: 'switchModel' }, modelApi: { ui: 'switchModel' } },
@@ -99,6 +113,10 @@ export const SLASH_REFERENCE = {
   compact: {
     syntax: ['/compact'],
     descriptions: { museCode: { ui: 'compactDetail' }, modelApi: { ui: 'compactDetail' } },
+  },
+  playback: {
+    syntax: ['/playback'],
+    descriptions: { museCode: { ui: 'playbackDetail' }, modelApi: { ui: 'playbackDetail' } },
   },
   handoff: {
     syntax: ['/handoff [goal]'],

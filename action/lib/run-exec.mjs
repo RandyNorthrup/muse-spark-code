@@ -61,21 +61,30 @@ const PRIVATE_FILE = 0o600
 const NUMBER_TOKEN = /\d(?:[\d.,']|\s(?=\d))*/g
 
 /**
- * The key from the run step's environment, which is deleted at once. One
- * trailing LF is stripped; empty, multi-line, oversize or malformed keys
- * are refused (undefined) without echoing anything.
- */
+True for a usable Model API key value: nonempty, single-line, within the
+byte bound and matching the key pattern. Never echoes the value.
+*/
+export function isValidModelApiKey(value) {
+  return (
+    typeof value === 'string' &&
+    value !== '' &&
+    !/[\r\n]/.test(value) &&
+    Buffer.byteLength(value) <= ACTION_KEY_MAX_BYTES &&
+    MODEL_API_KEY_PATTERN.test(value)
+  )
+}
+
+/**
+The key from the run step's environment, which is deleted at once. One
+trailing LF is stripped; empty, multi-line, oversize or malformed keys
+are refused (undefined) without echoing anything.
+*/
 export function takeModelApiKey(env) {
   const raw = env[KEY_VARIABLE]
   Reflect.deleteProperty(env, KEY_VARIABLE)
   if (typeof raw !== 'string') return
   const key = raw.endsWith('\n') ? raw.slice(0, -1) : raw
-  const isValid =
-    key !== '' &&
-    !/[\r\n]/.test(key) &&
-    Buffer.byteLength(key) <= ACTION_KEY_MAX_BYTES &&
-    MODEL_API_KEY_PATTERN.test(key)
-  return isValid ? key : undefined
+  return isValidModelApiKey(key) ? key : undefined
 }
 
 /** The runner's mask command for one value: %, CR and LF escaped as workflow command data. */
@@ -101,10 +110,13 @@ export function execArguments({ agentJs, paths, inputs }) {
     '--ephemeral',
     '--max-budget-usd',
     inputs.maxBudgetUsd,
-    '--max-requests',
-    String(inputs.maxRequests),
-    '--timeout',
-    String(inputs.timeoutMinutes * SECONDS_PER_MINUTE),
+    // No request limit unless the person set max-requests (null), and no
+    // deadline unless they set timeout-minutes (null): only then is the flag
+    // forwarded, like --model and --effort below.
+    ...(inputs.maxRequests === null ? [] : ['--max-requests', String(inputs.maxRequests)]),
+    ...(inputs.timeoutMinutes === null
+      ? []
+      : ['--timeout', String(inputs.timeoutMinutes * SECONDS_PER_MINUTE)]),
     '--prompt-file',
     paths.prompt,
     '--untrusted-file',
@@ -119,11 +131,11 @@ export function execArguments({ agentJs, paths, inputs }) {
 }
 
 /**
- * A patch Git renders as binary, that holds a NUL byte or that is not UTF-8
- * is withheld whole. The NUL check is Git's own binary test applied to the
- * patch itself, so a repository's .gitattributes cannot turn a binary file
- * into a textual diff that passes.
- */
+A patch Git renders as binary, that holds a NUL byte or that is not UTF-8
+is withheld whole. The NUL check is Git's own binary test applied to the
+patch itself, so a repository's .gitattributes cannot turn a binary file
+into a textual diff that passes.
+*/
 export function isBinaryPatch(bytes) {
   if (bytes.includes(0)) return true
   let text
@@ -242,11 +254,11 @@ function revokePatch(paths) {
 }
 
 /**
- * A stopped or failed wrapper publishes nothing (SPEC §6.1 step 8, RVM80CD
- * P2-2): whatever reached out/ before the stop is removed, synchronously, and
- * the report no longer offers a result. Ordinary exec failures keep theirs.
- */
-function revokeIfStopped(report, owner, paths) {
+A stopped or failed wrapper publishes nothing (SPEC §6.1 step 8, RVM80CD
+P2-2): whatever reached out/ before the stop is removed, synchronously, and
+the report no longer offers a result. Ordinary exec failures keep theirs.
+*/
+export function revokeIfStopped(report, owner, paths) {
   if (!owner.stopped && !report.wrapperFailed) return
   rmSync(paths.result, { force: true })
   rmSync(paths.events, { force: true })
@@ -262,13 +274,13 @@ function interruptedReason(report, owner) {
 }
 
 /**
- * The fix patch (SPEC §6.5): only after a valid completed result with exec
- * code 0. Intent-to-add plus `git diff --binary` against the exact head into
- * private staging; a binary patch is withheld whole; the trusted scanner
- * reads the exact staged bytes; a clean patch and its manifest are moved
- * into out/ unchanged, or neither is. Returns the withholding reason ('' when
- * published or when there was no change) and whether a patch was published.
- */
+The fix patch (SPEC §6.5): only after a valid completed result with exec
+code 0. Intent-to-add plus `git diff --binary` against the exact head into
+private staging; a binary patch is withheld whole; the trusted scanner
+reads the exact staged bytes; a clean patch and its manifest are moved
+into out/ unchanged, or neither is. Returns the withholding reason ('' when
+published or when there was no change) and whether a patch was published.
+*/
 async function proposePatch(input) {
   const { owner, result, execCode } = input
   if (result === null) return { withheld: 'no_result', published: false }
@@ -292,9 +304,9 @@ async function proposePatch(input) {
 }
 
 /**
- * The whole run under one owner. Returns the report the outputs and exit
- * code come from; never throws for an ordinary stop or failure.
- */
+The whole run under one owner. Returns the report the outputs and exit
+code come from; never throws for an ordinary stop or failure.
+*/
 export async function runProposal(input) {
   const { owner, paths, inputs, key, log } = input
   const report = {
@@ -320,7 +332,13 @@ export async function runProposal(input) {
       env: input.baseEnv,
       stdin: Buffer.from(`${key}\n`, 'utf8'),
       stdoutPath: paths.eventsTmp,
-      withinMs: inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE + ACTION_EXEC_OVERHEAD_MS,
+      // No wrapper deadline of ours without timeout-minutes: the run ends
+      // with exec's own deadline (when the person set one), the signal, or
+      // the job's own timeout.
+      withinMs:
+        inputs.timeoutMinutes === null
+          ? undefined
+          : inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE + ACTION_EXEC_OVERHEAD_MS,
       stdoutMaxBytes: ACTION_EVENTS_MAX_BYTES,
       stderrMaxBytes: ACTION_STDERR_MAX_BYTES,
     })
@@ -389,13 +407,14 @@ export function outputsFor(report, owner, paths) {
   }
 }
 
-function summaryFor(report, outputs) {
+export function summaryFor(report, outputs) {
   const upper = outputs['cost-is-upper-bound'] === 'true' ? ' (upper bound)' : ''
   return [
     '### Muse Spark Code run',
     '',
     `- status: ${outputs.status}`,
     `- exec exit code: ${report.execCode === null ? 'none' : String(report.execCode)}`,
+    `- output directory: ${outputs['out-dir'] || 'n/a'}`,
     `- wrapper failure: ${String(report.wrapperFailed)}`,
     `- requests: ${outputs.requests || 'n/a'}`,
     `- cost (USD): ${outputs['cost-usd'] || 'n/a'}${upper}`,
@@ -417,13 +436,15 @@ async function run(env, held) {
       held.key = undefined
     },
     totalMs:
-      ACTION_INPUT_MS +
-      inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE +
-      ACTION_EXEC_OVERHEAD_MS +
-      ACTION_EXTRACT_MS +
-      ACTION_GIT_MS +
-      ACTION_SCAN_MS +
-      ACTION_PUBLISH_MS,
+      inputs.timeoutMinutes === null
+        ? undefined
+        : ACTION_INPUT_MS +
+          inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE +
+          ACTION_EXEC_OVERHEAD_MS +
+          ACTION_EXTRACT_MS +
+          ACTION_GIT_MS +
+          ACTION_SCAN_MS +
+          ACTION_PUBLISH_MS,
     temporaryFiles: [paths.resultTmp, paths.manifestTmp, paths.eventsTmp, paths.diffFull],
   })
   let report

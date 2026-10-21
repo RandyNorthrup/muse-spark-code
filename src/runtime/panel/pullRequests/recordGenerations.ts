@@ -22,6 +22,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { wireWordForLog, type CoreLogger } from '../../../core/logging'
+import { isStoreErrorCode } from '../../../host/backend/storeErrors'
 import { parseWorktreeRegistry, type WorktreeRecord } from '../../../core/worktreeConversations'
 import {
   ATOMIC_TEMPORARY_SUFFIX,
@@ -71,10 +72,10 @@ async function names(fs: RecordStoreFs, folder: string): Promise<readonly string
   try {
     return await fs.readdir(folder)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
-      return []
-    }
-    throw error
+    // A missing folder holds no generations; any other listing failure is
+    // not this listing's answer to give.
+    if (!isStoreErrorCode(error, 'ENOENT')) throw error
+    return []
   }
 }
 
@@ -108,7 +109,9 @@ function parseGeneration(generation: number, bytes: Buffer): ParsedGeneration | 
           raw: parsed.data.records,
         }
       : undefined
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed text fails here; anything else is not this parse's answer.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -125,9 +128,9 @@ function headOf(generation: number, parsed: ParsedGeneration | undefined): Recor
 }
 
 /**
- * The head, synchronously, for a gate with no await before it acts.
- * Undefined when it cannot be read whole (the caller refuses).
- */
+The head, synchronously, for a gate with no await before it acts.
+Undefined when it cannot be read whole (the caller refuses).
+*/
 export function readRecordHeadSync(fs: RecordStoreFs, folder: string): RecordHead | undefined {
   try {
     const generation = latestOf(fs.readdirSync(folder))
@@ -145,9 +148,9 @@ export function readRecordHeadSync(fs: RecordStoreFs, folder: string): RecordHea
 }
 
 /**
- * The head, read without a lock: reads never write. An unreadable head
- * reads as no records (the hold is by location anyway), and is warned.
- */
+The head, read without a lock: reads never write. An unreadable head
+reads as no records (the hold is by location anyway), and is warned.
+*/
 export async function readRecordHead(
   fs: RecordStoreFs,
   folder: string,
@@ -196,29 +199,33 @@ async function isInEffect(
       await fs.readFile(path.join(folder, generationName(generation + 1))),
     )
     return next?.parent === writeId
-  } catch {
+  } catch (error: unknown) {
+    // Swept between the listing and the read: the proof is gone. Any other
+    // read failure is not this proof's answer to give (the write lands
+    // unverified through its own catch either way).
+    if (!isStoreErrorCode(error, 'ENOENT')) throw error
     return false
   }
 }
 
 /**
- * What a write came to: `written` when it took the next number and is in
- * effect; `lost` when it published nothing (another writer took the
- * number, `canPublish` said the lock is no longer this writer's, or its
- * stage was swept): read again and apply again; `unverified` when it took
- * the number but its place in history can no longer be proven (its
- * successor was swept meanwhile, it took a number the sweep had freed, or
- * the proof could not be read): the caller reconciles against the head
- * before applying again.
- */
+What a write came to: `written` when it took the next number and is in
+effect; `lost` when it published nothing (another writer took the
+number, `canPublish` said the lock is no longer this writer's, or its
+stage was swept): read again and apply again; `unverified` when it took
+the number but its place in history can no longer be proven (its
+successor was swept meanwhile, it took a number the sweep had freed, or
+the proof could not be read): the caller reconciles against the head
+before applying again.
+*/
 export type GenerationWrite = 'written' | 'lost' | 'unverified'
 
 /**
- * Writes `records` as the generation after `head`, under the lease whose
- * fence is `fence`: refused (`lost`) while the head was written under an
- * equal or later fence, or when `isLeaseCurrent` (a synchronous check, made
- * just before the link) says the lease is no longer current.
- */
+Writes `records` as the generation after `head`, under the lease whose
+fence is `fence`: refused (`lost`) while the head was written under an
+equal or later fence, or when `isLeaseCurrent` (a synchronous check, made
+just before the link) says the lease is no longer current.
+*/
 export async function writeNextGeneration(
   fs: RecordStoreFs,
   folder: string,
@@ -247,10 +254,8 @@ export async function writeNextGeneration(
     } catch (error: unknown) {
       // EEXIST: the number is taken. ENOENT: the stage was swept under a
       // delayed writer. Either way nothing was published.
-      const code = errorCode(error)
-      if (code === 'EEXIST' || code === 'ENOENT') {
-        return 'lost'
-      }
+      if (isStoreErrorCode(error, 'EEXIST')) return 'lost'
+      if (isStoreErrorCode(error, 'ENOENT')) return 'lost'
       throw error
     }
   } finally {
@@ -270,11 +275,11 @@ export async function writeNextGeneration(
 }
 
 /**
- * Removes generations older than the kept ones and a crash's leftovers
- * (stages, retired locks) older than the sweep age. Best effort, after a
- * write has landed: it never throws (a failure is retried by the next
- * write), so a landed write is never reported as failed.
- */
+Removes generations older than the kept ones and a crash's leftovers
+(stages, retired locks) older than the sweep age. Best effort, after a
+write has landed: it never throws (a failure is retried by the next
+write), so a landed write is never reported as failed.
+*/
 export async function sweepGenerations(
   fs: RecordStoreFs,
   folder: string,

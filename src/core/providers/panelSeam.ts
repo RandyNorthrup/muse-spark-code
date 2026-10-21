@@ -11,12 +11,35 @@ import {
   readProvidersFile,
   writeProvidersFileAtomic,
 } from './providersFile'
-import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
+import { listedPresets, PRESETS, PLAN_KEY_PRESETS } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { parseModelRef } from './modelRef'
+
+/** What the name servers answer when a name does not resolve (c-ares codes). */
+const UNRESOLVED_ADDRESS_CODES: ReadonlySet<string> = new Set([
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EAI_NONAME',
+  'EAI_FAIL',
+])
+
+/**
+The one expected lookup failure: the resolver answered that the name
+does not resolve. Anything else (a host resolver's own bug) keeps its
+kind for the caller instead of reading as an unresolvable address.
+*/
+function isUnresolvedAddress(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    UNRESOLVED_ADDRESS_CODES.has(error.code)
+  )
+}
 
 export function createModelsPanelSeam(options: {
   readonly configFile: string
@@ -122,11 +145,15 @@ export function createModelsPanelSeam(options: {
       }),
   }
   const catalog = new Map<string, PresetInfo>()
-  // Local servers and the Custom server are the user's own, so they are
-  // listed without a capture of their own (the transport admits them too).
+  // Captured wires only (rule 13): an uncaptured preset stays out of the
+  // panel even when it is local (C-M95-4 R2: the old union with every
+  // `category === 'local'` preset kept vLLM and Ollama listed, probed and
+  // callable with no capture behind them). `custom` is the user's own
+  // server, which the transport admits without a capture, so it stays
+  // listed: the milestone Goal's "a compatible server of their own".
   for (const preset of [
     ...listedPresets(),
-    ...PRESETS.filter((row) => row.category === 'local' || row.category === 'custom'),
+    ...PRESETS.filter((row) => row.id === 'custom'),
     ...PLAN_KEY_PRESETS,
   ]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
@@ -142,7 +169,6 @@ export function createModelsPanelSeam(options: {
       auth: preset.auth,
       keyHint: preset.keyHint,
       keyPage: preset.keyPage ?? '',
-      isKeyShape: (value) => isKeyShape(preset.keyShape, value),
       freeTest: preset.keyTest.kind === 'models-list' ? 'modelsList' : 'none',
       localProbes:
         preset.origin.kind === 'loopback'
@@ -165,7 +191,6 @@ export function createModelsPanelSeam(options: {
       auth: 'subscription',
       keyHint: '',
       keyPage: '',
-      isKeyShape: () => false,
       freeTest: 'none',
       localProbes: [],
     })
@@ -199,7 +224,10 @@ export function createModelsPanelSeam(options: {
               answers = await options.resolve(host)
             }
           }
-        } catch {
+        } catch (error) {
+          // Only an unresolvable name reads as one; anything else keeps
+          // its kind for the caller.
+          if (!isUnresolvedAddress(error)) throw error
           return { kind: 'refused', detail: 'unresolved-address' }
         }
         const verdict = checkEndpointUrl(address, answers)

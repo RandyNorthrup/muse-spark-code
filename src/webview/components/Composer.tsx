@@ -31,20 +31,16 @@ import {
   useState,
 } from 'react'
 import {
-  COMPOSER_MAX_ROWS,
-  BASE64_DATA_URL_OVERHEAD_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
+  COMPOSER_MAX_ROWS,
   type DictationAction,
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
   HOOK_RUN_SLASH_COMMAND,
   IME_PROCESS_KEY,
-  MAX_ATTACHMENTS_PER_MESSAGE,
-  MAX_DOCUMENT_BYTES,
-  MAX_ENCODED_MEDIA_CHARS,
-  MAX_IMAGE_BYTES,
+  MAX_ATTACHMENT_BASE64_CHARS,
   PDF_EXTENSION,
   PDF_HEADER_WINDOW_BYTES,
   PDF_MEDIA_TYPE,
@@ -224,11 +220,11 @@ export interface RowMetrics {
 }
 
 /**
- * Rows the box needs: the wrapped content's height in rows when the box is
- * measurable (a browser), else the newline count (jsdom reports 0 for both).
- * Never below one row, never above COMPOSER_MAX_ROWS: past that the textarea
- * scrolls inside (issue #4).
- */
+Rows the box needs: the wrapped content's height in rows when the box is
+measurable (a browser), else the newline count (jsdom reports 0 for both).
+Never below one row, never above COMPOSER_MAX_ROWS: past that the textarea
+scrolls inside (issue #4).
+*/
 export function rowsFor(draft: string, metrics?: RowMetrics): number {
   const isMeasured = metrics !== undefined && metrics.rowHeight > 0
   const measured = isMeasured ? Math.round(metrics.scrollHeight / metrics.rowHeight) : 0
@@ -237,9 +233,9 @@ export function rowsFor(draft: string, metrics?: RowMetrics): number {
 }
 
 /**
- * Sizes the box to its draft. One row first, so a draft that shrank is
- * measured against its own height rather than the taller box it is leaving.
- */
+Sizes the box to its draft. One row first, so a draft that shrank is
+measured against its own height rather than the taller box it is leaving.
+*/
 function fitRows(textarea: HTMLTextAreaElement, draft: string): void {
   textarea.rows = MIN_ROWS
   textarea.rows = rowsFor(draft, {
@@ -249,9 +245,9 @@ function fitRows(textarea: HTMLTextAreaElement, draft: string): void {
 }
 
 /**
- * Whether the key belongs to an input method's composition (M25): Chromium
- * flags it `isComposing` and names the key "Process" (keyCode 229).
- */
+Whether the key belongs to an input method's composition (M25): Chromium
+flags it `isComposing` and names the key "Process" (keyCode 229).
+*/
 function isComposing(event: KeyboardEvent<HTMLElement>): boolean {
   return event.nativeEvent.isComposing || event.key === IME_PROCESS_KEY
 }
@@ -268,10 +264,10 @@ export function isSendKey(
 }
 
 /**
- * A mousedown on a toggle button would blur the open palette or menu (which
- * closes it) before the click could toggle; keeping focus where it is lets the
- * click decide.
- */
+A mousedown on a toggle button would blur the open palette or menu (which
+closes it) before the click could toggle; keeping focus where it is lets the
+click decide.
+*/
 function keepMenuFocus(event: MouseEvent<HTMLButtonElement>): void {
   event.preventDefault()
 }
@@ -308,8 +304,10 @@ function filesWithoutUris(files: readonly File[], uris: readonly string[]): read
     uris.map((uri) => {
       try {
         return decodeURIComponent(new URL(uri).pathname).split(/[/\\]/u).at(-1)
-      } catch {
-        // Malformed host URIs do not suppress unrelated clipboard files.
+      } catch (error: unknown) {
+        // Malformed host URIs do not suppress unrelated clipboard files:
+        // anything else keeps its kind.
+        if (!(error instanceof URIError) && !(error instanceof TypeError)) throw error
         return
       }
     }),
@@ -317,18 +315,8 @@ function filesWithoutUris(files: readonly File[], uris: readonly string[]): read
   return files.filter((file) => file.name === '' || !names.has(file.name))
 }
 
-/** The same conservative data-URL budget the host checks after decoding. */
-function encodedMediaChars(sizeBytes: number, mediaType: string): number {
-  return (
-    BASE64_DATA_URL_OVERHEAD_CHARS +
-    mediaType.length +
-    BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(sizeBytes / BASE64_INPUT_BLOCK_BYTES)
-  )
-}
-
 interface PendingMediaReservation {
   readonly requestId: string
-  readonly encodedChars: number
 }
 
 /** Ctrl+D (Cmd+D on a Mac): the microphone from the keyboard. */
@@ -766,10 +754,10 @@ export function Composer(props: ComposerProps) {
   }
 
   /**
-   * Enter runs a command; a skill, `/goal` (M45), `/handoff` (M74) or Tab
-   * completes the name instead, a skill and those commands ready for what
-   * follows them.
-   */
+  Enter runs a command; a skill, `/goal` (M45), `/handoff` (M74) or Tab
+  completes the name instead, a skill and those commands ready for what
+  follows them.
+  */
   const chooseSlash = (command: SlashCommand, isCompleting: boolean) => {
     const { action } = command
     // A command with arguments stays in the prompt, ready for them; any
@@ -933,36 +921,22 @@ export function Composer(props: ComposerProps) {
 
   const attachFiles = (files: readonly File[]) => {
     const admit = (file: File, name: string, mediaType: string) => {
-      const current = currentAttachments.current
-      const count = current.length + pendingFiles.current.length
-      const mediaChars =
-        current.reduce(
-          (total, attachment) =>
-            total +
-            (attachment.media !== undefined || attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
-              ? 0
-              : encodedMediaChars(attachment.sizeBytes, attachment.mediaType)),
-          0,
-        ) + pendingFiles.current.reduce((total, pending) => total + pending.encodedChars, 0)
-      const isDocument = mediaType === PDF_MEDIA_TYPE
-      if (file.size > (isDocument ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES)) {
-        onRefuseFile(name, isDocument ? UI_TEXT.documentTooLarge : UI_TEXT.attachmentTooLarge)
-        return
-      }
-      if (count >= MAX_ATTACHMENTS_PER_MESSAGE) {
-        onRefuseFile(name, UI_TEXT.attachmentLimit)
-        return
-      }
-      const estimate = encodedMediaChars(file.size, mediaType)
-      if (mediaChars + estimate > MAX_ENCODED_MEDIA_CHARS) {
-        onRefuseFile(name, UI_TEXT.mediaTotalTooLarge)
+      // D121: no count or size of ours — any number of files is taken. The
+      // one client check left is the postMessage transport itself: the
+      // base64 must fit the host protocol's frame, or the file cannot be
+      // taken (the host answers the same way when its own reads fail). Past
+      // the model's real limits the record and the provider answer at send.
+      if (
+        Math.ceil(file.size / BASE64_INPUT_BLOCK_BYTES) * BASE64_OUTPUT_BLOCK_CHARS >
+        MAX_ATTACHMENT_BASE64_CHARS
+      ) {
+        onRefuseFile(name, UI_TEXT.attachmentUnreadable)
         return
       }
       const requestId = newAttachmentRequestId()
       const admittedEpoch = attachmentEpoch
       const reservation: PendingMediaReservation = {
         requestId,
-        encodedChars: estimate,
       }
       pendingFiles.current.push(reservation)
       void blobToBase64(file)
@@ -1006,7 +980,8 @@ export function Composer(props: ComposerProps) {
       }
       const admittedEpoch = attachmentEpoch
       // MIME and suffix can both lie. Only the first 1 KiB is read before
-      // deciding whether this is a 32 MB PDF or a 10 MiB image.
+      // deciding whether this is a PDF or an image (kind only — D121 takes
+      // either at any size the transport carries).
       void file
         .slice(0, PDF_HEADER_WINDOW_BYTES)
         .arrayBuffer()
@@ -1020,7 +995,11 @@ export function Composer(props: ComposerProps) {
             admit(file, name, file.type)
           }
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unreadable header refuses the file (a read failure throws
+          // past Error as a DOMException): only a non-error keeps its kind
+          // past the composer.
+          if (!(error instanceof Error) && !(error instanceof DOMException)) throw error
           if (currentAttachmentEpoch.current === admittedEpoch) {
             onRefuseFile(name, UI_TEXT.attachmentUnreadable)
           }

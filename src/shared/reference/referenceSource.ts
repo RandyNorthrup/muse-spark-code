@@ -1,3 +1,4 @@
+import { COMPANION_VOICE_RELEASE } from '../companionVoice'
 // The generator's build entry: its imports are visible to the dead-code gate.
 export {
   featureCatalog,
@@ -5,7 +6,7 @@ export {
   referenceDescription,
   REFERENCE_IN_PROGRESS_FEATURES,
 } from '../featureCatalog'
-export { COMMAND_IDS } from '../constants'
+export { COMMAND_IDS, SCHEDULE_EDITOR_DELIVERY_CERTIFICATION } from '../constants'
 export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
@@ -16,6 +17,9 @@ export { fill } from '../l10n/text'
 export { Usd } from '../usd'
 export {
   ACP_AGENT_NAME,
+  MUSE_VOICE_MAX_SECONDS,
+  MUSE_VOICE_FRAME_MS,
+  MUSE_VOICE_RESERVED_MS,
   PAID_FEATURE_SETTINGS,
   PAID_FEATURES,
   MUSE_CODE_PAID_FEATURES,
@@ -26,23 +30,14 @@ export {
   MODEL_EFFORT_LEVELS,
   THINKING_OFF_EFFORT,
   MODEL_API_EFFORT_OFF,
-  MAX_IMAGE_BYTES,
-  MAX_DOCUMENT_BYTES,
-  MAX_TEXT_ATTACHMENT_BYTES,
-  MAX_ATTACHMENTS_PER_MESSAGE,
-  MAX_ENCODED_MEDIA_CHARS,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_PDF_PAGE_IMAGES,
   EXEC_MODES,
   EXEC_OUTPUTS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
-  EXEC_DEFAULT_MAX_REQUESTS,
-  EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_BUDGET_USD,
-  EXEC_MAX_REQUESTS,
-  EXEC_MIN_TIMEOUT_SECONDS,
-  EXEC_MAX_TIMEOUT_SECONDS,
+  EXEC_MIN_OUTPUT_TOKENS,
+  MODEL_API_MAX_OUTPUT_TOKENS,
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
   ACP_CONFIG_IDS,
@@ -55,7 +50,6 @@ export {
   AGENT_FILE_NAME,
   PROJECT_AGENTS_DIR_SEGMENTS,
   PERSONAL_AGENTS_DIR_SEGMENTS,
-  BROWSER_CHECK_MAX_ACTIONS,
 } from '../constants'
 export { parseGoalPrompt } from '../goalCommand'
 export { parseReviewPrompt } from '../reviewCommand'
@@ -63,7 +57,12 @@ export { parseHandoffPrompt } from '../handoff'
 
 // Reviewed host capability inventory: pairs are explicit, never a Cartesian claim.
 // The tooling gate also checks tool/action coverage and host admission witnesses.
+const companionCapabilities: [string, readonly string[]][] = COMPANION_VOICE_RELEASE.isReady
+  ? [['companion-dictation', ['acp:museCode', 'acp:modelApi']]]
+  : []
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
+  ...companionCapabilities,
+  ['runtime-schedules', ['acp:museCode', 'acp:modelApi']],
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
@@ -74,14 +73,21 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // streamed arguments.
   ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
+  // Lane RETRYLIMITS: the person's retry limit is a VS Code setting; the
+  // documented per-provider bounds apply on every surface.
+  ['retry-limits', ['vscode:modelApi']],
   ['native-deletion', ['vscode:museCode']],
+  ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
+  ['fast-tier', ['vscode:modelApi', 'acp:modelApi']],
+  // CM80CI: the four non-GitHub CI templates run headless Model API turns.
+  ['ci-other-systems', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
-  ['auto-compaction', []],
+  ['auto-compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
@@ -101,13 +107,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // C-X-1: the shared daily budget also binds headless/ACP runs through the
   // runtime ledger, which reads the same paidDailyBudgetUsd setting.
   ['budget', ['vscode:modelApi', 'acp:modelApi']],
-  ...[
-    'auto-subscription',
-    'native-agents',
-    'native-search-cron',
-    'voice',
-    'judge-subscription',
-  ].map((id): [string, readonly string[]] => [id, ['vscode:museCode']]),
+  ...['auto-subscription', 'native-agents', 'native-search-cron', 'judge-subscription'].map(
+    (id): [string, readonly string[]] => [id, ['vscode:museCode']],
+  ),
   ...[
     'attachments',
     'effort',
@@ -137,10 +139,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'handoff',
     'browser',
     'tab',
-    'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
-  ...['prompt-library', 'chat-sharing', 'resources', 'agent-outcomes'].map(
+  ...['prompt-library', 'chat-sharing', 'resources', 'agent-outcomes', 'windows-paths'].map(
     (id): [string, readonly string[]] => [
       id,
       ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
@@ -148,22 +149,42 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // D203: /playback runs on every surface on the Model API backend, answering
+  // from memory only; on Muse Code it is refused, which has no zero-tool turn.
+  ['playback', ['vscode:modelApi', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M99: ACP answers /whatsnew locally with the same release notes.
+  ['support', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M124: the MCP connector is a runtime command, the same for every editor.
+  ['mcp-connector', ['acp:museCode', 'acp:modelApi']],
   // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
   ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
   // M108 (CM108ACC): the terminal and ACP on the Model API backend list
   // accounts, show the current one and its thresholds, and hold per-account
   // keys; the editor's page, swapping and pooling are not bound.
   ['accounts', ['acp:modelApi']],
-  // M109: production vault service is unbound on every surface.
+  // MSM109: the broker-backed panel and commands stay dormant while M109 is
+  // in progress: no published surface until the lead's complete receipts.
   ['vault', []],
   // M117: the production plan snapshot port refuses on every surface.
   ['estimator', []],
+
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   ]),
   ...['search'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
+  // TOOLCAP: the per-result bound on the Model API backend, every surface.
+  ...['tool-result-bound'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
+  // M105 lane F: Delete Uploaded Files and ACP /uploads over the account
+  // ledger, where the Model API backend runs.
+  ...['uploads'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
 ]
 export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capabilityPairs)
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)
@@ -233,6 +254,7 @@ export const REFERENCE_ACTION_FEATURES = {
   setModel: 'chat',
   setEffort: 'chat',
   setThinking: 'chat',
+  setFast: 'chat',
   setPermissionMode: 'chat',
   clearConversation: 'conversation-actions',
   compact: 'chat',
@@ -260,6 +282,7 @@ export const REFERENCE_ACTION_FEATURES = {
   decideApproval: 'chat',
   cancelQuestion: 'questions',
   estimateRun: 'estimator',
+  estimateCommand: 'estimator',
   estimateSpinUp: 'estimator',
   elicitationAnswer: 'mcp-elicitation',
   answerQuestion: 'questions',
@@ -281,6 +304,7 @@ export const REFERENCE_ACTION_FEATURES = {
   startReview: 'review',
   readReviewChanges: 'review',
   revertReviewHunk: 'review',
+  startPlayback: 'playback',
   restoreFiles: 'chat',
   redoRestore: 'chat',
   listSessions: 'conversation-actions',
@@ -295,6 +319,7 @@ export const REFERENCE_ACTION_FEATURES = {
   subagentMessage: 'native-agents',
   resumeSession: 'conversation-actions',
   setSessionArchived: 'conversation-actions',
+  deleteSession: 'conversation-actions',
   forkSession: 'conversation-actions',
   openSideChat: 'chat',
   savePlan: 'plans',
@@ -302,6 +327,8 @@ export const REFERENCE_ACTION_FEATURES = {
   showPlans: 'plans',
   renameSession: 'conversation-actions',
   readUsage: 'chat',
+  deleteUploadedFile: 'uploads',
+  deleteAllUploadedFiles: 'uploads',
   dictation: 'chat',
   setPaidFeature: 'budget',
   forgetPaidUse: 'budget',
@@ -331,11 +358,12 @@ export {
 } from '../constants'
 export {
   TEXT_ATTACHMENT_EXTENSIONS,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MODEL_API_TEXT_BUDGET_TOKENS,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
   CONTEXT_PRESSURE_MEDIUM,
   CONTEXT_PRESSURE_HIGH,
   MILLISECONDS_PER_SECOND,
+  TIMER_MAX_DELAY_MS,
 } from '../constants'
 
 export {
@@ -351,8 +379,6 @@ export {
   EXEC_UNTRUSTED_TOTAL_MAX_BYTES,
   EXEC_PROMPT_MAX_BYTES,
   QUESTION_DEFER_DEFAULT_SECONDS,
-  QUESTION_DEFER_MIN_SECONDS,
-  QUESTION_DEFER_MAX_SECONDS,
 } from '../constants'
 
 export { MODEL_API_TOOLS, MODEL_API_SUBAGENT_TOOLS, VERIFY_TOOLS } from '../constants'

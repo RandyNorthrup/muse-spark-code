@@ -22,8 +22,20 @@ export const SSH = {
   ecScalarBytes: 32,
 }
 
-export function sshFailure(): Error {
-  return new Error(UI_TEXT.vault.noAccess)
+export function sshFailure(cause?: unknown): Error {
+  return cause === undefined
+    ? new Error(UI_TEXT.vault.noAccess)
+    : new Error(UI_TEXT.vault.noAccess, { cause })
+}
+
+/** Destroy every half-open socket after a failed start. */
+export function destroySockets(sockets: Iterable<{ destroy(): unknown }>): void {
+  for (const socket of sockets) socket.destroy()
+}
+
+/** Close every live session after a failed start. */
+export function closeSessions(sessions: Iterable<{ close(): unknown }>): void {
+  for (const session of sessions) session.close()
 }
 export function uint32(value: number): Buffer {
   const bytes = Buffer.alloc(SSH.uint32Bytes)

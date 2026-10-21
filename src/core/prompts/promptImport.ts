@@ -1,7 +1,7 @@
 import type { PromptImportPreview } from './promptTypes'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
-import { PROMPT_LIMITS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { importPromptFile, serialisePromptFile, type SavedPrompt } from '../../shared/prompts'
 import { scrubShareText, type SharePrivacyPort } from '../../shared/share'
 import { validatePrompt } from './promptStore'
@@ -34,8 +34,6 @@ export class PromptImporter {
       throw new Error(UI_TEXT.shareConfidential)
     const file = await this.port.read(source)
     if (generation !== this.generation) throw new Error(UI_TEXT.promptFileInvalid)
-    if (Buffer.byteLength(file, 'utf8') > PROMPT_LIMITS.fileBytes)
-      throw new Error(UI_TEXT.promptLimits)
     const { prompt } = importPromptFile(file, scope)
     validatePrompt(prompt)
     const preview = { id: randomUUID(), prompt, variables: prompt.variables }

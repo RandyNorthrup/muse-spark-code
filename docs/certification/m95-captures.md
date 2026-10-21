@@ -93,7 +93,7 @@ here as always.
 | Cache              | Implicit, with the write reported. Tool loop: 1,444 written, then 1,444 read and 50 written. Cache pair (prefix in `instructions`): 1,574 written, then 1,574 read                                                                                                                        |
 | Error              | 404 `{"error": {"message", "type": "invalid_request_error", "param": null, "code": "model_not_found"}}`                                                                                                                                                                                   |
 | Rate-limit headers | `x-ratelimit-{limit,remaining,reset}-{requests,tokens}`; `openai-organization` and `openai-project` headers (redacted)                                                                                                                                                                    |
-| Calls / cost       | 4 billed, 2 free; ≈ $0.0009 (`$0.20` in, `$0.02` cached, `$0.25` write, `$1.20` out per million)                                                                                                                                                                                          |
+| Calls / cost       | 4 billed, 2 free; ≈ $0.0009 (`$0.20`in,`$0.02` cached, `$0.25`write,`$1.20` out per million)                                                                                                                                                                                              |
 
 ## xAI (`responses`)
 
@@ -137,7 +137,7 @@ here as always.
 | Cache              | Implicit caching **was not observed**: two back-to-back calls with a 5,514-token prompt returned no `cachedContentTokenCount`                                                                                                                                                                                               |
 | Error              | HTTP 404 sent as **`content-type: text/event-stream` with a pretty-printed JSON body** (not SSE): `{"error": {"code": 404, "message", "status": "NOT_FOUND"}}`                                                                                                                                                              |
 | Rate-limit headers | None                                                                                                                                                                                                                                                                                                                        |
-| Calls / cost       | 4 billed, 3 free (the error probe was redone once, after the capture script learned to read a JSON body under `text/event-stream`); ≈ $0.005 at the paid rate (`$0.30` in, `$2.50` out), $0 if the key is on the free tier                                                                                                  |
+| Calls / cost       | 4 billed, 3 free (the error probe was redone once, after the capture script learned to read a JSON body under `text/event-stream`); ≈ $0.005 at the paid rate (`$0.30`in,`$2.50` out), $0 if the key is on the free tier                                                                                                    |
 
 ## OpenRouter (`chat`)
 
@@ -357,13 +357,109 @@ carried into PLAN.md D74 and M95.
     "no models" from a valid key says the project restricts models, not that
     the key failed.
 
+## Local servers (2026-10-10, C-M95-4, `linuxlt`)
+
+Recorded on rig `linuxlt` (8 cores, 31 GB RAM) in lane worktree
+`~/lanes/CM954`, branch `c/m95-4`. No keys, no accounts, nothing billed:
+each server ran on loopback inside one capture process (the rig isolates
+loopback per shell call, so the server and its client share one process
+tree). The model is Qwen3-0.6B in both servers (GGUF `Qwen3-0.6B-Q8_0` for
+llama.cpp and LM Studio); the prompts are synthetic (`Say hello in three
+words.`, a Paris-weather tool call, a Paris-plus-London parallel pair, the
+17-sheep riddle). No repository content was sent. The frames are in
+`docs/certification/m95-captures/<llamacpp|lmstudio>/` with `calls.json`
+as each run's ledger.
+
+| Server           | Version                                  | Frames | Model calls attempted | Cost |
+| ---------------- | ---------------------------------------- | -----: | --------------------: | ---: |
+| llama.cpp server | b11541 (`0.6.0-dev`, commit `f2918cabb`) |     19 |                    17 |    0 |
+| LM Studio        | llmster 0.0.25-1 (headless `lms`)        |     12 |                    11 |    0 |
+| vLLM             | 0.31.0 installed, never served           |      0 |                     0 |    0 |
+
+### llama.cpp server (`chat`)
+
+`llama-server` from the `b11541` Ubuntu x64 release, Qwen3-0.6B-Q8_0,
+`--ctx-size 4096 --reasoning-format deepseek`, port 8080.
+
+- **Model id is the file path.** The list, every chunk and `/props`
+  report the model as the GGUF path. The scan therefore shows a path, with
+  the preset's label beside it; treat it as untrusted text, never a name.
+- **The list carries two windows**: `meta.n_ctx` (4096, this server's
+  allocation) and `meta.n_ctx_train` (40960, the model's trained maximum).
+  `/props` repeats the allocation under
+  `default_generation_settings.params.n_ctx`, and pins the build as
+  `build_info: b11541-f2918cabb`. The template caps confirm the behavior
+  below: `supports_object_arguments` and `supports_parallel_tool_calls`.
+- **Reply, tools and reasoning are standard OpenAI shapes.** Usage arrives
+  on a separate `choices: []` chunk with `prompt_tokens_details`
+  (including `cached_tokens`) when `stream_options: {include_usage: true}`
+  is sent; each usage chunk also carries a `timings` object the codec
+  ignores. Thinking streams as per-token `reasoning_content`; a prior
+  turn's `reasoning_content` replays back accepted (200).
+- **`tool_choice` takes `auto`, `none`, `required` and the object form.**
+  The research said strings only; b11541 accepts the object too, so the
+  preset now says `auto`. `max_tokens` and `max_completion_tokens` are
+  both accepted; the preset keeps `max_tokens`. `parallel_tool_calls:
+false` is accepted but not enforced (the model still emitted both
+  calls); the codec never sends the flag.
+- **Errors are typed.** A prompt past the allocation returns HTTP 400
+  `{"error": {"message": "…exceeds the available context size…",
+"type": "exceed_context_size_error", "code": 400}}` — note the numeric
+  code, which the shared error schema now accepts. A bad parameter
+  returns HTTP 400 with `type: invalid_request_error`. An unknown model
+  name is ignored (200, the loaded model serves); `max_tokens` past the
+  allocation is capped, not an error. An empty tools list is accepted.
+- **`/v1/responses` exists** and returns reasoning plus a `function_call`
+  item for a tool prompt; the preset stays `chat` (the extension's
+  Responses codec is for the hosted API, and no Responses golden is
+  claimed for local servers).
+
+### LM Studio (`chat`)
+
+llmster 0.0.25-1 (the headless `lms` from `https://lmstudio.ai/install.sh`;
+the installer's own download failed in this sandbox, so the full bundle
+was fetched directly and bootstrapped with `HOME` pointed at lane scratch;
+its daemon joins `.bundle/lib/…` to its own bin directory, which a nested
+symlink in scratch satisfies — vendor packaging quirk, scratch only).
+Model imported from the same GGUF, served on port 1234.
+
+- **Model id is clean** (`qwen3-0.6b`); the list carries no window
+  (entries are id, object and owned_by only), so the scan leaves it
+  unknown. The bundle's embedding model is listed too; the scan's
+  chat-only filtering is unchanged.
+- **Thinking streams as `reasoning_content`**, not `reasoning` as the
+  research said; the preset now says so, and replay is accepted (200).
+  `max_tokens` and `max_completion_tokens` are both accepted; usage has
+  `completion_tokens_details.reasoning_tokens` and no cached fields.
+- **Errors come in two nonstandard shapes.** Engine failures (overflow,
+  a bad temperature which arrives as `nan`) stream as an SSE error event
+  under HTTP 200: `data: {"error": {"message": "Engine protocol predict
+request returned 400: {…}"}, "message": "…"}`. A rejected `tool_choice`
+  object returns HTTP 400 `{"error": "Invalid tool_choice type: 'object'.
+Supported string values: none, auto, required"}` — a bare string, which
+  the shared error schema now accepts. Unknown model names serve the
+  loaded model (200), as on llama.cpp.
+
+### vLLM: blocked on this rig
+
+vLLM 0.31.0 installs and imports, and Qwen3-0.6B's weights downloaded, but
+`vllm serve` cannot start here: with no accelerator, platform
+auto-detection yields `UnspecifiedPlatform` (worked around with
+`VLLM_TARGET_DEVICE=cpu`), and then the engine's ZMQ control plane fails
+with `Operation not permitted` — the rig sandbox denies `AF_UNIX`
+sockets entirely (a bare `socket(AF_UNIX)` raises `EPERM`). The engine
+uses `ipc://` for its local control plane with no TCP fallback. The
+preset stays `wireCapture: false` (hidden) until a capture runs
+off-sandbox. Nothing about the vLLM preset data changed.
+
 ## Not captured here
 
 - **Azure OpenAI.** It needs a resource and a deployment the owner has not
   given.
-- **The local servers** (Ollama's native API, LM Studio, vLLM, llama.cpp
-  server) and the generic formats served from them. These are M95 step 1 on
-  the rigs, free.
+- **The remaining local servers** (Ollama's native API, vLLM) and the
+  generic formats served from them. vLLM is blocked above; Ollama's
+  generic formats are still M95 step 1 on the rigs, free. llama.cpp server
+  and LM Studio were captured 2026-10-10 (above) and are now listed.
 - **The Copilot and ChatGPT-plan sign-ins.** M95b.
 
 These presets stay out of the panel until their own capture is recorded

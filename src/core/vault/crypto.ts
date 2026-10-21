@@ -16,12 +16,39 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { vaultEncodedSchema, vaultMaterialSchema, type VaultItem } from '../../shared/vault'
+import type { VaultBrokerResponse } from '../../shared/vaultProtocol'
+import { vaultWriterDetail } from '../../shared/vaultRefusals'
 
 /** Safe codes for callers; exceptions never include a value or parser input. */
 export class VaultError extends Error {
-  constructor(readonly code: 'invalid' | 'authentication' | 'rollback' | 'locked' | 'busy' | 'io') {
-    super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess)
+  constructor(
+    readonly code:
+      | 'invalid'
+      | 'authentication'
+      | 'rollback'
+      | 'locked'
+      | 'busy'
+      | 'io'
+      | 'filesystemUnsupported',
+    options?: { cause?: unknown },
+  ) {
+    super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess, options)
     this.name = 'VaultError'
+  }
+}
+
+/** Typed, value-free writer refusal, also validated on the private management channel. */
+export class VaultWriterError extends VaultError {
+  constructor(
+    readonly writer: NonNullable<
+      Extract<VaultBrokerResponse['response'], { kind: 'refused' }>['writer']
+    >,
+    options?: { cause?: unknown },
+  ) {
+    super('busy', options)
+    // The sentence lives in the shared refusals so hosts without the
+    // write-only crypto name the same holder.
+    this.message = vaultWriterDetail(writer)
   }
 }
 
@@ -29,6 +56,11 @@ export function ownedBytes(source: Uint8Array): Buffer<ArrayBuffer> {
   const copy = Buffer.alloc(source.byteLength)
   copy.set(source)
   return copy
+}
+
+/** Erase every owned scratch buffer. */
+export function wipeBuffers(buffers: readonly Uint8Array[]): void {
+  for (const buffer of buffers) buffer.fill(0)
 }
 
 export function encodeVaultJson(value: object): Buffer {
@@ -167,8 +199,10 @@ export function aesGcmOpen(
     plaintext.set(chunk)
     plaintext.set(tail, chunk.length)
     return plaintext
-  } catch {
-    throw new VaultError('authentication')
+  } catch (error: unknown) {
+    // A failed open is authentication failure whatever the cipher threw; the
+    // failure rides along as the cause while the person keeps fixed words.
+    throw new VaultError('authentication', { cause: error })
   } finally {
     chunk?.fill(0)
     tail?.fill(0)
@@ -259,6 +293,7 @@ export function eraseVaultMaterial(material: VaultItem['material']): void {
 export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
   const fields: Buffer[] = []
   const width = Uint32Array.BYTES_PER_ELEMENT
+  let isComplete = false
   try {
     if (bytes.length < width) throw new VaultError('invalid')
     const headerLength = bytes.readUInt32BE()
@@ -294,9 +329,17 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
     }
     const material = vaultMaterialSchema.safeParse(Object.fromEntries(entries))
     if (!material.success || used.size !== fields.length) throw new VaultError('invalid')
+    isComplete = true
     return material.data
-  } catch {
-    for (const field of fields) field.fill(0)
-    throw new VaultError('invalid')
+  } catch (error: unknown) {
+    // Only a malformed encoding reads invalid, with its cause; anything
+    // else keeps its kind (D207).
+    if (error instanceof VaultError || error instanceof SyntaxError)
+      throw new VaultError('invalid', { cause: error })
+    throw error
+  } finally {
+    // Every exit wipes what was copied: a decoded return owns its fields,
+    // every failure abandons only zeroes.
+    if (!isComplete) for (const field of fields) field.fill(0)
   }
 }

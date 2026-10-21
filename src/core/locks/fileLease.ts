@@ -37,25 +37,30 @@
 //   acting; `isHeld()` is the same, asynchronously.
 
 import type { BigIntStats } from 'node:fs'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { identityOf, sameFile, type FileIdentity } from '../fs/fileIdentity'
-import { FILE_LEASE_FENCES_KEPT } from '../../shared/constants'
+import { identityOf, sameFile, fileIdentityKey, type FileIdentity } from '../fs/fileIdentity'
+import {
+  FILE_LEASE_FENCES_KEPT,
+  FILE_LEASE_RELEASE_ATTEMPTS,
+  FILE_LEASE_RELEASE_RETRY_MS,
+} from '../../shared/constants'
 import { processOwnerSchema, type ProcessOwner } from './processOwner'
 
 const RETIRED_SUFFIX = '.retired'
 const FENCES_SUFFIX = '.fences'
+const STAGE_SUFFIX = '.stage'
 const FENCE_DIGITS = 16
 const FENCE_NAME = /^\d+$/u
 const FENCE_CREATE_ATTEMPTS = 8
 
 /**
- * How far a created file must get before the create returns: `flushed` to
- * the disk (data that must outlive a crash, such as a record generation),
- * or only `visible` to other processes (a lease's note and fences: a crash
- * ends the lease anyway, and the records' own fence bounds any later one).
- */
+How far a created file must get before the create returns: `flushed` to
+the disk (data that must outlive a crash, such as a record generation),
+or only `visible` to other processes (a lease's note and fences: a crash
+ends the lease anyway, and the records' own fence bounds any later one).
+*/
 export type Durability = 'flushed' | 'visible'
 
 /** The file operations a lease needs: node's, or a test's that pauses one. */
@@ -72,13 +77,13 @@ export interface LeasePort {
   /** The entry itself (a link is not followed), with exact native ids. */
   lstat(file: string): Promise<BigIntStats>
   /**
-   * Rewrites `file` in place with `content` only while `isOwn` accepts the
-   * opened file, judged on the open handle's own stats and content (so a
-   * replacement at the name, even one with a reused file id, is never
-   * written); false otherwise, or when the file is gone. Call `isOwn`
-   * immediately before beginning the rewrite: acceptance lets the holder
-   * recognize a torn note until this call settles.
-   */
+  Rewrites `file` in place with `content` only while `isOwn` accepts the
+  opened file, judged on the open handle's own stats and content (so a
+  replacement at the name, even one with a reused file id, is never
+  written); false otherwise, or when the file is gone. Call `isOwn`
+  immediately before beginning the rewrite: acceptance lets the holder
+  recognize a torn note until this call settles.
+  */
   rewriteOwn(
     file: string,
     isOwn: (opened: BigIntStats, content: Buffer) => boolean,
@@ -122,6 +127,13 @@ export type LeaseWatches = Map<string, LeaseWatch>
 const PROCESS_WATCHES: LeaseWatches = new Map()
 
 export interface FileLeaseEnv {
+  /** Vaults retain ownership until proven death; all other callers keep timed takeover. */
+  readonly takeover?: 'ownerDeathOnly'
+  /** Only the vault's serialized process queue may adopt its abandoned hold. */
+  readonly isOwnOwner?: (owner: ProcessOwner) => boolean
+  /** A confirmed destructive recovery binds the exact note shown to the user. */
+  readonly confirmedReplacement?: string
+  readonly authorizeReplacement?: () => void
   readonly port: LeasePort
   /** The wall clock: only written into the note for people. */
   readonly now: () => number
@@ -148,11 +160,11 @@ export interface FileLease {
   /** Strictly greater than every earlier hold's. */
   readonly fence: number
   /**
-   * Synchronously: the lease runs, the lock file is this very instance and
-   * the highest fence is this one. For a gate with no await before it acts.
-   * Own renewal may show either count; a torn note is owned only during
-   * the opened file's accepted rewrite, while the lease still runs.
-   */
+  Synchronously: the lease runs, the lock file is this very instance and
+  the highest fence is this one. For a gate with no await before it acts.
+  Own renewal may show either count; a torn note is owned only during
+  the opened file's accepted rewrite, while the lease still runs.
+  */
   isHeldSync(): boolean
   isHeld(): Promise<boolean>
   /** Extends this instance's lease; false when lost or a renewal already runs. */
@@ -161,25 +173,57 @@ export interface FileLease {
   release(): Promise<void>
 }
 
+/**
+Atomic publication is impossible here: the filesystem refused the
+exclusive link (FAT/exFAT, some SMB or sync folders). Never a generic
+I/O failure: the caller names the cause instead of retrying blindly.
+*/
+export class LeaseLinkUnsupportedError extends Error {
+  public constructor() {
+    super('The filesystem cannot publish the lock')
+    this.name = 'LeaseLinkUnsupportedError'
+  }
+}
+
+/** Link refusals that mean hard links are unavailable, never a held lock. */
+function isLinkUnsupported(error: unknown): boolean {
+  return (
+    isErrno(error, 'EPERM') ||
+    isErrno(error, 'ENOTSUP') ||
+    isErrno(error, 'EROFS') ||
+    isErrno(error, 'EXDEV')
+  )
+}
+
 /** The lease was not taken: busy past the wait, or a moved instance could not go back. */
 export class LeaseBusyError extends Error {
-  public constructor(message = 'The lock is busy') {
-    super(message)
+  public constructor(
+    message = 'The lock is busy',
+    readonly holder?: { owner: ProcessOwner; acquiredAt: number },
+    options?: { cause?: unknown },
+  ) {
+    super(message, options)
     this.name = 'LeaseBusyError'
   }
 }
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
+/**
+Whether the failure is the named operating-system condition. A named
+check (never a collapsed code) so the expected condition reads at the
+handler that owns it.
+*/
+function isErrno(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
 
 function parseNote(bytes: Buffer): LeaseNote | undefined {
   try {
     const parsed = noteSchema.safeParse(JSON.parse(bytes.toString('utf8')))
     return parsed.success ? parsed.data : undefined
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: a torn note reads
+    // as no note, and anything else is a caller bug that must surface.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -206,9 +250,44 @@ interface Seen {
   readonly kind: 'seen'
   readonly instance: LeaseInstance
   readonly note: LeaseNote | undefined
+  readonly token: string
 }
 
 type Observation = Seen | { readonly kind: 'gone' } | { readonly kind: 'changing' }
+
+function recoveryToken(stats: BigIntStats, bytes: Buffer): string {
+  return createHash('sha256')
+    .update(
+      [
+        fileIdentityKey(identityOf(stats)),
+        String(stats.birthtimeNs),
+        String(stats.mtimeNs),
+        String(stats.size),
+        '',
+      ].join(':'),
+    )
+    .update(bytes)
+    .digest('hex')
+}
+
+/** Read-only facts for the explicit Reset/Restore confirmation. */
+export async function inspectFileLease(
+  port: LeasePort,
+  lockPath: string,
+): Promise<
+  | {
+      token: string
+      holder?: { owner: ProcessOwner; acquiredAt: number }
+    }
+  | undefined
+> {
+  const seen = await observe(port, lockPath)
+  if (seen.kind !== 'seen') return undefined
+  return {
+    token: seen.token,
+    ...(seen.note && { holder: { owner: seen.note.owner, acquiredAt: seen.note.acquiredAt } }),
+  }
+}
 
 /** The lock as it is: one instance, read whole between two identical samples. */
 async function observe(port: LeasePort, lockPath: string): Promise<Observation> {
@@ -223,10 +302,15 @@ async function observe(port: LeasePort, lockPath: string): Promise<Observation> 
       after.isFile()
     const note = parseNote(bytes)
     return isSteady
-      ? { kind: 'seen', instance: instanceOf(after, note), note }
+      ? {
+          kind: 'seen',
+          instance: instanceOf(after, note),
+          note,
+          token: recoveryToken(after, bytes),
+        }
       : { kind: 'changing' }
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isErrno(error, 'ENOENT')) {
       return { kind: 'gone' }
     }
     throw error
@@ -247,6 +331,8 @@ function observeSync(
       ? instanceOf(after, note)
       : undefined
   } catch {
+    // A sample that cannot be read proves nothing held: the synchronous
+    // gate reads it as not held, never as held, and never throws.
     return undefined
   }
 }
@@ -269,7 +355,7 @@ async function readHighestFence(port: LeasePort, fences: string): Promise<number
   try {
     return highestFence(await port.readdir(fences))
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isErrno(error, 'ENOENT')) {
       return 0
     }
     throw error
@@ -280,15 +366,17 @@ function readHighestFenceSync(port: LeasePort, fences: string): number | undefin
   try {
     return highestFence(port.readdirSync(fences))
   } catch {
+    // An unreadable fences folder proves no highest fence: the holder check
+    // reads it as not held, never as held, and never throws.
     return undefined
   }
 }
 
 /**
- * Takes the next fence: an exclusively created file one above the highest,
- * and above `fenceAbove` (what the caller's data already carries, should
- * the fences have lost their history).
- */
+Takes the next fence: an exclusively created file one above the highest,
+and above `fenceAbove` (what the caller's data already carries, should
+the fences have lost their history).
+*/
 async function takeFence(port: LeasePort, fences: string, fenceAbove: number): Promise<number> {
   await port.mkdir(fences)
   for (let attempt = 1; ; attempt += 1) {
@@ -297,7 +385,7 @@ async function takeFence(port: LeasePort, fences: string, fenceAbove: number): P
       await port.createExclusive(path.join(fences, fenceName(fence)), '', 'visible')
       return fence
     } catch (error: unknown) {
-      if (errorCode(error) !== 'EEXIST' || attempt >= FENCE_CREATE_ATTEMPTS) {
+      if (!isErrno(error, 'EEXIST') || attempt >= FENCE_CREATE_ATTEMPTS) {
         throw error
       }
     }
@@ -310,6 +398,7 @@ async function sweepFences(port: LeasePort, fences: string, current: number): Pr
   try {
     names = await port.readdir(fences)
   } catch {
+    // Sweeping is best effort: the next acquisition sweeps again.
     return
   }
   for (const name of names) {
@@ -323,41 +412,91 @@ async function sweepFences(port: LeasePort, fences: string, current: number): Pr
   }
 }
 
+/**
+Removes abandoned publication stages (`<lock>.<note id>.stage`) whose
+owner is provably gone, judged by the same evidence as a takeover. A
+crash between the stage write and its cleanup leaves one behind; a
+stage whose note is unreadable, or whose owner may still live, stays.
+Best effort.
+*/
+async function sweepStages(
+  port: LeasePort,
+  lockPath: string,
+  isOwnerGone: (owner: ProcessOwner) => Promise<boolean>,
+): Promise<void> {
+  const folder = path.dirname(lockPath)
+  const base = path.basename(lockPath)
+  let names: readonly string[]
+  try {
+    names = await port.readdir(folder)
+  } catch {
+    return
+  }
+  for (const name of names) {
+    if (!name.startsWith(`${base}.`) || !name.endsWith(STAGE_SUFFIX)) continue
+    const file = path.join(folder, name)
+    let note: LeaseNote | undefined
+    try {
+      note = parseNote(await port.readFile(file))
+    } catch {
+      continue
+    }
+    if (!note) continue
+    try {
+      if (await isOwnerGone(note.owner)) await port.unlink(file)
+    } catch {
+      // The next acquisition sweeps again.
+    }
+  }
+}
+
 /** The instance now at `file` (moved aside), read whole; undefined when it cannot be. */
-async function instanceAt(port: LeasePort, file: string): Promise<LeaseInstance | undefined> {
+async function instanceAt(
+  port: LeasePort,
+  file: string,
+): Promise<{ instance: LeaseInstance; token: string } | undefined> {
   try {
     const stats = await port.lstat(file)
-    const note = parseNote(await port.readFile(file))
-    return instanceOf(stats, note)
+    const bytes = await port.readFile(file)
+    return { instance: instanceOf(stats, parseNote(bytes)), token: recoveryToken(stats, bytes) }
   } catch {
+    // A moved instance that cannot be read is never proven: the caller puts
+    // it back under its name and waits on, never removes it.
     return undefined
   }
 }
 
 /**
- * Moves `instance` out of the lock's name and proves what moved is it.
- * 'retired': proven and removed (or the name was free already). 'kept':
- * not proven, put back under its name; the caller waits on. Throws
- * `LeaseBusyError` when an unproven instance cannot go back: it stays
- * aside, never removed, and its taker does not acquire.
- */
+Moves `instance` out of the lock's name and proves what moved is it.
+'retired': proven and removed (or the name was free already). 'kept':
+not proven, put back under its name; the caller waits on. Throws
+`LeaseBusyError` when an unproven instance cannot go back: it stays
+aside, never removed, and its taker does not acquire.
+*/
 async function retire(
   port: LeasePort,
   lockPath: string,
   instance: LeaseInstance,
+  token?: string,
+  authorize?: () => void,
 ): Promise<'retired' | 'kept'> {
   const aside = `${lockPath}.${randomUUID()}${RETIRED_SUFFIX}`
+  authorize?.()
   try {
     await port.rename(lockPath, aside)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isErrno(error, 'ENOENT')) {
       return 'retired'
     }
     // Held by a scanner and the like: nothing moved; wait on.
     return 'kept'
   }
   const moved = await instanceAt(port, aside)
-  if (moved !== undefined && isSameInstance(moved, instance)) {
+  if (
+    moved !== undefined &&
+    isSameInstance(moved.instance, instance) &&
+    (token === undefined || moved.token === token)
+  ) {
     try {
       await port.unlink(aside)
     } catch {
@@ -368,8 +507,8 @@ async function retire(
   try {
     // Unproven: the same file back under its name, only while it is free.
     await port.link(aside, lockPath)
-  } catch {
-    throw new LeaseBusyError('A moved lock could not be put back')
+  } catch (error: unknown) {
+    throw new LeaseBusyError('A moved lock could not be put back', undefined, { cause: error })
   }
   try {
     await port.unlink(aside)
@@ -384,8 +523,9 @@ function isExpired(
   watch: LeaseWatch,
   note: LeaseNote | undefined,
   isOwnerGone: boolean,
-  env: Pick<FileLeaseEnv, 'monotonic' | 'honoredLeaseMs' | 'unreadableMs'>,
+  env: Pick<FileLeaseEnv, 'monotonic' | 'honoredLeaseMs' | 'unreadableMs' | 'takeover'>,
 ): boolean {
+  if (env.takeover === 'ownerDeathOnly') return note !== undefined && isOwnerGone
   const watchedFor = env.monotonic() - watch.since
   return note === undefined
     ? watchedFor >= env.unreadableMs
@@ -416,7 +556,8 @@ function heldLease(
   let isReleased = false
   let pending: LeaseInstance | undefined
   let isRewriting = false
-  const isRunning = (): boolean => !isReleased && env.monotonic() - heldSince < env.leaseMs
+  const isRunning = (): boolean =>
+    !isReleased && (env.takeover === 'ownerDeathOnly' || env.monotonic() - heldSince < env.leaseMs)
   const isOwnInstance = (seen: LeaseInstance): boolean =>
     isSameInstance(seen, instance) ||
     (pending !== undefined &&
@@ -454,6 +595,9 @@ function heldLease(
     isHeldSync,
     isHeld,
     renew: async () => {
+      // Death-only ownership never expires. Keep its published note immutable:
+      // an in-place renewal could itself leave a torn note after a crash.
+      if (env.takeover === 'ownerDeathOnly') return await isHeld()
       const isStillHeld = await isHeld()
       if (pending !== undefined || !isStillHeld) {
         return false
@@ -504,24 +648,32 @@ function heldLease(
         return
       }
       isReleased = true
-      try {
-        const seen = await observe(env.port, lockPath)
-        if (seen.kind === 'seen' && isSameInstance(seen.instance, instance)) {
-          await retire(env.port, lockPath, instance)
+      for (let attempt = 0; attempt < FILE_LEASE_RELEASE_ATTEMPTS; attempt += 1) {
+        try {
+          const seen = await observe(env.port, lockPath)
+          if (
+            seen.kind !== 'seen' ||
+            !isSameInstance(seen.instance, instance) ||
+            (await retire(env.port, lockPath, instance)) === 'retired'
+          )
+            return
+        } catch {
+          // A remaining own note is adopted on this process's next acquisition.
         }
-      } catch {
-        // Unreleased, it expires with its lease; nothing else depends on it.
+        // A scanner holding the file defeats back-to-back retries alike:
+        // pause before the next attempt (RVAPP-LEASE2 P3-4).
+        if (attempt + 1 < FILE_LEASE_RELEASE_ATTEMPTS) await env.sleep(FILE_LEASE_RELEASE_RETRY_MS)
       }
     },
   }
 }
 
 /**
- * Takes the lease at `lockPath` (its folder exists): created exclusively,
- * or, once the instance there expired, taken over as above; then the next
- * fence, above `fenceAbove` too. Throws `LeaseBusyError` past the wait, or
- * when a moved instance could not be put back.
- */
+Takes the lease at `lockPath` (its folder exists): created exclusively,
+or, once the instance there expired, taken over as above; then the next
+fence, above `fenceAbove` too. Throws `LeaseBusyError` past the wait, or
+when a moved instance could not be put back.
+*/
 export async function acquireFileLease(
   lockPath: string,
   env: FileLeaseEnv,
@@ -545,24 +697,55 @@ export async function acquireFileLease(
     }
     let isCreated = false
     try {
-      await env.port.createExclusive(lockPath, JSON.stringify(note), 'visible')
+      if (env.takeover === 'ownerDeathOnly') {
+        const stage = `${lockPath}.${note.id}${STAGE_SUFFIX}`
+        try {
+          await env.port.createExclusive(stage, JSON.stringify(note), 'flushed')
+          try {
+            await env.port.link(stage, lockPath)
+          } catch (error: unknown) {
+            // A filesystem without hard links fails every write the same
+            // way: refuse with the cause, never a generic error
+            // (RVAPP-LEASE2 P2-5).
+            if (isLinkUnsupported(error)) throw new LeaseLinkUnsupportedError()
+            throw error
+          }
+        } finally {
+          try {
+            await env.port.unlink(stage)
+          } catch {
+            // A complete unpublished stage cannot obstruct the lock's name.
+          }
+        }
+      } else await env.port.createExclusive(lockPath, JSON.stringify(note), 'visible')
       isCreated = true
     } catch (error: unknown) {
-      if (errorCode(error) !== 'EEXIST') {
+      if (!isErrno(error, 'EEXIST')) {
         throw error
       }
     }
     const seen = await observe(env.port, lockPath)
-    if (isCreated && seen.kind === 'seen' && seen.note?.id === note.id) {
+    const isAdopted =
+      !isCreated &&
+      seen.kind === 'seen' &&
+      seen.note !== undefined &&
+      env.takeover === 'ownerDeathOnly' &&
+      env.isOwnOwner?.(seen.note.owner) === true
+    if (
+      seen.kind === 'seen' &&
+      seen.note &&
+      (isAdopted || (isCreated && seen.note.id === note.id))
+    ) {
       watches.delete(lockPath)
       const fence = await takeFence(env.port, fences, fenceAbove)
       const lease = heldLease(env, lockPath, fences, fence, {
         instance: seen.instance,
-        note,
+        note: seen.note,
         since,
       })
       if (await lease.isHeld()) {
         await sweepFences(env.port, fences, lease.fence)
+        await sweepStages(env.port, lockPath, env.isOwnerGone)
         return lease
       }
       // Lost while taking the fence (a long pause): try again.
@@ -582,8 +765,15 @@ export async function acquireFileLease(
         }
       }
       if (
-        isExpired(watch, seen.note, judged.isOwnerGone, env) &&
-        (await retire(env.port, lockPath, seen.instance)) === 'retired'
+        (isExpired(watch, seen.note, judged.isOwnerGone, env) ||
+          (env.takeover === 'ownerDeathOnly' && env.confirmedReplacement === seen.token)) &&
+        (await retire(
+          env.port,
+          lockPath,
+          seen.instance,
+          env.confirmedReplacement === seen.token ? seen.token : undefined,
+          env.confirmedReplacement === seen.token ? env.authorizeReplacement : undefined,
+        )) === 'retired'
       ) {
         watches.delete(lockPath)
         judged = undefined
@@ -591,7 +781,12 @@ export async function acquireFileLease(
       }
     }
     if (env.monotonic() >= deadline) {
-      throw new LeaseBusyError()
+      throw new LeaseBusyError(
+        undefined,
+        seen.kind === 'seen' && seen.note !== undefined
+          ? { owner: seen.note.owner, acquiredAt: seen.note.acquiredAt }
+          : undefined,
+      )
     }
     await env.sleep(env.pollMs)
   }

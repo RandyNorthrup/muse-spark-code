@@ -1,14 +1,9 @@
 import { statfs } from 'node:fs/promises'
 import path from 'node:path'
 import {
-  RESOURCE_DISK_CRITICAL_FRACTION,
-  RESOURCE_DISK_CRITICAL_GIB,
-  RESOURCE_DISK_DEFAULT_FREE_GIB,
   RESOURCE_DISK_ETA_MS,
   RESOURCE_DISK_FAST_SAMPLE_MS,
-  RESOURCE_DISK_FLOOR_FRACTION,
   RESOURCE_DISK_HYSTERESIS_GIB,
-  RESOURCE_DISK_MIN_FREE_GIB,
   RESOURCE_DISK_SAMPLE_MS,
   RESOURCE_DISK_TREND_MS,
   RESOURCE_DISK_READ_TIMEOUT_MS,
@@ -34,22 +29,14 @@ export interface ResourceDiskPort {
   read(path: string): Promise<{ bsize: bigint; blocks: bigint; bavail: bigint }>
 }
 
-export function resourceDiskFloorBytes(settings: ResourceSettings, totalBytes: number): number {
-  return settings.diskMinFreeGiB === null
-    ? Math.max(
-        RESOURCE_DISK_MIN_FREE_GIB * RESOURCE_GIB_BYTES,
-        Math.min(
-          RESOURCE_DISK_DEFAULT_FREE_GIB * RESOURCE_GIB_BYTES,
-          totalBytes * RESOURCE_DISK_FLOOR_FRACTION,
-        ),
-      )
-    : settings.diskMinFreeGiB * RESOURCE_GIB_BYTES
+/** null when the person set no disk floor: the volume is measured, never held. */
+export function resourceDiskFloorBytes(settings: ResourceSettings): number | null {
+  return settings.diskMinFreeGiB === null ? null : settings.diskMinFreeGiB * RESOURCE_GIB_BYTES
 }
 
 export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: ResourceSettings) {
   let high: boolean | null = false
   let isPaused = false
-  let isCritical = false
   let hasRecovered = true
   for (const volume of volumes) {
     if (volume.freeBytes === null || volume.totalBytes === null) {
@@ -57,29 +44,27 @@ export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: R
       hasRecovered = false
       continue
     }
-    const floor = resourceDiskFloorBytes(settings, volume.totalBytes)
+    // D121: no threshold of ours — only the person's floor holds a volume.
+    const floor = resourceDiskFloorBytes(settings)
+    // No person-set floor: this volume reports its readings but never trips,
+    // pauses or clears a level.
+    if (floor === null) continue
     if (
       volume.freeBytes <= floor ||
       (volume.etaMs !== null && volume.etaMs <= RESOURCE_DISK_ETA_MS)
     )
       high = true
     isPaused ||= volume.freeBytes <= floor / 2
-    isCritical ||=
-      volume.freeBytes <=
-      Math.max(
-        RESOURCE_DISK_CRITICAL_GIB * RESOURCE_GIB_BYTES,
-        volume.totalBytes * RESOURCE_DISK_CRITICAL_FRACTION,
-      )
     hasRecovered &&=
       volume.freeBytes > floor + RESOURCE_DISK_HYSTERESIS_GIB * RESOURCE_GIB_BYTES &&
       (volume.etaMs === null || volume.etaMs > RESOURCE_DISK_ETA_MS)
   }
-  return { high, isPaused, isCritical, hasRecovered }
+  return { high, isPaused, hasRecovered }
 }
 
 /** Peer data is validated by deviceResourceSchema before this admission check.
- * @unwired M107 device disk headroom check
- */
+@unwired M107 device disk headroom check
+*/
 export function hasDeviceDiskHeadroom(device: DeviceResource): boolean {
   const disk = device.diskFree
   return (
@@ -96,6 +81,12 @@ interface DiskCache {
   history: { atMs: number; freeBytes: number }[]
 }
 
+/** The production disk port: the wall clock and the filesystem's volume reader. */
+const DEFAULT_RESOURCE_DISK_PORT: ResourceDiskPort = {
+  now: () => Date.now(),
+  read: (file) => statfs(file, { bigint: true }),
+}
+
 /** No timers or processes: S/G owns sampling; every target is a harness write location. */
 export class ResourceDiskSampler {
   private readonly cache = new Map<ResourceDiskRole, DiskCache>()
@@ -103,10 +94,7 @@ export class ResourceDiskSampler {
   constructor(
     private readonly targets: readonly ResourceDiskTarget[],
     private readonly settings: () => ResourceSettings,
-    private readonly port: ResourceDiskPort = {
-      now: () => Date.now(),
-      read: (file) => statfs(file, { bigint: true }),
-    },
+    private readonly port: ResourceDiskPort = DEFAULT_RESOURCE_DISK_PORT,
   ) {
     const roles = new Set<ResourceDiskRole>()
     for (const target of targets) {
@@ -144,11 +132,10 @@ export class ResourceDiskSampler {
     let etaMs: number | null = null
     if (freeBytes !== null && totalBytes !== null) {
       const first = history[0]
-      if (first !== undefined && first.freeBytes > freeBytes) {
-        const remaining = Math.max(
-          0,
-          freeBytes - resourceDiskFloorBytes(this.settings(), totalBytes),
-        )
+      // A fill-rate forecast needs the person's floor as its destination.
+      const floor = resourceDiskFloorBytes(this.settings())
+      if (floor !== null && first !== undefined && first.freeBytes > freeBytes) {
+        const remaining = Math.max(0, freeBytes - floor)
         etaMs = (remaining * (atMs - first.atMs)) / (first.freeBytes - freeBytes)
       }
       history.push({ atMs, freeBytes })
@@ -189,11 +176,12 @@ export class ResourceDiskSampler {
       return await Promise.all(
         this.targets.map(async (target) => {
           const cached = this.cache.get(target.role)?.volume
+          const floor = resourceDiskFloorBytes(this.settings())
           const interval =
+            floor !== null &&
             cached?.freeBytes !== null &&
             cached?.freeBytes !== undefined &&
-            cached.totalBytes !== null &&
-            cached.freeBytes < 2 * resourceDiskFloorBytes(this.settings(), cached.totalBytes)
+            cached.freeBytes < 2 * floor
               ? RESOURCE_DISK_FAST_SAMPLE_MS
               : RESOURCE_DISK_SAMPLE_MS
           return cached !== undefined && atMs >= cached.atMs && atMs - cached.atMs < interval
@@ -224,10 +212,13 @@ export class ResourceDiskSampler {
           totalBytes: Number(stats.bsize * stats.blocks),
           etaMs: null,
         })
-        if (diskPressure([volume], this.settings()).isCritical)
+        // D121: writes are refused only at the person's floor (its pause
+        // level), never at a threshold of ours; with no floor set every
+        // write is admitted and the volume is only measured.
+        if (diskPressure([volume], this.settings()).isPaused)
           throw Object.assign(
             new Error(fill(UI_TEXT.resourceDiskWriteRefused, { volume: candidate })),
-            { code: 'resourceDiskCritical', volume: candidate },
+            { code: 'resourceDiskFloor', volume: candidate },
           )
         return
       } catch (error: unknown) {
@@ -255,18 +246,26 @@ export class ResourceDiskSampler {
       known.some((volume) => volume.freeBytes === null || volume.totalBytes === null)
     )
       return { freeBytes: null, floorBytes: null }
-    const tightest = known.toSorted(
+    const ranked = known.map((volume) => ({
+      volume,
+      floor: resourceDiskFloorBytes(this.settings()),
+    }))
+    // Without the person's floor there is no headroom to report, only bytes.
+    if (ranked.some((row) => row.floor === null)) {
+      const tightest = ranked.toSorted(
+        (left, right) => (left.volume.freeBytes ?? 0) - (right.volume.freeBytes ?? 0),
+      )[0]
+      return { freeBytes: tightest?.volume.freeBytes ?? null, floorBytes: null }
+    }
+    const tightest = ranked.toSorted(
       (left, right) =>
-        (left.freeBytes ?? 0) -
-        resourceDiskFloorBytes(this.settings(), left.totalBytes ?? 1) -
-        ((right.freeBytes ?? 0) - resourceDiskFloorBytes(this.settings(), right.totalBytes ?? 1)),
+        (left.volume.freeBytes ?? 0) -
+        (left.floor ?? 0) -
+        ((right.volume.freeBytes ?? 0) - (right.floor ?? 0)),
     )[0]
     return {
-      freeBytes: tightest?.freeBytes ?? null,
-      floorBytes:
-        tightest?.totalBytes == null
-          ? null
-          : resourceDiskFloorBytes(this.settings(), tightest.totalBytes),
+      freeBytes: tightest?.volume.freeBytes ?? null,
+      floorBytes: tightest?.floor ?? null,
     }
   }
 }

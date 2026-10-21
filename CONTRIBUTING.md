@@ -16,8 +16,9 @@ npm run build:dev
 
 Press F5 in VS Code to start an Extension Development Host with the
 extension loaded; `npm run watch` rebuilds on save. The Muse Code CLI and a
-Meta Model API key are optional: the unit tests run against fakes, and the
-sign-in gate explains what is missing.
+Meta Model API key are optional for building and for the checks hosted CI
+runs, and the sign-in gate explains what is missing. The real-life run, the
+product's test, needs real keys (`docs/testing/real-life.md`).
 
 New UI surfaces ship in their own lazy chunks, loaded on first use, with
 accessible loading, an honest failure and retry, and a measured budget of their
@@ -66,7 +67,13 @@ Use this order for a candidate branch:
    temporary-directory aliases and Windows short names). Record the tree
    hash, OS and tool versions, commands and process exit codes of any such
    run. A red hosted job is read and its cause measured; it is never rerun
-   into green.
+   into green. Nothing is started again on the same commit, whatever the
+   cause: not one job, not the whole run, not a second run by closing and
+   reopening the pull request. A runner fault (a job cancelled before any
+   step ran, a lost runner) is answered like any red: push a new commit, an
+   empty one if nothing changes, whose message names the run and the job,
+   and let its run decide. CI enforces this itself ("CI tiers and required
+   checks" below).
 3. Have an independent agent review the staged diff and acceptance evidence.
    Scan the staged changes for secrets too: local `security:secrets` scans
    committed history, so it cannot see the index before commit. Fix findings,
@@ -92,13 +99,19 @@ Use this order for a candidate branch:
    independent review, and any unproved platform or live gate to the PR
    proof. A printed success line without the process exit status is not a
    gate result.
-7. Before a release, hold real conversations through the packed product:
-   install the tarball the candidate's build packs (`npm run package:acp`)
-   in an empty folder and, on the cheapest models under a stated spending
-   cap, run one plain turn, one turn with a tool call and an approval, and
-   one long streamed answer, then read `usage` back; the terminal agent and
-   ACP both. State the expected number of calls first and count them
-   afterwards. 0.18.0 shipped a defect that every suite passed.
+7. Before a release, run the real-life run on the tarball the candidate's
+   build packs (`npm run package:acp`, then
+   `node scripts/real-life/run.mjs --artefact <tarball> --routes … --max-requests … --max-usd … --record docs/testing/real-life/<version>/<name>`):
+   the packed product in a new empty folder with a new empty home, used by
+   the terminal agent and the editor protocol against real providers on
+   their cheapest models. It prints the requests it may make and its dollar
+   cap before the first one and what it made afterwards; its record goes
+   with the release. `docs/testing/real-life.md` says how to run it, what
+   it costs and how to add a scenario. 0.18.0 shipped a defect that every
+   suite passed, and the first real-life runs of 0.18.1 (2026-10-12) found
+   more that no suite had shown: a provider's refusal replaced by a false
+   sentence, a working key refused for its shape, `exec` usage never
+   recorded.
 
 - `npm run quality` runs every local gate in one go, when you want that
   before a push; it is feedback, not the release record. It leaves out only
@@ -229,7 +242,7 @@ Windows and macOS eight (their files stay serial within a shard); all run
 without a coverage gate. The accessibility harness runs on Ubuntu against
 the production webview from the static gate except on pull requests; its
 pages, themes and scenarios do not depend on the OS. Linux/Windows VS Code
-integration, the macOS helper and the universal VSIX/ACP package checks
+integration, the macOS helper and the platform VSIX/ACP package checks
 remain. Expected wall time is roughly 10–15 minutes, pending hosted proof.
 In a merge group, gitleaks runs its pinned CLI (checksum-checked) over every
 commit the group reaches, since the gitleaks action refuses the
@@ -242,9 +255,42 @@ The seven required names stay: `build / quality (ubuntu-latest)`,
 aggregate job that fails unless every job of the selected tier succeeded
 (failed, cancelled and unexpectedly skipped all fail; on a run that uses the
 capacity repository, below, its run is one of those jobs). On a fast PR run they
-mean the fast tier passed; in the queue, the full tier. Artifact names and
-contents stay unchanged. Hosts and Action check are not required by the main
+mean the fast tier passed; in the queue, the full tier. The release
+artifacts are the six per-target `.vsix` files
+(`muse-spark-code-<target>-<version>.vsix`), the universal fallback
+`.vsix` (`muse-spark-code-<version>.vsix`), the ACP tarball and the
+SBOMs. Hosts and Action check are not required by the main
 ruleset and keep their existing triggers.
+
+**No attempt after the first passes (`AGENTS.md` rule 2).** GitHub shows a
+job's latest attempt, so a red job that is started again and passes looks
+green; 0.18.2 merged that way. Two things in `build.yml` close it, and since
+they sit behind the five aggregate names the main ruleset already requires,
+no repository setting changes:
+
+- The job `first attempt, every run green (rule 2)` needs every other job, so
+  starting any of them again starts it again. It runs
+  `node scripts/rule2-gate.mjs run`: on a later attempt it names the job and
+  step of the earlier attempt that was not green; on the first it reads every
+  other workflow run on the same head commit (Hosts, Browser check, Forks, a
+  second CI run) and fails unless each is complete and green
+  on its own first attempt. A run still in progress is waited for, up to 60
+  minutes. A second CI run on the same head (closing and reopening the pull
+  request, a manual dispatch) does not turn a red into green either: the
+  second run reads the first.
+- The aggregate's own step fails unless that job succeeded and judged this
+  very attempt, so a job started again on its own (which reuses the gate
+  job's earlier result) fails too.
+
+One earlier attempt is not counted: an outside contributor's first run waits
+for a maintainer's approval as attempt 1 (`action_required`, no job) and
+executes as attempt 2. Any other earlier attempt refuses.
+
+What is left to do with a red, a cancelled job or a runner fault is a new
+commit. The release workflow's first job holds the same rule for a tag
+(`docs/RELEASING.md`, "Choosing the release build"). The drills against real
+runs of this repository are in
+[`docs/certification/rule2-gate.md`](docs/certification/rule2-gate.md).
 
 Maintainer rollout, in this order: land the workflows (their PR runs the full
 tier); add the merge-queue rule to the main ruleset (merge commits, one PR
@@ -260,17 +306,21 @@ PRs keep the full tier. Settings and evidence:
 
 ### The capacity repository (D122)
 
-GitHub runs at most five macOS jobs at a time per account, and a full run
-has twelve. The organization `scnetsolutions` lends its own five: while the
+GitHub caps concurrent jobs per account, and a full run holds forty unit
+shards (eight on Ubuntu, sixteen each on Windows and macOS) besides the
+gates. The organization `scnetsolutions` lends its runners: while the
 repository variable `ORG_CI` is `on` and the capacity app's key reaches the
 run, a pull request from a branch of this repository runs part `home`.
-Every job runs here except the Windows and macOS unit shards; in their place
+Only the Ubuntu legs run here; in place of every Windows and macOS leg
+(static gates, unit shards, Windows integration, the macOS dictation
+helper, the Hosts/Forks checks and the Windows/macOS browser captures)
 the `org` job pushes the pull request's merge commit to
 [`scnetsolutions/muse-spark-code-ci`](https://github.com/scnetsolutions/muse-spark-code-ci)
-as `ci/pr-<number>`, where the same `ci.yml` runs those sixteen shards on
+as `ci/pr-<number>`, where the same workflows run those legs on
 the organization's runners (part `org`), and waits for that run. Its
 result feeds every required name, so a pull request merges only when those
-shards passed there; its summary lists each shard with a link. Both
+legs passed there; its summary lists each shard with a link, and the macOS
+helper artifacts come back through it for the `packages` job. Both
 accounts' runners work on one pull request at once. A newer push replaces the
 branch, and the capacity repository cancels the older run. Forks, Dependabot,
 merge groups, manual runs and every pull request while `ORG_CI` is not `on`
@@ -278,6 +328,10 @@ keep every job here (part `all`): GitHub passes them no key. Nothing waits
 on anyone's computer: `gh variable delete ORG_CI` sends the next run back to
 part `all`. The project, its pull requests, releases and `main` stay here;
 the capacity repository's `main` holds only a README, and it holds no secret.
+The `org` job mints the App token but never installs or runs the pull
+request's code: its steps are the token action, a clone, `git push`, `gh`
+API reads and the artifact relay (proof: `docs/certification/ciflow.md`,
+CISHARDS2).
 
 The owner's one-time setup (no step pushes code or changes this repository's
 ruleset):
@@ -306,7 +360,7 @@ ruleset):
 5. Keep `scnetsolutions/muse-spark-code-ci` public with Actions on: public
    repositories use standard runners free (a private one would draw on the
    free organization's 2,000 included minutes a month, and one of its runs
-   is sixteen shard jobs of up to 25 minutes), and the `org` job reads the
+   is forty shard jobs of up to 25 minutes), and the `org` job reads the
    run there with its own read-only token. The first hosted split run is the
    proof that read works with the job's token
    (`docs/certification/ciflow.md`, D122).
@@ -357,6 +411,23 @@ ruleset):
              cache: npm
          - run: npm ci --ignore-scripts --no-audit --no-fund
    ```
+
+7. Switch the capacity run's unsplittable Windows jobs to the larger
+   runner. On the capacity repository (not here), before pushing the pull
+   request, set the repository variable `LARGE_RUNNERS` to `on`:
+   `gh variable set LARGE_RUNNERS --body on --repo scnetsolutions/muse-spark-code-ci`.
+   The Windows static gates and the Windows browser capture then take
+   `msc-windows-8core` in that repository's push runs; macOS stays
+   standard (the GitHub-owned macOS larger labels need a Team or Enterprise
+   plan and the capacity organization is free). Anything else there keeps
+   free standard runners, and every run here is unaffected (a fork's
+   `pull_request` run can never take the larger label). The variable is read
+   when each job starts, so a run pushed before it is set keeps standard
+   labels on its early jobs. Costs about $0.49 per pull request run at the
+   record's estimated minutes ($0.62 with browser-path files); an enterprise
+   $40 monthly budget stops paid usage at the limit, so switch back to free
+   runners first (`--body off`).
+   Proof: `docs/certification/ciflow.md`, CISHARDS2.
 
 ## The public roadmap (M122)
 
@@ -644,11 +715,10 @@ the Muse Code backend goes through the extension itself (the `ide` server's
 tools, `src/host/ide/imageTools.ts`), never through `muse serve`, and
 asks before each purchase in the same popup, whatever Muse Code's
 permission mode.
-The tests never spend:
-the Model API, the Images endpoint and the Muse Voice WebSocket are all
-fakes (`test/unit/helpers/fakeModelApi.ts` and `fakeVoiceServer.ts`, a
-small RFC 6455 server over Node's own `http`). A live check bills the
-owner's key: say what it will cost first and ask.
+The checks hosted CI runs never spend. The real-life run does
+(`docs/testing/real-life.md`), on the owner's standing word (2026-10-12):
+say what it may make and its dollar cap first, run it in an empty
+workspace, count afterwards and report. Buying credits is the owner's.
 
 ## MCP servers on the Model API backend
 

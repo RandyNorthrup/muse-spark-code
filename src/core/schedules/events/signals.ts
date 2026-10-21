@@ -7,7 +7,7 @@ import type {
   ScheduleSourceCapability,
 } from '../../../shared/scheduleEvents'
 import { scheduleRequestSchema } from '../../../shared/scheduleV2'
-import { sourceEvent } from './registry'
+import { isRejectedDelivery, sourceEvent } from './registry'
 import { noEventHistory, unavailableSource, type ScheduleSignalPort } from './ports'
 
 export class ScheduleSignalSource implements ScheduleSubscribedEventSource {
@@ -37,7 +37,10 @@ export class ScheduleSignalSource implements ScheduleSubscribedEventSource {
       let event: ScheduleEvent
       try {
         event = sourceEvent(this, input)
-      } catch {
+      } catch (error) {
+        // Only a malformed or misaddressed host delivery reads as a
+        // rejected event; a subscriber bug keeps its kind for the caller.
+        if (!isRejectedDelivery(error)) throw error
         this.onRejected(this.id)
         return
       }

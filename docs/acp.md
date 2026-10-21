@@ -35,7 +35,18 @@ Manual approval is pending. Recall continues the ordinary billed model turn;
 it makes no separate paid-feature request. The VS Code packing setting does
 not apply to this process.
 
-ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+ACP and headless Model API/BYO requests can share a daily spending limit that you set in the agent data folder's `settings.json`: `{"paidDailyBudgetUsd":5}` (USD; none by default), matching the extension's `museSpark.paidDailyBudgetUsd`. With no limit set, nothing is checked, read or written before a request. With one, a request whose estimate would pass what is left of today is not sent and the reason says so; each request's reported cost joins today's total after it ends, in one file per process with no lock, and a request that ended without its usage counts as cost unknown, never as its estimate. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search runs in this runtime only with a verified per-request call bound, because its returned fees have no other dispatch bound.
+
+The spend cap admits a request only when its full reservation fits. Verified exact
+counts reserve the exact input; Anthropic reserves its estimate plus 25%, limited
+by the UTF-8 byte upper bound; unverified count shapes (including Gemini) reserve
+that size bound. Only the last request can exceed the cap when a provider estimate
+is too low: its full actual cost is recorded, and another request is refused.
+Each retry reserves separately; a sent attempt with no outcome keeps its entire
+reservation permanently. Only a provably dead owner’s unsent claim is released.
+The v3 ledger imports old history once without modifying it. Simultaneous spending
+from an old build is outside the new shared-cap guarantee; upgrade both hosts
+before relying on one cap across versions.
 
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
@@ -111,10 +122,16 @@ are in `result`. No automatic fix is available. The reserved
 argument parsing. The older `legal --format json` invocation remains an alias.
 Both refuse prompt text and model/credential flags.
 
-The current scanner also lists human review, full license-text matching and
-artifact freshness as incomplete checks on every real run. Even a fixture
-with no findings therefore returns exit 2; the complete exit-0/1 branches are
-tested with injected reports and are not yet real-scanner CI receipts.
+License files match the pinned SPDX License List 3.28.0 templates exactly
+(only a template's variable and optional parts may vary), and per-bundle
+SHA-256 hashes captured by the build establish artifact freshness, so a fully
+evidenced scan with no findings returns exit 0 (exit 1 with a blocker).
+A text that differs from its template is quoted at the differing span for
+human review.
+Heuristic or unrecognized license texts, missing locks or license data,
+dynamic metadata, binary files, links, stale artifacts and bounded-out input
+stay named incomplete checks with exit 2; the absence of an ecosystem's
+manifests entirely is a complete observation, not a gap.
 
 Registry enrichment uses npm/PyPI HTTPS metadata, sends only package names and
 versions, refuses redirects and never reads private registry configuration.
@@ -133,6 +150,13 @@ command. The optional panel paid explanation uses a portable core executor;
 this ACP command itself stays free. Native editor UI adapters retain their
 existing compatibility milestones. **Not legal advice; for distribution
 decisions consult a lawyer.**
+
+An optional workspace-root `licence-review.json` array holds reviewed licence
+receipts: `package`, exact `version`, licence-byte `sha256`, the found single
+`spdx` identifier and a one-line `reason`. Applied receipts appear visibly as
+**Reviewed by receipt** in every report format and resolve only that text
+check. Changed versions or bytes need review again; conflicts and other gaps
+remain. See [the receipt example](../README.md#legal-scan-m97).
 
 ## Choose who pays
 
@@ -167,9 +191,15 @@ asks for it. Elsewhere, run it yourself once:
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
   one is stored; `auth clear` removes it.
 
+`--help` on any deep subcommand prints that command’s terminal usage, including
+`developer status --help`, `playbook status --help` and
+`report usage --help`. `help reference` loads the full catalogue.
+
+ACP effort options and `exec --effort` use the selected model’s capability record; unsupported choices list the allowed values. Opus 5.5’s captured record includes `xhigh`.
+
 **ChatGPT subscription sign-in (M95b preview):** the agent advertises
-`providers add chatgpt`, `providers remove chatgpt` and `providers status chatgpt`
-as terminal authentication actions. Editors without terminal authentication
+`providers add chatgpt` as a terminal sign-in method. Maintenance remains available
+through `providers remove chatgpt` and `providers status chatgpt` in the terminal. Editors without terminal authentication
 show the full commands to run manually. These use the same runtime adapter,
 OS credential store and process lock in JetBrains, Visual Studio, Eclipse,
 Zed, Xcode, Neovim, Emacs, Sublime and companion clients. Add prints the
@@ -190,12 +220,44 @@ pinned request factory as VS Code, reading the user-level `providers.json`
 and origin-bound records from this agent's OS credential store. Mistral's
 captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
-inference. General `providers list|add|test|remove` commands and
+inference. General `providers list|add|test|remove` commands,
+`providers models <entry> [--add <model>] [--remove <model>]` and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
-Free probes use the shared request transport. `exec --provider` validates its
-configuration and key, but refuses before dispatch: its production runner
-still needs provider-aware budget admission and settlement. No supported
-headless provider inference is claimed.
+`muse-spark-code-acp providers connect openrouter` prints OpenRouter’s
+PKCE authorization URL. Open it, authorize, then paste the displayed
+single-use code at the hidden prompt; the returned key is never printed.
+If a key is already stored, the terminal asks you to type `yes` before
+replacement. Interrupting Connect preserves that record. A created key that
+cannot be kept is named with its removal page; removing it needs your
+OpenRouter account because inference keys cannot use the management API.
+Usage prints all six exact decimal amounts from the response.
+The same route is offered in ACP’s terminal authentication UI alongside
+pasting an OpenRouter key and viewing its usage. It works in remote editors
+without a loopback listener. After connecting, `providers add --preset
+openrouter --model <native-model-id>` uses the stored key, with ZDR routing
+by default. `muse-spark-code-acp providers usage openrouter` shows total,
+daily, weekly and monthly key usage, limit and remaining balance; a saved
+OpenRouter alias can replace `openrouter`. Usage reads cost no credits and
+make no model call. Cancellation discards late exchanged keys, and adding a
+model refuses if the connected credential changed during its probes. A reused
+credential is read-only, including when saving the provider fails. Failure
+text contains no service response or secret.
+
+Free probes use the shared request transport. `exec --provider` dispatches through
+that same configured client, reserving each request's conservative input and
+capped output at its model's price before sending, then settling its usage.
+Unknown prices refuse without sending. With no `--model`, exec and ACP use the configured `defaultModel`;
+a missing or unavailable default refuses and lists the configured models.
+Ephemeral exec omits durable usage history and records
+`usageHistory: "omitted_ephemeral"`; ordinary runs retain usage history.
+Command `--help` prints only its own usage; `help reference` prints the catalogue.
+Unsent daily and run claims are refunded.
+Each request is capped at the model's own output limit. For a configured Anthropic key:
+
+```sh
+muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"
+```
+
 The npm package includes the shared catalogue and lazy provider bundles.
 Installed-editor and live provider certification remain open.
 
@@ -204,7 +266,26 @@ and before sending, including older stored values. The same translated message
 names the minimum; Meta requires 16 tokens. Custom provider entries declare a
 minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
 and custom output limit must meet it. ACP config options and CLI/exec flags
-currently expose no separate output-token cap.
+expose `exec --max-output-tokens <n>` (at least 1; the selected provider's own minimum applies); ACP retains the model policy cap.
+
+Local provider configuration requires the actual loaded context window.
+Use `providers add --preset lmstudio --model qwen3-0.6b --context-window 8192`
+to save a validated window for every selected model. Existing entries may
+set per-model limits in the user-level `providers.json` (never in a workspace):
+
+```json
+{
+  "modelLimits": {
+    "qwen3-0.6b": { "contextTokens": 8192, "outputTokens": 8192 }
+  }
+}
+```
+
+Both counts must be positive integers and output cannot exceed context.
+The shared provider reader validates them before use, and the shared host
+uses the same window for context pressure and compaction in every ACP editor.
+LM Studio's committed capture reports no window; no uncaptured native endpoint
+is queried. Missing windows refuse inference with instructions to enter one.
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
@@ -340,6 +421,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
+| `--auto-compaction`                    | Accepted; automatic compaction is already on by default once evaluated, so the flag changes nothing on its own          |
+| `--no-auto-compaction`                 | Turn the default-on automatic compaction off (also accepted by exec, where it wins over `--auto-compaction`)            |
 
 ## What the editor sees
 
@@ -358,9 +441,34 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
   model turn.
+  Scheduled prompt delivery remains unavailable pending shared certification.
+  M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
+  when the estimator binding is present; it runs the same engine as the
+  panel with no model call.
   M108's `/accounts <list|current|thresholds [id]>` on the Model API
   backend, answered locally with no model turn; `/accounts use <id>` is
   refused and names the account the session keeps.
+  M99's `/whatsnew` reads this version's release highlights and full notes
+  from the package's own content file, answered locally with no model turn.
+  `/playback` asks the agent to state its own understanding of the goal
+  and instructions from working memory only, with no tools for the turn,
+  so the person can compare it with what they asked and correct it; a
+  model turn on the Model API backend, refused on Muse Code, which has no
+  zero-tool turn.
+  M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
+  timeline; `run-due` and background maintenance are refused here), offered
+  only with `--scheduled-prompts`.
+  M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
+  when the estimator binding is present; it runs the same engine as the
+  panel with no model call. `/estimate --check-plan` checks every row in the
+  workspace plan, independently of a forecast's dependency closure. Use the
+  flag alone, with no goal or other flags. It requires plan-format-v1 and a
+  lane table, returns all problems (including line numbers for malformed rows),
+  and returns an empty response only for a clean plan. Missing or unsupported
+  plans are failures. The standalone `muse-spark-code-acp estimate --check-plan`
+  uses exit codes 0 for clean, 1 for problems/unavailable, and 2 for usage.
+  Plan and engine refusals, including self dependencies and cycles, use the same
+  localized diagnostic as the panel and CLI. Raw external errors hide private details.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -377,7 +485,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   cancelled and stops that turn, and an answer you give it afterwards
   decides nothing.
 - **Prompts**: text, files as @mentions, attached excerpts, and PNG, JPEG,
-  GIF and WebP images up to 10 MB.
+  GIF and WebP images at any size (reads bounded only by host memory; the
+  selected model's capability record and the provider answer for the rest).
 - **MCP servers** the editor offers (Zed's context servers, Jupyter AI's
   notebook tools): passed to Muse Code for the session, over stdio or
   HTTP, and optional, so one that fails to start does not stop the
@@ -387,7 +496,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 M105 media commands are parsed between turns: `/attach <path>` confines an
 approved local source; `/record` requires an interactive recorder and private
-preview before Attach. Embedded PDF/image blobs keep their established routes;
+preview before Attach; `/uploads` lists the account's uploaded files and
+`/uploads delete <file>` (or `delete-all`) deletes them early through the
+provider, keeping a file another app may still use. Embedded PDF/image blobs keep their established routes;
 video/audio blobs and media links require the selected-model media port.
 Ordinary source links remain mentions and URLs remain links. A missing media
 binding refuses before dispatch; it never claims that bytes were delivered.
@@ -501,6 +612,19 @@ answers are **Allow Once**, **Allow Always in This Workspace** and
 A cancelled prompt, an answer the prompt did not offer, or an editor
 that cannot ask counts as Deny.
 
+Automatic compaction is the exception to the flag rule: it is on by
+default like the panel once evaluated, so no flag is needed. Its first
+paid summary asks once through the same permission prompt, naming the
+model, that it is a paid request, and the daily budget; no answer counts
+as Deny. `--no-auto-compaction` turns it
+off. Where the client cannot show the approval (no permission
+capability), compaction does not run and the context-full stop says how
+to turn it on. A team-worker (child) session never compacts automatically:
+the engine excludes child sessions before any admission is requested, so
+nobody is asked and nothing is charged. A scheduled turn is an ordinary
+turn of its session for this policy; an approval nobody answers counts as
+Deny.
+
 **Allow Always in This Workspace** is offered only when the agent runs
 with `--trust-workspace`. It is kept for that folder in the agent's data
 folder (`paid-uses.json.d` under `%LOCALAPPDATA%\Muse Spark Code\acp`,
@@ -513,10 +637,25 @@ maps are ignored, so their next use asks again. Storage that cannot safely
 publish a generation keeps the explicit use as Allow once and asks next time.
 The grant lapses in every folder when a Model API agent (`--backend
 modelApi`, not `exec`) starts without that feature's flag, so turning the
-flag on again asks again. Every paid row names its
+flag on again asks again; automatic compaction's grant lapses instead when
+the agent starts with `--no-auto-compaction`. Every paid row names its
 price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
+
+Automatic scheduled prompt delivery remains disabled in VS Code, ACP and the
+terminal pending shared certification. The candidate engine uses standing grants,
+session-owned output and durable records. Closing a runtime settles only its own
+in-flight fires; unhanded admissions remain pending for the next owner. Confirmed
+queue withdrawals release their held amount; genuinely unknown outcomes retain
+liability and never replay.
+
+The candidate Model API policy requires schedule-specific consent naming model
+rates, cadence and both daily caps. Allow once covers one fire; Allow always covers
+that schedule. Workspace grants do not authorize scheduled spending. Changes to
+payer, model, key, tariff or shared budget require renewal. The running runtime
+neither asks this candidate question nor reserves its caps while delivery is
+uncertified. Headless exec cannot create or host schedules.
 
 ## Networks and proxies
 
@@ -609,8 +748,9 @@ fallback. The interactive options above retain their existing behavior.
 
 Model API needs a hard USD cap and known priced model; request cap counts every
 billable HTTP attempt, including retries. Context-window liability rounds upward
-to integer micro-USD: contributor $0.108135 minimum ($0.118135 with image flag),
-standard $1.409024 ($1.419024 with image flag). Contributor requires explicit
+to integer micro-USD using this request's conservative input estimate plus its
+resolved output cap (1024 by default), including cache-write premiums. The refusal
+shows the arithmetic. Contributor requires explicit
 opt-in and training eligibility. Images require Model API, explicit flag,
 acceptEdits, budget and per-use admission/tally; no grant store is used.
 
@@ -619,8 +759,10 @@ internal 1, usage/input 2 (no result), auth/backend unavailable 3, failed 4,
 budget/request refusal or breach 5, timeout 6, fail-on-denial 7, incomplete 8,
 accounting unverified 9, SIGINT 130 and SIGTERM 143. Only latest clean verified
 completion plus ACP end_turn authorizes Model API success; uncertain receipts
-retain full reservation. No raw tool text leaves exec; cut-short prose is
-withheld whole. Windows POSIX signal e2e is explicitly skipped. On Windows a
+retain full reservation. No raw tool text leaves exec. Stopped runs return the
+redacted partial answer with `finalMessageComplete: false` and their non-success
+exit and accounting. JSON mode prints request progress on stderr; stdout remains
+one JSON result. Structured output is withheld until it validates. Windows POSIX signal e2e is explicitly skipped. On Windows a
 forced stop ends the process with exit 1 and may lose buffered output; a
 delivered result keeps its first-stop status and logical exit code.
 
@@ -673,7 +815,7 @@ The terminal also accepts `usage`, `usage --json`,
 `usage --csv`, `usage open`, `usage serve --stdio` and root `--usage` JSON.
 Use `--usage-history=off` when serving ACP to stop new records. The history and
 exports stay on this machine; raw calls roll up after 30 days and daily history
-defaults to 365 days. Deleting it leaves spend ledgers and grants intact. The
+is kept until you set a number of days or clear it. Deleting it leaves spend ledgers and grants intact. The
 companion uses a one-use fragment code, an in-memory bearer per window and
 fetch-streamed events, with no cookies. See the README Usage and cost section
 for storage folders and the M102 certification for editor/rig receipts.
@@ -766,10 +908,15 @@ workspace refuses; the standalone policy reads `.vscode/settings.json`, and
 malformed or unreadable policy refuses. Settings with JSON comments currently
 refuse rather than guessing. Full mode never disables privacy.
 
-A noninteractive share prints exact scrubbed content and a JSON cancelled
-preview, with exit 7. Review it, then repeat the identical command with an
-explicit `--destination`, the same `--exported-at`, `--out`, and
-`--confirm PREVIEW_ID`. The digest binds cwd, path/root, options, time and
+A noninteractive share prints exact scrubbed content and, with `--json`,
+a JSON cancelled preview, with exit 7. Review it, then repeat the identical
+command with an explicit `--destination`, the same `--exported-at`, `--out`,
+and `--confirm PREVIEW_ID`. Without `--json` no result JSON is printed;
+`prompts save`, `prompts list` and `prompts use` take the same `--json`
+flag for their machine-readable result. Without it, save prints the saved title
+and id, list prints the matching titles and ids, and use prints prepared text
+without inserting it into an editor or sending it to a model. Cancellation
+reasons go to stderr. The digest binds cwd, path/root, options, time and
 bytes. Any change needs a new preview; there is no blanket `--yes`. Interactive
 sharing asks for a final confirmation. No file/clipboard/browser operation
 occurs during preview. Private atomic writes recheck live policy and abort. Sharing also scrubs the
@@ -784,9 +931,21 @@ the companion page. The TUI waits for M110a0 lane T. See the
 [M118 record](certification/m118.md) for exact actions and editor rows. Gist
 publishing, hosted links, team destinations and email remain phase 2/3.
 
+## MCP connector for other agents (M124, in progress)
+
+`muse-spark-code-acp mcp` is a separate mode: it speaks MCP, not ACP, on
+stdio, so an MCP client such as Codex, Claude Code or Gemini CLI can use
+Muse Spark Code's prompt library, share previews, schedules, reports and
+Stop within a grant you make with `muse-spark-code-acp mcp grant` in your
+own terminal. Writes wait for your approval on Muse Spark Code's loopback
+approval page; the client cannot approve them. The connector loads from
+`connector.js` only for this command. Setup per client, tools, limits and
+records:
+[docs/mcp.md](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/mcp.md).
+
 ## Help and reference
 
-Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help reference` in a terminal for the complete reference. Help starts no backend and makes no model request.
 
 ## Resource status and resume
 
@@ -864,15 +1023,20 @@ consent exclusions or the conditional budget theorem above.
 The portable core shares strict declarations, safe parallel reads, bounded
 retry/idle waits, fresh repeat witnesses and output continuation with the
 extension. Provider-specific evidence is injected at the backend factory;
-unknown capabilities stay off. Native Muse Code effort, deletion and feedback
-remain unavailable until their captured feature ports are supplied. These
+unknown capabilities stay off. Native Muse Code effort and feedback
+remain unavailable until their captured feature ports are supplied, as does
+deleting a Muse Code session (its CLI serves no `session/delete` from 1.4.4
+on). Deleting a Model API session is offered through `session/delete`. These
 limits apply equally to every ACP editor and to headless execution.
 
 ## Deterministic reports (M113)
 
 `muse-spark-code-acp report project` collects locally through the same engine
 as the editor. `report quality`, `report milestone M113`, `report release
-latest` and `report changes` select other local reports. `report history`
+latest`, `report changes`, `report keybindings`, `report usage`,
+`report session`, `report accounts`, `report security`, `report estimate M113`,
+`report playbook` and `report schedules` select other local reports.
+`report history`
 lists verified, workspace-scoped saved entries. Bare `report`, and `report
 problem`, retain M93's problem report.
 
@@ -894,3 +1058,47 @@ scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
 Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
 History-save revocation or cancellation fails explicitly. Equal observation
 times preserve the newest saved sequence when selecting the previous report.
+
+Initial HTTP validation, sign-in, permission and quota refusals before any output
+settle at zero. Interrupted processing (including HTTP 408/499), server errors
+and stream loss keep unresolved liability separately from money spent. Final
+provider usage settles even when the response is incomplete. Stopping a stream
+without final usage cannot prove a smaller bill: a provider can charge unseen
+generated tokens after disconnect. The retained amount is a possible charge,
+never a confirmed spend. `--max-output-tokens` lowers the actual request cap;
+startup no longer prices the model's full context window before building it.
+
+## Vault integration (M109 H)
+
+The H handlers consume injected broker/panel contracts. The installed
+`dist/vault.js` factory is an integration handoff; until bound, access reports
+a fixed broker-unavailable error. No credential or guessed wire frame is used.
+
+`/vault` defaults to status and accepts `status`, `list`, `lock` and `audit`.
+Commands are intercepted locally before skill/model dispatch. Invalid syntax
+and extra attachments are refused. Lock remains available during an active
+turn and invalidates outstanding permission answers. Hidden and first-party
+items are excluded from the ACP item list.
+
+A broker request maps to `session/request_permission`: `allow_once`,
+`allow_always` labelled **Allow for this session** where policy permits, and
+`reject_once`. No standing Always grant is offered. Answers retain the
+broker's exact id and digest; cancel, expiry, session close/reload, lock, an
+unknown option, or a failed editor request deny. Bypass and paid grants do
+not approve a vault use. The full requester and resolved use, process exposure,
+taint, presence and separate paid-consent warning appear in the permission.
+
+Terminal subcommands and their input contract are documented in the
+repository README's vault section. Companion and native bridges share the
+same public panel handler; M104 must bind authenticated connections and honor
+its cancellation signal before committing effects. Add/edit opens the host's
+terminal. No value is accepted or returned in panel messages.
+
+### Companion microphone certification
+
+The companion microphone implementation is held off in this build. Its ACP
+command, terminal route and paid flag stay hidden until the Windows/macOS
+browser/free speech-helper receipts and assigned editor bindings/receipts pass. The certification record in
+`docs/certification/m35-companion.md` in the source repository distinguishes
+Linux fake-device/agent evidence from the remaining real editor and platform
+checks. This does not change the supported voice routes in this guide.

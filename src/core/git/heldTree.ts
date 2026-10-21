@@ -15,16 +15,15 @@
 //
 // Pure: the host runs git and writes the files.
 
+import { Buffer } from 'node:buffer'
 import {
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
   GIT_MODE_GITLINK,
   GIT_MODE_SYMLINK,
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatBytes } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
 import { isWindowsDeviceLike, windowsPathProblem } from '../windowsPathSpelling'
 
 export type HeldEntryKind = 'file' | 'executable' | 'link' | 'submodule'
@@ -121,15 +120,51 @@ function pathOf(record: string): string {
 }
 
 /**
- * The entries of `git ls-tree -r -z --full-tree --long <commit>` to write,
- * in its order, or why none is.
- */
-export function heldTree(listing: string, platform: NodeJS.Platform): HeldTree {
+A `git ls-tree -z` stdout as it arrives: NUL ends every record, so the
+byte stream splits cleanly even mid-character, and each whole record
+decodes on its own. Undecodable bytes refuse the listing exactly as a
+buffered read's replacement character does (`UNDECODABLE`, below).
+*/
+export class ListingRecords {
+  private rest: Buffer = Buffer.alloc(0)
+
+  /** The complete records a stdout chunk ends, in order. */
+  public take(chunk: Buffer): string[] {
+    const records: string[] = []
+    let start = 0
+    const bytes = this.rest.length === 0 ? chunk : Buffer.concat([this.rest, chunk])
+    this.rest = Buffer.alloc(0)
+    for (const [index, byte] of bytes.entries()) {
+      if (byte !== 0) {
+        continue
+      }
+      records.push(new TextDecoder('utf-8').decode(bytes.subarray(start, index)))
+      start = index + 1
+    }
+    this.rest = bytes.subarray(start)
+    return records
+  }
+
+  /** The records a clean `ls-tree -z` leaves unterminated: none. */
+  public finish(): string[] {
+    const tail = this.rest
+    this.rest = Buffer.alloc(0)
+    return tail.length === 0 ? [] : [new TextDecoder('utf-8').decode(tail)]
+  }
+}
+
+/**
+The entries of `git ls-tree -r -z --full-tree --long <commit>` records to
+write, in its order, or why none is.
+*/
+export function heldTreeFromRecords(
+  records: readonly string[],
+  platform: NodeJS.Platform,
+): HeldTree {
   // Every folder and file the paths name, folded: what is already there.
   const names = new Map<string, { readonly spelling: string; readonly isFolder: boolean }>()
   const entries: HeldEntry[] = []
-  let bytes = 0
-  for (const record of listing.split(NUL)) {
+  for (const record of records) {
     if (record === '') {
       continue
     }
@@ -168,16 +203,18 @@ export function heldTree(listing: string, platform: NodeJS.Platform): HeldTree {
         )
       }
     }
-    bytes += size
+    // Entries and bytes at any size (D121: the removed 20,000-entry and
+    // 250 MB ceilings were invented); unsafe and colliding paths still
+    // refuse above.
     entries.push({ path: entryPath, kind, oid, size })
-    if (entries.length > HELD_CHECKOUT_MAX_ENTRIES || bytes > HELD_CHECKOUT_MAX_BYTES) {
-      return refused(
-        fill(UI_TEXT.openPullRequestTooLarge, {
-          files: HELD_CHECKOUT_MAX_ENTRIES,
-          size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-        }),
-      )
-    }
   }
   return { ok: true, entries }
+}
+
+/**
+The entries of a whole `git ls-tree -r -z --full-tree --long <commit>`
+stdout, or why none is.
+*/
+export function heldTree(listing: string, platform: NodeJS.Platform): HeldTree {
+  return heldTreeFromRecords(listing.split(NUL), platform)
 }

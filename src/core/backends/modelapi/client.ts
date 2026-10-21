@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../../refusal'
 import { PaidAuthority } from '../../paid/paidAuthority'
 // A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
 // models, token counts, streamed responses, generated/edited images and
@@ -15,14 +16,15 @@ import {
   ModelApiError,
   parseJsonResponse,
   readBoundedText,
-  redactModelApiError,
   redactStreamDiagnostics,
+  rethrowStreamError,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
   type RetryBudget,
   type RetryNotice,
   providerWaitMs,
 } from './transport'
+import type { SpendClaim } from '../../paid/spendClaim'
 export {
   MissingApiKeyError,
   ModelApiError,
@@ -36,14 +38,19 @@ export {
   type ResponseObservation,
 } from './transport'
 import type { ProviderClient as TransportProviderClient } from './providerClient'
+import type { ContextModel } from '../../context/overflow'
 import type { PlanUsageRow } from '../../../shared/usage'
-import type { ModelResolver } from './modelPolicy'
+import {
+  estimatedStreamTokens,
+  modelPricedUsage,
+  requestImageCount,
+  type ModelResolver,
+  type ModelPricePolicy,
+} from './modelPolicy'
 import {
   type PaidFeature,
   MODEL_API_BASE_URL,
   MODEL_API_MIN_OUTPUT_TOKENS,
-  IMAGE_REQUEST_TIMEOUT_MS,
-  MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
@@ -54,6 +61,8 @@ import {
   type CreateImageBody,
   type EditImageBody,
   type CreateResponseBody,
+  hasDeclaredTools,
+  omitToolShape,
   eventTypeSchema,
   type ImagesResponse,
   imagesResponseSchema,
@@ -64,24 +73,19 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
+import { estimateCostUsd, type BillableUsage } from '../../usage/insights'
 import { webSearchPriceUsd } from '../../paid/paidFeatures'
 import { modelApiPaidTier, type PaidQuote, type SearchSettlement } from '../../../shared/paid'
 import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
 
-/** The client needs admission and settlement, not the ledger's internal totals. */
-interface PaidRequestClaim {
-  readonly reservedUsd: UsdAmount
-  check(capUsd: UsdAmount): void
-  settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
-}
-
 import { redactSecrets } from '../../redact'
 import { fill } from '../../../shared/l10n/text'
+import { startStillWaiting, stillWaitingText } from '../../timeouts'
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 
 import type { PacingProvider, RequestPacer } from './pacing'
 import { fanOutPacingClass } from './subagentTools'
+import type { ChatGptPlanFacts } from './planFacts'
 
 /** Public transport contract shared by Meta, plan clients and host adapters. */
 export type ProviderClient = Pick<
@@ -97,6 +101,7 @@ export type ProviderClient = Pick<
     | 'readServiceStatus'
     | 'withScheduleAuthority'
     | 'requestFile'
+    | 'requestTranscription'
   >
 > & {
   readonly providerId?: ModelApiClient['providerId']
@@ -106,10 +111,42 @@ export type ProviderClient = Pick<
   readonly readServiceStatus?: ModelApiClient['readServiceStatus']
   readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
   readonly provider?: TransportProviderClient['provider']
+  /** The Files transport rides along only when the wrapped client carries it. */
+  readonly requestFile?: ModelApiClient['requestFile']
+  /** So does the batch transcription POST (U18): only Meta's own client carries it. */
+  readonly requestTranscription?: ModelApiClient['requestTranscription']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
+  /**
+  C-M95-4 R3: the registry's live window for a configured model, read
+  synchronously from its last listing for compaction sizing. Undefined
+  when the registry never listed the model (the previous fallback
+  stands) or its window is unknown (the request refuses instead).
+  */
+  readonly peekContextModel?: (model: string) => ContextModel | undefined
   readonly isPlanModel?: (model: string) => boolean
+  /**
+  The plan models this client serves without any Meta request (the
+  signed-in ChatGPT and Copilot plans), listed on a computer that stores
+  no Meta key. Absent on clients without a plan route.
+  */
+  readonly listPlanModels?: () => Promise<string[]>
+  /**
+  The plan catalogue's facts for one model reference. Resolves them from
+  the client's cache, fetching the catalogue when no listing warmed it;
+  undefined where the catalogue names nothing. Absent on clients without
+  a plan route, where the policy keeps today's behaviour.
+  */
+  readonly planModelFacts?: (model: string) => Promise<ChatGptPlanFacts | undefined>
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
+  /**
+  EXECPROV round 6: an exact same-body input count where the provider
+  documents one (type-only; implementations live in lazy bundles).
+  */
+  readonly countInputTokensDetailed?: (
+    body: CreateResponseBody,
+    signal?: AbortSignal,
+  ) => Promise<{ readonly tokens: number; readonly costUsd?: UsdAmount | undefined }>
 }
 import type { SecretScrubPort } from '../../../shared/redact'
 
@@ -137,7 +174,7 @@ export interface ModelApiClientDeps {
     signal?: AbortSignal,
     /** M106: tokens plus the verified hosted-call allowance, computed in this bundle. */
     reservationUsd?: UsdAmount,
-  ) => Promise<PaidRequestClaim | undefined>
+  ) => Promise<SpendClaim | undefined>
   /** M95 integration: a provider's verified hosted-search tariff, never a fallback estimate. */
   readonly providerId?: ((modelId: string) => string) | undefined
   readonly webSearchPriceUsd?: (modelId: string) => UsdAmount | undefined
@@ -147,7 +184,14 @@ export interface ModelApiClientDeps {
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
   readonly apiKey: () => Promise<string | undefined>
-  readonly sleep: (ms: number) => Promise<void>
+  /**
+  Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
+  read live so a change applies without a restart; undefined (or absent)
+  leaves Meta's documented 3–5 attempts in force.
+  */
+  readonly personCap?: (() => number | undefined) | undefined
+  /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
+  readonly sleep?: ((ms: number) => Promise<void>) | undefined
   /** Epoch ms, for a `Retry-After` given as a date. */
   readonly now: () => number
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
@@ -156,9 +200,9 @@ export interface ModelApiClientDeps {
   /** Idle limit for headers and all response-body reads; tests may shorten it. */
   readonly streamIdleMs?: number
   /**
-   * Whose settings a request that never reached Meta names (M56): VS Code's
-   * unless the ACP agent says its own (PLAN.md D62, Q66).
-   */
+  Whose settings a request that never reached Meta names (M56): VS Code's
+  unless the ACP agent says its own (PLAN.md D62, Q66).
+  */
   readonly networkAdvice?: NetworkAdvice
 }
 
@@ -180,6 +224,7 @@ export class ModelApiClient implements TransportProviderClient {
   public constructor(
     private readonly deps: ModelApiClientDeps,
     private readonly scheduledRun?: () => UnattendedRun | undefined,
+    private readonly scheduledPrice?: ModelPricePolicy,
   ) {
     this.transport = new RequestTransport({
       ...deps,
@@ -205,7 +250,7 @@ export class ModelApiClient implements TransportProviderClient {
   ) {
     const run = this.scheduledRun?.()
     if (run === undefined && this.scheduledRun !== undefined)
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
     const reserve =
       run === undefined
         ? (guard?.reservePaidRequest ?? this.deps.reservePaidRequest)
@@ -216,21 +261,29 @@ export class ModelApiClient implements TransportProviderClient {
         ? undefined
         : await reserve?.(body, feature, estimatedInputTokens, signal, reservationUsd)
     if (run !== undefined && claim === undefined)
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
     return claim === undefined ? undefined : { claim, isSent: false, run }
   }
 
-  /** A billed image request: only a 429 is retried, with a deadline of its own. */
+  /** A billed image request: only a 429 is retried, with no deadline of its own. */
   private async imageRequest(
     path: string,
     body: CreateImageBody,
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
-    const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
-    const claim = paid?.claim
+    // Waited on until Meta answers or the turn stops it (owner 2026-10-16:
+    // no arbitrary limits), saying so out loud while it waits.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      this.deps.log.info(stillWaitingText({ key: 'imageRequest' }, elapsedMs))
+    })
+    // The reservation is inside the try: it can throw (consent denied, the
+    // daily ledger unavailable), and the notice timer must still stop.
+    let paid: Awaited<ReturnType<ModelApiClient['paidReservation']>>
+    let hasOutcome = false
     try {
+      paid = await this.paidReservation(body, 'imageGeneration', signal, admitAttempt)
+      const claim = paid?.claim
       const result = await this.transport.request(
         path,
         {
@@ -241,47 +294,50 @@ export class ModelApiClient implements TransportProviderClient {
           retries: 'rateLimitOnly',
           ...(paid !== undefined && { paid }),
         },
-        active,
+        signal,
         undefined,
         undefined,
         admitAttempt,
       )
       const parsed = await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
-      // The request asks for one image; ambiguous results retain their flat fee.
+      // Each returned image has the published flat fee, including an unexpected extra image.
       if (claim !== undefined) {
-        await claim.settle(Usd.from(parsed.data.length === 0 ? 0 : claim.reservedUsd).toAmount())
+        await claim.settle(Usd.from(claim.estimateUsd).times(parsed.data.length).toAmount())
       }
+      hasOutcome = true
       return parsed
     } finally {
+      stopNoticing()
+      // Unsent: nothing; sent with no answer: its cost is unknown, never its price (D208).
       if (paid?.isSent === false) {
         await paid.claim.settle(Usd.from(0).toAmount())
+      } else if (paid !== undefined && !hasOutcome) {
+        await paid.claim.settle(undefined)
       }
     }
   }
 
-  private searchTokenCostUsd(
-    usage: BillableUsage,
-    modelId: string,
-    unknownChargeUsd?: UsdAmount,
-  ): UsdAmount {
+  /** The token cost a search request's usage prices at; `undefined` when unknown. */
+  private knownSearchTokenCostUsd(usage: BillableUsage, modelId: string): UsdAmount | undefined {
     const knownCost =
       modelApiPaidTier(modelId) === undefined ? undefined : estimateCostUsd(usage, modelId)
     const cost =
       this.deps.searchTokenCostUsd === undefined
         ? knownCost
         : this.deps.searchTokenCostUsd(usage, modelId)
-    if (
-      cost === undefined ||
+    return cost === undefined ||
       !usdAmountSchema.safeParse(cost).success ||
       Usd.from(cost).compare(Usd.from(0)) < 0
-    ) {
-      throw new Error(
-        unknownChargeUsd === undefined
-          ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
-          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
-      )
-    }
-    return Usd.from(cost).toAmount()
+      ? undefined
+      : Usd.from(cost).toAmount()
+  }
+
+  /** A search request's estimate needs a verified token price: unpriced, it is not sent. */
+  private searchTokenCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
+    const cost = this.knownSearchTokenCostUsd(usage, modelId)
+    if (cost === undefined)
+      throw new UserRefusalError(fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId }))
+    return cost
   }
 
   /** Children inherit their parent's token through the same authority. */
@@ -297,8 +353,11 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /** Each session owns its authority callback, even when hosts share transport. */
-  public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
-    return new ModelApiClient(this.deps, run)
+  public withScheduleAuthority(
+    run: () => UnattendedRun | undefined,
+    price?: ModelPricePolicy,
+  ): ModelApiClient {
+    return new ModelApiClient(this.deps, run, price)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
@@ -337,9 +396,30 @@ export class ModelApiClient implements TransportProviderClient {
     return await this.transport.requestFile(...args)
   }
 
+  /** U18's batch transcription POST on this client's endpoint and key (D85.5). */
+  public async requestTranscription(
+    ...args: Parameters<RequestTransport['requestTranscription']>
+  ): Promise<Response> {
+    return await this.transport.requestTranscription(...args)
+  }
+
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
     return this.transport.backoffMs(attempt, undefined)
+  }
+
+  /**
+  This client's effective retry limit (see `ProviderClient.maxRetries`).
+  Meta serves its own models only, so the selected model does not change
+  the answer; an aggregate client reads it instead (PR #225).
+  */
+  public maxRetries(_modelId?: string): number | undefined {
+    return this.transport.maxRetries()
+  }
+
+  /** The person's live retry limit, uncapped (see `RequestTransport.personCap`). */
+  public personCap(): number | undefined {
+    return this.transport.personCap()
   }
 
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */
@@ -348,12 +428,14 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /** The chat model ids the key can use, as the catalogue lists them. */
-  public async listModels(): Promise<readonly string[]> {
-    // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
+  public async listModels(signal?: AbortSignal): Promise<readonly string[]> {
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer, a network failure, or the caller's signal
+    // (Stop owns the wait; PR #214 review).
     const result = await this.transport.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      signal,
     )
     const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
     return parsed.data.map((model) => result.redact(model.id))
@@ -372,10 +454,8 @@ export class ModelApiClient implements TransportProviderClient {
       const response = await this.transport.fetchWithIdleDeadline(`${MODEL_API_BASE_URL}/status`, {
         method: 'GET',
         headers: { Accept: JSON_MEDIA_TYPE },
-        signal: AbortSignal.any([
-          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-          ...(signal === undefined ? [] : [signal]),
-        ]),
+        // The caller's signal, if any; no deadline of our own (owner 2026-10-16).
+        ...(signal !== undefined && { signal }),
       })
       status = response.status
       retryAfter = providerWaitMs(response.headers, this.deps.now())
@@ -386,7 +466,7 @@ export class ModelApiClient implements TransportProviderClient {
       // Bounded like every other Model API body: an oversized status page is
       // cancelled at the cap instead of being buffered whole before zod runs.
       return modelApiStatusSchema.parse(JSON.parse(await readBoundedText(response)))
-    } catch {
+    } catch (error: unknown) {
       // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
       const failure = new ModelApiError(
         redactSecrets(UI_TEXT.modelApiStatusUnavailable),
@@ -394,7 +474,7 @@ export class ModelApiClient implements TransportProviderClient {
         'service_status',
         undefined,
       )
-      throw Object.assign(failure, { retryAfterMs: retryAfter })
+      throw Object.assign(failure, { retryAfterMs: retryAfter, cause: error })
     }
   }
 
@@ -403,20 +483,21 @@ export class ModelApiClient implements TransportProviderClient {
     body: Omit<CreateResponseBody, 'stream'>,
     signal?: AbortSignal,
   ): Promise<number> {
-    const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+    // No deadline of our own (owner 2026-10-16): the caller's signal, if
+    // any, ends it, else the provider's answer or a network failure.
     const result = await this.transport.request(
       '/responses/input_tokens',
       { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
-      signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
+      signal,
     )
     return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
   }
 
   /**
-   * One generated image (M34): `POST /images/generations`, validated. Billed
-   * per image returned; a failed or filtered one is not. The turn's Stop and
-   * a deadline of its own end the wait.
-   */
+  One generated image (M34): `POST /images/generations`, validated. Billed
+  per image returned; a failed or filtered one is not. The turn's Stop and
+  a deadline of its own end the wait.
+  */
   public async createImage(
     body: CreateImageBody,
     signal: AbortSignal,
@@ -435,10 +516,10 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /**
-   * The streamed response as validated events. Unknown event types are
-   * skipped; a malformed known one or a non-JSON frame ends the stream with
-   * an error, since the reply can no longer be trusted.
-   */
+  The streamed response as validated events. Unknown event types are
+  skipped; a malformed known one or a non-JSON frame ends the stream with
+  an error, since the reply can no longer be trusted.
+  */
   public async *streamResponse(
     body: CreateResponseBody,
     signal: AbortSignal,
@@ -479,19 +560,6 @@ export class ModelApiClient implements TransportProviderClient {
     let searchCharge: SearchSettlement | undefined
     const returnedFees = () =>
       searchCharge?.costUsd ?? multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), returnedSearches)
-    const returnedLiability = (reservedUsd: UsdAmount, shouldKeepAllowance: boolean) =>
-      sumUsd(
-        reservedUsd,
-        shouldKeepAllowance && returnedSearches <= (body.max_tool_calls ?? 0)
-          ? Usd.from(0).toAmount()
-          : Usd.from(returnedFees())
-              .subtract(
-                Usd.from(
-                  multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), body.max_tool_calls ?? 0),
-                ),
-              )
-              .toAmount(),
-      )
     const noteReturned = (isTerminal: boolean) => {
       if (searchQuote === undefined || claimId === undefined) return
       const effects = authority.dispatch({
@@ -506,7 +574,6 @@ export class ModelApiClient implements TransportProviderClient {
       if (searchCharge !== undefined) admitAttempt?.onSearchesReturned?.(searchCharge)
     }
     let hasTerminal = false
-    let hasTerminalSearchCount = false
     const noteSearchAnomaly = () => {
       if (body.max_tool_calls !== undefined && returnedSearches > body.max_tool_calls) {
         this.deps.log.warn(
@@ -521,16 +588,16 @@ export class ModelApiClient implements TransportProviderClient {
         (body.model !== media.modelId || body.max_output_tokens > media.maxOutputTokens)
       )
         throw new Error('Media reservation does not match this request')
-      let reservationUsd = media?.reservedUsd
-      // A scheduled fire always reserves against its own finite ledger.
+      let reservationUsd = media?.estimateUsd
+      // A scheduled fire is always checked against its own finite ledger.
       if (hasSearch && (this.hasPaidDailyBudget || this.scheduledRun !== undefined)) {
         if (body.max_tool_calls === undefined)
-          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+          throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
         const inputTokens =
           admitAttempt?.paidEstimatedInputTokens ??
           estimateInput(requestParts(body), undefined).inputTokens
         reservationUsd = sumUsd(
-          media?.reservedUsd ??
+          media?.estimateUsd ??
             this.searchTokenCostUsd(
               { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
               body.model,
@@ -548,20 +615,15 @@ export class ModelApiClient implements TransportProviderClient {
             reservationUsd,
             media.inputTokens,
           )
-          if (paid === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          if (paid === undefined)
+            throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
           const claim = paid.claim
           return {
             check: () => {
-              claim.check(Usd.from(0).toAmount())
+              claim.check()
             },
-            settle: (costUsd, hasUnknownCost) => {
-              let amount = sumUsd(costUsd, returnedFees())
-              if (hasUnknownCost === true)
-                amount = hasSearch
-                  ? returnedLiability(claim.reservedUsd, !hasTerminalSearchCount)
-                  : costUsd
-              return claim.settle(amount, hasUnknownCost)
-            },
+            settle: (costUsd) =>
+              claim.settle(costUsd === undefined ? undefined : sumUsd(costUsd, returnedFees())),
           }
         })
       } else if (media === undefined) {
@@ -574,26 +636,28 @@ export class ModelApiClient implements TransportProviderClient {
           authority.dispatch({ type: 'quote', ...grant, ask: true })
           authority.dispatch({ type: 'answer', grant, answer: 'once' })
         } else if (!authority.canSpend(searchQuote))
-          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+          throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
         authority.dispatch({
           type: 'reserve',
           claimId,
           quote: searchQuote,
-          reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
+          reservedUsd: claim?.estimateUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
         })
       }
       admitAttempt?.check?.()
+      // The Meta-direct wire exit: a tool-less request omits tools and tool
+      // choice alike (see `hasDeclaredTools`), the same omitted shape the
+      // Responses codec sends configured providers. Estimates above keep
+      // reading the canonical body; only these sent bytes change.
+      const wireBody = hasDeclaredTools(body.tools) ? body : omitToolShape(body)
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         {
-          body,
+          body: wireBody,
           accept: EVENT_STREAM_MEDIA_TYPE,
           modelId: body.model,
           pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
-          estimatedTokens:
-            (admitAttempt?.paidEstimatedInputTokens ??
-              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
-                .length) + body.max_output_tokens,
+          estimatedTokens: estimatedStreamTokens(body, admitAttempt),
           ...(paid !== undefined && { paid }),
         },
         signal,
@@ -622,7 +686,8 @@ export class ModelApiClient implements TransportProviderClient {
           let json: unknown
           try {
             json = JSON.parse(frame.data)
-          } catch {
+          } catch (error: unknown) {
+            if (!(error instanceof SyntaxError)) throw error
             throw new ModelApiError(
               // Its length, not its text: the frame is model output, and this
               // message becomes the failed turn's reason in the log (M39).
@@ -662,7 +727,6 @@ export class ModelApiClient implements TransportProviderClient {
                 returnedSearches,
                 known.data.response.output.filter((item) => item.type === 'web_search_call').length,
               )
-              hasTerminalSearchCount = true
               noteReturned(true)
               noteSearchAnomaly()
               const usage = known.data.response.usage
@@ -679,31 +743,46 @@ export class ModelApiClient implements TransportProviderClient {
                 cached <= usage.input_tokens
               // M105 media settles its own claims on counted usage, with or without a token claim.
               if (isCountedUsage) await media?.settle(usage)
-              if (claim !== undefined && isCountedUsage && media === undefined) {
-                const billable = {
-                  inputTokens: usage.input_tokens,
-                  outputTokens: usage.output_tokens,
-                  cachedTokens: cached,
-                }
-                await claim.settle(
-                  sumUsd(
-                    hasSearch
-                      ? this.searchTokenCostUsd(
-                          billable,
-                          body.model,
-                          returnedLiability(claim.reservedUsd, false),
+              // After the call: its reported cost, or cost unknown when the
+              // usage is missing or unpriced; never its estimate (D208).
+              if (claim !== undefined && media === undefined) {
+                let tokenCostUsd: UsdAmount | undefined
+                if (isCountedUsage) {
+                  const billable = {
+                    inputTokens: usage.input_tokens,
+                    outputTokens: usage.output_tokens,
+                    cachedTokens: cached,
+                  }
+                  // A schedule's price policy settles its own reported cost;
+                  // without one the reported cost is estimated as usual, and
+                  // an unsettled policy leaves the cost unknown (D208).
+                  const scheduled =
+                    this.scheduledPrice === undefined
+                      ? undefined
+                      : this.scheduledPrice.settle(
+                          { ...modelPricedUsage(usage), images: requestImageCount(body) },
+                          { cost: usage.provider_cost_usd },
                         )
-                      : estimateCostUsd(billable, body.model),
-                    returnedFees(),
-                  ),
+                  if (this.scheduledPrice !== undefined) tokenCostUsd = scheduled
+                  else if (hasSearch)
+                    tokenCostUsd = this.knownSearchTokenCostUsd(billable, body.model)
+                  else tokenCostUsd = estimateCostUsd(billable, body.model)
+                }
+                // A scheduled run settles at its pinned price even when the
+                // usage is uncounted; otherwise the reported cost settles,
+                // or cost unknown when unpriced — never the estimate (D208).
+                // Without a usage object there is nothing to price.
+                const providerCost =
+                  usage === null || usage === undefined
+                    ? undefined
+                    : this.scheduledPrice?.settle(
+                        { ...modelPricedUsage(usage), images: requestImageCount(body) },
+                        { cost: usage.provider_cost_usd },
+                      )
+                await claim.settle(
+                  providerCost ??
+                    (tokenCostUsd === undefined ? undefined : sumUsd(tokenCostUsd, returnedFees())),
                 )
-              } else if (
-                claim !== undefined &&
-                media === undefined &&
-                hasSearch &&
-                body.max_tool_calls !== undefined
-              ) {
-                await claim.settle(returnedLiability(claim.reservedUsd, false))
               }
               hasTerminal = true
             }
@@ -729,7 +808,9 @@ export class ModelApiClient implements TransportProviderClient {
           )
         }
       } catch (error: unknown) {
-        throw redactModelApiError(error, redact, response.status)
+        // The stream ended in an error; the redacted failure keeps its cause below.
+        this.deps.log.warn('A Model API stream ended before its terminal event')
+        await rethrowStreamError(error, redact, response.status)
       } finally {
         // An early end (a malformed frame, a stall, the caller stopping)
         // closes the parser, which releases the response body (the review of
@@ -739,19 +820,10 @@ export class ModelApiClient implements TransportProviderClient {
     } finally {
       try {
         if (!hasTerminal) noteSearchAnomaly()
-        if (paid?.isSent === false && admitAttempt?.mediaAccounting === undefined)
-          await paid.claim.settle(Usd.from(0).toAmount())
-        else if (
-          paid !== undefined &&
-          hasSearch &&
-          !hasTerminal &&
-          admitAttempt?.mediaAccounting === undefined
-        ) {
-          await paid.claim.settle(
-            returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount),
-            !hasTerminalSearchCount,
-          )
-        }
+        // A claim settles once: unsent, nothing; sent with no terminal usage,
+        // its cost is unknown (D208). A terminal frame settled it already.
+        if (paid !== undefined && admitAttempt?.mediaAccounting === undefined)
+          await paid.claim.settle(paid.isSent ? undefined : Usd.from(0).toAmount())
       } finally {
         await admitAttempt?.mediaAccounting?.finish()
       }

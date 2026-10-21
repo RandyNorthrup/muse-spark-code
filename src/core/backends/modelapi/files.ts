@@ -4,12 +4,10 @@ import { createHash, randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   MEDIA_FILE_EXPIRY_DEFAULT_S,
-  MEDIA_FILE_EXPIRY_MIN_S,
-  MEDIA_FILE_EXPIRY_MAX_S,
+  MEDIA_UPLOAD_EXPIRY_DAY_MIN,
+  MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS,
   MEDIA_NAME_MAX_CHARS,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
-  BYTES_PER_MIB,
-  MODEL_API_REQUEST_TIMEOUT_MS,
+  SECONDS_PER_DAY,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
@@ -37,6 +35,35 @@ const listSchema = z.object({
 const deletionSchema = z.object({ id: fileId, object: z.literal('file'), deleted: z.literal(true) })
 export type ProviderFile = z.infer<typeof fileSchema>
 
+/**
+`museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds, honoured
+as set (NOLIMITSSET, PLAN.md D121: the removed 1–30 day range and the wire
+seconds range were ours — no capability record carries either, so the
+provider decides what it keeps and its receipt verifies it). Anything that is
+not a whole day of at least 1 keeps the 7-day default.
+*/
+export function uploadExpirySeconds(days: unknown): number {
+  const fallback = MEDIA_FILE_EXPIRY_DEFAULT_S
+  if (typeof days !== 'number' || !Number.isSafeInteger(days) || days < MEDIA_UPLOAD_EXPIRY_DAY_MIN)
+    return fallback
+  return days === MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS ? fallback : days * SECONDS_PER_DAY
+}
+
+/**
+A provider receipt the cleanup DELETE could not remove (RVM105 1): the
+upload failed after the provider answered with this id, and the bounded
+clean-up route was closed or failed too. The owner records it durably as
+a clean-up intent; the ledger's next sweep deletes it. The cause is the
+original upload failure the caller sees.
+*/
+export class UploadCleanupPendingError extends Error {
+  public readonly fileId: string
+  public constructor(fileId: string, options?: ErrorOptions) {
+    super('Upload cleanup pending', options)
+    this.fileId = fileId
+  }
+}
+
 /** Open a fresh bounded disk stream each time, after confinement and approval. */
 export interface UploadSource {
   readonly name: string
@@ -54,7 +81,8 @@ export interface FilesApiDeps {
     storage: { readonly bytes: number; readonly expirySeconds: number; readonly provider: string },
   ) => Promise<void>
   readonly maxBytes?: number
-  readonly expirySeconds?: number
+  /** Read on every upload, so a changed setting applies to the next one. */
+  readonly expirySeconds?: number | (() => number)
   readonly expectedAccountId?: string
 }
 
@@ -71,20 +99,28 @@ export class FilesApi {
     signal: AbortSignal,
     onProgress?: (uploaded: number, total: number) => void,
     expectedSha256?: string,
+    onReceipt?: (fileId: string) => Promise<void>,
   ): Promise<UploadedMediaRef> {
     signal.throwIfAborted()
-    const expiry = this.deps.expirySeconds ?? MEDIA_FILE_EXPIRY_DEFAULT_S
-    if (
-      !Number.isSafeInteger(expiry) ||
-      expiry < MEDIA_FILE_EXPIRY_MIN_S ||
-      expiry > MEDIA_FILE_EXPIRY_MAX_S
-    ) {
+    const configured =
+      typeof this.deps.expirySeconds === 'function'
+        ? this.deps.expirySeconds()
+        : this.deps.expirySeconds
+    const expiry = configured ?? MEDIA_FILE_EXPIRY_DEFAULT_S
+    // NOLIMITSSET (PLAN.md D121): wire shape only — a safe positive integer
+    // of seconds. No range of ours: the person's days arrive as set and the
+    // provider refuses what it cannot keep.
+    if (!Number.isSafeInteger(expiry) || expiry <= 0) {
       throw new Error('Invalid upload expiry')
     }
+    // D121: no upload bound of ours — an absent cap admits any size and the
+    // provider refuses what it cannot take. The attach admission and the
+    // modality gate still enforce the person's setting and the model's
+    // own record before anything reaches here.
     if (
       !Number.isSafeInteger(source.bytes) ||
       source.bytes < 0 ||
-      source.bytes > (this.deps.maxBytes ?? MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB)
+      (this.deps.maxBytes !== undefined && source.bytes > this.deps.maxBytes)
     ) {
       throw new Error('Invalid upload size')
     }
@@ -101,8 +137,8 @@ export class FilesApi {
       expirySeconds: expiry,
       provider: this.deps.provider,
     })
-    signal.throwIfAborted()
-    const active = AbortSignal.any([signal, AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)])
+    // The caller's signal ends it; no deadline of our own (owner 2026-10-16).
+    const active = signal
     const boundary = `muse-${randomUUID()}`
     const encoder = new TextEncoder()
     const quotedName = source.name.replaceAll('"', '%22')
@@ -156,7 +192,12 @@ export class FilesApi {
       )
       const raw: unknown = await response.json()
       const identity = z.object({ id: fileId }).safeParse(raw)
-      if (identity.success) createdId = identity.data.id
+      if (identity.success) {
+        createdId = identity.data.id
+        // Ownership precedes validation/abort cleanup, which can outlast
+        // headless shutdown. An interrupted DELETE must leave a durable id.
+        await onReceipt?.(createdId)
+      }
       const created = fileSchema.parse(raw)
       active.throwIfAborted()
       if (
@@ -168,6 +209,9 @@ export class FilesApi {
       ) {
         throw new Error('Invalid upload receipt')
       }
+      // The final stream-close await stays inside the receipt cleanup guard.
+      await iterator.return()
+      active.throwIfAborted()
       return uploadedMediaRefSchema.parse({
         fileId: created.id,
         provider: this.deps.provider,
@@ -179,21 +223,34 @@ export class FilesApi {
       })
     } catch (error: unknown) {
       // A known receipt is attributable; a lost receipt is bounded by expiry.
-      if (createdId !== undefined) await this.delete(createdId)
+      if (createdId !== undefined) {
+        try {
+          // The receipt cleanup answers the operation's own signal (PR #214
+          // review): a stalled DELETE no longer outlives Stop.
+          await this.delete(createdId, signal)
+        } catch {
+          // A closed transport or a failed request still can leave the
+          // receipt behind: the id travels with the failure so the ledger
+          // records it durably instead of losing it (RVM105 1).
+          throw new UploadCleanupPendingError(createdId, { cause: error })
+        }
+      }
       throw error
     } finally {
-      await iterator.return()
+      try {
+        await iterator.return()
+      } catch {
+        /* The guarded close above owns receipt cleanup; preserve its failure. */
+      }
     }
   }
 
   public async retrieve(id: string, signal?: AbortSignal): Promise<ProviderFile> {
+    // The caller's signal, if any, ends it; no deadline of our own (owner 2026-10-16).
     const response = await this.deps.client.requestFile(
       `/files/${fileId.parse(id)}`,
       'GET',
-      AbortSignal.any([
-        ...(signal === undefined ? [] : [signal]),
-        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-      ]),
+      signal,
       undefined,
       this.deps.expectedAccountId,
     )
@@ -206,10 +263,8 @@ export class FilesApi {
     const files: ProviderFile[] = []
     const seen = new Set<string>()
     let route = '/files'
-    const active = AbortSignal.any([
-      ...(signal === undefined ? [] : [signal]),
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-    ])
+    // The caller's signal, if any, ends it; no deadline of our own (owner 2026-10-16).
+    const active = signal
     for (;;) {
       const response = await this.deps.client.requestFile(
         route,
@@ -231,13 +286,11 @@ export class FilesApi {
   }
 
   public async delete(id: string, signal?: AbortSignal): Promise<void> {
+    // The caller's signal, if any, ends it; no deadline of our own (owner 2026-10-16).
     const response = await this.deps.client.requestFile(
       `/files/${fileId.parse(id)}`,
       'DELETE',
-      AbortSignal.any([
-        ...(signal === undefined ? [] : [signal]),
-        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-      ]),
+      signal,
       undefined,
       this.deps.expectedAccountId,
     )
@@ -246,8 +299,8 @@ export class FilesApi {
   }
 
   /** Provider-neutral metadata for the shared ownership ledger and account UI. */
-  public async accountFiles() {
-    const listed = await this.list()
+  public async accountFiles(signal?: AbortSignal) {
+    const listed = await this.list(signal)
     return listed.map((file) => ({
       fileId: file.id,
       name: file.filename,

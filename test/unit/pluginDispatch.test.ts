@@ -5,7 +5,7 @@
 // and arguments included. Real children run under this node (OpenCode's bun
 // stood in for), each in its own process group; no model is called.
 
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -28,12 +28,14 @@ import {
   pluginToolName,
   runtimeArguments,
 } from '../../src/core/backends/modelapi/pluginFormats'
+import { HOOK_MAX_RUNNING_COMMANDS, MODEL_API_TOOLS } from '../../src/shared/constants'
 import {
-  HOOK_MAX_RUNNING_COMMANDS,
-  MODEL_API_TOOLS,
-  PLUGIN_CHILD_MAX_HEAP_MB,
-  PLUGIN_CHILD_MAX_MEMORY_BYTES,
-} from '../../src/shared/constants'
+  pluginCallBounds,
+  PluginSession,
+  resolvePluginRuntime,
+  runPluginHook,
+  type PluginPersonBounds,
+} from '../../src/core/backends/modelapi/pluginHost'
 import { expectEnded, markedPid } from './helpers/processes'
 
 const ROOT = '/ws'
@@ -75,13 +77,15 @@ describe('plugin records in spark-hooks.json', () => {
     expect(hook).toMatchObject({
       event: 'PreToolUse',
       command: '/home/u/.config/amp/plugins/guard.ts',
-      timeoutSeconds: 30,
       foreign: {
         format: 'amp',
         sourceEvent: 'tool.call',
         plugin: '/home/u/.config/amp/plugins/guard.ts',
       },
     })
+    // D121: no default of ours — without an explicit timeout the hook waits
+    // for the child's answer or Stop.
+    expect(hook?.timeoutSeconds).toBeUndefined()
     const oc = parsed(
       'PostToolUse',
       group('opencode', 'event:file.edited', {
@@ -267,24 +271,14 @@ function writePlugin(source: string, name = 'plugin.mjs'): string {
 }
 
 /** The host side for real children: this node, standing in for bun too. */
-function host(warnings: string[] = []): PluginHostDeps {
+function host(warnings: string[] = [], bounds?: () => PluginPersonBounds): PluginHostDeps {
   const dir = mkdtempSync(path.join(tmpdir(), 'm91b-bin-'))
   const bun = path.join(dir, 'bun')
-  // Portable Linux fixture: its Bun stand-in is this Node with a real heap
-  // bound. The wrapper checks the exact production prlimit admission args.
-  // pluginHost.test separately proves actual Bun is refused on macOS.
-  writeFileSync(
-    bun,
-    `#!/bin/sh\nexec "${process.execPath}" --max-old-space-size=${String(PLUGIN_CHILD_MAX_HEAP_MB)} --input-type=module "$@"\n`,
-    {
-      mode: 0o755,
-    },
-  )
-  writeFileSync(
-    path.join(dir, 'prlimit'),
-    `#!/bin/sh\n[ "$1" = "--data=${String(PLUGIN_CHILD_MAX_MEMORY_BYTES)}" ] && [ "$2" = "--" ] || exit 64\nshift 2\nexec "$@"\n`,
-    { mode: 0o755 },
-  )
+  // Portable fixture: its Bun stand-in is this Node run directly (D121: no
+  // heap flag and no prlimit of ours — bun runs unbounded on every platform).
+  writeFileSync(bun, `#!/bin/sh\nexec "${process.execPath}" --input-type=module "$@"\n`, {
+    mode: 0o755,
+  })
   return {
     env: { PATH: `${path.dirname(process.execPath)}:${dir}:/usr/bin:/bin` },
     containment: () => Promise.resolve({ kind: 'processGroup' }),
@@ -292,6 +286,7 @@ function host(warnings: string[] = []): PluginHostDeps {
       warnings.push(message)
     },
     now: () => 0,
+    ...(bounds !== undefined && { bounds }),
   }
 }
 
@@ -314,14 +309,11 @@ function definitions(
   format: string,
   sourceEvent: string,
   plugin: string,
-  extra: Record<string, unknown> = {},
 ): readonly HookDefinition[] {
   const result = parseForeignHooks(
     JSON.stringify({
       hooks: {
-        [event]: [
-          { format, sourceEvent, plugin, hooks: [{ type: 'plugin', timeout: 20 }], ...extra },
-        ],
+        [event]: [{ format, sourceEvent, plugin, hooks: [{ type: 'plugin', timeout: 20 }] }],
       },
     }),
     'user',
@@ -333,6 +325,17 @@ function definitions(
 
 const noRunner = {
   runHook: () => Promise.reject(new Error('no plugin hook runs natively')),
+}
+
+/** One plugin source through the standard PreToolUse dispatch, with optional person-set bounds. */
+async function dispatchPluginSource(source: string, bounds?: () => PluginPersonBounds) {
+  const plugin = writePlugin(source)
+  return await dispatch(
+    definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
+    'PreToolUse',
+    toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+    adapterWith(bounds === undefined ? host() : host([], bounds)),
+  )
 }
 
 function toolPayload(
@@ -359,6 +362,7 @@ async function dispatch(
   payload: Record<string, unknown>,
   adapter: ForeignHookAdapter,
   warnings: string[] = [],
+  maxRunningCommands?: number,
 ) {
   return await dispatchHooks(
     hooks,
@@ -373,6 +377,9 @@ async function dispatch(
     // No typed handlers here (lane H's position), then the adapter.
     undefined,
     adapter,
+    undefined,
+    undefined,
+    maxRunningCommands === undefined ? undefined : { maxRunningCommands },
   )
 }
 
@@ -442,6 +449,28 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
     )
     expect(result.blockedReason).toBeUndefined()
     expect(warnings.join('\n')).toContain('amp-format user hook failed')
+  })
+
+  it('a spawn failure no OS names keeps its kind instead of settling failed', async () => {
+    // Real pieces throughout: the runtime resolves and versions for real,
+    // and the real spawn validates the working directory itself. A NUL byte
+    // in the plugin directory reaches no OS refusal, so the start failure
+    // propagates with its kind rather than settling as a start refusal.
+    const missing = path.join(
+      `${tmpdir()}/nul-dir-${String(process.pid)}`.replace('nul', 'nul\0'),
+      'p.mjs',
+    )
+    await expect(
+      runPluginHook(
+        { system: 'amp', pluginPath: missing, hook: 'tool.call', payload: {}, failClosed: false },
+        {
+          env: process.env,
+          platform: process.platform,
+          workspaceRoot: ROOT,
+          realpath: realpathSync,
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'ERR_INVALID_ARG_VALUE' })
   })
 
   it('Amp tool.result and agent.end get every field their types require (P2 15)', async () => {
@@ -556,8 +585,44 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapterWith(host()),
     )
-    expect(result.blockedReason).toContain('timed out')
+    expect(result.blockedReason).toContain('timed out after')
     expect(Date.now() - started).toBeLessThan(15_000)
+  })
+
+  it('a plugin answer arrives whole past the old frame bound', async () => {
+    const result = await dispatchPluginSource(
+      `export const Big = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = 'x'.repeat(100 * 1024) } })`,
+    )
+    expect(result.blockedReason).toBeUndefined()
+    expect(result.updatedInput).toEqual({ command: 'x'.repeat(100 * 1024) })
+  })
+
+  it('a runtime probe stopped mid-wait names how long it waited', async () => {
+    // Real probe throughout: PATH resolves a hanging `node`, the real
+    // `--version` wait settles on Stop, and the resolution names the wait
+    // instead of calling the runtime absent.
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
+    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 })
+    // The plugin runs for its own workspace: the staged runtime stays
+    // outside it, as production PATH staging does.
+    const workspace = mkdtempSync(path.join(tmpdir(), 'm91b-ws-'))
+    const stop = new AbortController()
+    const pending = resolvePluginRuntime(
+      'amp',
+      {
+        env: { PATH: `${dir}:/usr/bin:/bin` },
+        platform: 'linux',
+        workspaceRoot: workspace,
+        realpath: realpathSync,
+      },
+      stop.signal,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    stop.abort()
+    const resolution = await pending
+    expect(resolution.ok).toBe(false)
+    if (resolution.ok) return
+    expect(resolution.reason).toContain('cancelled after')
   })
 
   it('the session’s dispose ends a running plugin child', async () => {
@@ -580,10 +645,10 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
   })
 
   it.runIf(process.platform === 'darwin')(
-    'an OpenCode plugin is refused on macOS, where bun cannot be bounded',
+    'an OpenCode plugin runs on macOS, where bun runs directly with no memory bound of ours',
     async () => {
       const plugin = writePlugin(
-        `export const Quiet = async () => ({ 'tool.execute.before': async () => {} })`,
+        `export const Tag = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --mac' } })`,
       )
       const result = await dispatch(
         definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
@@ -591,9 +656,288 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
         toolPayload('PreToolUse', 'bash', { command: 'ls' }),
         adapterWith(host(), 'darwin'),
       )
-      expect(result.blockedReason).toContain("bun's memory cannot be bounded on darwin")
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ command: 'ls --mac' })
     },
   )
+
+  it.runIf(process.platform === 'darwin')(
+    'a macOS plugin child completes a large allocation with no bound of ours',
+    async () => {
+      const hungry = writePlugin(
+        `export const Hungry = async () => ({ 'tool.execute.before': async (input, output) => { const block = Buffer.alloc(1300 * 1024 * 1024, 1); output.args.command = 'allocated ' + block.length } })`,
+      )
+      const result = await dispatch(
+        definitions('PreToolUse', 'opencode', 'tool.execute.before', hungry),
+        'PreToolUse',
+        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+        adapterWith(host(), 'darwin'),
+      )
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ command: `allocated ${String(1300 * 1024 * 1024)}` })
+    },
+  )
+})
+
+/** One OpenCode guard that hangs: the wait under test must end it. */
+function slowOpenCode(): string {
+  return writePlugin(
+    `export const Slow = async () => ({ 'tool.execute.before': async () => { await new Promise((resolve) => setTimeout(resolve, 60000)) } })`,
+  )
+}
+
+describe.runIf(IS_REAL)('person-set plugin bounds (D121)', () => {
+  it('reads no bound from nothing set, and converts a set bound', () => {
+    expect(pluginCallBounds({})).toEqual({
+      timeoutMs: undefined,
+      maxMemoryBytes: undefined,
+      maxAnswerBytes: undefined,
+    })
+    expect(pluginCallBounds({ timeoutSeconds: 0, maxMemoryMiB: 0, maxAnswerBytes: 0 })).toEqual({
+      timeoutMs: undefined,
+      maxMemoryBytes: undefined,
+      maxAnswerBytes: undefined,
+    })
+    expect(
+      pluginCallBounds({ timeoutSeconds: 2, maxMemoryMiB: 256, maxAnswerBytes: 64 * 1024 }),
+    ).toEqual({
+      timeoutMs: 2000,
+      maxMemoryBytes: 256 * 1024 * 1024,
+      maxAnswerBytes: 64 * 1024,
+    })
+  })
+
+  it('a person-set hook wait ends a slow plugin and names the wait', async () => {
+    const started = Date.now()
+    const answer = await runPluginHook(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+      },
+      {
+        env: host().env,
+        platform: 'linux',
+        workspaceRoot: ROOT,
+        realpath: realpathSync,
+        bounds: () => ({ timeoutSeconds: 1 }),
+      },
+    )
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toContain('timed out after')
+    expect(Date.now() - started).toBeLessThan(15_000)
+  })
+
+  it('an explicit per-hook timeout wins over the person-set wait', async () => {
+    const started = Date.now()
+    const answer = await runPluginHook(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+        timeoutMs: 1000,
+      },
+      {
+        env: host().env,
+        platform: 'linux',
+        workspaceRoot: ROOT,
+        realpath: realpathSync,
+        bounds: () => ({ timeoutSeconds: 60 }),
+      },
+    )
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toContain('timed out after')
+    // The person's 60-second wait would outlast the test's own timeout.
+    expect(Date.now() - started).toBeLessThan(15_000)
+  })
+
+  it('a person-set answer size fails an over-long answer through dispatch', async () => {
+    const result = await dispatchPluginSource(
+      `export const Big = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = 'x'.repeat(100 * 1024) } })`,
+      () => ({ maxAnswerBytes: 1024 }),
+    )
+    expect(result.blockedReason).toContain('exceeded')
+  })
+
+  it('a waiting call says how long it has waited, and Stop names the wait', async () => {
+    const notices: string[] = []
+    const h = host()
+    const session = new PluginSession({
+      env: h.env,
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      warn: () => undefined,
+      notice: (message) => {
+        notices.push(message)
+      },
+      noticeMs: 20,
+    })
+    const stop = new AbortController()
+    const pending = session.run(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+      },
+      stop.signal,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(notices.length).toBeGreaterThanOrEqual(1)
+    for (const notice of notices) expect(notice).toContain('the plugin hook')
+    stop.abort()
+    const answer = await pending
+    session.dispose()
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toContain('the session is closed after')
+  })
+
+  it('a call refused on a closed session reads as refused, with no wait kept', async () => {
+    // The session ended before the call began: nothing waited, so the
+    // answer refuses instead of naming a wait Stop kept.
+    const h = host()
+    const session = new PluginSession({
+      env: h.env,
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      warn: () => undefined,
+    })
+    session.dispose()
+    const answer = await session.run(
+      {
+        system: 'opencode',
+        pluginPath: slowOpenCode(),
+        hook: 'tool.execute.before',
+        payload: {},
+        failClosed: false,
+      },
+      new AbortController().signal,
+    )
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toBe('opencode: the session is closed')
+  })
+
+  it('a person-set probe wait names its wait instead of calling the runtime absent', async () => {
+    // Real probe throughout: PATH resolves a hanging `node`, and the real
+    // `--version` wait ends at the person's wait with the wait's own words.
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
+    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 })
+    const resolution = await resolvePluginRuntime('amp', {
+      env: { PATH: `${dir}:/usr/bin:/bin` },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ timeoutSeconds: 1 }),
+    })
+    expect(resolution.ok).toBe(false)
+    if (resolution.ok) return
+    expect(resolution.reason).toContain('timed out after')
+  })
+
+  it('a probe failure that is neither the person’s wait nor a refused start keeps its kind', async () => {
+    // Real probe runner throughout: PATH resolves a `node` that exits
+    // before answering, so the version read fails with its own failure.
+    // The resolution rejects with that failure instead of calling the
+    // runtime absent.
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
+    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nexit 3\n', { mode: 0o755 })
+    const workspace = mkdtempSync(path.join(tmpdir(), 'm91b-ws-'))
+    await expect(
+      resolvePluginRuntime('amp', {
+        env: { PATH: `${dir}:/usr/bin:/bin` },
+        platform: 'linux',
+        workspaceRoot: workspace,
+        realpath: realpathSync,
+      }),
+    ).rejects.toThrow('Plugin runtime probe exited unsuccessfully')
+  })
+
+  it('a refused probe start reads as an absent runtime', async () => {
+    // The start refusal the OS reports (a runtime removed between the PATH
+    // lookup and the spawn) keeps the absent-runtime answer.
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91b-node-'))
+    writeFileSync(path.join(dir, 'node'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+    const refusal = Object.assign(new Error('spawn /x/node ENOENT'), { code: 'ENOENT' })
+    const resolution = await resolvePluginRuntime('amp', {
+      env: { PATH: `${dir}:/usr/bin:/bin` },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      runVersion: () => Promise.reject(refusal),
+    })
+    expect(resolution).toEqual({
+      ok: false,
+      reason: 'amp: the system node runtime is not installed',
+    })
+  })
+
+  it('a set memory ceiling caps the node heap, and none leaves the default', async () => {
+    // Real resolution against this node: the heap flag rides along only
+    // when the person sets a ceiling.
+    const plain = await resolvePluginRuntime('amp', {
+      env: { PATH: path.dirname(process.execPath) },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+    })
+    expect(plain.ok).toBe(true)
+    if (!plain.ok) return
+    expect(plain.args).toEqual(['--input-type=module', '-e'])
+    const capped = await resolvePluginRuntime('amp', {
+      env: { PATH: path.dirname(process.execPath) },
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ maxMemoryMiB: 256 }),
+    })
+    expect(capped.ok).toBe(true)
+    if (!capped.ok) return
+    expect(capped.args).toEqual(['--max-old-space-size=256', '--input-type=module', '-e'])
+  })
+
+  it('a set ceiling on bun refuses where no spawner-set cap exists', async () => {
+    // Real PATH lookups throughout: darwin offers neither a job limit nor
+    // prlimit, so a set ceiling refuses with its reason instead of running
+    // unbounded past it.
+    const refused = await resolvePluginRuntime('opencode', {
+      env: host().env,
+      platform: 'darwin',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ maxMemoryMiB: 512 }),
+    })
+    expect(refused).toEqual({
+      ok: false,
+      reason: 'opencode: the plugin memory ceiling cannot be bounded on darwin',
+    })
+  })
+})
+
+/** Where the rig offers prlimit, a set ceiling must wrap the runtime in it. */
+const HAS_PRLIMIT = ['/usr/bin/prlimit', '/bin/prlimit'].some((file) => existsSync(file))
+
+describe.runIf(IS_REAL && HAS_PRLIMIT)('person-set plugin ceiling on Linux bun (D121)', () => {
+  it('a set ceiling wraps the runtime in prlimit', async () => {
+    const wrapped = await resolvePluginRuntime('opencode', {
+      env: host().env,
+      platform: 'linux',
+      workspaceRoot: ROOT,
+      realpath: realpathSync,
+      bounds: () => ({ maxMemoryMiB: 512 }),
+    })
+    expect(wrapped.ok).toBe(true)
+    if (!wrapped.ok) return
+    expect(wrapped.command.endsWith('prlimit')).toBe(true)
+    expect(wrapped.args[0]).toBe(`--data=${String(512 * 1024 * 1024)}`)
+    expect(wrapped.args.at(-1)).toBe('-e')
+  })
 })
 
 /** The host side for the installed bun: its folder on the allowlisted PATH. */
@@ -607,7 +951,7 @@ function bunHost(): PluginHostDeps {
 }
 
 describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
-  'OpenCode under the installed bun, bounded by prlimit (P2 12)',
+  'OpenCode under the installed bun runs with no memory bound of ours (D121)',
   () => {
     it('runs a guard under the real runtime', async () => {
       const guard = writePlugin(
@@ -622,7 +966,7 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
       expect(result.blockedReason).toBe('Do not read .env files')
     })
 
-    it('refuses an allocation past the bound', async () => {
+    it('completes a large allocation the old bound would have refused', async () => {
       const hungry = writePlugin(
         `export const Hungry = async () => ({ 'tool.execute.before': async (input, output) => { const block = Buffer.alloc(1300 * 1024 * 1024, 1); output.args.command = 'allocated ' + block.length } })`,
       )
@@ -632,15 +976,17 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
         toolPayload('PreToolUse', 'bash', { command: 'ls' }),
         adapterWith(bunHost()),
       )
-      expect(result.updatedInput).toBeUndefined()
-      expect(result.blockedReason).toBeDefined()
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ command: `allocated ${String(1300 * 1024 * 1024)}` })
     })
   },
 )
 
 describe('plugin dispatch without real children', () => {
   const pluginRoot = process.platform === 'win32' ? 'C:/plugins' : '/plugins'
-  it('runs plugin hooks under the host-wide cap', async () => {
+  // Plugin hooks through the real dispatch, each holding 30 ms while the
+  // peak concurrency is recorded (M127: the host-wide running-commands cap).
+  async function peakPlugins(maxRunningCommands?: number): Promise<number> {
     let running = 0
     let peak = 0
     const adapter: ForeignHookAdapter = {
@@ -665,8 +1011,18 @@ describe('plugin dispatch without real children', () => {
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapter,
+      [],
+      maxRunningCommands,
     )
-    expect(peak).toBe(HOOK_MAX_RUNNING_COMMANDS)
+    return peak
+  }
+
+  it('runs plugin hooks under the host-wide cap', async () => {
+    expect(await peakPlugins()).toBe(HOOK_MAX_RUNNING_COMMANDS)
+  })
+
+  it('caps plugin hooks at the configured running-commands value', async () => {
+    expect(await peakPlugins(2)).toBe(2)
   })
 
   it('strips a grant from a plugin answer, as from every imported hook', async () => {
@@ -728,3 +1084,16 @@ describe('plugin dispatch without real children', () => {
     expect(result.blockedReason).toContain('cannot run here')
   })
 })
+
+describe.runIf(IS_REAL && process.platform === 'darwin' && BUN !== undefined)(
+  'OpenCode on macOS',
+  () => {
+    it('runs directly, with no memory bound left to refuse it', async () => {
+      const result = await dispatchPluginSource(
+        `export const Quiet = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --quiet' } })`,
+      )
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ command: 'ls --quiet' })
+    })
+  },
+)

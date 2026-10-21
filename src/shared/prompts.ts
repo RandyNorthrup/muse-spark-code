@@ -1,6 +1,7 @@
 // M118: portable contracts only. File IO and composer/menu adapters belong to P/X.
 import * as z from 'zod/mini'
 import {
+  FILENAME_COMPONENT_MAX_BYTES,
   PROMPT_COMMAND_IDS,
   PROMPT_FILE_EXTENSION,
   PROMPT_SCHEMA_VERSION,
@@ -74,11 +75,11 @@ export function importPromptFile(file: string, scope: SavedPrompt['scope']) {
 }
 
 /**
- * User lane resolves agentDataFolder()/prompts/<slug>.md, independent of
- * workspace/editor. Workspace lane resolves .muse/prompts/<slug>.md.
- * Adapters validate files with parsePromptFile, enforce unique ids per scope,
- * and use checked, atomic writes. They never execute stored text.
- */
+User lane resolves agentDataFolder()/prompts/<slug>.md, independent of
+workspace/editor. Workspace lane resolves .muse/prompts/<slug>.md.
+Adapters validate files with parsePromptFile, enforce unique ids per scope,
+and use checked, atomic writes. They never execute stored text.
+*/
 export interface PromptStoragePort {
   list(scope: SavedPrompt['scope']): Promise<readonly SavedPrompt[]>
   write(prompt: SavedPrompt, shouldKeepNewer?: boolean): Promise<void>
@@ -145,8 +146,38 @@ export const promptMenuEntries = [
   },
 ] as const
 
+/** UTF-8 continuation bytes run from here to just below UTF8_LEAD_MIN. */
+const UTF8_CONTINUATION_MIN = 0x80
+/** A multibyte sequence's lead byte is this or above. */
+const UTF8_LEAD_MIN = 0xc0
+
 /** Export suffix only; storage uses the brief's <slug>.md within either folder. */
 export function promptExportName(slug: string): string {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new Error(UI_TEXT.promptFileInvalid)
   return `${slug}${PROMPT_FILE_EXTENSION}`
+}
+
+/**
+The Share → File save dialog's suggested name for a prompt title. The
+title itself stays unlimited; only this one filename component is cut to
+the platform's supported limit, on a UTF-8 boundary, so a long first line
+never hands the dialog an ENAMETOOLONG default.
+*/
+export function promptShareFilename(title: string): string {
+  const cleaned = title.replaceAll(/[^\p{L}\p{N}_-]/gu, '-')
+  const encoded = new TextEncoder().encode(cleaned)
+  const suffixBytes = new TextEncoder().encode(PROMPT_FILE_EXTENSION).byteLength
+  if (encoded.byteLength + suffixBytes <= FILENAME_COMPONENT_MAX_BYTES) {
+    return `${cleaned}${PROMPT_FILE_EXTENSION}`
+  }
+  // Step back to a UTF-8 sequence boundary (at most three bytes back).
+  let end = FILENAME_COMPONENT_MAX_BYTES - suffixBytes
+  while (
+    end > 0 &&
+    (encoded[end] ?? 0) >= UTF8_CONTINUATION_MIN &&
+    (encoded[end] ?? 0) < UTF8_LEAD_MIN
+  ) {
+    end -= 1
+  }
+  return `${new TextDecoder().decode(encoded.slice(0, end))}${PROMPT_FILE_EXTENSION}`
 }

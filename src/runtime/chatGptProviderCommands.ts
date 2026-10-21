@@ -8,20 +8,23 @@ import {
   chatGptRecordSchema,
   type ChatGptHostPort,
 } from '../core/providers/subscriptions/chatgpt'
-import * as z from 'zod/mini'
 import type { SignInMethod } from '../acp/agent'
 import { providersFile, modelRef } from '../host/backend/providersEntry'
 const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
 const { parseModelRef } = modelRef
 import { createRuntimeChatGptHost, type RuntimeChatGptOptions } from './chatGptHost'
-import { ACP_AGENT_NAME, OAUTH_CODE_TTL_MS, UI_TEXT } from '../shared/constants'
+import { ACP_AGENT_NAME, CHATGPT_NEW_ACCOUNT_FLAG, UI_TEXT } from '../shared/constants'
+import { failureCodeNames } from '../core/networkFailure'
 import { fill, setUiText } from '../shared/l10n/text'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import {
   createSubscriptionClient,
   chatGptAccountId,
+  chatGptCatalog,
+  chatGptFailureText,
 } from '../core/providers/subscriptions/registry'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../shared/constants'
+import { providersFileUnreadable } from '../core/accountStoreError'
 
 /** The same registry serves JetBrains, Visual Studio, Eclipse and every ACP client. */
 export function runtimeSubscriptionClient(
@@ -57,7 +60,9 @@ export function runtimeSubscriptionClient(
         const result = await readProvidersFile(options.configFile)
         if (result.ok) return result.file
         if (result.reason === 'missing') return emptyProvidersFile()
-        throw new Error(UI_TEXT.actionFailed)
+        // A session reads its cause here, not through the command layer:
+        // the file's own fault in the refusal the editor boundary names.
+        throw providersFileUnreadable(result.reason)
       }
       const file = await read()
       const subscribed = file.providers.some((entry) => entry.id === 'chatgpt')
@@ -82,7 +87,8 @@ export function runtimeSubscriptionClient(
   }
 }
 
-export type ChatGptProviderAction = 'add' | 'remove' | 'status'
+/** `add-new-account` is `providers add chatgpt --new-account`: a new registration. */
+export type ChatGptProviderAction = 'add' | 'add-new-account' | 'remove' | 'status'
 export type ChatGptLocalStatus = 'signed-in' | 'expired' | 'signed-out'
 
 /** Translated command text; failure codes never contain service text. */
@@ -90,13 +96,14 @@ export interface ChatGptCommandText {
   beforeSignIn(): string
   alreadyAdded(): string
   status(state: ChatGptLocalStatus): string
-  failure(code: ChatGptSignInError['code']): string
+  /** `reason` carries the OS code for a `lock-unavailable` failure only. */
+  failure(code: ChatGptSignInError['code'], reason?: string): string
 }
 
 export interface ChatGptProviderCommandDeps {
   createHost(): Promise<ChatGptHostPort>
   /** Nonsecret file/catalogue wiring commits atomically before success.
-   * Both calls run under the grant's process lock. */
+  Both calls run under the grant's process lock. */
   readonly providers: {
     add(host: ChatGptHostPort): Promise<void>
     remove(): Promise<void>
@@ -106,19 +113,29 @@ export interface ChatGptProviderCommandDeps {
   printError(line: string): void
 }
 
+/** Best-effort revocation after a failed setup: the setup failure dominates,
+so a revoke failure is attempted and dropped, never replacing the cause. */
+const revokeSignInQuietly = async (signIn: ChatGptSignIn): Promise<void> => {
+  try {
+    await signIn.remove()
+  } catch {
+    /* The failed setup still fails; revocation attempted and the local record deleted. */
+  }
+}
+
 export async function runChatGptProviderCommand(
   action: ChatGptProviderAction,
   deps: ChatGptProviderCommandDeps,
 ): Promise<number> {
   try {
-    if (action === 'add') deps.print(deps.text.beforeSignIn())
+    if (action === 'add' || action === 'add-new-account') deps.print(deps.text.beforeSignIn())
     const host = await deps.createHost()
     if (action === 'status') {
       const state = await host.withRefreshLock(async (): Promise<ChatGptLocalStatus> => {
         const stored = await host.readRecord()
         if (stored === undefined) return 'signed-out'
         const parsed = chatGptRecordSchema.safeParse(stored)
-        if (!parsed.success) throw new ChatGptSignInError('invalid-token')
+        if (!parsed.success) throw new ChatGptSignInError('grant-unreadable')
         return parsed.data.expiresAt > host.now() ? 'signed-in' : 'expired'
       })
       deps.print(deps.text.status(state))
@@ -145,15 +162,11 @@ export async function runChatGptProviderCommand(
         deps.printError(deps.text.alreadyAdded())
         return 1
       }
-      await signIn.signIn()
+      await signIn.signIn({ isNewAccount: action === 'add-new-account' })
       try {
         await deps.providers.add(host)
       } catch (error) {
-        try {
-          await signIn.remove()
-        } catch {
-          /* The failed setup still fails; revocation attempted and the local record deleted. */
-        }
+        await revokeSignInQuietly(signIn)
         throw error
       }
       deps.print(fill(UI_TEXT.acpProviderAdded, { id: 'chatgpt' }))
@@ -161,10 +174,20 @@ export async function runChatGptProviderCommand(
     })
   } catch (error) {
     deps.printError(
-      deps.text.failure(error instanceof ChatGptSignInError ? error.code : 'request-failed'),
+      deps.text.failure(
+        error instanceof ChatGptSignInError ? error.code : 'request-failed',
+        error instanceof ChatGptSignInError ? error.reason : failureCodeNames(error),
+      ),
     )
     return 1
   }
+}
+
+/** A ChatGPT failure's own sentence, or undefined for an error that is not one. */
+export function chatGptFailureOf(error: unknown): string | undefined {
+  return error instanceof ChatGptSignInError
+    ? chatGptFailureText(error.code, error.reason)
+    : undefined
 }
 
 /** Live language reads; no provider error or store text is ever interpolated. */
@@ -173,35 +196,9 @@ export function chatGptCommandText(): ChatGptCommandText {
     beforeSignIn: () => UI_TEXT.acpChatGpt.notice,
     alreadyAdded: () => UI_TEXT.acpChatGpt.alreadyAdded,
     status: (state) => UI_TEXT.acpChatGpt.states[state],
-    failure: (code) => {
-      switch (code) {
-        case 'store-unavailable': {
-          return UI_TEXT.acpChatGpt.storeUnavailable
-        }
-        case 'expired': {
-          return UI_TEXT.planUi.expired
-        }
-        case 'request-failed': {
-          return UI_TEXT.planUi.retry
-        }
-        default: {
-          return UI_TEXT.acpChatGpt.failure
-        }
-      }
-    },
+    failure: chatGptFailureText,
   }
 }
-
-/** Owner capture acdc0f60/577bc807, 2026-10-05: account catalogue, not API-key data[]. */
-const modelsSchema = z.object({
-  models: z.array(
-    z.object({
-      slug: z.string().check(z.minLength(1)),
-      visibility: z.enum(['list', 'hide']),
-      supported_in_api: z.boolean(),
-    }),
-  ),
-})
 
 /** Production terminal and ACP composition, using the shared atomic nonsecret file. */
 export function runtimeChatGptCommandDeps(
@@ -218,11 +215,11 @@ export function runtimeChatGptCommandDeps(
     const result = await readProvidersFile(options.configFile)
     if (result.ok) return result.file
     if (result.reason === 'missing') return emptyProvidersFile()
-    throw new ChatGptSignInError('request-failed')
+    throw new ChatGptSignInError('providers-file-unreadable', result.reason)
   }
   const save = async (file: unknown) => {
     const result = await writeProvidersFileAtomic(options.configFile, file)
-    if (!result.ok) throw new ChatGptSignInError('request-failed')
+    if (!result.ok) throw new ChatGptSignInError('providers-file-unwritable', result.reason)
   }
   return {
     createHost: () => createRuntimeChatGptHost(options),
@@ -233,30 +230,14 @@ export function runtimeChatGptCommandDeps(
       add: async (host) => {
         const file = await read()
         if (file.providers.some((entry) => entry.id === 'chatgpt'))
-          throw new ChatGptSignInError('request-failed')
-        const url = 'https://api.openai.com/v1/models'
-        // The command already holds the nonreentrant grant lock through this commit.
-        const token = await new ChatGptSignIn({
-          ...host,
-          withRefreshLock: (work) => work(),
-        }).accessToken(url, 0)
-        const response = await host.fetch(url, {
-          redirect: 'error',
-          signal: AbortSignal.timeout(OAUTH_CODE_TTL_MS),
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!response.ok) throw new ChatGptSignInError('sign-in-required')
-        const value: unknown = await response.json()
-        const parsed = modelsSchema.safeParse(value)
-        if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-        const models = [
-          ...new Set(
-            parsed.data.models
-              .filter((model) => model.visibility === 'list' && model.supported_in_api)
-              .map((model) => model.slug),
-          ),
-        ]
-        if (models.length === 0) throw new ChatGptSignInError('sign-in-required')
+          throw new ChatGptSignInError('already-added')
+        // The plan's own catalogue, read the way every surface reads it, so a
+        // refused, unreadable or empty list names its cause. The command
+        // already holds the nonreentrant grant lock through this commit.
+        const { slugs: models } = await chatGptCatalog(
+          new ChatGptSignIn({ ...host, withRefreshLock: (work) => work() }),
+          host.fetch,
+        )
         await save({
           ...file,
           providers: [
@@ -286,13 +267,43 @@ export function runtimeChatGptCommandDeps(
   }
 }
 
+/**
+The stored grant's account identity: the verified account hash where the
+sign-in captured one, else the whole record. A refused `add-new-account`
+leaves the old grant byte-identical, so an unchanged identity fails.
+*/
+function chatGptGrantIdentity(record: unknown): string | undefined {
+  const parsed = chatGptRecordSchema.safeParse(record)
+  return parsed.success ? (parsed.data.accountIdHash ?? JSON.stringify(parsed.data)) : undefined
+}
+
 /** ACP terminal auth methods run the exact same CLI actions in every editor. */
 export function chatGptAuthenticationMethods(
   createHost: () => Promise<ChatGptHostPort>,
 ): SignInMethod[] {
-  const actions: readonly ChatGptProviderAction[] = ['add', 'remove', 'status']
+  const actions: readonly ChatGptProviderAction[] = ['add', 'add-new-account', 'remove', 'status']
+  // The grant as it was before the editor runs the terminal command (these
+  // methods are built when the agent starts, the command runs later in its
+  // own process). `add-new-account` must change it: the refused command
+  // leaves the old grant, so an unchanged grant stays failed instead of
+  // reporting the different-account authentication as succeeded.
+  const baselineRecord = (async (): Promise<unknown> => {
+    const host = await createHost()
+    return await host.withRefreshLock(async () => await host.readRecord())
+  })()
+  // A startup host, lock or store failure must surface through `verify`,
+  // never as an unhandled rejection that ends the standalone agent before
+  // any verifier runs: this marks the rejection handled while each `await`
+  // below still observes it.
+  void baselineRecord.then(undefined, () => {
+    /* Marked handled; `verify` observes the rejection through `await`. */
+  })
   return actions.map((action) => {
-    const args = ['providers', action, 'chatgpt']
+    const isAdd = action === 'add' || action === 'add-new-account'
+    const args =
+      action === 'add-new-account'
+        ? ['providers', 'add', 'chatgpt', CHATGPT_NEW_ACCOUNT_FLAG]
+        : ['providers', action, 'chatgpt']
     return {
       id: `chatgpt-${action}`,
       name: UI_TEXT.acpChatGpt.actions[action],
@@ -302,21 +313,34 @@ export function chatGptAuthenticationMethods(
       verify: async () => {
         try {
           const host = await createHost()
+          // Inside the try so a baseline the store cannot read fails closed
+          // through the same sentence mapping, never as a success.
+          const prior = action === 'add-new-account' ? await baselineRecord : undefined
           await host.withRefreshLock(async () => {
             const stored = await host.readRecord()
             if (stored === undefined) {
-              if (action === 'add') throw new ChatGptSignInError('sign-in-required')
+              if (isAdd) throw new ChatGptSignInError('not-signed-in')
               return
             }
             const parsed = chatGptRecordSchema.safeParse(stored)
-            if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-            if (action === 'remove' || (action === 'add' && parsed.data.expiresAt <= host.now()))
-              throw new ChatGptSignInError('sign-in-required')
+            if (!parsed.success) throw new ChatGptSignInError('grant-unreadable')
+            // An expired access token refreshes on use (as `status` says), so
+            // a stored grant is a completed sign-in.
+            if (action === 'remove') throw new ChatGptSignInError('still-signed-in')
+            if (
+              action === 'add-new-account' &&
+              chatGptGrantIdentity(prior) === chatGptGrantIdentity(stored)
+            ) {
+              // The grant never changed: the command refused with
+              // `already-added` and the account is still the old one.
+              throw new ChatGptSignInError('already-added')
+            }
           })
           return
         } catch (error) {
           return chatGptCommandText().failure(
             error instanceof ChatGptSignInError ? error.code : 'request-failed',
+            error instanceof ChatGptSignInError ? error.reason : failureCodeNames(error),
           )
         }
       },

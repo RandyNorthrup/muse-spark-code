@@ -84,8 +84,11 @@ function linkTarget(line: string): string | undefined {
       const relative = raw.startsWith(CURRENT_DIRECTORY) ? raw.slice(CURRENT_DIRECTORY.length) : raw
       try {
         return decodeURIComponent(relative)
-      } catch {
-        return relative
+      } catch (error) {
+        // Only malformed percent-encoding keeps its spelling: decoding
+        // raises URIError for exactly that, so anything else is raised.
+        if (error instanceof URIError) return relative
+        throw error
       }
     }
     return undefined
@@ -119,9 +122,9 @@ function oneLine(text: string): string {
 }
 
 /**
- * What a note is about, in one line: its front matter's `description`, else
- * its first line of text (a heading's marks dropped). Empty for an empty note.
- */
+What a note is about, in one line: its front matter's `description`, else
+its first line of text (a heading's marks dropped). Empty for an empty note.
+*/
 export function noteSummary(text: string): string {
   const lines = text.split(LINE_BREAK)
   let index = 0

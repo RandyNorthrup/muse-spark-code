@@ -1,0 +1,78 @@
+{
+  "vendor": "deepseek",
+  "model": "deepseek-flash",
+  "variant": "0b-first-call-choice-auto",
+  "url": "https://api.deepseek.com/chat/completions",
+  "requestBody": {
+    "model": "deepseek-flash",
+    "max_tokens": 600,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read a file.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "id": "6a5488e3-15c5-4548-bfbe-ef04ec5aa9c7",
+    "object": "chat.completion",
+    "created": 1791835032,
+    "model": "deepseek-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning_content": "We need to read file a.txt. Use tool call. Must output in tool block before final read_file all in one line of tool calls XML. We can do one call. Let's also maybe only one. After user says write final response exactly string, we can think, then call tool, then final. But \"as part of your reply to user\" means include tool call and then final. Let's do tool call first.",
+          "tool_calls": [
+            {
+              "index": 0,
+              "id": "call_00_TRBahweo6hni8l1H71fq4289",
+              "type": "function",
+              "function": {
+                "name": "read_file",
+                "arguments": "{\"path\": \"a.txt\"}"
+              }
+            }
+          ]
+        },
+        "logprobs": null,
+        "finish_reason": "tool_calls"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 301,
+      "completion_tokens": 127,
+      "total_tokens": 428,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 88
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 301
+    },
+    "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+  }
+}

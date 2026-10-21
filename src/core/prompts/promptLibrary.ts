@@ -1,6 +1,6 @@
 import { promptDraftSchema, type PromptDraft } from './promptTypes'
 import * as z from 'zod/mini'
-import { PROMPT_LIMITS, PROMPT_SCHEMA_VERSION, UI_TEXT } from '../../shared/constants'
+import { PROMPT_SCHEMA_VERSION, UI_TEXT } from '../../shared/constants'
 import {
   savedPromptSchema,
   promptVariableNames,
@@ -28,7 +28,9 @@ export interface PromptSyncPort {
   write(prompts: readonly SavedPrompt[]): Promise<void>
 }
 
-const syncSchema = z.array(savedPromptSchema).check(z.maxLength(PROMPT_LIMITS.perScope))
+// D121: synced scopes of any size stand — the removed 200-per-scope ceiling
+// was invented.
+const syncSchema = z.array(savedPromptSchema)
 
 export class PromptLibrary {
   public constructor(
@@ -57,6 +59,8 @@ export class PromptLibrary {
       try {
         scopes.push({ scope, prompts: await this.store.list(scope), damaged: false })
       } catch {
+        // A scope that cannot be read contributes nothing: the damaged flag
+        // tells the person (promptScopeDamaged), and the other scope still loads.
         scopes.push({ scope, prompts: [], damaged: true })
       }
     }
@@ -156,7 +160,6 @@ export class PromptLibrary {
         untrusted: prompt.untrusted || previous?.untrusted === true,
       })
     }
-    if (merged.size > PROMPT_LIMITS.perScope) throw new Error(UI_TEXT.promptLimits)
     for (const prompt of merged.values()) await this.store.write(prompt, true)
     // Read back any revision another window saved before our lock was acquired.
     if (this.sync.isOn()) await this.sync.write(await this.store.list('user'))
@@ -179,7 +182,6 @@ export async function usePrompt(
     /\{\{\s*([A-Za-z_][\w-]*)\s*\}\}/g,
     (_match: string, name: string) => values.get(name) ?? '',
   )
-  if (text.length > PROMPT_LIMITS.body) throw new Error(UI_TEXT.promptLimits)
   if (!(await port.review(text, prompt))) return 'cancelled'
   await port.insert(text)
   return 'inserted'

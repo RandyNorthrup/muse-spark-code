@@ -49,10 +49,10 @@ export function isLoopbackHost(host: string): boolean {
 }
 
 /**
- * A host the user named in the setting, as a URL names it (`Example.COM` →
- * `example.com`, `::1` → `[::1]`), or undefined when it is not a plain name
- * or address: a port, a path, a wildcard or a list is refused.
- */
+A host the user named in the setting, as a URL names it (`Example.COM` →
+`example.com`, `::1` → `[::1]`), or undefined when it is not a plain name
+or address: a port, a path, a wildcard or a list is refused.
+*/
 export function widenedHost(entry: string): string | undefined {
   const given = entry.trim()
   if (given === '' || given.length > BROWSER_CHECK_HOST_MAX_CHARS) {
@@ -61,7 +61,10 @@ export function widenedHost(entry: string): string | undefined {
   let url: URL
   try {
     url = new URL(`http://${isIPv6(given) ? `${IPV6_OPEN}${given}${IPV6_CLOSE}` : given}/`)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed entry with a TypeError; anything
+    // else is not the entry and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return undefined
   }
   // Only a host may have been given: no user, port, path or query slipped in.
@@ -91,9 +94,9 @@ export type BrowserUrlPlacement =
     }
 
 /**
- * The URL the model asked to open, checked against the rule: an absolute
- * `http:` or `https:` URL with a plain host and no user name or password.
- */
+The URL the model asked to open, checked against the rule: an absolute
+`http:` or `https:` URL with a plain host and no user name or password.
+*/
 export function placeBrowserUrl(raw: string, extraHosts: ReadonlySet<string>): BrowserUrlPlacement {
   if (raw.length > BROWSER_CHECK_URL_MAX_CHARS) {
     return { kind: 'refused' }
@@ -101,7 +104,10 @@ export function placeBrowserUrl(raw: string, extraHosts: ReadonlySet<string>): B
   let url: URL
   try {
     url = new URL(raw)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed address with a TypeError; anything
+    // else is not the address and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return { kind: 'refused' }
   }
   const host = plainHost(url.hostname)
@@ -128,15 +134,18 @@ export function placeBrowserUrl(raw: string, extraHosts: ReadonlySet<string>): B
 }
 
 /**
- * Whether a request the page makes may go out: an http(s) or ws(s) URL to
- * loopback or a host widened for this check. Anything else is blocked,
- * whatever scheme it uses.
- */
+Whether a request the page makes may go out: an http(s) or ws(s) URL to
+loopback or a host widened for this check. Anything else is blocked,
+whatever scheme it uses.
+*/
 export function isAllowedRequest(rawUrl: string, allowedHosts: ReadonlySet<string>): boolean {
   let url: URL
   try {
     url = new URL(rawUrl)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed request address with a TypeError;
+    // anything else is not the address and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
   return (
@@ -149,7 +158,10 @@ export function isAllowedRequest(rawUrl: string, allowedHosts: ReadonlySet<strin
 export function isNetworkUrl(rawUrl: string): boolean {
   try {
     return NETWORK_SCHEMES.has(new URL(rawUrl).protocol)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed address with a TypeError; anything
+    // else is not the address and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }

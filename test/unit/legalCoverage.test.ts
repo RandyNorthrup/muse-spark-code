@@ -6,20 +6,22 @@ import {
   LEGAL_EXCLUSIONS_MAX,
   LEGAL_INCOMPLETE_MAX,
   LEGAL_TEXT_MAX_CHARS,
+  LEGAL_DEPENDENCIES_MAX,
   LEGAL_FINDINGS_MAX,
+  LEGAL_TOTAL_MAX_BYTES,
   LEGAL_PATH_MAX_CHARS,
 } from '../../src/shared/constants'
 import { snapshotFrom } from './legal/helpers'
 
 describe('legal coverage and metadata', () => {
-  it('bounds package and ignore patterns without evaluating a dependency admitted only by the omitted pattern', () => {
+  it('bounds package and ignore patterns without evaluating a dependency admitted only by the omitted pattern', async () => {
     const tree = snapshotFrom({
       LICENSE: 'MIT License\n',
       'package-lock.json':
         '{"lockfileVersion":3,"packages":{"node_modules/x":{"version":"1","license":"GPL-3.0-only"}}}',
       'node_modules/x/index.js': 'x',
     })
-    const report = scanLegal(tree, {
+    const report = await scanLegal(tree, {
       headerPolicy: 'off',
       distribution: {
         packageFiles: [
@@ -36,14 +38,14 @@ describe('legal coverage and metadata', () => {
     expect(report.findings.some((finding) => finding.severity === 'blocker')).toBe(false)
   })
 
-  it('bounds dependency evidence and rejects overlong package patterns explicitly', () => {
-    const report = scanLegal(
+  it('bounds dependency evidence and rejects overlong package patterns explicitly', async () => {
+    const report = await scanLegal(
       snapshotFrom({
         'package-lock.json': JSON.stringify({
           lockfileVersion: 3,
           packages: {
             ...Object.fromEntries(
-              Array.from({ length: LEGAL_FINDINGS_MAX }, (_, index) => [
+              Array.from({ length: LEGAL_DEPENDENCIES_MAX }, (_, index) => [
                 `node_modules/x${String(index)}`,
                 { version: '1', license: 'MIT' },
               ]),
@@ -60,8 +62,8 @@ describe('legal coverage and metadata', () => {
     expect(report.findings.some((finding) => finding.packageName === 'zz-after-bound')).toBe(false)
   })
 
-  it('attributes assets lacking provenance and copied-code references without claiming infringement', () => {
-    const report = scanLegal(
+  it('attributes assets lacking provenance and copied-code references without claiming infringement', async () => {
+    const report = await scanLegal(
       snapshotFrom({
         'art.png': 'binary asset',
         'copy.ts':
@@ -114,30 +116,36 @@ describe('legal coverage and metadata', () => {
     )
   })
 
-  it('recognizes LGPL 2.0, 2.1 and 3.0 without changing their versions', () => {
+  it('recognizes LGPL 2.0, 2.1 and 3.0 stems without granting a variant', () => {
+    // RVCM971 P2 (finding 5): the body never grants `-or-later`.
     expect(identifyLicenseText('GNU LIBRARY GENERAL PUBLIC LICENSE\nVersion 2\n')?.id).toBe(
-      'LGPL-2.0-only',
+      'LGPL-2.0',
     )
     expect(identifyLicenseText('GNU LESSER GENERAL PUBLIC LICENSE\nVersion 2.1\n')?.id).toBe(
-      'LGPL-2.1-only',
+      'LGPL-2.1',
     )
     expect(identifyLicenseText('GNU LESSER GENERAL PUBLIC LICENSE\nVersion 3\n')?.id).toBe(
-      'LGPL-3.0-only',
+      'LGPL-3.0',
     )
   })
 
-  it('reports heuristic matching, assets and freshness as unchecked', () => {
-    const result = scanLegal(snapshotFrom({ LICENSE: 'MIT License\n', 'asset.png': 'png' }), {
+  it('reports heuristic matching, assets and freshness as unchecked', async () => {
+    // C-M97-1: the stub LICENSE stays heuristic (matching) and the asset
+    // keeps human review (assets); the bundle inputs name a file absent
+    // from the inventory, so the stale-input and freshness reasons stay
+    // named. Fresh, complete bundle inputs report no freshness caveat
+    // (see the clean-scan test in legalScan.test.ts).
+    const result = await scanLegal(snapshotFrom({ LICENSE: 'MIT License\n', 'asset.png': 'png' }), {
       headerPolicy: 'off',
-      distribution: { bundleInputs: ['asset.png'] },
+      distribution: { bundleInputs: ['asset.png', 'missing-bundle.js'] },
     })
     expect(result.incompleteChecks.join(' ')).toContain('matching')
     expect(result.incompleteChecks.join(' ')).toContain('assets')
     expect(result.incompleteChecks.join(' ')).toContain('freshness')
   })
 
-  it('caps generated exclusions and incomplete checks and marks omitted entries', () => {
-    const result = scanLegal(
+  it('caps generated exclusions and incomplete checks and marks omitted entries', async () => {
+    const result = await scanLegal(
       {
         ...snapshotFrom(
           Object.fromEntries(
@@ -159,12 +167,13 @@ describe('legal coverage and metadata', () => {
     expect(result.incompleteChecks.at(-1)).toContain('omitted')
   })
 
-  it('bounds aggregate text across individually permitted files', () => {
+  it('bounds aggregate text across individually permitted files', async () => {
     const text = 'x'.repeat(LEGAL_TEXT_MAX_CHARS * LEGAL_FINDINGS_MAX)
-    const report = scanLegal(
+    const files = Math.floor(LEGAL_TOTAL_MAX_BYTES / text.length) + 2
+    const report = await scanLegal(
       snapshotFrom(
         Object.fromEntries(
-          Array.from({ length: 12 }, (_, index) => [`source${String(index)}.ts`, text]),
+          Array.from({ length: files }, (_, index) => [`source${String(index)}.ts`, text]),
         ),
       ),
       { headerPolicy: 'required' },
@@ -172,8 +181,8 @@ describe('legal coverage and metadata', () => {
     expect(report.incompleteChecks.join(' ')).toContain('budget')
   })
 
-  it('reports oversized and binary source text and preserves cancellation and unreadable markers', () => {
-    const report = scanLegal(
+  it('reports oversized and binary source text and preserves cancellation and unreadable markers', async () => {
+    const report = await scanLegal(
       snapshotFrom({
         'x.ts': 'x'.repeat(LEGAL_TEXT_MAX_CHARS * LEGAL_FINDINGS_MAX + 1),
         'binary.ts': 'a\u{0}b',
@@ -182,11 +191,14 @@ describe('legal coverage and metadata', () => {
     )
     expect(report.incompleteChecks.join(' ')).toContain('budget')
     expect(report.incompleteChecks.join(' ')).toContain('binary')
-    const failed = scanLegal(
+    const failed = await scanLegal(
       {
         files: ['x.ts'],
         readFile: () => {
-          throw new Error('private details')
+          // The narrowed read guard matches unreadable files by errno code,
+          // never by message words, so the private message still exercises
+          // the marker path without leaking into the report.
+          throw Object.assign(new Error('private details'), { code: 'EACCES' })
         },
       },
       { headerPolicy: 'required' },

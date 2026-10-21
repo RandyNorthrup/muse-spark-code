@@ -27,6 +27,7 @@ import {
   type SealedReportDraft,
   type SelectedReportEvent,
 } from '../../core/support/problemReport'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { EXTENSION_QUALIFIED_ID, UI_TEXT } from '../../shared/constants'
 import { fill, formatRelativeTime } from '../../shared/l10n/text'
 import type {
@@ -100,20 +101,20 @@ const THROWN_EXPORT_REASON: Readonly<Record<ReportExportChannel, ReportExportRea
 type ExportAnswer =
   ReportExportOutcome | { readonly ok: false; readonly reason: ReportExportReason }
 
-/** The VS Code issue reporter after our preview (D72): supported fields only, never `data`. */
+/**
+The VS Code issue reporter after our preview (D72): supported fields only,
+never `data`. A refused open throws to `run`, which answers the dialog in
+its fixed word and records the failure's kind.
+*/
 async function openVscodeReporter(
   draft: SealedReportDraft,
   io: ReportEditorIo,
 ): Promise<ExportAnswer> {
-  try {
-    await io.openIssueReporter({
-      extensionId: EXTENSION_QUALIFIED_ID,
-      issueTitle: draft.title,
-      issueBody: draft.text,
-    })
-  } catch {
-    return { ok: false, reason: 'reporterFailed' }
-  }
+  await io.openIssueReporter({
+    extensionId: EXTENSION_QUALIFIED_ID,
+    issueTitle: draft.title,
+    issueBody: draft.text,
+  })
   return { ok: true }
 }
 
@@ -144,9 +145,9 @@ function keptEvents(data: ReportData, choice: ReportChoice): readonly SelectedRe
 }
 
 /**
- * One place builds the builder's input from a snapshot and a choice (open,
- * update, stale re-preview): the preview always matches the sealed draft.
- */
+One place builds the builder's input from a snapshot and a choice (open,
+update, stale re-preview): the preview always matches the sealed draft.
+*/
 async function buildChoiceDraft(
   data: ReportData,
   choice: ReportChoice,
@@ -174,10 +175,10 @@ function localizedAge(ageMs: number): string {
 }
 
 /**
- * One removable row per included section and per record the draft carries:
- * exactly the builder's selection, never a record it would skip. Labels
- * carry a fixed kind and a relative age only, never a code or a path.
- */
+One removable row per included section and per record the draft carries:
+exactly the builder's selection, never a record it would skip. Labels
+carry a fixed kind and a relative age only, never a code or a path.
+*/
 function draftItems(data: ReportData, choice: ReportChoice): ReportDraftItem[] {
   const items: ReportDraftItem[] = []
   if (choice.isFactsIncluded) {
@@ -286,6 +287,9 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
     try {
       return await buildChoiceDraft(data, choice, deps.vaultScrub)
     } catch (error: unknown) {
+      // The record keeps the failure's kind; buildFails below keeps its
+      // detail and tells the dialog in fixed words.
+      deps.log.error(`problem report rebuild failed: ${failureForLog(error)}`)
       buildFails(error)
       return undefined
     }
@@ -302,6 +306,9 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
     try {
       data = await snapshot(deps.source)
     } catch (error: unknown) {
+      // The record keeps the failure's kind; buildFails below keeps its
+      // detail and tells the dialog in fixed words.
+      deps.log.error(`problem report snapshot failed: ${failureForLog(error)}`)
       buildFails(error)
       return
     }
@@ -381,8 +388,9 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
         }
       }
     } catch (error: unknown) {
-      // An export path that threw still answers the dialog, in a fixed word.
-      deps.log.warn(`Report export (${via}) failed (${failureClass(error)})`)
+      // An export path that threw still answers the dialog, in a fixed word;
+      // the record keeps the failure's kind, never its message.
+      deps.log.warn(`Report export (${via}) failed: ${failureForLog(error)}`)
       return { ok: false, reason: THROWN_EXPORT_REASON[via] }
     }
   }
@@ -422,6 +430,9 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
           return
         }
       } catch (error: unknown) {
+        // The record keeps the failure's kind; buildFails below keeps its
+        // detail and tells the dialog in fixed words.
+        deps.log.error(`problem report scrub failed: ${failureForLog(error)}`)
         buildFails(error)
         return
       }

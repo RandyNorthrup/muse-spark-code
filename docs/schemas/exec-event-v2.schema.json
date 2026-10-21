@@ -19,7 +19,7 @@
         "ephemeral": { "type": "boolean" },
         "paidFeatures": {
           "type": "array",
-          "items": { "type": "string", "enum": ["imageGeneration"] }
+          "items": { "type": "string", "enum": ["imageGeneration", "autoCompaction"] }
         },
         "limits": {
           "type": "object",
@@ -31,9 +31,17 @@
               ]
             },
             "maxRequests": {
-              "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 500 }, { "type": "null" }]
+              "anyOf": [
+                { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                { "type": "null" }
+              ]
             },
-            "timeoutSeconds": { "type": "integer", "minimum": 10, "maximum": 21600 }
+            "timeoutSeconds": {
+              "anyOf": [
+                { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                { "type": "null" }
+              ]
+            }
           },
           "required": ["budgetUsd", "maxRequests", "timeoutSeconds"],
           "additionalProperties": false
@@ -381,6 +389,7 @@
                 "cancelled",
                 "timeout",
                 "budget_exceeded",
+                "unpriced",
                 "request_cap",
                 "denied",
                 "auth_required",
@@ -401,7 +410,9 @@
             "model": { "type": ["string", "null"] },
             "sessionId": { "type": ["string", "null"] },
             "ephemeral": { "type": "boolean" },
+            "usageHistory": { "type": "string", "const": "omitted_ephemeral" },
             "finalMessage": { "type": "string" },
+            "finalMessageComplete": { "type": "boolean" },
             "output": {
               "type": "object",
               "properties": {
@@ -618,6 +629,42 @@
                 { "type": "null" }
               ]
             },
+            "budget": {
+              "type": "object",
+              "properties": {
+                "neededUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                "remainingUsd": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                },
+                "admitCapUsd": {
+                  "anyOf": [
+                    { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                    { "type": "null" }
+                  ]
+                },
+                "maxOutputTokens": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                },
+                "inputAloneExceeds": { "type": "boolean" },
+                "inputCostUsd": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                }
+              },
+              "required": [
+                "neededUsd",
+                "remainingUsd",
+                "admitCapUsd",
+                "maxOutputTokens",
+                "inputAloneExceeds",
+                "inputCostUsd"
+              ],
+              "additionalProperties": false
+            },
             "limits": {
               "type": "object",
               "properties": {
@@ -628,9 +675,17 @@
                   ]
                 },
                 "maxRequests": {
-                  "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 500 }, { "type": "null" }]
+                  "anyOf": [
+                    { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
                 },
-                "timeoutSeconds": { "type": "integer", "minimum": 10, "maximum": 21600 }
+                "timeoutSeconds": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                }
               },
               "required": ["budgetUsd", "maxRequests", "timeoutSeconds"],
               "additionalProperties": false
@@ -640,7 +695,20 @@
               "anyOf": [
                 {
                   "type": "object",
-                  "properties": { "kind": { "type": "string" }, "message": { "type": "string" } },
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "message": { "type": "string" },
+                    "facts": {
+                      "type": "object",
+                      "properties": {
+                        "scope": { "type": "string" },
+                        "file": { "type": "string" },
+                        "errno": { "type": "string" }
+                      },
+                      "required": ["scope"],
+                      "additionalProperties": false
+                    }
+                  },
                   "required": ["kind", "message"],
                   "additionalProperties": false
                 },
@@ -733,6 +801,16 @@
               "then": {
                 "properties": {
                   "exitCode": { "const": 5 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "unpriced" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 4 },
                   "signal": { "type": "null" },
                   "error": { "type": "object" }
                 }

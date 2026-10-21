@@ -121,10 +121,13 @@ export const BROWSER_PROFILE_SUBDIRS = { profile: 'p', temp: 't', home: 'h' } as
 // at most this many per check (spec §6.3).
 export const BROWSER_CHECK_OWNER_FILE = 'owner'
 export const BROWSER_CHECK_SWEEP_MAX = 16
-// The whole check, from start to screenshot; the page's load (a dev server
-// with live reload may never finish loading: the check goes on with the
-// page as it stands); and the wait after each click or type for a load it
-// starts.
+// The whole check, from start to screenshot, names no deadline of its own
+// (owner 2026-10-16: no arbitrary limits): it runs until it finishes or its
+// signals stop it. Only a test names one through `timings.checkMs` (the
+// live suite's shortened deadline); the timeout wording below still names
+// this nominal length. The page's load (a dev server with live reload may
+// never finish loading: the check goes on with the page as it stands); and
+// the wait after each click or type for a load it starts.
 export const BROWSER_CHECK_TIMEOUT_MS = 60_000
 export const BROWSER_CHECK_LOAD_TIMEOUT_MS = 15_000
 export const BROWSER_CHECK_ACTION_SETTLE_MS = 1000
@@ -135,22 +138,25 @@ export const BROWSER_CHECK_TEARDOWN_MS = 10_000
 // A profile folder Windows still holds for a moment after the exit.
 export const BROWSER_PROFILE_REMOVE_RETRIES = 5
 export const BROWSER_PROFILE_REMOVE_RETRY_MS = 200
-// What one call may ask: the URL, and up to this many click or type steps.
+// What one call may ask: the URL, and any number of click or type steps
+// (owner 2026-10-16: no arbitrary limits — the 8-step cap is gone).
 export const BROWSER_CHECK_URL_MAX_CHARS = 2048
-export const BROWSER_CHECK_MAX_ACTIONS = 8
 export const BROWSER_CHECK_SELECTOR_MAX_CHARS = 256
 export const BROWSER_CHECK_TYPE_TEXT_MAX_CHARS = 1000
 // What one check hands back: up to this many of each kind of entry (the
 // rest are counted), each cut to this length.
 export const BROWSER_CHECK_MAX_ENTRIES = 20
 export const BROWSER_CHECK_ENTRY_MAX_CHARS = 500
-// A CDP message larger than this ends the check (a screenshot is at most
-// MAX_IMAGE_BYTES, about a third more as base64).
-export const BROWSER_CHECK_MESSAGE_MAX_BYTES = 32 * MIB
+// A CDP message larger than this ends the check. D121: sized for the
+// model's documented image bound (Meta's 50 MB inline, about a third more
+// as base64, plus envelope) — a raw capture past it ends the check instead
+// of the run. Check-harness frame, not model media.
+export const BROWSER_CHECK_MESSAGE_MAX_BYTES = 80 * MIB
 // Random bytes (as hex) in the markers around what the page produced.
 export const BROWSER_CHECK_MARKER_BYTES = 8
-// The hosts `museSpark.browserCheckExtraHosts` may name: how many, how long.
-export const BROWSER_CHECK_EXTRA_HOSTS_MAX = 32
+// The hosts `museSpark.browserCheckExtraHosts` may name (NOLIMITSSET: no
+// host-count ceiling of ours — every host the person names is kept; the
+// removed 32 was ours). How long one entry may be stays input shape.
 export const BROWSER_CHECK_HOST_MAX_CHARS = 253
 // The targets one check watches at once (the page, its frames and workers,
 // and those they start); one past the bound ends the check unwatchable.
@@ -200,6 +206,12 @@ export const BROWSER_CANARY_LINK_LOCAL = '169.254.77.77'
 // The network service's process type in SystemInfo.getProcessInfo at the
 // pin: a new id during the check is a restart.
 export const BROWSER_NETWORK_SERVICE_TYPE = 'network.mojom.NetworkService'
+// The browser launches that service after its own process already answers
+// on the pipe; on Windows it was missing from the first answer in 8 of 200
+// checks and appeared up to 1.2 s later under load
+// (docs/certification/bcstart.md). The contract read asks again this often
+// until it is listed; only the check's own lifetime ends that wait.
+export const BROWSER_NETWORK_SERVICE_POLL_MS = 50
 // The page's error text that crosses the boundary (browserRun.ts).
 export const BROWSER_NET_ERROR = /^net::ERR_[A-Z0-9_]+$/
 // The runtime's preparation (spec §4.1): consent, the download and the

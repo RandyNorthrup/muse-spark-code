@@ -90,6 +90,10 @@ describe('parseModelRef', () => {
     expect(sanitizeModelLabel('a\u{0}b\u{200B}c\u{202E}d')).toBe('abcd')
     expect(sanitizeModelLabel('x'.repeat(200)).length).toBe(120)
   })
+
+  it('neuters terminal escape sequences in a listed id', () => {
+    expect(sanitizeModelLabel('a\u{1B}[31mb\u{1B}]0;title\u{7}c')).toBe('a[31mb]0;titlec')
+  })
 })
 
 describe('capabilities', () => {

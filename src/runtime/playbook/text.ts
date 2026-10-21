@@ -50,7 +50,7 @@ export function disabledPlaybookDetail(
 }
 
 /** Counters are journal facts, keyed by stable identity and class. A new key
- * never resets a badge, and a `caught` outcome never implies closure. */
+never resets a badge, and a `caught` outcome never implies closure. */
 export function playbookCounters(records: readonly PlaybookRecord[]) {
   const counts = new Map<
     string,
@@ -105,7 +105,7 @@ function prioritized(entry: PlaybookRecord | { readonly kind: 'counter' }): numb
 }
 
 /** Every surface shares this stable order: owner/unresolved designs, warnings,
- * then informational records and aggregate counter statistics. */
+then informational records and aggregate counter statistics. */
 export function orderedPlaybookRecords<T extends PlaybookRecord | { readonly kind: 'counter' }>(
   records: readonly T[],
 ): T[] {
@@ -242,8 +242,10 @@ export function playbookRecordText(
 }
 
 function settingsText(settings: PlaybookSettings): string {
+  // The heading names the surface, never the journal's internal team id:
+  // the terminal reuses the panel's team, and "(panel)" means nothing there.
   return [
-    `${UI_TEXT.playbookSettings} (${settings.teamId})`,
+    UI_TEXT.playbookSettings,
     ...PLAYBOOK_CONFIGURABLE_RULES.map((rule) => {
       const detail = disabledPlaybookDetail(settings.rules[rule])
       return `${UI_TEXT.playbookRules[rule]} (${rule}): ${settings.rules[rule].enabled ? UI_TEXT.playbookEnabled : UI_TEXT.playbookDisabled}${detail === undefined ? '' : ` · ${detail}`}`

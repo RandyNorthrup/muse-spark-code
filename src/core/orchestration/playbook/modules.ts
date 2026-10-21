@@ -1,8 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
-import type { SpawnSyncOptions } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import nodePath from 'node:path'
-import { UI_TEXT } from '../../../shared/l10n/text'
 import {
   playbookModuleSchema,
   type PlaybookModule,
@@ -10,10 +6,7 @@ import {
   type PlaybookRound,
   type PlaybookDesignDecision,
 } from '../../../shared/playbook'
-import { redactSecrets } from '../../../shared/redact'
 import {
-  GIT_OUTPUT_MAX_BYTES,
-  GIT_TIMEOUT_MS,
   TOOL_FILE_MAX_BYTES,
   REVIEW_FINDINGS_MAX,
   PLAYBOOK_CONTENT_SIMILARITY_PERCENT,
@@ -21,9 +14,10 @@ import {
   PLAYBOOK_LINE_HASH_CHARS,
 } from '../../../shared/constants'
 import type { PlaybookLease } from '../../../shared/playbook'
-import { withoutCredentials } from '../../credentialEnvironment'
-import { runTreeSync } from '../../../host/processTree'
-import type { PlaybookHookAdmission } from './outcomes'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { UI_TEXT } from '../../../shared/l10n/text'
+import { redactSecrets } from '../../../shared/redact'
 
 export interface ModuleState {
   module: PlaybookModule
@@ -38,7 +32,7 @@ export interface ModuleState {
 }
 
 /** Only workspace-relative selectors enter the registry. Segment-wise
- * normalization also makes Windows spelling and ./ aliases equivalent. */
+normalization also makes Windows spelling and ./ aliases equivalent. */
 export function modulePath(value: string): string {
   const path = value.replaceAll('\\', '/').replace(/^\.\//u, '')
   if (
@@ -63,9 +57,8 @@ export function normalizedModule(module: PlaybookModule): PlaybookModule {
 }
 
 /** Trusted adapters can declare lane/team selectors; without either, use
- * the first two directories under the source root. The registry journals
- * @unwired M116 playbook module registry entry
- * this returned id before dispatch; adapters retain it on subsequent calls. */
+the first two directories under the source root. The registry journals
+this returned id before dispatch; adapters retain it on subsequent calls. */
 export function newPlaybookModule(
   files: readonly string[],
   declaration?: { readonly source: 'lane' | 'team'; readonly key: string },
@@ -111,7 +104,7 @@ export function hasOverlappingFiles(left: PlaybookModule, right: PlaybookModule)
 }
 
 /** Internal technical journal tags, not user-supplied evidence. Fingerprints,
- * user decisions and legacy lease notes remain mandatory retention evidence. */
+user decisions and legacy lease notes remain mandatory retention evidence. */
 export const PLAYBOOK_IDENTITY_NOTE = 'playbook-file-identity'
 export const PLAYBOOK_LEASE_NOTE = 'playbook-patch-lease'
 export const PLAYBOOK_RELEASE_NOTE = 'playbook-patch-release'
@@ -130,7 +123,11 @@ export function fileIdentities(
     if (!existsSync(absolute)) return
     const real = realpathSync(absolute)
     const relative = nodePath.relative(root, real)
-    if (relative.startsWith('..') || nodePath.isAbsolute(relative))
+    if (
+      relative === '..' ||
+      relative.startsWith(`..${nodePath.sep}`) ||
+      nodePath.isAbsolute(relative)
+    )
       throw new Error(UI_TEXT.playbookUnavailable)
     const stat = statSync(real)
     if (stat.isDirectory()) {
@@ -152,7 +149,7 @@ export function fileIdentities(
 }
 
 /** Bounded line fingerprints retain no file text. Similarity catches edited
- * untracked moves too; Git history supplies path evidence after commit. */
+untracked moves too; Git history supplies path evidence after commit. */
 function contentIdentity(content: string): string {
   const lines = [
     ...new Set(
@@ -179,61 +176,6 @@ export function hasSimilarContent(left: string, right: string): boolean {
   return (
     common > 0 && common * 100 >= Math.max(a.length, b.size) * PLAYBOOK_CONTENT_SIMILARITY_PERCENT
   )
-}
-
-/** Git supplies similarity-based rename evidence even when moved code changed
- * bytes. Hashes separately cover untracked moves and copies. Never consult an
- * agent's claim about identity. Both staged and unstaged moves are inspected. */
-export function renamedFiles(
-  workspace: string,
-  admission: PlaybookHookAdmission,
-): { from: string; to: string }[] {
-  if (!existsSync(nodePath.join(workspace, '.git'))) return []
-  const renames: { from: string; to: string }[] = []
-  for (const args of [['diff', '--cached'], ['diff'], ['log', '--all', '--format=']]) {
-    const effect = {
-      kind: 'git' as const,
-      cwd: workspace,
-      command: 'git',
-      args: [
-        ...args,
-        '--no-ext-diff',
-        '--no-textconv',
-        '--name-status',
-        '-z',
-        `--find-renames=${String(PLAYBOOK_CONTENT_SIMILARITY_PERCENT)}%`,
-        '--',
-      ],
-    }
-    if (!admission.admit(effect) || (process.platform === 'win32' && !admission.runContained))
-      throw new Error(UI_TEXT.playbookUnavailable)
-    const options: SpawnSyncOptions = {
-      cwd: workspace,
-      env: withoutCredentials(process.env),
-      encoding: 'buffer',
-      timeout: GIT_TIMEOUT_MS,
-      maxBuffer: GIT_OUTPUT_MAX_BYTES,
-      windowsHide: true,
-    }
-    const result =
-      admission.runContained === undefined
-        ? runTreeSync(effect.command, effect.args, options)
-        : admission.runContained(effect, options)
-    if (result.status !== 0 || result.error) throw new Error(UI_TEXT.playbookUnavailable)
-    const fields = result.stdout.toString('utf8').split('\0')
-    for (let index = 0; index < fields.length - 1; index += 1) {
-      const status = (fields[index] ?? '').trim()
-      if (!status) continue
-      const from = fields[++index]
-      if (!from) throw new Error(UI_TEXT.playbookUnavailable)
-      if (/^[RC]\d+$/u.test(status)) {
-        const to = fields[++index]
-        if (!to) throw new Error(UI_TEXT.playbookUnavailable)
-        renames.push({ from: modulePath(from), to: modulePath(to) })
-      } else if (!/^[ADMTUXB]$/u.test(status)) throw new Error(UI_TEXT.playbookUnavailable)
-    }
-  }
-  return renames
 }
 
 function linkedStates(state: ModuleState, states: Map<string, ModuleState>): ModuleState[] {
@@ -290,8 +232,8 @@ function validateRound(round: PlaybookRound, state: ModuleState): void {
 }
 
 /** Replay in publication order. Class records carry their independent
- * lifetime counters; the aggregate retains the active findings and identities.
- * No current state comes from a lane name, branch or display key. */
+lifetime counters; the aggregate retains the active findings and identities.
+No current state comes from a lane name, branch or display key. */
 function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): void {
   switch (record.kind) {
     case 'module': {

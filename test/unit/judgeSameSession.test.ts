@@ -7,8 +7,11 @@
 
 import { describe, expect, it } from 'vitest'
 import { decodeJudgeReply, settleBatch } from '../../src/core/judge/same/answers'
+import { beginJudgeBatches } from '../../src/core/judge/same/batches'
+import { JudgeEntryStore } from '../../src/core/judge/entries'
 import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import { runJudgeInBackground } from '../../src/core/judge/same/scheduler'
+import { JudgeUse } from '../../src/core/judge/use'
 import { isJudgeTurnItemAllowed, judgeSessionOptions } from '../../src/core/judge/same/sessionSpec'
 import { judgePromptWording, judgeStandaloneTurn } from '../../src/core/judge/same/wording'
 import { JUDGE_MODEL_TEXT } from '../../src/shared/constants'
@@ -98,6 +101,80 @@ describe('runJudgeInBackground', () => {
       })
     }).toThrow(RangeError)
     expect(errors).toEqual([])
+  })
+
+  it('hands the call failure itself to onError', async () => {
+    const failure = new Error('judge call failed')
+    const errors: unknown[] = []
+    runJudgeInBackground(() => Promise.reject(failure), {
+      timeoutMs: 5000,
+      onError: (error) => {
+        errors.push(error)
+      },
+    })
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    expect(errors).toEqual([failure])
+  })
+})
+
+describe('beginJudgeBatches', () => {
+  it('settles failed and hands the planning failure itself to onError', () => {
+    const failure = new Error('judge batch refused: over context')
+    const errors: unknown[] = []
+    const entries = new JudgeEntryStore()
+    const cache = new JudgeResultCache(2)
+    const key = entries.start({
+      backend: 'test',
+      sessionId: 's',
+      turnId: 't',
+      tool: 'tool',
+      args: {},
+    })
+    let launched = 0
+    beginJudgeBatches({
+      entries,
+      cache,
+      entryKey: key,
+      plan: () => {
+        throw failure
+      },
+      launch: () => {
+        launched += 1
+      },
+      onError: (error) => {
+        errors.push(error)
+      },
+    })
+    expect(launched).toBe(0)
+    expect(errors).toEqual([failure])
+    expect(cache.get(key.key)).toBeUndefined()
+    expect(entries.readLatch(key)).toBeUndefined()
+  })
+})
+
+describe('JudgeUse', () => {
+  it('settles failed and hands the preparation failure itself to onError', async () => {
+    const failure = new Error('consent check crashed')
+    const errors: unknown[] = []
+    const judge = new JudgeUse({
+      isOn: () => true,
+      createRunner: () => {
+        throw new Error('must not create a runner for a failed preparation')
+      },
+      prepare: () => Promise.reject(failure),
+      question: () => NOUL,
+      onError: (error) => {
+        errors.push(error)
+      },
+    })
+    const fence = judge.start(
+      { backend: 'test', sessionId: 's', turnId: 't', tool: 'tool', args: {} },
+      'state',
+    )
+    expect(fence).toBeDefined()
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    expect(errors).toEqual([failure])
+    expect(fence?.read()).toBeUndefined()
   })
 })
 

@@ -65,10 +65,10 @@ function slashed(folder: string): string {
 }
 
 /**
- * The file operations, holding the window's first generation publish
- * (after its last lease check) until another window has published that
- * same generation, or 2 s have passed: a takeover mid-write, every time.
- */
+The file operations, holding the window's first generation publish
+(after its last lease check) until another window has published that
+same generation, or 2 s have passed: a takeover mid-write, every time.
+*/
 function holdingFirstPublish(base: RecordStoreFs, onHeld: () => void): RecordStoreFs {
   let isArmed = true
   return {
@@ -88,16 +88,17 @@ function holdingFirstPublish(base: RecordStoreFs, onHeld: () => void): RecordSto
 }
 
 /**
- * The file operations behind a seeded random number of event-loop turns:
- * windows interleave anywhere. Turns, not timers, so the interleaving does
- * not depend on the platform's timer granularity.
- */
+The file operations behind a seeded random number of event-loop turns:
+windows interleave anywhere. Turns, not timers, so the interleaving does
+not depend on the platform's timer granularity.
+*/
 function jitteringFs(
   seed: number,
-  maxTurns: number,
   seen: { lockMoves: number; lostGenerations: number },
-  publishDelayMs = 0,
 ): RecordStoreFs {
+  // Up to 4 turns before each operation, and up to 40 ms before a publish.
+  const maxTurns = 4
+  const publishDelayMs = 40
   // Park–Miller: deterministic turns; the thread pool still varies the rest.
   let state = seed
   const draw = (most: number) => {
@@ -202,12 +203,9 @@ async function seeded(dataFolder: string, folder: string, isTrusted: boolean) {
 }
 
 /** A window's file store over a fresh data folder, with checkout 'a' reserved. */
-async function reservedStore(
-  logger: CoreLogger = log,
-  options: { readonly fs?: RecordStoreFs } = {},
-) {
+async function reservedStore(options: { readonly fs?: RecordStoreFs } = {}) {
   const setup = await dataSetup()
-  const store = createFileWorktreeRecordStore(setup.dataFolder, process.platform, logger, options)
+  const store = createFileWorktreeRecordStore(setup.dataFolder, process.platform, log, options)
   const reserved = await store.reserve(pendingRecord(setup.folder, 'a'))
   if (!reserved.ok) {
     throw new Error('refused')
@@ -216,20 +214,18 @@ async function reservedStore(
 }
 
 /**
- * Window A's store, paused just before it publishes a generation. Its lease
- * is 2 s: the retry after the takeover must still fit a full save path
- * (read the head, a flushed stage write, the link) inside one lease. A
- * 200 ms lease passed here but failed on Windows (PR 161): the first publish
- * beat it and paused, then the retries each outlasted it, so one test saw
- * the product's `could not be kept` after its attempts and the other's
- * `beforePublish.reached` never settled (the loss is reported before the
- * link the pause watches). The takeover stays fast: window B honors 10 ms.
- */
+Window A's store, paused just before it publishes a generation. Its lease
+is 2 s: the retry after the takeover must still fit a full save path
+(read the head, a flushed stage write, the link) inside one lease. A
+200 ms lease passed here but failed on Windows (PR 161): the first publish
+beat it and paused, then the retries each outlasted it, so one test saw
+the product's `could not be kept` after its attempts and the other's
+`beforePublish.reached` never settled (the loss is reported before the
+link the pause watches). The takeover stays fast: window B honors 10 ms.
+*/
 function pausedPublisher(dataFolder: string) {
   const windowAFs = pausingPort()
-  const beforePublish = windowAFs.pauseAt('link', ([, target]) =>
-    GENERATION_FILE.test(target ?? ''),
-  )
+  const beforePublish = windowAFs.pauseAt('link', ([, target = '']) => GENERATION_FILE.test(target))
   const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
     fs: windowAFs.port,
     leaseMs: 2000,
@@ -408,7 +404,7 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
 
   it('keeps a landed claim whose proof cannot be read, once the head shows it', async () => {
     const failing = failingListingsAfterLink([1])
-    const { store, reserved } = await reservedStore(log, { fs: failing.fs })
+    const { store, reserved } = await reservedStore({ fs: failing.fs })
     failing.arm()
     const claimed = await store.claim(reserved.reservation, () => Promise.resolve('made'))
     expect(failing.failed()).toBe(1)
@@ -419,7 +415,7 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
     // The proof and the reconciliation both fail: whether the claim landed
     // is not known, so nothing is made and both reservations come back.
     const failing = failingListingsAfterLink([1, 2])
-    const { folder, store, reserved } = await reservedStore(log, { fs: failing.fs })
+    const { folder, store, reserved } = await reservedStore({ fs: failing.fs })
     failing.arm()
     let made = 0
     const claimed = await store.claim(reserved.reservation, () => {
@@ -761,8 +757,9 @@ describe('worktree records generations (M123 lane P)', () => {
     // and the kept generations form one chain whose fences only rise.
     const { dataFolder, heldRoot, recordsFolder } = await dataSetup()
     const seen = { lockMoves: 0, lostGenerations: 0 }
-    // Every window polls every turn (no timer gaps leave the lock idle);
-    // the third waits out others' leases for only a few milliseconds and
+    // Every window polls every few milliseconds (no long gaps leave the
+    // lock idle); the third waits out others' leases for only a few
+    // milliseconds and
     // arrives staggered, so its takeovers land inside their writes: after
     // their last lease check, before they publish. However fast or loaded
     // the machine, one takeover mid-write is certain: the first window
@@ -777,17 +774,34 @@ describe('worktree records generations (M123 lane P)', () => {
       createFileWorktreeRecordStore(dataFolder, process.platform, log, {
         fs:
           index === 0
-            ? holdingFirstPublish(jitteringFs(seed, 4, seen, 40), firstHeld.resolve)
-            : jitteringFs(seed, 4, seen, 40),
+            ? holdingFirstPublish(jitteringFs(seed, seen), firstHeld.resolve)
+            : jitteringFs(seed, seen),
         honoredLeaseMs,
-        sleep: () => nextTurn(),
-        timeoutMs: 4000,
+        // A 2 ms poll, not every event-loop turn: turn-spinning
+        // waiters each retry with real file calls, and that traffic alone
+        // passed the 5 s budget on a loaded machine. The publish linger
+        // (up to 40 ms) and the held first publish (up to 2 s) leave the
+        // takeover window far wider than this gap.
+        sleep: async () => {
+          await delay(2)
+        },
+        // The lock wait each reserve allows itself. Nine reserves race
+        // one lock, so most waits end here rather than in a publish; at
+        // 4000 the case's wall time passed the 5 s test budget on a loaded
+        // machine (18 s measured at load ~8, 2.2 s unloaded) even though
+        // every assertion still held. 1200 keeps the race (the held first
+        // publish forces a mid-write takeover regardless) inside budget.
+        timeoutMs: 1200,
       }),
     )
     const EAGER = 2
     const outcomes = await Promise.all(
       windows.flatMap((window, index) =>
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(async (number) => {
+        // Three reserves a window (nine racers) still race one lock
+        // through forced takeovers; ten a window serialised enough real
+        // file work to pass the 5 s budget on a loaded machine, and five
+        // still passed it beside other files in a shard.
+        [1, 2, 3].map(async (number) => {
           const folder = path.join(heldRoot, `${String(index)}-${String(number)}`)
           if (index === EAGER) {
             await firstHeld.promise

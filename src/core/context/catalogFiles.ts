@@ -14,6 +14,7 @@
 import type { ContentSource } from '../schedules/provenance'
 import path from 'node:path'
 import { type ContextIo, type ContextText, readContextText } from './contextFiles'
+import { isCodedError } from '../workspaceRoot'
 
 export interface CatalogLoaderDeps {
   readonly io: ContextIo
@@ -25,9 +26,9 @@ export interface CatalogRoot<Source extends string = string> {
   readonly directory: string
   readonly source: Source
   /**
-   * The workspace root for project catalogs: a file whose canonical path
-   * leaves it is skipped. Undefined for the personal root.
-   */
+  The workspace root for project catalogs: a file whose canonical path
+  leaves it is skipped. Undefined for the personal root.
+  */
   readonly confineTo: string | undefined
 }
 
@@ -81,10 +82,10 @@ export type FrontMatterSplit =
       readonly fields: ReadonlyMap<string, string>
       readonly body: string
       /**
-       * What the line reader could not take as `key: value` (a list item, an
-       * indented continuation) and what it saw a second time: a format that
-       * narrows something must refuse such a file, not guess its meaning.
-       */
+      What the line reader could not take as `key: value` (a list item, an
+      indented continuation) and what it saw a second time: a format that
+      narrows something must refuse such a file, not guess its meaning.
+      */
       readonly ignoredLines: readonly string[]
       readonly duplicateKeys: readonly string[]
     }
@@ -145,10 +146,6 @@ export function splitFrontMatter(text: string): FrontMatterSplit {
   }
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 /** One catalog file; a read that throws (a link loop, permissions) refuses that entry only. */
 async function readCatalogFile(
   deps: CatalogLoaderDeps,
@@ -159,7 +156,11 @@ async function readCatalogFile(
   try {
     return await readContextText(deps, file, confineTo, maxBytes)
   } catch (error: unknown) {
-    return { ok: false, reason: `could not be read: ${describe(error)}` }
+    // Only a shaped store failure refuses the entry: anything else keeps
+    // its kind past the catalog. The reason stays fixed words, never the
+    // failure's own text (paths stay out of the warning).
+    if (!isCodedError(error)) throw error
+    return { ok: false, reason: 'could not be read' }
   }
 }
 
@@ -172,7 +173,10 @@ async function listRoot(
     const listed = await deps.io.listDirectory(directory)
     return { ids: listed.toSorted((a, b) => a.localeCompare(b, 'en')) }
   } catch (error: unknown) {
-    return { failure: describe(error) }
+    // Only a shaped store failure fails the listing: anything else keeps
+    // its kind past the catalog, and no failure text reaches the warning.
+    if (!isCodedError(error)) throw error
+    return { failure: 'could not be listed' }
   }
 }
 

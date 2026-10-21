@@ -1,5 +1,13 @@
 // Local commands only: these arguments never become a backend/model prompt.
 import { parseArgs, type ParseArgsConfig } from 'node:util'
+import {
+  PROMPTS_LIST_FLAGS,
+  PROMPTS_SAVE_FLAGS,
+  PROMPTS_SCOPE_FLAG,
+  PROMPTS_USE_FLAGS,
+  SHARE_FLAGS,
+  SHARING_BASE_FLAGS,
+} from '../../shared/sharingFlags'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { parseSkillInvocation } from '../../shared/mentions'
@@ -8,6 +16,7 @@ import type { ShareRequest } from '../../shared/share'
 
 interface LocalOptions {
   readonly cwd: string | undefined
+  readonly json: boolean
 }
 export type SharingCommand =
   | (LocalOptions & {
@@ -37,11 +46,29 @@ export type SharingCommand =
       readonly promptId: string
       readonly scope: SavedPrompt['scope']
       readonly chat: 'active' | 'new'
+      /** Scripted variable values (`--var name=value`, repeatable). */
+      readonly vars: ReadonlyMap<string, string>
+      /** A script's explicit confirmation, without the interactive review. */
+      readonly confirmed: boolean
     })
 
 export function localArgumentError(argument: string): Error {
   return new Error(fill(UI_TEXT.acpUnknownArgument, { argument }))
 }
+
+/** The accepted values behind the sharing flags; the help facts read these. */
+export const SHARE_MODES = ['full', 'conversation'] as const
+export const SHARE_FORMATS = ['md', 'html', 'json'] as const
+export const SHARE_DESTINATIONS = ['copy', 'file', 'browser'] as const
+export const PROMPT_SCOPES = ['user', 'workspace'] as const
+export const PROMPT_CHATS = ['active', 'new'] as const
+/** The parser-effective defaults behind the sharing enum facts. */
+export const SHARING_DEFAULTS = {
+  mode: 'conversation',
+  format: 'md',
+  scope: 'user',
+  chat: 'active',
+} as const
 
 function oneOf<T extends string>(value: string, allowed: readonly T[]): T {
   const found = allowed.find((candidate) => candidate === value)
@@ -56,28 +83,12 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   if (root === 'share' && action !== 'chat') throw localArgumentError(action ?? '')
   const isShare = root === 'share' || action === 'share'
   const flags: NonNullable<ParseArgsConfig['options']> = {
-    cwd: { type: 'string' },
-    ...(isShare && {
-      mode: { type: 'string' },
-      format: { type: 'string' },
-      destination: { type: 'string' },
-      out: { type: 'string' },
-      from: { type: 'string' },
-      to: { type: 'string' },
-      'no-code-blocks': { type: 'boolean' },
-      'no-attachment-names': { type: 'boolean' },
-      diffs: { type: 'boolean' },
-      'attachment-content': { type: 'string', multiple: true },
-      'exported-at': { type: 'string' },
-      confirm: { type: 'string' },
-    }),
-    ...(root === 'prompts' && action !== 'list' && { scope: { type: 'string' } }),
-    ...(action === 'list' && { search: { type: 'string' }, tag: { type: 'string' } }),
-    ...(action === 'save' && {
-      title: { type: 'string' },
-      tag: { type: 'string', multiple: true },
-    }),
-    ...(action === 'use' && { chat: { type: 'string' } }),
+    ...SHARING_BASE_FLAGS,
+    ...(isShare && SHARE_FLAGS),
+    ...(root === 'prompts' && action !== 'list' && PROMPTS_SCOPE_FLAG),
+    ...(action === 'list' && PROMPTS_LIST_FLAGS),
+    ...(action === 'save' && PROMPTS_SAVE_FLAGS),
+    ...(action === 'use' && PROMPTS_USE_FLAGS),
   }
   const { values, positionals } = parseArgs({
     args,
@@ -101,24 +112,49 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   }
   if (Object.values(values).includes('')) throw localArgumentError(argv.join(' '))
   const cwd = flag('cwd')
+  const isJson = values['json'] === true
   const [id, ...extra] = positionals
   if (extra.length > 0) throw localArgumentError(extra.join(' '))
   if (action === 'list' && root === 'prompts' && id === undefined) {
-    return { command: 'prompts', action, cwd, search: flag('search') ?? '', tag: flag('tag') }
-  }
-  const scope = oneOf(flag('scope') ?? 'user', ['user', 'workspace'])
-  const title = flag('title')
-  if (action === 'save' && root === 'prompts' && id === undefined && title !== undefined) {
-    return { command: 'prompts', action, cwd, title, scope, tags: listFlag('tag') }
-  }
-  if (action === 'use' && root === 'prompts' && id !== undefined) {
     return {
       command: 'prompts',
       action,
       cwd,
+      json: isJson,
+      search: flag('search') ?? '',
+      tag: flag('tag'),
+    }
+  }
+  const scope = oneOf(flag('scope') ?? SHARING_DEFAULTS.scope, PROMPT_SCOPES)
+  const title = flag('title')
+  if (action === 'save' && root === 'prompts' && id === undefined && title !== undefined) {
+    return {
+      command: 'prompts',
+      action,
+      cwd,
+      json: isJson,
+      title,
+      scope,
+      tags: listFlag('tag'),
+    }
+  }
+  if (action === 'use' && root === 'prompts' && id !== undefined) {
+    const vars = new Map<string, string>()
+    for (const entry of listFlag('var')) {
+      const separator = entry.indexOf('=')
+      if (separator <= 0) throw localArgumentError(`--var ${entry}`)
+      vars.set(entry.slice(0, separator), entry.slice(separator + 1))
+    }
+    return {
+      command: 'prompts',
+      action,
+      cwd,
+      json: isJson,
       promptId: id,
       scope,
-      chat: oneOf(flag('chat') ?? 'active', ['active', 'new']),
+      chat: oneOf(flag('chat') ?? SHARING_DEFAULTS.chat, PROMPT_CHATS),
+      vars,
+      confirmed: values['confirm'] === true,
     }
   }
   if (!isShare) throw localArgumentError(argv.join(' '))
@@ -133,15 +169,14 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   let selectedDestination = destinationFlag
   if (selectedDestination === 'save') selectedDestination = 'file'
   if (selectedDestination === 'open') selectedDestination = 'browser'
-  const destination = oneOf(selectedDestination ?? (flag('out') === undefined ? 'copy' : 'file'), [
-    'copy',
-    'file',
-    'browser',
-  ])
+  const destination = oneOf(
+    selectedDestination ?? (flag('out') === undefined ? 'copy' : 'file'),
+    SHARE_DESTINATIONS,
+  )
   if (destination !== 'file' && flag('out') !== undefined) throw localArgumentError('--out')
   const common = {
-    mode: oneOf(flag('mode') ?? 'conversation', ['full', 'conversation']),
-    format: oneOf(flag('format') ?? 'md', ['md', 'html', 'json']),
+    mode: oneOf(flag('mode') ?? SHARING_DEFAULTS.mode, SHARE_MODES),
+    format: oneOf(flag('format') ?? SHARING_DEFAULTS.format, SHARE_FORMATS),
     destination,
     options: {
       codeBlocks: values['no-code-blocks'] !== true,
@@ -162,6 +197,7 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   return {
     command: 'share',
     cwd,
+    json: isJson,
     request,
     exportedAt: flag('exported-at'),
     confirmation: flag('confirm'),

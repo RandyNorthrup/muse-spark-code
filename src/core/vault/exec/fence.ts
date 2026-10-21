@@ -10,20 +10,22 @@ export interface VaultFenceOptions {
   /** Muse Code keeps its own credentials (D1); its tools still lose ambient SSH/git. */
   readonly museCode?: boolean
   /**
-   * D89.5 pass-through names, honored only for an explicitly interactive
-   * shell entry. Only the credential strip honours them: sockets, git routes
-   * and askpass entries stay fenced.
-   */
+  D89.5 pass-through names, honored only for an explicitly interactive
+  shell entry. Only the credential strip honours them: sockets, git routes
+  and askpass entries stay fenced.
+  */
   readonly passNames?: readonly string[] | undefined
   /** Normalises pass-through matching the way the credential rule does. */
   readonly platform?: NodeJS.Platform | undefined
 }
 
 /** No ambient credentials, keyring routes, git helpers, askpass or agent socket. */
-export function vaultFenceEnvironment(
-  source: NodeJS.ProcessEnv,
+export function vaultFenceEnvironment<T extends NodeJS.ProcessEnv>(
+  source: T,
   options: VaultFenceOptions = {},
-): NodeJS.ProcessEnv {
+): T {
+  // Dropping credential variables and adding only GIT_/SSH_* controls cannot
+  // introduce a workspace PATH entry: a guarded environment stays guarded.
   const env: NodeJS.ProcessEnv = {}
   const routes: readonly string[] = EXEC_CHILD_ENV_DROP
   const platform = options.platform ?? process.platform
@@ -73,5 +75,5 @@ export function vaultFenceEnvironment(
     env[name] = options.refusingHelper ?? ''
   if (options.sshSocket !== undefined) env['SSH_AUTH_SOCK'] = options.sshSocket
   if (options.sshCommand !== undefined) env['GIT_SSH_COMMAND'] = options.sshCommand
-  return env
+  return env as T
 }

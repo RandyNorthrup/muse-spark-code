@@ -12,20 +12,9 @@
 // behind. A folder a dead window left is swept by a later check once its
 // owner is known to be gone.
 
-import { type ChildProcess, execFile, spawn } from 'node:child_process'
-import { withoutCredentials } from '../../core/credentialEnvironment'
-import { randomBytes } from 'node:crypto'
-import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { networkInterfaces } from 'node:os'
+import type { ChildProcess } from 'node:child_process'
 import path from 'node:path'
-import { Duplex } from 'node:stream'
 import type { BrowserProcess, BrowserRunDeps, CheckFolder } from '../../core/browser/browserRun'
-import { startProbeFixture } from '../../core/browser/canaries'
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
-import { stopResourceTree } from '../../core/resources/admission'
-import { observeResourceProcess } from '../resources/resourceAdmission'
-import { spawnMcpJob } from '../backend/mcpJobLaunch'
-import { startCheckProxy } from '../../core/browser/checkProxy'
 import {
   BROWSER_CHECK_DIR,
   BROWSER_CHECK_ID_BYTES,
@@ -36,6 +25,20 @@ import {
   BROWSER_PROFILE_SUBDIRS,
   WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../../shared/browserCheckConstants'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { realpathSync } from 'node:fs'
+import { withoutCredentials } from '../../core/credentialEnvironment'
+import { execFileGuarded, spawnGuarded } from '../../core/guardedChildProcess'
+import { randomBytes } from 'node:crypto'
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { networkInterfaces } from 'node:os'
+import { Duplex } from 'node:stream'
+import { startProbeFixture } from '../../core/browser/canaries'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { stopResourceTree } from '../../core/resources/admission'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { spawnMcpJob } from '../backend/mcpJobLaunch'
+import { startCheckProxy } from '../../core/browser/checkProxy'
 
 export interface HostBrowserDeps {
   readonly windowsJob?:
@@ -53,6 +56,17 @@ const SYSTEM_ROOT = 'systemroot'
 
 function ignore(): void {
   // The pipe's loss is reported by its other end.
+}
+
+/**
+A system error: an object with a string `.code`. Reads only the code,
+never the message, so the check itself leaks nothing. Anything else is a
+bug, which must not read as an absent folder.
+*/
+function isSystemError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+  )
 }
 
 /** A spawn `error`'s own code, when it has one. */
@@ -80,6 +94,9 @@ async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<
       // The browser leads its own process group (spawned detached).
       process.kill(-pid, 'SIGKILL')
     } catch {
+      // The group kill failed (the browser is already gone, or the group is
+      // not ours): ending the direct child is the fallback, and the pipes'
+      // setup already failed, so there is nothing further to report.
       child.kill('SIGKILL')
     }
     return
@@ -91,10 +108,18 @@ async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<
   }
   await new Promise<void>((resolve) => {
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Windows' own taskkill by its absolute path under SystemRoot, with the browser's own process id: the tree kill of the check's browser (M81 A1, PLAN.md §8).
-    execFile(
+    execFileGuarded(
       path.win32.join(systemRoot, WINDOWS_TASKKILL_RELATIVE_PATH),
       ['/PID', String(pid), '/T', '/F'],
-      { windowsHide: true, env: withoutCredentials(deps.env) },
+      // Fixed `taskkill` under SystemRoot: absolute entries only, links followed.
+      {
+        windowsHide: true,
+        env: noWorkspaceChildEnvironment(
+          deps.platform,
+          { ...withoutCredentials(deps.env) },
+          realpathSync,
+        ),
+      },
       (error) => {
         if (error !== null && child.exitCode === null) {
           deps.warn("Browser check: the browser's process tree needed a forced end")
@@ -114,11 +139,18 @@ function spawnBrowser(
   deps: HostBrowserDeps,
 ): BrowserProcess {
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the pinned headless shell at the absolute path the runtime bundle verified against browserRuntime.json in the extension's own storage (never PATH, a system browser or a workspace file), with the fixed flags of BROWSER_LAUNCH_FLAGS, the check's own proxy endpoint and profile, and a projected environment; the model's URL goes over the pipe, never on the command line (M81 A1, PLAN.md D49).
+  // The pinned browser runs with the check folder as its working directory,
+  // never a workspace: absolute entries only, links followed.
+  const childEnv = noWorkspaceChildEnvironment(
+    deps.platform,
+    { ...withoutCredentials(env) },
+    realpathSync,
+  )
   const child =
     deps.windowsJob === undefined
-      ? spawn(executable, [...args], {
+      ? spawnGuarded(executable, [...args], {
           stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'],
-          env: resourceEnvironment(withoutCredentials(env), deps.resource),
+          env: resourceEnvironment(childEnv, deps.resource),
           windowsHide: true,
           // Its own process group on POSIX, so the kill ends everything it started.
           detached: deps.platform !== 'win32',
@@ -129,7 +161,7 @@ function spawnBrowser(
           file: executable,
           args,
           cwd: path.dirname(executable),
-          env: resourceEnvironment(withoutCredentials(env), deps.resource),
+          env: resourceEnvironment(childEnv, deps.resource),
           isVerbatim: false,
           debugPipes: true,
           resource: deps.resource,
@@ -226,16 +258,22 @@ async function sweepLeftovers(parent: string): Promise<void> {
   let names: readonly string[]
   try {
     names = await readdir(parent)
-  } catch {
-    return
+  } catch (error: unknown) {
+    if (isSystemError(error)) {
+      return
+    }
+    throw error
   }
   for (const name of names.slice(0, BROWSER_CHECK_SWEEP_MAX)) {
     const root = path.join(parent, name)
     let owner: number
     try {
       owner = Number(await readFile(path.join(root, BROWSER_CHECK_OWNER_FILE), 'utf8'))
-    } catch {
-      continue
+    } catch (error: unknown) {
+      if (isSystemError(error)) {
+        continue
+      }
+      throw error
     }
     // Unknown ownership is kept; a live owner may be another window's check.
     if (Number.isSafeInteger(owner) && owner > 0 && owner !== process.pid && !isRunning(owner)) {
@@ -245,6 +283,15 @@ async function sweepLeftovers(parent: string): Promise<void> {
         // Still there: a later sweep tries again.
       }
     }
+  }
+}
+
+/** Removes a half-made check folder; a later sweep retries what stays. */
+async function removeHalfMade(root: string): Promise<void> {
+  try {
+    await rm(root, { recursive: true, force: true })
+  } catch {
+    // Still there: a later sweep tries again.
   }
 }
 
@@ -273,11 +320,7 @@ async function createFolder(storageDir: string): Promise<CheckFolder> {
   } catch (error: unknown) {
     // A half-made folder never waits for the sweep: its owner file may name
     // this live process, which the sweep skips.
-    try {
-      await rm(root, { recursive: true, force: true })
-    } catch {
-      // Still there: a later sweep tries again.
-    }
+    await removeHalfMade(root)
     throw error
   }
 }
@@ -311,8 +354,11 @@ export function hostBrowserRunDeps(deps: HostBrowserDeps): BrowserRunDeps {
       try {
         const info = await stat(executable)
         return { bytes: info.size, mtimeMs: info.mtimeMs }
-      } catch {
-        return
+      } catch (error: unknown) {
+        if (isSystemError(error)) {
+          return
+        }
+        throw error
       }
     },
     startProxy: async (scope) => await startCheckProxy(scope),

@@ -3,14 +3,7 @@
 // host and webview: no `vscode`, Node, or DOM imports.
 
 import * as z from 'zod/mini'
-import {
-  BEST_OF_N_DEFAULT_ATTEMPTS,
-  BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
-  BEST_OF_N_MAX_ATTEMPTS,
-  BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT,
-  BEST_OF_N_MIN_ATTEMPTS,
-  BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT,
-} from './constants'
+import { BEST_OF_N_DEFAULT_ATTEMPTS, BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT } from './constants'
 
 export const BEST_OF_N_ATTEMPT_STATUSES = [
   'queued',
@@ -68,23 +61,23 @@ export interface BestOfNRequest {
 /** Which field refuses a run, in the order the dialog checks them. */
 export type BestOfNValidationError = 'prompt' | 'attempts' | 'ceiling'
 
-/** The fields that refuse this run; empty means it may start. */
+/**
+The fields that refuse this run; empty means it may start. D121: the
+attempt count and the per-attempt request ceiling are the person's own
+per-run choice with no ceiling of ours, so only a whole number below 1
+refuses.
+*/
 export function validateBestOfNRequest(request: BestOfNRequest): readonly BestOfNValidationError[] {
   const errors: BestOfNValidationError[] = []
   if (request.prompt.trim() === '') {
     errors.push('prompt')
   }
-  if (
-    !Number.isSafeInteger(request.attempts) ||
-    request.attempts < BEST_OF_N_MIN_ATTEMPTS ||
-    request.attempts > BEST_OF_N_MAX_ATTEMPTS
-  ) {
+  if (!Number.isSafeInteger(request.attempts) || request.attempts < 1) {
     errors.push('attempts')
   }
   if (
     !Number.isSafeInteger(request.requestCeilingPerAttempt) ||
-    request.requestCeilingPerAttempt < BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT ||
-    request.requestCeilingPerAttempt > BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT
+    request.requestCeilingPerAttempt < 1
   ) {
     errors.push('ceiling')
   }

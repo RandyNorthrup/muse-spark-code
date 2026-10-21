@@ -28,6 +28,7 @@
 // answer, the card and its note) is reviewedApprovals.ts.
 
 import { mkdir } from 'node:fs/promises'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { AgentHost, AgentSession, TurnSubmission } from '../../core/agent/agentBackend'
 import {
   parseReviewerAnswer,
@@ -40,6 +41,7 @@ import { FifoLimiter } from '../../core/fifoLimiter'
 import type { CoreLogger } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'
 import type { AgentEvent } from '../../shared/agentEvents'
+import { usableReply } from '../../core/turns/usableReply'
 import {
   AUTO_REVIEWER_MODEL_TEXT,
   MUSE_CODE_REVIEW_TIMEOUT_MS,
@@ -97,6 +99,11 @@ interface SideSession {
   readonly replies: Map<string, string>
   /** How each turn ended. */
   readonly endings: Map<string, string>
+  /**
+  Turns that ended at the model-call limit (completed with the typed
+  limit outcome): their replies are truncated, never verdicts.
+  */
+  readonly limited: Set<string>
   /** The turn the latest review sent. */
   lastTurnId: string | undefined
   /** Muse Code exited or closed the session. */
@@ -161,7 +168,7 @@ export class MuseCodeReviewer {
             result = await this.ask(job)
           } catch (error: unknown) {
             this.deps.log.warn(
-              `The Auto reviewer could not review; the user decides: ${this.deps.describeFailure(error)}`,
+              `The Auto reviewer could not review; the user decides: ${failureForLog(error)}`,
             )
             result = 'failed'
           }
@@ -178,7 +185,14 @@ export class MuseCodeReviewer {
     } catch (error: unknown) {
       if (!job.signal.aborted && !this.isDisposed) {
         this.deps.log.warn(
-          `The Auto reviewer could not review; the user decides: ${this.deps.describeFailure(error)}`,
+          `The Auto reviewer could not review; the user decides: ${failureForLog(error)}`,
+        )
+      } else if (!job.signal.aborted) {
+        // The window closed meanwhile: nobody is told, but the failure is
+        // still recorded, with words that say so. An abort means nobody
+        // waits on it any more: it counts for nothing.
+        this.deps.log.warn(
+          `The Auto reviewer could not review after its window closed: ${failureForLog(error)}`,
         )
       }
       reviewed = { answer: 'failed', hasTripped: false }
@@ -244,7 +258,16 @@ export class MuseCodeReviewer {
         if (ending === undefined) {
           return
         }
-        return ending === COMPLETED ? (side.replies.get(turnId) ?? null) : null
+        // Only a turn that completed without a limit answers: a reply cut
+        // at the model-call limit never becomes a verdict.
+        const usable = usableReply(
+          {
+            terminal: ending,
+            errorKind: side.limited.has(turnId) ? 'max_turn_requests' : undefined,
+          },
+          side.replies.get(turnId),
+        )
+        return usable.usable ? usable.reply : null
       },
       deadline,
       job.signal,
@@ -257,7 +280,9 @@ export class MuseCodeReviewer {
     }
     if (reply === null) {
       this.deps.log.warn(
-        `The Auto reviewer's turn ended ${side.endings.get(turnId) ?? ''} without a reply`,
+        side.limited.has(turnId)
+          ? `The Auto reviewer's turn ended at its model-call limit without a usable reply`
+          : `The Auto reviewer's turn ended ${side.endings.get(turnId) ?? ''} without a reply`,
       )
       return 'failed'
     }
@@ -265,10 +290,10 @@ export class MuseCodeReviewer {
   }
 
   /**
-   * The side session for this review: the one there is, once the turn the
-   * last review sent has ended (its reply comes first, and Muse Code's own
-   * reminders finish after it), or a new one.
-   */
+  The side session for this review: the one there is, once the turn the
+  last review sent has ended (its reply comes first, and Muse Code's own
+  reminders finish after it), or a new one.
+  */
   private async sideFor(
     job: MuseCodeReviewJob,
     deadline: number,
@@ -345,7 +370,7 @@ export class MuseCodeReviewer {
         })
         .catch((error: unknown) => {
           this.deps.log.info(
-            `The Auto reviewer's side session did not start: ${this.deps.describeFailure(error)}`,
+            `The Auto reviewer's side session did not start: ${failureForLog(error)}`,
           )
         })
       throw error
@@ -358,6 +383,7 @@ export class MuseCodeReviewer {
       reviews: 0,
       replies: new Map(),
       endings: new Map(),
+      limited: new Set(),
       lastTurnId: undefined,
       isGone: false,
       wakers: new Set(),
@@ -425,6 +451,11 @@ export class MuseCodeReviewer {
     }
     if (event.type === 'turnCompleted') {
       side.endings.set(event.turnId, event.terminal)
+      // The typed limit outcome is not an ordinary completion: a reply cut
+      // at the model-call limit never becomes a verdict.
+      if (event.errorKind === 'max_turn_requests') {
+        side.limited.add(event.turnId)
+      }
       return
     }
     if (
@@ -439,9 +470,9 @@ export class MuseCodeReviewer {
   }
 
   /**
-   * What `check` finds, once it finds it; undefined when the deadline
-   * passes, the approval stops waiting or the side session is gone first.
-   */
+  What `check` finds, once it finds it; undefined when the deadline
+  passes, the approval stops waiting or the side session is gone first.
+  */
   private until<T>(
     side: SideSession,
     check: () => T | undefined,
@@ -503,9 +534,7 @@ export class MuseCodeReviewer {
     void side.session
       .cancel()
       .catch((error: unknown) => {
-        this.deps.log.warn(
-          `Stopping the Auto reviewer's side turn failed: ${this.deps.describeFailure(error)}`,
-        )
+        this.deps.log.warn(`Stopping the Auto reviewer's side turn failed: ${failureForLog(error)}`)
       })
       .finally(() => {
         side.session.dispose()
@@ -513,9 +542,9 @@ export class MuseCodeReviewer {
   }
 
   /**
-   * One conversation's approvals: its own breaker; the side session and the
-   * queue are the window's, and so is the notice of its first review.
-   */
+  One conversation's approvals: its own breaker; the side session and the
+  queue are the window's, and so is the notice of its first review.
+  */
   public conversation(deps: ReviewedApprovalsDeps): ReviewedApprovals {
     return new ReviewedApprovals(
       deps,

@@ -1,6 +1,26 @@
 import type { ResourceLease } from '../../core/resources/launch'
 import type { ResourcePermit } from '../../core/resources/queue'
 import type { GovernedTeamSlot } from '../../core/team/scheduler/slots'
+import { loadJobAssembly, runProgram } from '../processTree'
+import { windowsPowerShell } from '../../core/execGuard'
+import {
+  guardedEnvironmentBlock,
+  isWorkspacePath,
+  noWorkspaceChildEnvironment,
+  resolveExecutable,
+  workspaceChildEnvironment,
+} from '../../core/execGuard'
+import { isExistingFile } from '../backend/mcpProcess'
+import { resolveServerCommand, spawnLine } from '../../core/execGuard'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { existsSync, realpathSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
+import { setTimeout as delay } from 'node:timers/promises'
+import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
+import { powerShellQuoted } from '../../core/shellQuote'
+import { withDeadline } from '../../core/timeouts'
 
 /** C1/T attach the reserved permit to their registry; no second admission or sampler. */
 export interface TeamProcessRegistryPort {
@@ -23,19 +43,15 @@ export function prepareTeamProcess(
   }
 }
 
-import { randomBytes, randomUUID } from 'node:crypto'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import os from 'node:os'
-import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import { Connection, checkServedFingerprint } from '@muse-code/sdk'
+// Deep SDK imports, never the barrel (see MuseCodeHost.ts): the barrel's
+// unused layers would ride into the team bundles.
+import { Connection } from '@muse-code/sdk/dist/src/connection/connection.js'
+import { checkServedFingerprint } from '@muse-code/sdk/dist/src/fingerprint.js'
 
 import type { TeamJournal } from './teamJournal'
-import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
-import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
-import { powerShellQuoted } from '../../core/shellQuote'
 import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
   TEAM_PROCESS_STATUS_MAX_CHARS,
@@ -47,18 +63,17 @@ import {
 } from '../../shared/constants'
 import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery'
 import { createProcessOwnership } from './processOwnership'
-import { MuseCodeHost } from '../../core/backends/musecode/MuseCodeHost'
+import { MuseCodeHost, museCodeEffortPort } from '../../core/backends/musecode/MuseCodeHost'
 import type { CoreLogger } from '../../core/logging'
-import { withDeadline } from '../../core/timeouts'
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000
 const LAUNCH_GATE_FD = 3
 
 /** A separate team MSP host, never the conversation's host. W supplies the
- * resolved CLI command/flags and credential-free environment. The handshake
- * is the installed SDK's request/initialized/flush sequence; MuseCodeHost
- * validates the existing captured initialize shape before initialized. */
+resolved CLI command/flags and credential-free environment. The handshake
+is the installed SDK's request/initialized/flush sequence; MuseCodeHost
+validates the existing captured initialize shape before initialized. */
 export async function startTeamMuseCodeHost(options: {
   readonly lifetime: TeamProcessLifetime
   readonly request: TeamLaunchRequest
@@ -130,6 +145,8 @@ export async function startTeamMuseCodeHost(options: {
     const host = new MuseCodeHost(
       { connection, initializeResult: initialized, exited, close: () => connection.close() },
       options.log,
+      undefined,
+      museCodeEffortPort,
     )
     // Same field already captured and parsed by MuseCodeHost; no new wire shape.
     const fingerprint = z
@@ -284,6 +301,14 @@ export interface TeamProcessLifetime {
   launch(request: TeamLaunchRequest): Promise<ContainedTeamChild & { readonly launchId: string }>
   dispose(): Promise<readonly Retirement[]>
   recoveryRecords(journal: TeamJournal, unreadable?: string[]): Promise<readonly TeamLaunchRecord[]>
+}
+
+/**
+Whether a scope read or run failed answering: reads and runs reject with
+Errors, so anything else is foreign to the operation and keeps its kind.
+*/
+function isScopeOperationFailure(error: unknown): boolean {
+  return error instanceof Error
 }
 
 /** Constructed only by the lazy team host; construction itself launches nothing. */
@@ -447,9 +472,22 @@ export async function createNativeTeamProcessDriver(options: {
   if (process.platform !== 'linux' && process.platform !== 'darwin')
     throw new Error('TEAM_PLATFORM_UNSUPPORTED')
   const probeEnv = { PATH: process.env['PATH'], XDG_RUNTIME_DIR: process.env['XDG_RUNTIME_DIR'] }
+  /**
+  The pre-launch probe never searches PATH: it runs only the fixed system
+  paths with an absolute `true`, so a program planted on a workspace PATH
+  entry never runs before any launch directory is known. The launch itself
+  re-resolves each tool outside its own working directory (links followed)
+  and fails closed when that directory shadows the probe. The probe child
+  gets the explicit no-workspace guarded environment (absolute entries
+  only, links followed).
+  */
+  const fixedTool = (file: string): string | undefined => (existsSync(file) ? file : undefined)
+  const absoluteTrue = fixedTool('/bin/true') ?? fixedTool('/usr/bin/true')
+  const probeChildEnv = ((): ReturnType<typeof noWorkspaceChildEnvironment> =>
+    noWorkspaceChildEnvironment(process.platform, probeEnv, realpathSync))()
   const canRun = async (file: string, args: readonly string[]) => {
     try {
-      await runProgram(file, [...args], probeEnv)
+      await runProgram(file, [...args], probeChildEnv)
       return true
     } catch {
       return false
@@ -457,18 +495,23 @@ export async function createNativeTeamProcessDriver(options: {
   }
   let hasScope = false
   let hasSetpriv = false
-  if (process.platform === 'linux') {
-    hasSetpriv = await canRun('setpriv', ['--pdeathsig', 'KILL', '--', 'true'])
+  if (absoluteTrue !== undefined && process.platform === 'linux') {
+    const setpriv = fixedTool('/usr/bin/setpriv')
+    hasSetpriv =
+      setpriv !== undefined && (await canRun(setpriv, ['--pdeathsig', 'KILL', '--', absoluteTrue]))
     try {
       await readFile('/sys/fs/cgroup/cgroup.controllers', 'utf8')
-      hasScope = await canRun('systemd-run', [
-        '--user',
-        '--scope',
-        '--collect',
-        '--quiet',
-        '--',
-        'true',
-      ])
+      const systemdRun = fixedTool('/usr/bin/systemd-run')
+      hasScope =
+        systemdRun !== undefined &&
+        (await canRun(systemdRun, [
+          '--user',
+          '--scope',
+          '--collect',
+          '--quiet',
+          '--',
+          absoluteTrue,
+        ]))
     } catch {
       /* No delegated cgroup v2 user scope: use the specified process-group path. */
     }
@@ -477,6 +520,36 @@ export async function createNativeTeamProcessDriver(options: {
   return {
     launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
       const unit = `muse-spark-${launchId}.scope`
+      // The probes proved each tool runs; the launch resolves it outside
+      // this launch's own working directory (links followed), so a planted
+      // name in the worker's directory never runs. A tool the probe saw but
+      // this directory shadows fails the launch closed instead of running
+      // the planting or silently losing its containment.
+      const launchTool = (name: string): string | undefined =>
+        resolveExecutable(name, {
+          platform: process.platform,
+          pathVariable: probeEnv.PATH,
+          fileExists: existsSync,
+          scope: { workspaceRoot: request.cwd, realpath: realpathSync },
+        })
+      const requireLaunchTool = (name: string): string => {
+        const resolved = launchTool(name)
+        if (resolved === undefined) throw new Error('TEAM_TOOL_UNAVAILABLE')
+        return resolved
+      }
+      const setpriv = hasSetpriv ? requireLaunchTool('setpriv') : undefined
+      const scope = hasScope
+        ? {
+            systemdRun: requireLaunchTool('systemd-run'),
+            systemctl: requireLaunchTool('systemctl'),
+          }
+        : undefined
+      // The scope queries below run with the guarded child PATH for the
+      // launch directory, never the raw process PATH.
+      const scopeEnv = workspaceChildEnvironment(process.platform, probeEnv, {
+        workspaceRoot: request.cwd,
+        realpath: realpathSync,
+      })
       // The shell remains the group leader until exec, preserving PID and start identity.
       // Its private fd is closed before the command runs; stdin remains the command's pipe.
       let command = '/bin/sh'
@@ -487,11 +560,11 @@ export async function createNativeTeamProcessDriver(options: {
         request.command,
         ...request.args,
       ]
-      if (hasSetpriv) {
+      if (setpriv !== undefined) {
         args = ['--pdeathsig', 'KILL', '--', command, ...args]
-        command = 'setpriv'
+        command = setpriv
       }
-      if (hasScope) {
+      if (scope !== undefined) {
         args = [
           '--user',
           '--scope',
@@ -503,15 +576,24 @@ export async function createNativeTeamProcessDriver(options: {
           command,
           ...args,
         ]
-        command = 'systemd-run'
-        if (hasSetpriv) {
+        command = scope.systemdRun
+        if (setpriv !== undefined) {
           args = ['--pdeathsig', 'KILL', '--', command, ...args]
-          command = 'setpriv'
+          command = setpriv
         }
       }
-      const child = spawn(command, args, {
+      // The person's configured command runs with the guarded child PATH
+      // for its working directory: a bare name still resolves, but never to
+      // a program planted in the workspace.
+      const childEnv = workspaceChildEnvironment(
+        process.platform,
+        { ...probeEnv, ...request.env },
+        { workspaceRoot: request.cwd, realpath: realpathSync },
+      )
+      childEnv['MUSE_SPARK_LAUNCH_ID'] = launchId
+      const child = spawnGuarded(command, args, {
         cwd: request.cwd,
-        env: { ...probeEnv, ...request.env, MUSE_SPARK_LAUNCH_ID: launchId },
+        env: childEnv,
         detached: true,
         stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
       })
@@ -537,6 +619,7 @@ export async function createNativeTeamProcessDriver(options: {
           state.isExited = true
         })
         .catch(() => {
+          // Settled either way: a failed spawn counts as exited too.
           state.isExited = true
         })
       const confirmation = (async (): Promise<LaunchConfirmation> => {
@@ -548,11 +631,11 @@ export async function createNativeTeamProcessDriver(options: {
           }
           const observed = await observer.observe(child.pid)
           if (observed !== undefined) {
-            if (hasScope) {
+            if (scope !== undefined) {
               const rawGroup = await runProgram(
-                'systemctl',
+                scope.systemctl,
                 ['--user', 'show', unit, '--property=ControlGroup', '--value'],
-                probeEnv,
+                scopeEnv,
               )
               const group = rawGroup.trim()
               if (group === '' && !state.isExited) {
@@ -565,11 +648,11 @@ export async function createNativeTeamProcessDriver(options: {
             }
             return confirmationSchema.parse({
               pid: child.pid,
-              group: hasScope ? unit : observed.group,
+              group: scope === undefined ? observed.group : unit,
               startTime: observed.startTime,
               executable: observed.executable,
               uid: observed.uid,
-              container: hasScope ? 'linuxScope' : 'processGroup',
+              container: scope === undefined ? 'processGroup' : 'linuxScope',
               cgroup:
                 process.platform === 'linux'
                   ? await readFile(`/proc/${String(child.pid)}/cgroup`, 'utf8')
@@ -583,7 +666,7 @@ export async function createNativeTeamProcessDriver(options: {
       })()
       const isEmpty = async () => {
         if (state.hasEmptyProof) return true
-        if (!hasScope || state.cgroup === '') return false
+        if (scope === undefined || state.cgroup === '') return false
         try {
           state.hasEmptyProof = /^populated 0$/m.test(await readFile(state.cgroup, 'utf8'))
           return state.hasEmptyProof
@@ -609,18 +692,18 @@ export async function createNativeTeamProcessDriver(options: {
       })
       const didSignal = async (name: 'SIGTERM' | 'SIGKILL'): Promise<boolean> => {
         if (recorded === undefined) return false
-        let canSignalScope = hasScope
+        let canSignalScope = scope !== undefined
         try {
-          if (hasScope && process.platform === 'linux') {
+          if (scope !== undefined && process.platform === 'linux') {
             if (
               recorded.cgroup === undefined ||
               (await readFile(`/proc/${String(recorded.pid)}/cgroup`, 'utf8')) !== recorded.cgroup
             )
               canSignalScope = false
             const rawGroup = await runProgram(
-              'systemctl',
+              scope.systemctl,
               ['--user', 'show', unit, '--property=ControlGroup', '--value'],
-              probeEnv,
+              scopeEnv,
             )
             const group = rawGroup.trim()
             if (
@@ -629,36 +712,39 @@ export async function createNativeTeamProcessDriver(options: {
             )
               canSignalScope = false
           }
-        } catch {
+        } catch (error: unknown) {
           // Missing membership never authorizes the scope; members still need their own proof.
-          canSignalScope = false
+          if (isScopeOperationFailure(error)) {
+            canSignalScope = false
+          } else {
+            throw error
+          }
         }
         if (
           canSignalScope &&
+          scope !== undefined &&
           (await ownership.isOwned({ ...recorded, group: String(recorded.pid), launchId }))
         ) {
           try {
             await runProgram(
-              'systemctl',
+              scope.systemctl,
               ['--user', 'kill', '--kill-whom=all', `--signal=${name}`, unit],
-              probeEnv,
+              scopeEnv,
             )
           } catch (error: unknown) {
-            // --collect can remove the scope before a second signal. An
-            // absent cgroup is NOT populated-zero proof: keep it uncertain.
-            try {
-              await readFile(state.cgroup, 'utf8')
-            } catch (readError: unknown) {
-              if (readError instanceof Error && 'code' in readError && readError.code === 'ENOENT')
-                return false
-            }
+            // --collect can remove the scope before a second signal. A
+            // failed kill plus a missing cgroup file is NOT populated-zero
+            // proof: keep it uncertain (presence, not readability: an
+            // unreadable cgroup proves nothing either). Anything else keeps
+            // its kind.
+            if (isScopeOperationFailure(error) && !existsSync(state.cgroup)) return false
             throw error
           }
         } else {
           const result = await ownership.signalLaunch(
             {
               ...recorded,
-              group: hasScope ? String(recorded.pid) : recorded.group,
+              group: scope === undefined ? recorded.group : String(recorded.pid),
               launchId,
             },
             name,
@@ -687,7 +773,7 @@ export async function createNativeTeamProcessDriver(options: {
           (notOwned.has(recorded.pid) ||
             !(await ownership.isOwned({
               ...recorded,
-              group: hasScope ? String(recorded.pid) : recorded.group,
+              group: scope === undefined ? recorded.group : String(recorded.pid),
               launchId,
             })))
         ) {
@@ -747,6 +833,75 @@ export async function createNativeTeamProcessDriver(options: {
       }
     },
   }
+}
+
+/**
+The Windows team payload's whole environment, as the `string[]` block the
+native helper hands `CreateProcessW`: the same guarded child environment
+the POSIX launch uses for the same payload, so a helper the payload
+starts by bare name (`ssh`, `git-remote-https`) never resolves to a
+program planted in the workspace. (The executable itself never comes from
+this block: `RunTeam` receives it as `lpApplicationName`, resolved
+outside the workspace by `resolveWindowsTeamCommand` below.) Only a
+guarded environment serializes (`guardedEnvironmentBlock`), so a raw
+`request.env` does not type-check here.
+*/
+export function windowsTeamPayloadEnvironment(env: NodeJS.ProcessEnv, cwd: string): string[] {
+  return guardedEnvironmentBlock(
+    workspaceChildEnvironment('win32', env, {
+      workspaceRoot: cwd,
+      realpath: realpathSync,
+    }),
+  )
+}
+
+export interface WindowsTeamCommandTarget {
+  /**
+  The absolute file `RunTeam` starts: outside the workspace, so
+  `CreateProcessW` (which completes a partial `lpApplicationName` from
+  the helper's own working directory without a PATH search) can never
+  complete it to a workspace planting. A `.cmd`/`.bat` hit is the
+  absolute `cmd.exe` instead, which alone can start one.
+  */
+  readonly executable: string
+  /** The arguments for it (the pre-quoted `cmd.exe` line for a batch file). */
+  readonly args: readonly string[]
+  /** Whether the arguments reach `CreateProcessW` exactly as built. */
+  readonly isVerbatim: boolean
+}
+
+/**
+The `RunTeam` executable and arguments for a team launch, resolved before
+the helper runs. A bare `command` resolves on the absolute PATH entries
+outside the launch's own working directory (PATHEXT order included), the
+way the MCP servers resolve theirs; a missing name fails the launch
+closed instead of falling back to the workspace. A path the person named
+is the file it names, but one inside the workspace (links followed)
+fails the launch closed too: with the workspace as the helper's working
+directory, `CreateProcessW` would otherwise complete it there.
+*/
+export function resolveWindowsTeamCommand(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  deps: {
+    readonly systemRoot: string | undefined
+    readonly isExistingFile: (filePath: string) => boolean
+    readonly realpath: (filePath: string) => string
+  },
+): WindowsTeamCommandTarget {
+  const scope = { workspaceRoot: cwd, realpath: deps.realpath }
+  const file = resolveServerCommand(
+    command,
+    cwd,
+    env,
+    { platform: 'win32', isExistingFile: deps.isExistingFile },
+    scope,
+  )
+  if (isWorkspacePath('win32', scope, file)) throw new Error('TEAM_COMMAND_IN_WORKSPACE')
+  const line = spawnLine(file, args, { platform: 'win32', systemRoot: deps.systemRoot })
+  return { executable: line.file, args: [...line.args], isVerbatim: line.isVerbatim }
 }
 
 function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDriver {
@@ -869,16 +1024,34 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       }
       const strings = (values: readonly string[]) =>
         `[string[]]@(${values.map((value) => powerShellQuoted(value)).join(',')})`
-      const environment = Object.entries(request.env).flatMap(([key, value]) =>
-        value === undefined ? [] : [`${key}=${value}`],
+      // The payload's whole environment: the same guarded child environment
+      // the POSIX launch uses, so nothing the payload starts by bare name
+      // resolves to a program planted in the workspace. The executable
+      // itself is resolved outside the workspace first: `RunTeam` passes it
+      // as `lpApplicationName`, which `CreateProcessW` would otherwise
+      // complete from the helper's working directory (the workspace).
+      const environment = windowsTeamPayloadEnvironment(request.env, request.cwd)
+      const target = resolveWindowsTeamCommand(
+        request.command,
+        request.args,
+        request.cwd,
+        request.env,
+        {
+          systemRoot,
+          isExistingFile,
+          realpath: realpathSync,
+        },
       )
       const powershell = windowsPowerShell(systemRoot, request.env)
       // .NET and quoted literals only: ConvertFrom-Json discovers PowerShell
       // modules on a cold runner before the native confirmation clock can fire.
-      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(request.command)}, ${strings(request.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'})`
-      const child = spawn(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
+      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(target.executable)}, ${strings(target.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'}, $${target.isVerbatim ? 'true' : 'false'})`
+      const child = spawnGuarded(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
         cwd: request.cwd,
-        env: powershell.env,
+        env: workspaceChildEnvironment('win32', powershell.env, {
+          workspaceRoot: request.cwd,
+          realpath: realpathSync,
+        }),
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       })

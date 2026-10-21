@@ -19,6 +19,16 @@ const MODEL_ID_PATTERN = /^\S+$/
 // range can silently miss one; the `g` flag strips every occurrence.
 const UNPRINTABLE_PATTERN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu
 
+/**
+Whether a model id may be stored or offered: no control or format
+characters (the bidi controls live in Cf), so a stored id can never steer
+a terminal that prints it. Whitespace never reaches here: the command
+layer refuses it first (Codex on PR #227).
+*/
+export function isStorableModelId(id: string): boolean {
+  return !/[\p{Cc}\p{Cf}]/u.test(id)
+}
+
 /** A parsed model reference: the provider and the provider's own model id. */
 export interface ModelRef {
   readonly providerId: string
@@ -31,13 +41,13 @@ export function isProviderId(value: string): boolean {
 }
 
 /**
- * The reference's provider and model. A bare id (`muse-spark-1.3`) is
- * Meta's: the whole id is the model. Otherwise the provider is the text
- * before the first slash and the model is the rest, so OpenRouter's
- * `author/slug` survives (`openrouter/deepseek/deepseek-v4-pro`).
- * Undefined for an empty model, a reserved or malformed provider, or a
- * model id with whitespace in it.
- */
+The reference's provider and model. A bare id (`muse-spark-1.3`) is
+Meta's: the whole id is the model. Otherwise the provider is the text
+before the first slash and the model is the rest, so OpenRouter's
+`author/slug` survives (`openrouter/deepseek/deepseek-v4-pro`).
+Undefined for an empty model, a reserved or malformed provider, or a
+model id with whitespace in it.
+*/
 export function parseModelRef(ref: string): ModelRef | undefined {
   const slash = ref.indexOf('/')
   if (slash === -1) {
@@ -64,12 +74,12 @@ export function isByoModelRef(ref: string): boolean {
 }
 
 /**
- * A model id or label a provider listed, made safe to show: control and
- * format characters stripped, the rest cut to
- * `PROVIDER_MODEL_LABEL_MAX_CHARS`. A custom server cannot pass itself off
- * as Meta's `muse-spark-1.3` by this alone: callers always show the
- * provider's own label beside it.
- */
+A model id or label a provider listed, made safe to show: control and
+format characters stripped, the rest cut to
+`PROVIDER_MODEL_LABEL_MAX_CHARS`. A custom server cannot pass itself off
+as Meta's `muse-spark-1.3` by this alone: callers always show the
+provider's own label beside it.
+*/
 export function sanitizeModelLabel(label: string): string {
   const stripped = label.replaceAll(UNPRINTABLE_PATTERN, '')
   const capped = stripped.slice(0, PROVIDER_MODEL_LABEL_MAX_CHARS)
