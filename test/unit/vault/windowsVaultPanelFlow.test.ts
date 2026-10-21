@@ -38,6 +38,8 @@ describe.skipIf(process.platform !== 'win32')('Windows vault through the panel',
       },
       path.dirname(current.root),
       'windows',
+      // Windows protects the vault with DPAPI, the OS store tier.
+      'osStore',
     )
   }, 300_000)
 })

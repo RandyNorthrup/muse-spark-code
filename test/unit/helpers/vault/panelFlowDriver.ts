@@ -37,10 +37,17 @@ export interface PanelFlowClient {
   connect(): ReturnType<VaultBrokerProcess['connect']>
 }
 
+/**
+`expectedTier` names the tier this platform's setup must choose (Windows:
+the OS store); without it, any tier that unlocks with no person's input
+is taken (macOS picks the Secure Enclave's hardware tier where it has one,
+the keychain otherwise), and Unlock must come back to that same tier.
+*/
 export async function drivePanelFlow(
   client: PanelFlowClient,
   workingFolder: string,
   label: string,
+  expectedTier?: VaultPanelState['status']['tier'],
 ): Promise<void> {
   const home = client.home
   await mkdir(home, { recursive: true })
@@ -142,8 +149,12 @@ export async function drivePanelFlow(
     await host.handle({ type: 'vaultSetup' })
     expect(codes).toHaveLength(1)
     // Setup ends unlocked: its first unlock opens the audit log too.
-    await settled('unlocked')
+    const afterSetup = await settled('unlocked')
     expect(lockItem.at(-1)).toBe(true)
+    const tier = afterSetup.status.tier
+    if (expectedTier !== undefined) expect(tier, label).toBe(expectedTier)
+    // A tier that needs the person's input could not unlock unattended.
+    expect(['passphrase', 'recovery'], `${label}: tier ${String(tier)}`).not.toContain(tier)
 
     // A reload the panel asked for, overtaken by Lock before it ran (as a
     // first open is overtaken by the broker's own events): the newer
@@ -155,10 +166,11 @@ export async function drivePanelFlow(
     expect(lockItem.at(-1)).toBe(false)
 
     // The release-critical step on every platform: a set-up vault unlocks
-    // from the panel, onto the OS store tier without a prompt.
+    // from the panel, back onto the tier it was set up with, without a
+    // prompt.
     await host.handle({ type: 'vaultUnlock' })
     const unlocked = await settled('unlocked')
-    expect(unlocked.status.tier).toBe('osStore')
+    expect(unlocked.status.tier, label).toBe(tier)
 
     await host.handle({ type: 'vaultAdd' })
     await vi.waitFor(
