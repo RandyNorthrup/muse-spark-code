@@ -3691,6 +3691,7 @@
   "execBudgetRequired": "Model API 需要 --max-budget-usd。",
   "execNumberInvalid": "數字或限制無效；美元預算最多支援六位小數。",
   "execValueInvalid": "{option} 的值無效；請執行 exec --help 查看允許的值與範圍。",
+  "cliValueInvalid": "{option} 的值無效；請執行 {help} 查看允許的值與範圍。",
   "execLimitInvalid": "{flag} 的數字或限額無效。",
   "execTrustRefused": "無介面執行不允許信任工作區或略過權限。",
   "execModeRefused": "無介面執行僅允許 plan 或 acceptEdits。",

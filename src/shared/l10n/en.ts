@@ -4687,6 +4687,9 @@ export const EN = {
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
   execValueInvalid:
     'Invalid value for {option}; run exec --help for the accepted values and bounds.',
+  // {option}: the option as typed; {help}: the help that lists its accepted
+  // values, as typed (`serve --help`).
+  cliValueInvalid: 'Invalid value for {option}; run {help} for the accepted values and bounds.',
   execLimitInvalid: 'Invalid number or limit for {flag}.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
