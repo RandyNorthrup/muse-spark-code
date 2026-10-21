@@ -1,19 +1,36 @@
 // The one credential lease (M95 D74): one owner per providers file across
 // processes. A live lock is never stolen (a contender whose first read saw
 // nothing still refuses once the owner's record lands), a crashed owner's
-// lock never wedges the next command, and a contender that already lost a
-// takeover race never deletes the winner's live lock. All on real files,
-// with real process-liveness checks.
+// lock never wedges the next command, a contender that already lost a
+// takeover race never deletes the winner's live lock, and a contender that
+// saw a crashed lock another window has since taken over never moves that
+// window's live lock aside. All on real files, with real process-liveness
+// checks; the other window is a real process running the real module.
+import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import {
+  lstatSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+  type BigIntStats,
+} from 'node:fs'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { build } from 'esbuild'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   acquireCredentialLock,
   CredentialLockBusyError,
   currentProcessStartTime,
+  isOwnerAlive,
+  OWNER_FILE,
 } from '../../src/core/credentialLease'
+import { withoutCredentials } from '../../src/core/credentialEnvironment'
 import { credentialLeaseSecrets } from '../../src/host/models/credentialLeaseSecrets'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
 import { KEYRING_SERVICE, UI_TEXT } from '../../src/shared/constants'
@@ -22,6 +39,32 @@ import { userFileIo } from '../../src/runtime/providersCommands'
 
 /** A pid the liveness check really reports dead (past any real pid). */
 const DEAD_PID = 2_147_483_647
+const LOCK_NAME = 'providers.json.lock'
+
+/** The owner record a lock directory (or a tombstone) holds, as written. */
+function ownerAt(dir: string): unknown {
+  return JSON.parse(readFileSync(path.join(dir, OWNER_FILE), 'utf8'))
+}
+
+/**
+Waits until the filesystem's own clock has passed `folder`'s last change,
+then returns the folder's modification time: any later change to its
+entries (a rename, a create, a removal) shows as a newer one. The clock is
+read from a probe written in `scratch`, a folder of its own, so `folder`
+itself stays untouched.
+*/
+function folderTimeAfterTick(folder: string, scratch: string): bigint {
+  const last = statSync(folder, { bigint: true }).mtimeNs
+  const probe = path.join(scratch, 'tick')
+  let ticks = 0
+  let now = 0n
+  while (now <= last) {
+    ticks += 1
+    writeFileSync(probe, String(ticks))
+    now = statSync(probe, { bigint: true }).mtimeNs
+  }
+  return statSync(folder, { bigint: true }).mtimeNs
+}
 
 /**
 The runtime's real secret store over the real OS credential store: the
@@ -177,6 +220,125 @@ describe('acquireCredentialLock', () => {
     )
     await refusal
     await rm(dir, { recursive: true, force: true })
+  })
+
+  describe('a window that saw a crashed lock another window took first', () => {
+    // The other window: a real process running the real module, built
+    // from the source as the product's own bundle is. It acquires the
+    // lock with the identity it is given and exits holding it, printing
+    // the record it holds.
+    let child = ''
+    beforeAll(async () => {
+      child = mkdtempSync(path.join(tmpdir(), 'credential-lease-child-'))
+      await build({
+        entryPoints: [path.join(process.cwd(), 'src/core/credentialLease.ts')],
+        outfile: path.join(child, 'credentialLease.cjs'),
+        bundle: true,
+        platform: 'node',
+        format: 'cjs',
+        logLevel: 'silent',
+      })
+      writeFileSync(
+        path.join(child, 'holder.cjs'),
+        `const { readFileSync } = require('node:fs')
+const path = require('node:path')
+const { acquireCredentialLock, OWNER_FILE } = require('./credentialLease.cjs')
+const [lockDir, pid] = process.argv.slice(2)
+acquireCredentialLock(lockDir, { pid: Number(pid) }).then(
+  () => { process.stdout.write(readFileSync(path.join(lockDir, OWNER_FILE), 'utf8')); process.exit(0) },
+  (error) => { console.error(error); process.exit(1) },
+)
+`,
+      )
+    })
+    afterAll(async () => {
+      await rm(child, { recursive: true, force: true })
+    })
+
+    /**
+    Window B, another real process: acquires `lockDir` (taking a crashed
+    lock over with the real liveness check when one is there) under a live
+    process id, this one's, with B's own start time, and exits without
+    releasing. Synchronous, so it runs to completion inside window A's
+    liveness check, between A's read of the dead owner and A's next step.
+    */
+    function holdInAnotherProcess(lockDir: string): unknown {
+      const held = spawnSync(
+        process.execPath,
+        [path.join(child, 'holder.cjs'), lockDir, String(process.pid)],
+        { env: withoutCredentials(process.env), encoding: 'utf8', windowsHide: true },
+      )
+      if (held.status !== 0) throw new Error(`window B did not acquire: ${held.stderr}`)
+      return JSON.parse(held.stdout)
+    }
+
+    /**
+    Window A's attempt on a crashed lock in `folder`. Right after A reads
+    the dead owner, inside A's liveness check and before A's next step,
+    `meanwhile` runs and window B acquires the lock and holds it. A must
+    refuse, leaving B's exact record in B's own directory. Returns the dead
+    record A read and the folder's modification time once B held the lock.
+    */
+    async function refusedAfterB(
+      folder: string,
+      meanwhile?: (lockDir: string) => void,
+    ): Promise<{ readonly dead: unknown; readonly folderBefore: bigint }> {
+      const scratch = await freshDir()
+      const lockDir = path.join(folder, LOCK_NAME)
+      // A crashed window's lock: its directory and owner record, owner dead.
+      await acquireCredentialLock(lockDir, { pid: DEAD_PID })
+      const dead = ownerAt(lockDir)
+      let live: unknown
+      let lockBefore: BigIntStats | undefined
+      let folderBefore = 0n
+      const isProcessAlive = (pid: number): boolean => {
+        if (pid === DEAD_PID && live === undefined) {
+          meanwhile?.(lockDir)
+          live = holdInAnotherProcess(lockDir)
+          lockBefore = lstatSync(lockDir, { bigint: true })
+          folderBefore = folderTimeAfterTick(folder, scratch)
+        }
+        return isOwnerAlive(pid)
+      }
+      await expect(acquireCredentialLock(lockDir, { isProcessAlive })).rejects.toBeInstanceOf(
+        CredentialLockBusyError,
+      )
+      expect(live).toBeDefined()
+      // B still holds its lock: B's exact record, in the same directory.
+      expect(ownerAt(lockDir)).toEqual(live)
+      const lockAfter = lstatSync(lockDir, { bigint: true })
+      expect(lockAfter.ino).toBe(lockBefore?.ino)
+      expect(lockAfter.birthtimeNs).toBe(lockBefore?.birthtimeNs)
+      return { dead, folderBefore }
+    }
+
+    it('refuses and never moves the live lock aside, even for a moment', async () => {
+      const folder = await freshDir()
+      // B takes the crashed lock over itself, after A read the dead owner.
+      const { dead, folderBefore } = await refusedAfterB(folder)
+      // A renamed, created and removed nothing beside the lock. A rename
+      // keeps a directory's identity, so moving B's lock aside and putting
+      // it back shows only here: while it was aside, a third window could
+      // have claimed the lock's name and written beside B.
+      expect(statSync(folder, { bigint: true }).mtimeNs).toBe(folderBefore)
+      // Beside the lock lies only the crashed owner's tombstone, holding
+      // the dead record; nothing else holds B's.
+      const beside = readdirSync(folder).filter((name) => name !== LOCK_NAME)
+      expect(beside.map((name) => ownerAt(path.join(folder, name)))).toEqual([dead])
+    })
+
+    it('puts back a lock that is not the dead one it saw, and keeps no tombstone of it', async () => {
+      const folder = await freshDir()
+      // Between A's read and A's move, a build from before the tombstone
+      // takes the crashed lock over its way, removing the dead lock, and B
+      // claims the free name. A moves B's lock, finds it is not the dead
+      // record and puts the same directory back.
+      await refusedAfterB(folder, (lockDir) => {
+        rmSync(lockDir, { recursive: true, force: true })
+      })
+      // No tombstone keeps a live lock: nothing lies beside it.
+      expect(readdirSync(folder)).toEqual([LOCK_NAME])
+    })
   })
 
   describe.runIf(process.platform === 'win32')('panel secrets guard', () => {

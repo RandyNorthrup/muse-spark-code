@@ -6,12 +6,23 @@
 // holding one `owner.json`: the holder's process id, its start time and a
 // nonce. A directory creation is atomic, so exactly one process wins it.
 // Takeover happens only when the owner is proven gone (`isProcessAlive`
-// false for its pid): a live owner's lock is never stolen, and a crashed
-// owner's lock never wedges the next command. The start time tells a
-// process its own lock apart (a nested acquire refuses instead of
-// deadlocking); pid reuse can only refuse a takeover, never steal a live
-// lock. Paths are normalised to `/` before comparing so Windows checkouts
-// agree with POSIX ones.
+// false for its pid): a live owner's lock is never stolen, moved or
+// removed, and a crashed owner's lock never wedges the next command. The
+// start time tells a process its own lock apart (a nested acquire refuses
+// instead of deadlocking); pid reuse can only refuse a takeover, never
+// steal a live lock. Paths are normalised to `/` before comparing so
+// Windows checkouts agree with POSIX ones.
+//
+// A takeover renames the crashed owner's directory to a tombstone named by
+// that dead record (`providers.json.lock.retired-<sha256 of its pid, start
+// time and nonce>`), proves the moved record is the one it observed, keeps
+// the tombstone and claims the lock fresh. The tombstone is what makes the
+// move safe: it always holds the dead owner's record, and a directory
+// rename onto an existing non-empty directory fails on every platform, so
+// once the dead record has left the lock's name, every slower contender
+// that saw it fails its own move and looks again. None can move a later
+// live lock aside: there is no fence check here, so a displaced live lock
+// would let two holders write the credential store at once.
 //
 // The journal lives in the credential store beside the primary record
 // (`<account>.connect`). Before the primary is touched it durably holds the
@@ -20,7 +31,7 @@
 // deletes another live attempt's record, because recovery itself runs
 // inside the same lease.
 import { mkdir, readFile, rename, rmdir, rm, writeFile } from 'node:fs/promises'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import { MILLISECONDS_PER_SECOND, PROVIDER_SECRET_PREFIX } from '../shared/constants'
 
@@ -86,6 +97,46 @@ function lockErrorCode(error: unknown): string | undefined {
     : undefined
 }
 
+/**
+The tombstone a crashed owner's lock is retired to: one name per dead
+record, never per attempt, so every contender that saw the same dead
+record aims at the same name and only the first move can land. The name
+carries a digest of the record, never its text.
+*/
+function tombstoneFor(lockDir: string, dead: CredentialLockOwner): string {
+  const digest = createHash('sha256')
+    .update(JSON.stringify([dead.pid, dead.startTime, dead.nonce]))
+    .digest('hex')
+  return `${lockDir}.retired-${digest}`
+}
+
+/**
+A takeover's move lost, on every platform: the lock already left its name
+(ENOENT), or another contender retired this dead record first and its
+tombstone holds the record (POSIX refuses a directory rename onto a
+non-empty directory with ENOTEMPTY or EEXIST).
+*/
+const LOST_MOVE_CODES: ReadonlySet<string> = new Set(['ENOENT', 'EEXIST', 'ENOTEMPTY'])
+
+/**
+A takeover's move lost, on Windows only: a directory rename onto an
+existing directory (the tombstone) fails with EPERM, and a handle open
+inside the lock (a contender reading its owner file, a scanner) fails it
+with EPERM, EACCES or EBUSY; nothing moved either way. Elsewhere these
+codes mean the folder itself refuses this process (no write permission, a
+sticky folder whose entry belongs to someone else, a mount point): looking
+again cannot change that, so there they are thrown.
+*/
+const WINDOWS_LOST_MOVE_CODES: ReadonlySet<string> = new Set(['EPERM', 'EACCES', 'EBUSY'])
+
+/** Whether a takeover's move to the tombstone lost, so the contender looks again. */
+function isLostTakeoverMove(error: unknown): boolean {
+  const code = lockErrorCode(error) ?? ''
+  return (
+    LOST_MOVE_CODES.has(code) || (process.platform === 'win32' && WINDOWS_LOST_MOVE_CODES.has(code))
+  )
+}
+
 async function readOwner(lockDir: string): Promise<CredentialLockOwner | undefined> {
   let text: string
   try {
@@ -114,10 +165,13 @@ export interface CredentialLockOptions {
   readonly isProcessAlive?: (pid: number) => boolean
 }
 
-/** Another live process holds the credential lease. Callers report and retry. */
+/**
+Another live process holds the credential lease, or a lock this attempt
+moved could not be put back (`cause` says why). Callers report and retry.
+*/
 export class CredentialLockBusyError extends Error {
-  public constructor(lockDir: string) {
-    super(`credential lock busy: ${lockDir}`)
+  public constructor(lockDir: string, options?: { readonly cause?: unknown }) {
+    super(`credential lock busy: ${lockDir}`, options)
     this.name = 'CredentialLockBusyError'
   }
 }
@@ -125,9 +179,9 @@ export class CredentialLockBusyError extends Error {
 /**
 Creates the directory and writes the owner's record when nobody owns it
 now. Returns undefined when a fellow contender owns it instead, so the
-caller re-observes rather than failing: a contender's in-flight takeover
-move may move aside a directory this mkdir just won (or just filled), so
-a missing (or already present) owner file means someone else owns the
+caller re-observes rather than failing: the ownerless reclaim below may
+remove a directory this mkdir just won before its record lands, so a
+missing (or already present) owner file means someone else owns the
 directory now, never a wedged lock.
 */
 async function claimFreshLock(
@@ -217,46 +271,48 @@ export async function acquireCredentialLock(
       throw new CredentialLockBusyError(lockDir)
     }
     // The owner is proven gone, but a fellow contender may have taken
-    // over since the read above. Move the directory aside with one atomic
-    // rename — exactly one contender wins it — then prove the moved record
-    // is still the dead one observed before removing it. A loser (whose
-    // rename finds nothing to move) re-observes below and reports busy
-    // once the winner's live record lands, never removing it. A winner
-    // whose quarantine holds anything but the observed dead record puts
-    // it back while the name is free: someone replaced the lock between
-    // the read and the move, and that replacement owns it now.
-    const quarantine = `${lockDir}.retired-${nonce}`
+    // over since the read above. Move the lock to the dead record's own
+    // tombstone with one atomic rename: whoever moves it first wins, and
+    // every later move aimed at that name fails because the tombstone
+    // exists and holds the record, even when the lock's name holds a
+    // newer live lock by then. A lost move looks again below.
+    const tombstone = tombstoneFor(lockDir, observed)
     try {
-      await rename(lockDir, quarantine)
-    } catch {
-      // Lost the move to a fellow contender; re-observe below.
-      continue
+      await rename(lockDir, tombstone)
+    } catch (error: unknown) {
+      if (isLostTakeoverMove(error)) continue
+      throw error
     }
-    const moved = await readOwner(quarantine)
+    const moved = await readOwner(tombstone)
     const isDeadTakeover =
       moved?.pid === observed.pid &&
       moved.startTime === observed.startTime &&
       moved.nonce === observed.nonce &&
       !isProcessAlive(observed.pid)
     if (!isDeadTakeover) {
+      // Not the dead record (or its pid lives again). Between this build's
+      // contenders the dead record leaves the lock's name only into its
+      // tombstone, so only a build from before the tombstone, whose
+      // takeover removed the dead lock, running at the same time can swap
+      // the lock between the read and the move. Put it back while the
+      // name is free; when it cannot go back, refuse with the cause, as
+      // the vault's lease does, never as if nothing had moved.
       try {
-        await rename(quarantine, lockDir)
-      } catch {
-        // A fellow contender claimed the freed name meanwhile: the moved
-        // record stays aside under its quarantine name and this attempt
-        // reports busy. The ownerless branch reclaims nothing that holds
-        // a record, so the stranded holder's own release still frees the
-        // lock it owns, and nothing here removed the winner's lock.
+        await rename(tombstone, lockDir)
+      } catch (error: unknown) {
+        throw new CredentialLockBusyError(lockDir, { cause: error })
       }
       continue
     }
-    try {
-      await rm(quarantine, { recursive: true, force: true })
-    } catch {
-      // Lost a takeover race; re-read below.
-    }
-    // Retake in this same pass, for the same attempt-budget reason as the
-    // ownerless branch above.
+    // Proven: the tombstone stays where it is, with the dead owner's
+    // record inside, and is never removed, by age or otherwise. It is
+    // never an empty directory, so a slower contender's rename onto it
+    // fails on every platform (POSIX would let a rename replace an empty
+    // directory); removing it would let that contender move the live lock
+    // claimed next out of the way. Each one is a few bytes, left only by
+    // an owner that crashed inside a credential write. Retake in this
+    // same pass, for the same attempt-budget reason as the ownerless
+    // branch above.
     const retaken = await claimFreshLock(lockDir, owner)
     if (retaken !== undefined) return retaken
   }
