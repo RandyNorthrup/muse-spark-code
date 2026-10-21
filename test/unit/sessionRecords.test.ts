@@ -19,7 +19,9 @@ const record: SessionRecord = {
   turnCount: 1,
   forkedFrom: null,
   workspaceRoot: String.raw`C:\muse-live-ws`,
-  title: 'Edit notes.md <ide_opened_file>The user opened notes.md</ide_opened_file>',
+  // The person's words, as the record schema reads a derived title
+  // (sessionTitles.test.ts reads the captured ones).
+  title: 'Edit notes.md',
   firstUserPrompt: 'Edit notes.md',
 }
 
@@ -34,7 +36,7 @@ const userItem = {
 }
 
 describe('toSessionRow', () => {
-  it('builds the dialog row: stripped title, activity, fork and name flags', () => {
+  it('builds the dialog row: title, activity, fork and name flags', () => {
     expect(toSessionRow(record)).toEqual({
       sessionId: record.sessionId,
       title: 'Edit notes.md',

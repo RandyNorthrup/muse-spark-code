@@ -11,7 +11,6 @@ import {
   type SessionListOptions,
   type SessionRow,
   sessionTitle,
-  stripIdeContext,
 } from '../../src/shared/sessions'
 
 // A Tuesday afternoon, local time (the groups cut at local midnight).
@@ -44,27 +43,22 @@ const options: SessionListOptions = {
   isShowingArchived: false,
 }
 
-describe('stripIdeContext / sessionTitle', () => {
-  it('drops the IDE reminder blocks the M5 context appends and collapses whitespace', () => {
-    const prompt =
-      'what does this do?\n\n<ide_selection>The user selected lines 5-10 of src/a.ts:\nfoo\n</ide_selection>'
-    expect(stripIdeContext(prompt)).toBe('what does this do?')
-    expect(stripIdeContext('<ide_opened_file>x</ide_opened_file> hi  there')).toBe('hi there')
-    expect(stripIdeContext('plain')).toBe('plain')
-    expect(
-      stripIdeContext('Inspect this\n[Muse Spark Code attached text files: ["notes.txt"]]'),
-    ).toBe('Inspect this [Muse Spark Code attached text files: ["notes.txt"]]')
-    expect(
-      stripIdeContext('Inspect this\n[Muse Spark Code attached text files: broken]'),
-    ).toContain('broken')
-  })
-
+// What reaches sessionTitle is already the person's words: Muse Code's
+// records are read so when parsed (promptWords.test.ts, sessionTitles.test.ts).
+describe('sessionTitle', () => {
   it('prefers the allocated name, then the derived title, then the first prompt', () => {
     expect(sessionTitle({ name: ' Named ', title: 't', firstUserPrompt: 'p' })).toBe('Named')
-    expect(sessionTitle({ name: '', title: 't <ide_opened_file>a</ide_opened_file>' })).toBe('t')
+    expect(sessionTitle({ name: '', title: 't' })).toBe('t')
     expect(sessionTitle({ firstUserPrompt: 'p' })).toBe('p')
     expect(sessionTitle({})).toBe('Untitled')
-    expect(sessionTitle({ title: '<ide_selection>only</ide_selection>' })).toBe('Untitled')
+    expect(sessionTitle({ name: ' ', title: ' \n ' })).toBe('Untitled')
+  })
+
+  it('shows a prompt on one line', () => {
+    expect(sessionTitle({ title: 'what does\n\nthis  do?' })).toBe('what does this do?')
+    expect(sessionTitle({ title: 'Inspect this\n[Muse Spark Code attached text files: x]' })).toBe(
+      'Inspect this [Muse Spark Code attached text files: x]',
+    )
   })
 })
 

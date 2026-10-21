@@ -15,6 +15,7 @@ import {
   CHECK_DEFAULT_TIMEOUT_SECONDS,
   MILLISECONDS_PER_SECOND,
   MODEL_TEXT,
+  VERIFY_GUIDANCE_DIAGNOSTICS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -217,14 +218,14 @@ describe('verifyGuidance (Muse Code)', () => {
   it('names the diagnostics tool and the checks inside a harness note', () => {
     const note = verifyGuidance(true, [LINT, { name: 'test', command: 'npm test' }])
     expect(note).toBe(
-      `<harness_note>${MODEL_TEXT.verifyGuidanceDiagnostics} The user's check commands are: lint (\`npm run lint\`), test (\`npm test\`). Before you finish, run the ones your change affects.</harness_note>`,
+      `<harness_note>${VERIFY_GUIDANCE_DIAGNOSTICS} The user's check commands are: lint (\`npm run lint\`), test (\`npm test\`). Before you finish, run the ones your change affects.</harness_note>`,
     )
     expect(note).toContain('mcp__ide__getDiagnostics')
   })
 
   it('says only what is on, and nothing when neither is', () => {
     expect(verifyGuidance(true, [])).toBe(
-      `<harness_note>${MODEL_TEXT.verifyGuidanceDiagnostics}</harness_note>`,
+      `<harness_note>${VERIFY_GUIDANCE_DIAGNOSTICS}</harness_note>`,
     )
     expect(verifyGuidance(false, [LINT])).toBe(
       `<harness_note>The user's check commands are: ${checkListText([LINT])}. Before you finish, run the ones your change affects.</harness_note>`,
