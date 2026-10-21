@@ -51,11 +51,13 @@ describe.skipIf(process.platform !== 'win32')('Windows vault through the panel',
     const toasts: string[] = []
     const codes: string[] = []
     const lockItem: boolean[] = []
+    const logged: string[] = []
     // The person's answers in the native Add dialog, in the order it asks:
-    // kind, name, label, targets, policy, presence, expiry, hidden,
-    // unattended, disclosure, then the key, its use and its origin.
-    const typed = ['service-key', 'Service key', '[]', '', 'sk-panel-value', ORIGIN]
-    const picked = ['apiKey', 'askEveryTime', 'keep', 'keep', 'keep', 'keep', 'bearer']
+    // kind, name, label, where it may be used (nowhere yet), policy,
+    // presence, expiry, hidden, unattended, disclosure, then the key, its
+    // use and its origin.
+    const typed = ['service-key', 'Service key', '', 'sk-panel-value', ORIGIN]
+    const picked = ['apiKey', 'none', 'askEveryTime', 'keep', 'keep', 'keep', 'keep', 'bearer']
     const person: VaultNativeInput = {
       input: () => Promise.resolve(typed.shift()),
       pick: () => Promise.resolve(picked.shift()),
@@ -64,7 +66,7 @@ describe.skipIf(process.platform !== 'win32')('Windows vault through the panel',
     }
     const host = new VaultPanelHost({
       service: vaultPanelService(session, { ambientFiles: () => discoverAmbientFiles(home) }),
-      log: collectingLogger([]),
+      log: collectingLogger(logged),
       now: () => Date.now(),
       editItem: (item, signal) => editVaultItem(person, item, signal),
       confirmRemove: () => Promise.resolve(false),
@@ -149,7 +151,12 @@ describe.skipIf(process.platform !== 'win32')('Windows vault through the panel',
       await settled('unlocked')
       expect(lockItem.at(-1)).toBe(true)
 
+      // A reload the panel asked for, overtaken by Lock before it ran (as a
+      // first open is overtaken by the broker's own events): the newer
+      // operation owns the view, and the retired one is not a failure.
+      const overtaken = host.handle({ type: 'vaultReady' })
       await host.handle({ type: 'vaultLock' })
+      await overtaken
       await settled('locked')
       expect(lockItem.at(-1)).toBe(false)
 
@@ -185,6 +192,8 @@ describe.skipIf(process.platform !== 'win32')('Windows vault through the panel',
       expect(again.status.itemCount).toBe(2)
       const second = await readBack()
       expect(second.equals(value)).toBe(true)
+      // Nothing failed, so the log names no failure.
+      expect(logged.filter((line) => line.includes('failed'))).toEqual([])
     } finally {
       host.dispose()
       process.chdir(workingFolder)

@@ -306,20 +306,7 @@ export class VaultPanelHost {
   shown, never dropped (RVCM1091F P3).
   */
   private async settleFailure(error: unknown, generation: number): Promise<void> {
-    if (this.disposed) return
-    // A retirement a barrier already put on screen stays silent — including
-    // a `locked` report our own barrier caused by closing its connection
-    // (RVCM1091F P3) and a channel error from a connection our own barrier
-    // aborted mid-Import or mid-Delete (RVAPP-CM1091D5 P2-1): the barrier
-    // owns the view and reloads it. Decided from the recorded retirement
-    // (the generation) and the typed error, never from a sentence.
-    if (
-      generation !== this.generation &&
-      (isVeto(error) ||
-        (error instanceof Error && error.message === UI_TEXT.vault.locked) ||
-        error instanceof VaultChannelError)
-    )
-      return
+    if (this.disposed || this.isRetiredByBarrier(error, generation)) return
     // A `useChanged` word is only a silent retirement when an older
     // generation carries it (a barrier already put its view on screen). With
     // the current generation it is a genuine guard refusal — reset on a
@@ -358,12 +345,32 @@ export class VaultPanelHost {
     if (!isRetiredSilent) this.reportError(this.generation, error)
   }
 
+  /**
+  A retirement a barrier already put on screen: silent, and not a failure —
+  including a `locked` report our own barrier caused by closing its
+  connection (RVCM1091F P3) and a channel error from a connection our own
+  barrier aborted mid-Import or mid-Delete (RVAPP-CM1091D5 P2-1). The
+  barrier owns the view and reloads it, so the log names no failure either
+  (a first open, overtaken by the broker's own events, once logged one
+  each time). Decided from the recorded retirement (the generation) and the
+  typed error, never from a sentence.
+  */
+  private isRetiredByBarrier(error: unknown, generation: number): boolean {
+    return (
+      generation !== this.generation &&
+      (isVeto(error) ||
+        (error instanceof Error && error.message === UI_TEXT.vault.locked) ||
+        error instanceof VaultChannelError)
+    )
+  }
+
   /** Prompt publish outside the queue; the queued editor keeps its own generation. */
   private refreshNow(): void {
     const generation = this.generation
     const seq = this.beginReload()
     void this.load(generation, seq).catch((error: unknown) => {
-      this.deps.log.warn(`Vault refresh failed: ${failureForLog(error)}`)
+      if (!this.isRetiredByBarrier(error, generation))
+        this.deps.log.warn(`Vault refresh failed: ${failureForLog(error)}`)
       void this.settleFailure(error, generation)
     })
   }
@@ -425,7 +432,8 @@ export class VaultPanelHost {
         this.authorize(generation)
         await task(generation)
       } catch (error: unknown) {
-        this.deps.log.warn(`Vault operation failed: ${failureForLog(error)}`)
+        if (!this.isRetiredByBarrier(error, generation))
+          this.deps.log.warn(`Vault operation failed: ${failureForLog(error)}`)
         await this.settleFailure(error, generation)
       }
     })()
