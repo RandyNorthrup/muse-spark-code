@@ -820,6 +820,15 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   real use caught a planted `bwrap` running twice at serve start, before any
   prompt or approval.
 
+### Known issues
+
+- In VS Code on Linux the vault can be set up only when your account can
+  reach the machine's TPM (usually by joining the `tss` group): this build
+  of the extension carries no Secret Service component. The terminal agent
+  (`muse-spark-code-acp`) includes it and uses your desktop keyring. The
+  vault's message now says exactly this instead of sending you to unlock a
+  keyring the extension cannot use.
+
 ### Packaging
 
 - The Get Started walkthrough ships smaller, pixel-identical screenshots,

@@ -6145,7 +6145,7 @@
     "resetTypeWord": "Wpisz {word}, aby zresetować sejf.",
     "resetDone": "Sejf został zresetowany. Skonfiguruj go ponownie, aby przechowywać sekrety.",
     "vaultLost": "Nie można otworzyć sejfu: pliki są brakujące lub uszkodzone albo nie można ustalić właściciela blokady zapisu. Sprawdź opcję resetowania, aby zacząć od nowa.",
-    "storeUnavailable": "Magazyn poświadczeń systemu operacyjnego jest niedostępny: albo ta kompilacja nie zawiera składnika magazynu poświadczeń, albo magazyn jest zablokowany. Tam, gdzie brakuje składnika, sejf może używać wyłącznie gniazda sprzętowego, w którym maszyna pieczętuje; w przeciwnym razie w systemie Linux zaloguj się do sesji pulpitu z odblokowanym pękiem kluczy (Secret Service); w macOS odblokuj pęk kluczy logowania; w Windows zaloguj się interaktywnie. Następnie spróbuj ponownie.",
+    "storeUnavailable": "Magazyn poświadczeń systemu operacyjnego jest niedostępny. W macOS odblokuj pęk kluczy logowania; w Windows zaloguj się interaktywnie; dla agenta terminalowego w Linuksie zaloguj się do sesji pulpitu z odblokowanym pękiem kluczy (Secret Service). W VS Code w Linuksie ta kompilacja nie zawiera składnika Secret Service, więc sejf może tam używać tylko modułu TPM dostępnego dla Twojego konta (zwykle po dołączeniu do grupy tss). Następnie spróbuj ponownie.",
     "remoteWarning": "Z innego urządzenia można żądać tylko podpisu lub kodu jednorazowego. Jego użytkownik musi zatwierdzić tam każde użycie.",
     "approvalExpired": "Ta zgoda wygasła. Ponownie poproś o użycie.",
     "useChanged": "Użycie zmieniło się po zatwierdzeniu. Poproś o zgodę na nowe użycie.",
