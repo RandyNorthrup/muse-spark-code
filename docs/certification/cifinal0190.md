@@ -547,3 +547,21 @@ runs on the final tree, each a first attempt:
   failed. A rerun on the same commit is refused (AGENTS.md rule 2), so this
   record is the new commit, pushed once GitHub reported the incident
   resolved.
+
+## 14. PR #255's second run: two Windows-only reds on a slow runner
+
+PR #255 head `6cc8f2a34d` (CI run 39653536793, capacity run 39653641953),
+hosted Windows only:
+
+- `reportProductionTransport.test.ts` (shard 1): the store read came back
+  `unavailable` for Marketplace, Open VSX and npm. The same 53-file shard
+  passes here (`npx vitest run --shard=1/16`: 5,672 passed), and nothing in
+  0.19.1 touches the reporting network; the test said only the status. It
+  now names the read's reason when it fails, so a repeat shows its cause.
+- Integration `schedule background entry in the real host: reconcile
+retires a stale entry…` on VS Code 1.99: over its 20 s timeout, where the
+  last green runs took 6.9 s and 10.9 s; the same case passed on current
+  VS Code in the same job. Both reds fell in the hour after GitHub's
+  Actions incident. No timeout was raised and nothing was re-run on the
+  same commit (AGENTS.md rule 2): this record and the test's reason are the
+  new commit.
