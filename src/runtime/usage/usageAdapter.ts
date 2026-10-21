@@ -54,7 +54,8 @@ export interface UsageAccessDeps {
   readonly locale: string
   readonly uiText: UiText
   readonly log: CoreLogger
-  readonly historySettings?: () => { readonly enabled: boolean; readonly days: number }
+  // NOLIMITSSET (PLAN.md D121): null days keeps history — no day count of ours.
+  readonly historySettings?: () => { readonly enabled: boolean; readonly days: number | null }
   readonly beforeRead?: () => Promise<void>
   readonly live?: Pick<
     UsageServiceDeps,

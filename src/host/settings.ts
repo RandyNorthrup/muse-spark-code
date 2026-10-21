@@ -9,14 +9,12 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
-  HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_RUNNING_COMMANDS_MIN,
-  SUBAGENT_CONCURRENT_MAX,
-  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
+  MEDIA_UPLOAD_EXPIRY_DAY_MIN,
+  USAGE_HISTORY_DAY_MIN,
   type BackendMode,
   VAULT_PROTECTION_MODES,
   type VaultProtectionMode,
-  BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
   type BrowserRuntimeMode,
   type CheckCommandSetting,
@@ -27,8 +25,6 @@ import {
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
   MEDIA_CONVERTER_PATH_MAX_CHARS,
-  MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
-  MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
   ESTIMATE_OPTIMIZE_MODES,
   type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
@@ -41,8 +37,6 @@ import {
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
-  USAGE_HISTORY_DAYS_MIN,
-  USAGE_HISTORY_DAYS_MAX,
   TAB_DAILY_BUDGET_MIN_USD,
   TAB_NO_BUDGET_USD,
   TAB_MODELS,
@@ -60,7 +54,8 @@ import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
   readonly usageHistory: boolean
-  readonly usageHistoryDays: number
+  /** Null keeps history until the person sets a day count or clears it (D121). */
+  readonly usageHistoryDays: number | null
   readonly paidDailyBudgetUsd: UsdAmount
   readonly linuxDictationModel: boolean
   readonly dictationEngine: 'system' | 'museVoice'
@@ -314,22 +309,21 @@ const settingSchemas = {
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
-  // D121: 0 is no search bound of ours (the default); a set value stays
-  // within 1–20.
-  webSearchMaxPerRequest: z
-    .number()
-    .check(z.int(), z.gte(0), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
+  // D121: 0 is no search bound of ours (the default); a set whole count of
+  // at least 1 sends as set (NOLIMITSSET: the removed 20 was ours — no
+  // capability record carries one). Anything else refuses with the setting
+  // named, never clamped silently.
+  webSearchMaxPerRequest: z.number().check(z.int(), z.gte(0)),
   // Lane RETRYLIMITS: null (unset) is the default; 0 never retries.
   modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
-  // Capped at Muse Code's own bound: machine settings are writable by a
-  // dev-container definition (SECURITY.md, workspace trust), so no
-  // workspace may raise Stop-hook billing past what Muse Code itself does.
-  // D121: 0 is no limit of ours (the default); a set value stays in range.
-  hooksMaxStopContinuations: z
-    .number()
-    .check(z.int(), z.gte(0), z.lte(HOOK_MAX_STOP_CONTINUATIONS)),
+  // D121: 0 is no limit of ours (the default); a set whole count governs as
+  // set (NOLIMITSSET: the removed 8 was ours — no provider documents one).
+  // Anything else refuses with the setting named, never clamped silently.
+  hooksMaxStopContinuations: z.number().check(z.int(), z.gte(0)),
   hooksMaxRunningCommands: z.number().check(z.int(), z.gte(HOOK_RUNNING_COMMANDS_MIN)),
-  subagentMaxConcurrent: z.number().check(z.int(), z.gte(0), z.lte(SUBAGENT_CONCURRENT_MAX)),
+  // D121: 0 is no limit of ours (the default); a set whole count governs as
+  // set (NOLIMITSSET: the removed 64 was ours — no provider documents one).
+  subagentMaxConcurrent: z.number().check(z.int(), z.gte(0)),
   pluginHookTimeoutSeconds: z.number().check(z.int(), z.gte(0)),
   pluginChildMaxMemoryMiB: z.number().check(z.int(), z.gte(0)),
   pluginAnswerMaxBytes: z.number().check(z.int(), z.gte(0)),
@@ -338,9 +332,12 @@ const settingSchemas = {
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
   // widening something else.
-  browserCheckExtraHosts: z
-    .array(z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)))
-    .check(z.maxLength(BROWSER_CHECK_EXTRA_HOSTS_MAX)),
+  // NOLIMITSSET (PLAN.md D121): no host-count ceiling of ours — every host
+  // the person names is kept (the removed 32 was ours). Each entry stays a
+  // plain host name or IP address; one that is not refuses the whole list.
+  browserCheckExtraHosts: z.array(
+    z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)),
+  ),
   browserCheckRuntime: z.enum(BROWSER_RUNTIME_MODES),
   bundledSkills: z.boolean(),
   showWhatsNewOnUpdate: z.boolean(),
@@ -355,15 +352,17 @@ const settingSchemas = {
   legalExplanation: z.boolean(),
   legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
   usageHistory: z.boolean(),
-  usageHistoryDays: z
-    .int()
-    .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
+  // NOLIMITSSET (PLAN.md D121): null (the default) keeps history until the
+  // person sets a day count or clears it; a set whole number of days of at
+  // least 1 trims as set. Anything else refuses with the setting named.
+  usageHistoryDays: z.nullable(z.int().check(z.gte(USAGE_HISTORY_DAY_MIN))),
   // No ceiling of ours: the person sets any MiB, the provider refuses what it cannot take.
   // D121: 0 is no cap of ours (the default).
   mediaMaxUploadMiB: z.int().check(z.gte(0)),
-  mediaUploadExpiryDays: z
-    .int()
-    .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
+  // NOLIMITSSET (PLAN.md D121): the person's whole days, honoured as set —
+  // 7 by default; no capability record carries a range, so the removed 1–30
+  // was ours. Anything else refuses with the setting named.
+  mediaUploadExpiryDays: z.int().check(z.gte(MEDIA_UPLOAD_EXPIRY_DAY_MIN)),
   // D121: 0 records until stopped (the default); any other whole number of
   // seconds is used as set, with no floor or ceiling of ours.
   screenRecordingMaxSeconds: z.int().check(z.gte(0)),

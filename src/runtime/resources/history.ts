@@ -31,7 +31,7 @@ export interface ResourceHistoryBinding {
   /** The host's own usage-history consent (setting or flag); the shared usage file also applies. */
   readonly isEnabled: () => boolean
   /** Daily rows are kept for these days; defaults to the shared usage-history file's days. */
-  readonly historyDays?: () => number
+  readonly historyDays?: () => number | null
   /**
   A damaged choice, announced once per distinct damage with what the
   person is told. The recorder still calls `onError` for the log.
@@ -50,7 +50,7 @@ export interface ResourceHistoryReader extends ResourceHistoryPort {
 }
 
 interface JournalOptions {
-  readonly historyDays?: (() => number) | undefined
+  readonly historyDays?: (() => number | null) | undefined
   readonly onDropped?: () => void
   readonly onRetentionError?: (() => void) | undefined
 }
@@ -89,7 +89,7 @@ function port(store: ResourceJournal, dataFolder: string): ResourceHistoryReader
 /** Read-only: surfaces that show history never record. */
 export function resourceHistoryReader(
   dataFolder: string,
-  historyDays?: () => number,
+  historyDays?: () => number | null,
   onRetentionError?: () => void,
 ): ResourceHistoryReader {
   return port(

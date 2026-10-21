@@ -3,10 +3,8 @@ import * as z from 'zod/mini'
 import {
   USAGE_DAYS_FOLDER,
   USAGE_DETAIL_DAYS,
-  USAGE_HISTORY_DAYS_DEFAULT,
-  USAGE_HISTORY_DAYS_MIN,
-  USAGE_HISTORY_DAYS_MAX,
   USAGE_FOLDER,
+  USAGE_HISTORY_DAY_MIN,
   USAGE_VERSION_FOLDER,
   USAGE_JOURNAL_VERSION,
   USAGE_RECORD_MAX_BYTES,
@@ -719,9 +717,14 @@ export class UsageJournalStore {
     }
     throw new Error('usageLockLost')
   }
-  /** Covers a day atomically before deleting it. Bad/future raw data stays untouched. */
-  public async retain(historyDays = USAGE_HISTORY_DAYS_DEFAULT): Promise<boolean> {
-    z.int().check(z.gte(USAGE_HISTORY_DAYS_MIN), z.lte(USAGE_HISTORY_DAYS_MAX)).parse(historyDays)
+  /**
+  Covers a day atomically before deleting it. Bad/future raw data stays
+  untouched. NOLIMITSSET (PLAN.md D121): null keeps every rolled-up day —
+  history is kept until the person sets a day count or clears it; a set
+  whole number of days of at least 1 trims as set.
+  */
+  public async retain(historyDays: number | null = null): Promise<boolean> {
+    if (historyDays !== null) z.int().check(z.gte(USAGE_HISTORY_DAY_MIN)).parse(historyDays)
     await this.flush()
     const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
     if (lock === undefined) return false
@@ -732,14 +735,14 @@ export class UsageJournalStore {
       if (stored.newer > 0 || stored.inexact > 0) return false
       const today = usageLocalDay(this.options.now())
       const detailCutoff = shiftedDay(today, -(USAGE_DETAIL_DAYS - 1))
-      const historyCutoff = shiftedDay(today, -(historyDays - 1))
+      const historyCutoff = historyDays === null ? null : shiftedDay(today, -(historyDays - 1))
       const months = new Map(stored.rollups.map((rollup) => [rollup.month, rollup]))
       const covered = new Set(stored.rollups.flatMap((rollup) => rollup.days))
       const rawDays = await this.fs.list(DAYS_ROOT)
       for (const day of rawDays) {
         if (!usageDaySchema.safeParse(day).success || day >= detailCutoff) continue
         if (!(await lock.isHeld())) throw new Error('usageLockLost')
-        if (!covered.has(day) && day >= historyCutoff) {
+        if (!covered.has(day) && (historyCutoff === null || day >= historyCutoff)) {
           const files = await this.readDay(day)
           if (
             files.some(
@@ -783,7 +786,8 @@ export class UsageJournalStore {
         this.cache.clear()
       }
       for (const rollup of months.values()) {
-        const days = rollup.days.filter((day) => day >= historyCutoff)
+        const days =
+          historyCutoff === null ? rollup.days : rollup.days.filter((day) => day >= historyCutoff)
         if (days.length === rollup.days.length) continue
         if (!(await lock.isHeld())) throw new Error('usageLockLost')
         const file = `${ROLLUPS_ROOT}/${rollup.month}.json`

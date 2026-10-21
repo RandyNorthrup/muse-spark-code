@@ -25,7 +25,6 @@ import {
   RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS,
   RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS,
   USAGE_FOLDER,
-  USAGE_HISTORY_DAYS_DEFAULT,
   USAGE_LINE_FEED_BYTE,
   USAGE_RECORD_MAX_BYTES,
   USAGE_VERSION_FOLDER,
@@ -111,7 +110,7 @@ export interface ResourceJournalOptions {
   /** A record past the per-file bound is dropped, not retried; called with no detail. */
   readonly onDropped?: () => void
   /** D82's usage-history days for daily rows; an unreadable choice throws and retains nothing. */
-  readonly historyDays?: () => number
+  readonly historyDays?: () => number | null
   /** The last Delete history: nothing stamped at or before it is ever written or read. */
   readonly resetAtMs?: () => number
   /** Retention failed (expired history is still stored); reported once an hour while it fails. */
@@ -471,8 +470,11 @@ export class ResourceJournal implements ResourceRecordSink {
     return { months, newer, bytes }
   }
 
-  private async rollUp(now: number, historyDays: number, lock: UsageLock): Promise<void> {
-    const keepFrom = utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
+  // NOLIMITSSET (PLAN.md D121): null keeps every rolled-up day — history is
+  // kept until the person sets a day count or clears it.
+  private async rollUp(now: number, historyDays: number | null, lock: UsageLock): Promise<void> {
+    const keepFrom =
+      historyDays === null ? '' : utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
     const completeBefore = utcDay(now - RESOURCE_JOURNAL_ROLLUP_DELAY_MS)
     const expiredBefore = utcDay(
       now -
@@ -681,7 +683,7 @@ export class ResourceJournal implements ResourceRecordSink {
     // Nothing stored yet: a reader never creates the journal folder or its lock.
     const stored = await this.fs.list(RESOURCE_JOURNAL_ROOT)
     if (stored.length === 0) return
-    const historyDays = this.options.historyDays?.() ?? USAGE_HISTORY_DAYS_DEFAULT
+    const historyDays = this.options.historyDays?.() ?? null
     await this.exclusive((lock) => this.rollUp(now, historyDays, lock))
     this.retainedAt = now
   }
@@ -733,13 +735,15 @@ export class ResourceJournal implements ResourceRecordSink {
       throw new ResourceJournalError('resourceHistoryTooLarge')
     const { months } = await this.readRollups(RESOURCE_JOURNAL_READ_MAX_BYTES - total)
     // An unreadable usage-history choice removes nothing, so every stored row is shown.
-    let historyDays = RESOURCE_HISTORY_MAX_DAYS
+    // NOLIMITSSET: null keeps every row — no day count of ours.
+    let historyDays: number | null = RESOURCE_HISTORY_MAX_DAYS
     try {
-      historyDays = this.options.historyDays?.() ?? USAGE_HISTORY_DAYS_DEFAULT
+      historyDays = this.options.historyDays?.() ?? null
     } catch {
       // Retention refuses on the same error; reads stay complete.
     }
-    const keepFrom = utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
+    const keepFrom =
+      historyDays === null ? '' : utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
     return {
       records: [...records, ...live.records],
       sources: [...sources, ...live.sources],

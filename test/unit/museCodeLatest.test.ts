@@ -35,7 +35,6 @@ import { readSettings, type SettingsSource } from '../../src/host/settings'
 import { warningLogger } from './helpers/collectingLogger'
 import {
   HOOK_MAX_RUNNING_COMMANDS,
-  HOOK_MAX_STOP_CONTINUATIONS,
   SETTING_DEFAULTS,
   SUBAGENT_CAPACITY,
   museCodeLoadedSessionCeiling,
@@ -736,7 +735,6 @@ describe('hook and subagent setting defaults', () => {
     expect(SETTING_DEFAULTS.hooksMaxRunningCommands).toBe(0)
     expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(SUBAGENT_CAPACITY)
     expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(0)
-    expect(HOOK_MAX_STOP_CONTINUATIONS).toBe(8)
   })
 
   it('names the live subagent count in the spawn description', () => {
@@ -746,18 +744,16 @@ describe('hook and subagent setting defaults', () => {
     expect(subagentSpawnDescription(64)).toContain('Up to 64 work at once')
   })
 
-  it('refuses a Stop-continuation bound past Muse Code’s own 8', () => {
-    // A dev-container definition can write machine settings (SECURITY.md,
-    // workspace trust): a bound past 8 warns once and the default stays in
-    // effect, so no workspace raises billed Stop-hook spending past what
-    // Muse Code itself spends.
+  // NOLIMITSSET (PLAN.md D121): the 8 was ours, never a provider's — a set
+  // count governs as set; what is not a count refuses with the setting named.
+  it('honours a set Stop-continuation count past the removed 8', () => {
     const warnings: string[] = []
     const log = warningLogger(warnings)
     expect(
       readSettings(settingSource({ hooksMaxStopContinuations: 1000 }), log)
         .hooksMaxStopContinuations,
-    ).toBe(0)
-    expect(warnings).toHaveLength(1)
+    ).toBe(1000)
+    expect(warnings).toHaveLength(0)
     expect(
       readSettings(settingSource({ hooksMaxStopContinuations: 3 }), log).hooksMaxStopContinuations,
     ).toBe(3)

@@ -51,7 +51,6 @@ import {
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
-  USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
   BOUNDED_FILE_READ_CHUNK_BYTES,
@@ -938,7 +937,8 @@ function usageFor(
     locale: uiLocale(),
     uiText: UI_TEXT,
     log,
-    historySettings: () => ({ enabled: isHistoryEnabled, days: USAGE_HISTORY_DAYS_DEFAULT }),
+    // NOLIMITSSET (PLAN.md D121): null keeps history — no day count of ours.
+    historySettings: () => ({ enabled: isHistoryEnabled, days: null as number | null }),
     ...(recording !== undefined && {
       beforeRead: () => recording.flush(),
     }),

@@ -225,7 +225,6 @@ const RULE_PROBLEM_TEXT = {
   exampleFailedKept: () => UI_TEXT.commandRuleExampleFailedKept,
   allowInRepository: () => UI_TEXT.commandRuleAllowInRepository,
   allowsEvaluator: () => UI_TEXT.commandRuleAllowsEvaluator,
-  tooMany: () => UI_TEXT.commandRulesTooMany,
 } as const satisfies Readonly<Record<RuleProblem['kind'], () => string>>
 
 // The setting each problem is in, as the user finds it in settings.json.
