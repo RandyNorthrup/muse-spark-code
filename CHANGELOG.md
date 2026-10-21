@@ -734,6 +734,13 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   A name is removed only once it proves to be this registry's own retained
   file, by content and identity and never by age; a name exchanged for
   anything else is left alone and reported.
+- Adding a secret to the vault no longer ends with "The vault operation
+  failed. Try again." when the Target answer is not a JSON list of uses.
+  The flow now asks where the secret may be used — one SSH computer, any
+  SSH computer, Git commit signing, Git over HTTPS, a website, showing it
+  to yourself, or nowhere yet — and everything already typed stays while a
+  mistyped answer (Target, expiry date, name, label or address) asks again
+  with the reason.
 
 ### Security
 
