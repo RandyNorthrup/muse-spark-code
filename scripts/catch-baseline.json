@@ -9,7 +9,7 @@
     "core": {
       "SWALLOW": 72,
       "GENERIC": 267,
-      "CLEANUP": 236
+      "CLEANUP": 238
     },
     "host": {
       "SWALLOW": 19,
@@ -910,7 +910,17 @@
     },
     {
       "file": "src/core/credentialLease.ts",
-      "identity": "8e2da92c31a3d4c2ef761d36dc8a96c2f341955acedf7168c579560073aee5c7",
+      "identity": "433aa72e41fa2b70d74a4f10c43e2d3d632e385d08bd082da902af6c14960695",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/core/credentialLease.ts",
+      "identity": "d953eee552682767a7bb42f231db6af9c6f2cbcaa4b05840fbe2a836fc599a1e",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/core/credentialLease.ts",
+      "identity": "db13ce11c4d0c9bf77170c0eab02d366136226e96c2d7320860e8e6d168230b6",
       "class": "CLEANUP"
     },
     {
