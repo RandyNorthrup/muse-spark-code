@@ -91,7 +91,7 @@ jobs:
           - name: unit lint
             gates: 'lint:js:unit'
           - name: build
-            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches check:usable-reply check:wrap-up-request check:no-output-cap check:no-round-cap deadcode cycles duplication build security:audit'
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap check:catches check:usable-reply check:wrap-up-request check:no-output-cap check:no-round-cap check:workflow-scripts deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
