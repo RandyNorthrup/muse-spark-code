@@ -593,3 +593,38 @@ Proof, on this PC against the live sources:
   string: must match pattern /^x$/ at channels.Stable.revision") and the
   generator exited 1 with the same message before any download. Restored:
   the check exits 0 and the schemas parse the live answers again.
+
+## 16. 0.19.1's tag refused: the tag checks could not load zod
+
+- `v0.19.1` on `ff7c78d7a3` (PR #255's merge; release run 39667463849): the
+  tag checks stopped the release before any build or publication.
+  `node scripts/check-browser-runtime-pin.mjs` exited 1 with
+  `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'zod' imported from
+.../scripts/check-browser-runtime-pin.mjs`. Section 15's commit
+  (`45796ee1e0`) made the pin check parse its upstream answers with zod; the
+  release's tag-checks job checks out the repository and runs the check
+  with no `npm ci`, and no pull-request run executes that job, so every
+  check on PR #255 was green. The weekly `browser-runtime-pin.yml` job had
+  the same gap. The version is spent; the release ships as 0.19.2.
+- The fix: the tag-checks job sets up Node 22 and runs
+  `npm ci --ignore-scripts --no-audit` before the pin check (after the
+  cheap tag, version and ancestry checks); the weekly pin job installs too.
+- The gate: `scripts/check-workflow-scripts.mjs` (`npm run
+check:workflow-scripts`, in `quality:gates` and the hosted static gates)
+  reads every workflow, and for each `node scripts/...` step that runs
+  before its job's `npm ci` or `npm install`, bundles the script with
+  esbuild, every package external, and fails on any package its metafile
+  shows the script or a file it reaches importing.
+
+Drills, on this PC:
+
+- Red, the real defect: on `ff7c78d7a3`'s workflows the gate exited 1 with
+  four errors, two per job (`release.yml › tag checks › the browser check
+runtime pin is current` and `browser-runtime-pin.yml › pin is current ›
+the runtime pin is current`): `imports 'zod'
+(scripts/lib/browserRuntimeSources.mjs)` and `imports 'zod'
+(scripts/check-browser-runtime-pin.mjs)`.
+- Green with the fix: exit 0, "34 workflow steps run scripts/; the 2 before
+  their job's install import Node's built-in modules only".
+- Red on purpose: the new `npm ci` step removed from `release.yml`: exit 1,
+  the two tag-checks errors; restored: exit 0.

@@ -15266,12 +15266,13 @@ they hold on Muse Code 1.4.7 and later. Record:
 - **Q-0191-LINUX-VAULT — the vault in VS Code on Linux (2026-10-20).**
   **Resolved by the owner: ship with the limitation documented, fix in the
   next release** (the owner named it 0.19.1 before 0.19.0's tag was refused
-  and the release itself became 0.19.1). The .vsix carries no `@napi-rs/keyring` binding (about
+  and the release itself became 0.19.1; 0.19.1's tag was refused in turn, so
+  the release is 0.19.2). The .vsix carries no `@napi-rs/keyring` binding (about
   3.4 MB unpacked against ~200 KB of package budget headroom), so the
   extension's Linux build has no Secret Service slot, and the TPM2 slot
   probes `/dev/tpmrm0` directly, which a user outside the `tss` group cannot
   open; on a stock Linux desktop the vault therefore cannot be set up in VS
-  Code (the terminal agent installs the binding and works). 0.19.1 makes the
+  Code (the terminal agent installs the binding and works). 0.19.2 makes the
   `storeUnavailable` sentence say this, and the CHANGELOG and README record
   it. Options for the next release: seal through `systemd-creds`' user scope (systemd
   256+, no device access), the Secret Service over D-Bus without a native
@@ -39920,6 +39921,26 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
+
+**0.19.2 preparation (2026-10-21).** `release/0.19.2` cut from `main` at
+`ff7c78d7a3` (PR #255's merge): `package.json` and `package-lock.json` at
+0.19.2; the release's tag-checks job and the weekly pin job install the
+dependencies before the pin check; the new `check:workflow-scripts` gate
+(`scripts/check-workflow-scripts.mjs`, in `quality:gates` and the hosted
+static gates); CHANGELOG's `[0.19.1]` section renamed `[0.19.2]` with the
+reason under Release infrastructure; the roadmap regenerated.
+
+**0.19.1 (2026-10-21, tag `v0.19.1` on main's release merge `ff7c78d7a3`, PR #255, release run 39667463849: never published).**
+PR #255 (`release/0.19.1`, head `45796ee1e0`) merged after first-attempt
+green CI, Hosts and Browser check runs; the merge commit's Hosts run
+(39666346855) was green and `rule2-gate.mjs release --sha ff7c78d7a3` read
+four green first runs. The release run stopped at its tag checks:
+`check-browser-runtime-pin.mjs` could not load `zod` ("Cannot find package
+'zod'"). The pin check had begun parsing its upstream answers with zod in
+`45796ee1e0`, and the tag-checks job installed nothing; no pull-request run
+executes that job. Nothing was built or published, on any channel. 0.19.1 is
+spent and the release ships as 0.19.2 (above);
+`docs/certification/cifinal0190.md` §16.
 
 **0.19.1 preparation (2026-10-21).** `release/0.19.1` cut from `main` at
 `e48e8c6bce` (PR #237's merge): `package.json` and `package-lock.json` at
