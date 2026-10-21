@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
+## [Unreleased]
+
+### Changed
+
+- **The browser check runs on Chrome for Testing 156.0.8078.47** (r1706539,
+  published 2026-10-20), pinned in place of 154.0.8037.92, which the
+  release's pin check refused as more than 14 days behind the newest Stable.
+  After the update the check downloads the new version once, as it did the
+  last one, checked against its pinned length and SHA-256. The pin now comes
+  from `scripts/pin-browser-runtime.mjs`, which reads the Chrome for Testing
+  and ChromiumDash records the pin check reads and measures each archive
+  with the runtime's own ZIP reader (docs/RELEASING.md).
+
 ## [0.19.0] - 2026-10-21
 
 ### Highlights
