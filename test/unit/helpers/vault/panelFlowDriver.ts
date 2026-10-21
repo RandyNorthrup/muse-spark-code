@@ -98,8 +98,10 @@ export async function drivePanelFlow(
     await vi.waitFor(
       () => {
         const frame = frames.at(-1)
-        expect(frame?.retrying ?? false).toBe(false)
-        expect(frame?.status.state).toBe(state)
+        // A step that never settles says what the panel showed instead.
+        const shown = `${label}: reason ${String(frame?.status.reason)}, toasts ${JSON.stringify(toasts)}, log ${JSON.stringify(logged)}`
+        expect(frame?.retrying ?? false, shown).toBe(false)
+        expect(frame?.status.state, shown).toBe(state)
       },
       { timeout: STEP_TIMEOUT_MS, interval: 50 },
     )
