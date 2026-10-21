@@ -1400,6 +1400,23 @@ export class ConversationController {
   private closedWatch: (() => void) | undefined
   /** The session the next message resumes after a restart or a crash (PLAN.md D25). */
   private resumeTarget: { readonly sessionId: string; readonly kind: BackendKind } | undefined
+  /**
+  The conversation this panel was last asked to show, counted: New
+  Conversation, each opening (History, a restore, a fork, an import, a
+  rewind) and an account boundary move it on. An opening's failure is said
+  while its choice is still the latest, whatever else (a backend restart or
+  exit, the opening's own letting go of the conversation it replaces) moved
+  the send epoch meanwhile.
+  */
+  private conversationChoice = 0
+  /**
+  Why the conversation this panel was asked to show could not be opened,
+  when that left it with neither a session nor one to resume: every message
+  and action is refused with these words until another conversation is
+  open here, so nothing typed goes to a new conversation the panel does not
+  show.
+  */
+  private unopenedReason: string | undefined
   /** A session start in flight, shared by concurrent callers. */
   private sessionOpening: Promise<AgentSession> | undefined
   /** A replaced opening cannot clear a newer opening's shared slot. */
@@ -1729,23 +1746,34 @@ export class ConversationController {
   Says `text` in the panel. A warning or an error goes to the log as well
   (M39): "Open log" and a support report hold every failure the user saw.
   */
-  private notice(level: NoticeLevel, text: string, redoRestoreId?: string, error?: unknown): void {
+  private notice(
+    level: NoticeLevel,
+    text: string,
+    redoRestoreId?: string,
+    error?: unknown,
+    actions?: readonly NoticeAction[],
+  ): void {
     const logged = isMspFailure(error) ? failureForLog(error) : redactSecrets(text)
     if (level === 'error') {
       this.deps.log.error(`${NOTICE_PREFIX}${logged}`)
     } else if (level === 'warning') {
       this.deps.log.warn(`${NOTICE_PREFIX}${logged}`)
     }
-    this.say(level, text, redoRestoreId)
+    this.say(level, text, redoRestoreId, actions)
   }
 
   /**
   Says `text` in the panel only: for a failure already logged in more
-  detail. A file restore's notice carries its Redo (M72). An error is
-  journalled as a fact (M93, D72), never its text, and its row offers
-  "Report This" with the sanitized reference.
+  detail. A file restore's notice carries its Redo (M72); `actions` are the
+  way on (D26). An error is journalled as a fact (M93, D72), never its
+  text, and its row offers "Report This" with the sanitized reference.
   */
-  private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
+  private say(
+    level: NoticeLevel,
+    text: string,
+    redoRestoreId?: string,
+    actions?: readonly NoticeAction[],
+  ): void {
     const reportRef =
       level === 'error'
         ? this.deps.reports?.record('errorNotice', REPORT_UNKNOWN_ERROR_CODE)
@@ -1755,6 +1783,7 @@ export class ConversationController {
       level,
       text,
       ...(redoRestoreId !== undefined && { redoRestoreId }),
+      ...(actions !== undefined && { actions: [...actions] }),
       ...(reportRef !== undefined && { reportRef }),
     })
   }
@@ -1871,6 +1900,37 @@ export class ConversationController {
   private noteShown(error: unknown): void {
     if (typeof error === 'object' && error !== null) {
       this.shownFailures.add(error)
+    }
+  }
+
+  /** This panel is asked to show another conversation; the number of that choice. */
+  private chooseConversation(): number {
+    this.conversationChoice += 1
+    return this.conversationChoice
+  }
+
+  /**
+  An opening (History, a restore, a fork, an import, a rewind) failed with
+  `text`. It is said at once unless the panel has moved on to another
+  conversation since: a backend restart or exit meanwhile, or the opening
+  having already let go of the conversation it was replacing, does not
+  hush it (0.19.0: the failure appeared only on the next History open, and
+  the message typed meanwhile was never sent). Left with neither a session
+  nor one to resume, the panel keeps the words for every later message,
+  and the notice offers a new conversation as the way on (D26).
+  */
+  private openingFailed(choice: number, text: string, error: unknown): void {
+    if (this.isDisposed || choice !== this.conversationChoice) {
+      return
+    }
+    const isUnopened = this.session === undefined && this.resumeTarget === undefined
+    if (isUnopened) {
+      this.unopenedReason = text
+    }
+    if (this.isFirstShowing(error)) {
+      this.notice('error', text, undefined, error, isUnopened ? ['newConversation'] : undefined)
+    } else {
+      this.deps.log.error(`An opening failed (shown already): ${failureForLog(error)}`)
     }
   }
 
@@ -4281,6 +4341,8 @@ export class ConversationController {
     )
     this.bindIdeCaller(session)
     this.session = session
+    // A conversation is open here again: an earlier failed opening no longer refuses.
+    this.unopenedReason = undefined
     this.sessionKind = host.info.kind
     this.attachedHost = host
     // MSP serves 1.4.3; installed build labels such as 1.4.3-R5018.1 name
@@ -4398,6 +4460,13 @@ export class ConversationController {
   }
 
   private async openSession(workspaceRoot: string, generation: number): Promise<AgentSession> {
+    // The conversation this panel was asked to show could not be opened:
+    // the message is refused with that failure's own words (its card keeps
+    // the typed text), never sent to a new conversation the panel does not
+    // show. Opening it again from History or a New Conversation lifts it.
+    if (this.unopenedReason !== undefined) {
+      throw new Error(this.unopenedReason)
+    }
     const host = await this.deps.ensureHost()
     this.requireCurrentOpening(generation)
     await this.ensureModels(host)
@@ -5263,6 +5332,9 @@ export class ConversationController {
       this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
       this.postComposerState()
     }
+    // The panel shows this conversation from here on: a session an earlier
+    // restart left to resume is not the one a message typed here goes to.
+    this.resumeTarget = undefined
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
     this.notice('info', `${notice} ${loaded.history.name ?? toSessionRow(loaded.record).title}`)
@@ -5307,6 +5379,13 @@ export class ConversationController {
     return generation === this.sendInvalidationEpoch && !this.isDisposed
   }
 
+  /**
+  Open a stored conversation here (History, a window's restore, the session
+  board). A backend restart or exit between its steps stops it; that and
+  every other failure, one inside `adopt` after it let go of the
+  conversation shown so far included, is said at once unless the panel was
+  asked for another conversation meanwhile (`openingFailed`).
+  */
   private async resumeSession(sessionId: string): Promise<void> {
     if (this.deps.surface.isSideChat === true && !this.sideSessionIds.has(sessionId)) {
       this.notice('warning', UI_TEXT.sideChatSessionOnly)
@@ -5315,16 +5394,18 @@ export class ConversationController {
     if (this.refuseAction() !== undefined || this.session?.sessionId === sessionId) {
       return
     }
+    const choice = this.chooseConversation()
     const generation = this.sendInvalidationEpoch
+    const requireCurrent = (): void => {
+      if (this.isDisposed || generation !== this.sendInvalidationEpoch) {
+        throw new Error(this.isDisposed ? UI_TEXT.surfaceClosed : UI_TEXT.turnStoppedByRestart)
+      }
+    }
     try {
       const host = await this.deps.ensureHost()
-      if (generation !== this.sendInvalidationEpoch) {
-        return
-      }
+      requireCurrent()
       await this.ensureModels(host)
-      if (generation !== this.sendInvalidationEpoch) {
-        return
-      }
+      requireCurrent()
       this.watchList(host)
       const mcpServers = await this.mcpServersFor(host, sessionId)
       this.requireNonConfidentialModel(this.modelId)
@@ -5339,19 +5420,16 @@ export class ConversationController {
       }
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         loaded.session.dispose()
-        return
+        requireCurrent()
       }
-      await this.adopt(host, loaded, UI_TEXT.resumedNotice, 'resumed')
+      // False when a restart, a closed panel or another conversation
+      // overtook the adoption: it has let go of what the panel showed.
+      if (!(await this.adopt(host, loaded, UI_TEXT.resumedNotice, 'resumed'))) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
     } catch (error: unknown) {
       this.deps.log.warn(`A session could not be resumed: ${failureForLog(error)}`)
-      if (generation !== this.sendInvalidationEpoch) {
-        return
-      }
-      if (this.isFirstShowing(error)) {
-        this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`, undefined, error)
-      } else {
-        this.deps.log.error(`resumeSession failed (shown already): ${failureForLog(error)}`)
-      }
+      this.openingFailed(choice, `${UI_TEXT.resumeFailed}: ${describe(error)}`, error)
     }
   }
 
@@ -5375,6 +5453,7 @@ export class ConversationController {
       this.notice('info', UI_TEXT.sessionRequired)
       return
     }
+    const choice = this.chooseConversation()
     const generation = this.sendInvalidationEpoch
     const session = this.session
     try {
@@ -5390,9 +5469,8 @@ export class ConversationController {
       await this.adopt(host, loaded, UI_TEXT.forkedNotice, 'forked')
     } catch (error: unknown) {
       this.deps.log.warn(`A session could not be forked: ${failureForLog(error)}`)
-      if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`, undefined, error)
-      }
+      // Said even after `adopt` let go of the source (its epoch moved).
+      this.openingFailed(choice, `${UI_TEXT.forkFailed}: ${describe(error)}`, error)
     }
   }
 
@@ -5521,10 +5599,11 @@ export class ConversationController {
   /** The fork (or a fresh conversation) and the prompt back in the composer; true when done. */
   private async applyRewind(prepared: PreparedRewind): Promise<boolean> {
     const { message, source, host, generation, images } = prepared
+    if (!this.isCurrentSessionAction(source, generation)) {
+      return false
+    }
+    const choice = this.chooseConversation()
     try {
-      if (!this.isCurrentSessionAction(source, generation)) {
-        return false
-      }
       if (message.lastTurnId === undefined) {
         this.clear()
       } else {
@@ -5544,14 +5623,8 @@ export class ConversationController {
       return true
     } catch (error: unknown) {
       this.deps.log.warn(`A rewound conversation could not be applied: ${failureForLog(error)}`)
-      if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice(
-          'error',
-          `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`,
-          undefined,
-          error,
-        )
-      }
+      // Said even after `adopt` let go of the source (its epoch moved).
+      this.openingFailed(choice, `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`, error)
       return false
     }
   }
@@ -9226,8 +9299,12 @@ export class ConversationController {
     this.endTasksTab()
     this.isSideChat = this.deps.surface.isSideChat === true
     // A new conversation is new: the session a restart or crash left to
-    // resume is not picked up by its first message (D25).
+    // resume is not picked up by its first message (D25), an opening still
+    // in flight no longer speaks for this panel, and one that failed no
+    // longer refuses.
     this.resumeTarget = undefined
+    this.chooseConversation()
+    this.unopenedReason = undefined
     this.planTurnIds.clear()
     this.pendingPlanTurnIds.clear()
     // The webview drops its transcript too, whoever asked: the panel's own
@@ -10371,6 +10448,9 @@ export class ConversationController {
     // Disposing drops the session, which moves the epoch on: each check
     // after an await covers a closed panel too.
     const generation = this.sendInvalidationEpoch
+    // Set once the person confirmed: from then on the panel is opening the
+    // imported conversation, and its failure is said as an opening's.
+    let choice: number | undefined
     try {
       const host = await this.deps.ensureHost()
       if (generation !== this.sendInvalidationEpoch) {
@@ -10418,6 +10498,7 @@ export class ConversationController {
       if (!isConfirmed || generation !== this.sendInvalidationEpoch) {
         return
       }
+      choice = this.chooseConversation()
       this.watchList(host)
       const loaded = await host.importSession(doc, {
         approvalMode: approvalModeFor(mode, this.deps.hasApprovalUi),
@@ -10430,8 +10511,12 @@ export class ConversationController {
       await this.adopt(host, loaded, UI_TEXT.importedNotice, 'imported')
     } catch (error: unknown) {
       this.deps.log.warn(`A session could not be imported: ${failureForLog(error)}`)
-      if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`, undefined, error)
+      const text = `${UI_TEXT.importSessionFailed}: ${describe(error)}`
+      if (choice !== undefined) {
+        // Said even after `adopt` let go of the conversation shown (its epoch moved).
+        this.openingFailed(choice, text, error)
+      } else if (generation === this.sendInvalidationEpoch) {
+        this.notice('error', text, undefined, error)
       }
     }
   }
@@ -12050,6 +12135,10 @@ export class ConversationController {
     }
     if (isConversationEnding) {
       this.accountStopsInFlight += 1
+      // The account boundary clears every conversation: an opening's failure
+      // is no longer this panel's to say or to refuse with.
+      this.chooseConversation()
+      this.unopenedReason = undefined
     }
     try {
       // Invalidate a pending send before a running turn's cancel can await.

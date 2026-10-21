@@ -321,6 +321,13 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   the loaded session runtime" and the message was never sent; the
   conversation now resumes with the tools it was started with, so the next
   message gets an answer.
+- A conversation that cannot be opened from History, or brought back after
+  a window reload, says so straight away with the reason ("Could not resume
+  the conversation: …") and offers a new conversation. It used to fail
+  without a word, and a message typed afterwards went nowhere you could
+  see; now that message is refused at once with the same reason, and what
+  you typed stays on its card. A conversation still open in the panel is
+  not affected.
 - "Muse Spark Code stopped unexpectedly last time — report it?" no longer
   appears after an ordinary close. The window's crash marker is cleared as
   soon as VS Code asks the extension to stop, instead of after a shutdown
