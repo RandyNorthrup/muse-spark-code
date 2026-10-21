@@ -15,6 +15,7 @@ import { IDE_PAID_TOOLS, TEXT_ATTACHMENT_MEDIA_TYPE } from '../../../shared/cons
 import { sessionActivityFields } from '../../../shared/sessions'
 import type { SessionHistoryOutcome } from '../../agent/agentBackend'
 import { readTextFileDisplay } from '../../../shared/textFileDisplay'
+import { promptWords } from './promptWords'
 
 /**
 MSP's `Goal` block (M45, PLAN.md D38) as `session/goalChanged` and a
@@ -53,6 +54,24 @@ function snapshotGoal(raw: unknown): SessionGoal | null | undefined {
   return parsed.success ? toSessionGoal(parsed.data) : undefined
 }
 
+/**
+Muse Code derives a session's title and first prompt from the whole
+model-visible text of its first turn, the extension's own parts included
+(captured 2026-10-20, Muse Code 1.4.11): read here, once, as the person's
+words, so every list, board, picker and ACP client that shows a session
+shows what the person wrote. Absent when nothing of theirs is left, so
+each surface says "Untitled" in its own way.
+*/
+const personsPrompt = z.optional(
+  z.pipe(
+    z.string(),
+    z.transform((text) => {
+      const words = promptWords(text)
+      return words === '' ? undefined : words
+    }),
+  ),
+)
+
 export const sessionRecordSchema = z.object({
   sessionId: z.string(),
   /**
@@ -64,9 +83,9 @@ export const sessionRecordSchema = z.object({
   approvalMode: z.optional(z.object({ mode: z.string() })),
   /** Allocated name; absent until the host names the session. */
   name: z.optional(z.string()),
-  /** Derived display title (the first prompt for unnamed sessions). */
-  title: z.optional(z.string()),
-  firstUserPrompt: z.optional(z.string()),
+  /** Derived display title (the first prompt for unnamed sessions), as the person's words. */
+  title: personsPrompt,
+  firstUserPrompt: personsPrompt,
   ...sessionActivityFields,
   forkedFrom: z.optional(z.nullable(z.object({ sessionId: z.string() }))),
   workspaceRoot: z.optional(z.nullable(z.string())),

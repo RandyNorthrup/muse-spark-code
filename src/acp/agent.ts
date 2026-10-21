@@ -106,6 +106,7 @@ import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { MediaRefusal } from './media'
 import { UserRefusalError } from '../shared/refusal'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
+import { sessionTitle } from '../shared/sessions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
@@ -3500,7 +3501,9 @@ class AgentState {
       sessions: page.sessions.map((record) => ({
         sessionId: record.sessionId,
         cwd: record.workspaceRoot ?? folder,
-        title: record.name ?? record.title ?? record.firstUserPrompt ?? null,
+        // The panel's own label: the person's words, never the extension's
+        // notes, quoted passages or attached files (sessionRecords.ts).
+        title: sessionTitle(record),
         updatedAt: record.lastActivityAt ?? record.updatedAt,
       })),
       nextCursor: page.nextCursor ?? null,

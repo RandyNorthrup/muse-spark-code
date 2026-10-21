@@ -336,3 +336,168 @@ Five repeated runs of the suite: 7/7 each.
   found no card on screen).
 - Restored: `npx vitest run test/unit/resumeFailureSend.test.ts
 test/unit/sessionDelete.test.ts` 17/17, exit 0.
+
+## 11. Session titles showed the extension's notes, quoted passages and files
+
+Real use of the packed product on Windows: Session History listed a
+conversation whose first message was "In one short sentence, say hello and
+include the word WRESTONE." as that sentence followed by the choice-steering
+note and the verify note, tags and all. The transcript was right (the turn
+carries MSP `displayText`); every list was not.
+
+Cause: Muse Code derives a session's `title` and `firstUserPrompt` from the
+first turn's whole model-visible text, and `sessionRecordSchema` took both as
+sent. `sessionTitle` dropped `<ide_selection>` and `<ide_opened_file>` blocks
+only, with a lazy match that a selection holding `</ide_selection>` cut
+short; the ACP agent's `session/list` used the raw fields. So the History
+list, the session board, the restore notices and every ACP client's session
+list could show the extension's notes, a quoted chat passage, a Git draft
+prompt with its diff, selected code or an attached file's contents.
+
+Muse Code's rule, captured live (`temp/titles-capture/capture.ts`, bundled
+with esbuild and run with node; the committed projection is
+`test/fixtures/session-titles/msp-1.4.11-echo-titles.json`): Muse Code
+1.4.11-R6667.1 on Windows, `serve --provider echo --trust-workspace`, its
+home, `APPDATA`, `LOCALAPPDATA` and the four `XDG_*_HOME` under the run folder
+in this worktree's `temp/`, only SystemRoot, SystemDrive, windir, ComSpec,
+PATHEXT, NUMBER_OF_PROCESSORS, PROCESSOR_ARCHITECTURE, OS and a
+System32-only PATH passed to the child, and `museHome` checked to be inside
+the run folder before any session started. Ten first turns went through the
+product's own `MuseCodeHost.sendTurn` with parts from the product's own
+builders. Expected model calls 0; counted from the run's trace log: 50
+admissions, all `provider="echo"` (Muse Code's own reminder agents included),
+0 model attempts, 32 requests. What it showed:
+
+- the parts are joined with nothing between them and every run of
+  whitespace becomes one space; nothing is shortened (a 1,145-character
+  message with its two notes came back whole, a 1,497-character title);
+- a title appears once Muse Code's index has it: in `session/list` rows, in
+  `session/listChanged` once the session is no longer loaded, and in the
+  `session/read` and `session/resume` envelopes; `session/start` and
+  `session/started` carry none.
+
+Every model-only part, its form, and how it is now recognised:
+
+| Part                   | Added by                                                           | Form                                                                                  | Recognised by                                    |
+| ---------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Attached text file     | panel `buildParts`, MSP via `textFileInput`                        | `Attached text file "<name>":\n\n<text>`, no tag                                      | opening, a JSON-quoted name, a colon; title ends |
+| Plan brief's note      | `planBrief().modelNote`                                            | `The user approved the plan in the attached file …` / `The user asked to implement …` | its sentence up to `{name}`; title ends          |
+| Handoff brief's note   | `handoffBrief().modelNote`                                         | `Items the brief marks [untrusted] come from …` (+ goal, todos), no tag               | its first sentence; title ends                   |
+| Quoted chat passage    | `chatReferenceText`                                                | `<chat_reference intent="…" from="…">…</chat_reference>`                              | tag and ` intent="`; title ends                  |
+| Git draft prompt       | `promptFor` (VS Code Git and the native route) via `gitText`       | `The user asked for a commit message …` / `… a pull request title …`, then the diff   | its instruction up to `{max}`; title ends        |
+| Editor context         | `editorContextText`                                                | `<ide_selection>The user selected …</ide_selection>`, `<ide_opened_file>The user …`   | tag and its lead words; title ends               |
+| Choice-steering note   | panel                                                              | `<harness_note>When you offer the user a choice …</harness_note>`                     | tag and the note's words; block removed          |
+| Verify note            | `verifyGuidance`                                                   | `<harness_note>After you edit files, …[ The user's check commands are: …]</…>`        | tag and either sentence's opening; block removed |
+| Sandbox note           | panel and ACP agent                                                | `<harness_note>Muse Code’s Linux shell sandbox cannot start …</harness_note>`         | tag and the note's words; block removed          |
+| Editor's attached file | ACP `attachedContext` (headless `exec` files too)                  | `<ide_attached_context uri="…">\n…\n</ide_attached_context>`, between typed blocks    | tag and ` uri="`; block removed, words kept      |
+| Unattended note        | `UnattendedRun.parts` (scheduled runs)                             | `This prompt was sent on a schedule. …`, no tag                                       | the sentence; title ends                         |
+| Schema request         | headless `exec` (local validation)                                 | `Return your final answer as one JSON value …Schema:\n<schema>`, no tag               | its words up to `{schema}`; title ends           |
+| Question notes         | `takeDismissals` (leading), ACP answer lease (leading late answer) | a dismissal `<harness_note>`, `Answer to your earlier question …`                     | not read: they ride only a turn after a question |
+
+No untagged part needed a new tag, so the model receives exactly what it did
+before: each opens with a fixed sentence of the extension's own. Those
+sentences became standalone constants (`VERIFY_GUIDANCE_DIAGNOSTICS`,
+`VERIFY_GUIDANCE_CHECKS`, `HANDOFF_NOTE`, `PLAN_BRIEF_APPROVED`,
+`PLAN_BRIEF_FROM_FILE`, `GIT_COMMIT_INSTRUCTIONS`,
+`GIT_PULL_REQUEST_INSTRUCTIONS`, `SCHEDULE_UNATTENDED_NOTE`,
+`EXEC_OUTPUT_SCHEMA`) that their blocks reference, so `dist/museCode.js`
+reads them without carrying `MODEL_TEXT`, `CONVERSATION_MODEL_TEXT`,
+`GIT_MODEL_TEXT`, `SCHEDULE_MODEL_TEXT` or `EXEC_MODEL_TEXT`. The two verify
+sentences left `MODEL_TEXT` (the build compresses it and takes literals
+only); `checkCommands.ts` reads them directly. `handoffNoteWithGoal` stays a
+literal that opens with `HANDOFF_NOTE`: a `.join` there kept the whole block
+in every bundle (about 3 KiB, eleven budgets over) and was reverted.
+`editorContextText`'s two lead words moved into `IDE_CONTEXT_LEADS`.
+
+Fix: one function, `promptWords` (`src/core/backends/musecode/promptWords.ts`),
+applied once where the record is parsed: `sessionRecordSchema`'s `title` and
+`firstUserPrompt` pipe through it, so `session/list`, `session/listChanged`
+and the read, resume and fork envelopes all arrive as the person's words; a
+field with nothing of theirs left is absent. It folds whitespace as Muse Code
+does, takes the earliest part of the extension's, and either removes that
+block (a note, an editor's attached file: words may follow them) or ends the
+title there (every other part is followed only by more of the extension's
+parts and may hold anything, a closing tag included). A tag counts only with
+the words the extension writes after it, so "Rename <harness_note> to
+<muse_note> where a < b > c" stays as typed; someone who types a tag together
+with its first words, or one of the opening sentences, loses what follows it
+from the title. A tag left without its close, followed by the start of the
+extension's words, ends the title (a shortened title). `sessionTitle` keeps
+only the one-line folding and the "Untitled" fallback; the ACP agent's
+`session/list` now uses it, so a first message that was only an attachment
+is "Untitled" there too. `session_info_update` carries only names
+(`session/nameChanged`), never a derived title, and is unchanged.
+
+Tests:
+
+- `test/unit/promptWords.test.ts` (11 cases): every part built by its own
+  builder (`CHOICE_STEERING_NOTE`, `verifyGuidance`, `editorContextText`,
+  `chatReferenceText`, `textFileInput`, `planBrief`/`handoffBrief` (now
+  exported), `commitMessagePrompt`, `pullRequestPrompt`, the schedule and
+  schema notes, ACP `promptParts`), joined as Muse Code joins them; the
+  first case checks that rule against all ten captured titles byte for
+  byte. Complete blocks alone and in the panel's order, titles cut inside a
+  tag, a lead and a note, only-attachment messages, typed tags and angle
+  brackets, selected code holding `</ide_selection>`, unfolded input.
+- `test/unit/sessionTitles.test.ts` (4 cases): the real `MuseCodeHost` over
+  the SDK's real `Connection` on the replay transport, answering only with
+  the captured frames: `listSessions`, `toSessionRow` and
+  `buildSessionBoard`; the ten captured `session/listChanged` frames
+  released through the host; the captured `session/read` envelope through
+  `sessionEnvelopeSchema` and `resumeSession`'s record; and the real
+  `createAcpAgent` (its paid use the real `AcpPaidUse` over a real grant
+  file) answering `session/list` to a real `@agentclientprotocol/sdk`
+  client over `connectWith`. No in-repo harness ran the ACP agent's session
+  list before; this one binds only the backend's readiness and `hostFor`.
+- `sessions.test.ts` loses the hand-typed IDE-block cases (the stripping
+  moved), `sessionRecords.test.ts`'s record no longer carries an
+  `<ide_opened_file>` in wording the product never sent, and
+  `checkCommands.test.ts` reads `VERIFY_GUIDANCE_DIAGNOSTICS`.
+
+Break on purpose, one exact replacement each, the file restored byte for
+byte (sha256 checked), `npx vitest run test/unit/promptWords.test.ts
+test/unit/sessionTitles.test.ts` (15 cases):
+
+| Break                                                                | Exit | Failed |
+| -------------------------------------------------------------------- | ---- | ------ |
+| A: the record schema takes `title`/`firstUserPrompt` as sent         | 1    | 4      |
+| B: any tag counts as the extension's (the lead check dropped)        | 1    | 4      |
+| C: an editor's attached file ends the title instead of being removed | 1    | 4      |
+| D: a title cut inside a part is left as it is                        | 1    | 1      |
+| E: the commit prompt's opening is not known                          | 1    | 5      |
+| F: an attached text file is not known                                | 1    | 7      |
+| G: the ACP list maps `name ?? title ?? firstUserPrompt ?? null`      | 1    | 1      |
+
+Restored: 15/15, exit 0.
+
+Gates on this tree (Windows): `prettier --check` and
+`eslint --max-warnings 0` on the touched files 0 and 0; `npm run typecheck`
+0; `npm run check:catches` 0 (no count moved); `npm run duplication` 0 (0
+clones); `npm run cycles` 0; `npm run deadcode` 0;
+`node scripts/check-l10n.mjs` 0; `node scripts/gen-reference.mjs --check`
+0; `npm run check:host-api` 0 (the record unchanged); `npm run check:roadmap` 0. The touched suites (`promptWords`, `sessionTitles`, `sessions`,
+`sessionRecords`, `checkCommands`, `editorContext`, `sessionDelete`) 67
+passed, 1 skipped, exit 0. `npx vitest related --run` on `promptWords.ts`,
+`sessionRecords.ts`, `editorContext.ts` and `sessions.ts` 0 (111 files, 2,548
+passed, 52 skipped); on `agent.ts`, `conversationController.ts`,
+`constants.ts` and `checkCommands.ts` (`constants.ts` reaches nearly every
+suite) 1: 21,903 passed, 204 skipped, 7 failed, and five Windows vault files
+refused in their setup, all from this PC: six cases cannot create a symlink
+without Developer Mode (`reports.e2e`, `importIo`, `reportSourceReasons` ×2,
+`brokerSocketDirectory` ×2), `mediaConvert` meets "The private media root is
+not owned…" and the vault files `Bootstrap command failed (code=23)`, both
+from this PC's Temp ACLs (section 9). `npm run build` 1, at
+`check-bundle-split` only: its eight "no longer carries node_modules/…" lines
+come from `node_modules` being a junction; the build and all 199 budgets
+passed (`dist/museCode.js` 108,959 bytes, `dist/extension.js` 434,675,
+`dist/vaultActions.js` 25,504 of 25,600), with no model-text block carried
+where it is not read.
+
+Not done here: the packed product's real use (Session History, the board
+and an ACP client's list on the person's own stored conversations), which
+this lane's no-model rule leaves to the lead; Linux and macOS are hosted CI's.
+
+Found beside this, not changed: a turn the extension writes whole, with no
+words of the person's in it (a review on Muse Code, `/playback`), titles its
+conversation when it is the first message; a review's title is its prompt
+with the reviewed material.

@@ -26,6 +26,8 @@ import {
   MILLISECONDS_PER_SECOND,
   MODEL_TEXT,
   UNSAFE_ARGUMENT_START,
+  VERIFY_GUIDANCE_CHECKS,
+  VERIFY_GUIDANCE_DIAGNOSTICS,
   WINDOWS_ARGUMENT_SYNTAX,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -108,10 +110,10 @@ export function verifyGuidance(
   checks: readonly CheckCommandSetting[],
 ): string | undefined {
   const sentences = [
-    ...(isDiagnosticsOn ? [MODEL_TEXT.verifyGuidanceDiagnostics] : []),
+    ...(isDiagnosticsOn ? [VERIFY_GUIDANCE_DIAGNOSTICS] : []),
     ...(checks.length === 0
       ? []
-      : [fill(MODEL_TEXT.verifyGuidanceChecks, { checks: checkListText(checks) })]),
+      : [fill(VERIFY_GUIDANCE_CHECKS, { checks: checkListText(checks) })]),
   ]
   return sentences.length === 0
     ? undefined
