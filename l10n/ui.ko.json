@@ -3690,7 +3690,6 @@
   "execBudgetMinimum": "이 실행에는 최소 {minimum}이 필요합니다.",
   "execBudgetRequired": "Model API에는 --max-budget-usd가 필요합니다.",
   "execNumberInvalid": "숫자 또는 한도가 잘못되었습니다. USD 예산은 소수점 이하 여섯 자리까지 허용합니다.",
-  "execValueInvalid": "{option} 값이 잘못되었습니다. 허용되는 값과 범위는 exec --help 를 참고하세요.",
   "cliValueInvalid": "{option} 값이 잘못되었습니다. 허용되는 값과 범위는 {help} 를 참고하세요.",
   "execLimitInvalid": "{flag}에 대한 숫자 또는 한도가 올바르지 않습니다.",
   "execTrustRefused": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다.",

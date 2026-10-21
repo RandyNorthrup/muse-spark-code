@@ -86,3 +86,19 @@ removals share one method; no count rose, so the baseline was regenerated
   recursive removal in `test/integration` now uses `removeFolder`, the
   retrying removal the unit suites use, instead of fixing them one flake at
   a time.
+
+## 7. The bad-value answer pointed at a help command no one can run
+
+Real use of the packed agent (win32-x64, 5646155a6b + VAULTTARGET +
+LEASEFIX): `muse-spark-code-acp --questions-defer-after abc` answered
+"Invalid value for --questions-defer-after; run serve --help for the
+accepted values and bounds." with exit 2. `serve --help` is not a command
+a person can type; the unknown-option answer beside it already names
+`muse-spark-code-acp serve --help`. Every topic's bad value now names the
+full command, and exec's separate copy of the sentence is gone (its 15
+table entries removed).
+
+- Break on purpose: `test/unit/cliArgs.test.ts` now requires
+  `run muse-spark-code-acp <topic> --help for`; on the old helper it failed
+  (1 failed | 10 passed, exit 1), green after the fix (11/11; with
+  cliHelp, cliHelpConsistency and execArgs 151/151).

@@ -3767,7 +3767,6 @@
   "execBudgetMinimum": "Bu çalıştırma için en az {minimum} gerekir.",
   "execBudgetRequired": "Model API için --max-budget-usd gerekir.",
   "execNumberInvalid": "Geçersiz sayı veya sınır; USD bütçesi en fazla altı ondalık basamak kabul eder.",
-  "execValueInvalid": "{option} için geçersiz değer; kabul edilen değerleri ve sınırları exec --help gösterir.",
   "cliValueInvalid": "{option} için geçersiz değer; kabul edilen değerleri ve sınırları {help} gösterir.",
   "execLimitInvalid": "{flag} için geçersiz sayı veya sınır.",
   "execTrustRefused": "Arayüzsüz çalıştırmalar çalışma alanına güvenmeyi ve izinleri atlamayı reddeder.",

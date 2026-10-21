@@ -3,6 +3,7 @@
 // answers invalid with exit code 2, never a prompt.
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { ACP_AGENT_NAME } from '../../src/shared/constants'
 
 function invalid(
   command: unknown,
@@ -54,7 +55,10 @@ describe('parseCommandLine failure rules', () => {
       invalid(command)
       expect(command.exitCode).toBe(2)
       expect(command.reason, argv.join(' ')).toContain(`Invalid value for ${option}`)
-      expect(command.reason, argv.join(' ')).toContain('--help')
+      // The help it points at is a command a person can run as typed.
+      expect(command.reason, argv.join(' ')).toMatch(
+        new RegExp(`run ${ACP_AGENT_NAME} [a-z-]+ --help for`),
+      )
       expect(command.reason, argv.join(' ')).not.toContain('Unknown argument')
       expect(command.reason, argv.join(' ')).not.toContain('ambiguous')
       expect(command.reason, argv.join(' ')).not.toContain('Did you forget')
