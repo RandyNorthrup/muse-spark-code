@@ -528,3 +528,22 @@ runs on the final tree, each a first attempt:
   lockfile is byte-identical to `4ec0618c14`'s, and the same gate exits 0
   locally minutes later. A rerun on the same commit is refused (AGENTS.md
   rule 2), so this record is the new commit.
+
+## 13. 0.19.0's tag refused; 0.19.1's first run met a GitHub incident
+
+- `v0.19.0` on `e48e8c6bce` (release run 39569020330): the tag checks
+  stopped the release before any build or publication: the browser check's
+  runtime pin (154.0.8037.92) was 21.060 days behind Stable 156.0.8078.47
+  (at most 14). The version is spent; the pin renewal ships as 0.19.1
+  (PR #255, `scripts/pin-browser-runtime.mjs`, validated byte for byte
+  against the 154 pin on all four platforms, the 156 runtime downloaded,
+  verified, extracted and launched by the real store on Windows).
+- PR #255 head `23f15583ca` (runs 39622440581, 39622440331, 39622440364):
+  red in every capacity hand-off only. The route pushed the merge commit
+  `bf3029fbd8` to the capacity repository, which created no run within ten
+  minutes, during GitHub's incident "Delays for Pull Requests and Webhook
+  deliveries" (Actions and Webhooks degraded, 2026-10-21 15:15 UTC); the
+  same pull request's Forks run was never created either. No job of ours
+  failed. A rerun on the same commit is refused (AGENTS.md rule 2), so this
+  record is the new commit, pushed once GitHub reported the incident
+  resolved.
