@@ -1077,7 +1077,7 @@ command), the note asks the model to take the steps as its list. A plan
 the user approved here is said to be approved; a file from the workspace
 is untrusted content, and the note says so.
 */
-function planBrief(
+export function planBrief(
   relativePath: string,
   bytes: Uint8Array,
   steps: readonly string[],
@@ -1123,7 +1123,7 @@ untrusted content and starts in a mode that asks, as a plan file does; a
 handoff from Plan mode stays in Plan. The [untrusted] labels it carries
 keep their meaning through the note (PLAN.md D49).
 */
-function handoffBrief(
+export function handoffBrief(
   briefText: string,
   goal: string | undefined,
   todos: readonly TodoItem[],

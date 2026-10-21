@@ -4,7 +4,7 @@
 // `<ide_opened_file>` for a bare open file). The chip label lives in
 // src/shared/editorContext.ts so the webview can build it too. Pure.
 
-import { IDE_CONTEXT_TAGS, MODEL_TEXT } from '../shared/constants'
+import { IDE_CONTEXT_LEADS, IDE_CONTEXT_TAGS, MODEL_TEXT } from '../shared/constants'
 import type { EditorContextSummary } from '../shared/protocol'
 
 export interface EditorContext extends EditorContextSummary {
@@ -25,12 +25,12 @@ export function editorContextSummary(context: EditorContext): EditorContextSumma
 export function editorContextText(context: EditorContext): string {
   const { relativePath, startLine, endLine, isEmpty, selectedText } = context
   if (isEmpty) {
-    return `<${IDE_CONTEXT_TAGS.openedFile}>The user opened the file ${relativePath} in the IDE. This may or may not be related to the current task.</${IDE_CONTEXT_TAGS.openedFile}>`
+    return `<${IDE_CONTEXT_TAGS.openedFile}>${IDE_CONTEXT_LEADS.openedFile} ${relativePath} in the IDE. This may or may not be related to the current task.</${IDE_CONTEXT_TAGS.openedFile}>`
   }
   const lines = `the lines ${String(startLine)} to ${String(endLine)} from ${relativePath}`
   const body =
     selectedText === undefined
       ? `${lines}. ${MODEL_TEXT.selectionNotShared}`
       : `${lines}:\n${selectedText}\n`
-  return `<${IDE_CONTEXT_TAGS.selection}>The user selected ${body}</${IDE_CONTEXT_TAGS.selection}>`
+  return `<${IDE_CONTEXT_TAGS.selection}>${IDE_CONTEXT_LEADS.selection} ${body}</${IDE_CONTEXT_TAGS.selection}>`
 }

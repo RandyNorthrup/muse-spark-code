@@ -5,7 +5,6 @@
 
 import * as z from 'zod/mini'
 import {
-  IDE_CONTEXT_TAGS,
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_MINUTE,
   MINUTES_PER_HOUR,
@@ -29,7 +28,7 @@ export const sessionActivityFields = {
 
 export const sessionRowSchema = z.object({
   sessionId: z.string(),
-  /** The allocated name, else the first prompt without IDE context, else "Untitled". */
+  /** The allocated name, else the person's first prompt, else "Untitled". */
   title: z.string(),
   /** True when the host allocated a name (renaming is then meaningful). */
   isNamed: z.boolean(),
@@ -38,16 +37,7 @@ export const sessionRowSchema = z.object({
 })
 export type SessionRow = z.infer<typeof sessionRowSchema>
 
-const IDE_CONTEXT_BLOCKS = new RegExp(
-  String.raw`<(${IDE_CONTEXT_TAGS.selection}|${IDE_CONTEXT_TAGS.openedFile})>[\s\S]*?</\1>`,
-  'g',
-)
 const WHITESPACE_RUNS = /\s+/g
-
-/** The prompt as the user typed it: the IDE reminders the host appended are dropped. */
-export function stripIdeContext(text: string): string {
-  return text.replaceAll(IDE_CONTEXT_BLOCKS, ' ').replaceAll(WHITESPACE_RUNS, ' ').trim()
-}
 
 export interface SessionTitleSource {
   readonly name?: string | undefined
@@ -55,12 +45,19 @@ export interface SessionTitleSource {
   readonly firstUserPrompt?: string | undefined
 }
 
-/** The dialog row label; `session/list` builds `title` from the whole prompt. */
+/**
+A session's label wherever one is shown (History, the session board, an
+ACP client's list), on one line. Both backends hand over the person's own
+words: Muse Code's records are read so when they are parsed
+(sessionRecords.ts), the Model API keeps the text the transcript shows.
+*/
 export function sessionTitle(source: SessionTitleSource): string {
   if (source.name !== undefined && source.name.trim() !== '') {
     return source.name.trim()
   }
-  const prompt = stripIdeContext(source.title ?? source.firstUserPrompt ?? '')
+  const prompt = (source.title ?? source.firstUserPrompt ?? '')
+    .replaceAll(WHITESPACE_RUNS, ' ')
+    .trim()
   return prompt === '' ? UI_TEXT.untitledConversation : prompt
 }
 
