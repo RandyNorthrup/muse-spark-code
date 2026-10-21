@@ -46,11 +46,15 @@ import process from 'node:process'
 import { pipeline } from 'node:stream/promises'
 import { build } from 'esbuild'
 import { format, resolveConfig } from 'prettier'
+import { z } from 'zod'
 import {
   CFT_KNOWN_GOOD,
   CFT_LAST_KNOWN_GOOD,
+  DASH_RELEASES,
   dashUrl,
   DESKTOP,
+  KNOWN_GOOD,
+  LAST_KNOWN_GOOD,
   stableRecordTime,
   VERSION_PATTERN,
 } from './lib/browserRuntimeSources.mjs'
@@ -78,47 +82,40 @@ if (args.length > 1 || (args.length === 1 && !VERSION_PATTERN.test(args[0]))) {
   process.exit(2)
 }
 
-async function getJson(url) {
+/** The answer at `url`, parsed with `schema` before any of it is used. */
+async function getJson(url, schema) {
   const response = await fetch(url)
   if (!response.ok) {
     throw new Error(`${url} answered ${String(response.status)}`)
   }
-  return await response.json()
+  const parsed = schema.safeParse(await response.json())
+  if (!parsed.success) {
+    throw new TypeError(`${url} answered in an unexpected shape: ${z.prettifyError(parsed.error)}`)
+  }
+  return parsed.data
 }
 
 /** The version to pin and its Chrome for Testing revision. */
 async function versionAndRevision(named) {
-  const lastKnownGood = await getJson(CFT_LAST_KNOWN_GOOD)
-  const newest = lastKnownGood?.channels?.Stable
-  if (typeof newest?.version !== 'string' || !VERSION_PATTERN.test(newest.version)) {
-    throw new Error('the newest Stable Chrome for Testing version is unknown')
-  }
+  const lastKnownGood = await getJson(CFT_LAST_KNOWN_GOOD, LAST_KNOWN_GOOD)
+  const newest = lastKnownGood.channels.Stable
   const version = named ?? newest.version
-  let { revision } = newest
-  if (version !== newest.version) {
-    const known = await getJson(CFT_KNOWN_GOOD)
-    const matches = Array.isArray(known?.versions)
-      ? known.versions.filter((entry) => entry?.version === version)
-      : []
-    if (matches.length !== 1) {
-      throw new Error(`Chrome for Testing lists no single ${version}`)
-    }
-    revision = matches[0].revision
+  if (version === newest.version) {
+    return { version, revision: newest.revision }
   }
-  if (typeof revision !== 'string' || !/^\d+$/.test(revision)) {
-    throw new Error(`Chrome for Testing gives no revision for ${version}`)
+  const known = await getJson(CFT_KNOWN_GOOD, KNOWN_GOOD)
+  const matches = known.versions.filter((entry) => entry.version === version)
+  if (matches.length !== 1) {
+    throw new Error(`Chrome for Testing lists no single ${version}`)
   }
-  return { version, revision }
+  return { version, revision: matches[0].revision }
 }
 
 /** ChromiumDash's Stable record time for exactly `version` on each desktop platform. */
 async function platformTimesOf(version) {
   const times = {}
   for (const platform of DESKTOP) {
-    const releases = await getJson(dashUrl(platform))
-    if (!Array.isArray(releases)) {
-      throw new TypeError(`ChromiumDash's ${platform} answer is not a list`)
-    }
+    const releases = await getJson(dashUrl(platform), DASH_RELEASES)
     const time = stableRecordTime(releases, version)
     if (time === undefined) {
       throw new Error(`no single dated ${platform} Stable record for ${version}`)
