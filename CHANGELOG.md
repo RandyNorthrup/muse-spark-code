@@ -863,6 +863,9 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 - A new gate, `npm run check:workflow-scripts`, fails any workflow step
   that runs one of the repository's scripts before its job installs the
   dependencies that script imports.
+- The release checks every package's Linux helper pins (each VSIX's voice
+  bundle read from its runtime archive), and a release that reused its CI
+  packages can be recovered from like one that built them.
 - Every fake test is gone. Deleted: the tests that used stand-ins or
   invented data, the tests that only checked that some text, key or file
   exists, the editor host checks that drove the fake CLI, the fake-only

@@ -33,6 +33,18 @@ const RECEIPT = z.object({
 })
 const MANIFEST = z.object({ name: z.string(), version: z.string() })
 const ARTIFACT_NAMES = ['muse-spark-code-vsix', 'muse-spark-code-acp', 'muse-spark-code-sboms']
+// The release job that reuses verified CI artifacts, and the build jobs a
+// release that built its own packages must have passed.
+const REUSE_JOB = 'verified CI artifacts or full-build fallback'
+const RECOVERY_BUILD_JOBS = [
+  'quality (ubuntu-latest)',
+  'quality (windows-latest)',
+  'quality (macos-latest)',
+  'dictation helper (macos)',
+  'package (.vsix)',
+  'gitleaks',
+  'semgrep',
+]
 const LOOKUP_PAGES = 3
 const LOOKUP_TIMEOUT_MS = 120_000
 
@@ -124,15 +136,17 @@ export async function findRecovery(repository, tag, runId, request) {
   const successful = new Set(
     jobs.jobs.filter((job) => job.conclusion === 'success').map((job) => job.name),
   )
-  for (const name of [
-    'quality (ubuntu-latest)',
-    'quality (windows-latest)',
-    'quality (macos-latest)',
-    'dictation helper (macos)',
-    'package (.vsix)',
-    'gitleaks',
-    'semgrep',
-  ]) {
+  // A release that reused verified CI artifacts (the usual case) skipped its
+  // build: its reuse job passed and uploaded the packages it verified, and
+  // they are checked below like a build's.
+  const isReusedRun =
+    successful.has(REUSE_JOB) &&
+    jobs.jobs.every(
+      (job) =>
+        !(job.name === 'build' || job.name.startsWith('build / ')) || job.conclusion === 'skipped',
+    )
+  const requiredBuildJobs = isReusedRun ? [] : RECOVERY_BUILD_JOBS
+  for (const name of requiredBuildJobs) {
     if (!successful.has(`build / ${name}`)) throw new Error('recovery build did not pass')
   }
   const { artifacts } = ARTIFACTS.parse(

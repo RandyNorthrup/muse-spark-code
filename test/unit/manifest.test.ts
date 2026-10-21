@@ -574,7 +574,10 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain("echo 'reused=false'")
     expect(reuse).toContain('Full rebuild: a CI artifact download failed.')
     // D140 re-uploads the two helper builds on reuse: three becomes five.
-    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(5)
+    // The source-tree receipt goes with them, so a recovery from a reused
+    // run checks the same per-asset hashes: six.
+    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(6)
+    expect(reuse).toContain('name: source-tree-${{ steps.lookup.outputs.tree }}')
     expect(build).toContain('needs: [verify, reuse]')
     expect(build).toContain("github.event_name == 'push' && needs.reuse.outputs.reused != 'true'")
     expect(build).toContain('uses: ./.github/workflows/build.yml')
