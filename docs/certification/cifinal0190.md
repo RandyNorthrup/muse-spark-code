@@ -102,3 +102,67 @@ table entries removed).
   `run muse-spark-code-acp <topic> --help for`; on the old helper it failed
   (1 failed | 10 passed, exit 1), green after the fix (11/11; with
   cliHelp, cliHelpConsistency and execArgs 151/151).
+
+## 8. A conversation that could not be opened took messages silently
+
+Real use on Linux (`release-0.19.0-final-L.md`, "Findings and
+observations" 1; `release-0.19.0-restart.md`): Restart Muse Code, reload
+the window, open a conversation from History, send. The turn was not sent
+and nothing said so; only opening it from History again showed "Could not
+resume the conversation: …". The restart lane removed that one rejection
+(the IDE MCP secret); any other failed opening stayed silent.
+
+Cause (base 611b9be1e5, `src/host/conversation/conversationController.ts`):
+
+- `adopt` lets go of the conversation shown so far with `dropSession()`
+  (5196), which moves `sendInvalidationEpoch`. Any failure after that
+  (`setModel` and the model read-back in `enforceResumedModel`, the
+  listing, attaching) reached `resumeSession`'s catch, whose
+  `if (generation !== this.sendInvalidationEpoch) return` (5347) took the
+  opening's own epoch move for "the panel moved on": logged, never said. A
+  backend restart or exit during the opening was hushed the same way. The
+  second open failed earlier, at `session/resume`, before `adopt`, so only
+  it was shown.
+- Nothing recorded the failure. With no session and nothing to resume,
+  the next message went through `openSession` (4400) to a brand-new
+  conversation the panel did not show, where it ran or failed on that
+  conversation's own terms, never with the resume's cause.
+
+Fix: a failed opening (History, a restore, the session board, and fork,
+import and rewind, which share `adopt`) is said unless the panel was asked
+for another conversation since (`conversationChoice`: New Conversation,
+a later opening, an account boundary), so its own drop, a restart or an
+exit no longer hush it. When it leaves the panel with neither a session
+nor one to resume, `openSession` refuses every message and action with
+the same sentence (the message's `sendFailed` card keeps the typed text;
+the notice offers New Conversation), until another conversation is open
+here or New Conversation is chosen. Nothing retries. A conversation still
+live in the panel is untouched, and a restart's resume target (D25) keeps
+its own path. `adopt` also drops a stale resume target once the panel
+shows the new conversation. No new sentence: `resumeFailed`, `forkFailed`,
+`importSessionFailed`, `rewindConversationFailed` and
+`turnStoppedByRestart` say it.
+
+Test: `test/unit/resumeFailureSend.test.ts` (4 cases) drives the real
+controller through `handle` on the product's Model API host, built and
+loaded as `modelApiEntry.ts` builds it, over the real file store; the
+panel harness moved out of `sessionDelete.test.ts` into
+`test/unit/helpers/conversationPanel.ts`, shared by both. Failures are the
+host's own: a conversation it does not hold ("session … is not held by
+this window", before `adopt`), and a saved conversation opened while the
+picker holds a provider model the host cannot resolve ("This model is not
+available for this run.", refused by `setModel` inside `adopt`, after the
+drop). The real webview reducer shows the refused card with the typed
+text. On the base tree the second case posted no notice at all, and both
+cases sent the message to a new conversation ("The message was not sent:
+this window could not tell other windows on this folder that a turn is
+starting.").
+
+- Break A, the swallow put back in `resumeSession`'s catch:
+  `npx vitest run test/unit/resumeFailureSend.test.ts` 1 failed | 3 passed,
+  exit 1 (no notice: `expected [] to deeply equal [ { level: 'error', … } ]`).
+- Break B, the refusal removed from `openSession`: same command, 3 failed |
+  1 passed, exit 1 (the message reached a new conversation instead of the
+  resume's cause).
+- Restored: `npx vitest run test/unit/resumeFailureSend.test.ts
+test/unit/sessionDelete.test.ts` 14/14, exit 0.
