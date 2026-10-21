@@ -544,7 +544,14 @@ export interface ConversationDeps {
   readonly ideMcpEndpoint: () => Promise<SessionMcpHttpServer | undefined>
   readonly ideMcpCaller?: (
     resolve: () => { readonly isReady: boolean; readonly run?: UnattendedRun },
+    sessionId?: string,
   ) => Promise<{ readonly endpoint: SessionMcpHttpServer; dispose(): void }>
+  /**
+  Records the secret a session was started with, so a later resume of that
+  session re-presents it instead of minting fresh (a fresh secret per resume
+  is rejected when the session is already loaded in the same serve life).
+  */
+  readonly noteIdeSessionSecret?: (sessionId: string, endpoint: SessionMcpHttpServer) => void
   /**
   M96 lane T: the `team` server for `session/start`, on team conversations
   only (lanes B/T own the server; extension.ts wires it). Absent: every
@@ -1648,6 +1655,9 @@ export class ConversationController {
   private bindIdeCaller(session: AgentSession): void {
     const pending = this.pendingIdeCaller
     if (pending === undefined) return
+    // A start learns its session id only now: record the secret it was loaded
+    // with, so a later resume of this session re-presents it.
+    this.deps.noteIdeSessionSecret?.(session.sessionId, pending.endpoint)
     pending.agent = session
     const callers = sessionIdeCallers.get(session) ?? new Set()
     callers.add(pending)
@@ -4204,10 +4214,13 @@ export class ConversationController {
     this.pendingIdeCaller?.dispose()
     this.pendingIdeCaller = undefined
     const owner: { agent?: AgentSession | undefined } = {}
+    // The session id goes with the bind: a resume re-presents the secret its
+    // serve runtime was loaded with instead of minting fresh, which the CLI
+    // rejects when the session is already loaded in the same serve life.
     const caller = await this.deps.ideMcpCaller?.(() => {
       const run = owner.agent?.getScheduledRun?.()
       return { isReady: owner.agent !== undefined, ...(run !== undefined && { run }) }
-    })
+    }, resumeSessionId)
     if (this.isDisposed) {
       caller?.dispose()
       throw new Error(UI_TEXT.surfaceClosed)
