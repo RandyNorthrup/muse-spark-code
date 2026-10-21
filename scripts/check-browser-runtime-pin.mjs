@@ -25,12 +25,14 @@
 
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
+import { z } from 'zod'
 import {
   CFT_LAST_KNOWN_GOOD,
+  DASH_RELEASES,
   dashUrl,
   DESKTOP,
+  LAST_KNOWN_GOOD,
   stableRecordTime,
-  VERSION_PATTERN,
 } from './lib/browserRuntimeSources.mjs'
 
 const { AbortSignal } = globalThis
@@ -46,12 +48,17 @@ function fail(message) {
   process.exit(1)
 }
 
-async function getJson(url) {
+/** The answer at `url`, parsed with `schema` before any of it is used. */
+async function getJson(url, schema) {
   const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
   if (!response.ok) {
     fail(`${url} answered ${String(response.status)}`)
   }
-  return await response.json()
+  const parsed = schema.safeParse(await response.json())
+  if (!parsed.success) {
+    fail(`${url} answered in an unexpected shape: ${z.prettifyError(parsed.error)}`)
+  }
+  return parsed.data
 }
 
 /** Compares dotted version numbers: negative, zero or positive. */
@@ -71,10 +78,7 @@ function compareVersions(left, right) {
 async function publishedAt(version) {
   const times = []
   for (const platform of DESKTOP) {
-    const releases = await getJson(dashUrl(platform))
-    if (!Array.isArray(releases)) {
-      fail(`ChromiumDash's ${platform} answer is not a list`)
-    }
+    const releases = await getJson(dashUrl(platform), DASH_RELEASES)
     const time = stableRecordTime(releases, version)
     if (time === undefined) {
       fail(`no single dated ${platform} Stable record for ${version}`)
@@ -96,11 +100,8 @@ if (pinned > now) {
 if (now >= pinned + EXPIRY_DAYS * DAY_MS) {
   fail(`${pin.version} expired on ${new Date(pinned + EXPIRY_DAYS * DAY_MS).toISOString()}`)
 }
-const known = await getJson(CFT_LAST_KNOWN_GOOD)
-const newest = known?.channels?.Stable?.version
-if (typeof newest !== 'string' || !VERSION_PATTERN.test(newest)) {
-  fail('the newest Stable Chrome for Testing version is unknown')
-}
+const known = await getJson(CFT_LAST_KNOWN_GOOD, LAST_KNOWN_GOOD)
+const newest = known.channels.Stable.version
 if (compareVersions(newest, pin.version) <= 0) {
   console.log(
     `ok   ${pin.version} is the newest Stable (${newest}); expires ${new Date(pinned + EXPIRY_DAYS * DAY_MS).toISOString()}`,

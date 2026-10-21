@@ -3191,6 +3191,18 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   `browser-runtime` folder; nothing else is installed or registered on the
   machine. With the setting back on `ask`, the next check asks again.
 
+- **A new pin (contributors).** `node scripts/check-browser-runtime-pin.mjs`
+  (run weekly and before each release) says whether the pin is still within
+  45 days of its publication and at most 14 days behind the newest Stable.
+  When it asks for a new one, `node scripts/pin-browser-runtime.mjs` writes
+  `browserRuntime.json` for the newest Stable Chrome for Testing version, or
+  for the one named (`node scripts/pin-browser-runtime.mjs 156.0.8078.47`):
+  it downloads each pinned platform's archive (about 465 MB in all) to a
+  temporary folder, measures it, reads and extracts it with the extension's
+  own ZIP reader, checks the whole pin with the extension's own schema, and
+  removes the folder. Update the version and the table above to match, and
+  ship the new pin in an extension release ([docs/RELEASING.md](docs/RELEASING.md)).
+
 - **What the check cannot promise.** `https` and WebSocket traffic to a
   host you widened goes through the proxy as an opaque tunnel: the proxy
   sees only the host and port, cannot strip a sign-in challenge from it,

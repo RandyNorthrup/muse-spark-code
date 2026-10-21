@@ -565,3 +565,31 @@ retires a stale entry…` on VS Code 1.99: over its 20 s timeout, where the
   Actions incident. No timeout was raised and nothing was re-run on the
   same commit (AGENTS.md rule 2): this record and the test's reason are the
   new commit.
+
+## 15. The pin's upstream answers parsed with zod; the pin commands in the README
+
+PR #255 head `3e199993dc` passed every check, and the merge stayed blocked
+on two unresolved review findings (AGENTS.md rules on HTTP answers and on
+docs moving with code):
+
+- `scripts/pin-browser-runtime.mjs` and `scripts/check-browser-runtime-pin.mjs`
+  used Chrome for Testing's and ChromiumDash's JSON before any schema read
+  it. Both now parse each answer with a zod schema shared in
+  `scripts/lib/browserRuntimeSources.mjs` (`LAST_KNOWN_GOOD`, `KNOWN_GOOD`,
+  `DASH_RELEASES`) before using a field of it, and a wrong shape fails with
+  the URL and the field.
+- The README's Browser check section now gives both commands, the optional
+  version, the download size and what to update after a new pin.
+
+Proof, on this PC against the live sources:
+
+- All three schemas parse the live answers (last known good, 2,580 known
+  versions, 200 records on each of Windows, Linux and Mac): exit 0.
+- `node scripts/pin-browser-runtime.mjs`: exit 0, all four archives
+  downloaded, measured and extracted; `browserRuntime.json` unchanged byte
+  for byte. `node scripts/check-browser-runtime-pin.mjs`: exit 0.
+- Red: the shared revision pattern changed to `/^x$/`; the check exited 1
+  ("last-known-good-versions.json answered in an unexpected shape: Invalid
+  string: must match pattern /^x$/ at channels.Stable.revision") and the
+  generator exited 1 with the same message before any download. Restored:
+  the check exits 0 and the schemas parse the live answers again.
