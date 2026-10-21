@@ -1,0 +1,154 @@
+#!/usr/bin/env node
+// Live capture for the model-call limit's wrap-up request: does each vendor ACCEPT a request whose
+// history holds a tool call and its result while NO tools are declared (the shape the product sends
+// for the last permitted call), and what does it accept instead when it does not?
+// The key is read from standard input and never printed or written. Each request and response is
+// saved WITHOUT the authorization header under <outdir>/<vendor>/<variant>.json.
+// Usage: <key on stdin> | node wrapup-capture.mjs <format> <vendor> <base-url> <model> <outdir>
+//   format: anthropic | chat | gemini | responses
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const [format, vendor, baseUrl, model, outDir] = process.argv.slice(2)
+let key = ''
+for await (const chunk of process.stdin) key += chunk
+key = key.trim()
+if (key === '') {
+  console.log(`${vendor}: no key on standard input`)
+  process.exit(2)
+}
+const dir = join(outDir, vendor)
+mkdirSync(dir, { recursive: true })
+const scrub = (text) => text.split(key).join('[key]')
+
+async function send(variant, url, headers, body) {
+  let status = 0
+  let text = ''
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(90_000),
+    })
+    status = response.status
+    text = await response.text()
+  } catch (error) {
+    text = `request failed: ${error instanceof Error ? error.message : String(error)}`
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    parsed = undefined
+  }
+  writeFileSync(
+    join(dir, `${variant}.json`),
+    `${JSON.stringify({ vendor, model, variant, url: scrub(url), requestBody: body, status, response: parsed ?? scrub(text).slice(0, 4000) }, null, 1)}\n`,
+  )
+  const message =
+    parsed?.error?.message ?? parsed?.error?.metadata?.raw ?? parsed?.message ?? parsed?.msg ?? (typeof parsed?.error === 'string' ? parsed.error : '')
+  console.log(`${vendor} | ${model} | ${variant} -> HTTP ${status}${status >= 400 || status === 0 ? ` | ${scrub(String(message || text)).replace(/\s+/g, ' ').slice(0, 260)}` : ` | accepted: ${scrub(summaryOf(parsed)).replace(/\s+/g, ' ').slice(0, 120)}`}`)
+  return { status, parsed }
+}
+
+function summaryOf(parsed) {
+  if (parsed === undefined) return ''
+  if (Array.isArray(parsed.content)) return parsed.content.map((part) => part.text ?? `[${part.type}]`).join(' ')
+  if (parsed.choices?.[0]?.message) return String(parsed.choices[0].message.content ?? JSON.stringify(parsed.choices[0].message.tool_calls ?? ''))
+  if (parsed.candidates?.[0]?.content?.parts) return parsed.candidates[0].content.parts.map((part) => part.text ?? `[${Object.keys(part).join(',')}]`).join(' ')
+  if (Array.isArray(parsed.output)) return parsed.output.map((item) => (item.content ?? []).map((part) => part.text ?? '').join(' ') || `[${item.type}]`).join(' ')
+  return JSON.stringify(parsed).slice(0, 200)
+}
+
+const ask = 'Read the file a.txt with the tool, then tell me what it says.'
+const wrapUp = 'You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains.'
+const toolSchema = { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] }
+
+if (format === 'anthropic') {
+  const url = `${baseUrl}/v1/messages`
+  const headers = { 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+  const tool = { name: 'read_file', description: 'Read a file.', input_schema: toolSchema }
+  // A REAL tool call first, so the history is exactly what the API itself produced.
+  let first = await send('0-first-call-with-tools', url, headers, { model, max_tokens: 200, tools: [tool], tool_choice: { type: 'any' }, messages: [{ role: 'user', content: ask }] })
+  // A model that refuses a forced tool choice is asked again with the choice left to it.
+  if (first.status === 400) first = await send('0b-first-call-choice-auto', url, headers, { model, max_tokens: 400, tools: [tool], messages: [{ role: 'user', content: ask }] })
+  const toolUse = first.parsed?.content?.find((part) => part.type === 'tool_use')
+  if (toolUse === undefined) {
+    console.log(`${vendor}: the first call returned no tool call; nothing further sent`)
+    process.exit(0)
+  }
+  const history = [
+    { role: 'user', content: ask },
+    { role: 'assistant', content: first.parsed.content },
+    { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: 'hello from a.txt' }, { type: 'text', text: wrapUp }] },
+  ]
+  await send('1-wrap-up-tools-omitted', url, headers, { model, max_tokens: 120, messages: history })
+  await send('2-wrap-up-tools-empty-list', url, headers, { model, max_tokens: 120, tools: [], messages: history })
+  await send('3-wrap-up-tools-kept-choice-none', url, headers, { model, max_tokens: 120, tools: [tool], tool_choice: { type: 'none' }, messages: history })
+} else if (format === 'chat') {
+  const url = `${baseUrl}/chat/completions`
+  const headers = { authorization: `Bearer ${key}` }
+  const tool = { type: 'function', function: { name: 'read_file', description: 'Read a file.', parameters: toolSchema } }
+  let first = await send('0-first-call-with-tools', url, headers, { model, max_tokens: 300, tools: [tool], tool_choice: 'required', messages: [{ role: 'user', content: ask }] })
+  if (first.status === 400) first = await send('0b-first-call-choice-auto', url, headers, { model, max_tokens: 600, tools: [tool], messages: [{ role: 'user', content: ask }] })
+  const message = first.parsed?.choices?.[0]?.message
+  const call = message?.tool_calls?.[0]
+  if (call === undefined) {
+    console.log(`${vendor}: the first call returned no tool call (status ${first.status}); nothing further sent`)
+    process.exit(0)
+  }
+  const history = [
+    { role: 'user', content: ask },
+    { role: 'assistant', content: message.content ?? null, tool_calls: message.tool_calls, ...(message.reasoning_content === undefined ? {} : { reasoning_content: message.reasoning_content }) },
+    { role: 'tool', tool_call_id: call.id, content: 'hello from a.txt' },
+    { role: 'user', content: wrapUp },
+  ]
+  await send('1-wrap-up-tools-omitted', url, headers, { model, max_tokens: 300, messages: history })
+  await send('2-wrap-up-tools-kept-choice-none', url, headers, { model, max_tokens: 300, tools: [tool], tool_choice: 'none', messages: history })
+} else if (format === 'gemini') {
+  const url = `${baseUrl}/v1beta/models/${model}:generateContent`
+  const headers = { 'x-goog-api-key': key }
+  const tools = [{ functionDeclarations: [{ name: 'read_file', description: 'Read a file.', parameters: toolSchema }] }]
+  const first = await send('0-first-call-with-tools', url, headers, { contents: [{ role: 'user', parts: [{ text: ask }] }], tools, toolConfig: { functionCallingConfig: { mode: 'ANY' } }, generationConfig: { maxOutputTokens: 400 } })
+  const parts = first.parsed?.candidates?.[0]?.content?.parts
+  const callPart = parts?.find((part) => part.functionCall !== undefined)
+  if (callPart === undefined) {
+    console.log(`${vendor}: the first call returned no function call (status ${first.status}); nothing further sent`)
+    process.exit(0)
+  }
+  console.log(`${vendor}: the returned function-call part has keys ${Object.keys(callPart).join(', ')}`)
+  const history = [
+    { role: 'user', parts: [{ text: ask }] },
+    { role: 'model', parts },
+    { role: 'user', parts: [{ functionResponse: { name: callPart.functionCall.name, response: { content: 'hello from a.txt' } } }] },
+    { role: 'user', parts: [{ text: wrapUp }] },
+  ]
+  await send('1-wrap-up-tools-omitted', url, headers, { contents: history, generationConfig: { maxOutputTokens: 400 } })
+  await send('2-wrap-up-tools-kept-mode-none', url, headers, { contents: history, tools, toolConfig: { functionCallingConfig: { mode: 'NONE' } }, generationConfig: { maxOutputTokens: 400 } })
+  const stripped = history.map((turn) => (turn.role === 'model' ? { role: 'model', parts: turn.parts.map((part) => (part.functionCall === undefined ? part : { functionCall: part.functionCall })) } : turn))
+  await send('3-wrap-up-tools-omitted-signature-stripped', url, headers, { contents: stripped, generationConfig: { maxOutputTokens: 400 } })
+} else if (format === 'responses') {
+  const url = `${baseUrl}/v1/responses`
+  const headers = { authorization: `Bearer ${key}` }
+  const tool = { type: 'function', name: 'read_file', description: 'Read a file.', parameters: toolSchema }
+  let first = await send('0-first-call-with-tools', url, headers, { model, max_output_tokens: 400, store: false, tools: [tool], tool_choice: 'required', input: [{ role: 'user', content: ask }] })
+  if (first.status === 400) first = await send('0b-first-call-choice-auto', url, headers, { model, max_output_tokens: 600, store: false, tools: [tool], tool_choice: 'auto', input: [{ role: 'user', content: ask }] })
+  const call = first.parsed?.output?.find((item) => item.type === 'function_call')
+  if (call === undefined) {
+    console.log(`${vendor}: the first call returned no function call (status ${first.status}); nothing further sent`)
+    process.exit(0)
+  }
+  const history = [
+    { role: 'user', content: ask },
+    ...first.parsed.output.filter((item) => item.type === 'function_call' || item.type === 'reasoning'),
+    { type: 'function_call_output', call_id: call.call_id, output: 'hello from a.txt' },
+    { role: 'developer', content: wrapUp },
+  ]
+  await send('1-wrap-up-tools-empty-choice-auto', url, headers, { model, max_output_tokens: 400, store: false, tools: [], tool_choice: 'auto', input: history })
+  await send('2-wrap-up-tools-omitted', url, headers, { model, max_output_tokens: 400, store: false, input: history })
+  await send('3-wrap-up-tools-kept-choice-none', url, headers, { model, max_output_tokens: 400, store: false, tools: [tool], tool_choice: 'none', input: history })
+} else {
+  console.log(`unknown format ${format}`)
+  process.exit(2)
+}

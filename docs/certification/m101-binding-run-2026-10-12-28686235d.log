@@ -1,0 +1,696 @@
+{
+  "model": "muse-spark-1.3-contributor",
+  "arms": [
+    "baseline",
+    "packing",
+    "auto-compaction",
+    "strict-tools"
+  ],
+  "tasks": [
+    {
+      "id": "accept-long-compaction",
+      "measuredAttempts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "callBudget": 14
+    },
+    {
+      "id": "heldout-long-compaction",
+      "measuredAttempts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "callBudget": 14
+    },
+    {
+      "id": "accept-long-middle-value",
+      "measuredAttempts": [
+        9,
+        6,
+        6,
+        6
+      ],
+      "callBudget": 14
+    },
+    {
+      "id": "heldout-long-middle-rule",
+      "measuredAttempts": [
+        1,
+        0,
+        0,
+        8
+      ],
+      "callBudget": 12
+    },
+    {
+      "id": "accept-off-by-one",
+      "measuredAttempts": [
+        3,
+        4,
+        3,
+        3
+      ],
+      "callBudget": 6
+    },
+    {
+      "id": "accept-null-guard",
+      "measuredAttempts": [
+        5,
+        5,
+        3,
+        4
+      ],
+      "callBudget": 8
+    },
+    {
+      "id": "accept-await-read",
+      "measuredAttempts": [
+        4,
+        3,
+        3,
+        8
+      ],
+      "callBudget": 12
+    },
+    {
+      "id": "accept-import-path",
+      "measuredAttempts": [
+        3,
+        4,
+        3,
+        4
+      ],
+      "callBudget": 6
+    },
+    {
+      "id": "accept-no-secret",
+      "measuredAttempts": [
+        4,
+        4,
+        4,
+        4
+      ],
+      "callBudget": 6
+    },
+    {
+      "id": "accept-empty-average",
+      "measuredAttempts": [
+        3,
+        3,
+        3,
+        4
+      ],
+      "callBudget": 6
+    },
+    {
+      "id": "heldout-strict-equal",
+      "measuredAttempts": [
+        4,
+        4,
+        4,
+        4
+      ],
+      "callBudget": 6
+    },
+    {
+      "id": "heldout-clear-timer",
+      "measuredAttempts": [
+        3,
+        3,
+        4,
+        6
+      ],
+      "callBudget": 9
+    },
+    {
+      "id": "heldout-sort-numbers",
+      "measuredAttempts": [
+        5,
+        4,
+        4,
+        4
+      ],
+      "callBudget": 8
+    },
+    {
+      "id": "heldout-await-write",
+      "measuredAttempts": [
+        9,
+        5,
+        5,
+        3
+      ],
+      "callBudget": 14
+    },
+    {
+      "id": "accept-multi-edit",
+      "measuredAttempts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "callBudget": 6
+    },
+    {
+      "id": "heldout-multi-edit",
+      "measuredAttempts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "callBudget": 6
+    }
+  ],
+  "budgetUsd": 0.5,
+  "measurement": {
+    "attempts": 198,
+    "costUsd": 0.026384174
+  },
+  "execution": {
+    "config": "vitest.config.ts",
+    "arguments": [
+      "run",
+      "--config",
+      "vitest.config.ts",
+      "--maxWorkers=3"
+    ],
+    "environment": [
+      "PATH",
+      "SYSTEMROOT",
+      "WINDIR",
+      "HOME",
+      "USERPROFILE",
+      "HOMEDRIVE",
+      "HOMEPATH",
+      "TEMP",
+      "TMP",
+      "TMPDIR",
+      "APPDATA",
+      "LOCALAPPDATA",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_RUNTIME_DIR",
+      "DBUS_SESSION_BUS_ADDRESS",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "CI",
+      "GITHUB_ACTIONS",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "ALL_PROXY",
+      "NO_PROXY",
+      "SSL_CERT_FILE",
+      "SSL_CERT_DIR",
+      "MUSE_EVAL_TASKS",
+      "MUSE_EVAL_REPORT",
+      "MUSE_LIVE_MODEL_API",
+      "MUSE_EVAL_MAX_ATTEMPTS",
+      "MUSE_EVAL_SMOKE"
+    ]
+  },
+  "plannedCalls": 588,
+  "callCeiling": 588,
+  "measuredCostEstimateUsd": 0.07835300157575757,
+  "liveAttemptsHere": 0,
+  "selection": "full frozen set",
+  "accounting": "An independent call budget per task/arm; local overrun fails the task and continues. Global ceiling, $0.50 spend or unknown usage stops are incomplete. The measured average-cost projection is not a reservation theorem.",
+  "engagement": "Both packing tasks must pack; both compaction tasks must replace history with an accepted summary whose admission settled. Every arm must hold both 0.75 floors. A narrowed selection is incomplete."
+}
+Frozen harness: pinned a59c844878e2c277a12d10a9b03536ebd355318879d4cad5c416f22d5f725e28, computed a59c844878e2c277a12d10a9b03536ebd355318879d4cad5c416f22d5f725e28
+OPT-IN LIVE M75: bills the existing OS-stored Model API key; subscription pays none. The printed plan above is what it may send.
+Call ceiling: 588 model calls. Receipts: C:\Users\Randy\AppData\Local\Temp\claude\c--Users-Randy-Coding-muse-extension\61ab1443-23c9-4e1a-996e-4150ffd5e0f5\scratchpad\m101-binding-r9\report.json/.md
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90mC:/Users/Randy/Coding/muse-extension/.claude/worktrees/cm1013[39m
+
+# Paired efficiency evaluation (M75)
+
+Model: muse-spark-1.3-contributor · generated 2026-10-12T16:21:42.509Z · verdict: pass
+
+Run compaction ledger: reserved $0.0257159, settled $0.00059506, outstanding $0, retained unknown $0.
+
+Certified digest: a59c844878e2c277a12d10a9b03536ebd355318879d4cad5c416f22d5f725e28 · computed: a59c844878e2c277a12d10a9b03536ebd355318879d4cad5c416f22d5f725e28
+
+## Arm: baseline
+
+| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards | Questions | Paid refused | Order |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| accept-long-compaction | accept | no | failed | 1 | 1 | 23715 | 0 | 2763 | $0.0030 | 1 | 0 | 0 | 0 | 1 |
+| heldout-long-compaction | heldout | no | failed | 1 | 1 | 23727 | 0 | 578 | $0.0025 | 1 | 0 | 0 | 0 | 4 |
+| accept-long-middle-value | accept | no | completed | 6 | 6 | 51068 | 39349 | 3079 | $0.0019 | 5 | 0 | 0 | 0 | 3 |
+| heldout-long-middle-rule | heldout | yes | completed | 9 | 9 | 79827 | 68872 | 1815 | $0.0016 | 8 | 1 | 0 | 0 | 2 |
+| accept-off-by-one | accept | yes | completed | 3 | 3 | 8610 | 5474 | 299 | $0.00039 | 2 | 0 | 0 | 0 | 1 |
+| accept-null-guard | accept | yes | completed | 3 | 3 | 8505 | 5474 | 285 | $0.00038 | 2 | 0 | 0 | 0 | 4 |
+| accept-await-read | accept | yes | completed | 3 | 3 | 8484 | 5474 | 240 | $0.00036 | 2 | 0 | 0 | 0 | 3 |
+| accept-import-path | accept | yes | completed | 3 | 3 | 8536 | 5474 | 267 | $0.00038 | 2 | 0 | 0 | 0 | 2 |
+| accept-no-secret | accept | yes | completed | 4 | 4 | 11448 | 8147 | 320 | $0.00042 | 3 | 0 | 0 | 0 | 1 |
+| accept-empty-average | accept | yes | completed | 3 | 3 | 8525 | 5474 | 344 | $0.00039 | 2 | 0 | 0 | 0 | 4 |
+| heldout-strict-equal | heldout | yes | completed | 4 | 4 | 11397 | 8147 | 324 | $0.00041 | 3 | 0 | 0 | 0 | 3 |
+| heldout-clear-timer | heldout | yes | completed | 4 | 4 | 11650 | 8403 | 372 | $0.00042 | 3 | 0 | 0 | 0 | 2 |
+| heldout-sort-numbers | heldout | yes | completed | 4 | 4 | 11430 | 8147 | 344 | $0.00042 | 3 | 0 | 0 | 0 | 1 |
+| heldout-await-write | heldout | yes | completed | 3 | 3 | 8554 | 5474 | 303 | $0.00038 | 2 | 0 | 0 | 0 | 4 |
+| accept-multi-edit | accept | yes | completed | 4 | 4 | 11558 | 8275 | 387 | $0.00043 | 3 | 0 | 0 | 0 | 3 |
+| heldout-multi-edit | heldout | yes | completed | 4 | 4 | 11507 | 8275 | 318 | $0.00041 | 3 | 0 | 0 | 0 | 2 |
+
+accept-long-compaction compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-long-compaction compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-long-middle-value compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-long-middle-rule compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-off-by-one compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-null-guard compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-await-read compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-import-path compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-no-secret compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-empty-average compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-strict-equal compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-clear-timer compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-sort-numbers compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-await-write compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+Arm compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept: 7/9 passed (78%), 30 attempts in 30 requests, 140449 input (83141 cached) + 7984 output tokens, $0.0075.
+heldout: 6/7 passed (86%), 29 attempts in 29 requests, 158092 input (107318 cached) + 4054 output tokens, $0.0062.
+
+accept-long-compaction failed:
+
+```text
+the turn ended failed: Context window full: /compact or /handoff
+the verifier failed: node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\workspace\answer.js' imported from <task>\verify-6OPRem\verify.mjs
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: '<task>/workspace/answer.js'
+}
+Node.js v24.20.0
+```
+
+heldout-long-compaction failed:
+
+```text
+the turn ended failed: Context window full: /compact or /handoff
+the verifier failed: node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\workspace\transform.js' imported from <task>\verify-4f4HOo\verify.mjs
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: '<task>/workspace/transform.js'
+}
+Node.js v24.20.0
+```
+
+accept-long-middle-value failed:
+
+```text
+the verifier failed: <task>/workspace/answer.js:2
+module.exports = { answer };
+^
+ReferenceError: module is not defined in ES module scope
+This file is being treated as an ES module because it has a '.js' file extension and '\\?\<task>\workspace\package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+Node.js v24.20.0
+```
+
+## Arm: packing
+
+Mechanism: observation packing (M73): a tool result over 8000 characters rides whole for 2 requests, then as a placeholder with its id, size and first and last lines; recall_output pages the original back
+
+| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards | Questions | Paid refused | Order |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| accept-long-compaction | accept | no | failed | 1 | 1 | 23897 | 0 | 1750 | $0.0028 | 1 | 0 | 0 | 0 | 2 |
+| heldout-long-compaction | heldout | no | failed | 1 | 1 | 23910 | 0 | 565 | $0.0026 | 1 | 0 | 0 | 0 | 1 |
+| accept-long-middle-value | accept | yes | completed | 8 | 8 | 44639 | 33047 | 1229 | $0.0015 | 7 | 0 | 0 | 0 | 4 |
+| heldout-long-middle-rule | heldout | yes | completed | 9 | 9 | 53150 | 37399 | 2104 | $0.0021 | 8 | 1 | 0 | 0 | 3 |
+| accept-off-by-one | accept | yes | completed | 4 | 4 | 12204 | 8787 | 307 | $0.00043 | 3 | 0 | 0 | 0 | 2 |
+| accept-null-guard | accept | yes | completed | 3 | 3 | 9185 | 5730 | 405 | $0.00044 | 2 | 0 | 0 | 0 | 1 |
+| accept-await-read | accept | yes | completed | 3 | 3 | 9032 | 5730 | 245 | $0.00040 | 2 | 0 | 0 | 0 | 4 |
+| accept-import-path | accept | yes | completed | 5 | 5 | 16324 | 12484 | 478 | $0.00051 | 5 | 1 | 0 | 0 | 3 |
+| accept-no-secret | accept | yes | completed | 4 | 4 | 12174 | 8787 | 343 | $0.00043 | 3 | 0 | 0 | 0 | 2 |
+| accept-empty-average | accept | yes | completed | 3 | 3 | 9282 | 5730 | 420 | $0.00046 | 2 | 1 | 0 | 0 | 1 |
+| heldout-strict-equal | heldout | yes | completed | 4 | 4 | 12130 | 8787 | 303 | $0.00042 | 3 | 0 | 0 | 0 | 4 |
+| heldout-clear-timer | heldout | yes | completed | 3 | 3 | 9174 | 5858 | 281 | $0.00040 | 2 | 0 | 0 | 0 | 3 |
+| heldout-sort-numbers | heldout | yes | completed | 5 | 5 | 15672 | 11972 | 510 | $0.00050 | 4 | 1 | 0 | 0 | 2 |
+| heldout-await-write | heldout | yes | completed | 4 | 4 | 12258 | 8787 | 383 | $0.00045 | 3 | 0 | 0 | 0 | 1 |
+| accept-multi-edit | accept | yes | completed | 4 | 4 | 12215 | 8787 | 341 | $0.00043 | 3 | 0 | 0 | 0 | 4 |
+| heldout-multi-edit | heldout | yes | completed | 4 | 4 | 12215 | 8787 | 315 | $0.00043 | 3 | 0 | 0 | 0 | 3 |
+
+accept-long-compaction compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-long-compaction compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-long-middle-value compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-long-middle-rule compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-off-by-one compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-null-guard compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-await-read compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-import-path compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-no-secret compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-empty-average compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-strict-equal compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-clear-timer compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-sort-numbers compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-await-write compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+Arm compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+| Task | Packing saved (estimated tokens) | Recalls |
+| --- | --- | --- |
+| accept-long-compaction | 0 | 0 |
+| heldout-long-compaction | 0 | 0 |
+| accept-long-middle-value | 43070 | 1 |
+| heldout-long-middle-rule | 51684 | 1 |
+| accept-off-by-one | 0 | 0 |
+| accept-null-guard | 0 | 0 |
+| accept-await-read | 0 | 0 |
+| accept-import-path | 0 | 0 |
+| accept-no-secret | 0 | 0 |
+| accept-empty-average | 0 | 0 |
+| heldout-strict-equal | 0 | 0 |
+| heldout-clear-timer | 0 | 0 |
+| heldout-sort-numbers | 0 | 0 |
+| heldout-await-write | 0 | 0 |
+| accept-multi-edit | 0 | 0 |
+| heldout-multi-edit | 0 | 0 |
+
+accept: 8/9 passed (89%), 35 attempts in 35 requests, 148952 input (89082 cached) + 5518 output tokens, $0.0073.
+heldout: 6/7 passed (86%), 30 attempts in 30 requests, 138509 input (81590 cached) + 4461 output tokens, $0.0068.
+
+accept-long-compaction failed:
+
+```text
+the turn ended failed: Context window full: /compact or /handoff
+the verifier failed: node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\workspace\answer.js' imported from <task>\verify-ENR1EB\verify.mjs
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: '<task>/workspace/answer.js'
+}
+Node.js v24.20.0
+```
+
+heldout-long-compaction failed:
+
+```text
+the turn ended failed: Context window full: /compact or /handoff
+the verifier failed: node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\workspace\transform.js' imported from <task>\verify-vXz2q8\verify.mjs
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: '<task>/workspace/transform.js'
+}
+Node.js v24.20.0
+```
+
+## Arm: auto-compaction
+
+Mechanism: automatic compaction (M74): the eval host compacts at a settled tool boundary as evaluated, with an evaluation admission that reserves every extra attempt against the run budget and settles it there
+
+| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards | Questions | Paid refused | Order |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| accept-long-compaction | accept | no | completed | 8 | 9 | 70547 | 40486 | 3212 | $0.0038 | 6 | 1 | 1 | 0 | 3 |
+| heldout-long-compaction | heldout | yes | completed | 8 | 9 | 71283 | 43543 | 3550 | $0.0036 | 8 | 2 | 0 | 0 | 2 |
+| accept-long-middle-value | accept | no | completed | 6 | 6 | 49631 | 38453 | 2194 | $0.0017 | 5 | 1 | 0 | 0 | 1 |
+| heldout-long-middle-rule | heldout | yes | completed | 9 | 9 | 79782 | 58391 | 1845 | $0.0027 | 8 | 1 | 0 | 0 | 4 |
+| accept-off-by-one | accept | yes | completed | 3 | 3 | 8559 | 5474 | 256 | $0.00038 | 2 | 0 | 0 | 0 | 3 |
+| accept-null-guard | accept | yes | completed | 3 | 3 | 8590 | 5474 | 353 | $0.00040 | 2 | 0 | 0 | 0 | 2 |
+| accept-await-read | accept | yes | completed | 4 | 4 | 11430 | 8147 | 301 | $0.00041 | 3 | 0 | 0 | 0 | 1 |
+| accept-import-path | accept | yes | completed | 5 | 5 | 14821 | 11076 | 512 | $0.00050 | 5 | 1 | 0 | 0 | 4 |
+| accept-no-secret | accept | yes | completed | 4 | 4 | 11386 | 8147 | 277 | $0.00040 | 3 | 0 | 0 | 0 | 3 |
+| accept-empty-average | accept | yes | completed | 4 | 4 | 11799 | 8403 | 415 | $0.00044 | 3 | 1 | 0 | 0 | 2 |
+| heldout-strict-equal | heldout | yes | completed | 4 | 4 | 11414 | 8147 | 302 | $0.00041 | 3 | 0 | 0 | 0 | 1 |
+| heldout-clear-timer | heldout | yes | completed | 4 | 4 | 11589 | 5730 | 351 | $0.00067 | 3 | 0 | 0 | 0 | 4 |
+| heldout-sort-numbers | heldout | yes | completed | 4 | 4 | 11406 | 8147 | 344 | $0.00042 | 3 | 0 | 0 | 0 | 3 |
+| heldout-await-write | heldout | yes | completed | 6 | 6 | 18522 | 14773 | 587 | $0.00053 | 6 | 0 | 0 | 0 | 2 |
+| accept-multi-edit | accept | yes | completed | 5 | 5 | 14769 | 11204 | 430 | $0.00047 | 4 | 0 | 0 | 0 | 1 |
+| heldout-multi-edit | heldout | yes | completed | 4 | 4 | 11535 | 8275 | 341 | $0.00042 | 3 | 0 | 0 | 0 | 4 |
+
+accept-long-compaction compaction ledger: reserved $0.012576, settled $0.00028293, outstanding $0, retained unknown $0.
+
+heldout-long-compaction compaction ledger: reserved $0.0131399, settled $0.00031213, outstanding $0, retained unknown $0.
+
+accept-long-middle-value compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-long-middle-rule compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-off-by-one compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-null-guard compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-await-read compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-import-path compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-no-secret compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-empty-average compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-strict-equal compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-clear-timer compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-sort-numbers compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-await-write compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+Arm compaction ledger: reserved $0.0257159, settled $0.00059506, outstanding $0, retained unknown $0.
+
+accept: 7/9 passed (78%), 42 attempts in 43 requests, 201532 input (136864 cached) + 7950 output tokens, $0.0084.
+heldout: 7/7 passed (100%), 39 attempts in 40 requests, 215531 input (147006 cached) + 7320 output tokens, $0.0087.
+
+accept-long-compaction failed:
+
+```text
+the verifier failed: node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\workspace\answer.js' imported from <task>\verify-UAtPY9\verify.mjs
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: '<task>/workspace/answer.js'
+}
+Node.js v24.20.0
+```
+
+accept-long-middle-value failed:
+
+```text
+the verifier failed: <task>/workspace/answer.js:2
+module.exports = { answer };
+^
+ReferenceError: module is not defined in ES module scope
+This file is being treated as an ES module because it has a '.js' file extension and '\\?\<task>\workspace\package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+Node.js v24.20.0
+```
+
+## Arm: strict-tools
+
+Mechanism: M101 strict-subset schemas for a capable selected model
+
+| Task | Split | Pass | Terminal | Attempts | Requests | Input | Cached | Output | Cost | Tool calls | Cards | Questions | Paid refused | Order |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| accept-long-compaction | accept | no | failed | 1 | 1 | 23862 | 0 | 810 | $0.0026 | 1 | 0 | 0 | 0 | 4 |
+| heldout-long-compaction | heldout | no | failed | 1 | 1 | 23874 | 0 | 545 | $0.0025 | 1 | 0 | 0 | 0 | 3 |
+| accept-long-middle-value | accept | no | completed | 6 | 6 | 51113 | 30660 | 2510 | $0.0027 | 5 | 0 | 0 | 0 | 2 |
+| heldout-long-middle-rule | heldout | yes | completed | 9 | 9 | 84266 | 72200 | 2688 | $0.0019 | 8 | 1 | 0 | 0 | 1 |
+| accept-off-by-one | accept | yes | completed | 3 | 3 | 8997 | 5730 | 269 | $0.00040 | 2 | 0 | 0 | 0 | 4 |
+| accept-null-guard | accept | yes | completed | 3 | 3 | 9025 | 5730 | 344 | $0.00041 | 2 | 0 | 0 | 0 | 3 |
+| accept-await-read | accept | yes | completed | 3 | 3 | 8972 | 5730 | 259 | $0.00039 | 2 | 0 | 0 | 0 | 2 |
+| accept-import-path | accept | yes | completed | 5 | 5 | 15676 | 8787 | 509 | $0.00081 | 5 | 1 | 0 | 0 | 1 |
+| accept-no-secret | accept | yes | completed | 4 | 4 | 12177 | 8787 | 408 | $0.00044 | 3 | 0 | 0 | 0 | 4 |
+| accept-empty-average | accept | yes | completed | 3 | 3 | 8955 | 5730 | 342 | $0.00041 | 2 | 0 | 0 | 0 | 3 |
+| heldout-strict-equal | heldout | yes | completed | 4 | 4 | 12094 | 8787 | 343 | $0.00042 | 3 | 0 | 0 | 0 | 2 |
+| heldout-clear-timer | heldout | yes | completed | 3 | 3 | 9123 | 5730 | 303 | $0.00042 | 2 | 0 | 0 | 0 | 1 |
+| heldout-sort-numbers | heldout | yes | completed | 4 | 4 | 12114 | 8787 | 391 | $0.00043 | 3 | 0 | 0 | 0 | 4 |
+| heldout-await-write | heldout | yes | completed | 4 | 4 | 12188 | 8787 | 367 | $0.00044 | 3 | 0 | 0 | 0 | 3 |
+| accept-multi-edit | accept | yes | completed | 4 | 4 | 12205 | 5986 | 428 | $0.00072 | 3 | 0 | 0 | 0 | 2 |
+| heldout-multi-edit | heldout | yes | completed | 3 | 3 | 8987 | 5730 | 320 | $0.00041 | 2 | 0 | 0 | 0 | 1 |
+
+accept-long-compaction compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-long-compaction compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-long-middle-value compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-long-middle-rule compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-off-by-one compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-null-guard compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-await-read compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-import-path compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-no-secret compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-empty-average compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-strict-equal compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-clear-timer compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-sort-numbers compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-await-write compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+heldout-multi-edit compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+Arm compaction ledger: reserved $0, settled $0, outstanding $0, retained unknown $0.
+
+accept: 7/9 passed (78%), 32 attempts in 32 requests, 150982 input (77140 cached) + 5879 output tokens, $0.0088.
+heldout: 6/7 passed (86%), 28 attempts in 28 requests, 162646 input (110021 cached) + 4957 output tokens, $0.0065.
+
+accept-long-compaction failed:
+
+```text
+the turn ended failed: Context window full: /compact or /handoff
+the verifier failed: node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\workspace\answer.js' imported from <task>\verify-T8SFFh\verify.mjs
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: '<task>/workspace/answer.js'
+}
+Node.js v24.20.0
+```
+
+heldout-long-compaction failed:
+
+```text
+the turn ended failed: Context window full: /compact or /handoff
+the verifier failed: node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<task>\workspace\transform.js' imported from <task>\verify-GbTlkK\verify.mjs
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: '<task>/workspace/transform.js'
+}
+Node.js v24.20.0
+```
+
+accept-long-middle-value failed:
+
+```text
+the verifier failed: <task>/workspace/answer.js:2
+module.exports = { answer };
+^
+ReferenceError: module is not defined in ES module scope
+This file is being treated as an ES module because it has a '.js' file extension and '\\?\<task>\workspace\package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+Node.js v24.20.0
+```
+
+## packing against baseline
+
+| Split | Pass rate | Attempts | Input tokens | Output tokens | Cost |
+| --- | --- | --- | --- | --- | --- |
+| accept | 78% → 89% | +17% | +6% | -31% | -3% |
+| heldout | 86% → 86% | +3% | -12% | +10% | +11% |
+
+## auto-compaction against baseline
+
+| Split | Pass rate | Attempts | Input tokens | Output tokens | Cost |
+| --- | --- | --- | --- | --- | --- |
+| accept | 78% → 78% | +40% | +43% | ±0% | +11% |
+| heldout | 86% → 100% | +34% | +36% | +81% | +41% |
+
+## strict-tools against baseline
+
+| Split | Pass rate | Attempts | Input tokens | Output tokens | Cost |
+| --- | --- | --- | --- | --- | --- |
+| accept | 78% → 78% | +7% | +7% | -26% | +16% |
+| heldout | 86% → 86% | -3% | +3% | +22% | +6% |
+
+## Capability floors
+
+| Arm | Split | Tasks | Pass rate | Floor | Held |
+| --- | --- | --- | --- | --- | --- |
+| baseline | accept | 9 | 78% | 75% | yes |
+| baseline | heldout | 7 | 86% | 75% | yes |
+| packing | accept | 9 | 89% | 75% | yes |
+| packing | heldout | 7 | 86% | 75% | yes |
+| auto-compaction | accept | 9 | 78% | 75% | yes |
+| auto-compaction | heldout | 7 | 100% | 75% | yes |
+| strict-tools | accept | 9 | 78% | 75% | yes |
+| strict-tools | heldout | 7 | 86% | 75% | yes |
+
+## Strict tools engaged (M101)
+
+| Arm | Tasks | Never strict | Held |
+| --- | --- | --- | --- |
+| strict-tools | accept-long-compaction, heldout-long-compaction, accept-long-middle-value, heldout-long-middle-rule, accept-off-by-one, accept-null-guard, accept-await-read, accept-import-path, accept-no-secret, accept-empty-average, heldout-strict-equal, heldout-clear-timer, heldout-sort-numbers, heldout-await-write, accept-multi-edit, heldout-multi-edit | none | yes |
+
+## Packing engaged (M73)
+
+| Arm | Long-output tasks | Never packed | Held |
+| --- | --- | --- | --- |
+| packing | accept-long-middle-value, heldout-long-middle-rule | none | yes |
+
+## Compaction engaged (M74)
+
+| Arm | Long-context tasks | Never compacted | Held |
+| --- | --- | --- | --- |
+| auto-compaction | accept-long-compaction, heldout-long-compaction | none | yes |
+
+| Task | Settled compactions | Applied compactions |
+| --- | --- | --- |
+| accept-long-compaction | 1 | 1 |
+| heldout-long-compaction | 1 | 1 |
+
+ [32m✓[39m test/e2e/eval.live.e2e.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 763489[2mms[22m[39m
+   [32m✓[39m live paired evaluation (MUSE_LIVE_MODEL_API=1) [2m(1)[22m
+     [33m[2m✓[22m[39m runs the task set on the contributor model and records the report[33m 763487[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 09:21:31
+[2m   Duration [22m 773.38s[2m (tests 100%)[22m
+

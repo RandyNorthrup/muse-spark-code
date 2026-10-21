@@ -41,10 +41,10 @@ export function teamEntryStateLabel(state: string): string {
 }
 
 /**
- * The worker label on a worker's own card: its role, agent and task, drawn
- * by the panel, never by the worker (D75, threat T8). The names are
- * technical, so they stay spliced.
- */
+The worker label on a worker's own card: its role, agent and task, drawn
+by the panel, never by the worker (D75, threat T8). The names are
+technical, so they stay spliced.
+*/
 export function TeamWorkerLabel({ worker }: { readonly worker: TeamWorkerLabel }) {
   const text = `${worker.roleId} · ${worker.agentLabel} · ${worker.taskId}`
   return (

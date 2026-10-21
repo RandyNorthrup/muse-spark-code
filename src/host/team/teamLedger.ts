@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import { legacyUsdSchema } from '../../shared/usd'
 // The team ledger (M96 lane A, PLAN.md D75): the durable record behind the
 // Agent map's live and history views. Every delegation is one row, kept per
@@ -16,7 +17,7 @@ import { legacyUsdSchema } from '../../shared/usd'
 
 import { mkdir, open, readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { storeErrorCode } from '../backend/storeErrors'
+import { isStoreErrorCode } from '../backend/storeErrors'
 import * as z from 'zod/mini'
 import type { CoreLogger } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
@@ -34,7 +35,6 @@ import {
   TEAM_LEDGER_FILE_SUFFIX,
   TEAM_LEDGER_LINE_MAX_BYTES,
   TEAM_LEDGER_RETRY_MAX_MS,
-  UI_TEXT,
 } from '../../shared/constants'
 
 /** A task's live state (D75): active until one of the inactive states. */
@@ -288,6 +288,16 @@ export class TeamLedger {
     this.scheduleFlush(nextDelay)
   }
 
+  /** Puts unpublished batches back ahead of newer generations' lines. */
+  private requeuePending(
+    batches: readonly (readonly [string, readonly string[]])[],
+    index: number,
+  ): void {
+    for (const [pendingDay, pendingLines] of batches.slice(index)) {
+      this.pending.set(pendingDay, [...pendingLines, ...(this.pending.get(pendingDay) ?? [])])
+    }
+  }
+
   /** Called only inside the publication queue, including Reset's baseline capture. */
   private async flushPending(): Promise<void> {
     if (this.generation <= this.publishedGeneration && this.pending.size === 0) return
@@ -299,9 +309,7 @@ export class TeamLedger {
         await this.appendLines(dayKey, lines)
       } catch (error: unknown) {
         // Requeue before a newer generation can publish: older state always precedes it.
-        for (const [pendingDay, pendingLines] of batches.slice(index)) {
-          this.pending.set(pendingDay, [...pendingLines, ...(this.pending.get(pendingDay) ?? [])])
-        }
+        this.requeuePending(batches, index)
         throw error
       }
     }
@@ -317,7 +325,7 @@ export class TeamLedger {
     try {
       names = await readdir(this.ownedDirectory)
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT') throw error
+      if (!isStoreErrorCode(error, 'ENOENT')) throw error
       return { rolled: 0, removed: 0 }
     }
     let rolled = 0
@@ -358,7 +366,7 @@ export class TeamLedger {
       parsed.data.workspaceId !== this.deps.workspaceId ||
       (parsed.data.kind === 'task' && parsed.data.lease.holder !== this.deps.windowId)
     ) {
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'account', file: 'teamLedger' })
     }
     let line = toLedgerLine(parsed.data)
     if (parsed.data.kind === 'reset') {
@@ -411,10 +419,10 @@ export class TeamLedger {
   }
 
   /**
-   * Appends a row version: state changes (and ends) flush at once, usage
-   * updates wait for the timer. The brief is redacted and bounded here, so
-   * no secret and no other prompt text reaches the file.
-   */
+  Appends a row version: state changes (and ends) flush at once, usage
+  updates wait for the timer. The brief is redacted and bounded here, so
+  no secret and no other prompt text reaches the file.
+  */
   public async record(record: TeamLedgerRecord): Promise<void> {
     const candidate = toLedgerLine(record)
     await this.queued(() => this.recordPending(candidate))
@@ -426,10 +434,10 @@ export class TeamLedger {
   }
 
   /**
-   * Every row of every day file, validated: malformed lines (a crashed
-   * writer's partial tail) are skipped and counted, never fatal. Callers
-   * take the latest row per task id.
-   */
+  Every row of every day file, validated: malformed lines (a crashed
+  writer's partial tail) are skipped and counted, never fatal. Callers
+  take the latest row per task id.
+  */
   public async read(): Promise<TeamLedgerRead> {
     const rows: TeamLedgerRow[] = []
     let skippedLines = 0
@@ -462,12 +470,12 @@ export class TeamLedger {
   }
 
   /**
-   * Marks a task interrupted after its window died, with its partial usage:
-   * appends a terminal snapshot only while the latest row is still active.
-   * A foreign owner needs the explicit Take over decision. Hints never
-   * authorize recovery. The source remains byte-exact; this window appends
-   * its own snapshot and records the decision as a decision, not proof.
-   */
+  Marks a task interrupted after its window died, with its partial usage:
+  appends a terminal snapshot only while the latest row is still active.
+  A foreign owner needs the explicit Take over decision. Hints never
+  authorize recovery. The source remains byte-exact; this window appends
+  its own snapshot and records the decision as a decision, not proof.
+  */
   public async markInterrupted(
     latest: TeamLedgerRow,
     usage: TeamMeterUsage,
@@ -511,10 +519,10 @@ export class TeamLedger {
   }
 
   /**
-   * Rolls files older than `retentionDays` into per-entry totals rows of
-   * their own (kept until Reset, so a spent `lifetime` cap never refills)
-   * and removes the old files. With 0, everything is kept.
-   */
+  Rolls files older than `retentionDays` into per-entry totals rows of
+  their own (kept until Reset, so a spent `lifetime` cap never refills)
+  and removes the old files. With 0, everything is kept.
+  */
   public async prune(): Promise<{ readonly rolled: number; readonly removed: number }> {
     if (this.deps.retentionDays <= 0) {
       return { rolled: 0, removed: 0 }
@@ -537,12 +545,17 @@ async function settled(promise: Promise<unknown>): Promise<void> {
   }
 }
 
-/** Parses one file line: undefined for a crashed writer's partial tail. */
-function safeParseLine(line: string): TeamLedgerRow | undefined {
+/**
+Parses one file line: undefined for a crashed writer's partial tail.
+Only the parser's own malformed-input failure reads that way; anything
+else still throws.
+*/
+export function safeParseLine(line: string): TeamLedgerRow | undefined {
   let value: unknown
   try {
     value = JSON.parse(line) as unknown
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const parsed = teamLedgerRowSchema.safeParse(value)
@@ -566,8 +579,8 @@ function toLedgerLine(record: TeamLedgerRecord): string {
 }
 
 /** One deterministic rollup per terminal delegation preserves reset boundaries.
- * Repeating a prune after an interrupted removal writes the same identities.
- */
+Repeating a prune after an interrupted removal writes the same identities.
+*/
 function rollUp(
   rows: readonly TeamLedgerRow[],
   latest: ReadonlyMap<string, TeamLedgerRow>,
@@ -593,7 +606,7 @@ async function ledgerNames(directory: string) {
   try {
     return await readdir(directory, { withFileTypes: true })
   } catch (error: unknown) {
-    if (storeErrorCode(error) === 'ENOENT') return []
+    if (isStoreErrorCode(error, 'ENOENT')) return []
     throw error
   }
 }

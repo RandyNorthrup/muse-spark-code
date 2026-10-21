@@ -390,13 +390,13 @@ export async function serveRepo(repoRoot) {
 }
 
 /**
- * The scenarios that need a viewport of their own width, and the element a
- * screenshot waits for: the 320 px share and report (M93) dialogs, whose
- * backdrops are fixed to the viewport, and chat menus, and the chat
- * column at 320 and 1400 px (M87), which marks the page once its geometry
- * checks pass or reports why they did not. The wide column keeps the
- * scrollbars headless Chrome otherwise hides, as its check measures one.
- */
+The scenarios that need a viewport of their own width, and the element a
+screenshot waits for: the 320 px share and report (M93) dialogs, whose
+backdrops are fixed to the viewport, and chat menus, and the chat
+column at 320 and 1400 px (M87), which marks the page once its geometry
+checks pass or reports why they did not. The wide column keeps the
+scrollbars headless Chrome otherwise hides, as its check measures one.
+*/
 export const SIZED_SCENARIOS = {
   ...Object.fromEntries(
     TRAFFIC_SCENARIOS.map((scenario) => [

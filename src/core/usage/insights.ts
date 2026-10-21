@@ -108,10 +108,10 @@ export function parseTraceLog(text: string): TraceLogFacts {
 }
 
 /**
- * A subagent's child run is named by the CLI (its own `run_kind="turn"` in
- * the child session, so the turn flag alone cannot tell); a run with no
- * surface line is the turn's own; a one-tool child is a reminder.
- */
+A subagent's child run is named by the CLI (its own `run_kind="turn"` in
+the child session, so the turn flag alone cannot tell); a run with no
+surface line is the turn's own; a one-tool child is a reminder.
+*/
 export function classifyRun(run: TraceRun | undefined): AttemptClass {
   if (run === undefined) {
     return 'turn'
@@ -188,12 +188,14 @@ export interface BillableUsage {
 }
 
 /**
- * Dollars for one conversation's tokens at Meta's published per-token
- * prices (the tier is the model's: contributor models carry the suffix).
- */
-export function estimateCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
-  const tier = modelApiPaidTier(modelId)
-  if (tier === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
+Dollars for one conversation's tokens at one tier's published per-token
+prices. Pure arithmetic: the caller names the tier, so display equivalents
+can price the tier a request really used without widening paid admission.
+*/
+export function costForTier(
+  usage: BillableUsage,
+  tier: keyof typeof MODEL_API_PRICES_PER_MILLION,
+): UsdAmount {
   const prices = MODEL_API_PRICES_PER_MILLION[tier]
   const cached = Math.min(usage.cachedTokens, usage.inputTokens)
   const fresh = usage.inputTokens - cached
@@ -203,6 +205,16 @@ export function estimateCostUsd(usage: BillableUsage, modelId: string): UsdAmoun
     .add(Usd.from(prices.output).times(usage.outputTokens))
     .divide(TOKENS_PER_MILLION)
     .toAmount()
+}
+
+/**
+Dollars for one conversation's tokens at Meta's published per-token
+prices (the tier is the model's: contributor models carry the suffix).
+*/
+export function estimateCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
+  const tier = modelApiPaidTier(modelId)
+  if (tier === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
+  return costForTier(usage, tier)
 }
 
 /** Conservative shared USD display, retaining four places for ordinary sub-dollar usage. */

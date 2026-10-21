@@ -1,11 +1,7 @@
 import { Usd } from '../../shared/usd'
 // M102 / D82: the host supplies journal, live sources and user actions. No
 // editor API, filesystem path from a page, model call or fetch belongs here.
-import {
-  USAGE_DETAIL_DAYS,
-  USAGE_HISTORY_DAYS_DEFAULT,
-  USAGE_JOURNAL_VERSION,
-} from '../../shared/constants'
+import { USAGE_DETAIL_DAYS, USAGE_JOURNAL_VERSION } from '../../shared/constants'
 import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
 import type { ResourceHistory } from '../../shared/resourceHistory'
 import { usageDeleteDetail } from '../../shared/usageDeleteText'
@@ -63,11 +59,24 @@ export interface UsageServiceDeps {
   readonly table: UsageTable
   readonly capabilities?: UsagePageState['capabilities']
   readonly journal: UsageJournalPort
-  readonly history: () => { readonly enabled: boolean; readonly historyDays?: number }
+  readonly history: () => {
+    readonly enabled: boolean
+    readonly historyDays?: number | null
+  }
   readonly setHistory: (isEnabled: boolean) => Promise<void>
   readonly readBudgets: UsageBudgetReadPort['readToday']
   /** Host provides subscription/account snapshots; never requests a model. */
   readonly readLiveLimits: () => Promise<readonly UsageLimitSnapshot[]>
+  /**
+  The stored credential's identity per provider id (M95 D74). A limit
+  snapshot carrying any other credentialId belongs to a previous key and
+  is dropped, so no shown or counted number belongs to it. Undefined
+  where the host cannot read credentials; then nothing is dropped. A
+  supplier failure hides that provider's snapshots entirely (RVCM952D:
+  when the identity of the key in use cannot be read, no budget is shown
+  at all).
+  */
+  readonly currentCredentialId?: (providerId: string) => Promise<string | undefined>
   readonly readAttempts: () => Promise<UsagePageState['attempts']>
   /** M107 J: the machine resource journal's aggregate; a failure shows as unavailable. */
   readonly readResources?: () => Promise<ResourceHistory>
@@ -119,12 +128,49 @@ function limitHistory(limits: readonly UsageLimitSnapshot[]): UsageLimitSnapshot
   }
   return Array.from(history, (entry) => entry[1]).toSorted((a, b) => a.observedAt - b.observedAt)
 }
+/**
+Keeps only the limits of the credential in use. Snapshots without a
+credentialId from inherently uncredentialed sources (subscription,
+headers, chatgpt) always pass; a credentialed snapshot passes only while
+its key is still stored. A credentialed-source record without an ID is a
+legacy from before IDs were recorded: it passes only while no current
+identity is readable for its provider. After a rotation or removal the
+previous key's budgets disappear instead of lingering.
+*/
+async function selectCredentialLimits(
+  limits: readonly UsageLimitSnapshot[],
+  current: UsageServiceDeps['currentCredentialId'],
+): Promise<readonly UsageLimitSnapshot[]> {
+  if (current === undefined) return limits
+  const providers = new Set(limits.map((limit) => limit.provider))
+  const identities = new Map<string, string | undefined>()
+  const unreadable = new Set<string>()
+  await Promise.all(
+    [...providers].map(async (provider) => {
+      try {
+        identities.set(provider, await current(provider))
+      } catch {
+        // The identity of the key in use cannot be read: no budget is shown
+        // at all for that provider, on every surface.
+        unreadable.add(provider)
+      }
+    }),
+  )
+  return limits.filter(
+    (limit) =>
+      !unreadable.has(limit.provider) &&
+      (limit.credentialId === undefined
+        ? limit.source !== 'openRouter' || !identities.has(limit.provider)
+        : !identities.has(limit.provider) || identities.get(limit.provider) === limit.credentialId),
+  )
+}
 /** An unreadable resource journal never fails the usage page or invents data: null. */
 async function readResources(deps: UsageServiceDeps): Promise<ResourceHistory | null | undefined> {
   if (deps.readResources === undefined) return undefined
   try {
     return await deps.readResources()
   } catch {
+    // The page renders without resources rather than failing or inventing them.
     return null
   }
 }
@@ -144,12 +190,17 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       readResources(deps),
     ])
     const aggregated = aggregateUsage(journal.records, journal.rollups, selected, now)
-    const limits = limitHistory([
-      ...journal.limits.filter(
-        (limit) => limit.day >= aggregated.from && limit.day <= aggregated.to,
+    const limits = limitHistory(
+      await selectCredentialLimits(
+        [
+          ...journal.limits.filter(
+            (limit) => limit.day >= aggregated.from && limit.day <= aggregated.to,
+          ),
+          ...live,
+        ],
+        deps.currentCredentialId,
       ),
-      ...live,
-    ])
+    )
     const settings = deps.history()
     const state: UsagePageState = {
       v: USAGE_JOURNAL_VERSION,
@@ -168,7 +219,8 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         enabled: settings.enabled,
         host: deps.host,
         detailDays: USAGE_DETAIL_DAYS,
-        historyDays: settings.historyDays ?? USAGE_HISTORY_DAYS_DEFAULT,
+        // NOLIMITSSET (PLAN.md D121): null keeps every day — no day count of ours.
+        historyDays: settings.historyDays ?? null,
         recordCount: journal.recordCount,
         newerVersionRecords: journal.newerVersionRecords,
         tornLines: journal.tornLines,

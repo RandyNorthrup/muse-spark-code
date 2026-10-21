@@ -56,8 +56,11 @@ export function parseReviewBlock(json: string): ReviewBlock | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(json)
-  } catch {
-    return undefined
+  } catch (error) {
+    // Model-written review text is boundary input: malformed text carries
+    // no findings. Anything else keeps its kind.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
   const result = findingsSchema.safeParse(parsed)
   return result.success ? result.data : undefined

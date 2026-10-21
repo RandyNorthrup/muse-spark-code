@@ -55,14 +55,24 @@ import {
   ANTHROPIC_MAX_STREAM_BYTES,
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  EFFORT_PROVIDER_DEFAULT,
   THINKING_OFF_EFFORT,
   PROVIDER_MANUAL_THINKING_BUDGET,
   PROVIDER_RETRY_HTTP_STATUS,
 } from '../../../../shared/constants'
-import { UI_TEXT } from '../../../../shared/l10n/text'
+import { isEffortLevel } from '../../../../shared/effort'
+import { fill, UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
 import { parseRefusalError } from '../providerRefusal'
-import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
+import {
+  ChatCodecError,
+  cleanJsonStrings,
+  cleanWireText,
+  hasHeldVideo,
+  isBlankWireText,
+  isRecord,
+  nativeCallId,
+} from './shared'
 import {
   type CreateResponseBody,
   type FunctionCallItem,
@@ -81,6 +91,7 @@ export const ANTHROPIC_FORMAT = 'anthropic' as const
 
 const ANTHROPIC_VERSION = '2023-06-01'
 const ANTHROPIC_BETA_DROP_BLOCK = 'thinking-binding-controls-2026-08-01'
+const ANTHROPIC_BETA_INTERLEAVED_THINKING = 'interleaved-thinking-2025-05-14'
 const ANTHROPIC_PATH = '/v1/messages'
 const ANTHROPIC_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number]
@@ -88,6 +99,15 @@ const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
 class AnthropicCodecError extends Error {
   override readonly name = 'AnthropicCodecError'
+}
+
+/**
+The configured client rethrows these instead of its generic unavailable
+error, so the typed refusal and its localized reason reach the caller.
+Matched by name so a second copy of this module cannot mask it.
+*/
+export function isAnthropicCodecError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AnthropicCodecError'
 }
 
 /** Local errors read the installed language at the call, with stable technical codes. */
@@ -103,35 +123,36 @@ export interface AnthropicEncodeOptions {
   /** The preset's output cap for this model. */
   readonly maxTokens: number
   /**
-   * The canonical effort: `none` disables thinking, `minimal` maps to
-   * Anthropic's lowest tier `low`, the other five map to themselves.
-   */
+  The canonical effort: `none` disables thinking, `default` takes the
+  provider default (no thinking or effort field is sent). Any other
+  level rides to `output_config.effort` where the record affirms it.
+  */
   readonly effort: string
   /** Cache TTL for the breakpoint; `5m` unless the preset says `1h`. */
   readonly cacheTtl?: '5m' | '1h'
   /**
-   * Native fields decode saw on each `tool_use` (today `caller`), keyed by
-   * call id, handed back by lane I's replay wrapper so they are replayed as
-   * they came (rule 13) rather than dropped.
-   */
+  Native fields decode saw on each `tool_use` (today `caller`), keyed by
+  call id, handed back by lane I's replay wrapper so they are replayed as
+  they came (rule 13) rather than dropped.
+  */
   readonly toolExtras?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /**
-   * M101 lane P1 (BYO item 1): the model's image input, read from
-   * `capabilities.vision` (lane P fills it from the model record; lane N
-   * will own the normalized field). `false` sends the image-omitted
-   * placeholder so the turn keeps its shape; unknown keeps today's bytes
-   * and sends the image.
-   */
+  M101 lane P1 (BYO item 1): the model's image input, read from
+  `capabilities.vision` (lane P fills it from the model record; lane N
+  will own the normalized field). `false` sends the image-omitted
+  placeholder so the turn keeps its shape; unknown keeps today's bytes
+  and sends the image.
+  */
   readonly capabilities?: { readonly vision: boolean } | undefined
 }
 
 export interface AnthropicNativeRequest {
   readonly path: typeof ANTHROPIC_PATH
   /**
-   * Format headers only. The transport adds the preset's auth header
-   * (`Authorization: Bearer` for Anthropic, `x-api-key` for compatible
-   * servers) and merges `anthropic-beta` when it must add its own betas.
-   */
+  Format headers only. The transport adds the preset's auth header
+  (`Authorization: Bearer` for Anthropic, `x-api-key` for compatible
+  servers) and merges `anthropic-beta` when it must add its own betas.
+  */
   readonly headers: Readonly<Record<string, string>>
   readonly body: AnthropicRequestBody
 }
@@ -231,7 +252,7 @@ export interface AnthropicRequestBody {
   readonly tool_choice?: { readonly type: 'auto' }
   readonly stream: true
   readonly thinking?: {
-    readonly type: 'adaptive' | 'enabled'
+    readonly type: 'adaptive' | 'enabled' | 'disabled' | 'between_tools'
     readonly budget_tokens?: number
     readonly display?: 'summarized'
     readonly block_binding?: { readonly prefix_mismatch_behavior: 'drop_block' }
@@ -270,7 +291,8 @@ function envelopeOf(item: ReasoningItem): ThinkingEnvelope | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(item.encrypted_content)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const checked = thinkingEnvelopeSchema.safeParse(parsed)
@@ -278,9 +300,9 @@ function envelopeOf(item: ReasoningItem): ThinkingEnvelope | undefined {
 }
 
 /**
- * The thinking to replay for `model`, or undefined when the item is not a
- * reasoning item, carries no readable envelope, or belongs to another model.
- */
+The thinking to replay for `model`, or undefined when the item is not a
+reasoning item, carries no readable envelope, or belongs to another model.
+*/
 function replayableEnvelope(item: InputItem, model: string): ThinkingEnvelope | undefined {
   if (item.type !== 'reasoning') {
     return undefined
@@ -291,16 +313,22 @@ function replayableEnvelope(item: InputItem, model: string): ThinkingEnvelope | 
 
 // --- encode ---
 
-/** Canonical effort to Anthropic's `output_config.effort`; undefined while thinking is off. */
+/**
+Canonical effort to Anthropic's `output_config.effort`; undefined while
+thinking is off, at the provider default, or for a known tier the API
+has no level for (lane REASONSHAPESR2: `minimal` is omitted, never
+remapped to its neighbour; ANTH-MINIMAL settles whether it 400s).
+Unknown names still refuse.
+*/
 function anthropicEffort(effort: string): AnthropicEffort | undefined {
-  if (effort === THINKING_OFF_EFFORT) {
+  if (effort === THINKING_OFF_EFFORT || effort === EFFORT_PROVIDER_DEFAULT) {
     return undefined
-  }
-  if (effort === 'minimal') {
-    return 'low'
   }
   if ((ANTHROPIC_EFFORTS as readonly string[]).includes(effort)) {
     return effort as AnthropicEffort
+  }
+  if (isEffortLevel(effort)) {
+    return undefined
   }
   throw codecError('unsupported_reasoning_effort', UI_TEXT.anthropicCodecEffortUnsupported)
 }
@@ -330,10 +358,10 @@ type StagedMessagePart =
     }
 
 /**
- * One staged part as its native block. Callers pass text parts with text
- * and image parts with a URL, so a user message built from these never
- * comes out empty (text-only stays a string, capture 03).
- */
+One staged part as its native block. Callers pass text parts with text
+and image parts with a URL, so a user message built from these never
+comes out empty (text-only stays a string, capture 03).
+*/
 function stagedBlock(part: StagedMessagePart, vision: boolean | undefined): AnthropicMessageBlock {
   // Image and document parts never read `text` (their branch wins below).
   const text: AnthropicTextBlock = { type: 'text', text: part.text ?? '' }
@@ -368,10 +396,10 @@ function toolResultContent(
 }
 
 /**
- * M101 lane P1 (BYO item 1): an image, or the image-omitted placeholder
- * when the model takes no image input (`capabilities.vision === false`), so
- * the turn keeps its shape instead of breaking the request.
- */
+M101 lane P1 (BYO item 1): an image, or the image-omitted placeholder
+when the model takes no image input (`capabilities.vision === false`), so
+the turn keeps its shape instead of breaking the request.
+*/
 function imageOrPlaceholder(
   imageUrl: string,
   vision: boolean | undefined,
@@ -407,7 +435,8 @@ function toolUseBlock(
   let parsed: unknown
   try {
     parsed = cleanJsonStrings(JSON.parse(cleanWireText(call.arguments)))
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     parsed = {}
   }
   const cleaned = isRecord(parsed) ? parsed : {}
@@ -423,28 +452,54 @@ function toolUseBlock(
 }
 
 /**
- * Encode one canonical body. Consecutive same-role items merge into one
- * native message (Anthropic carries a whole turn per message); thinking
- * blocks sort first in an assistant message, as the wire requires.
- * `web_search` tools and past `web_search_call` items are Meta-only
- * (acceptance 11): they are left out, never declared.
- */
+Encode one canonical body. Consecutive same-role items merge into one
+native message (Anthropic carries a whole turn per message); thinking
+blocks sort first in an assistant message, as the wire requires.
+`web_search` tools and past `web_search_call` items are Meta-only
+(acceptance 11): they are left out, never declared.
+*/
 export function encodeAnthropicRequest(
   body: CreateResponseBody,
   options: AnthropicEncodeOptions,
 ): AnthropicNativeRequest {
+  // M105 lane V R2 (RVCM1054 finding 2): a held video has no Anthropic
+  // shape without a vendor capture behind it, so it refuses with the
+  // model's own reason before any other validation instead of being
+  // dropped while the rest of the message is sent.
+  if (hasHeldVideo(body)) {
+    throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
+  }
   const record = options.capabilityRecord ?? capturedCapabilities('anthropic', options.model)
   const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
-  const isThinking = options.effort !== THINKING_OFF_EFFORT
+  // `default` takes the provider default: no thinking or effort field is
+  // sent, so an unlisted level is never silently replaced (GAPANTH-G10).
+  // Only an explicit off sends the switch or refuses; `default` omits.
+  // (Manual-only models never see `default` for an on-level request: the
+  // resolver passes the tier through and the budget sizes it, GAPANTH-G17.)
+  const isOff = options.effort === THINKING_OFF_EFFORT
+  const isThinking = !isOff && options.effort !== EFFORT_PROVIDER_DEFAULT
   if (isThinking && record.reasoning.supported.state === 'no')
     throw codecError('reasoning_unsupported')
+  // Thinking off sends the affirmed switch (lane REASONSHAPESR2,
+  // GAPANTH-G02): `disabled` where the record affirms it, Sonnet 5.5's
+  // `between_tools` where the record affirms that instead
+  // (`platform.claude.com/docs/en/build-with-claude/thinking`, read
+  // 2026-10-13). Refusal needs no switch; silence keeps today's bytes
+  // (4.x defaults off; 5.x stays on its adaptive default).
+  if (isOff && record.reasoning.forced.state === 'yes') throw codecError('thinking_cannot_disable')
   if (
-    !isThinking &&
-    (record.reasoning.forced.state === 'yes' || record.reasoning.canDisable.state === 'no')
+    isOff &&
+    record.reasoning.offSwitch === undefined &&
+    record.reasoning.canDisable.state === 'no'
   )
     throw codecError('thinking_cannot_disable')
   if (isThinking && !modes.includes('manual') && !modes.includes('adaptive'))
     throw codecError('unsupported_thinking_mode')
+  const offSwitch = record.reasoning.offSwitch
+  const offThinking =
+    isOff && (offSwitch !== undefined || record.reasoning.canDisable.state === 'yes')
+      ? { type: offSwitch ?? ('disabled' as const) }
+      : undefined
   const isManual = isThinking && modes.includes('manual') && !modes.includes('adaptive')
   const selectedEffort = isThinking && !isManual ? anthropicEffort(options.effort) : undefined
   const effort =
@@ -523,10 +578,16 @@ export function encodeAnthropicRequest(
               return isBlankWireText(part.text) ? [] : [{ text: cleanWireText(part.text) }]
             }
             case 'input_image': {
-              return [{ imageUrl: part.image_url }]
+              // Another provider's held file is meaningless here; the replay
+              // names it through the omitted line on a model switch instead.
+              return 'image_url' in part ? [{ imageUrl: part.image_url }] : []
             }
             case 'input_file': {
-              return [{ document: documentBlock(part.file_data) }]
+              return 'file_data' in part ? [{ document: documentBlock(part.file_data) }] : []
+            }
+            case 'input_video': {
+              // Fail closed: the entry scan above owns the reachable path.
+              throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
             }
           }
         })
@@ -653,11 +714,22 @@ export function encodeAnthropicRequest(
     }
   }
 
+  // Manual interleaved thinking needs its beta header on Opus 4.5,
+  // Sonnet 4.5 and earlier Claude 4 models; the API accepts it on any
+  // model and ignores it where unsupported, so manual mode always sends
+  // it (lane REASONSHAPESR2, GAPANTH-G17:
+  // `platform.claude.com/docs/en/build-with-claude/extended-thinking`,
+  // read 2026-10-13). Betas comma-join
+  // (`platform.claude.com/docs/en/api/beta-headers`, read 2026-10-13).
+  const betas = [
+    ...(shouldBindThinking ? [ANTHROPIC_BETA_DROP_BLOCK] : []),
+    ...(isManual ? [ANTHROPIC_BETA_INTERLEAVED_THINKING] : []),
+  ]
   return {
     path: ANTHROPIC_PATH,
     headers: {
       'anthropic-version': ANTHROPIC_VERSION,
-      ...(shouldBindThinking && { 'anthropic-beta': ANTHROPIC_BETA_DROP_BLOCK }),
+      ...(betas.length > 0 && { 'anthropic-beta': betas.join(',') }),
     },
     body: {
       model: options.model,
@@ -678,6 +750,7 @@ export function encodeAnthropicRequest(
         },
         ...(effort !== undefined && { output_config: { effort } }),
       }),
+      ...(!isThinking && offThinking !== undefined && { thinking: offThinking }),
     },
   }
 }
@@ -879,10 +952,10 @@ export interface AnthropicDecodeOptions {
   /** The BYO model id this turn ran on; stored in replayed envelopes. */
   readonly model: string
   /**
-   * Receives each `tool_use` block's extra native fields (`caller`, …) as
-   * decode finishes the block, so lane I's replay wrapper can hand them
-   * back to `encodeAnthropicRequest` through `toolExtras` (rule 13).
-   */
+  Receives each `tool_use` block's extra native fields (`caller`, …) as
+  decode finishes the block, so lane I's replay wrapper can hand them
+  back to `encodeAnthropicRequest` through `toolExtras` (rule 13).
+  */
   readonly onToolExtras?: (callId: string, extras: Readonly<Record<string, unknown>>) => void
 }
 
@@ -1028,11 +1101,11 @@ function applyDelta(pending: PendingBlock, itemId: string, raw: DeltaWire): Stre
 }
 
 /**
- * Decode an Anthropic SSE stream (frames as `parseSse` yields them) into
- * canonical events, ending in one terminal response event. Unknown event
- * types are tolerated; a mid-stream `error` event becomes the canonical
- * `error` event and ends the stream.
- */
+Decode an Anthropic SSE stream (frames as `parseSse` yields them) into
+canonical events, ending in one terminal response event. Unknown event
+types are tolerated; a mid-stream `error` event becomes the canonical
+`error` event and ends the stream.
+*/
 export async function* decodeAnthropicStream(
   frames: AsyncIterable<SseEvent> | Iterable<SseEvent>,
   options: AnthropicDecodeOptions,
@@ -1150,7 +1223,8 @@ export async function* decodeAnthropicStream(
     let data: unknown
     try {
       data = JSON.parse(frame.data)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       throw codecError('non_json_frame')
     }
     const kind = frameTypeSchema.safeParse(data)
@@ -1278,28 +1352,28 @@ function emptyResponse(
   id: string,
   model: string,
   output: OutputItem[],
-  usage: Usage | undefined,
+  usage: Usage | null | undefined = null,
 ): ResponseObject {
-  return { id, status: 'in_progress', model, output, usage: usage ?? null }
+  return { id, status: 'in_progress', model, output, usage }
 }
 
 // --- errors: the envelope to `ModelApiError` (lane T retries from this) ---
 
 /**
- * Map a non-2xx Messages answer to `ModelApiError`: the envelope's message,
- * its `error.type` as the kind, and the documented
- * `error.details.error_code` as the code (GAPANTH-G20:
- * https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
- * read 2026-10-13 — a tier spend-cap 429 carries
- * `enforced_spend_limit_reached` there while its `type` stays
- * `rate_limit_error`, and retrying it keeps failing). Where no documented
- * code rides along, a 429 whose prose names that exact code word still
- * carries it as the code (the base parser's rule, research §1.5 [A-rl],
- * restored by RVPROVERR: removing it made such a 429 retryable again).
- * Anything unenveloped carries `parsed: false` with the status and the
- * first bounded line of the body (lane PROVERR): still the provider's
- * refusal, never a product sentence.
- */
+Map a non-2xx Messages answer to `ModelApiError`: the envelope's message,
+its `error.type` as the kind, and the documented
+`error.details.error_code` as the code (GAPANTH-G20:
+https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
+read 2026-10-13 — a tier spend-cap 429 carries
+`enforced_spend_limit_reached` there while its `type` stays
+`rate_limit_error`, and retrying it keeps failing). Where no documented
+code rides along, a 429 whose prose names that exact code word still
+carries it as the code (the base parser's rule, research §1.5 [A-rl],
+restored by RVPROVERR: removing it made such a 429 retryable again).
+Anything unenveloped carries `parsed: false` with the status and the
+first bounded line of the body (lane PROVERR): still the provider's
+refusal, never a product sentence.
+*/
 const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 export function parseAnthropicError(status: number, body: unknown): ModelApiError {
   const refusal = parseRefusalError(status, body)

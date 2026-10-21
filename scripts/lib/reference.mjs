@@ -1,6 +1,6 @@
 import { brotliCompressSync } from 'node:zlib'
 // HELPREF: code/manifest-derived reference and freshness gate. No model calls.
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import LZString from 'lz-string'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
@@ -28,7 +28,7 @@ export function lintReferenceFacts(value, identity = 'facts') {
   if (typeof value !== 'object' || value === null) return []
   return Object.entries(value).flatMap(([key, entry]) => {
     return typeof entry === 'string' && /\s/.test(entry) && typeof value[`${key}Key`] !== 'string'
-      ? [`Unlocalized reference fact: ${identity}.${key}`]
+      ? `Unlocalized reference fact: ${identity}.${key}`
       : lintReferenceFacts(entry, `${identity}.${key}`)
   })
 }
@@ -129,7 +129,7 @@ export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
       contents:
-        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
+        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'; export { CLI_HELP_TOPICS } from './src/runtime/cliHelp'",
       resolveDir: root,
       sourcefile: 'reference-tooling.ts',
     },
@@ -215,8 +215,17 @@ const platformProbe = (platform, remoteName) => ({
   programFiles: String.raw`C:\Program Files`,
   appName: 'reference',
   helperDir: '/reference/native',
+  arch: 'x64',
+  linuxModelPath: '/reference/model.bin',
   pathVariable: '/reference/bin',
   fileExists: () => true,
+  // Unresolvable probe paths compare lexically (the guard's own fallback),
+  // as the probe did before the workspace comparison needed a resolver.
+  realpath: realpathSync,
+  // A workspace the probe's own PATH never sits inside, so the lookup
+  // excludes nothing: the availability answer stays what it was before
+  // the workspace comparison existed.
+  workspaceRoot: '/reference/workspace',
 })
 
 export function referenceFacts(source) {
@@ -303,7 +312,7 @@ export function referenceFacts(source) {
       maxAttachments: source.MAX_ATTACHMENTS_PER_MESSAGE,
       textExtensions: [...source.TEXT_ATTACHMENT_EXTENSIONS],
       textSources: 'trustedIndexedWorkspacePaths',
-      modelApiTextAllowanceBytes: source.MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+      modelApiTextAllowanceTokens: source.MODEL_API_TEXT_BUDGET_TOKENS,
       imageBytes: source.MAX_IMAGE_BYTES,
       pdfBytes: source.MAX_DOCUMENT_BYTES,
       textBytes: source.MAX_TEXT_ATTACHMENT_BYTES,
@@ -336,7 +345,6 @@ export function referenceFacts(source) {
     },
     browser: {
       actions: ['click', 'type'],
-      maxActions: source.BROWSER_CHECK_MAX_ACTIONS,
       results: ['consoleErrors', 'failedRequests'],
       screenshot: { modelApi: 'PNG', museCode: false },
     },
@@ -365,13 +373,17 @@ export function referenceFacts(source) {
       rates: source.MODEL_API_PRICES_PER_MILLION,
     },
     voice: {
-      modelApi: 'unavailable',
-      museCode: ['local', 'storedModelApiKey', 'explicitOptIn'],
+      modelApi: ['local', 'storedModelApiKey', 'boundedBudgetAdmission'],
+      museCode: ['local', 'storedModelApiKey', 'explicitOptIn', 'boundedBudgetAdmission'],
       platforms: voicePlatforms,
       remote: platforms.some(
         (platform) => source.locateCaptureHelper(platformProbe(platform, 'remote')).isAvailable,
       ),
       linuxRecorders: source.LINUX_RECORDERS.map((recorder) => recorder.command),
+      maximumRecordingSeconds: source.MUSE_VOICE_MAX_SECONDS,
+      frameMs: source.MUSE_VOICE_FRAME_MS,
+      reservedMs: source.MUSE_VOICE_RESERVED_MS,
+      settlement: 'finalAudioProcessedMsWholeSeconds',
     },
     'free-dictation': {
       platforms: dictationPlatforms,
@@ -455,7 +467,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     'src/extension.ts': [
       "isModelApi: () => paidBackend === 'modelApi'",
       "feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature)",
-      "if (auth.current.backend === 'modelApi') {\n              return currentSettings().dictationEngine === 'system'",
+      "!paid.gate.isOn('voice')",
+      "!usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')",
+      "currentSettings().dictationEngine === 'system'",
+      'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
+      'return museVoiceSetup',
     ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],
   }
@@ -847,25 +863,49 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     },
     questions: { actions: ['submit', 'explain', 'cancel'] },
     'mcp-elicitation': { actions: ['accept', 'decline', 'cancel'], answers: 'requestingServer' },
-    effort: { enum: source.EFFORT_LEVELS },
+    effort: { enum: [...source.EFFORT_LEVELS, source.THINKING_OFF_EFFORT] },
+    // No default: without `--max-requests` a run has no request limit.
     'max-requests': {
-      default: source.EXEC_DEFAULT_MAX_REQUESTS,
       minimum: 1,
-      maximum: source.EXEC_MAX_REQUESTS,
     },
+    // The parse floor stays 1; the selected model's own provider minimum
+    // applies at admission and at the send.
+    'max-output-tokens': {
+      minimum: 1,
+      maximum: source.MODEL_API_MAX_OUTPUT_TOKENS,
+      unit: 'tokens',
+    },
+    // No default: without `--timeout` a run has no deadline of ours.
     timeout: {
-      default: source.EXEC_DEFAULT_TIMEOUT_SECONDS,
-      minimum: source.EXEC_MIN_TIMEOUT_SECONDS,
-      maximum: source.EXEC_MAX_TIMEOUT_SECONDS,
+      minimum: 1,
       unit: 'seconds',
     },
+    // D121: the person's --max-budget-usd has no ceiling of ours (the removed
+    // EXEC_MAX_BUDGET_USD = 20 was invented; no provider documents it).
     'max-budget-usd': {
       exclusiveMinimum: 0,
-      maximum: source.EXEC_MAX_BUDGET_USD,
       decimals: source.EXEC_USD_DECIMALS,
       required: 'modelApi',
       unit: 'USD',
     },
+  }
+  // Share's --from/--to are message markers (the ShareRequest range), not the
+  // usage dates the bare names describe: the date format must not follow them.
+  // D121: scan-secrets --timeout has no default and no maximum of ours —
+  // absent runs until the scan finishes; a set value is whole seconds the
+  // platform timer can hold, so the range ends where setTimeout overflows.
+  const factsFor = (route, name) => {
+    if (route === 'share' && (name === 'from' || name === 'to'))
+      return Object.fromEntries(
+        Object.entries(optionFacts[name] ?? {}).filter(([facet]) => facet !== 'format'),
+      )
+    if (route === 'scan-secrets' && name === 'timeout')
+      return {
+        minimum: 1,
+        maximum: Math.floor(source.TIMER_MAX_DELAY_MS / source.MILLISECONDS_PER_SECOND),
+        unit: 'seconds',
+      }
+    return optionFacts[name]
   }
   for (const option of parserOptions(runtimeSource, source)) {
     if (source.CLI_OPTION_TEXT[option.name] === undefined)
@@ -906,7 +946,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
           type: option.type,
           ...(option.name === 'maintenance' && route !== 'setup' && { refused: true }),
           repeatable: option.multiple === true,
-          ...optionFacts[option.name],
+          ...factsFor(route, option.name),
           ...(['serve', 'login'].includes(route) &&
             [
               'provider',
@@ -1003,7 +1043,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     },
     {
       route: 'scan-secrets',
-      name: 'scan-secrets <file> [--key-stdin]',
+      name: 'scan-secrets <file> [--key-stdin] [--timeout <seconds>]',
       description: source.EN.referenceKeyStdin,
       text: { ui: 'referenceKeyStdin' },
     },
@@ -1012,6 +1052,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       name: 'playbook <status|record|settings ...>',
       description: source.EN.referencePlaybookCommand,
       text: { ui: 'referencePlaybookCommand' },
+    },
+    // M124: the MCP connector parses its own words in its lazy bundle.
+    {
+      route: 'mcp',
+      name: 'mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>',
+      description: source.EN.referenceMcpCommand,
+      text: { ui: 'referenceMcpCommand' },
     },
   )
 
@@ -1025,33 +1072,55 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       ...options,
       'prompt',
     ])
-  for (const value of [source.EXEC_DEFAULT_MAX_REQUESTS, source.EXEC_MAX_REQUESTS])
-    if (exec(['--max-requests', String(value)]).options?.maxRequests !== value)
-      errors.push('CLI request limit mismatch')
-  if (exec(['--max-requests', String(source.EXEC_MAX_REQUESTS + 1)]).command !== 'invalid')
-    errors.push('CLI request bound mismatch')
-  for (const value of [source.EXEC_MIN_TIMEOUT_SECONDS, source.EXEC_MAX_TIMEOUT_SECONDS])
+  if (exec([]).options?.maxRequests !== undefined)
+    errors.push('CLI request limit mismatch: --max-requests unset must leave no limit')
+  if (exec(['--max-requests', '501']).options?.maxRequests !== 501)
+    errors.push('CLI request limit mismatch')
+  if (exec(['--max-requests', '1000000']).options?.maxRequests !== 1_000_000)
+    errors.push('CLI request limit mismatch: a set count has no maximum')
+  for (const refused of ['0', '-1', 'abc'])
+    if (exec(['--max-requests', refused]).command !== 'invalid')
+      errors.push('CLI request bound mismatch')
+  if (exec([]).options?.timeoutMs !== undefined)
+    errors.push('CLI timeout mismatch: --timeout unset must leave no deadline')
+  if (exec(['--timeout', '1']).options?.timeoutMs !== 1 * source.MILLISECONDS_PER_SECOND)
+    errors.push('CLI timeout limit mismatch')
+  for (const refused of ['0', '-1', 'abc'])
+    if (exec(['--timeout', refused]).command !== 'invalid')
+      errors.push('CLI timeout bound mismatch')
+  for (const value of ['21601', '1000000'])
     if (
-      exec(['--timeout', String(value)]).options?.timeoutMs !==
-      value * source.MILLISECONDS_PER_SECOND
+      exec(['--timeout', value]).options?.timeoutMs !==
+      Number(value) * source.MILLISECONDS_PER_SECOND
     )
       errors.push('CLI timeout limit mismatch')
+  // D121: scan-secrets runs with no deadline of ours; only a set --timeout
+  // in whole seconds names one, and what it cannot hold is refused.
+  const scan = (options) => source.parseCommandLine(['scan-secrets', 'patch.diff', ...options])
+  if (scan([]).timeoutMs !== undefined)
+    errors.push('CLI timeout limit mismatch: scan-secrets unset must leave no deadline')
+  if (scan(['--timeout', '30']).timeoutMs !== 30 * source.MILLISECONDS_PER_SECOND)
+    errors.push('CLI timeout limit mismatch: scan-secrets --timeout seconds')
+  for (const refused of ['0', '-1', 'abc', '1.5'])
+    if (scan(['--timeout', refused]).command !== 'invalid')
+      errors.push('CLI timeout limit mismatch: scan-secrets refuses what it cannot hold')
   for (const flag of ['--trust-workspace', '--allow-dangerously-skip-permissions', '--web-search'])
     if (exec([flag]).command !== 'invalid') errors.push(`CLI refusal mismatch: ${flag}`)
   // referenceCliOptions['questions-defer-after'] states the parser's own normalization.
   const deferAfter = (value) =>
     source.parseCommandLine(['--questions-defer-after', String(value)]).options
       ?.questionsDeferAfterSeconds
+  // D121: no floor or ceiling of ours — any whole number of seconds is used
+  // as set, and what is not a count is refused with exit 2.
   if (
     source.parseCommandLine([]).options?.questionsDeferAfterSeconds !==
       source.QUESTION_DEFER_DEFAULT_SECONDS ||
     deferAfter(0) !== 0 ||
-    deferAfter(1) !== source.QUESTION_DEFER_MIN_SECONDS ||
-    deferAfter(source.QUESTION_DEFER_MAX_SECONDS) !== source.QUESTION_DEFER_MAX_SECONDS ||
-    source.parseCommandLine([
-      '--questions-defer-after',
-      String(source.QUESTION_DEFER_MAX_SECONDS + 1),
-    ]).command !== 'invalid'
+    deferAfter(1) !== 1 ||
+    deferAfter(3601) !== 3601 ||
+    deferAfter(100_000) !== 100_000 ||
+    source.parseCommandLine(['--questions-defer-after', 'abc']).command !== 'invalid' ||
+    source.parseCommandLine(['--questions-defer-after', '-5']).command !== 'invalid'
   )
     errors.push('CLI question deadline mismatch')
   for (const value of source.EXEC_MODES)
@@ -1060,6 +1129,8 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     if (exec(['--output', value]).options?.output !== value) errors.push('CLI output mismatch')
   // RuntimeCommand is the parser's closed command inventory; new routes must
   // appear in the public command table as well as being documented.
+  // Held commands remain covered without entering the public Help document.
+  const cliInventory = [...cli, ...source.cliCommands(true)]
   const runtimeTree = ts.createSourceFile('cliArgs.ts', runtimeSource, ts.ScriptTarget.Latest, true)
   // Some switches (help --all) are direct branches rather than parseArgs options.
   // A new literal flag in those branches must also have a public entry.
@@ -1079,7 +1150,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       ts.isStringLiteral(node) &&
       /^--[a-z-]+$/.test(node.text) &&
       !declaredFlags.has(node.text) &&
-      cli.every((entry) => !entry.name.split(/[ :/<>]+/).includes(node.text))
+      cliInventory.every((entry) => !entry.name.split(/[ :/<>[\]]+/).includes(node.text))
     )
       errors.push(`CLI direct flag lacks entry: ${node.text}`)
     ts.forEachChild(node, visitDirectFlags)
@@ -1108,9 +1179,38 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       return literal.literal.text
     })
   })
-  const names = new Set(cli.map((c) => c.route))
+  const names = new Set(cliInventory.map((c) => c.route))
+  for (const feature of source.featureCatalog()) {
+    const routes = feature.cliRoutes ?? []
+    for (const route of routes) {
+      if (!names.has(route)) errors.push(`Feature CLI route is not parsed: ${feature.id}/${route}`)
+    }
+  }
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)
+  }
+  // The terminal help table (D120) is the parser's own inventory: every
+  // topic's routes come from the option registry, and the README's terminal
+  // section names the route plus every topic it documents.
+  const helpTopics = source.CLI_HELP_TOPICS.map((topic) => topic.name)
+  const helpRoutes = new Set(source.CLI_HELP_TOPICS.flatMap((topic) => topic.routes))
+  for (const route of Object.keys(source.CLI_OPTION_REGISTRY)) {
+    if (route !== 'estimate' && !helpRoutes.has(route))
+      errors.push(`CLI help lacks route: ${route}`)
+  }
+  for (const topic of source.CLI_HELP_TOPICS) {
+    for (const route of topic.routes) {
+      if (source.CLI_OPTION_REGISTRY[route] === undefined)
+        errors.push(`CLI help route is not parsed: ${String(route)}`)
+    }
+  }
+  const helpSection =
+    /^## Help and reference\r?\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(readme)?.[1] ?? ''
+  const terminal = /In a terminal,[\s\S]*?(?=\r?\n\r?\n|$)/.exec(helpSection)?.[0] ?? ''
+  if (!terminal.includes('help <command>'))
+    errors.push('README terminal section lacks help <command>')
+  for (const name of helpTopics) {
+    if (!terminal.includes(`\`${name}\``)) errors.push(`README terminal section lacks ${name}`)
   }
   for (const row of slash.values())
     row.syntax = source.SLASH_REFERENCE[row.name]?.syntax ?? [`/${row.name}`]
@@ -1360,11 +1460,16 @@ export function publishedReference(model, source) {
   const dormant = model.features.filter((feature) =>
     source.REFERENCE_IN_PROGRESS_FEATURES.includes(feature.id),
   )
+  const isScheduleReady = source.SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
   const commands = new Set([
     ...dormant.flatMap((feature) => feature.commands),
-    source.COMMAND_IDS.schedulePrompt,
-    source.COMMAND_IDS.showSchedules,
-    source.COMMAND_IDS.showScheduleTimeline,
+    ...(isScheduleReady
+      ? []
+      : [
+          source.COMMAND_IDS.schedulePrompt,
+          source.COMMAND_IDS.showSchedules,
+          source.COMMAND_IDS.showScheduleTimeline,
+        ]),
   ])
   const settings = new Set([
     ...dormant
@@ -1379,7 +1484,12 @@ export function publishedReference(model, source) {
     'museSpark.accountParallel',
     'museSpark.accounts.severalOnThisDevice',
   ])
-  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp'])
+  const hiddenRoutes = new Set([
+    'estimate',
+    'vault',
+    'vaultHelp',
+    ...(isScheduleReady ? [] : ['schedule']),
+  ])
 
   return {
     ...model,
@@ -1393,15 +1503,19 @@ export function publishedReference(model, source) {
     commands: model.commands.filter((command) => !commands.has(command.id)),
     settings: model.settings.filter((setting) => !settings.has(setting.id)),
     slash: model.slash.filter(
-      (command) => !['estimate', 'vault', 'schedule'].includes(command.name),
+      (command) =>
+        !['estimate', 'vault', ...(isScheduleReady ? [] : ['schedule'])].includes(command.name),
     ),
     cli: model.cli.filter(
       (command) =>
         !hiddenRoutes.has(command.route) &&
-        // `--account` is served (CM108ACC); pooling is refused until its owner is bound.
-        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction|account-pool)(?:\s|$)/.test(
-          command.name,
-        ),
+        // `--vault` stays unpublished while M109 is in progress (no
+        // published surface until the lead's complete receipts); the
+        // schedule flag follows the delivery certification like every
+        // other delivery route. Accepted flags the parser takes stay in
+        // the complete inventory and the terminal help (cliHelpConsistency).
+        !/(?:^|\s)--vault(?:\s|$)/.test(command.name) &&
+        (isScheduleReady || !/(?:^|\s)--scheduled-prompts(?:\s|$)/.test(command.name)),
     ),
     shortcuts: model.shortcuts.filter(
       (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',
@@ -1443,11 +1557,11 @@ export async function generateReference(root, isCheck = false) {
     const textSchema = z.union([plainTextSchema, z.object({ conditions: z.array(z.object({ when: z.string().check(z.regex(/^[A-Za-z0-9_.=:&|!-]+$/)), text: plainTextSchema })).check(z.minLength(1)) })])
     const strings = z.array(z.string())
     const schema = z.object({ executable: z.string(),
-      features: z.array(z.object({ id: z.string(), name: textSchema, summary: textSchema, description: textSchema, commands: strings, settings: strings, docs: z.string(), editors: z.array(z.enum(['vscode', 'acp'])), backends: z.array(z.enum(['museCode', 'modelApi'])), paid: z.boolean(), surfaces: z.array(z.enum(['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'])), details: z.array(textSchema), facts: z.record(z.string(), z.unknown()) })),
+      features: z.array(z.object({ id: z.string(), name: textSchema, summary: textSchema, description: textSchema, commands: strings, cliRoutes: z.optional(strings), settings: strings, docs: z.string(), editors: z.array(z.enum(['vscode', 'acp'])), backends: z.array(z.enum(['museCode', 'modelApi'])), paid: z.boolean(), surfaces: z.array(z.enum(['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'])), details: z.array(textSchema), facts: z.record(z.string(), z.unknown()) })),
       commands: z.array(z.object({ id: z.string(), name: z.string(), nameKey: z.optional(z.string()), category: z.string(), categoryKey: z.optional(z.string()), description: z.string(), text: textSchema, enablement: z.optional(z.string()), canRun: z.boolean() })),
       settings: z.array(z.object({ text: z.optional(textSchema), id: z.string(), name: z.string(), nameKey: z.optional(z.string()), description: z.string(), descriptionKey: z.optional(z.string()), type: z.union([z.string(), strings]), default: z.unknown(), enum: z.optional(z.array(z.unknown())), enumDescriptions: z.optional(strings), enumTexts: z.optional(z.record(z.string(), textSchema)), enumDescriptionKeys: z.optional(z.array(z.nullable(z.string()))), scope: z.string(), refinements: strings, schema: z.record(z.string(), z.unknown()) })),
       slash: z.array(z.object({ name: z.string(), description: z.string(), descriptions: z.record(z.string(), textSchema), backends: strings, syntax: strings })),
-      cli: z.array(z.object({ route: z.string(), name: z.string(), description: z.string(), text: z.optional(textSchema), usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])), usageLine: z.optional(z.number()), contract: z.optional(z.record(z.string(), z.unknown())) })),
+      cli: z.array(z.object({ route: z.string(), name: z.string(), description: z.string(), text: z.optional(textSchema), usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])), usageLine: z.optional(z.number()), contract: z.optional(z.record(z.string(), z.unknown())), invocations: z.optional(z.array(z.array(z.string()))) })),
       shortcuts: z.array(z.object({ command: z.string(), key: z.string(), mac: z.optional(z.string()), win: z.optional(z.string()), linux: z.optional(z.string()), when: z.optional(z.string()), text: z.optional(textSchema) }))
     })
     export function parseReferenceModel(value: unknown): ReferenceModel { return schema.parse(value) }

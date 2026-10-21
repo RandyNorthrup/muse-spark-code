@@ -24,6 +24,7 @@ import { fill } from '../../shared/l10n/text'
 import type { CoreLogger } from '../logging'
 import { networkFailureMessage } from '../networkFailure'
 import type { GitHubRepository } from './githubRemote'
+import type { GitHubCredential } from './tokenSource'
 
 const userSchema = z.object({ login: z.string(), id: z.number() })
 
@@ -114,8 +115,6 @@ export interface ChecksSummary {
   readonly failedNames: readonly string[]
   /** Any check in a state the capture did not show, as `name: state` (D36). */
   readonly other: readonly string[]
-  /** Check runs and commit statuses beyond the one page of each read. */
-  readonly notRead: number
 }
 
 /** A repository's default branch, and for a fork the repository it came from. */
@@ -138,18 +137,37 @@ export type GitHubFailureKind =
   'signIn' | 'notFound' | 'invalid' | 'rateLimited' | 'server' | 'network' | 'response'
 
 /**
- * A call GitHub refused or that never reached it. `message` is for the user
- * (GitHub's own words where it gave them); the log gets `kind` and `status`.
- */
+A call GitHub refused or that never reached it. `message` is for the user
+(GitHub's own words where it gave them); the log gets `kind` and `status`.
+*/
 export class GitHubError extends Error {
   public constructor(
     message: string,
     public readonly kind: GitHubFailureKind,
     public readonly status: number | undefined,
+    options?: { cause?: unknown },
   ) {
-    super(message)
+    super(message, options)
     this.name = 'GitHubError'
   }
+}
+
+/**
+A 401 drops the credential at its source (M123, PLAN.md D104), so the
+user signs in again. True when `error` was GitHub's sign-in refusal.
+Here, beside the error it reads, so the token sources (which the
+terminal's sign-in loads) never carry the REST client.
+*/
+export async function didDropRejectedCredential(
+  signIn: { rejected(credential: GitHubCredential): Promise<void> },
+  credential: GitHubCredential,
+  error: unknown,
+): Promise<boolean> {
+  if (!(error instanceof GitHubError && error.kind === 'signIn')) {
+    return false
+  }
+  await signIn.rejected(credential)
+  return true
 }
 
 export interface GitHubClientDeps {
@@ -216,11 +234,11 @@ function errorMessage(body: unknown, status: number): string {
   }
   const details = (parsed.data.errors ?? []).flatMap((error) => {
     if (error.message !== undefined) {
-      return [error.message]
+      return error.message
     }
     return error.field === undefined || error.code === undefined
       ? []
-      : [`${error.field} ${error.code}`]
+      : `${error.field} ${error.code}`
   })
   return details.length === 0
     ? parsed.data.message
@@ -263,8 +281,8 @@ function repositoryPath(repository: GitHubRepository): string {
 
 /** Counts check runs and commit statuses into one summary. */
 function summarizeChecks(
-  runs: z.infer<typeof checkRunsSchema>,
-  statuses: z.infer<typeof combinedStatusSchema>,
+  runs: readonly z.infer<typeof checkRunsSchema>['check_runs'][number][],
+  statuses: readonly z.infer<typeof combinedStatusSchema>['statuses'][number][],
 ): ChecksSummary {
   const counts: Record<CountKey, number> = {
     passed: 0,
@@ -281,7 +299,7 @@ function summarizeChecks(
       failedNames.push(name)
     }
   }
-  for (const run of runs.check_runs) {
+  for (const run of runs) {
     const { conclusion } = run
     if (run.status === CHECK_IN_PROGRESS) {
       count('running', run.name)
@@ -295,7 +313,7 @@ function summarizeChecks(
       other.push(`${run.name}: ${conclusion ?? run.status}`)
     }
   }
-  for (const status of statuses.statuses) {
+  for (const status of statuses) {
     if (isKnownKey(STATUS_COUNTS, status.state)) {
       count(STATUS_COUNTS[status.state], status.context)
     } else {
@@ -306,23 +324,27 @@ function summarizeChecks(
     ...counts,
     failedNames,
     other,
-    notRead:
-      Math.max(runs.total_count - runs.check_runs.length, 0) +
-      Math.max(statuses.total_count - statuses.statuses.length, 0),
   }
 }
 
 export class GitHubClient {
   public constructor(private readonly deps: GitHubClientDeps) {}
 
-  /** One call: JSON in and out, the token in the header, a deadline, GitHub's refusals as `GitHubError`. */
+  /**
+  One call: JSON in and out, the token in the header, a deadline,
+  GitHub's refusals as `GitHubError`. An operation's signal joins the
+  deadline, so Cancel stops pull-request discovery at once (Codex on PR
+  #227); without one the deadline stands alone as before.
+  */
   private async request(
     token: string,
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const url = `${this.deps.baseUrl ?? GITHUB_API_BASE_URL}${path}`
+    const deadline = AbortSignal.timeout(this.deps.timeoutMs ?? GITHUB_REQUEST_TIMEOUT_MS)
     let response: Response
     try {
       response = await this.deps.fetch(url, {
@@ -335,7 +357,7 @@ export class GitHubClient {
           ...(body !== undefined && { 'Content-Type': 'application/json' }),
         },
         ...(body !== undefined && { body: JSON.stringify(body) }),
-        signal: AbortSignal.timeout(this.deps.timeoutMs ?? GITHUB_REQUEST_TIMEOUT_MS),
+        signal: signal === undefined ? deadline : AbortSignal.any([deadline, signal]),
       })
     } catch (error: unknown) {
       this.deps.log.warn(`GitHub ${method} did not reach GitHub`)
@@ -343,6 +365,7 @@ export class GitHubClient {
         networkFailureMessage(error).replaceAll(token, '[redacted]'),
         'network',
         undefined,
+        { cause: error },
       )
     }
     let json: unknown
@@ -381,10 +404,11 @@ export class GitHubClient {
   public async repositoryFacts(
     token: string,
     repository: GitHubRepository,
+    signal?: AbortSignal,
   ): Promise<RepositoryFacts> {
     const parsed = this.parse(
       repositorySchema,
-      await this.request(token, 'GET', repositoryPath(repository)),
+      await this.request(token, 'GET', repositoryPath(repository), undefined, signal),
       'repository',
     )
     const parent =
@@ -417,6 +441,7 @@ export class GitHubClient {
     repository: GitHubRepository,
     headOwner: string,
     branch: string,
+    signal?: AbortSignal,
   ): Promise<PullRequest | undefined> {
     const query = new URLSearchParams({
       head: `${headOwner}:${branch}`,
@@ -427,6 +452,8 @@ export class GitHubClient {
       token,
       'GET',
       `${repositoryPath(repository)}/pulls?${query.toString()}`,
+      undefined,
+      signal,
     )
     const [first] = this.parse(z.array(pullRequestSchema), raw, 'pull request list')
     return first === undefined ? undefined : toPullRequest(first)
@@ -447,7 +474,7 @@ export class GitHubClient {
     return toPullRequest(this.parse(pullRequestSchema, raw, 'new pull request'))
   }
 
-  /** The check runs and commit statuses (one page of each) on `sha`, counted. */
+  /** The check runs and commit statuses on `sha`, every page of each, counted. */
   public async checks(
     token: string,
     repository: GitHubRepository,
@@ -457,17 +484,42 @@ export class GitHubClient {
       throw new GitHubError(fill(UI_TEXT.gitHubCommitInvalid, { sha }), 'invalid', undefined)
     }
     const commit = `${repositoryPath(repository)}/commits/${sha}`
-    const [runs, statuses] = await Promise.all([
-      this.request(
-        token,
-        'GET',
-        `${commit}/check-runs?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}`,
-      ),
-      this.request(token, 'GET', `${commit}/status?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}`),
-    ])
-    return summarizeChecks(
-      this.parse(checkRunsSchema, runs, 'check runs'),
-      this.parse(combinedStatusSchema, statuses, 'commit status'),
-    )
+    const runs: z.infer<typeof checkRunsSchema>['check_runs'] = []
+    for (let page = 1; ; page += 1) {
+      const parsed = this.parse(
+        checkRunsSchema,
+        await this.request(
+          token,
+          'GET',
+          `${commit}/check-runs?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}&page=${String(page)}`,
+        ),
+        'check runs',
+      )
+      runs.push(...parsed.check_runs)
+      if (
+        page * GITHUB_CHECKS_PAGE_SIZE >= parsed.total_count ||
+        parsed.check_runs.length < GITHUB_CHECKS_PAGE_SIZE
+      )
+        break
+    }
+    const statuses: z.infer<typeof combinedStatusSchema>['statuses'] = []
+    for (let page = 1; ; page += 1) {
+      const parsed = this.parse(
+        combinedStatusSchema,
+        await this.request(
+          token,
+          'GET',
+          `${commit}/status?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}&page=${String(page)}`,
+        ),
+        'commit status',
+      )
+      statuses.push(...parsed.statuses)
+      if (
+        page * GITHUB_CHECKS_PAGE_SIZE >= parsed.total_count ||
+        parsed.statuses.length < GITHUB_CHECKS_PAGE_SIZE
+      )
+        break
+    }
+    return summarizeChecks(runs, statuses)
   }
 }

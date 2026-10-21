@@ -18,11 +18,30 @@ export * as priceCard from '../../core/providers/priceCard'
 export * as providersFile from '../../core/providers/providersFile'
 export * as scanDiff from '../../core/providers/scanDiff'
 export * as suggest from '../../core/providers/suggest'
+export * as tokenCount from '../../core/providers/tokenCount'
 export * as wizardFlow from '../../core/providers/wizardFlow'
 export { setUiText } from '../../shared/l10n/text'
 
+// RVCM1054D P2: the Copilot client's refusal constructor across the seam.
+// The Models panel bundle calls this instead of formatting the sentences
+// itself, so the panel keeps only the call and stays under its cap.
+export { refuse } from '../../core/media/codecRefusal'
 export { createProviderRegistry } from '../../core/providers/providerRegistry'
 export { createModelsPanelSeam } from '../../core/providers/panelSeam'
+// The image chunk's D121 fallback (an edit with no record) reads Meta's own
+// record across the seam instead of carrying a copy of it.
+export { metaCapabilityRecord } from '../../core/providers/capabilityRecord'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
+export {
+  connectOpenRouterAccount,
+  createOpenRouterPanelUsage,
+  clearOpenRouterPanelUsage,
+  createOpenRouterDraftDiscard,
+  createOpenRouterUsageReader,
+  openRouterDiscardedKeyNotice,
+  promptOpenRouterCode,
+  OPENROUTER_ORIGIN,
+} from '../providers/openRouter'
+export { startOAuthLoopback } from '../providers/oauthLoopback'
 export { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 export { isPkceState, pkceRandom } from '../../core/providers/pkce'

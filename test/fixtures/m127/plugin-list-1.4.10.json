@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    {
+      "id": "capture-probe",
+      "version": "1.0.0",
+      "enabled": true,
+      "source": "foreignImport"
+    }
+  ]
+}

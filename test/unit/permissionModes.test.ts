@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { PERMISSION_MODES, UI_TEXT } from '../../src/shared/constants'
+import {
+  MUSE_ASK_ME_PROFILE,
+  MUSE_AUTO_REVIEW_PROFILE,
+  PERMISSION_MODES,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import {
   approvalModeFor,
   availablePermissionModes,
+  composerModeForApprovalMode,
   isPermissionMode,
+  mspPermissionProfile,
+  mspStartPermissionProfile,
   nextPermissionMode,
   type AutoReviewers,
   permissionModeDetail,
@@ -126,5 +134,69 @@ describe('permissionModeDetail (D24, D69)', () => {
         permissionModeDetail(mode, 'modelApi'),
       )
     }
+  })
+})
+
+describe('mspPermissionProfile', () => {
+  it('asks the person in Manual, keeps the judge for Auto, and leaves the rest to the mode', () => {
+    // Manual and Edit automatically review with `:ask-me`, so an unmatched
+    // command raises an approval instead of letting Muse Code's judge allow
+    // it (seen live as `allow:llm_judge` on 1.4.7, 2026-10-18).
+    expect(mspPermissionProfile('promptUnmatched')).toBe(MUSE_ASK_ME_PROFILE)
+    // Auto's words promise the judge's simple-command allows.
+    expect(mspPermissionProfile('onRequest')).toBe(MUSE_AUTO_REVIEW_PROFILE)
+    // Plan refuses and Bypass allows: the mode itself decides, no reviewer.
+    expect(mspPermissionProfile('denyUnmatched')).toBeUndefined()
+    expect(mspPermissionProfile('allowAll')).toBeUndefined()
+    expect(mspPermissionProfile('a-future-mode')).toBeUndefined()
+  })
+})
+
+describe('mspStartPermissionProfile', () => {
+  it('keeps the host default on a headless start whatever the mode asks for', () => {
+    // Headless acceptEdits (exec) starts `promptUnmatched`, whose reviewer
+    // would be `:ask-me`; exec rejects every approval, so the start must
+    // carry no profile and keep the host default `:auto-review`, as before.
+    for (const mode of ['promptUnmatched', 'onRequest', 'denyUnmatched', 'allowAll']) {
+      expect(mspStartPermissionProfile(mode, true)).toBeUndefined()
+    }
+  })
+
+  it('selects the mode’s reviewer on an interactive start', () => {
+    expect(mspStartPermissionProfile('promptUnmatched', false)).toBe(MUSE_ASK_ME_PROFILE)
+    expect(mspStartPermissionProfile('onRequest', false)).toBe(MUSE_AUTO_REVIEW_PROFILE)
+    expect(mspStartPermissionProfile('denyUnmatched', false)).toBeUndefined()
+    expect(mspStartPermissionProfile('allowAll', false)).toBeUndefined()
+  })
+})
+
+describe('composerModeForApprovalMode', () => {
+  it('keeps the preferred mode when it selects the running wire mode', () => {
+    expect(composerModeForApprovalMode('promptUnmatched', 'manual', true)).toBe('manual')
+    expect(composerModeForApprovalMode('promptUnmatched', 'acceptEdits', true)).toBe('acceptEdits')
+    expect(composerModeForApprovalMode('onRequest', 'auto', true)).toBe('auto')
+    expect(composerModeForApprovalMode('denyUnmatched', 'plan', true)).toBe('plan')
+    expect(composerModeForApprovalMode('allowAll', 'bypassPermissions', true)).toBe(
+      'bypassPermissions',
+    )
+  })
+
+  it('falls back to the first menu mode on the wire mode', () => {
+    // Manual before Edit automatically: the asking-safe one.
+    expect(composerModeForApprovalMode('promptUnmatched', 'auto', true)).toBe('manual')
+    expect(composerModeForApprovalMode('onRequest', 'manual', true)).toBe('auto')
+    expect(composerModeForApprovalMode('denyUnmatched', 'manual', true)).toBe('plan')
+  })
+
+  it('finds nothing for an unknown wire mode, so the surface refuses the send', () => {
+    expect(composerModeForApprovalMode('', 'manual', true)).toBeUndefined()
+    expect(composerModeForApprovalMode('a-future-mode', 'manual', true)).toBeUndefined()
+  })
+
+  it('maps through the no-approval-UI collapse', () => {
+    // Without the approval UI Manual behaves as deny: showing it for a
+    // refusing host is true, and Plan still resolves to itself.
+    expect(composerModeForApprovalMode('denyUnmatched', 'manual', false)).toBe('manual')
+    expect(composerModeForApprovalMode('denyUnmatched', 'plan', false)).toBe('plan')
   })
 })

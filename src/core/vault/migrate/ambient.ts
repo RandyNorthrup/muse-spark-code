@@ -1,9 +1,10 @@
 import { readdir } from 'node:fs/promises'
 import nodePath from 'node:path'
 import { lstatIdentity } from '../../fs/fileIdentity'
+import { isAbsentBelowFolder } from '../../fs/absentPath'
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { type VaultPanelState } from '../../../shared/vaultPanel'
-import { VaultMigrationFault } from './ports'
+import { VaultMigrationFault } from './fault'
 
 export type AmbientFile = VaultPanelState['ambientFiles'][number]
 
@@ -43,23 +44,32 @@ export function pathForHome(home: string, relativePath: string): string {
 async function isPlainFile(home: string, relativePath: string): Promise<boolean> {
   const parts = relativePath.split('/')
   for (let index = 0; index < parts.length; index += 1) {
+    const entry = pathForHome(home, parts.slice(0, index + 1).join('/'))
     try {
-      const stat = await lstatIdentity(pathForHome(home, parts.slice(0, index + 1).join('/')))
+      const stat = await lstatIdentity(entry)
       if (
         stat.isSymbolicLink() ||
         (index === parts.length - 1 ? !stat.isFile() : !stat.isDirectory())
       )
         return false
     } catch (error: unknown) {
-      if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
+      if (
+        error !== null &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'ENOENT' &&
+        isAbsentBelowFolder(entry)
+      )
         return false
-      throw new VaultMigrationFault('storage')
+      // A missing entry is absent; anything else (a home that is a file reads
+      // ENOENT on Windows) is not the absence and keeps its failure as the cause.
+      throw new VaultMigrationFault('storage', { cause: error })
     }
   }
   return true
 }
 
-/** @unwired M109 ambient vault file discovery */
+/** Ambient vault file discovery, served through the panel service's import flow and read by the vault panel entry. */
 export async function discoverAmbientFiles(home: string): Promise<readonly AmbientFile[]> {
   const names = ['.git-credentials', '.netrc', '.npmrc', '.aws/credentials', '.docker/config.json']
   try {
@@ -77,9 +87,13 @@ export async function discoverAmbientFiles(home: string): Promise<readonly Ambie
       error !== null &&
       typeof error === 'object' &&
       'code' in error &&
-      error.code === 'ENOENT'
+      error.code === 'ENOENT' &&
+      isAbsentBelowFolder(pathForHome(home, '.ssh'))
     ))
-      throw new VaultMigrationFault('storage')
+      // A missing .ssh directory leaves the base names; anything else (a home
+      // that is a file reads ENOENT on Windows) is not the absence and keeps
+      // its failure as the cause.
+      throw new VaultMigrationFault('storage', { cause: error })
   }
   const found: AmbientFile[] = []
   for (const relative of names) {

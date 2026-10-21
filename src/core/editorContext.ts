@@ -4,15 +4,15 @@
 // `<ide_opened_file>` for a bare open file). The chip label lives in
 // src/shared/editorContext.ts so the webview can build it too. Pure.
 
-import { IDE_CONTEXT_TAGS, MODEL_TEXT, SELECTION_TEXT_MAX_CHARS } from '../shared/constants'
+import { IDE_CONTEXT_LEADS, IDE_CONTEXT_TAGS, MODEL_TEXT } from '../shared/constants'
 import type { EditorContextSummary } from '../shared/protocol'
 
 export interface EditorContext extends EditorContextSummary {
   /**
-   * The highlighted text, or undefined when the file's content must not be
-   * shared (excluded from the workspace index, as Claude Code treats
-   * `files.exclude` / gitignored files: path only).
-   */
+  The highlighted text, or undefined when the file's content must not be
+  shared (excluded from the workspace index, as Claude Code treats
+  `files.exclude` / gitignored files: path only).
+  */
   readonly selectedText: string | undefined
 }
 
@@ -21,22 +21,16 @@ export function editorContextSummary(context: EditorContext): EditorContextSumma
   return { relativePath, startLine, endLine, isEmpty }
 }
 
-function clipped(text: string): string {
-  return text.length > SELECTION_TEXT_MAX_CHARS
-    ? `${text.slice(0, SELECTION_TEXT_MAX_CHARS)}\n${MODEL_TEXT.selectionClipped}`
-    : text
-}
-
 /** The context part appended to the turn's prompt (never shown as typed text). */
 export function editorContextText(context: EditorContext): string {
   const { relativePath, startLine, endLine, isEmpty, selectedText } = context
   if (isEmpty) {
-    return `<${IDE_CONTEXT_TAGS.openedFile}>The user opened the file ${relativePath} in the IDE. This may or may not be related to the current task.</${IDE_CONTEXT_TAGS.openedFile}>`
+    return `<${IDE_CONTEXT_TAGS.openedFile}>${IDE_CONTEXT_LEADS.openedFile} ${relativePath} in the IDE. This may or may not be related to the current task.</${IDE_CONTEXT_TAGS.openedFile}>`
   }
   const lines = `the lines ${String(startLine)} to ${String(endLine)} from ${relativePath}`
   const body =
     selectedText === undefined
       ? `${lines}. ${MODEL_TEXT.selectionNotShared}`
-      : `${lines}:\n${clipped(selectedText)}\n`
-  return `<${IDE_CONTEXT_TAGS.selection}>The user selected ${body}</${IDE_CONTEXT_TAGS.selection}>`
+      : `${lines}:\n${selectedText}\n`
+  return `<${IDE_CONTEXT_TAGS.selection}>${IDE_CONTEXT_LEADS.selection} ${body}</${IDE_CONTEXT_TAGS.selection}>`
 }

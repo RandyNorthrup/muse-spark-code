@@ -12,6 +12,8 @@
 import type { SessionMcpServer } from '../../agent/agentBackend'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import {
+  MUSE_CONTRIBUTOR_MODE_ARG,
+  MUSE_CONTRIBUTOR_MODE_ON,
   MUSE_DISABLE_SHELL_ARG,
   MUSE_DISABLE_WRITE_ARG,
   MUSE_SERVE_ARGS,
@@ -46,16 +48,23 @@ export function hostKindFor(role: WorkerRolePolicy): MuseWorkerHostKind {
 }
 
 /**
- * The `serve` arguments for a worker host. The read-only host is fixed for
- * its lifetime with `--disable-write` and `--disable-shell` (the 1.4.2
- * capture, research §4.7), so Muse Code itself refuses that worker's file
- * writes and shell. A trusted workspace loads its rules and skills.
- * @unwired M96 worker serve arguments
- */
-export function workerServeArgs(kind: MuseWorkerHostKind, isTrusted: boolean): readonly string[] {
+The `serve` arguments for a worker host. The read-only host is fixed for
+its lifetime with `--disable-write` and `--disable-shell` (the 1.4.2
+capture, research §4.7), so Muse Code itself refuses that worker's file
+writes and shell. A trusted workspace loads its rules and skills.
+`isContributorMode` is the person's own Muse Code settings
+(`contributor_mode_enabled`); absent reads as off, never defaulted on.
+@unwired M96 worker serve arguments
+*/
+export function workerServeArgs(
+  kind: MuseWorkerHostKind,
+  isTrusted: boolean,
+  isContributorMode = false,
+): readonly string[] {
   return [
     ...MUSE_SERVE_ARGS,
     ...(kind === 'readOnly' ? [MUSE_DISABLE_WRITE_ARG, MUSE_DISABLE_SHELL_ARG] : []),
+    ...(isContributorMode ? [MUSE_CONTRIBUTOR_MODE_ARG, MUSE_CONTRIBUTOR_MODE_ON] : []),
     isTrusted ? MUSE_TRUST_WORKSPACE_ARG : MUSE_DISABLE_SHELL_ARG,
   ]
 }
@@ -119,11 +128,11 @@ export class WorkerCancelledError extends Error {
 }
 
 /**
- * The session's `config.mcpServers`: the bridge's servers only. The task's
- * folder must be a working copy (or scratch copy) outside the workspace
- * tree; starting in the workspace is refused. `denyUnmatched` (Plan) for a
- * `read-only` role, `promptUnmatched` for every other role.
- */
+The session's `config.mcpServers`: the bridge's servers only. The task's
+folder must be a working copy (or scratch copy) outside the workspace
+tree; starting in the workspace is refused. `denyUnmatched` (Plan) for a
+`read-only` role, `promptUnmatched` for every other role.
+*/
 export async function buildWorkerSessionConfig(input: {
   readonly task: WorkerTask
   readonly role: WorkerRolePolicy
@@ -177,12 +186,12 @@ export interface MuseCodeWorkerDeps {
 }
 
 /**
- * Runs one Muse Code worker's task: a session per task on the window's team
- * host (the read-only host for a `read-only` role, never the
- * conversation's), in the task's folder, with the bridge's servers. The
- * worker ends its last message with the `muse-team-report` block.
- * @unwired M96 Muse worker runner
- */
+Runs one Muse Code worker's task: a session per task on the window's team
+host (the read-only host for a `read-only` role, never the
+conversation's), in the task's folder, with the bridge's servers. The
+worker ends its last message with the `muse-team-report` block.
+@unwired M96 Muse worker runner
+*/
 export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
   readonly sessionId: string
   readonly report: WorkerReportOutcome
@@ -228,11 +237,11 @@ export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
     })
     await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
     const active = session
-    const { lastMessage, stopReason } = await awaitWorkerAction(deps.signal, () =>
+    const { lastMessage = '', stopReason } = await awaitWorkerAction(deps.signal, () =>
       active.sendPrompt(deps.prompt),
     )
     await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
-    return { sessionId: active.sessionId, report: reportForStop(lastMessage ?? '', stopReason) }
+    return { sessionId: active.sessionId, report: reportForStop(lastMessage, stopReason) }
   } catch (error: unknown) {
     if (session !== undefined) {
       void session.cancel().catch(() => {

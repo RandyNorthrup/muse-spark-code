@@ -14,9 +14,13 @@ import type {
   ProviderCredentialStore as CredentialStore,
 } from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
-import { readOpenRouterKeyUsage } from './openRouter'
-import { connectOpenRouterAccount } from './openRouter'
+import {
+  createOpenRouterUsageReader,
+  connectOpenRouterAccount,
+  promptOpenRouterCode,
+} from '../backend/providersEntry'
 import type { OAuthLoopback } from './oauthLoopback'
+import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { promptForProviderKey } from './keyPrompt'
 import { probeLocalServers, type LocalProbeResult } from './localProbe'
 import {
@@ -60,8 +64,14 @@ export interface ProvidersHostUi {
   readonly confirmPaidTest: (message: string) => Promise<boolean>
   /** Asks once about a private-network address (D74). */
   readonly confirmPrivateNetwork: (message: string) => Promise<boolean>
+  /**
+  Asks whether a pasted key with a wrong-thing notice is used anyway.
+  A "no" re-opens the box; the provider judges the sent key.
+  */
+  readonly confirmKeyUse: (message: string) => Promise<boolean>
   /** Opens a URL in the system browser. */
   readonly openBrowser: (url: string) => Promise<void>
+  readonly onDiscardedKey?: () => void
 }
 
 export interface ProvidersHostDeps {
@@ -74,7 +84,13 @@ export interface ProvidersHostDeps {
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger | undefined
   readonly usage: KeyUsageReader | undefined
-  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
+  readonly onKeyUsage?: (
+    snapshot: KeyUsageSnapshot & {
+      readonly providerId: string
+      readonly credentialId: string
+      readonly observationId: string
+    },
+  ) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -128,8 +144,16 @@ export interface ProvidersHost {
     text: string,
     shouldImport: (preview: ImportPreview) => Promise<boolean>,
   ) => Promise<number>
-  readonly connectOpenRouter: (isRemote: boolean) => Promise<{ key: string } | undefined>
-  readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot | undefined>
+  readonly discardOpenRouterKey: () => void
+  readonly connectOpenRouter: (
+    isRemote: boolean,
+    signal?: AbortSignal,
+  ) => Promise<{ key: string } | undefined>
+  readonly openRouterUsage: (
+    credential: string,
+    signal?: AbortSignal,
+    entry?: ProviderEntry,
+  ) => Promise<KeyUsageSnapshot | undefined>
   readonly probe: (preset: PresetInfo) => Promise<readonly LocalProbeResult[]>
   readonly suggestDefaultModel: (
     candidates: readonly ProviderModelRow[],
@@ -142,10 +166,10 @@ export interface ProvidersHost {
 }
 
 /**
- * The stored secret for a scan or test; undefined for a local server
- * without auth, or when no credential was entered. The secret is held only
- * for the call below, never logged or stored elsewhere.
- */
+The stored secret for a scan or test; undefined for a local server
+without auth, or when no credential was entered. The secret is held only
+for the call below, never logged or stored elsewhere.
+*/
 async function credentialFor(
   credentials: CredentialStore,
   entry: ProviderEntry,
@@ -168,12 +192,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       await previous
       return await run()
     })()
+    // A failure already reached the caller through `next`: the chain only
+    // sequences later mutations, so observing its settlement (never its
+    // rejection) keeps every later one running.
     mutations = (async () => {
-      try {
-        await next
-      } catch {
-        return
-      }
+      await Promise.allSettled([next])
     })()
     return next
   }
@@ -237,13 +260,30 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       }
       return isConfirmed ? verdict : { kind: 'refused', detail: UI_TEXT.providerPrivateConfirm }
     },
-    promptForKey: (preset) =>
-      promptForProviderKey(deps.ui.showInputBox, {
-        providerName: preset.name,
-        origin: preset.origin,
-        keyHint: preset.keyHint,
-        isKeyShape: (value) => preset.isKeyShape(value),
-      }),
+    promptForKey: async (preset) => {
+      // Any non-blank key is accepted for the free key test; a value that
+      // looks like the wrong thing (a URL, a path, placeholder text, inner
+      // whitespace) asks once whether to use it anyway, and a "no"
+      // re-opens the box. The provider judges the sent key.
+      for (;;) {
+        const key = await promptForProviderKey(deps.ui.showInputBox, {
+          providerName: preset.name,
+          origin: preset.origin,
+          keyHint: preset.keyHint,
+        })
+        if (key === undefined) {
+          return key
+        }
+        const inspection = inspectProviderKey(key)
+        if (inspection === 'ok' || inspection === 'empty') {
+          return key
+        }
+        const shouldUse = await deps.ui.confirmKeyUse(providerKeyNoticeText(inspection))
+        if (shouldUse) {
+          return key
+        }
+      }
+    },
     testCredential: (entry, credential) => runTest(entry, credential),
     testStoredCredential: async (entry) => {
       const credential = await credentialFor(deps.credentials, entry)
@@ -303,32 +343,34 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           text,
         ),
       ),
-    connectOpenRouter: async (isRemote) => {
-      if (deps.exchanger === undefined) return
-      const connection = await connectOpenRouterAccount({
-        pkce: deps.pkce,
-        exchange: deps.exchanger,
-        openBrowser: deps.ui.openBrowser,
-        startServer: deps.startLoopback,
-        promptForPastedCode: () =>
-          Promise.resolve(
-            deps.ui.showInputBox({
-              title: fill(UI_TEXT.providerConnect, { provider: 'OpenRouter' }),
-              prompt: fill(UI_TEXT.providerConnectWaiting, { provider: 'OpenRouter' }),
-              password: true,
-              ignoreFocusOut: true,
-            }),
-          ),
-        isRemote,
-      })
-      return connection === undefined ? undefined : { key: connection.key }
+    discardOpenRouterKey: () => {
+      deps.ui.onDiscardedKey?.()
     },
-    openRouterUsage: async (credential) => {
-      if (deps.usage === undefined) return
-      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
-      deps.onKeyUsage?.(snapshot)
-      return snapshot
+    connectOpenRouter: async (isRemote, signal) => {
+      const exchanger = deps.exchanger
+      if (exchanger === undefined) throw new Error(UI_TEXT.providerConnectFailed)
+      try {
+        const connection = await connectOpenRouterAccount({
+          pkce: deps.pkce,
+          exchange: exchanger,
+          openBrowser: deps.ui.openBrowser,
+          startServer: deps.startLoopback,
+          promptForPastedCode: () => promptOpenRouterCode(deps.ui.showInputBox, signal),
+          isRemote,
+          ...(deps.ui.onDiscardedKey !== undefined && { onDiscardedKey: deps.ui.onDiscardedKey }),
+          ...(signal !== undefined && { signal }),
+        })
+        return connection === undefined ? undefined : { key: connection.key }
+      } catch {
+        if (signal?.aborted) return
+        throw new Error(UI_TEXT.providerConnectFailed)
+      }
     },
+    openRouterUsage: createOpenRouterUsageReader({
+      reader: deps.usage,
+      current: (id) => deps.credentials.getProviderCredential(id),
+      ...(deps.onKeyUsage !== undefined && { onKeyUsage: deps.onKeyUsage }),
+    }),
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),

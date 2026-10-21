@@ -77,9 +77,11 @@ export interface ReportMailPort {
   confirmFirstSend(message: ReportMailMessage): Promise<boolean>
 }
 function addressKey(address: string): string {
+  const reportUi = UI_TEXT.reportUi
+
   // SMTP local parts may be case sensitive. Only the domain is case folded.
   const validation = reportEmailAddressSchema.safeParse(address)
-  if (!validation.success) throw new Error(UI_TEXT.reportUi.recipientUnverified)
+  if (!validation.success) throw new Error(reportUi.recipientUnverified)
   return validation.data.replace(/@[^@]+$/, (domain) => domain.toLowerCase())
 }
 function codeDigest(salt: string, code: string): string {
@@ -95,6 +97,8 @@ export class ReportEmailDelivery {
   ) {}
 
   private async connectionAllowed(connection: ReportMailConnection): Promise<boolean> {
+    const reportUi = UI_TEXT.reportUi
+
     try {
       const validation = connectionPolicySchema.safeParse(
         await this.port.connectionPolicy(reportConnectionSchema.parse(connection)),
@@ -108,7 +112,7 @@ export class ReportEmailDelivery {
     } catch {
       // Provider details and unknown schema keys never escape the interactive boundary.
     }
-    throw new Error(UI_TEXT.reportUi.tlsRequired)
+    throw new Error(reportUi.tlsRequired)
   }
 
   private async reserve(): Promise<boolean> {
@@ -133,12 +137,14 @@ export class ReportEmailDelivery {
     address: string,
     connection: ReportMailConnection,
   ): Promise<ReportDeliveryReceipt> {
+    const reportUi = UI_TEXT.reportUi
+
     const recipient = addressKey(address)
     let isAllowed: boolean
     try {
       isAllowed = await this.port.isRecipientAllowed(recipient)
-    } catch {
-      throw new Error(UI_TEXT.reportUi.recipientUnverified)
+    } catch (error: unknown) {
+      throw new Error(reportUi.recipientUnverified, { cause: error })
     }
     if (!isAllowed || !(await this.connectionAllowed(connection))) return { status: 'failed' }
     try {
@@ -156,32 +162,35 @@ export class ReportEmailDelivery {
         },
         value: undefined,
       }))
-      const text = fill(UI_TEXT.reportUi.verificationMessage, { code })
+      const text = fill(reportUi.verificationMessage, { code })
       const message: ReportMailMessage = {
         to: recipient,
-        subject: UI_TEXT.reportUi.verifyCode,
+        subject: reportUi.verifyCode,
         text,
         html: `<p>${text}</p>`,
         attachment: null,
       }
       try {
-        return reportDeliveryReceiptSchema.parse(
-          await this.port.send(connection, message, {
-            requester: 'report:verify-recipient',
-            idempotencyKey: salt,
-            requireTls: true,
-            rejectUnauthorized: true,
-          }),
-        )
+        const receipt = await this.port.send(connection, message, {
+          requester: 'report:verify-recipient',
+          idempotencyKey: salt,
+          requireTls: true,
+          rejectUnauthorized: true,
+        })
+        // A receipt that will not parse after a send is uncertain, never failed:
+        // the code may already be on its way and must not be sent twice.
+        return reportDeliveryReceiptSchema.parse(receipt)
       } catch {
         return { status: 'uncertain' }
       }
-    } catch {
-      throw new Error(UI_TEXT.reportUi.recipientUnverified)
+    } catch (error: unknown) {
+      throw new Error(reportUi.recipientUnverified, { cause: error })
     }
   }
 
   async verify(address: string, code: string): Promise<boolean> {
+    const reportUi = UI_TEXT.reportUi
+
     try {
       const recipient = addressKey(address)
       if (!(await this.port.isRecipientAllowed(recipient))) return false
@@ -213,8 +222,8 @@ export class ReportEmailDelivery {
           value: isValid,
         }
       })
-    } catch {
-      throw new Error(UI_TEXT.reportUi.recipientUnverified)
+    } catch (error: unknown) {
+      throw new Error(reportUi.recipientUnverified, { cause: error })
     }
   }
 
@@ -230,10 +239,12 @@ export class ReportEmailDelivery {
   }
 
   message(address: string, payload: ReportDeliveryPayload): ReportMailMessage {
+    const reportUi = UI_TEXT.reportUi
+
     const scrub = reportScrubber(this.redaction)
     return {
       to: addressKey(address),
-      subject: UI_TEXT.reportUi.title,
+      subject: reportUi.title,
       html: scrub(payload.html),
       text: scrub(payload.text),
       attachment: {

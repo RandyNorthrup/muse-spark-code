@@ -60,8 +60,11 @@ export function fenced(text: string, language = ''): string {
 function prettyArgs(args: string): { readonly text: string; readonly language: string } {
   try {
     return { text: JSON.stringify(JSON.parse(args), undefined, JSON_INDENT), language: 'json' }
-  } catch {
-    return { text: args, language: '' }
+  } catch (error) {
+    // Only malformed JSON keeps the raw text: anything else the parser
+    // cannot shape is raised, never quiet formatting.
+    if (error instanceof SyntaxError) return { text: args, language: '' }
+    throw error
   }
 }
 
@@ -206,9 +209,9 @@ function agentSection(item: ItemSnapshot): string | undefined {
 }
 
 /**
- * One item as its section of the Markdown export; undefined for items the
- * panel hides. The share view (M84) renders a shared file with it too.
- */
+One item as its section of the Markdown export; undefined for items the
+panel hides. The share view (M84) renders a shared file with it too.
+*/
 export function transcriptItemMarkdown(item: ItemSnapshot): string | undefined {
   switch (item.kind) {
     case USER_MESSAGE: {
@@ -254,8 +257,8 @@ export function renderTranscriptMarkdown(input: TranscriptExport | ChatShareDocu
         [UI_TEXT.exportThinkingHeading, item.reasoning],
         [UI_TEXT.diffTallyLabel, item.diff],
       ]
-      for (const [label, value] of fields) {
-        if (value !== undefined) lines.push('', label ?? '', '', fenced(value))
+      for (const [label = '', value] of fields) {
+        if (value !== undefined) lines.push('', label, '', fenced(value))
       }
       const attachments = item.attachments ?? []
       for (const attachment of attachments) {
@@ -283,7 +286,7 @@ export function renderTranscriptMarkdown(input: TranscriptExport | ChatShareDocu
   ].join('\n')
   const sections = input.items.flatMap((item) => {
     const section = transcriptItemMarkdown(item)
-    return section === undefined ? [] : [section]
+    return section ?? []
   })
   return `${[header, '---', ...sections].join('\n\n')}\n`
 }

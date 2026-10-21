@@ -1,6 +1,5 @@
 import * as z from 'zod/mini'
 import {
-  VAULT_APPROVAL_TTL_MS,
   VAULT_BASE64_GROUP_CHARS,
   VAULT_FORMAT_VERSION,
   VAULT_KDF,
@@ -40,8 +39,10 @@ export const vaultOriginSchema = text.check(
         u.username === '' &&
         u.password === ''
       )
-    } catch {
-      return false
+    } catch (error) {
+      // A malformed origin is invalid input. Anything else keeps its kind.
+      if (error instanceof TypeError) return false
+      throw error
     }
   }),
 )
@@ -56,8 +57,10 @@ const resource = text.check(
         u.password === '' &&
         u.hash === ''
       )
-    } catch {
-      return false
+    } catch (error) {
+      // A malformed resource is invalid input. Anything else keeps its kind.
+      if (error instanceof TypeError) return false
+      throw error
     }
   }),
 )
@@ -69,6 +72,8 @@ export const vaultIssuerSchema = z
     z.maxLength(VAULT_LIMITS.text),
     z.regex(/^[hH][tT][tT][pP][sS]:\/\/[^/?#\\\s@]+(?:\/[^?#\\\s\0]*)?$/u),
   )
+/** OAuth protected resources: an http(s) address without credentials or a fragment. */
+export const vaultResourceSchema = resource
 const fingerprint = text.check(z.regex(/^SHA256:[A-Za-z0-9+/]{43}$/u))
 const names = z.array(text).check(
   z.minLength(1),
@@ -382,6 +387,8 @@ export type VaultItemMetadata = z.infer<typeof vaultItemMetadataSchema>
 export const vaultMaterialSchema = z.union([
   z.strictObject({
     kind: z.literal('apiKey'),
+    // Private import review identity; encrypted with material, never metadata.
+    importTarget: z.optional(text),
     value: bytes,
     auth: z.enum(['bearer', 'apiKey', 'header']),
     origin,
@@ -406,7 +413,12 @@ export const vaultMaterialSchema = z.union([
     keyReference: text,
     algorithm: z.literal('ecdsa-p256'),
   }),
-  z.strictObject({ kind: z.literal('password'), username: z.nullable(bytes), password: bytes }),
+  z.strictObject({
+    kind: z.literal('password'),
+    importTarget: z.optional(text),
+    username: z.nullable(bytes),
+    password: bytes,
+  }),
   z.strictObject({
     kind: z.literal('webLogin'),
     origins: z.array(httpsOrigin).check(z.minLength(1), z.maxLength(VAULT_LIMITS.names)),
@@ -427,7 +439,7 @@ export const vaultMaterialSchema = z.union([
     cookies: bytes,
     expiresAt: time,
   }),
-  z.strictObject({ kind: z.literal('secret'), value: bytes }),
+  z.strictObject({ kind: z.literal('secret'), importTarget: z.optional(text), value: bytes }),
   z.strictObject({ kind: z.literal('devicePair'), value: bytes }),
   z.strictObject({ kind: z.literal('internal'), value: bytes }),
 ])
@@ -461,24 +473,17 @@ export const vaultTaintSchema = z
   .check(z.refine((v) => v.tainted || v.reasons.length === 0))
 export type VaultTaint = z.infer<typeof vaultTaintSchema>
 
-export const vaultApprovalRequestSchema = z
-  .strictObject({
-    id,
-    requester: vaultRequesterSchema,
-    item: vaultItemMetadataSchema,
-    use: vaultUseSchema,
-    digest,
-    nonce: id,
-    createdAt: time,
-    expiresAt: time,
-    lockEpoch: time,
-    taint: vaultTaintSchema,
-  })
-  .check(
-    z.refine(
-      (v) => v.expiresAt > v.createdAt && v.expiresAt - v.createdAt <= VAULT_APPROVAL_TTL_MS,
-    ),
-  )
+export const vaultApprovalRequestSchema = z.strictObject({
+  id,
+  requester: vaultRequesterSchema,
+  item: vaultItemMetadataSchema,
+  use: vaultUseSchema,
+  digest,
+  nonce: id,
+  createdAt: time,
+  lockEpoch: time,
+  taint: vaultTaintSchema,
+})
 export type VaultApprovalRequest = z.infer<typeof vaultApprovalRequestSchema>
 export const vaultApprovalAnswerSchema = z.strictObject({
   requestId: id,
@@ -495,13 +500,13 @@ export const vaultTicketSchema = z
     digest,
     nonce: id,
     issuedAt: time,
-    expiresAt: time,
+    // The item's own lifetime, or null when it never expires: a grant is
+    // single-use and owner-revoked, never clocked by us (owner 2026-10-16).
+    expiresAt: z.nullable(time),
     lockEpoch: time,
     maxUses: z.literal(1),
   })
-  .check(
-    z.refine((v) => v.expiresAt > v.issuedAt && v.expiresAt - v.issuedAt <= VAULT_APPROVAL_TTL_MS),
-  )
+  .check(z.refine((v) => v.expiresAt === null || v.expiresAt > v.issuedAt))
 export type VaultTicket = z.infer<typeof vaultTicketSchema>
 
 /** Audit stores a digest and redacted target, never the raw argv or a value. */
@@ -645,6 +650,8 @@ export interface VaultSlotPort {
   readonly tier: VaultSlotRecord['tier']
   wrap(key: Uint8Array): Promise<VaultSlotRecord>
   unwrap(slot: VaultSlotRecord, use: string): Promise<Uint8Array>
+  /** Roll back a setup that wrapped but never committed; absent where the tier cannot. */
+  remove?(): Promise<void>
 }
 export interface VaultClockPort {
   now(): number

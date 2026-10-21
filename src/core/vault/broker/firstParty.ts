@@ -20,11 +20,14 @@ export class VaultFirstPartyReader {
     let client: VaultBrokerClient
     try {
       client = await this.connect()
-    } catch {
-      if (!this.fallback) throw new Error(UI_TEXT.vault.brokerBlocked)
+    } catch (error: unknown) {
+      // The connect failure rides along wherever this read denies; a
+      // fallback attempt still supersedes it and its own outcome rules.
+      if (!this.fallback) throw new Error(UI_TEXT.vault.brokerBlocked, { cause: error })
       const fallback = await this.fallback()
       const status = await fallback.broker.status()
-      if (status.state !== 'firstPartyOnly') throw new Error(UI_TEXT.vault.brokerBlocked)
+      if (status.state !== 'firstPartyOnly')
+        throw new Error(UI_TEXT.vault.brokerBlocked, { cause: error })
       return await fallback.broker.firstPartyRead(fallback.peer, request)
     }
     let bytes: Buffer | undefined

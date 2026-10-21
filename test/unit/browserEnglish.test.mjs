@@ -33,7 +33,10 @@ it('keeps account, developer and help values out of startup and loads them exact
   // developer English does; browserUiText mounts the accounts and vault
   // surfaces and pins their on-demand loading.
   expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
-  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
+  // The vault section mount put the vault surface in-graph, so the vault
+  // group travels deferred like accounts and developer (a guarded accessor
+  // with no startup values) instead of staying out of the table outright.
+  expect(() => built.bundle.UI_TEXT.vault).toThrow('English surface is not loaded')
   expect(() => built.bundle.UI_TEXT.developer).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
   // rest of the schedule English loads only with the schedule surfaces.
@@ -47,6 +50,25 @@ it('keeps account, developer and help values out of startup and loads them exact
     Object.hasOwn(output.inputs, 'browser-schedule-english:browser-schedule-english'),
   )
   expect(scheduleChunk?.[0]).not.toBe(chunk[0])
+  // M116: the playbook's English rides its own deferred chunk, out of the
+  // shared surface closure.
+  const playbookChunk = Object.entries(built.meta.outputs).find(([, output]) =>
+    Object.hasOwn(output.inputs, 'browser-playbook-english:browser-playbook-english'),
+  )
+  expect(playbookChunk).toBeDefined()
+  expect(playbookChunk?.[0]).not.toBe(chunk[0])
+  // JOIN0190: the ChatGPT sign-in's and the team runners' English ride
+  // their own deferred chunks, out of the shared surface closure.
+  const chatGptChunk = Object.entries(built.meta.outputs).find(([, output]) =>
+    Object.hasOwn(output.inputs, 'browser-chatgpt-english:browser-chatgpt-english'),
+  )
+  expect(chatGptChunk).toBeDefined()
+  expect(chatGptChunk?.[0]).not.toBe(chunk[0])
+  const runnersChunk = Object.entries(built.meta.outputs).find(([, output]) =>
+    Object.hasOwn(output.inputs, 'browser-runners-english:browser-runners-english'),
+  )
+  expect(runnersChunk).toBeDefined()
+  expect(runnersChunk?.[0]).not.toBe(chunk[0])
   const main = Object.entries(built.meta.outputs).find(([file]) => file.endsWith('probe.mjs'))
   const seen = new Set()
   const reachesLoader = (file) => {
@@ -66,10 +88,11 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.installEmbeddedTable(embedded(german))).toBeUndefined()
   await Promise.all([built.bundle.loadDeferredEnglish(), built.bundle.loadDeferredEnglish()])
   expect(built.bundle.UI_TEXT).toEqual(german)
-  // The vault group's English loads with the vault surface alone (CAPS017);
-  // with no vault surface installed, its installer adds no key to this table.
+  // The vault group's English loads with the vault surface alone (CAPS017):
+  // its installer supplies English through the deferred channel while the
+  // installed table keeps winning.
   built.bundle.installVaultEnglish()
-  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
+  expect(built.bundle.UI_TEXT.vault).toEqual(german.vault)
   // M107 U-C1: English read only by the resource chip and pages loads with
   // those surfaces (their modules import it), never with the other deferred groups.
   const resourceOnly = Object.keys(built.bundle.EN).filter((key) => {

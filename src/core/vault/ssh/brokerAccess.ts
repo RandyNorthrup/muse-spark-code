@@ -52,10 +52,10 @@ export function brokerSshAccess(deps: {
   hardware: SshHardwarePort
   external?: SshExternalAgentPort
   /**
-   * The requester's role ceiling. A ceiling of none hides reviewed external
-   * identities too: enumeration belongs to the visible set, and an external
-   * key is outside a none ceiling exactly as a vault key is.
-   */
+  The requester's role ceiling. A ceiling of none hides reviewed external
+  identities too: enumeration belongs to the visible set, and an external
+  key is outside a none ceiling exactly as a vault key is.
+  */
   ceiling?: VaultCeiling
 }): SshAccessPort {
   const requester = vaultRequesterSchema.parse(deps.requester)

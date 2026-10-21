@@ -14,7 +14,6 @@ import { Buffer } from 'node:buffer'
 import { createContext, Script } from 'node:vm'
 import {
   HOOK_CONFIG_MAX_BYTES,
-  HOOK_DEFAULT_TIMEOUT_SECONDS,
   HOOK_FORBIDDEN_ENV_NAMES,
   HOOK_FORMATS,
   HOOK_HTTP_URL_MAX_CHARS,
@@ -22,12 +21,12 @@ import {
   HOOK_MATCHER_COMPILE_TIMEOUT_MS,
   HOOK_MATCHER_TIMEOUT_MS,
   HOOK_MATCHER_VALUE_MAX_CHARS,
-  HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MANAGED_ENV_MAX_NAMES,
   HOOK_MANAGED_ENV_NAME_MAX_CHARS,
   HOOK_ON_FAILURE_MAX_DEPTH,
   HOOK_SOURCE_MAX_HANDLERS,
   HOOK_TOTAL_MAX_HANDLERS,
+  HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MAX_TIMEOUT_SECONDS,
   HOOK_STDIN_MAX_BYTES,
   HOOK_SYSTEM_MESSAGE_MAX_CHARS,
@@ -36,7 +35,6 @@ import {
   HOOK_DELETE_CODE,
   MILLISECONDS_PER_SECOND,
   PLUGIN_FORMATS,
-  PLUGIN_HOOK_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
@@ -66,6 +64,10 @@ export const HOOK_EVENTS = [
   'Notification',
   'Interrupt',
   'SessionFork',
+  // ToolUseStart (MSP `toolUseStart`, D-HOOKREF: observe-only, no block, no
+  // context, no stop) parses but fires nothing until the runner gains a
+  // tool-start firing point, like SessionFork above.
+  'ToolUseStart',
 ] as const
 
 export type HookEvent = (typeof HOOK_EVENTS)[number]
@@ -85,16 +87,21 @@ export interface HookDefinition {
   readonly mcpTool?: string | undefined
   /** `prompt` and `agent`: the configured model prompt. */
   readonly modelPrompt?: string | undefined
-  readonly timeoutSeconds: number
+  /**
+  D121: no default deadline of ours — absent means the hook runs until it
+  ends or the person stops it. Only an explicitly set per-hook timeout
+  still bounds it (validated against HOOK_MAX_TIMEOUT_SECONDS).
+  */
+  readonly timeoutSeconds?: number | undefined
   readonly matcher: HookMatcher | undefined
   readonly extraEnvNames?: readonly string[]
   readonly isAsync: boolean
   readonly onFailure?: HookDefinition
   /**
-   * A hook imported in another agent's format (M91 lane W, PLAN.md D70): it
-   * never runs natively. Its stdin and answer go through lane P's adapter,
-   * which `dispatchHooks` takes from the caller; without one it is skipped.
-   */
+  A hook imported in another agent's format (M91 lane W, PLAN.md D70): it
+  never runs natively. Its stdin and answer go through lane P's adapter,
+  which `dispatchHooks` takes from the caller; without one it is skipped.
+  */
   readonly foreign?: ForeignHookSpec
 }
 
@@ -141,11 +148,11 @@ export type ForeignRunResult =
   /** Could not start, or its output went past the cap. */
   | { readonly kind: 'crash' }
   /**
-   * Never started: its stdin could not be translated, or its directory left
-   * the workspace. `blockOperation`: lane P's rule for a blocking source event
-   * whose input cannot be built: the guarded operation is refused, never let
-   * through as a failed hook.
-   */
+  Never started: its stdin could not be translated, or its directory left
+  the workspace. `blockOperation`: lane P's rule for a blocking source event
+  whose input cannot be built: the guarded operation is refused, never let
+  through as a failed hook.
+  */
   | { readonly kind: 'refused'; readonly reason: string; readonly blockOperation?: true }
 
 export type ForeignPreparation =
@@ -157,9 +164,9 @@ export type ForeignPreparation =
       readonly command?: string | undefined
     }
   /**
-   * An Amp or OpenCode plugin (M91b): the adapter runs it in its own child
-   * and answers by the source's rules; hooks.ts gives it the host-wide cap.
-   */
+  An Amp or OpenCode plugin (M91b): the adapter runs it in its own child
+  and answers by the source's rules; hooks.ts gives it the host-wide cap.
+  */
   | {
       readonly outcome: 'plugin'
       readonly run: (signal: AbortSignal | undefined) => Promise<HookAnswer>
@@ -305,18 +312,19 @@ async function readHookText(
       return undefined
     }
     return decoded.text
-  } catch (error: unknown) {
-    deps.warn(`${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`)
+  } catch {
+    // The record names the unreadable file, never the failure's text.
+    deps.warn(`${path.basename(file)}: hook configuration could not be read`)
     return undefined
   }
 }
 
 /**
- * Sources stay in Muse Code's managed, user, project order for one session.
- * An untrusted workspace loads none of them: a user or managed hook commonly
- * runs the workspace's own tools (a formatter, `npm test`), and Restricted
- * Mode promises that no shell command runs.
- */
+Sources stay in Muse Code's managed, user, project order for one session.
+An untrusted workspace loads none of them: a user or managed hook commonly
+runs the workspace's own tools (a formatter, `npm test`), and Restricted
+Mode promises that no shell command runs.
+*/
 export async function loadHookDefinitions(deps: HookLoadDeps): Promise<readonly HookDefinition[]> {
   if (!deps.isWorkspaceTrusted()) {
     return []
@@ -423,6 +431,10 @@ const WIRED_EVENTS = new Set<HookEvent>([
   'Notification',
   'Interrupt',
   'SessionFork',
+  // ToolUseStart (MSP `toolUseStart`, D-HOOKREF: observe-only) stays
+  // parsed but unwired: no tool-start firing point exists, so keeping it
+  // here would silently ignore a configured hook. Configuring it warns
+  // `not wired on the Model API backend` until that firing point lands.
 ])
 
 function isRecord(value: unknown): value is HookRecord {
@@ -616,7 +628,8 @@ function handler(
       let scheme: string
       try {
         scheme = new URL(value.url).protocol
-      } catch {
+      } catch (error: unknown) {
+        if (!(error instanceof TypeError)) throw error
         return 'http handler url is invalid'
       }
       if (scheme !== 'https:') {
@@ -675,10 +688,7 @@ function handler(
     ...(mcpServer !== undefined && { mcpServer }),
     ...(mcpTool !== undefined && { mcpTool }),
     ...(modelPrompt !== undefined && { modelPrompt }),
-    timeoutSeconds: Math.max(
-      typeof value.timeout === 'number' ? value.timeout : HOOK_DEFAULT_TIMEOUT_SECONDS,
-      1,
-    ),
+    ...(typeof value.timeout === 'number' && { timeoutSeconds: Math.max(value.timeout, 1) }),
     matcher,
     isAsync: value.async === true,
     ...(onFailure !== undefined && { onFailure }),
@@ -695,7 +705,8 @@ function hooksObjectOf(text: string | undefined): HooksObject {
   let document: unknown
   try {
     document = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, fault: 'json' }
   }
   return isRecord(document) && isRecord(document.hooks)
@@ -935,10 +946,10 @@ function pluginPath(value: unknown, platform: NodeJS.Platform): string | undefin
 }
 
 /**
- * An Amp or OpenCode plugin group (M91b): one `{ type: 'plugin' }` handler
- * and the plugin's absolute path. Built here, not by `handler()`, which
- * takes commands only; its timeout and matcher follow the native rules.
- */
+An Amp or OpenCode plugin group (M91b): one `{ type: 'plugin' }` handler
+and the plugin's absolute path. Built here, not by `handler()`, which
+takes commands only; its timeout and matcher follow the native rules.
+*/
 function pluginGroup(
   group: HookRecord,
   spec: ForeignHookSpec,
@@ -981,10 +992,9 @@ function pluginGroup(
     event,
     source,
     command: plugin,
-    timeoutSeconds: Math.max(
-      typeof timeout === 'number' ? timeout : PLUGIN_HOOK_TIMEOUT_MS / MILLISECONDS_PER_SECOND,
-      1,
-    ),
+    // D121: no default of ours — without an explicit timeout the plugin
+    // hook waits for the child's answer or Stop.
+    ...(typeof timeout === 'number' && { timeoutSeconds: Math.max(timeout, 1) }),
     matcher,
     isAsync: group.async === true,
     foreign: { ...spec, plugin },
@@ -1056,10 +1066,10 @@ function foreignGroup(
 }
 
 /**
- * The imported hooks of one spark-hooks.json: its groups that carry a
- * `format` tag, on Muse Code's events. Everything else in the file is lane
- * E's (the extension events and the native groups) and is passed over here.
- */
+The imported hooks of one spark-hooks.json: its groups that carry a
+`format` tag, on Muse Code's events. Everything else in the file is lane
+E's (the extension events and the native groups) and is passed over here.
+*/
 export function parseForeignHooks(
   text: string | undefined,
   source: Extract<HookSource, 'user' | 'project'>,
@@ -1093,10 +1103,10 @@ export function parseForeignHooks(
 }
 
 /**
- * The imported hooks of both spark-hooks.json files, under M51's gates: an
- * untrusted workspace loads none, the project's file is confined to the
- * workspace, and the caller keeps the per-session snapshot.
- */
+The imported hooks of both spark-hooks.json files, under M51's gates: an
+untrusted workspace loads none, the project's file is confined to the
+workspace, and the caller keeps the per-session snapshot.
+*/
 export async function loadForeignHookDefinitions(
   deps: HookLoadDeps,
 ): Promise<readonly HookDefinition[]> {
@@ -1124,11 +1134,11 @@ export async function loadForeignHookDefinitions(
 }
 
 /**
- * Matcher grammar is from Muse Code 1.3.0; tool aliases are resolved by
- * caller. `timeoutMs` bounds one regular-expression match; only tests pass
- * another value, so a loaded rig cannot lapse a deadline the test does not
- * measure.
- */
+Matcher grammar is from Muse Code 1.3.0; tool aliases are resolved by
+caller. `timeoutMs` bounds one regular-expression match; only tests pass
+another value, so a loaded rig cannot lapse a deadline the test does not
+measure.
+*/
 export function matchingHooks(
   hooks: readonly HookDefinition[],
   event: HookEvent,
@@ -1174,6 +1184,8 @@ interface HookWaiter {
   readonly reject: (error: Error) => void
   readonly signal: AbortSignal | undefined
   readonly onAbort: () => void
+  /** The cap its own dispatch asked for; a freed slot is handed over only under it. */
+  readonly maxRunningCommands: number
 }
 
 interface HookCommandState {
@@ -1183,25 +1195,44 @@ interface HookCommandState {
 const commandState: HookCommandState = { running: 0, waiters: [] }
 const processState: HookCommandState = { running: 0, waiters: [] }
 
-function releaseCommand(state: HookCommandState): void {
-  const next = state.waiters.shift()
-  if (next === undefined) {
-    state.running -= 1
-    return
+function wakeEligibleWaiters(state: HookCommandState): void {
+  // Hand room to queued waiters in order, each under its own cap: a
+  // dispatch whose cap was lowered after others started (the setting is
+  // read per dispatch) waits until the running count is under its cap,
+  // instead of inheriting a slot freed above it.
+  for (;;) {
+    const next = state.waiters[0]
+    if (
+      next === undefined ||
+      (next.maxRunningCommands !== 0 && state.running >= next.maxRunningCommands)
+    ) {
+      return
+    }
+    state.waiters.shift()
+    state.running += 1
+    next.signal?.removeEventListener('abort', next.onAbort)
+    next.resolve()
   }
-  next.signal?.removeEventListener('abort', next.onAbort)
-  next.resolve()
 }
 
-/** One extension-host-wide cap: several sessions cannot spawn unlimited hooks. */
+function releaseCommand(state: HookCommandState): void {
+  state.running -= 1
+  wakeEligibleWaiters(state)
+}
+
+/**
+One extension-host-wide cap (M127): 0 runs everything at once, as Muse
+Code starts all matching handlers at once; otherwise at most this many.
+*/
 async function acquireCommand(
   signal: AbortSignal | undefined,
   state: HookCommandState = commandState,
+  maxRunningCommands: number = HOOK_MAX_RUNNING_COMMANDS,
 ): Promise<() => void> {
   if (signal?.aborted === true) {
     throw new Error('hook command cancelled')
   }
-  if (state.running < HOOK_MAX_RUNNING_COMMANDS) {
+  if (maxRunningCommands === 0 || state.running < maxRunningCommands) {
     state.running += 1
     return () => {
       releaseCommand(state)
@@ -1212,10 +1243,13 @@ async function acquireCommand(
       const index = state.waiters.findIndex((candidate) => candidate.onAbort === onAbort)
       if (index !== -1) {
         state.waiters.splice(index, 1)
+        // The removed waiter may have headed the queue under a lower cap;
+        // hand its place to the waiters behind it while room allows.
+        wakeEligibleWaiters(state)
       }
       reject(new Error('hook command cancelled'))
     }
-    const waiter: HookWaiter = { resolve, reject, signal, onAbort }
+    const waiter: HookWaiter = { resolve, reject, signal, onAbort, maxRunningCommands }
     state.waiters.push(waiter)
     signal?.addEventListener('abort', onAbort, { once: true })
     if (signal?.aborted === true) {
@@ -1227,9 +1261,16 @@ async function acquireCommand(
   }
 }
 
-/** The production IO cap is shared by lazy dispatch bundles, separate from admission. */
-export async function acquireHookProcessSlot(signal: AbortSignal | undefined): Promise<() => void> {
-  return await acquireCommand(signal, processState)
+/**
+The production IO cap is shared by lazy dispatch bundles, separate from
+admission: the caller passes its configured running-commands value (0
+runs everything at once), or the extension-host fallback cap applies.
+*/
+export async function acquireHookProcessSlot(
+  signal: AbortSignal | undefined,
+  maxRunningCommands: number = HOOK_MAX_RUNNING_COMMANDS,
+): Promise<() => void> {
+  return await acquireCommand(signal, processState, maxRunningCommands)
 }
 
 async function runBoundedHook(
@@ -1238,14 +1279,17 @@ async function runBoundedHook(
   cwd: string,
   runner: NonNullable<ToolIo['runHook']>,
   signal: AbortSignal | undefined,
+  maxRunningCommands: number,
 ): Promise<ShellResult> {
-  const release = await acquireCommand(signal)
+  const release = await acquireCommand(signal, commandState, maxRunningCommands)
   try {
     return await runner(
       hook.command,
       serialized,
       cwd,
-      hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+      // D121: no default deadline of ours — absent runs until it ends or the
+      // person stops it; only an explicitly set per-hook timeout still bounds it.
+      hook.timeoutSeconds === undefined ? undefined : hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
       signal,
       hook.extraEnvNames,
     )
@@ -1264,6 +1308,7 @@ async function runTypedHook(
   typed: TypedHookHandlers | undefined,
   signal: AbortSignal | undefined,
   warn: (message: string) => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   const type = hook.type ?? 'command'
   if (type === 'command') {
@@ -1276,12 +1321,23 @@ async function runTypedHook(
     warn(`${event}: ${type} hook runner is unavailable`)
     return undefined
   }
-  const timeout = AbortSignal.timeout(hook.timeoutSeconds * MILLISECONDS_PER_SECOND)
-  const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
+  // D121: no default deadline of ours — only an explicitly set per-hook
+  // timeout still bounds the typed run; otherwise the caller's signal alone
+  // ends it.
+  const timeout =
+    hook.timeoutSeconds === undefined
+      ? undefined
+      : AbortSignal.timeout(hook.timeoutSeconds * MILLISECONDS_PER_SECOND)
+  // A hook with no explicit timeout and no caller signal waits on a signal
+  // that never aborts: nothing of ours bounds the run.
+  const combined =
+    timeout !== undefined && signal !== undefined
+      ? AbortSignal.any([signal, timeout])
+      : (timeout ?? signal ?? AbortSignal.any([]))
   const runFallback = (): Promise<HookAnswer | undefined> =>
     runner === undefined || hook.onFailure === undefined
       ? Promise.resolve(undefined)
-      : runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      : runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn, maxRunningCommands)
   let answer: HookAnswer | undefined
   try {
     combined.throwIfAborted()
@@ -1320,7 +1376,7 @@ async function runTypedHook(
     warn(`${event}: ${hook.source} hook failed`)
     return await runFallback()
   }
-  if (timeout.aborted && signal?.aborted !== true) {
+  if (timeout !== undefined && timeout.aborted && signal?.aborted !== true) {
     warn(`${event}: ${hook.source} hook timed out`)
     return await runFallback()
   }
@@ -1342,13 +1398,14 @@ async function runHandler(
   runner: NonNullable<ToolIo['runHook']>,
   signal: AbortSignal | undefined,
   warn: (message: string) => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   if ((hook.type ?? 'command') !== 'command') {
     throw new Error('a typed handler never reaches the command runner')
   }
   let result: ShellResult
   try {
-    result = await runBoundedHook(hook, serialized, cwd, runner, signal)
+    result = await runBoundedHook(hook, serialized, cwd, runner, signal, maxRunningCommands)
   } catch {
     if (signal?.aborted === true) {
       return undefined
@@ -1358,7 +1415,16 @@ async function runHandler(
     warn(`${event}: ${hook.source} hook could not start`)
     return hook.onFailure === undefined
       ? undefined
-      : await runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      : await runHandler(
+          hook.onFailure,
+          event,
+          serialized,
+          cwd,
+          runner,
+          signal,
+          warn,
+          maxRunningCommands,
+        )
   }
   if (result.isCancelled) {
     return undefined
@@ -1369,13 +1435,31 @@ async function runHandler(
     )
     return hook.onFailure === undefined
       ? undefined
-      : await runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      : await runHandler(
+          hook.onFailure,
+          event,
+          serialized,
+          cwd,
+          runner,
+          signal,
+          warn,
+          maxRunningCommands,
+        )
   }
   const answer = parseHookAnswer(event, result.exitCode, result.stdout, result.stderr)
   if (answer.status === 'failed') {
     warn(`${event}: ${hook.source} hook failed (exit ${String(result.exitCode)})`)
     return result.exitCode !== 0 && hook.onFailure !== undefined
-      ? await runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      ? await runHandler(
+          hook.onFailure,
+          event,
+          serialized,
+          cwd,
+          runner,
+          signal,
+          warn,
+          maxRunningCommands,
+        )
       : undefined
   }
   return answer
@@ -1392,19 +1476,20 @@ function withoutGrant(answer: HookAnswer): HookAnswer {
 }
 
 /**
- * A plugin hook (M91b) under the same host-wide cap as every hook process;
- * its answer goes through the same judge, so no grant survives and a
- * failure never becomes feedback. A cancelled call answers nothing.
- */
+A plugin hook (M91b), starting like every hook process; its answer goes
+through the same judge, so no grant survives and a failure never becomes
+feedback. A cancelled call answers nothing.
+*/
 async function runPluginHandler(
   run: (signal: AbortSignal | undefined) => Promise<HookAnswer>,
   signal: AbortSignal | undefined,
   judgeAnswer: (answer: HookAnswer) => HookAnswer | undefined,
   onUnstarted: () => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   let release: () => void
   try {
-    release = await acquireCommand(signal)
+    release = await acquireCommand(signal, commandState, maxRunningCommands)
   } catch {
     return undefined
   }
@@ -1423,13 +1508,13 @@ async function runPluginHandler(
 }
 
 /**
- * One imported hook (M91 lane W): its adapter builds the stdin its source
- * agent would send, the process runs under the same cap, environment and
- * kill as a native hook, and the adapter reads the ending by that source's
- * rules. A timeout is told apart from a crash, since Copilot lets a timed-out
- * guard through and Cursor's failClosed blocks on either. A failure never
- * becomes feedback, and an answer is never a grant.
- */
+One imported hook (M91 lane W): its adapter builds the stdin its source
+agent would send, the process runs under the same cap, environment and
+kill as a native hook, and the adapter reads the ending by that source's
+rules. A timeout is told apart from a crash, since Copilot lets a timed-out
+guard through and Cursor's failClosed blocks on either. A failure never
+becomes feedback, and an answer is never a grant.
+*/
 async function runForeignHandler(
   hook: HookDefinition,
   spec: ForeignHookSpec,
@@ -1440,6 +1525,7 @@ async function runForeignHandler(
   adapter: ForeignHookAdapter,
   context: ForeignDispatchContext | undefined,
   warn: (message: string) => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   const label = `${event}: ${spec.format}-format ${hook.source} hook`
   const judgeAnswer = (given: HookAnswer): HookAnswer | undefined => {
@@ -1472,9 +1558,15 @@ async function runForeignHandler(
     })
   }
   if (prepared.outcome === 'plugin') {
-    return await runPluginHandler(prepared.run, signal, judgeAnswer, () => {
-      warn(`${label} could not start`)
-    })
+    return await runPluginHandler(
+      prepared.run,
+      signal,
+      judgeAnswer,
+      () => {
+        warn(`${label} could not start`)
+      },
+      maxRunningCommands,
+    )
   }
   if (Buffer.byteLength(prepared.stdin) > HOOK_STDIN_MAX_BYTES) {
     warn(`${label} input exceeds limit; it was not started`)
@@ -1483,7 +1575,14 @@ async function runForeignHandler(
   let result: ShellResult
   try {
     const run = prepared.command === undefined ? hook : { ...hook, command: prepared.command }
-    result = await runBoundedHook(run, prepared.stdin, prepared.cwd, runner, signal)
+    result = await runBoundedHook(
+      run,
+      prepared.stdin,
+      prepared.cwd,
+      runner,
+      signal,
+      maxRunningCommands,
+    )
   } catch {
     if (signal?.aborted === true) {
       return undefined
@@ -1511,9 +1610,9 @@ async function runForeignHandler(
 }
 
 /**
- * Execute matching handlers. No hook can grant a tool permission or paid use.
- * Imported hooks run only through `adapter`; without one they are skipped.
- */
+Execute matching handlers. No hook can grant a tool permission or paid use.
+Imported hooks run only through `adapter`; without one they are skipped.
+*/
 export async function dispatchHooks(
   hooks: readonly HookDefinition[],
   event: HookEvent,
@@ -1526,7 +1625,11 @@ export async function dispatchHooks(
   adapter?: ForeignHookAdapter,
   context?: ForeignDispatchContext,
   trackAsync?: (execution: Promise<unknown>) => void,
+  // 0 runs every handler's command at once, as Muse Code does (M127
+  // setting); absent keeps the extension-host fallback cap.
+  options?: { readonly maxRunningCommands?: number },
 ): Promise<HookDispatch> {
+  const maxRunningCommands = options?.maxRunningCommands ?? HOOK_MAX_RUNNING_COMMANDS
   const selected = matchingHooks(hooks, event, matcherValue, warn)
   const serialized = JSON.stringify(payload)
   if (Buffer.byteLength(serialized) > HOOK_STDIN_MAX_BYTES) {
@@ -1573,6 +1676,7 @@ export async function dispatchHooks(
               adapter,
               context,
               warn,
+              maxRunningCommands,
             )
           }
           if ((hook.type ?? 'command') === 'command') {
@@ -1586,6 +1690,7 @@ export async function dispatchHooks(
                   runner,
                   signal,
                   warn,
+                  maxRunningCommands,
                 )
           }
           return await runTypedHook(
@@ -1597,6 +1702,7 @@ export async function dispatchHooks(
             typed,
             signal,
             warn,
+            maxRunningCommands,
           )
         })
   for (const [index, execution] of executions.entries()) {
@@ -1783,7 +1889,8 @@ export function parseHookAnswer(
   let value: unknown
   try {
     value = JSON.parse(trimmed)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { status: 'failed', reason: 'hook output is not valid JSON' }
   }
   if (!isRecord(value) || Object.keys(value).some((key) => !OUTPUT_FIELDS.has(key))) {

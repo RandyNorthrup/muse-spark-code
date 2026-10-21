@@ -17,23 +17,22 @@
 // creation time just before it is killed, so a process that took a dead
 // one's id is never hit.
 
-import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
-
 import {
   execFile,
   spawnSync,
   type SpawnSyncOptions,
   type SpawnSyncReturns,
 } from 'node:child_process'
-import { stopResourceTree } from '../core/resources/admission'
 import type { ResourceLease } from '../core/resources/launch'
-import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
-import {
-  setEnvironmentVariable,
-  windowsPowerShellModulePath,
-} from '../core/backends/musecode/launch'
+import { type GuardedChildEnv } from '../core/executables'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../core/execGuard'
+import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
+import { stopResourceTree } from '../core/resources/admission'
+import { withoutCredentials } from '../core/credentialEnvironment'
+import { realpathSync } from 'node:fs'
 import { powerShellQuoted } from '../core/shellQuote'
+import { describeStoreError } from './backend/storeErrors'
 import {
   GIT_OUTPUT_MAX_BYTES,
   ORPHAN_SWEEP_ROUNDS,
@@ -43,22 +42,25 @@ import {
   SHELL_JOB_TYPE_NAME,
   TREE_EXIT_WAIT_MS,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../shared/constants'
 
 const SIGKILL = 'SIGKILL'
-const PS_MODULE_PATH = 'PSModulePath'
 const TERMINATED = 'terminated'
 const ABSENT = 'absent'
 // A killed process's exit code, as `taskkill /F` gives it.
 const KILLED_EXIT_CODE = 1
 
-/** Runs a program to its end: its stdout, or a rejection on a failure exit. */
+/**
+Runs a program to its end: its stdout, or a rejection on a failure exit.
+The environment is always a guarded child environment (only
+`workspaceChildEnvironment` / `noWorkspaceChildEnvironment` can produce
+one), so a raw `process.env` does not type-check here.
+*/
 export type RunProgram = (
   file: string,
   args: readonly string[],
-  env: NodeJS.ProcessEnv,
+  env: GuardedChildEnv,
   timeoutMs?: number,
 ) => Promise<string>
 
@@ -110,28 +112,6 @@ export const runProgram: RunProgram = (file, args, env, timeoutMs = PROCESS_TABL
     )
   })
 
-/**
- * Windows PowerShell with its own modules (`Get-CimInstance`, `Add-Type`),
- * whatever shell VS Code came from: every spelling of `PSModulePath` is
- * replaced, since Windows hands a child the first one it sorts.
- */
-export function windowsPowerShell(
-  systemRoot: string,
-  base: NodeJS.ProcessEnv = process.env,
-): {
-  readonly file: string
-  readonly env: NodeJS.ProcessEnv
-} {
-  const env = withoutCredentials(base)
-  setEnvironmentVariable(
-    env,
-    'win32',
-    PS_MODULE_PATH,
-    windowsPowerShellModulePath(systemRoot, base['ProgramFiles']),
-  )
-  return { file: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH), env }
-}
-
 function hasExited(root: TreeRoot): boolean {
   return root.exitCode !== null || root.signalCode !== null
 }
@@ -164,10 +144,10 @@ function processTableScript(parents: Iterable<number>): string {
 }
 
 /**
- * Kills each process that still is the one the table showed (same id, same
- * creation time, checked in the same run just before), printing the ids it
- * killed; one that has gone, or whose id another process now holds, is left.
- */
+Kills each process that still is the one the table showed (same id, same
+creation time, checked in the same run just before), printing the ids it
+killed; one that has gone, or whose id another process now holds, is left.
+*/
 function identityKillScript(rows: readonly ProcessRow[]): string {
   // Nested @() arrays flatten in PowerShell's pipeline, turning a FILETIME
   // into the next PID. Hashtable records keep each identity pair together.
@@ -176,10 +156,10 @@ function identityKillScript(rows: readonly ProcessRow[]): string {
 }
 
 /**
- * The rows that are orphans of `ancestors` (each id with the time it died):
- * created after the shell started and before the parent died, so never a
- * child of a later process that took a dead parent's id.
- */
+The rows that are orphans of `ancestors` (each id with the time it died):
+created after the shell started and before the parent died, so never a
+child of a later process that took a dead parent's id.
+*/
 function orphansIn(
   rows: readonly ProcessRow[],
   ancestors: ReadonlyMap<number, number>,
@@ -229,7 +209,7 @@ async function sweepOrphans(
       )
     } catch (error: unknown) {
       deps.log(
-        `the process table could not be read or acted on after killing ${String(shellPid)} (${String(error)}); a child started during the kill may still run`,
+        `the process table could not be read or acted on after killing ${String(shellPid)} (${describeStoreError(error)}); a child started during the kill may still run`,
       )
       return
     }
@@ -254,12 +234,12 @@ async function sweepOrphans(
 }
 
 /**
- * A stdio server may exit before its child does (M50). On POSIX, a child that
- * stayed in the server's process group keeps that group alive after its leader
- * exits; signal it before close resolves. On Windows, the parent is gone, so
- * taskkill has no tree to enumerate; the checked orphan sweep uses its PID and
- * exit time. Neither path contains a child that deliberately detaches itself.
- */
+A stdio server may exit before its child does (M50). On POSIX, a child that
+stayed in the server's process group keeps that group alive after its leader
+exits; signal it before close resolves. On Windows, the parent is gone, so
+taskkill has no tree to enumerate; the checked orphan sweep uses its PID and
+exit time. Neither path contains a child that deliberately detaches itself.
+*/
 export async function sweepExitedTree(
   pid: number | undefined,
   startedAt: number,
@@ -287,7 +267,7 @@ export async function sweepExitedTree(
         return
       }
       deps.log(
-        `the process group of exited ${String(pid)} could not be signalled: ${String(error)}`,
+        `the process group of exited ${String(pid)} could not be signalled: ${describeStoreError(error)}`,
       )
     }
     return
@@ -300,11 +280,11 @@ export async function sweepExitedTree(
 }
 
 /**
- * The statement that loads the job helper's assembly, through .NET rather
- * than `Add-Type`: a cmdlet is found by module auto-loading, which without
- * a module analysis cache analyses every module on the module path before
- * the statement can run (20 s and more on GitHub's Windows runner, M51).
- */
+The statement that loads the job helper's assembly, through .NET rather
+than `Add-Type`: a cmdlet is found by module auto-loading, which without
+a module analysis cache analyses every module on the module path before
+the statement can run (20 s and more on GitHub's Windows runner, M51).
+*/
 export function loadJobAssembly(assemblyPath: string): string {
   return `[void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)})`
 }
@@ -331,10 +311,19 @@ async function didTerminateJob(
     deps.log(`the job of ${String(pid)} was not there (${answer}); ending its tree with taskkill`)
   } catch (error: unknown) {
     deps.log(
-      `the job of ${String(pid)} could not be terminated (${String(error)}); ending its tree with taskkill`,
+      `the job of ${String(pid)} could not be terminated (${describeStoreError(error)}); ending its tree with taskkill`,
     )
   }
   return false
+}
+
+/** One last signal after a failed exit probe; the group may already be gone. */
+function signalGroup(pid: number): void {
+  try {
+    process.kill(-pid, SIGKILL)
+  } catch {
+    // The group can disappear between the failed probe and this last signal.
+  }
 }
 
 /** Wait for group exit, allowing Linux's unreaped zombies to count as exited. */
@@ -349,7 +338,8 @@ async function waitForPosixGroup(pid: number, deps: ProcessTreeDeps): Promise<vo
         const table = await (deps.run ?? runProgram)(
           '/bin/ps',
           ['-eo', 'pgid=,stat='],
-          {},
+          // Fixed `/bin/ps` reads only the process table: no workspace PATH entries.
+          noWorkspaceChildEnvironment(deps.platform, {}, realpathSync),
           Math.max(1, deadline - Date.now()),
         )
         const isRunning = table.split('\n').some((line) => {
@@ -376,20 +366,18 @@ async function waitForPosixGroup(pid: number, deps: ProcessTreeDeps): Promise<vo
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH') {
       return
     }
-    deps.log(`process group ${String(pid)} exit could not be confirmed: ${String(error)}`)
-    try {
-      process.kill(-pid, SIGKILL)
-    } catch {
-      // The group can disappear between the failed probe and this last signal.
-    }
+    deps.log(
+      `process group ${String(pid)} exit could not be confirmed: ${describeStoreError(error)}`,
+    )
+    signalGroup(pid)
   }
 }
 
 /**
- * Kills `root` and its descendants; resolves once they are gone, as far as
- * can be seen. `startedAt` is when the shell was spawned; `job` the job
- * object it joined, on Windows.
- */
+Kills `root` and its descendants; resolves once they are gone, as far as
+can be seen. `startedAt` is when the shell was spawned; `job` the job
+object it joined, on Windows.
+*/
 export async function killTree(
   root: TreeRoot,
   deps: ProcessTreeDeps,
@@ -410,7 +398,7 @@ export async function killTree(
       process.kill(-pid, SIGKILL)
     } catch (error: unknown) {
       // The group may be gone already; the leader itself still gets the signal.
-      deps.log(`process group ${String(pid)} could not be signalled: ${String(error)}`)
+      deps.log(`process group ${String(pid)} could not be signalled: ${describeStoreError(error)}`)
       root.kill(SIGKILL)
     }
     await waitForPosixGroup(pid, deps)
@@ -432,11 +420,12 @@ export async function killTree(
     await (deps.run ?? runProgram)(
       path.win32.join(systemRoot, WINDOWS_TASKKILL_RELATIVE_PATH),
       ['/PID', String(pid), '/T', '/F'],
-      process.env,
+      // Fixed `taskkill` under SystemRoot: absolute entries only, links followed.
+      noWorkspaceChildEnvironment(deps.platform, process.env, realpathSync),
     )
   } catch (error: unknown) {
+    deps.log(`taskkill of ${String(pid)} failed (${describeStoreError(error)})`)
     if (!hasExited(root)) {
-      deps.log(`taskkill of ${String(pid)} failed (${String(error)}); killing the shell only`)
       root.kill(SIGKILL)
     }
   }
@@ -565,12 +554,19 @@ deadline = setTimeout(() => {
 }, spec.timeout);
 `
 
-/** POSIX synchronous caller, asynchronous tree supervision. The supplied
- * environment is already scrubbed by the caller; no shell parses the effect. */
+/**
+POSIX synchronous caller, asynchronous tree supervision. The supplied
+environment is always the guarded child environment for the effect's
+working directory (only `workspaceChildEnvironment` can produce one), and
+`cwd` is required; no shell parses the effect.
+*/
 export function runTreeSync(
   command: string,
   args: readonly string[],
-  options: SpawnSyncOptions,
+  options: Omit<SpawnSyncOptions, 'env' | 'cwd'> & {
+    readonly env: GuardedChildEnv
+    readonly cwd: string
+  },
 ): SpawnSyncReturns<Buffer> {
   const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
   return spawnSync(process.execPath, ['-e', POSIX_TREE_SUPERVISOR], {

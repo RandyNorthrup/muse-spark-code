@@ -6,7 +6,7 @@ import { uiLocale } from '../../shared/l10n/text'
 import type { ResourceEntryOptions, createResources } from './entry'
 import type { RuntimeResources } from './port'
 import { configureResources } from '../../core/resources/admission'
-import { runtimeResourceJobs } from './jobs'
+import { runtimeWindowsJob } from './jobs'
 
 interface ResourceModule {
   createResources: typeof createResources
@@ -57,7 +57,11 @@ export function lazyRuntimeResources(
         for (const subscribe of subscriptions) bound.set(subscribe, subscribe(host))
         return host
       } catch (error) {
-        for (const unsubscribe of bound.values()) unsubscribe()
+        // Release half-bound subscriptions in insertion order before the
+        // failure keeps its kind past the load.
+        bound.forEach((unsubscribe) => {
+          unsubscribe()
+        })
         bound.clear()
         loaded = undefined
         created?.dispose()
@@ -79,33 +83,7 @@ export function lazyRuntimeResources(
   }
   // As the extension builds its helpers once per activation, the runtime prepares
   // (compiles and self-tests) both Windows job helpers once; a failure is retried.
-  let jobs: ReturnType<typeof runtimeResourceJobs> | undefined
-  const windowsJob = async () => {
-    jobs ??= runtimeResourceJobs(options.machineDir, path.dirname(options.distDir))
-    const current = jobs
-    try {
-      const ready = await current
-      if (ready === undefined) {
-        if (jobs === current) jobs = undefined
-        return
-      }
-      // Each launch verifies the sealed helper; a changed one re-prepares next time.
-      return {
-        ...ready,
-        verify: async () => {
-          try {
-            await ready.verify()
-          } catch (error: unknown) {
-            if (jobs === current) jobs = undefined
-            throw error
-          }
-        },
-      }
-    } catch (error: unknown) {
-      if (jobs === current) jobs = undefined
-      throw error
-    }
-  }
+  const windowsJob = runtimeWindowsJob(options.machineDir, path.dirname(options.distDir))
   const disposeAdmission = configureResources({
     // The registry refuses a group- or world-writable parent, and the data folder
     // takes the user's umask (002 on Ubuntu desktops), so it keeps a folder of

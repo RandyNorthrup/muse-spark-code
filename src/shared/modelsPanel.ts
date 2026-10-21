@@ -28,8 +28,18 @@ import { legacyUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 
-/** The panel's sections; M96 registers `roles` and `agents` beside these. */
-export const modelsPanelSectionSchema = z.enum(['providers', 'models'])
+/** Positive safe whole-token counts shared by manual entry and the strict panel wire. */
+const contextWindowSchema = z.int().check(z.positive())
+const panelModelLimitsSchema = z
+  .strictObject({ contextTokens: contextWindowSchema, outputTokens: contextWindowSchema })
+  .check(z.refine((limits) => limits.outputTokens <= limits.contextTokens))
+
+/**
+The panel's sections; M96 registers `roles` and `agents` beside these.
+`vault` (C-M109-1 P1) is offered only while the host holds a vault
+binding (`vaultOffered`); the webview hides its navigation otherwise.
+*/
+export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'vault'])
 export type ModelsPanelSection = z.infer<typeof modelsPanelSectionSchema>
 
 /** The add-provider wizard's steps, in order (mirrors lane P's `WizardStep`). */
@@ -56,10 +66,10 @@ export const openRouterPrivacySchema = z.enum(['zdr', 'no-training', 'any'])
 export type ModelsPrivacy = z.infer<typeof openRouterPrivacySchema>
 
 /**
- * One preset as the panel shows it: display fields only. The key's shape
- * stays host-side (the password box checks it as it is typed); the key
- * itself never crosses this boundary.
- */
+One preset as the panel shows it: display fields only. The key's shape
+stays host-side (the password box checks it as it is typed); the key
+itself never crosses this boundary.
+*/
 export const presetCardSchema = z.strictObject({
   id: z.string(),
   /** The provider's own label, always shown beside its models. */
@@ -67,9 +77,9 @@ export const presetCardSchema = z.strictObject({
   /** One line for the searchable provider dropdown. */
   description: z.string(),
   /**
-   * The dropdown's filter chip (D74). The host's `PresetKind` is this list
-   * without `custom`, so a new host kind fails the type check, not the panel.
-   */
+  The dropdown's filter chip (D74). The host's `PresetKind` is this list
+  without `custom`, so a new host kind fails the type check, not the panel.
+  */
   category: z.enum(['cloud', 'local', 'subscription', 'aggregator', 'custom']),
   format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
   /** Where the endpoint comes from; `fixed` names it in `originDisplay`. */
@@ -112,6 +122,9 @@ export type ProviderKey = z.infer<typeof providerKeySchema>
 
 /** OpenRouter's key usage, limit and remainder, in USD. */
 export const providerKeyUsageSchema = z.strictObject({
+  totalUsd: z.optional(legacyUsdSchema),
+  unlimited: z.optional(z.boolean()),
+  weekUsd: z.optional(legacyUsdSchema),
   dayUsd: z.optional(legacyUsdSchema),
   monthUsd: z.optional(legacyUsdSchema),
   limitUsd: z.optional(legacyUsdSchema),
@@ -136,9 +149,11 @@ export const providerStateSchema = z.strictObject({
   test: providerTestSchema,
   /** The chosen models (`<modelId>` as the provider lists them). */
   models: z.array(z.string()),
+  modelLimits: z.optional(z.record(z.string(), panelModelLimitsSchema)),
   /** Pinned favourites, first in the composer's picker. */
   pinned: z.array(z.string()),
   keyUsage: z.optional(providerKeyUsageSchema),
+  keyUsageError: z.optional(z.string()),
   lastScannedAtMs: z.optional(z.number()),
 })
 export type ProviderState = z.infer<typeof providerStateSchema>
@@ -148,9 +163,9 @@ export const modelPriceNoteSchema = z.enum(['priced', 'unpriced', 'local', 'plan
 export type ModelPriceNote = z.infer<typeof modelPriceNoteSchema>
 
 /**
- * One Models-table row: the host's filtered, sorted rows with their badges
- * (lane P's `filterModels`, `sortModels` and `badgesFor` run host-side).
- */
+One Models-table row: the host's filtered, sorted rows with their badges
+(lane P's `filterModels`, `sortModels` and `badgesFor` run host-side).
+*/
 export const modelRowSchema = z.strictObject({
   /** The qualified reference (`<providerId>/<modelId>`). */
   ref: z.string(),
@@ -248,16 +263,16 @@ export const suggestionSchema = z.discriminatedUnion('kind', [
 export type PanelSuggestion = z.infer<typeof suggestionSchema>
 
 /**
- * The unsaved form: the wizard's in-memory draft or one provider's edit.
- * The host holds it; the panel renders its fields, errors and blockers.
- * `errors` and `blockers` arrive in plain words (**Save** stays disabled
- * while `blockers` is non-empty).
- */
+The unsaved form: the wizard's in-memory draft or one provider's edit.
+The host holds it; the panel renders its fields, errors and blockers.
+`errors` and `blockers` arrive in plain words (**Save** stays disabled
+while `blockers` is non-empty).
+*/
 /**
- * The endpoint fields a preset's origin allows: a fixed origin names it,
- * Azure takes a resource and deployment, loopback a port, a custom server
- * an address and format. Shared by the draft and the prefill message.
- */
+The endpoint fields a preset's origin allows: a fixed origin names it,
+Azure takes a resource and deployment, loopback a port, a custom server
+an address and format. Shared by the draft and the prefill message.
+*/
 const endpointFields = {
   presetId: z.optional(z.string()),
   address: z.optional(z.string()),
@@ -268,17 +283,31 @@ const endpointFields = {
 }
 
 /**
- * A custom server's per-model limits as the draft holds them: either number
- * may still be empty while the wizard asks. The host requires both before
- * saving (the production entry schema rejects an incomplete set).
- */
-export const draftModelLimitsSchema = z.record(
-  z.string(),
-  z.strictObject({
+A custom server's per-model limits as the draft holds them: either number
+may still be empty while the wizard asks. The host requires both before
+saving (the production entry schema rejects an incomplete set).
+*/
+/**
+One draft's per-model limits: either bound may be absent while the person
+edits, but a complete pair obeys the same output-within-context rule as
+a saved row (a reply cannot outgrow its window), so a draft the host
+could never store fails parsing instead of persisting.
+*/
+const draftModelLimitSchema = z
+  .strictObject({
     contextTokens: z.optional(z.number()),
     outputTokens: z.optional(z.number()),
-  }),
-)
+  })
+  .check(
+    z.refine(
+      (limits) =>
+        limits.contextTokens === undefined ||
+        limits.outputTokens === undefined ||
+        limits.outputTokens <= limits.contextTokens,
+    ),
+  )
+
+export const draftModelLimitsSchema = z.record(z.string(), draftModelLimitSchema)
 
 export const panelDraftSchema = z.strictObject({
   ...endpointFields,
@@ -289,6 +318,7 @@ export const panelDraftSchema = z.strictObject({
   keyShapeOk: z.boolean(),
   /** OpenRouter's OAuth connect completed (the key arrived with no paste). */
   connected: z.boolean(),
+  connecting: z.optional(z.boolean()),
   costAccepted: z.boolean(),
   /** One queued Save owns this draft until it settles. */
   saving: z.optional(z.boolean()),
@@ -316,10 +346,10 @@ export const panelDraftSchema = z.strictObject({
 export type PanelDraft = z.infer<typeof panelDraftSchema>
 
 /**
- * What **Scan this computer** found: every local preset that answered, and
- * every local preset that was checked with its usual port. Both lists carry
- * the preset's own label and port, so the panel never hard-codes either.
- */
+What **Scan this computer** found: every local preset that answered, and
+every local preset that was checked with its usual port. Both lists carry
+the preset's own label and port, so the panel never hard-codes either.
+*/
 export const localScanHitSchema = z.strictObject({
   presetId: z.string(),
   label: z.string(),
@@ -372,14 +402,14 @@ export const modelsPanelStateSchema = z.strictObject({
   scans: z.record(z.string(), scanStateSchema),
   suggestions: z.array(suggestionSchema),
   /**
-   * The conversation spending limit the wizard edits: the effective
-   * `museSpark.modelApiSessionBudgetUsd` value enforcement reads today
-   * (the suggestions step prefills its field with this; a changed number
-   * is written back at the scope it is effective from), and the one line
-   * naming that value and scope, worded by the host like any other error.
-   * The line is formatted host-side so the lazy webview bundle does not
-   * carry the template and scope words for it.
-   */
+  The conversation spending limit the wizard edits: the effective
+  `museSpark.modelApiSessionBudgetUsd` value enforcement reads today
+  (the suggestions step prefills its field with this; a changed number
+  is written back at the scope it is effective from), and the one line
+  naming that value and scope, worded by the host like any other error.
+  The line is formatted host-side so the lazy webview bundle does not
+  carry the template and scope words for it.
+  */
   sessionBudget: z.strictObject({
     effectiveUsd: legacyUsdSchema,
     nowLine: z.string(),
@@ -401,6 +431,12 @@ export const modelsPanelStateSchema = z.strictObject({
   notice: z.optional(z.string()),
   subscriptionsAvailable: z.optional(z.boolean()),
   copilotAvailable: z.optional(z.boolean()),
+  /**
+  True while the host holds the vault binding (C-M109-1 P1): the broker
+  is composed and the vault section is mounted. Absent or false keeps
+  the section hidden and the vault refusing, as 0.17.0 does.
+  */
+  vaultOffered: z.optional(z.boolean()),
   /** True in a remote window: ChatGPT sign-in is refused there. */
   remoteWindow: z.optional(z.boolean()),
   /** True where the workspace is confidential: Copilot is hidden and refused. */
@@ -431,6 +467,12 @@ export type TickScope = z.infer<typeof tickScopeSchema>
 
 /** What the panel posts to the host. */
 export const panelToHostMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('models/contextWindow'),
+    scope: tickScopeSchema,
+    ref: z.string(),
+    contextTokens: contextWindowSchema,
+  }),
   z.strictObject({ type: z.literal('modelsPanel/ready') }),
   // The shared shape with protocol.ts: http(s) opens in the browser
   // through the host, anything else is refused there.
@@ -457,9 +499,12 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('providers/connect'),
     providerId: z.optional(z.string()),
   }),
+  // `isNewAccount` (ChatGPT only) registers a different account instead of
+  // reusing the saved registration.
   z.strictObject({
     type: z.literal('providers/connectSubscription'),
     providerId: z.enum(['chatgpt', 'copilot']),
+    isNewAccount: z.optional(z.literal(true)),
   }),
   // Without a provider it tests the wizard's draft; with one it tests
   // that saved provider. Where no free check exists the host answers
@@ -469,6 +514,7 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     acceptCost: z.boolean(),
     providerId: z.optional(z.string()),
   }),
+  z.strictObject({ type: z.literal('providers/readUsage') }),
   // `next` and `back` walk the wizard; `cancel` discards the open draft
   // (the wizard's, or one provider's edit) with nothing saved. Confirming
   // is `providers/save`.

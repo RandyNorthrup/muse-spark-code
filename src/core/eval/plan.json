@@ -1,0 +1,129 @@
+{
+  "model": "muse-spark-1.3-contributor",
+  "arms": ["baseline", "packing", "auto-compaction", "strict-tools"],
+  "tasks": [
+    {
+      "id": "accept-long-compaction",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 14
+    },
+    {
+      "id": "heldout-long-compaction",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 14
+    },
+    {
+      "id": "accept-long-middle-value",
+      "measuredAttempts": [9, 6, 6, 6],
+      "callBudget": 14
+    },
+    {
+      "id": "heldout-long-middle-rule",
+      "measuredAttempts": [1, 0, 0, 8],
+      "callBudget": 12
+    },
+    {
+      "id": "accept-off-by-one",
+      "measuredAttempts": [3, 4, 3, 3],
+      "callBudget": 6
+    },
+    {
+      "id": "accept-null-guard",
+      "measuredAttempts": [5, 5, 3, 4],
+      "callBudget": 8
+    },
+    {
+      "id": "accept-await-read",
+      "measuredAttempts": [4, 3, 3, 8],
+      "callBudget": 12
+    },
+    {
+      "id": "accept-import-path",
+      "measuredAttempts": [3, 4, 3, 4],
+      "callBudget": 6
+    },
+    {
+      "id": "accept-no-secret",
+      "measuredAttempts": [4, 4, 4, 4],
+      "callBudget": 6
+    },
+    {
+      "id": "accept-empty-average",
+      "measuredAttempts": [3, 3, 3, 4],
+      "callBudget": 6
+    },
+    {
+      "id": "heldout-strict-equal",
+      "measuredAttempts": [4, 4, 4, 4],
+      "callBudget": 6
+    },
+    {
+      "id": "heldout-clear-timer",
+      "measuredAttempts": [3, 3, 4, 6],
+      "callBudget": 9
+    },
+    {
+      "id": "heldout-sort-numbers",
+      "measuredAttempts": [5, 4, 4, 4],
+      "callBudget": 8
+    },
+    {
+      "id": "heldout-await-write",
+      "measuredAttempts": [9, 5, 5, 3],
+      "callBudget": 14
+    },
+    {
+      "id": "accept-multi-edit",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 6
+    },
+    {
+      "id": "heldout-multi-edit",
+      "measuredAttempts": [0, 0, 0, 0],
+      "callBudget": 6
+    }
+  ],
+  "budgetUsd": 0.5,
+  "measurement": {
+    "attempts": 198,
+    "costUsd": 0.026384174
+  },
+  "execution": {
+    "config": "vitest.config.ts",
+    "arguments": ["run", "--config", "vitest.config.ts", "--maxWorkers=3"],
+    "environment": [
+      "PATH",
+      "SYSTEMROOT",
+      "WINDIR",
+      "HOME",
+      "USERPROFILE",
+      "HOMEDRIVE",
+      "HOMEPATH",
+      "TEMP",
+      "TMP",
+      "TMPDIR",
+      "APPDATA",
+      "LOCALAPPDATA",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_RUNTIME_DIR",
+      "DBUS_SESSION_BUS_ADDRESS",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "CI",
+      "GITHUB_ACTIONS",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "ALL_PROXY",
+      "NO_PROXY",
+      "SSL_CERT_FILE",
+      "SSL_CERT_DIR",
+      "MUSE_EVAL_TASKS",
+      "MUSE_EVAL_REPORT",
+      "MUSE_LIVE_MODEL_API",
+      "MUSE_EVAL_MAX_ATTEMPTS",
+      "MUSE_EVAL_SMOKE"
+    ]
+  }
+}

@@ -8,9 +8,10 @@ import {
   type SourceScrub,
 } from './local'
 import type { ReportSourcePayloads } from './types'
+import { isErrno } from '../../fs/errno'
 
 export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
-  return localSource('certification', async ({ signal }) => {
+  return localSource('certification', async ({ signal, reportText }) => {
     const records: ReportSourcePayloads['certification']['records'][number][] = []
     const failures: string[] = []
     let visited = 0
@@ -35,7 +36,7 @@ export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
             const match = /^\s*- \[([ xX])\] (.+)$/u.exec(line)
             if (match === null) return []
             if (line.length > REPORT_MAX_TEXT_CHARS) throw new LocalSourceError('limit')
-            return [{ text: scrub(match[2] ?? ''), done: match[1]?.toLowerCase() === 'x' }]
+            return { text: scrub(match[2] ?? ''), done: match[1]?.toLowerCase() === 'x' }
           })
           if (checklist.length > REPORT_MAX_ROWS) throw new LocalSourceError('limit')
           records.push({
@@ -43,13 +44,21 @@ export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
             milestoneId: id.toLowerCase().replace(/^m/u, 'M'),
             checklist,
           })
-        } catch {
-          failures.push(scrub(file))
+        } catch (error) {
+          // A file the reader cannot use stays a failed path; anything else
+          // (cancellation, a bug) reaches the source reader instead.
+          if (error instanceof LocalSourceError) failures.push(scrub(file))
+          // eslint-disable-next-line unicorn/no-duplicate-if-branches -- typed and errno failures share the failed-path record; the catch gate forbids merging the named tests (PLAN §8, D119-catch).
+          else if (isErrno(error)) failures.push(scrub(file))
+          else throw error
         }
       }
     }
     await walk('docs/certification')
     if (failures.length > 0 && records.length === 0) throw new LocalSourceError('failed')
-    return { data: { records }, ...(failures.length > 0 && { partial: sourceReason('failed') }) }
+    return {
+      data: { records },
+      ...(failures.length > 0 && { partial: sourceReason('failed', reportText) }),
+    }
   })
 }

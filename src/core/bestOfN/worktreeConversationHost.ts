@@ -9,10 +9,6 @@
 //
 // No `vscode` here: the host injects the session and the file-system read.
 
-import {
-  BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT,
-  BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT,
-} from '../../shared/constants'
 import type { CoreLogger } from '../logging'
 import { confineWorkspacePath, type RealPathIo } from '../workspacePath'
 
@@ -25,6 +21,8 @@ export type WorktreeSessionEvent =
       readonly turnId: string
       readonly terminal: string
       readonly reason?: string
+      /** A completed turn that reached the model-call limit carries this. */
+      readonly errorKind?: string
     }
   | { readonly type: 'modelRequestCompleted' }
   | {
@@ -43,6 +41,12 @@ export interface WorktreeApprovalDecision {
 /** The narrow session surface an attempt needs: any backend adapts to it. */
 export interface WorktreeSession {
   readonly sessionId: string
+  /**
+  Bind the attempt's remaining request allowance; every implementer
+  carries it, so a ceiling always reserves the wrap-up instead of
+  cancelling the turn.
+  */
+  setModelCallAllowance(remaining: (() => number) | undefined): void
   onEvent(listener: (event: WorktreeSessionEvent) => void): () => void
   sendTurn(parts: readonly [{ readonly type: 'text'; readonly text: string }]): Promise<unknown>
   decideApproval(decision: WorktreeApprovalDecision): Promise<void>
@@ -72,7 +76,7 @@ export interface WorktreeConversationDeps {
   readonly worktreeRoot: string
   readonly platform: NodeJS.Platform
   readonly io: RealPathIo
-  /** The attempt's request ceiling, inside the best-of-N bounds. */
+  /** The attempt's request ceiling: a whole number of 1 or more (D121, no upper bound). */
   readonly requestCeiling: number
   readonly session: WorktreeSession
   /** The choice id that declines an approval on this backend (`abort`). */
@@ -102,7 +106,7 @@ export class WorktreeConfinementError extends Error {
   }
 }
 
-/** The ceiling is outside the best-of-N bounds: the run never starts. */
+/** The ceiling is not a whole number of 1 or more (D121): the run never starts. */
 export class WorktreeCeilingError extends Error {
   public constructor(readonly ceiling: number) {
     super(`Refused best-of-N request ceiling ${String(ceiling)}`)
@@ -113,21 +117,18 @@ export class WorktreeCeilingError extends Error {
 const noListener = (): void => undefined
 
 /**
- * A conversation confined to its worktree. `requireTrusted` throws in
- * Restricted Mode before anything runs; `run` sends the prompt, declines
- * every approval and question (counted), and cancels the turn once the
- * ceiling's requests have completed.
- */
+A conversation confined to its worktree. `requireTrusted` throws in
+Restricted Mode before anything runs; `run` binds the ceiling through the
+session's allowance port, declines every approval and question (counted),
+and reads the ceiling from the turn's typed outcome (a completed turn
+carrying `max_turn_requests`), never from a cancellation.
+*/
 export class WorktreeConversationHost {
   public constructor(private readonly deps: WorktreeConversationDeps) {}
 
   private ceiling(): number {
     const { requestCeiling } = this.deps
-    if (
-      !Number.isSafeInteger(requestCeiling) ||
-      requestCeiling < BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT ||
-      requestCeiling > BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT
-    ) {
+    if (!Number.isSafeInteger(requestCeiling) || requestCeiling < 1) {
       throw new WorktreeCeilingError(requestCeiling)
     }
     return requestCeiling
@@ -159,6 +160,9 @@ export class WorktreeConversationHost {
     const ceiling = this.ceiling()
     const { session, log } = this.deps
     let requestsMade = 0
+    session.setModelCallAllowance(
+      () => ceiling - (this.deps.admissionCounts?.().requestsMade ?? requestsMade),
+    )
     let approvalsDenied = 0
     let isCeilingReached = false
     const noticed: Promise<unknown>[] = []
@@ -191,7 +195,6 @@ export class WorktreeConversationHost {
             this.deps.onProgress?.({ type: 'requestCompleted', requestsMade })
             if (!isCeilingReached && requestsMade >= ceiling) {
               isCeilingReached = true
-              settle(session.cancel(), 'ceiling cancel')
             }
             break
           }
@@ -215,15 +218,15 @@ export class WorktreeConversationHost {
             break
           }
           case 'turnCompleted': {
+            isCeilingReached ||= event.errorKind === 'max_turn_requests'
+            const counts = this.deps.admissionCounts?.()
             stopListening()
             resolve({
               turnId: event.turnId,
               terminal: event.terminal,
               ...(event.reason !== undefined && { reason: event.reason }),
-              ...(this.deps.admissionCounts?.() ?? {
-                requestsMade,
-                ceilingReached: isCeilingReached,
-              }),
+              requestsMade: counts?.requestsMade ?? requestsMade,
+              ceilingReached: isCeilingReached || counts?.ceilingReached === true,
               approvalsDenied,
             })
             break
@@ -233,15 +236,15 @@ export class WorktreeConversationHost {
     })
     try {
       await session.sendTurn([{ type: 'text', text: prompt }])
-    } catch (error: unknown) {
+      const outcome = await done
+      await Promise.all(noticed)
+      if (outcome.turnId === '') {
+        throw new Error('The worktree conversation ended without a turn')
+      }
+      return outcome
+    } finally {
       stopListening()
-      throw error
+      session.setModelCallAllowance(undefined)
     }
-    const outcome = await done
-    await Promise.all(noticed)
-    if (outcome.turnId === '') {
-      throw new Error('The worktree conversation ended without a turn')
-    }
-    return outcome
   }
 }

@@ -1,7 +1,9 @@
 // One MCP client session over a transport (M50, PLAN.md D42): the handshake
 // (`initialize`, then `notifications/initialized`), the tool list page by
-// page, and tool calls, each request with a deadline and a Stop that tells
-// the server it was cancelled (`notifications/cancelled`). What the server
+// page, and tool calls, each request with the entry's own deadline when it
+// names one — otherwise waited on until the server answers, the connection
+// closes or a Stop tells the server it was cancelled
+// (`notifications/cancelled`), saying so out loud while it waits. What the server
 // asks of the client is answered: `ping` with an empty result,
 // `elicitation/create` with the form's answer when the host offers one
 // (M91, form mode only), anything else as a method this client does not
@@ -16,10 +18,10 @@ import {
   MCP_PROTOCOL_VERSION,
   MCP_ELICITATION_TIMEOUT_MS,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
-  MCP_TOOLS_LIST_MAX_PAGES,
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
+import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../../timeouts'
 import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
 import {
   type CallToolResult,
@@ -40,10 +42,10 @@ import {
 /** How messages travel to and from one server. */
 export interface McpTransport {
   /**
-   * Sends one message. Over HTTP a request's answer comes back in the reply
-   * to this send, and reaches `onMessage` before the promise resolves.
-   * Rejects with `McpSessionExpiredError` when the server forgot the session.
-   */
+  Sends one message. Over HTTP a request's answer comes back in the reply
+  to this send, and reaches `onMessage` before the promise resolves.
+  Rejects with `McpSessionExpiredError` when the server forgot the session.
+  */
   send(message: OutgoingMessage, signal: AbortSignal): Promise<void>
   /** The revision `initialize` agreed on (HTTP sends it with every request). */
   setProtocolVersion(version: string): void
@@ -67,15 +69,20 @@ export interface McpConnectionOptions {
   readonly clientVersion: string
   readonly log: CoreLogger
   /**
-   * Answers a server's `elicitation/create` (M91, form mode only). When set,
-   * the handshake declares the `elicitation` capability; when absent, such a
-   * request is refused as an unoffered method, as before.
-   */
+  Answers a server's `elicitation/create` (M91, form mode only). When set,
+  the handshake declares the `elicitation` capability; when absent, such a
+  request is refused as an unoffered method, as before.
+  */
   readonly elicitation?: McpElicitationHandler
 }
 
 export interface RequestOptions {
-  readonly timeoutMs: number
+  /**
+  The entry's own deadline in milliseconds, or undefined: then the answer
+  is waited on until the server answers, the connection closes or the
+  signal aborts (a Stop ends it), with a still-waiting notice on the log.
+  */
+  readonly timeoutMs: number | undefined
   readonly signal?: AbortSignal | undefined
 }
 
@@ -92,10 +99,6 @@ const NOTIFICATION_CANCELLED = 'notifications/cancelled'
 const NOTIFICATION_TOOLS_CHANGED = 'notifications/tools/list_changed'
 const NOTIFICATION_LOG = 'notifications/message'
 const CANCELLED_BY_USER = 'the user stopped the turn'
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 function seconds(ms: number): string {
   return String(Math.round(ms / MILLISECONDS_PER_SECOND))
@@ -129,7 +132,7 @@ export class McpConnection {
   /** What stops a waiting elicitation when the connection closes. */
   private readonly elicitationClosers = new Set<() => void>()
   /** The handshake's parameters, kept for a new session after an expired one. */
-  private handshakeTimeoutMs = 0
+  private handshakeTimeoutMs: number | undefined = undefined
 
   public constructor(
     private readonly transport: McpTransport,
@@ -205,9 +208,9 @@ export class McpConnection {
   }
 
   /**
-   * A signal for one elicitation: it ends when the connection closes, or
-   * when a tool call still waiting stops (a Stop ends the form as a cancel).
-   */
+  A signal for one elicitation: it ends when the connection closes, or
+  when a tool call still waiting stops (a Stop ends the form as a cancel).
+  */
   private elicitationSignal(): {
     readonly signal: AbortSignal
     readonly cancel: () => void
@@ -366,10 +369,9 @@ export class McpConnection {
   private async sendQuietly(message: OutgoingMessage): Promise<void> {
     try {
       await this.transport.send(message, new AbortController().signal)
-    } catch (error: unknown) {
-      this.options.log.warn(
-        `A message to MCP server ${this.options.name} was not delivered: ${describe(error)}`,
-      )
+    } catch {
+      // The record names the undelivered message, never the failure's text.
+      this.options.log.warn(`A message to MCP server ${this.options.name} was not delivered`)
     }
   }
 
@@ -414,11 +416,31 @@ export class McpConnection {
         { once: true },
       )
     })
-    const timer = setTimeout(() => {
-      controller.abort(
-        new McpTimeoutError(`${method} timed out after ${seconds(options.timeoutMs)} s`),
-      )
-    }, options.timeoutMs)
+    // The entry's own deadline ends the wait; without one the answer is
+    // waited on until the server answers, the connection closes or a Stop
+    // aborts, saying so out loud on the log (owner 2026-10-16: no silent
+    // hangs, no arbitrary limits). The entry's number is honoured whole,
+    // past one timer's range too.
+    const timeoutMs = options.timeoutMs
+    const cancelTimer =
+      timeoutMs === undefined
+        ? undefined
+        : setLongTimeout(() => {
+            controller.abort(
+              new McpTimeoutError(`${method} timed out after ${seconds(timeoutMs)} s`),
+            )
+          }, timeoutMs)
+    const stopNoticing =
+      timeoutMs === undefined
+        ? startStillWaiting((elapsedMs) => {
+            this.options.log.info(
+              stillWaitingText(
+                { key: 'mcpServerRequest', name: this.options.name, method },
+                elapsedMs,
+              ),
+            )
+          })
+        : undefined
     const onStop = () => {
       controller.abort(new RequestAbort(CANCELLED_BY_USER))
     }
@@ -444,7 +466,8 @@ export class McpConnection {
       }
       throw error
     } finally {
-      clearTimeout(timer)
+      cancelTimer?.()
+      stopNoticing?.()
       options.signal?.removeEventListener('abort', onStop)
       this.waiting.delete(id)
       this.liveSignals.delete(controller.signal)
@@ -452,7 +475,7 @@ export class McpConnection {
     }
   }
 
-  private async handshake(timeoutMs: number): Promise<void> {
+  private async handshake(timeoutMs: number | undefined): Promise<void> {
     const raw = await this.request(
       METHOD_INITIALIZE,
       {
@@ -484,19 +507,20 @@ export class McpConnection {
   }
 
   /** The handshake; rejects when the server cannot be spoken to. */
-  public async initialize(timeoutMs: number): Promise<void> {
+  public async initialize(timeoutMs: number | undefined): Promise<void> {
     this.handshakeTimeoutMs = timeoutMs
     await this.handshake(timeoutMs)
   }
 
   /** Every tool the server lists, page by page; a malformed tool is skipped and logged. */
-  public async listTools(timeoutMs: number): Promise<readonly McpToolInfo[]> {
+  public async listTools(timeoutMs: number | undefined): Promise<readonly McpToolInfo[]> {
     if (!this.hasTools) {
       return []
     }
     const tools: McpToolInfo[] = []
+    const seenCursors = new Set<string>()
     let cursor: string | undefined
-    for (let page = 0; page < MCP_TOOLS_LIST_MAX_PAGES; page += 1) {
+    for (;;) {
       const raw = await this.request('tools/list', cursor === undefined ? {} : { cursor }, {
         timeoutMs,
       })
@@ -518,14 +542,19 @@ export class McpConnection {
       if (cursor === undefined || cursor === '') {
         return tools
       }
+      // No page cap (B8), but a cursor the server already named would page
+      // forever: stop at the repeat and say so instead of hanging.
+      if (seenCursors.has(cursor)) {
+        this.options.log.warn(
+          `MCP server ${this.options.name} repeated a tools/list cursor; the tools read so far are offered`,
+        )
+        return tools
+      }
+      seenCursors.add(cursor)
     }
-    this.options.log.warn(
-      `MCP server ${this.options.name} lists more than ${String(MCP_TOOLS_LIST_MAX_PAGES)} pages of tools; the rest are not read`,
-    )
-    return tools
   }
 
-  /** Calls one tool; rejects on a JSON-RPC error, the deadline, a Stop or a closed connection. */
+  /** Calls one tool; rejects on a JSON-RPC error, the entry's own deadline when named, a Stop or a closed connection. */
   public async callTool(
     name: string,
     args: Readonly<Record<string, unknown>>,

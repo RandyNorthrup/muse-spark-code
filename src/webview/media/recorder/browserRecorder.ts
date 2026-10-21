@@ -46,6 +46,10 @@ export interface BrowserRecordingPort {
 
 export type BrowserRecordingState =
   | { readonly status: 'idle' | 'requesting' | 'stopping' | 'uploading' }
+  /**
+  Seconds remaining while capped, seconds recorded while uncapped
+  (maxSeconds 0); only the person stops an uncapped recording.
+  */
   | { readonly status: 'recording'; readonly remaining: number }
   | { readonly status: 'preview'; readonly url: string }
   | { readonly status: 'error'; readonly reason: string }
@@ -166,7 +170,10 @@ export class BrowserRecordingController {
             this.blob = new Blob(chunks, { type: 'video/mp4' })
             this.url = this.port.objectUrl(this.blob)
             this.set({ status: 'preview', url: this.url })
-          } catch {
+          } catch (error: unknown) {
+            // An unpreviewable recording reads failed: only a non-error
+            // keeps its kind past the recorder.
+            if (!(error instanceof Error)) throw error
             this.fail(UI_TEXT.media.recordingFailed)
           }
         },
@@ -184,26 +191,40 @@ export class BrowserRecordingController {
       }
       const started = performance.now()
       let previous = Date.now()
-      this.set({ status: 'recording', remaining: options.data.maxSeconds })
+      // D121: maxSeconds 0 records until stopped — the state then carries
+      // seconds recorded instead of seconds remaining, and nothing stops
+      // the run automatically.
+      const isUncapped = options.data.maxSeconds === 0
+      this.set({ status: 'recording', remaining: isUncapped ? 0 : options.data.maxSeconds })
       recorder.start(MILLISECONDS_PER_SECOND)
       this.timer = setInterval(() => {
         const now = Date.now()
-        const remaining = Math.max(
-          0,
-          options.data.maxSeconds -
-            Math.floor((performance.now() - started) / MILLISECONDS_PER_SECOND),
-        )
-        if (remaining === 0 || now < previous || now - previous > 2 * MILLISECONDS_PER_SECOND) {
+        if (now < previous || now - previous > 2 * MILLISECONDS_PER_SECOND) {
           this.stop()
           return
         }
         previous = now
+        const elapsed = Math.floor((performance.now() - started) / MILLISECONDS_PER_SECOND)
+        if (isUncapped) {
+          if (this.state.status === 'recording')
+            this.set({ status: 'recording', remaining: elapsed })
+          return
+        }
+        const remaining = Math.max(0, options.data.maxSeconds - elapsed)
+        if (remaining === 0) {
+          this.stop()
+          return
+        }
         if (this.state.status === 'recording') this.set({ status: 'recording', remaining })
       }, MILLISECONDS_PER_SECOND)
-    } catch (error) {
+    } catch (error: unknown) {
+      // A refused or failed start reads denied or failed (a refusal throws
+      // past Error as a DOMException): only a non-error keeps its kind past
+      // the recorder.
+      if (!(error instanceof Error) && !(error instanceof DOMException)) throw error
       if (epoch === this.epoch)
         this.fail(
-          isRequesting && error instanceof Error && error.name === 'NotAllowedError'
+          isRequesting && error.name === 'NotAllowedError'
             ? UI_TEXT.media.recordingPermissionDenied
             : UI_TEXT.media.recordingFailed,
         )
@@ -220,7 +241,11 @@ export class BrowserRecordingController {
     for (const track of tracks) track.stop()
     try {
       this.recorder?.stop()
-    } catch {
+    } catch (error: unknown) {
+      // An already-stopped recorder needs no second stop: anything else
+      // reads failed, and a non-error keeps its kind past the recorder.
+      if (error instanceof DOMException && error.name === 'InvalidStateError') return
+      if (!(error instanceof Error)) throw error
       this.fail(UI_TEXT.media.recordingFailed)
     }
   }
@@ -234,7 +259,10 @@ export class BrowserRecordingController {
     try {
       await this.port.attach(this.blob, upload.signal)
       if (epoch === this.epoch) this.discard()
-    } catch {
+    } catch (error: unknown) {
+      // A failed upload reads failed: only a non-error keeps its kind past
+      // the recorder.
+      if (!(error instanceof Error)) throw error
       if (epoch === this.epoch) this.fail(fill(UI_TEXT.media.uploadFailed, { reason: 'mp4' }))
     }
   }

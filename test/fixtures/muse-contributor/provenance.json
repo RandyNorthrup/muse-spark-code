@@ -1,0 +1,15 @@
+{
+  "capturedAt": "2026-10-18T18:45:00Z",
+  "cli": "Muse Code 1.4.10 (1.4.10-R6427.1)",
+  "sdk": "@muse-code/sdk 1.4.10",
+  "provider": "meta (the machine's signed-in account, contributor mode enabled in its settings; no model call, only initialize and model/list)",
+  "commands": [
+    "muse serve (child process; initialize with clientInfo muse_spark_code, then model/list, over stdio)"
+  ],
+  "notes": [
+    "model/list serves the same four ids with and without --contributor-mode on",
+    "no contributor-tier row is ever served; session/start accepts <base>-contributor by name for every listed base (probed 2026-10-18: muse-spark-1.3-contributor, muse-spark-1.2-contributor, muse-wonder-1.0-contributor, muse-wonder-full-1.0-contributor)",
+    "a session running on a contributor model flags no row active, scoped or unscoped",
+    "the CLI's own bundled code-review agent names model muse-wonder-full-1.0-contributor"
+  ]
+}

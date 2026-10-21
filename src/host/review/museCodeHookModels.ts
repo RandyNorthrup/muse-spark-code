@@ -7,11 +7,13 @@
 // the answer is text only, parsed by the caller like a command's.
 
 import { mkdir } from 'node:fs/promises'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { AgentHost, AgentSession, TurnSubmission } from '../../core/agent/agentBackend'
 import { FifoLimiter } from '../../core/fifoLimiter'
 import type { CoreLogger } from '../../core/logging'
 import { withDeadline } from '../../core/timeouts'
 import type { AgentEvent } from '../../shared/agentEvents'
+import { usableReply } from '../../core/turns/usableReply'
 import { THINKING_OFF_EFFORT, UI_TEXT } from '../../shared/constants'
 import { mspApprovalMode } from '../../shared/permissionModes'
 
@@ -187,6 +189,7 @@ export class MuseCodeHookModels {
     return new Promise((resolve) => {
       const replies = new Map<string, string>()
       let ending: string | undefined
+      let isLimited = false
       let isUsedTool = false
       let isSettled = false
       const finish = (value: string | undefined) => {
@@ -203,9 +206,14 @@ export class MuseCodeHookModels {
         finish(undefined)
       }
       const look = () => {
-        if (ending !== undefined) {
-          finish(ending === COMPLETED ? replies.get(turnId) : undefined)
-        }
+        if (ending === undefined) return
+        // Only a turn that completed without a limit answers: a reply cut
+        // at the model-call limit never becomes a hook answer.
+        const usable = usableReply(
+          { terminal: ending, errorKind: isLimited ? 'max_turn_requests' : undefined },
+          replies.get(turnId),
+        )
+        finish(usable.usable ? usable.reply : undefined)
       }
       const hear = (event: AgentEvent) => {
         if (
@@ -219,6 +227,9 @@ export class MuseCodeHookModels {
         }
         if (event.type === 'turnCompleted' && event.turnId === turnId) {
           ending = event.terminal
+          if (event.errorKind === 'max_turn_requests') {
+            isLimited = true
+          }
           look()
           return
         }
@@ -253,9 +264,7 @@ export class MuseCodeHookModels {
     void session
       .cancel()
       .catch((error: unknown) => {
-        this.deps.log.warn(
-          `Stopping a hook's side turn failed: ${this.deps.describeFailure(error)}`,
-        )
+        this.deps.log.warn(`Stopping a hook's side turn failed: ${failureForLog(error)}`)
       })
       .finally(() => {
         session.dispose()
@@ -263,10 +272,10 @@ export class MuseCodeHookModels {
   }
 
   /**
-   * One turn of a hidden side session: the turn's reply text, or undefined
-   * when the hook must fail (no reply in time, a tool was used, the turn or
-   * the session ended first). Failed turns discard the session.
-   */
+  One turn of a hidden side session: the turn's reply text, or undefined
+  when the hook must fail (no reply in time, a tool was used, the turn or
+  the session ended first). Failed turns discard the session.
+  */
   public async runHookModelTurn(job: MuseCodeHookModelJob): Promise<string | undefined> {
     if (!this.isWanted(job)) return undefined
     job = { ...job, signal: AbortSignal.any([job.signal, this.closed.signal]) }
@@ -285,7 +294,15 @@ export class MuseCodeHookModels {
           } catch (error: unknown) {
             if (!job.signal.aborted && !this.isDisposed) {
               this.deps.log.warn(
-                `A hook could not ask the model; the hook fails: ${this.deps.describeFailure(error)}`,
+                `A hook could not ask the model; the hook fails: ${failureForLog(error)}`,
+              )
+            } else if (!job.signal.aborted) {
+              // The window closed meanwhile: nobody is told, but the
+              // failure is still recorded, with words that say so. An
+              // abort means nobody waits on it any more: it counts for
+              // nothing.
+              this.deps.log.warn(
+                `A hook could not ask the model after its window closed; the hook fails: ${failureForLog(error)}`,
               )
             }
             return
@@ -294,7 +311,17 @@ export class MuseCodeHookModels {
         () => !job.signal.aborted && !this.isDisposed,
         () => new Error('the hooked run no longer waits on its hook turn'),
       )
-    } catch {
+    } catch (error: unknown) {
+      // The queue drops a turn nobody waits on (an abort) or after the
+      // window closed; anything else is not this queue's to swallow.
+      if (job.signal.aborted) {
+        return undefined
+      }
+      if (this.isDisposed) {
+        this.deps.log.info('A hook turn ended with its window closed; the hook fails')
+        return undefined
+      }
+      this.deps.log.warn(`A hook turn failed in its queue: ${failureForLog(error)}`)
       return undefined
     }
   }

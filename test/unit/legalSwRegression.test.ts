@@ -13,10 +13,10 @@ import { scanHeaders, scanAttributionRisks } from '../../src/core/legal/headers'
 import { snapshotFrom } from './legal/helpers'
 
 describe('RVM97SW scanner regressions', () => {
-  it('F1 scrubs every string in the complete result, including scope', () => {
+  it('F1 scrubs every string in the complete result, including scope', async () => {
     const credential = `LLM_${'synthetic'.repeat(4)}`
     const privatePath = `src/person@example.com/${credential}.ts`
-    const result = scanLegal(snapshotFrom({ [privatePath]: 'const x = 1' }), {
+    const result = await scanLegal(snapshotFrom({ [privatePath]: 'const x = 1' }), {
       paths: [privatePath],
       headerPolicy: 'required',
     })
@@ -33,8 +33,8 @@ describe('RVM97SW scanner regressions', () => {
     visit(result)
   })
 
-  it('F10 excluded root notices cannot satisfy packaged Apache attribution', () => {
-    const result = scanLegal(
+  it('F10 excluded root notices cannot satisfy packaged Apache attribution', async () => {
+    const result = await scanLegal(
       snapshotFrom({
         'package.json': JSON.stringify({ name: 'demo', license: 'MIT', files: ['node_modules/a'] }),
         'node_modules/a/package.json': JSON.stringify({
@@ -50,8 +50,8 @@ describe('RVM97SW scanner regressions', () => {
     expect(result.findings.some((finding) => finding.category === 'noticeFile')).toBe(true)
   })
 
-  it('F11 only the exact bundled package version is shipped', () => {
-    const result = scanLegal(
+  it('F11 only the exact bundled package version is shipped', async () => {
+    const result = await scanLegal(
       snapshotFrom({
         'package.json': JSON.stringify({ name: 'demo', license: 'MIT' }),
         'node_modules/a/package.json': JSON.stringify({ version: '1', license: 'MIT' }),
@@ -111,8 +111,8 @@ describe('RVM97SW scanner regressions', () => {
     ).toBe(true)
   })
 
-  it('F11 nested installed material cannot mark its parent package shipped', () => {
-    const result = scanLegal(
+  it('F11 nested installed material cannot mark its parent package shipped', async () => {
+    const result = await scanLegal(
       snapshotFrom({
         'package.json': '{"name":"demo","license":"MIT"}',
         'node_modules/a/package.json': '{"version":"1","license":"GPL-3.0-only"}',
@@ -173,11 +173,13 @@ describe('RVM97SW scanner regressions', () => {
   })
 
   it('F16 license title outranks incidental license mentions', () => {
+    // RVCM971 P2 (finding 5): the title reads the bare stem, never a
+    // variant from body wording.
     expect(
       identifyLicenseText(
         'GNU GENERAL PUBLIC LICENSE\nVersion 3\n\nCompatibility note mentions MIT License.',
       ),
-    ).toMatchObject({ id: 'GPL-3.0-only' })
+    ).toMatchObject({ id: 'GPL-3.0' })
   })
 
   it('F17 checks every holder and conflicting SPDX declaration', () => {

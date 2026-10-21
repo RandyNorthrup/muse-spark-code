@@ -1,19 +1,10 @@
 // M107 lane 0: portable contracts, with private process identity kept out of egress.
 import * as z from 'zod/mini'
 import {
-  RESOURCE_CPU_DEFAULT_PERCENT,
-  RESOURCE_CPU_MIN_PERCENT,
-  RESOURCE_DISK_MIN_FREE_GIB,
   RESOURCE_EXEC_EVENT_VERSION,
   RESOURCE_GIB_BYTES,
   RESOURCE_ID_MAX_LENGTH,
-  RESOURCE_MEMORY_DEFAULT_FREE_GIB,
-  RESOURCE_MEMORY_DEFAULT_PERCENT,
   RESOURCE_MEMORY_FLOOR_MAX_FRACTION,
-  RESOURCE_MEMORY_MAX_FREE_GIB,
-  RESOURCE_MEMORY_MAX_PERCENT,
-  RESOURCE_MEMORY_MIN_FREE_GIB,
-  RESOURCE_MEMORY_MIN_PERCENT,
   RESOURCE_OPTIONAL_MIN_PERCENT,
 } from './constants'
 
@@ -45,33 +36,32 @@ const percent = /* @__PURE__ */ z.number().check(z.gte(0), z.lte(100))
 const reading = /* @__PURE__ */ z.nullable(percent)
 const counter = /* @__PURE__ */ z.number().check(z.gte(0), z.int())
 const id = /* @__PURE__ */ z.string().check(z.minLength(1), z.maxLength(RESOURCE_ID_MAX_LENGTH))
-const cpuLimit = percent.check(z.gte(RESOURCE_CPU_MIN_PERCENT))
-const memoryLimit = percent.check(
-  z.gte(RESOURCE_MEMORY_MIN_PERCENT),
-  z.lte(RESOURCE_MEMORY_MAX_PERCENT),
-)
-const memoryFloor = /* @__PURE__ */ z
-  .number()
-  .check(z.gte(RESOURCE_MEMORY_MIN_FREE_GIB), z.lte(RESOURCE_MEMORY_MAX_FREE_GIB))
+// NOLIMITSSET (PLAN.md D121): the person's CPU, memory and memory-floor
+// values keep only the quantity's own nature — a percentage's 0–100, a GiB
+// floor's zero. The removed 30/40/98 and 0.5/64 bounds were ours.
+const cpuLimit = percent
+const memoryLimit = percent
+const memoryFloor = /* @__PURE__ */ z.number().check(z.gte(0))
 const optionalLimit = /* @__PURE__ */ z.nullable(
   percent.check(z.gte(RESOURCE_OPTIONAL_MIN_PERCENT)),
 )
 
 // Pure factory: governor settings ride only with the governor, so panels and
 // headless runs drop the schema instead of carrying it.
+// Every threshold defaults to no limit (null): with nothing set by the
+// person the governor measures and shows but holds nothing back.
 export const resourceSettingsSchema = /* @__PURE__ */ (() =>
   z.strictObject({
     enabled: z._default(z.boolean(), true),
-    cpuMaxPercent: z._default(cpuLimit, RESOURCE_CPU_DEFAULT_PERCENT),
-    memoryMaxPercent: z._default(memoryLimit, RESOURCE_MEMORY_DEFAULT_PERCENT),
-    memoryMinFreeGiB: z._default(memoryFloor, RESOURCE_MEMORY_DEFAULT_FREE_GIB),
+    cpuMaxPercent: z._default(z.nullable(cpuLimit), null),
+    memoryMaxPercent: z._default(z.nullable(memoryLimit), null),
+    memoryMinFreeGiB: z._default(z.nullable(memoryFloor), null),
     gpuMaxPercent: z._default(optionalLimit, null),
     diskBusyMaxPercent: z._default(optionalLimit, null),
-    // null selects the volume-scaled default floor; explicit values are machine-only.
-    diskMinFreeGiB: z._default(
-      z.nullable(z.number().check(z.gte(RESOURCE_DISK_MIN_FREE_GIB))),
-      null,
-    ),
+    // null means no floor; an explicit value is a machine-only GiB floor
+    // of zero or more (NOLIMITSSET: the removed 2 GiB floor was ours — a GiB
+    // floor's own zero is the quantity itself).
+    diskMinFreeGiB: z._default(z.nullable(z.number().check(z.gte(0))), null),
     relocate: z._default(z.enum(['paired', 'ask', 'off']), 'paired'),
   }))()
 export type ResourceSettings = z.infer<typeof resourceSettingsSchema>
@@ -101,7 +91,12 @@ export function readResourceSettings(inspect: ResourceSettingsReader): ResourceS
   })
   return resourceSettingsSchema.parse(Object.fromEntries(entries))
 }
-export function resourceMemoryFloorBytes(settings: ResourceSettings, totalBytes: number): number {
+/** null when the person set no memory floor: there is nothing to hold against. */
+export function resourceMemoryFloorBytes(
+  settings: ResourceSettings,
+  totalBytes: number,
+): number | null {
+  if (settings.memoryMinFreeGiB === null) return null
   const total = counter.check(z.gt(0)).parse(totalBytes)
   return Math.min(
     settings.memoryMinFreeGiB * RESOURCE_GIB_BYTES,
@@ -247,10 +242,10 @@ export const resourceEventSchema = /* @__PURE__ */ z.discriminatedUnion('type', 
 ])
 export type ResourceEvent = z.infer<typeof resourceEventSchema>
 /**
- * Whether pressure can reach the relocate level. `noRoute`: this host binds no
- * paired-device or runner route, so work stays here; `noTarget`: a bound route
- * has no approved target with room now. Older producers omit the field.
- */
+Whether pressure can reach the relocate level. `noRoute`: this host binds no
+paired-device or runner route, so work stays here; `noTarget`: a bound route
+has no approved target with room now. Older producers omit the field.
+*/
 const resourceRelocationSchema = /* @__PURE__ */ z.enum(['off', 'available', 'noTarget', 'noRoute'])
 export type ResourceRelocation = z.infer<typeof resourceRelocationSchema>
 // Pure factory: status rows ride only with status readers, never exec sinks.
@@ -295,9 +290,9 @@ const minuteSchema = /* @__PURE__ */ (() =>
     diskBusyPercent: reading,
     level: resourceLevelSchema,
     thresholds: z.strictObject({
-      cpuMaxPercent: cpuLimit,
-      memoryMaxPercent: memoryLimit,
-      memoryMinFreeGiB: memoryFloor,
+      cpuMaxPercent: z.nullable(cpuLimit),
+      memoryMaxPercent: z.nullable(memoryLimit),
+      memoryMinFreeGiB: z.nullable(memoryFloor),
     }),
   }))()
 export const resourceRecordSchema = /* @__PURE__ */ (() =>

@@ -1,4 +1,5 @@
 import type { UsdAmount } from '../../../shared/usd'
+import type { SpendClaim } from '../../paid/spendClaim'
 // The M91 hook handler types (PLAN.md D70, lane H): `http`, `mcp_tool`,
 // `prompt` and `agent`. `command` stays in hooks.ts, exactly as today.
 //
@@ -67,11 +68,11 @@ export interface HookHttpResult {
 }
 
 /**
- * One POST of the bounded hook payload, through the existing pinned-request
- * path (src/host/web/pinnedRequest.ts): HTTPS to the pinned address, no
- * redirects followed. Fixed headers only: no credential name ever becomes a
- * header.
- */
+One POST of the bounded hook payload, through the existing pinned-request
+path (src/host/web/pinnedRequest.ts): HTTPS to the pinned address, no
+redirects followed. Fixed headers only: no credential name ever becomes a
+header.
+*/
 export type HookHttpPost = (
   url: string,
   body: string,
@@ -79,7 +80,7 @@ export type HookHttpPost = (
 ) => Promise<HookHttpResult>
 
 /** The fixed headers an http hook sends: nothing configured, nothing secret.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function hookHttpHeaders(): Readonly<Record<string, string>> {
   return {
     'content-type': 'application/json',
@@ -94,10 +95,10 @@ export interface HookHandlerRunners {
   readonly callMcpTool?: HookMcpCall | undefined
   readonly runModelTurn?: HookModelTurnRunner | undefined
   /**
-   * `runTypedHandler` itself, lent from the hook runtime's bundle
-   * (dist/hookRuntime.js, M91) so dist/modelApi.js does not carry the
-   * runners. Absent, a typed handler is skipped with a warning.
-   */
+  `runTypedHandler` itself, lent from the hook runtime's bundle
+  (dist/hookRuntime.js, M91) so dist/modelApi.js does not carry the
+  runners. Absent, a typed handler is skipped with a warning.
+  */
   readonly runTyped?: typeof runTypedHandler | undefined
 }
 
@@ -115,17 +116,14 @@ export interface HookModelDailyBudget {
     inputTokens: number,
     outputTokens: number,
     signal: AbortSignal,
-  ) => Promise<{
-    readonly check: () => void
-    readonly settle: (costUsd: UsdAmount, isUnknown: boolean) => Promise<void>
-  }>
+  ) => Promise<SpendClaim>
 }
 
 /**
- * One model call with the hook's prompt and payload, hooks off, one attempt,
- * no retry. `agent` gets the read-only tools (read, grep, list, code
- * intelligence); `prompt` gets none. Never billed to the subscription.
- */
+One model call with the hook's prompt and payload, hooks off, one attempt,
+no retry. `agent` gets the read-only tools (read, grep, list, code
+intelligence); `prompt` gets none. Never billed to the subscription.
+*/
 export type HookModelTurnRunner = (
   input: { readonly kind: 'prompt' | 'agent'; readonly system: string; readonly user: string },
   signal: AbortSignal,
@@ -141,6 +139,13 @@ export interface HookModelPolicy {
     readonly kind: 'prompt' | 'agent'
     readonly modelId: string
   }) => Promise<boolean>
+  /**
+  Whether the turn's remaining call allowance is reserved for its own
+  requests: a hook-model run now would take the reserved slot. Checked
+  before the paid popup and the tally; a reserved slot fails the handler
+  so the hook's own on-failure rule decides. Absent, no slot is reserved.
+  */
+  readonly isTurnCallReserved?: (() => boolean) | undefined
   /** Counts the run on the hookModels tally line. */
   readonly noteHookModelRun: () => void
   /** Settles the run's reported use into tokens and cost. */
@@ -157,12 +162,12 @@ export type HookMcpOutcome =
   | { readonly kind: 'denied' }
 
 /**
- * One call of the hook's tool on its configured MCP server, through that
- * tool's own approval path (the policy judgement, the trust check and the
- * approval card are the tool's own). Helper calls fire no hooks and skip the
- * Auto reviewer, so a hook can never approve or review itself into a loop.
- * The hook's event payload, a JSON object, is the tool's arguments.
- */
+One call of the hook's tool on its configured MCP server, through that
+tool's own approval path (the policy judgement, the trust check and the
+approval card are the tool's own). Helper calls fire no hooks and skip the
+Auto reviewer, so a hook can never approve or review itself into a loop.
+The hook's event payload, a JSON object, is the tool's arguments.
+*/
 export type HookMcpCall = (
   server: string,
   tool: string,
@@ -171,9 +176,9 @@ export type HookMcpCall = (
 ) => Promise<HookMcpOutcome>
 
 /**
- * What a typed handler may read: the allowlist setting and the window's
- * network posture, both re-read at every run.
- */
+What a typed handler may read: the allowlist setting and the window's
+network posture, both re-read at every run.
+*/
 export interface HookHandlerPolicy {
   /** `museSpark.hookHttpAllowedHosts`, as the settings reader validated it. */
   readonly httpAllowlist: () => readonly string[]
@@ -182,10 +187,10 @@ export interface HookHandlerPolicy {
 }
 
 /**
- * Everything a typed handler needs: its runners and its policy. Absent
- * runners skip the handler with a warning, exactly like a command whose
- * runner is unavailable.
- */
+Everything a typed handler needs: its runners and its policy. Absent
+runners skip the handler with a warning, exactly like a command whose
+runner is unavailable.
+*/
 export interface TypedHookHandlers
   extends HookHandlerRunners, HookHandlerPolicy, Partial<HookModelPolicy> {}
 
@@ -223,11 +228,11 @@ function isIpLiteral(host: string): boolean {
 }
 
 /**
- * The http allowlist match (D70, lane-common binding): exact hosts, or
- * `*.example.com` for subdomains only (never the bare domain). No IP
- * literals except loopback, which still needs its own exact entry: with an
- * empty allowlist, no http hook runs.
- */
+The http allowlist match (D70, lane-common binding): exact hosts, or
+`*.example.com` for subdomains only (never the bare domain). No IP
+literals except loopback, which still needs its own exact entry: with an
+empty allowlist, no http hook runs.
+*/
 export function isHttpHostAllowed(host: string, allowlist: readonly string[]): boolean {
   const name = normalizedHost(host)
   if (name === '') {
@@ -270,11 +275,11 @@ function failed(reason: string): TypedHookAnswer {
 }
 
 /**
- * Runs one `http` handler: user scope only, HTTPS only, an allowlisted host,
- * only while the network posture allows, no redirects, the same bounded
- * payload and answer schema as a command, and fixed headers. Anything else
- * fails the handler with a warning, never widening.
- */
+Runs one `http` handler: user scope only, HTTPS only, an allowlisted host,
+only while the network posture allows, no redirects, the same bounded
+payload and answer schema as a command, and fixed headers. Anything else
+fails the handler with a warning, never widening.
+*/
 export async function runHttpHandler(
   config: TypedHandlerConfig,
   payloadJson: string,
@@ -296,7 +301,8 @@ export async function runHttpHandler(
   let url: URL
   try {
     url = new URL(rawUrl)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof TypeError)) throw error
     warn(`${config.event}: http hook has an invalid url`)
     return failed('http hook has an invalid url')
   }
@@ -355,10 +361,10 @@ export async function runHttpHandler(
 }
 
 /**
- * Runs one typed handler. Undefined skips it with no onFailure, like a
- * command whose runner is unavailable; a failed answer may run the hook's
- * onFailure command, like a failed command.
- */
+Runs one typed handler. Undefined skips it with no onFailure, like a
+command whose runner is unavailable; a failed answer may run the hook's
+onFailure command, like a failed command.
+*/
 export async function runTypedHandler(
   config: TypedHandlerConfig,
   payloadJson: string,
@@ -414,6 +420,9 @@ export async function runTypedHandler(
         ...(handlers.noteHookModelUsage !== undefined && {
           noteHookModelUsage: handlers.noteHookModelUsage,
         }),
+        ...(handlers.isTurnCallReserved !== undefined && {
+          isTurnCallReserved: handlers.isTurnCallReserved,
+        }),
         modelId: handlers.modelId,
       },
       signal,
@@ -424,12 +433,14 @@ export async function runTypedHandler(
 }
 
 /**
- * Runs one `prompt` or `agent` handler: the paid gate first, then one model
- * call, then the answer parsed like a command's. The gate (kill switch),
- * the price check and the paid-use popup all run before any model request;
- * a refused or denied run never reaches the model. The run is tallied on
- * the hookModels line, apart from the conversation.
- */
+Runs one `prompt` or `agent` handler: the paid gate, then one model call,
+then the answer parsed like a command's. The gate (kill switch), the
+price check and the paid-use popup all run before any model request;
+a refused or denied run never reaches the model. The reserved-slot check
+runs before the popup and the tally, so a skipped run is failed, never
+asked for nor counted. The run is tallied on the hookModels line, apart
+from the conversation.
+*/
 export async function runModelHandler(
   config: TypedHandlerConfig,
   payloadJson: string,
@@ -460,6 +471,15 @@ export async function runModelHandler(
   if (Buffer.byteLength(payloadJson) > HOOK_STDIN_MAX_BYTES) {
     warn(`${config.event}: ${kind} hook input exceeds limit; the model was not asked`)
     return failed(`${kind} hook input exceeds limit`)
+  }
+  // A skipped call is a failed hook answer with its own typed reason: the
+  // turn's call allowance is used up. Before the popup and the tally, so
+  // nothing is asked to be paid and nothing is counted for a call that is
+  // not made; the hook's own on-failure rule decides.
+  if (policy.isTurnCallReserved?.() === true) {
+    const reason = `${config.event}: ${kind} hook model call skipped: the turn's remaining call allowance is reserved for its own requests`
+    warn(reason)
+    return failed(reason)
   }
   const isAllowed = await policy.allowsHookModelUse({ event: config.event, kind, modelId })
   if (!isAllowed) {
@@ -494,11 +514,11 @@ export async function runModelHandler(
 }
 
 /**
- * Runs one `mcp_tool` handler: the tool on its configured MCP server,
- * through that tool's own approval path. A tool that is not offered, or one
- * the user does not approve, fails the handler with a warning: it never
- * widens. The answer parses like a command's.
- */
+Runs one `mcp_tool` handler: the tool on its configured MCP server,
+through that tool's own approval path. A tool that is not offered, or one
+the user does not approve, fails the handler with a warning: it never
+widens. The answer parses like a command's.
+*/
 export async function runMcpToolHandler(
   config: TypedHandlerConfig,
   payloadJson: string,

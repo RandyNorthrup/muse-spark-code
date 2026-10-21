@@ -1,54 +1,90 @@
 import { describe, expect, it } from 'vitest'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { InputItem } from '../../src/core/backends/modelapi/schemas'
-import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
+import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
+import { MODEL_API_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
+
+const requiredImages = (count: number) =>
+  Array.from(
+    { length: count },
+    () =>
+      ({
+        type: 'input_image',
+        image_url: 'data:image/png;base64,AQ==',
+        detail: 'auto',
+      }) as const,
+  )
+
+/** A configured chat model whose image support caps at two PNGs. */
+const fireworksTwoImageRecord = () =>
+  resolveModelCapabilities({ provider: 'fireworks', nativeModel: 'm', format: 'chat' }, [
+    {
+      source: { kind: 'user' as const },
+      fields: {
+        modalities: {
+          image: { state: 'yes', value: { mimes: ['image/png'], maxCount: 2 } },
+        },
+      },
+    },
+  ])
 
 describe('Model API replay media budget', () => {
   it('refuses overfull required media instead of fitting it as delivered history', () => {
-    const required = Array.from(
-      { length: 51 },
-      () =>
-        ({
-          type: 'input_image',
-          image_url: 'data:image/png;base64,AQ==',
-          detail: 'auto',
-        }) as const,
-    )
+    const required = requiredImages(51)
     const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
     expect(() => new MediaBudget().fit(input, undefined, required)).toThrow()
   })
 
-  it.each(['slots', 'chars'])(
-    'reserves %s for undelivered media before fitting later delivered history',
-    (limit) => {
-      const pending = {
-        type: 'input_image',
-        image_url: 'data:image/png;base64,AQ==',
-        detail: 'auto',
-      } as const
-      const delivered = { ...pending, image_url: 'data:image/png;base64,AA==' }
-      const input: readonly InputItem[] = [
-        { type: 'message', role: 'user', content: [pending] },
-        {
-          type: 'message',
-          role: 'user',
-          content: Array.from({ length: limit === 'slots' ? 50 : 1 }, () => delivered),
-        },
-      ]
-      const budget = new MediaBudget(limit === 'chars' ? pending.image_url.length : undefined)
-      const fitted = budget.fit(input, undefined, [pending])
-      expect(fitted[0]).toBe(input[0])
-      expect(fitted[1]).toMatchObject({
-        content: expect.arrayContaining([expect.objectContaining({ type: 'input_text' })]),
-      })
-      expect(budget.omitted).toBe(true)
-    },
-  )
+  it('reserves slots for undelivered media before fitting later delivered history', () => {
+    const pending = {
+      type: 'input_image',
+      image_url: 'data:image/png;base64,AQ==',
+      detail: 'auto',
+    } as const
+    const delivered = { ...pending, image_url: 'data:image/png;base64,AA==' }
+    const input: readonly InputItem[] = [
+      { type: 'message', role: 'user', content: [pending] },
+      {
+        type: 'message',
+        role: 'user',
+        content: Array.from({ length: 50 }, () => delivered),
+      },
+    ]
+    const budget = new MediaBudget()
+    const fitted = budget.fit(input, undefined, [pending])
+    expect(fitted[0]).toBe(input[0])
+    expect(fitted[1]).toMatchObject({
+      content: expect.arrayContaining([expect.objectContaining({ type: 'input_text' })]),
+    })
+    expect(budget.omitted).toBe(true)
+  })
+
+  it('keeps large replay media past the old aggregate character budget', () => {
+    const big = {
+      type: 'input_image',
+      image_url: `data:image/png;base64,${'A'.repeat(49_000_000)}`,
+      detail: 'auto',
+    } as const
+    const small = {
+      type: 'input_image',
+      image_url: 'data:image/png;base64,AQ==',
+      detail: 'auto',
+    } as const
+    const input: readonly InputItem[] = [
+      { type: 'message', role: 'user', content: [small] },
+      { type: 'message', role: 'user', content: [big] },
+    ]
+    const budget = new MediaBudget()
+    const fitted = budget.fit(input, undefined, [small])
+    expect(fitted[0]).toBe(input[0])
+    expect(fitted[1]).toBe(input[1])
+    expect(budget.omitted).toBe(false)
+  })
 
   it('counts uploaded video in the shared 50-media budget while its bytes consume no inline budget', () => {
     const part = { type: 'input_text', text: 'test-upload:file-clip' } as const
-    const budget = new MediaBudget(0)
+    const budget = new MediaBudget()
     budget.noteMedia(
       part,
       {
@@ -58,7 +94,6 @@ describe('Model API replay media budget', () => {
         durationSeconds: 10,
         hasSoundtrack: false,
       },
-      0,
       'clip.mp4 metadata',
     )
     const input: readonly InputItem[] = [
@@ -81,28 +116,46 @@ describe('Model API replay media budget', () => {
     }).not.toThrow()
   })
 
+  it('counts already-queued slots beside fresh media, not fresh media alone', () => {
+    // RVNOLIMITS4: removing the aggregate character tally must not drop the
+    // queued slot count steered admission passes in. One fresh image fits
+    // alone and beside 49 queued slots, and refuses beside a full queue.
+    const image = {
+      type: 'input_image',
+      image_url: 'data:image/png;base64,AQ==',
+      detail: 'auto',
+    } as const
+    const budget = new MediaBudget()
+    expect(() => {
+      budget.assertMessageFits([image])
+    }).not.toThrow()
+    expect(() => {
+      budget.assertMessageFits([image], 49)
+    }).not.toThrow()
+    expect(() => {
+      budget.assertMessageFits([image], 50)
+    }).toThrow()
+  })
+
   it('weighs uploaded PDFs by known pages and reserves 50 slots when pages are unknown', () => {
     const known = { type: 'input_text', text: 'test-upload:file-pdf' } as const
     const unknown = { type: 'input_text', text: 'test-upload:file-opaque' } as const
     const video = { type: 'input_text', text: 'test-upload:file-video' } as const
     const budget = new MediaBudget()
-    budget.noteMedia(
-      known,
-      { kind: 'document', mediaType: 'application/pdf', sizeBytes: 1, pageCount: 49 },
-      0,
-    )
-    budget.noteMedia(unknown, { kind: 'document', mediaType: 'application/pdf', sizeBytes: 1 }, 0)
-    budget.noteMedia(
-      video,
-      {
-        kind: 'video',
-        mediaType: 'video/mp4',
-        sizeBytes: 1,
-        durationSeconds: 1,
-        hasSoundtrack: false,
-      },
-      0,
-    )
+    budget.noteMedia(known, {
+      kind: 'document',
+      mediaType: 'application/pdf',
+      sizeBytes: 1,
+      pageCount: 49,
+    })
+    budget.noteMedia(unknown, { kind: 'document', mediaType: 'application/pdf', sizeBytes: 1 })
+    budget.noteMedia(video, {
+      kind: 'video',
+      mediaType: 'video/mp4',
+      sizeBytes: 1,
+      durationSeconds: 1,
+      hasSoundtrack: false,
+    })
     expect(() => {
       budget.assertMessageFits([known, video])
     }).not.toThrow()
@@ -187,7 +240,7 @@ describe('Model API replay media budget', () => {
     expect(fitted[1]).toEqual(input[1])
   })
 
-  it('keeps newest media within the encoded data URL cap and reports elision', () => {
+  it('keeps all replay media with no aggregate character budget', () => {
     const oldImage = {
       type: 'input_image',
       image_url: 'data:image/png;base64,AAAA',
@@ -202,18 +255,8 @@ describe('Model API replay media budget', () => {
       { type: 'message', role: 'user', content: [oldImage] },
       { type: 'message', role: 'user', content: [newImage] },
     ]
-    const budget = new MediaBudget(newImage.image_url.length)
-    expect(budget.fit(input)).toEqual([
-      {
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut }],
-      },
-      input[1],
-    ])
-    expect(budget.omitted).toBe(true)
-    expect(input[0]).toEqual({ type: 'message', role: 'user', content: [oldImage] })
-    expect(budget.fit([input[1]!])).toEqual([input[1]])
+    const budget = new MediaBudget()
+    expect(budget.fit(input)).toEqual(input)
     expect(budget.omitted).toBe(false)
   })
 
@@ -251,7 +294,107 @@ describe('Model API replay media budget', () => {
     expect(budget.omitted).toBe(true)
   })
 
-  it('counts MCP output image bytes against a newer PDF request cap', () => {
+  it('never meets Meta’s 50-slot budget on a configured provider’s fresh media', () => {
+    // PROVM95: the slot count is Meta's own limit. A listed provider model
+    // answers for its own counts, so 51 fresh images fit the assertion and
+    // reach the record-driven elision below instead of throwing Meta's
+    // number before send. The aggregate byte bound still applies.
+    const record = resolveModelCapabilities(
+      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
+      [],
+    )
+    const required = requiredImages(51)
+    const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
+    const budget = new MediaBudget()
+    // Fresh media fits whole: with no Meta budget in the way the required
+    // parts stay protected and ride to the provider, which answers for its
+    // own counts. Without the record the same 51 images throw Meta's number.
+    expect(budget.fit(input, record, required)).toEqual(input)
+    expect(budget.omitted).toBe(false)
+    expect(() => {
+      budget.assertMessageFits(required, undefined, record.identity.provider)
+    }).not.toThrow()
+    expect(() => {
+      budget.assertMessageFits(required)
+    }).toThrow()
+  })
+
+  it('refuses required images above the resolved record count cap instead of protecting them', () => {
+    // A fresh batch above the model's own maxCount is refused locally with
+    // the model's reason, not sent intact for a remote rejection. A batch
+    // at the cap still rides through protected.
+    const record = fireworksTwoImageRecord()
+    const over = requiredImages(3)
+    const overfull: readonly InputItem[] = [{ type: 'message', role: 'user', content: over }]
+    expect(() => new MediaBudget().fit(overfull, record, over)).toThrow(
+      UI_TEXT.modelAttachmentOverLimit,
+    )
+    const atCap = requiredImages(2)
+    const fitting: readonly InputItem[] = [{ type: 'message', role: 'user', content: atCap }]
+    expect(new MediaBudget().fit(fitting, record, atCap)).toEqual(fitting)
+  })
+
+  it('seats protected fresh images in the record cap before fitting replay', () => {
+    // Required parts consume the cap they just passed: with two fresh
+    // images protected under a maxCount of two, an older replay image no
+    // longer fits and is named instead of overflowing the model cap.
+    const record = fireworksTwoImageRecord()
+    const fresh = requiredImages(2)
+    const replay = requiredImages(1)
+    const input: readonly InputItem[] = [
+      { type: 'message', role: 'user', content: replay },
+      { type: 'message', role: 'user', content: fresh },
+    ]
+    const budget = new MediaBudget()
+    const fitted = budget.fit(input, record, fresh)
+    expect(fitted[1]).toBe(input[1])
+    expect(fitted[0]).toMatchObject({
+      content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut }],
+    })
+    expect(budget.omitted).toBe(true)
+  })
+
+  it('refuses a required PDF above the resolved record page cap', () => {
+    const record = resolveModelCapabilities(
+      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
+      [
+        {
+          source: { kind: 'user' as const },
+          fields: { modalities: { pdf: { state: 'yes', value: { maxPages: 1 } } } },
+        },
+      ],
+    )
+    const pdfData = (pages: number) =>
+      `data:application/pdf;base64,${Buffer.from(pdfFixture(pages)).toString('base64')}` as const
+    const twoPage = { type: 'input_file', filename: 'two.pdf', file_data: pdfData(2) } as const
+    const overfull: readonly InputItem[] = [{ type: 'message', role: 'user', content: [twoPage] }]
+    expect(() => new MediaBudget().fit(overfull, record, [twoPage])).toThrow(
+      UI_TEXT.modelAttachmentOverLimit,
+    )
+    const onePage = { type: 'input_file', filename: 'one.pdf', file_data: pdfData(1) } as const
+    const fitting: readonly InputItem[] = [{ type: 'message', role: 'user', content: [onePage] }]
+    expect(new MediaBudget().fit(fitting, record, [onePage])).toEqual(fitting)
+  })
+
+  it('never meets Meta’s 50-slot budget in fit() when only the provider identity is known', () => {
+    // RVPROVM95: the send path (ModelApiHost.body) holds the resolved
+    // model's provider identity but no capability record, so fit() must
+    // honor the identity alone: 51 fresh images neither throw Meta's
+    // number nor elide replay by Meta's slot count. Only the pipeline's
+    // aggregate byte bound still applies.
+    const required = requiredImages(51)
+    const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
+    const budget = new MediaBudget()
+    expect(budget.fit(input, undefined, required, 'openai')).toEqual(input)
+    expect(budget.omitted).toBe(false)
+    const replay: readonly InputItem[] = [
+      { type: 'message', role: 'user', content: requiredImages(51) },
+    ]
+    expect(budget.fit(replay, undefined, [], 'openai')).toEqual(replay)
+    expect(budget.omitted).toBe(false)
+  })
+
+  it('keeps MCP output images with no aggregate character budget', () => {
     const pdfData = `data:application/pdf;base64,${Buffer.from(pdfFixture(1)).toString('base64')}`
     const input: readonly InputItem[] = [
       {
@@ -268,18 +411,8 @@ describe('Model API replay media budget', () => {
         content: [{ type: 'input_file', filename: 'new.pdf', file_data: pdfData }],
       },
     ]
-    const budget = new MediaBudget(pdfData.length)
-    expect(budget.fit(input)).toEqual([
-      {
-        type: 'function_call_output',
-        call_id: 'mcp-older',
-        output: [
-          { type: 'input_text', text: 'old result' },
-          { type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut },
-        ],
-      },
-      input[1],
-    ])
-    expect(budget.omitted).toBe(true)
+    const budget = new MediaBudget()
+    expect(budget.fit(input)).toEqual(input)
+    expect(budget.omitted).toBe(false)
   })
 })

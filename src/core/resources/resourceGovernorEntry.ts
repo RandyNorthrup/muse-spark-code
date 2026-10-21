@@ -29,6 +29,9 @@ import { WindowsResourceTreeReader } from './trees/windows'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
 // POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
 export { createResources } from '../../runtime/resources/entry'
+// M105 lanes V and VB: the converter's macOS RSS sampler reads through this
+// bundle's policy modules, so it ships here and loads with it.
+export { macRssSampler } from '../media/macRss'
 // U–C1: the window's status item and pause notices load with the governor, never at activation.
 export {
   createResourceStatus,
@@ -39,12 +42,16 @@ import {
   type ResourceHistoryBinding,
   type ResourceHistoryRecorder,
 } from '../../runtime/resources/history'
+import { probeChildEnvironment } from '../executables'
+import { windowsPowerShell } from '../execGuard'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
+  darwinDictationHelperSegments,
 } from '../../shared/constants'
+
+import { isErrno } from '../fs/errno'
 
 export interface ResourceHostSettings {
   /** Runtime shares its existing machine governor's queue with process launches. */
@@ -69,15 +76,16 @@ export interface ResourceHostSettings {
   /** M107 J/M102: record this window's samples into the machine journal, with usage consent. */
   readonly history?: ResourceHistoryBinding | undefined
   readonly inspect: ResourceSettingsReader
-  readonly onError: () => void
+  /** A failure the governor survives; the error, when there is one, names its cause. */
+  readonly onError: (error?: unknown) => void
   readonly windowsJob?: (() => Promise<ResourceWindowsJob | undefined>) | undefined
 }
 const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}
 
 /**
- * Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
- * written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
- */
+Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
+written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
+*/
 export async function flushResourceHistory(): Promise<void> {
   const recorder = state.recorder
   if (recorder === undefined) return
@@ -98,6 +106,49 @@ export async function flushResourceHistory(): Promise<void> {
   }
 }
 
+/**
+The created-path registry's native file commands on this platform: the
+Linux `muse-created` helper, the macOS helper's `--created-directory`, or
+Windows PowerShell loading the job assembly's `MuseSparkCreated`. One
+wiring for the product (its native root is `dist/../native`) and for the
+tests that run the registry on each platform.
+*/
+export function createdPathCommands(
+  nativeRoot: string,
+  windowsJob: (() => Promise<ResourceWindowsJob | undefined>) | undefined,
+  platform: NodeJS.Platform = process.platform,
+): (args: readonly string[]) => Promise<string> {
+  if (platform === 'linux')
+    return (args) =>
+      runTreeProgram(
+        path.join(nativeRoot, 'linux', process.arch, 'muse-created'),
+        args,
+        probeChildEnvironment({ LC_ALL: 'C' }),
+      )
+  if (platform === 'darwin')
+    return (args) =>
+      runTreeProgram(
+        path.join(nativeRoot, ...darwinDictationHelperSegments(process.arch)),
+        ['--created-directory', ...args],
+        probeChildEnvironment({ LC_ALL: 'C' }),
+      )
+  return async (args) => {
+    const systemRoot = process.env['SystemRoot']
+    const job = await windowsJob?.()
+    if (systemRoot === undefined || job === undefined || platform !== 'win32')
+      throw new Error('Native creation directory helper is required')
+    const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
+    return await runTreeProgram(
+      powershell.file,
+      [
+        ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+        `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
+      ],
+      powershell.env,
+    )
+  }
+}
+
 /** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
   if (options.localization !== undefined)
@@ -113,29 +164,12 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       }
     },
   }
+  const nativeCommands = createdPathCommands(
+    path.join(__dirname, '..', 'native'),
+    options.windowsJob,
+  )
   const directories =
-    options.createdDirectories ??
-    (process.platform === 'linux'
-      ? undefined
-      : async (args: readonly string[]) => {
-          if (process.platform === 'darwin')
-            return await runTreeProgram(
-              path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate'),
-              ['--created-directory', ...args],
-            )
-          const systemRoot = process.env['SystemRoot']
-          const job = await options.windowsJob?.()
-          if (systemRoot === undefined || job === undefined || process.platform !== 'win32')
-            throw new Error('Native creation directory helper is required')
-          return await runTreeProgram(
-            path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
-            [
-              ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-              `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
-            ],
-            { SystemRoot: systemRoot },
-          )
-        })
+    options.createdDirectories ?? (process.platform === 'linux' ? undefined : nativeCommands)
   let registryPending: Promise<CreatedRegistry> | undefined
   const registry = (): Promise<CreatedRegistry> => {
     registryPending ??=
@@ -146,13 +180,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
             () => clock.now(),
             {
               directories,
-              files:
-                directories ??
-                ((args) =>
-                  runTreeProgram(
-                    path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created'),
-                    args,
-                  )),
+              files: directories ?? nativeCommands,
               exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),
@@ -161,7 +189,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
                   const stats = await statfs(path.dirname(file), { bigint: true })
                   const bytes = Number(stats.bsize * stats.bavail)
                   return Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null
-                } catch {
+                } catch (error) {
+                  // A filesystem that cannot answer leaves unknown space. Only
+                  // errno failures read that way.
+                  if (!isErrno(error)) throw error
                   return null
                 }
               },
@@ -252,12 +283,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
             process.kill(-pgid, 0)
             return Promise.resolve(false)
           } catch (error: unknown) {
-            return Promise.resolve(
-              typeof error === 'object' &&
-                error !== null &&
-                'code' in error &&
-                error.code === 'ESRCH',
-            )
+            // Only a confirmed ESRCH proves the group gone; anything else is
+            // not a liveness answer.
+            if (!isErrno(error)) throw error
+            return Promise.resolve(error.code === 'ESRCH')
           }
         },
       }

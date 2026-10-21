@@ -29,7 +29,7 @@ import {
   type ResourceAdmission,
   type ResourceLaunchRequest,
 } from './queue'
-import { ResourceTreeRegistry } from './trees/registry'
+import { ResourceTreeRegistry, RESOURCE_MEMBERSHIP_UNPROVEN } from './trees/registry'
 import type {
   ResourceAdmissionPort,
   ResourceLease,
@@ -42,16 +42,29 @@ import type {
 } from './launch'
 
 /**
- * Launchers without a profile (MCP, shell, team) and the portable contained and
- * probe profiles own a whole tree the registry binds; handoff, interactive and
- * bootstrap stop only what they own themselves.
- */
+Launchers without a profile (MCP, shell, team) and the portable contained and
+probe profiles own a whole tree the registry binds; handoff, interactive and
+bootstrap stop only what they own themselves.
+*/
 const TREE_BOUND: ReadonlySet<ResourceLaunchProfile | undefined> = new Set([
   undefined,
   'contained',
   'probe',
 ])
 const isTreeBound = (profile: ResourceLaunchProfile | undefined) => TREE_BOUND.has(profile)
+
+/**
+Fixed sampler-failure cause, preserved through the sampler boundary for
+the installed receipt (RVCM109JD P2-2): the finished-tree membership race
+is the only cause the receipt may ever whitelist; every other sampler
+failure stays fatal there.
+*/
+export type ResourceSamplerCause = 'unproven-membership' | 'sampler-error'
+function samplerCauseOf(error: unknown): ResourceSamplerCause {
+  return error instanceof Error && error.message === RESOURCE_MEMBERSHIP_UNPROVEN
+    ? 'unproven-membership'
+    : 'sampler-error'
+}
 
 interface Work {
   kind: ResourceKind
@@ -73,6 +86,8 @@ interface Work {
   limited: boolean
   /** The last verified tree reading, reused by J's history (no extra OS query). */
   usage: ResourceTreeUsage | undefined
+  /** Fixed cause of the latest sampler failure; read by the installed receipt. */
+  samplerCause: ResourceSamplerCause | undefined
 }
 /** J's work source row: a registered tree and its last verified reading. */
 export interface ResourceTreeUsageRow {
@@ -91,15 +106,16 @@ export interface ResourceLaunchHostOptions {
   readonly clock: ResourceClock
   readonly settings: () => ResourceSettings
   readonly bindTree: (process: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>
-  readonly onError: () => void
+  /** A failure the governor survives; the error, when there is one, names its cause. */
+  readonly onError: (error?: unknown) => void
   readonly disks?: ResourceDiskSampler | undefined
   readonly tempRoots?: ResourceTempRoots | undefined
   readonly created?: Pick<CreatedRegistry, 'finish' | 'clean'> | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   /**
-   * A history recorder drains `settled()` (M107-J-C1-T-accounting; the window's,
-   * POSTSPAWN). Without one, no attested row is kept: nothing would ever read it.
-   */
+  A history recorder drains `settled()` (M107-J-C1-T-accounting; the window's,
+  POSTSPAWN). Without one, no attested row is kept: nothing would ever read it.
+  */
   readonly isSettledRead?: boolean | undefined
 }
 
@@ -313,17 +329,23 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
           work.ended = true
           const result = await work.registry?.kill(work.ticket)
           work.limited = result?.status === 'done'
-          if (!work.limited) this.options.onError()
+          if (!work.limited) {
+            // A policy stop the kernel refused is a sampler failure of its
+            // own: stamp its cause so a stale race cause cannot stand in.
+            work.samplerCause = 'sampler-error'
+            this.options.onError()
+          }
         }
       }
       const usage = await work.registry?.usage(work.ticket)
       work.known = usage !== undefined && usage !== null
       if (work.known) work.usage = usage ?? undefined
-    } catch {
+    } catch (error: unknown) {
       work.known = false
       if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
       work.ticket = undefined
       work.usage = undefined
+      work.samplerCause = samplerCauseOf(error)
       this.options.onError()
     }
   }
@@ -421,10 +443,10 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * The governor's checked status, cached: the same object until a reading,
-   * event, queue or settings change alters its content (React's external-store
-   * contract for the chip; the status item reads the same object).
-   */
+  The governor's checked status, cached: the same object until a reading,
+  event, queue or settings change alters its content (React's external-store
+  contract for the chip; the status item reads the same object).
+  */
   status(): ResourceStatus {
     if (this.snapshot !== undefined && !this.isSnapshotStale) return this.snapshot.status
     const status = this.options.governor.status(this.queue.counts())
@@ -449,9 +471,9 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * Resume now: the governor's own fifteen-minute override for this window.
-   * An explicitly disabled governor stays off, and nothing is approved or paid.
-   */
+  Resume now: the governor's own fifteen-minute override for this window.
+  An explicitly disabled governor stays off, and nothing is approved or paid.
+  */
   resume(): ResourceStatus {
     if (this.disposed) throw new Error('Resource launch host disposed')
     if (this.applySettings().enabled) this.options.governor.resumeNow()
@@ -531,6 +553,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       births: [],
       limited: false,
       usage: undefined,
+      samplerCause: undefined,
     }
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined
@@ -682,11 +705,11 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
-   * (oldest dropped and counted), kept only with `isSettledRead`. The window's
-   * history recorder reads it with `treeUsage()` as its ResourceRecordWorkSource
-   * (POSTSPAWN); a window without history keeps no rows.
-   */
+  Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
+  (oldest dropped and counted), kept only with `isSettledRead`. The window's
+  history recorder reads it with `treeUsage()` as its ResourceRecordWorkSource
+  (POSTSPAWN); a window without history keeps no rows.
+  */
   settled(): {
     readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]
     readonly dropped: number
@@ -703,14 +726,14 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
-   * J's history work source: each registered tree's last verified reading from
-   * the tree sampler, then retired trees' final readings once. No OS query.
-   */
+  J's history work source: each registered tree's last verified reading from
+  the tree sampler, then retired trees' final readings once. No OS query.
+  */
   treeUsage(): readonly ResourceTreeUsageRow[] {
     this.isUsageObserved = true
     const retired = this.retiredUsage.splice(0)
     const live = [...this.work].flatMap((work) =>
-      work.ticket === undefined ? [] : [{ ticket: work.ticket, usage: work.usage ?? null }],
+      work.ticket === undefined ? [] : { ticket: work.ticket, usage: work.usage ?? null },
     )
     return [...retired, ...live]
   }

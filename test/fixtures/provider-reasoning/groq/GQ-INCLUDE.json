@@ -1,0 +1,67 @@
+{
+  "id": "GQ-INCLUDE",
+  "provider": "groq",
+  "sentAt": "2026-10-13T01:37:30.810Z",
+  "method": "POST",
+  "url": "https://api.groq.com/openai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "include_reasoning": false,
+    "max_tokens": 100,
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "openai/gpt-oss-120b",
+    "stream": false
+  },
+  "lookFor": "Status; whether reasoning is omitted from the reply.",
+  "status": 200,
+  "responseHeaders": {
+    "x-ratelimit-limit-requests": "1000",
+    "x-ratelimit-limit-tokens": "8000",
+    "x-ratelimit-remaining-requests": "997",
+    "x-ratelimit-remaining-tokens": "7595",
+    "x-ratelimit-reset-requests": "4m19.2s",
+    "x-ratelimit-reset-tokens": "3.037s",
+    "x-request-id": "req_01m4segqacekzax7ma4ggyrvfw"
+  },
+  "response": {
+    "id": "chatcmpl-0c71204f-c9d6-4c9c-bae0-560d6cb794df",
+    "object": "chat.completion",
+    "created": 1791855451,
+    "model": "openai/gpt-oss-120b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": ""
+        },
+        "logprobs": null,
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.121880353,
+      "prompt_tokens": 77,
+      "prompt_time": 0.003123355,
+      "completion_tokens": 100,
+      "completion_time": 0.207412957,
+      "total_tokens": 177,
+      "total_time": 0.210536312,
+      "completion_tokens_details": {
+        "reasoning_tokens": 98
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_803c0ba83d",
+    "x_groq": {
+      "id": "req_01m4segqacekzax7ma4ggyrvfw",
+      "seed": 1619719354
+    },
+    "service_tier": "on_demand"
+  }
+}

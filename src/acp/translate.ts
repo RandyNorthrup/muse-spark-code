@@ -3,20 +3,15 @@ import { estimateCostUsd } from '../core/usage/insights'
 import { Usd } from '../shared/usd'
 import {
   MODEL_API_PRICED_MODELS,
-  ACP_TOOL_OUTPUT_MAX_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
-  BYTES_PER_MIB,
   FILE_EDIT_TOOLS,
   FILE_READ_TOOLS,
   IDE_CONTEXT_TAGS,
   IMAGE_MAKING_TOOLS,
-  MAX_IMAGE_BYTES,
-  MAX_DOCUMENT_BYTES,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  MEDIA_READ_MAX_BYTES,
   PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
-  SELECTION_TEXT_MAX_CHARS,
   SHELL_TOOLS,
   type PaidFeature,
   UI_TEXT,
@@ -65,7 +60,10 @@ const TEXT_FIELD = 'text'
 const OUTPUT_FIELD = 'output'
 // A reasoning item streams its summary parts as `summary.0`, `summary.1`, …
 const SUMMARY_FIELD = /^summary\.(\d+)$/
-const PART_SEPARATOR = '\n\n'
+// What `promptParts()` joins the raw text blocks with for its display text:
+// `/playback` with anything beside it is recognised on that same text before
+// any block is converted, so no attachment is resolved for a refused turn.
+export const PART_SEPARATOR = '\n\n'
 const FILE_SCHEME = 'file:'
 const APPROVED_DECISION_PREFIX = 'approved'
 const ONCE_SCOPE = 'once'
@@ -123,7 +121,9 @@ function parseArguments(raw: string | undefined): Arguments | undefined {
     return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
       ? (parsed as Arguments)
       : undefined
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed JSON shows as text: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -189,12 +189,8 @@ function toolLocations(args: Arguments | undefined, cwd: string): ToolCallLocati
   return resolved.ok ? [{ path: resolved.absolute }] : []
 }
 
-function clippedOutput(text: string): string {
-  return text.length > ACP_TOOL_OUTPUT_MAX_CHARS ? text.slice(0, ACP_TOOL_OUTPUT_MAX_CHARS) : text
-}
-
 function textContent(text: string): ToolCallContent {
-  return { type: 'content', content: { type: 'text', text: clippedOutput(text) } }
+  return { type: 'content', content: { type: 'text', text } }
 }
 
 /** An edit's change as a diff where the arguments carry it (edit and write), else nothing. */
@@ -258,11 +254,11 @@ export function planEntries(items: readonly TodoItem[]): PlanEntry[] {
 }
 
 /**
- * Turns one session's AgentEvents into ACP session updates. It remembers,
- * per item, how much text went out (an item can arrive whole after its
- * deltas, or whole on its own in a replayed history) and a tool call's
- * output so far, which ACP sends whole with the finished call.
- */
+Turns one session's AgentEvents into ACP session updates. It remembers,
+per item, how much text went out (an item can arrive whole after its
+deltas, or whole on its own in a replayed history) and a tool call's
+output so far, which ACP sends whole with the finished call.
+*/
 export class UpdateTranslator {
   private readonly sentText = new Map<string, number>()
   private readonly summaryParts = new Map<string, number>()
@@ -274,6 +270,8 @@ export class UpdateTranslator {
   private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
   private cost: UsageCost | undefined
   private hasUnpricedUsage = false
+  /** The last agent text sent ended mid-line, so the next notice opens its own paragraph. */
+  private isAgentLineOpen = false
 
   public constructor(
     private readonly cwd: string,
@@ -281,6 +279,12 @@ export class UpdateTranslator {
     private readonly isReplay: boolean,
     private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
+    /**
+    The client advertised `session.notices`: backend notices go out as
+    their own `notice` update, never as the model's words. Otherwise the
+    protocol's sanctioned fallback is an agent message.
+    */
+    private readonly areNoticesSupported = false,
   ) {}
 
   private deltaUpdates(itemId: string, field: string, delta: string): SessionUpdate[] {
@@ -393,7 +397,7 @@ export class UpdateTranslator {
     return updates
   }
 
-  public updates(event: AgentEvent): SessionUpdate[] {
+  private translated(event: AgentEvent): SessionUpdate[] {
     switch (event.type) {
       case 'tokenUsage': {
         const priced: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
@@ -471,7 +475,24 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
-        return [agentText(`${event.text}${PART_SEPARATOR}`)]
+        // A backend notice is the app's own words, never the model's: it
+        // goes out as its own `notice` update where the client can show
+        // one, and only then falls back to an agent message (the
+        // protocol's sanctioned fallback for clients without notices).
+        if (this.areNoticesSupported) {
+          return [
+            {
+              sessionUpdate: 'notice',
+              severity: event.level,
+              title: event.text,
+            },
+          ]
+        }
+        // A client renders agent chunks as one text: after the model's
+        // words the notice opens its own paragraph instead of running on
+        // ("Canberra.The turn finished…").
+        const opening = this.isAgentLineOpen ? PART_SEPARATOR : ''
+        return [agentText(`${opening}${event.text}${PART_SEPARATOR}`)]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
@@ -482,6 +503,20 @@ export class UpdateTranslator {
         return []
       }
     }
+  }
+
+  public updates(event: AgentEvent): SessionUpdate[] {
+    const updates = this.translated(event)
+    for (const update of updates) {
+      if (
+        update.sessionUpdate === 'agent_message_chunk' &&
+        update.content.type === 'text' &&
+        update.content.text !== ''
+      ) {
+        this.isAgentLineOpen = !update.content.text.endsWith('\n')
+      }
+    }
+    return updates
   }
 
   /** A whole item: the text not yet sent, or a tool call announced or brought up to date. */
@@ -546,11 +581,11 @@ export function permissionOptions(choices: readonly ApprovalChoice[]): Permissio
 }
 
 /**
- * The choice to decide with (D62): the one the client picked when it was
- * offered, and otherwise (cancelled, unknown, no answer) the backend's own
- * deny choice, preferring "this once". Undefined only when the backend
- * offered no way to deny, and then the caller stops the turn instead.
- */
+The choice to decide with (D62): the one the client picked when it was
+offered, and otherwise (cancelled, unknown, no answer) the backend's own
+deny choice, preferring "this once". Undefined only when the backend
+offered no way to deny, and then the caller stops the turn instead.
+*/
 export function decidedChoice(
   response: RequestPermissionResponse | undefined,
   choices: readonly ApprovalChoice[],
@@ -620,12 +655,10 @@ export interface PromptMediaPort {
   readonly block: (block: ContentBlock, signal: AbortSignal) => Promise<TurnPart | string>
 }
 
-/** A file the client attached, as context the model reads (clipped like a selection). */
+/** A file the client attached, as context the model reads in full. */
 function attachedContext(uri: string, text: string): string {
-  const body =
-    text.length > SELECTION_TEXT_MAX_CHARS ? text.slice(0, SELECTION_TEXT_MAX_CHARS) : text
   const tag = IDE_CONTEXT_TAGS.attachedContext
-  return `<${tag} uri="${uri}">\n${body}\n</${tag}>`
+  return `<${tag} uri="${uri}">\n${text}\n</${tag}>`
 }
 
 /** A `file:` link inside the folder as an @mention, anything else as its URI. */
@@ -636,8 +669,10 @@ function linkText(uri: string, cwd: string): string {
   let absolute: string
   try {
     absolute = fileURLToPath(uri)
-  } catch {
-    // A `file:` URI this platform cannot map to a path (another host's share).
+  } catch (error: unknown) {
+    // A `file:` URI this platform cannot map to a path (another host's
+    // share) stays a URI: anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return uri
   }
   const relative = path.relative(cwd, absolute)
@@ -664,11 +699,14 @@ export function decodeAcpBlob(
 }
 
 function imagePart(base64Data: string, mime?: string): TurnPart | string {
+  // D121: an editor blob decodes whole, bounded only by host memory — no
+  // size of ours. Past it the file cannot be taken; the provider answers
+  // for the rest at send.
   const bytes = decodeAcpBlob(
     base64Data,
-    MAX_IMAGE_BYTES,
+    MEDIA_READ_MAX_BYTES,
     mime ?? 'image',
-    UI_TEXT.attachmentTooLarge,
+    UI_TEXT.attachmentUnreadable,
   )
   if (typeof bytes === 'string') return bytes
   const info = readImageInfo(bytes)
@@ -707,26 +745,28 @@ async function blockPart(
       if (media !== undefined) return await media.block(block, signal)
       // No port on the Model API backend is an unbound pipeline, not a
       // reason to switch backends (M105 E2 review).
-      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
+      return canAcceptDocuments ? UI_TEXT.media.uploadUnavailable : UI_TEXT.media.museCodeRefusal
     }
     case 'resource': {
       const { resource } = block
       if ('text' in resource)
         return { type: 'text', text: attachedContext(resource.uri, resource.text) }
+      // D121: an embedded blob decodes whole, bounded only by host memory —
+      // no size of ours. A PDF the backend cannot take is refused as
+      // before; the provider answers for sizes at send.
       const bytes = decodeAcpBlob(
         resource.blob,
-        resource.mimeType === PDF_MEDIA_TYPE
-          ? MAX_DOCUMENT_BYTES
-          : MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+        MEDIA_READ_MAX_BYTES,
         resource.mimeType ?? 'blob',
-        resource.mimeType === PDF_MEDIA_TYPE ? UI_TEXT.documentTooLarge : UI_TEXT.execFileTooLarge,
+        resource.mimeType === PDF_MEDIA_TYPE
+          ? UI_TEXT.attachmentUnreadable
+          : UI_TEXT.execFileTooLarge,
       )
       if (typeof bytes === 'string') return bytes
       if (isPdf(bytes)) {
         if (resource.mimeType != null && resource.mimeType !== PDF_MEDIA_TYPE)
           return fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
         if (!canAcceptDocuments) return UI_TEXT.pdfNeedsModelApi
-        if (bytes.length > MAX_DOCUMENT_BYTES) return UI_TEXT.documentTooLarge
         return {
           type: 'file',
           name: resourceName(resource.uri),
@@ -748,7 +788,7 @@ async function blockPart(
     }
     case 'audio': {
       if (media !== undefined) return await media.block(block, signal)
-      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
+      return canAcceptDocuments ? UI_TEXT.media.uploadUnavailable : UI_TEXT.media.museCodeRefusal
     }
     default: {
       return fill(UI_TEXT.media.attachmentUnknownType, { type: 'content' })
@@ -760,16 +800,20 @@ async function blockPart(
 export function resourceName(uri: string): string {
   try {
     return path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
-  } catch {
-    return path.posix.basename(uri.replaceAll('\\', '/'))
+  } catch (error: unknown) {
+    // Only a malformed URL or escape keeps the raw name: anything else keeps
+    // its kind past the display-name boundary.
+    if (error instanceof TypeError) return path.posix.basename(uri.replaceAll('\\', '/'))
+    if (error instanceof URIError) return path.posix.basename(uri.replaceAll('\\', '/'))
+    throw error
   }
 }
 
 /**
- * Whether a prompt link names media (M105 E2 review): only these route to
- * the media port. Ordinary context links and URLs stay mentions/text even
- * when the port is bound; binding the port must not file-open them.
- */
+Whether a prompt link names media (M105 E2 review): only these route to
+the media port. Ordinary context links and URLs stay mentions/text even
+when the port is bound; binding the port must not file-open them.
+*/
 export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link' }>): boolean {
   return (
     /^(?:image|audio|video)\//u.test(block.mimeType ?? '') ||
@@ -779,10 +823,10 @@ export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link'
 }
 
 /**
- * A prompt's blocks as the turn's parts; the first block the backend cannot
- * take refuses the whole prompt, so nothing is sent half. `displayText` is
- * what the user typed, for the stored transcript.
- */
+A prompt's blocks as the turn's parts; the first block the backend cannot
+take refuses the whole prompt, so nothing is sent half. `displayText` is
+what the user typed, for the stored transcript.
+*/
 export async function promptParts(
   blocks: readonly ContentBlock[],
   cwd: string,
@@ -801,7 +845,7 @@ export async function promptParts(
     parts.push(part)
   }
   const displayText = blocks
-    .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+    .flatMap((block) => (block.type === 'text' ? block.text : []))
     .join(PART_SEPARATOR)
   return { ok: true, parts, displayText }
 }
@@ -817,10 +861,10 @@ function pairs(entries: readonly { readonly name: string; readonly value: string
 }
 
 /**
- * An ACP client's MCP servers as the engine's (M63c): stdio and HTTP, keyed
- * by name. SSE and the unstable ACP transport are left out, as is a second
- * server under a name already taken.
- */
+An ACP client's MCP servers as the engine's (M63c): stdio and HTTP, keyed
+by name. SSE and the unstable ACP transport are left out, as is a second
+server under a name already taken.
+*/
 export function mcpServersFrom(requested: readonly McpServer[]): ForwardedMcpServers {
   const servers = new Map<string, SessionMcpServer>()
   const skipped: string[] = []

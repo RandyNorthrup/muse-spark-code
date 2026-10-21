@@ -1,0 +1,37 @@
+Real-life run of muse-spark-code-acp-0.18.2.tgz (muse-spark-code-acp 0.18.2)
+SHA-256 0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea
+Windows_NT 10.0.26200 x64, Node v24.20.0; 2026-10-13T00:52:19.537Z to 2026-10-13T00:52:36.192Z
+Caps: 16 requests, $0.200000. Made: 2 requests, $0.330698 by the product's own count.
+The product's own usage for this home afterwards: 2 requests, $0.330698.
+Scenario runs: 4 passed, 0 failed, 3 not run.
+
+Route anthropic (Anthropic Messages, claude-haiku-4-5): added as rl-anthropic; Key works · 13 models.
+Route openai (OpenAI Responses, gpt-5.6-luna): added as rl-openai; Key works · 1 model.
+Route meta (Meta Model API, muse-spark-1.3-contributor): the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards
+Route xai (OpenAI Responses (xAI), grok-4.3): added as rl-xai; Key works · 14 models.
+
+PASS  add-provider · anthropic · exec · 0 req · $0.000000 · 1.7 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com.
+      saw     providers test says the key works: Key works · 13 models.
+PASS  cancel · anthropic · acp · 2 req · $0.330698 · 2.7 s
+      A turn is cancelled in the middle [ref/feature/acp]
+      saw     the answer is under way when the person stops it: 75 characters so far
+      saw     the turn ends as cancelled: cancelled
+      saw     the turn ends within 5 seconds of the stop: 0.0 s
+      saw     the answer stopped before its end: 177 characters arrived
+      saw     the conversation takes the next message and answers it: end_turn: OK
+      saw     it made no more requests than it said it may: 2 of at most 4
+PASS  add-provider · openai · exec · 0 req · $0.000000 · 2.6 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com.
+      saw     providers test says the key works: Key works · 1 model.
+PASS  add-provider · xai · exec · 0 req · $0.000000 · 1.4 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai.
+      saw     providers test says the key works: Key works · 14 models.
+
+Not run:
+      cancel · openai · acp: not run: the dollar cap is reached ($0.330698 of $0.200000)
+      cancel · meta · acp: not run: the dollar cap is reached ($0.330698 of $0.200000)
+      cancel · xai · acp: not run: the dollar cap is reached ($0.330698 of $0.200000)

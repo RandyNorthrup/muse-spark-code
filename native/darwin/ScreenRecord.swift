@@ -8,8 +8,6 @@ import ScreenCaptureKit
 import VideoToolbox
 
 struct ScreenRecordOptions {
-    static let minimumSeconds = 10
-    static let maximumSeconds = 600
     static let maximumBytes = 200 * 1024 * 1024
     let output: URL
     let seconds: Int
@@ -27,7 +25,9 @@ struct ScreenRecordOptions {
         }
         guard let file = values["--output"], file.hasPrefix("/"),
             let seconds = Int(values["--max-seconds"] ?? ""),
-            (Self.minimumSeconds...Self.maximumSeconds).contains(seconds),
+            // D121: 0 records until stopped (no stop of ours); any other whole
+            // number of seconds the person set is used as set.
+            seconds >= 0,
             let bytes = Int(values["--max-bytes"] ?? ""), bytes > 0, bytes <= Self.maximumBytes,
             let microphone = Self.boolean(values["--microphone"]),
             let systemAudio = Self.boolean(values["--system-audio"])
@@ -60,7 +60,8 @@ struct ScreenRecordOptions {
     func fallbackArguments(audioDevice: UInt32) throws -> [String] {
         // screencapture -G records an input device, never system sound.
         guard !systemAudio else { throw ScreenRecordFailure.unsupportedAudio }
-        var args = ["-v", "-V", String(seconds), "-D", "1"]
+        // D121: without -V screencapture records until the helper stops it.
+        var args = seconds == 0 ? ["-v", "-D", "1"] : ["-v", "-V", String(seconds), "-D", "1"]
         if microphone {
             guard audioDevice != 0 else { throw ScreenRecordFailure.unavailable }
             args += ["-G", String(audioDevice)]
@@ -232,8 +233,11 @@ class ScreenRecordLifecycle: NSObject {
         guard !stopping else { stop(cancel: true); return }
         started = true
         ScreenRecord.send(["type": "recording"])
-        let deadline = now().addingTimeInterval(Double(options.seconds))
-        let pipelineDeadline = deadline.addingTimeInterval(Self.finalizationSeconds)
+        // D121: 0 records until stopped — no deadline of ours. The file-size
+        // watchdog above still ends a runaway recording.
+        let unlimited = options.seconds == 0
+        let deadline = unlimited ? Date.distantFuture : now().addingTimeInterval(Double(options.seconds))
+        let pipelineDeadline = unlimited ? Date.distantFuture : deadline.addingTimeInterval(Self.finalizationSeconds)
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now(), repeating: 1)
         timer.setEventHandler { [weak self] in
@@ -242,7 +246,7 @@ class ScreenRecordLifecycle: NSObject {
             let tooLarge = files.contains { ((try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) > self.options.maxBytes }
             if tooLarge { abort(.tooLarge) }
             if now() >= pipelineDeadline { abort(.failed) }
-            if !stopping && now() >= deadline { stop(cancel: false) }
+            if !unlimited && !stopping && now() >= deadline { stop(cancel: false) }
         }
         self.timer = timer
         timer.resume()
@@ -311,7 +315,7 @@ final class ScreenMovieWriter {
             writer.startSession(atSourceTime: time)
             firstFrame = time
         }
-        guard let firstFrame, time >= firstFrame, time < firstFrame + CMTime(value: Int64(maximumSeconds), timescale: 1) else { return }
+        guard let firstFrame, time >= firstFrame, maximumSeconds == 0 || time < firstFrame + CMTime(value: Int64(maximumSeconds), timescale: 1) else { return }
         if input.isReadyForMoreMediaData {
             guard input.append(sample) else { throw ScreenRecordFailure.failed }
             if input === video { lastFrame = time }
@@ -321,7 +325,10 @@ final class ScreenMovieWriter {
     func finish(at stopTime: CMTime = CMClockGetTime(CMClockGetHostTimeClock()), _ completion: @escaping (Bool) -> Void) {
         guard let firstFrame, let lastFrame else { writer.cancelWriting(); completion(false); return }
         // Static desktops may produce only one frame; retain it for the elapsed recording.
-        let end = min(firstFrame + CMTime(value: Int64(maximumSeconds), timescale: 1), max(lastFrame + CMTime(value: 1, timescale: Self.framesPerSecond), stopTime))
+        let cappedEnd = firstFrame + CMTime(value: Int64(maximumSeconds), timescale: 1)
+        let end = maximumSeconds == 0
+            ? max(lastFrame + CMTime(value: 1, timescale: Self.framesPerSecond), stopTime)
+            : min(cappedEnd, max(lastFrame + CMTime(value: 1, timescale: Self.framesPerSecond), stopTime))
         writer.endSession(atSourceTime: end)
         video.markAsFinished(); system?.markAsFinished(); microphone?.markAsFinished()
         writer.finishWriting { completion(self.writer.status == .completed) }

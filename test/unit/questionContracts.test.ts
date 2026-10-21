@@ -6,8 +6,6 @@ import {
   LATE_ANSWER_QUESTION_MAX_CHARS,
   OPEN_QUESTIONS_MAX,
   QUESTION_DEFER_DEFAULT_SECONDS,
-  QUESTION_DEFER_MAX_SECONDS,
-  QUESTION_DEFER_MIN_SECONDS,
   QUESTION_ID_MAX_CHARS,
   QUESTION_MODEL_TEXT,
   QUESTION_DELIVERY_MODEL_TEXT,
@@ -272,11 +270,9 @@ describe('M112 question boundary contracts', () => {
 
 describe('M112 policy constants and model text', () => {
   it('pins the owner-approved timing, count and size limits', () => {
-    expect([
-      QUESTION_DEFER_DEFAULT_SECONDS,
-      QUESTION_DEFER_MIN_SECONDS,
-      QUESTION_DEFER_MAX_SECONDS,
-    ]).toEqual([60, 10, 3600])
+    // D121: no limit unless the person sets one — the deferral default is 0
+    // (never), with no floor or ceiling of ours.
+    expect(QUESTION_DEFER_DEFAULT_SECONDS).toBe(0)
     expect([
       QUESTION_REMINDERS_MAX,
       OPEN_QUESTIONS_MAX,

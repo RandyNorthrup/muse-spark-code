@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import {
   fleetSnapshotSchema,
   estimateLaneSchema,
@@ -13,7 +14,6 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
 import { buildEstimateDag, isEstimateDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { compareEstimateIds } from './goal'
 
@@ -57,19 +57,19 @@ export interface EstimateScheduler {
 }
 
 /** Resource infeasibility is distinct from corrupt inputs and engine faults. */
-export class EstimateSchedulingError extends Error {
+export class EstimateSchedulingError extends EstimateDiagnosticError {
   constructor(readonly reason: string) {
-    super(fill(UI_TEXT.estimateFailed, { detail: reason }))
+    super(reason)
     this.name = 'EstimateSchedulingError'
   }
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** One candidate cannot be placed: R records it as infeasible and ranks the
- * rest, instead of aborting the whole estimate. Corrupt inputs stay `refuse`. */
+rest, instead of aborting the whole estimate. Corrupt inputs stay `refuse`. */
 function schedulingRefusal(detail: string): never {
   throw new EstimateSchedulingError(detail)
 }
@@ -106,9 +106,9 @@ function localStamp(instant: number, formatter: Intl.DateTimeFormat): number {
 }
 
 /** Recurrence stays anchored to the original civil day/time (Jan 31 -> Feb
- * end -> Mar 31). DST folds choose the earlier instant; gaps shift forward.
- * This is a scheduling assumption, not a claim about a provider's behavior.
- */
+end -> Mar 31). DST folds choose the earlier instant; gaps shift forward.
+This is a scheduling assumption, not a claim about a provider's behavior.
+*/
 function renewals(window: Window, until: number): number[] {
   const anchor = Date.parse(window.resetsAt)
   const formatter = new Intl.DateTimeFormat('en', {
@@ -197,20 +197,20 @@ function diskLoad(
 }
 
 /** Validate once; Monte Carlo and R's setup search reuse this prepared engine.
- * Rates are constant over a nonpreemptive lane; multiple accounts split its
- * total demand in proportion to their allocated slots. CI jobs are held for
- * the lane, reported minutes are charged once, disk steady demand is retained.
- */
+Rates are constant over a nonpreemptive lane; multiple accounts split its
+total demand in proportion to their allocated slots. CI jobs are held for
+the lane, reported minutes are charged once, disk steady demand is retained.
+*/
 export function prepareEstimateSchedule(
   input: readonly EstimateLane[],
   fleetInput: FleetSnapshot,
   relaxation?: EstimateRelaxation,
 ): EstimateScheduler {
   const dag = buildEstimateDag(input)
-  const fleet = fleetSnapshotSchema.parse(fleetInput)
+  const fleet = parseEstimate(fleetSnapshotSchema, fleetInput)
   const asOf = Date.parse(fleet.asOf)
   const lanes = input
-    .map((lane) => estimateLaneSchema.parse(lane))
+    .map((lane) => parseEstimate(estimateLaneSchema, lane))
     .toSorted((a, b) => compareEstimateIds(a.id, b.id))
   const lanesById = new Map(lanes.map((lane) => [lane.id, lane]))
   const childrenById = new Map(

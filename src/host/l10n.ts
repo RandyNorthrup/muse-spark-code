@@ -21,7 +21,9 @@ import {
   tableLocaleFor,
 } from '../shared/l10n/locales'
 import { BASE_LOCALE, setUiText } from '../shared/l10n/text'
+import { failureForLog } from '../core/backends/musecode/logText'
 import type { Logger } from './logger'
+import { describeStoreError } from './backend/storeErrors'
 import { readArchivedUiTable } from '../shared/l10n/tableArchive'
 
 /** The installed table and its language, as the webviews receive them. */
@@ -38,14 +40,16 @@ export interface UiTableDeps {
   readonly log: Logger
   /** The table a display language reads; the shipped list decides unless a test gives its own. */
   readonly tableLocaleFor?: (language: string) => string | undefined
+  /**
+  What the log names when it reports the installed language. The VS Code
+  panel keeps the panel wording; a headless run has no panel, so it names
+  the terminal's messages instead.
+  */
+  readonly surface?: 'panel' | 'terminal'
 }
 
 // A damaged table can differ in hundreds of keys; the log names the first few.
 const PROBLEMS_LOGGED = 5
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 /** Whether the parsed file has English's shape; what differs is added to `problems`. */
 function isTableShape(value: unknown, locale: string, problems: string[]): value is UiText {
@@ -60,14 +64,19 @@ function problemSummary(problems: readonly string[]): string {
 }
 
 /**
- * Installs the display language's table (`setUiText`) and returns it for the
- * webviews; English when the language has none or its file is unusable.
- */
+Installs the display language's table (`setUiText`) and returns it for the
+webviews; English when the language has none or its file is unusable.
+*/
 export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   const english: UiTable = { locale: BASE_LOCALE, table: EN }
+  // The terminal names its messages; only the VS Code panel names the panel.
+  const isTerminal = deps.surface === 'terminal'
+  const subject = isTerminal ? 'messages' : 'the panel'
+  const is = isTerminal ? 'are' : 'is'
+  const stays = isTerminal ? 'stay' : 'stays'
   const locale = (deps.tableLocaleFor ?? tableLocaleFor)(deps.language)
   if (locale === undefined) {
-    deps.log.info(`Display language ${deps.language}: the panel is in English`)
+    deps.log.info(`Display language ${deps.language}: ${subject} ${is} in English`)
     return english
   }
   const fileName = tableFileName(locale)
@@ -76,18 +85,20 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   try {
     parsed = unpackUiTable(JSON.parse(await deps.readExtensionFile([TABLE_DIRECTORY, fileName])))
   } catch (error: unknown) {
-    deps.log.warn(`${file} could not be read, so the panel stays in English: ${describe(error)}`)
+    deps.log.warn(
+      `${file} could not be read, so ${subject} ${stays} in English: ${describeStoreError(error)} (${failureForLog(error)})`,
+    )
     return english
   }
   const problems: string[] = []
   if (!isTableShape(parsed, locale, problems)) {
     deps.log.warn(
-      `${file} does not match the English table, so the panel stays in English: ${problemSummary(problems)}`,
+      `${file} does not match the English table, so ${subject} ${stays} in English: ${problemSummary(problems)}`,
     )
     return english
   }
   setUiText(parsed, locale)
-  deps.log.info(`Display language ${deps.language}: the panel is in ${locale} (${file})`)
+  deps.log.info(`Display language ${deps.language}: ${subject} ${is} in ${locale} (${file})`)
   return { locale, table: parsed }
 }
 

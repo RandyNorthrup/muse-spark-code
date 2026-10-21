@@ -43,6 +43,7 @@ import type { SubagentUsage } from '../../shared/paid'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
+import { isCredentialStoreDown } from '../auth/credentialStore'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import { unstartedShell } from '../../core/shellResult'
 import {
@@ -54,8 +55,9 @@ import {
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
+import { describeStoreError } from './storeErrors'
 import type { Logger } from '../logger'
-import type { AutoCompactionLedgerClaim } from '../../core/backends/modelapi/autoCompactionAdmission'
+import type { SpendClaim } from '../../core/paid/spendClaim'
 import {
   isModelApiBundle,
   type McpPoolFactory,
@@ -74,6 +76,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /** The gate's Meta-key probe says the credential store itself is dead. */
+  readonly isCredentialStoreDown?: (() => boolean) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -87,7 +91,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly streamIdleMs?: number
   readonly newId: () => string
   readonly now: () => number
-  readonly sleep: (ms: number) => Promise<void>
+  /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
+  readonly sleep?: ((ms: number) => Promise<void>) | undefined
   readonly random: () => number
   /** Muse Code's personal skill root (PLAN.md D13). */
   readonly personalSkillsRoot: string | undefined
@@ -101,12 +106,27 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** One explicit yes before a contributor-tier agent model is used (M76). */
   readonly confirmContributorModel: (modelId: string) => Promise<boolean>
   /**
-   * Sessions between windows (PLAN.md D14); undefined without workspace
-   * storage. A function is called when the host is built, so a store in a
-   * lazy bundle (dist/modelApiSessions.js) loads with the backend.
-   */
+  Sessions between windows (PLAN.md D14); undefined without workspace
+  storage. A function is called when the host is built, so a store in a
+  lazy bundle (dist/modelApiSessions.js) loads with the backend.
+  */
   readonly store: SessionStore | (() => SessionStore) | undefined
   readonly scheduleStore?: ScheduleStore | undefined
+  /** Account upload ledger and calibration observations (MONEY017D, D85.2/D85.6). */
+  readonly uploadLedgerDir?: string | undefined
+  /** `museSpark.mediaUploadExpiryDays`, read per upload (M105 lane F). */
+  readonly uploadExpiryDays?: ModelApiHostDeps['uploadExpiryDays']
+  /** The window's attached-media registry (M105 lane V): the attach port writes it. */
+  readonly attachedMedia?: ModelApiHostDeps['attachedMedia']
+  /** D78's exact daily reservation for a paid extra outside a request (lane V seam 4). */
+  readonly reservePaidExtra?: ModelApiHostDeps['reservePaidExtra']
+  /** The machine-scoped converter path, read per use (lane V seam 3B). */
+  readonly mediaConverterPath?: ModelApiHostDeps['mediaConverterPath']
+  readonly mediaAudioAction?: ModelApiHostDeps['mediaAudioAction']
+  /** Windows: the converter's job launcher (lanes V and VB). */
+  readonly mediaJobExecutable?: ModelApiHostDeps['mediaJobExecutable']
+  /** The host's private media root (lane VB). */
+  readonly mediaPrivateRoot?: ModelApiHostDeps['mediaPrivateRoot']
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -115,11 +135,15 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
   readonly sessionBudgetUsd: () => UsdAmount
+  readonly remainingModelCalls?: (() => number) | undefined
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
   readonly strictTools?: ModelApiHostDeps['strictTools']
   readonly parallelReads?: ModelApiHostDeps['parallelReads']
   readonly webSearchMaxPerRequest?: ModelApiHostDeps['webSearchMaxPerRequest']
+  readonly hookMaxStopContinuations?: ModelApiHostDeps['hookMaxStopContinuations']
+  readonly hookMaxRunningCommands?: ModelApiHostDeps['hookMaxRunningCommands']
+  readonly subagentMaxConcurrent?: ModelApiHostDeps['subagentMaxConcurrent']
   readonly modelFacts?: ModelApiHostDeps['modelFacts']
   readonly modelCapabilities?: ModelApiHostDeps['modelCapabilities']
   readonly argumentPreviewCapabilities?: ModelApiHostDeps['argumentPreviewCapabilities']
@@ -136,6 +160,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly providerId?: ModelApiClientDeps['providerId']
   readonly webSearchPriceUsd?: ModelApiClientDeps['webSearchPriceUsd']
   readonly searchTokenCostUsd?: ModelApiClientDeps['searchTokenCostUsd']
+  /** `museSpark.modelApiMaxRetries`, read per retry decision (lane RETRYLIMITS). */
+  readonly personCap?: ModelApiClientDeps['personCap']
 
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
@@ -145,9 +171,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** Amp and OpenCode plugin hooks' host side (M91b). */
   readonly pluginHooks?: ModelApiHostDeps['pluginHooks']
   /**
-   * The MCP servers for a host in this workspace (M50), one set per host,
-   * made with the bundle's pool (M57).
-   */
+  The MCP servers for a host in this workspace (M50), one set per host,
+  made with the bundle's pool (M57).
+  */
   readonly createMcpServers?:
     | ((workspaceRoot: string, newPool: McpPoolFactory) => McpToolSource | Promise<McpToolSource>)
     | undefined
@@ -168,6 +194,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidUseFence?: (feature: PaidFeature, sessionId: string) => () => boolean
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
+  /** `museSpark.modelApiMaxToolOutputBytes`, read on every bound (TOOLCAP). */
+  readonly maxToolOutputBytes?: (() => number | undefined) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
   readonly isShellKeepsDirectoryOn?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
@@ -182,12 +210,21 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly workspaceEdits?: WorkspaceEdits | undefined
   /** Runtime transport owns the daily debit; other hosts supply the reserve below. */
   readonly autoCompactionAccounting?: 'transport'
+  /**
+  Whether automatic compaction may spend in this workspace, read at
+  preparation and final send. Absent, workspace trust decides (the
+  editor's Restricted Mode fence). The runtime supplies its own answer:
+  its spending is authorized by the editor's per-use paid question or by
+  exec's explicit flag under its run budget, and exec can never trust a
+  workspace, so the trust fence would leave headless compaction
+  unreachable (RVMSM101).
+  */
+  readonly autoCompactionTrusted?: (() => boolean) | undefined
   /** The current shared daily cap, quoted before the first charge. */
   readonly paidDailyBudgetUsd?: () => UsdAmount | Promise<UsdAmount>
-  /** D78 claim per attempt; without either owner there is no automatic admission. */
+  /** A person-set D78 daily limit per attempt; without either owner there is no automatic admission. */
   readonly reserveAutoCompaction?:
-    | ((amount: UsdAmount, signal: AbortSignal) => Promise<AutoCompactionLedgerClaim | undefined>)
-    | undefined
+    ((amount: UsdAmount, signal: AbortSignal) => Promise<SpendClaim | undefined>) | undefined
   readonly sessionWorkspaceRoot?: string | undefined
   /** Runtime owners refuse a retargeted or replaced workspace before use. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
@@ -241,8 +278,27 @@ interface HostVariant {
   readonly readyMessage: string
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+/** Runs every edit's completion after a failed begin, before its error travels on. */
+function cancelExternalEdits(completions: readonly (() => void)[]): void {
+  for (const complete of completions) {
+    complete()
+  }
+}
+
+/**
+The key, with a dead credential store reading as no key: account
+identity falls back to the subscription account (unknown, not failed)
+instead of failing on the store.
+*/
+async function readApiKey(
+  getApiKey: ModelApiBackendManagerDeps['getApiKey'],
+): Promise<string | undefined> {
+  try {
+    return await getApiKey()
+  } catch (error: unknown) {
+    if (!isCredentialStoreDown(error)) throw error
+    return undefined
+  }
 }
 
 export class ModelApiBackendManager {
@@ -250,10 +306,10 @@ export class ModelApiBackendManager {
   public static usageRecording: UsageRecording | undefined
   private host: ModelApiHost | undefined
   /**
-   * The host being built (PLAN.md D25): every caller waits for the stored
-   * sessions to be read, and a failed build is forgotten so the next call
-   * tries again instead of reusing half a host.
-   */
+  The host being built (PLAN.md D25): every caller waits for the stored
+  sessions to be read, and a failed build is forgotten so the next call
+  tries again instead of reusing half a host.
+  */
   private building: Promise<ModelApiHost> | undefined
   /** Bumped by every dispose: a build that finishes after one is closed, not kept. */
   private generation = 0
@@ -295,7 +351,7 @@ export class ModelApiBackendManager {
       loaded = loadBundle(bundlePath)
     } catch (error: unknown) {
       this.deps.log.error(
-        `The Model API bundle ${bundlePath} could not be loaded: ${describe(error)}`,
+        `The Model API bundle ${bundlePath} could not be loaded: ${describeStoreError(error)}`,
       )
       throw new Error(this.unavailableText(), { cause: error })
     }
@@ -342,6 +398,9 @@ export class ModelApiBackendManager {
         ...(this.deps.searchTokenCostUsd !== undefined && {
           searchTokenCostUsd: this.deps.searchTokenCostUsd,
         }),
+        // The reader stays live through the plain forward: every retry read
+        // uses `?.()`, so an explicit undefined behaves exactly as absent.
+        personCap: this.deps.personCap,
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
@@ -374,9 +433,31 @@ export class ModelApiBackendManager {
         confirmContributorModel: this.deps.confirmContributorModel,
         store: variant.store,
         scheduleStore: variant.scheduleStore,
+        ...(this.deps.uploadLedgerDir !== undefined && {
+          uploadLedgerDir: this.deps.uploadLedgerDir,
+        }),
+        ...(this.deps.uploadExpiryDays !== undefined && {
+          uploadExpiryDays: this.deps.uploadExpiryDays,
+        }),
+        ...(this.deps.attachedMedia !== undefined && { attachedMedia: this.deps.attachedMedia }),
+        ...(this.deps.reservePaidExtra !== undefined && {
+          reservePaidExtra: this.deps.reservePaidExtra,
+        }),
+        ...(this.deps.mediaConverterPath !== undefined && {
+          mediaConverterPath: this.deps.mediaConverterPath,
+        }),
+        ...(this.deps.mediaAudioAction !== undefined && {
+          mediaAudioAction: this.deps.mediaAudioAction,
+        }),
+        ...(this.deps.mediaJobExecutable !== undefined && {
+          mediaJobExecutable: this.deps.mediaJobExecutable,
+        }),
+        ...(this.deps.mediaPrivateRoot !== undefined && {
+          mediaPrivateRoot: this.deps.mediaPrivateRoot,
+        }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
-          const key = await this.deps.getApiKey()
+          const key = await readApiKey(this.deps.getApiKey)
           return key === undefined
             ? await this.deps.getProviderAccountId?.()
             : createHash('sha256').update(key).digest('hex')
@@ -387,17 +468,28 @@ export class ModelApiBackendManager {
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
+        isCredentialStoreDown: this.deps.isCredentialStoreDown,
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
         isPaidFeatureOn: variant.isPaidFeatureOn,
         notePaidUse: this.deps.notePaidUse,
         promptCacheRetention: this.deps.promptCacheRetention,
         sessionBudgetUsd: this.deps.sessionBudgetUsd,
+        remainingModelCalls: this.deps.remainingModelCalls,
         showReplyUsage: this.deps.showReplyUsage,
         ...(this.deps.strictTools !== undefined && { strictTools: this.deps.strictTools }),
         ...(this.deps.parallelReads !== undefined && { parallelReads: this.deps.parallelReads }),
         ...(this.deps.webSearchMaxPerRequest !== undefined && {
           webSearchMaxPerRequest: this.deps.webSearchMaxPerRequest,
+        }),
+        ...(this.deps.hookMaxStopContinuations !== undefined && {
+          hookMaxStopContinuations: this.deps.hookMaxStopContinuations,
+        }),
+        ...(this.deps.hookMaxRunningCommands !== undefined && {
+          hookMaxRunningCommands: this.deps.hookMaxRunningCommands,
+        }),
+        ...(this.deps.subagentMaxConcurrent !== undefined && {
+          subagentMaxConcurrent: this.deps.subagentMaxConcurrent,
         }),
         ...(this.deps.modelFacts !== undefined && { modelFacts: this.deps.modelFacts }),
         ...(this.deps.modelCapabilities !== undefined && {
@@ -429,6 +521,7 @@ export class ModelApiBackendManager {
         codeIntel: variant.codeIntel,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
+        maxToolOutputBytes: this.deps.maxToolOutputBytes,
         autoCompaction: this.deps.isAutoCompactionOn,
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
@@ -500,16 +593,16 @@ export class ModelApiBackendManager {
   }
 
   /**
-   * A host rooted in a best-of-N worktree (M77, PLAN.md D49): the attempt's
-   * own conversations, confined to it. No durable sessions, no schedules, no
-   * MCP servers, no hooks, no memory and no paid tools: an attempt's billed
-   * surface is exactly the run's quoted token rates, and nothing in it can
-   * open the paid-use popup. No shell either, so no configured checks: a
-   * command's working folder confines nothing, and in Bypass or under a
-   * standing rule a command (or a check running files the model wrote)
-   * could change the main checkout (the review of PR #89). Closed by the
-   * run when the attempt settles.
-   */
+  A host rooted in a best-of-N worktree (M77, PLAN.md D49): the attempt's
+  own conversations, confined to it. No durable sessions, no schedules, no
+  MCP servers, no hooks, no memory and no paid tools: an attempt's billed
+  surface is exactly the run's quoted token rates, and nothing in it can
+  open the paid-use popup. No shell either, so no configured checks: a
+  command's working folder confines nothing, and in Bypass or under a
+  standing rule a command (or a check running files the model wrote)
+  could change the main checkout (the review of PR #89). Closed by the
+  run when the attempt settles.
+  */
   public streamLegalExplanation(
     body: CreateResponseBody,
     signal: AbortSignal,
@@ -541,8 +634,8 @@ export class ModelApiBackendManager {
     noteUsage?: (modelId: string, usage: SubagentUsage) => void,
     budgetScope?: OwnedSessionBudgetScope,
   ): Promise<ModelApiHost> {
-    // A finite cap requires the parent's owned journal; a temporary host
-    // cannot create another allowance or save its transcript under the parent ID.
+    // A limit is the parent conversation's, checked and charged through its
+    // scope (D208); a temporary host never gets an allowance of its own.
     if (
       budgetScope === undefined &&
       Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0
@@ -633,7 +726,7 @@ export class ModelApiBackendManager {
   }
 
   public async accountId(): Promise<string | undefined> {
-    const key = await this.deps.getApiKey()
+    const key = await readApiKey(this.deps.getApiKey)
     return key === undefined
       ? await this.deps.getProviderAccountId?.()
       : createHash('sha256').update(key).digest('hex')
@@ -679,9 +772,7 @@ export class ModelApiBackendManager {
         completions.push(this.workspaceEdits.beginEdit(file, [file.relative]))
       }
     } catch (error: unknown) {
-      for (const complete of completions) {
-        complete()
-      }
+      cancelExternalEdits(completions)
       throw error
     }
     return (wasWritten) => {

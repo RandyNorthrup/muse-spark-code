@@ -69,9 +69,9 @@ function describeDiff(
 }
 
 /**
- * Diff a scan against the last one. A first scan (no previous) names its
- * count; otherwise new, removed and repriced models are named exactly.
- */
+Diff a scan against the last one. A first scan (no previous) names its
+count; otherwise new, removed and repriced models are named exactly.
+*/
 export function diffModelScans(previous: ModelScan | undefined, current: ModelScan): ScanDiff {
   if (previous === undefined) {
     return {
@@ -106,9 +106,9 @@ export function diffModelScans(previous: ModelScan | undefined, current: ModelSc
 }
 
 /**
- * Whether a cached scan is stale: older than `PROVIDER_SCAN_STALE_MS`, or
- * from the future (the clock moved; refetch rather than trust it).
- */
+Whether a cached scan is stale: older than `PROVIDER_SCAN_STALE_MS`, or
+from the future (the clock moved; refetch rather than trust it).
+*/
 export function isScanStale(
   scannedAtMs: number,
   nowMs: number,

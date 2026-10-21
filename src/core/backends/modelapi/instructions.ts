@@ -70,21 +70,21 @@ export interface InstructionFacts {
     readonly checks: readonly CheckCommandSetting[]
   }
   /**
-   * The session goal while it is active (M45, PLAN.md D38, `goals.ts`):
-   * objective and rules only; mutable progress is a request-only suffix.
-   */
+  The session goal while it is active (M45, PLAN.md D38, `goals.ts`):
+  objective and rules only; mutable progress is a request-only suffix.
+  */
   readonly goalSection?: string
   /**
-   * A custom agent's own role (M76): the child runs with this prompt, named
-   * by its id and where its file came from, below the rules that outrank it.
-   * Undefined on the parent conversation itself.
-   */
+  A custom agent's own role (M76): the child runs with this prompt, named
+  by its id and where its file came from, below the rules that outrank it.
+  Undefined on the parent conversation itself.
+  */
   readonly agent?: { readonly id: string; readonly source: AgentSource; readonly prompt: string }
   /**
-   * M96 (PLAN.md D75): the roster's stable part with the rubric and the
-   * guidance, fixed for the conversation from its first request and never
-   * rewritten. Only in a team conversation.
-   */
+  M96 (PLAN.md D75): the roster's stable part with the rubric and the
+  guidance, fixed for the conversation from its first request and never
+  rewritten. Only in a team conversation.
+  */
   readonly teamRoster?: string
 }
 
@@ -230,10 +230,10 @@ function memoryText(facts: InstructionFacts): string | undefined {
 }
 
 /**
- * How the model's edits are checked (M68, PLAN.md D49): what arrives after a
- * round of edits, `run_checks`, and `then_run`; the checks and `then_run`
- * need the shell, so Restricted Mode leaves them out.
- */
+How the model's edits are checked (M68, PLAN.md D49): what arrives after a
+round of edits, `run_checks`, and `then_run`; the checks and `then_run`
+need the shell, so Restricted Mode leaves them out.
+*/
 function verifyText(facts: InstructionFacts): string | undefined {
   const isDiagnosticsOn = facts.verify?.isDiagnosticsOn === true
   const checks = facts.hasShell ? (facts.verify?.checks ?? []) : []
@@ -258,7 +258,7 @@ function verifyText(facts: InstructionFacts): string | undefined {
 }
 
 /** A custom agent's role, labelled with whose words it is (M76): file content, never a higher authority. */
-function agentRoleText(agent: InstructionFacts['agent']): string | undefined {
+export function agentRoleText(agent: InstructionFacts['agent']): string | undefined {
   if (agent === undefined) {
     return undefined
   }

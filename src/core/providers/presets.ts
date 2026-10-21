@@ -1,6 +1,6 @@
 // The provider presets (M95, PLAN.md D74): each provider the panel lists
 // is a preset here — its format, fixed origin (or the fields the user
-// gives), auth header, key page and key shape, the free key test, the
+// gives), auth header, key page, key shape and key hint, the free key test, the
 // models-list parser, and the format's quirks as data (the output-cap
 // parameter, `parallel_tool_calls`, `tool_choice`, the reasoning field and
 // replay rule, usage in the stream, the cached-token field, the empty-tools
@@ -12,7 +12,13 @@
 
 import { PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
-import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
+import {
+  PROVIDER_RETRY_LIMITS,
+  RETRY_TABLES,
+  type RetryLimits,
+  type RetryTables,
+} from '../../shared/retryPolicy'
+import type { CapabilityOverrides } from './capabilityRecord'
 import type { CustomCompat, ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
@@ -35,10 +41,10 @@ export type KeyShape =
   | { readonly kind: 'any'; readonly minLength: number }
 
 /**
- * Whether a pasted key is shaped like the preset's. A shape check never
- * proves a key works: the free key test does. Unknown shapes (`any`) accept
- * any non-blank key of the minimum length.
- */
+Whether a pasted key is shaped like the preset's. A shape check never
+proves a key works: the free key test does. Unknown shapes (`any`) accept
+any non-blank key of the minimum length.
+*/
 export function isKeyShape(shape: KeyShape, key: string): boolean {
   const trimmed = key.trim()
   if (trimmed === '') {
@@ -57,6 +63,16 @@ export function isKeyShape(shape: KeyShape, key: string): boolean {
   }
 }
 
+// What a pasted key looks like is nothing per provider (PLAN.md D123: a
+// working key is never refused for its shape). The provider judges a key
+// through the free key test; anything finer (`inspectProviderKey`) is a
+// question for the person, never a refusal. The three universal checks
+// live beside the presets' data in
+// `./keyInspection` (small, so the panel bundle reads it with the
+// password box); re-exported here for the runtime and the tests.
+export type { ProviderKeyInspection, ProviderKeyNotice } from './keyInspection'
+export { inspectProviderKey, providerKeyNoticeText } from './keyInspection'
+
 /** The free check that proves a key works (nothing billed). */
 export type KeyTest =
   | { readonly kind: 'models-list' }
@@ -64,7 +80,12 @@ export type KeyTest =
   | { readonly kind: 'paid-token' }
 
 export type KeyProbeOutcome =
-  | { readonly ok: true; readonly modelCount: number | undefined }
+  | {
+      readonly ok: true
+      readonly modelCount: number | undefined
+      /** The listed ids, where the check read a models list (F85). */
+      readonly modelIds?: readonly string[] | undefined
+    }
   | { readonly ok: false; readonly paid: boolean; readonly reason: string }
 
 /** The same free-check contract for panel and CLI; callbacks own pinned I/O. */
@@ -117,9 +138,9 @@ export interface FormatQuirks {
     | 'content-list'
     | 'none'
   /**
-   * Reasoning goes back only to its own provider, in its own form, to the
-   * same model; any other provider's turn drops it.
-   */
+  Reasoning goes back only to its own provider, in its own form, to the
+  same model; any other provider's turn drops it.
+  */
   readonly reasoningReplay: 'same-model' | 'none'
   /** Usage may share the finish chunk (read deltas and usage from every chunk). */
   readonly usageOnFinishChunk: boolean
@@ -132,26 +153,82 @@ export interface FormatQuirks {
   /** Compaction keeps the turn's tools with `tool_choice: auto`. */
   readonly keepToolsWithHistory: true
   /**
-   * Retry classification per format (M101 BYO 5): the shared retry tables,
-   * so every provider retries its own failures and never its quota.
-   */
+  Retry classification per format (M101 BYO 5): the shared retry tables,
+  so every provider retries its own failures and never its quota.
+  */
   readonly retry: RetryTables
   /**
-   * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
-   * and Azure's constrained decoding. The selected model record overrides
-   * this preset default, including explicit false. Meta's host binds its
-   * owner-confirmed strict capability; unknown/custom/local records stay off.
-   */
+  /**
+  The format's documented retry bounds (lane RETRYLIMITS): absent fields
+  are values the provider does not document, so the person's
+  `museSpark.modelApiMaxRetries` setting decides and, with none set, the
+  provider's own Retry-After (or stop answer) governs.
+  */
+  readonly retryLimits: RetryLimits
+  /**
+  EXECPROV round 7: the format's exact same-body input count, where the
+  provider documents a request that returns the input token count for a
+  given request body without running the model and without charge. The
+  count request is built from the already-built native request by a
+  per-kind function (`src/core/providers/tokenCount.ts`), so it cannot
+  drift from what is sent. Undefined keeps the byte bound: no counter
+  exists on the wire. A preset opts in through its own `quirks` where
+  only some providers of a format document one (OpenAI's Responses
+  siblings do; xAI's and Azure's do not).
+  */
+  readonly exactCount: ExactCountKind | undefined
+  /**
+  The server takes `strict: true` tool schemas (M101 item 24): OpenAI
+  and Azure's constrained decoding. The selected model record overrides
+  this preset default, including explicit false. Meta's host binds its
+  owner-confirmed strict capability; unknown/custom/local records stay off.
+  */
   readonly supportsStrictTools: boolean
   /**
-   * How the preset expresses reasoning effort `none` (Thinking off) on
-   * the wire. DeepSeek's thinking-mode switch (`thinking: {type:
-   * "disabled"}`, research D2 `guides/thinking_mode` and the lead's
-   * L98P2 live capture) is the only declared form. Absent keeps the
-   * preset's existing bytes.
-   */
-  readonly thinkingOff?: 'thinking-switch' | undefined
+  How the preset expresses reasoning effort `none` (Thinking off) on
+  the wire. DeepSeek's thinking-mode switch (`thinking: {type:
+  "disabled"}`, research D2 `guides/thinking_mode` and the lead's
+  L98P2 live capture) and Together's hybrid toggle (`reasoning:
+  {enabled: false}`, `docs/inference/chat/reasoning` read 2026-10-12)
+  are the declared forms. Absent keeps the preset's existing bytes.
+  */
+  readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+  /**
+  The preset's documented reasoning presentation parameter (Groq's
+  `reasoning_format`, read 2026-10-12): `parsed` keeps reasoning in its
+  dedicated field, which tool calling and JSON mode require. Absent
+  sends nothing.
+  */
+  readonly reasoningFormat?: 'parsed' | 'raw' | 'hidden' | undefined
+  /**
+  The preset documents its effort vocabulary for every model, routed
+  server-side (llama.cpp's `reasoning_effort`, where `none` disables
+  and any other value reaches the chat template). Set, the codec sends
+  the body's effort as named even when the record declares no levels.
+  Absent keeps unknown models silent.
+  */
+  readonly sendUndeclaredEffort?: boolean | undefined
+  /**
+  The preset opts into preserved thinking (Z.ai's `clear_thinking:
+  false`, `guides/capabilities/thinking-mode` read 2026-10-12): sent
+  where the turn replays reasoning and thinking is not off. Absent
+  keeps the default (Coding Plan on, standard endpoint off).
+  */
+  readonly thinkingPreserved?: boolean | undefined
 }
+
+/**
+EXECPROV round 7: which counting call a wire offers, if any. Only the
+first-party providers below document one for the exact request
+(`docs/certification/m95-research.md` §1.1 [O8, O13, O14] for Responses,
+§1.5 [A-ov] for Anthropic, §1.6 [G-tk] for Gemini); every other wire
+keeps the byte bound.
+*/
+export type ExactCountKind =
+  /** `POST {request-path}/input_tokens` with the native body, `{input_tokens}`. */
+  | 'responses-input-tokens'
+  /** `POST {request-path}/count_tokens` without `max_tokens`, `{input_tokens}`. */
+  | 'anthropic-count-tokens'
 
 /** The five formats' defaults; presets override per provider. */
 export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
@@ -170,7 +247,11 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.responses,
+    retryLimits: PROVIDER_RETRY_LIMITS.responses,
     supportsStrictTools: false,
+    // Only the OpenAI preset opts in (below): xAI and Azure document no
+    // counting call for the exact request.
+    exactCount: undefined,
   },
   chat: {
     outputCapParam: 'max_completion_tokens',
@@ -184,7 +265,11 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.chat,
+    retryLimits: PROVIDER_RETRY_LIMITS.chat,
     supportsStrictTools: false,
+    // No OpenAI-compatible chat-completions endpoint documents a counting
+    // call for the exact request: the byte bound stays on every chat wire.
+    exactCount: undefined,
   },
   anthropic: {
     outputCapParam: 'max_tokens',
@@ -198,7 +283,12 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.anthropic,
+    retryLimits: PROVIDER_RETRY_LIMITS.anthropic,
     supportsStrictTools: false,
+    // The research notes record the endpoint as free and an estimate
+    // (§1.5 [A-tc]); the run treats it as a count inside the byte ceiling
+    // with the settlement check behind it (EXECPROV round 7).
+    exactCount: 'anthropic-count-tokens',
   },
   gemini: {
     outputCapParam: 'maxOutputTokens',
@@ -212,7 +302,12 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.gemini,
+    retryLimits: PROVIDER_RETRY_LIMITS.gemini,
     supportsStrictTools: false,
+    // `:countTokens` takes the whole native request (§1.6 [G-tk]); the
+    // count drops the output cap, which cannot change the input tokens.
+    // Its full count request shape has no verified capture; reserve the byte bound.
+    exactCount: undefined,
   },
   ollama: {
     outputCapParam: 'num_predict',
@@ -226,7 +321,10 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.ollama,
+    retryLimits: PROVIDER_RETRY_LIMITS.ollama,
     supportsStrictTools: false,
+    // Local servers name no counting call; unpriced runs never reserve.
+    exactCount: undefined,
   },
 }
 
@@ -247,27 +345,85 @@ export interface ProviderPreset {
   readonly keyPage?: string | undefined
   readonly docsUrl?: string | undefined
   readonly keyShape: KeyShape
-  /** The shape as a hint beside the key field (never a key's characters). */
+  /** Where the key comes from, beside the key field (never a key's characters). */
   readonly keyHint: string
   readonly keyTest: KeyTest
   readonly modelsList: ModelsListSpec
   readonly quirks: Partial<FormatQuirks>
+  /**
+  Doc-cited per-model reasoning facts the pinned catalogue snapshot
+  lacks, keyed by exact native model id (never a prefix): Z.ai's
+  glm-5.2 effort names and Thinking-off toggle, Together's hybrid
+  toggle on MiniMax M3. Each entry names the provider page and the day
+  it was read; re-check every entry on each catalogue sync, and prefer
+  the catalogue the moment it carries the fact. Empty everywhere else.
+  */
+  readonly reasoningFacts?: readonly PresetReasoningFacts[] | undefined
   /** The preset's own wire capture is recorded (rule 13). */
   readonly wireCapture: boolean
+  /**
+  The exact server build the quirks were captured against (C-M95-4 R2,
+  local presets only; from the capture ledgers). The models lists carry
+  no version, so this stamps what was proven, not what is assumed.
+  */
+  readonly capturedBuild?: string | undefined
 }
 
-/** A preset's effective quirks: its format's defaults plus its overrides. */
-export function quirksOf(preset: ProviderPreset): FormatQuirks {
-  return { ...FORMAT_QUIRKS[preset.format], ...preset.quirks }
+/** Which reasoning field a preset's assistant messages replay (C-M95-4 R2). */
+export type PresetReplayField = 'details' | 'content' | 'none'
+
+/**
+The reasoning field a preset replays on its assistant messages. A local
+server carries no version on the wire, so a build older or newer than
+the capture may not understand the captured replay field: local presets
+never replay thinking (fail closed). Display is unaffected — the chat
+decoder still reads every reasoning field, and a mistranslated replay
+would otherwise be dropped silently or refused loudly mid-turn.
+*/
+export function replayFieldFor(preset: ProviderPreset): PresetReplayField {
+  let field: PresetReplayField = 'none'
+  if (preset.category !== 'local') {
+    if (preset.quirks.reasoningField === 'reasoning_details') field = 'details'
+    else if (preset.quirks.reasoningField === 'reasoning_content') field = 'content'
+  }
+  return field
+}
+
+/** One documented per-model reasoning patch (see `reasoningFacts`). */
+export interface PresetReasoningFacts {
+  /** The exact native model id this patch applies to. */
+  readonly modelId: string
+  /** The provider documentation address the patch quotes. */
+  readonly docUrl: string
+  /** The day the page was read, `YYYY-MM-DD`. */
+  readonly readOn: string
+  /** The record patch, applied as `preset`-kind evidence. */
+  readonly fields: CapabilityOverrides
 }
 
 /**
- * A custom server's effective quirks (M101 BYO 14): its chosen format's
- * defaults plus its stored compatibility overrides. Presets keep their own
- * quirks; overrides ride only on `custom` entries. Each override applies
- * only when set: the schema types an absent override as undefined, and an
- * undefined must never blank a required quirk.
- */
+A preset's effective quirks: its format's defaults plus its overrides.
+`retryLimits` merges field by field (review RVRETRYLIMITS): a preset
+that documents only its own count must keep its format's documented
+backoff bounds, the way the OpenAI preset already spreads the format's
+retry table before adding its own `errorKinds`.
+*/
+export function quirksOf(preset: ProviderPreset): FormatQuirks {
+  const format = FORMAT_QUIRKS[preset.format]
+  return {
+    ...format,
+    ...preset.quirks,
+    retryLimits: { ...format.retryLimits, ...preset.quirks.retryLimits },
+  }
+}
+
+/**
+A custom server's effective quirks (M101 BYO 14): its chosen format's
+defaults plus its stored compatibility overrides. Presets keep their own
+quirks; overrides ride only on `custom` entries. Each override applies
+only when set: the schema types an absent override as undefined, and an
+undefined must never blank a required quirk.
+*/
 export function customQuirksFor(
   format: ProviderFormat,
   compat: CustomCompat | undefined,
@@ -296,8 +452,10 @@ export function customQuirksFor(
 
 // The presets. Origins, headers, key shapes, key tests and quirks are from
 // the research (`docs/certification/m95-research.md`) and the live captures
-// (`docs/certification/m95-captures.md`, 2026-10-04). A preset without its
-// own capture (`wireCapture: false`) stays out of the panel (rule 13).
+// (`docs/certification/m95-captures.md`, 2026-10-04; the local servers'
+// own frames in `docs/certification/m95-captures/<llamacpp|lmstudio>/`,
+// 2026-10-10). A preset without its own capture (`wireCapture: false`)
+// stays out of the panel (rule 13).
 
 const OPENAI_PRESET: ProviderPreset = {
   id: 'openai',
@@ -314,7 +472,7 @@ const OPENAI_PRESET: ProviderPreset = {
   docsUrl: 'https://platform.openai.com/docs',
   keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'sk-', site: 'platform.openai.com' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'platform.openai.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
@@ -323,6 +481,14 @@ const OPENAI_PRESET: ProviderPreset = {
     retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
     // OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // Lane RETRYLIMITS review: OpenAI's API docs name no count ("limit
+    // retries"), but its official SDK documents the same default the
+    // Anthropic row already uses: "automatically retried 2 times by
+    // default, with a short exponential backoff" (openai-python README,
+    // read 2026-10-17). No documented backoff bounds, so only the count.
+    retryLimits: { maxRetries: 2 },
+    // The exact request's documented counting sibling (§1.1 [O8, O13, O14]).
+    exactCount: 'responses-input-tokens',
   },
   wireCapture: true,
 }
@@ -343,10 +509,18 @@ const AZURE_PRESET: ProviderPreset = {
     return UI_TEXT.providerText.hints.azure
   },
   keyTest: { kind: 'paid-token' },
-  modelsList: { path: '/openai/v1/models', priceSource: 'catalogue' },
+  // The address root is `/openai/v1`, so list and request paths below are
+  // relative to it (research §1.2 [AZ1, AZ6]).
+  modelsList: { path: '/models', priceSource: 'catalogue' },
   quirks: {
     // Azure OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // Lane RETRYLIMITS: Azure documents "maximum number of retries (for
+    // example, 5–10)" (azure-openai.md §4, QUOTAHOW); 10 is the largest
+    // maximum Azure names, so anything above it exceeds its guidance. Its
+    // backoff (retry-after-ms, else exponential with jitter) has no
+    // documented bounds, so the person's setting decides.
+    retryLimits: { maxRetries: 10 },
   },
   wireCapture: false,
 }
@@ -365,7 +539,7 @@ const XAI_PRESET: ProviderPreset = {
   keyPage: 'https://console.x.ai',
   keyShape: { kind: 'prefix', prefix: 'xai-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'xai-', site: 'console.x.ai' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'console.x.ai' })
   },
   keyTest: { kind: 'models-list' },
   // Integer prices in 1e-10 USD per token, with the long-context threshold.
@@ -373,7 +547,31 @@ const XAI_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'encrypted',
     cachedUsageFields: ['input_tokens_details.cached_tokens'],
+    // Lane RETRYLIMITS: xAI documents "up to 5 attempts" with 2^attempt s
+    // backoff in its rate-limit examples (xai.md §4, RL), so 4 retries from
+    // a 1 s base doubling per try, with no documented maximum wait.
+    retryLimits: { maxRetries: 4, baseMs: 1000 },
   },
+  // grok-4.5 takes `xhigh` (requests with it are treated as `high`) though
+  // the pinned catalogue lists only low/medium/high (lane REASONSHAPESR2,
+  // XAI-G01: `docs.x.ai/developers/model-capabilities/text/reasoning`,
+  // read 2026-10-13). The live list wins where it speaks; XAI-LIST
+  // settles the dated catalogue against it.
+  reasoningFacts: [
+    {
+      modelId: 'grok-4.5',
+      docUrl: 'https://docs.x.ai/developers/model-capabilities/text/reasoning',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['low', 'medium', 'high', 'xhigh'],
+          },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -393,14 +591,111 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   docsUrl: 'https://docs.anthropic.com',
   keyShape: { kind: 'prefix', prefix: 'sk-ant-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, {
-      prefix: 'sk-ant-',
-      site: 'console.anthropic.com',
-    })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'console.anthropic.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_input_tokens', priceSource: 'catalogue' },
   quirks: {},
+  // Thinking-off facts from the thinking table
+  // (`platform.claude.com/docs/en/build-with-claude/thinking`, read
+  // 2026-10-13; GAPANTH-G02): the four models below answer 400 to
+  // `thinking: {type: "disabled"}` (Sonnet 5.5 takes `between_tools`
+  // instead), while Opus 5 and Haiku 5.5 take `disabled` at high effort
+  // or below. The pinned catalogue carries no toggle for these rows, so
+  // without the facts Thinking off would send nothing and thinking
+  // would stay on, billed. Re-check on each catalogue sync; the live
+  // list wins where it speaks.
+  reasoningFacts: [
+    {
+      modelId: 'claude-opus-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'claude-haiku-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['low', 'medium', 'high', 'xhigh', 'max'],
+          },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'claude-opus-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    {
+      modelId: 'claude-sonnet-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+          offSwitch: 'between_tools',
+        },
+      },
+    },
+    {
+      modelId: 'claude-fable-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    {
+      modelId: 'claude-fable-5-1',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    // Every 4.x row of the same table ends in "Thinking off": `disabled`
+    // is accepted at any effort there, so Thinking off rides instead of
+    // refusing (the catalogue carries no toggle for these rows).
+    ...[
+      'claude-haiku-4-5',
+      'claude-haiku-4-5-20251001',
+      'claude-opus-4-5',
+      'claude-opus-4-5-20251101',
+      'claude-sonnet-4-5',
+      'claude-sonnet-4-5-20250929',
+      'claude-opus-4-6',
+      'claude-sonnet-4-6',
+      'claude-opus-4-7',
+      'claude-opus-4-8',
+    ].map((modelId): PresetReasoningFacts => ({
+      modelId,
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true as const },
+        },
+      },
+    })),
+  ],
   wireCapture: true,
 }
 
@@ -419,7 +714,7 @@ const GEMINI_PRESET: ProviderPreset = {
   docsUrl: 'https://ai.google.dev/gemini-api/docs',
   keyShape: { kind: 'prefix', prefix: 'AIza', minLength: 30 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'AIza', site: 'AI Studio' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'AI Studio' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1beta/models', windowField: 'inputTokenLimit', priceSource: 'catalogue' },
@@ -442,7 +737,7 @@ const OPENROUTER_PRESET: ProviderPreset = {
   docsUrl: 'https://openrouter.ai/docs',
   keyShape: { kind: 'prefix', prefix: 'sk-or-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.router, { prefix: 'sk-or-', site: 'openrouter.ai' })
+    return fill(UI_TEXT.providerText.hints.router, { site: 'openrouter.ai' })
   },
   // `/models` is public, so `/key` is the test: free and spends no credits.
   keyTest: { kind: 'provider-key', path: '/api/v1/key' },
@@ -484,13 +779,17 @@ const GROQ_PRESET: ProviderPreset = {
   keyPage: 'https://console.groq.com/keys',
   keyShape: { kind: 'prefix', prefix: 'gsk_', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'gsk_', site: 'console.groq.com' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'console.groq.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/openai/v1/models', windowField: 'context_window', priceSource: 'list' },
   quirks: {
     outputCapParam: 'max_completion_tokens',
     cachedUsageFields: [],
+    // `reasoning_format` (`console.groq.com/docs/reasoning`, read
+    // 2026-10-12): `parsed` keeps reasoning in its dedicated field, which
+    // tool calling and JSON mode require. Never beside `include_reasoning`.
+    reasoningFormat: 'parsed',
   },
   wireCapture: true,
 }
@@ -509,7 +808,7 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   keyPage: 'https://platform.deepseek.com/api_keys',
   keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'sk-', site: 'platform.deepseek.com' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'platform.deepseek.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/models', windowField: 'context_window', priceSource: 'catalogue' },
@@ -520,7 +819,45 @@ const DEEPSEEK_PRESET: ProviderPreset = {
     // (`vendor/models-dev/snapshot.json`): Thinking off is the documented
     // thinking-mode switch, never `reasoning_effort: "none"`.
     thinkingOff: 'thinking-switch',
+    // Every requested effort name rides as named: the thinking-mode
+    // table (`guides/thinking_mode`, read 2026-10-13) takes minimal,
+    // low, medium, high, xhigh, max and ultra and maps server-side,
+    // and the lead's real answers (DS-XHIGH, DS-ULTRA, 200 both with
+    // thinking) show `xhigh` and `ultra` taken as named. No client
+    // remap: the record below carries the full vocabulary so the
+    // resolver never substitutes a neighbour.
+    // Strict tool schemas (`guides/tool_calls`, read 2026-10-13):
+    // `strict: true` on every function, answered 200 with a correct
+    // call on the beta and the production address alike (DS-STRICT,
+    // DS-STRICT-PROD). Whether production enforces strict is
+    // UNVERIFIED; strict rides on the address the entry has.
+    supportsStrictTools: true,
   },
+  // The thinking-mode page documents one requested-effort vocabulary
+  // for the DeepSeek models; the pinned catalogue lists only
+  // `[low, high, max]`. Until it carries the fact, the record takes
+  // the documented names here (deepseek-flash VERIFIED as named by
+  // DS-XHIGH/DS-ULTRA; the other three UNVERIFIED until captured).
+  // Re-check on each catalogue sync; prefer the catalogue the moment
+  // it carries the fact.
+  reasoningFacts: [
+    'deepseek-flash',
+    'deepseek-v4-flash',
+    'deepseek-v4-pro',
+    'deepseek-v4-flash-vision-exp',
+  ].map((modelId): PresetReasoningFacts => ({
+    modelId,
+    docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
+    readOn: '2026-10-13',
+    fields: {
+      reasoning: {
+        effortLevels: {
+          state: 'yes',
+          value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+        },
+      },
+    },
+  })),
   wireCapture: true,
 }
 
@@ -613,7 +950,34 @@ const TOGETHER_PRESET: ProviderPreset = {
     outputCapParam: 'max_tokens',
     sendsParallelToolCalls: false,
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // Hybrid models toggle with `reasoning: {enabled: false}`
+    // (`docs/inference/chat/reasoning`, read 2026-10-12).
+    thinkingOff: 'reasoning-enabled',
   },
+  // MiniMax M3 and Kimi K3 are hybrid models (on by default) though the
+  // pinned catalogue carries no `toggle` for them (TO-G01).
+  reasoningFacts: [
+    {
+      modelId: 'MiniMaxAI/MiniMax-M3',
+      docUrl: 'https://docs.together.ai/docs/inference/chat/reasoning',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'moonshotai/Kimi-K3',
+      docUrl: 'https://docs.together.ai/docs/inference/chat/reasoning',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -630,7 +994,7 @@ const FIREWORKS_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyShape: { kind: 'prefix', prefix: 'fw_', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'fw_', site: 'fireworks.ai' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'fireworks.ai' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: {
@@ -660,7 +1024,7 @@ const HUGGINGFACE_PRESET: ProviderPreset = {
   keyPage: 'https://huggingface.co/settings/tokens',
   keyShape: { kind: 'prefix', prefix: 'hf_', minLength: 10 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'hf_', site: 'huggingface.co' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'huggingface.co' })
   },
   // `whoami-v2` on huggingface.co proves the token; the router has no key test.
   keyTest: { kind: 'provider-key', path: '/api/whoami-v2', origin: 'https://huggingface.co' },
@@ -683,7 +1047,6 @@ const ZAI_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.z.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  // Captured shape: `<32 hex>.<16>`.
   keyShape: { kind: 'zai' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'Z.ai' })
@@ -693,7 +1056,32 @@ const ZAI_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // `thinking: {type: "enabled"/"disabled"}` (`guides/capabilities/thinking`,
+    // read 2026-10-12). Only GLM-5.3 refuses `disabled`; the record says
+    // which models affirm it (ZAI-G01).
+    thinkingOff: 'thinking-switch',
+    // Preserved thinking (`thinking-mode`, read 2026-10-12): our turns
+    // always replay their reasoning, so keeping it pays (ZAI-G04).
+    thinkingPreserved: true,
   },
+  // GLM-5.2's documented effort names and Thinking-off toggle, which the
+  // pinned catalogue lacks (ZAI-G01, ZAI-G02).
+  reasoningFacts: [
+    {
+      modelId: 'glm-5.2',
+      docUrl: 'https://docs.z.ai/guides/capabilities/thinking',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+          },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -730,14 +1118,18 @@ const LMSTUDIO_PRESET: ProviderPreset = {
   keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  modelsList: { path: '/v1/models', windowField: 'max_context_length', priceSource: 'none-local' },
+  // The list carries no window (captured 2026-10-10: entries are id,
+  // object and owned_by only), so the scan leaves it unknown.
+  modelsList: { path: '/v1/models', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
     sendsParallelToolCalls: false,
-    reasoningField: 'reasoning',
+    // Captured 2026-10-10: thinking streams as `reasoning_content`.
+    reasoningField: 'reasoning_content',
     cachedUsageFields: [],
   },
-  wireCapture: false,
+  wireCapture: true,
+  capturedBuild: 'llmster 0.0.25-1',
 }
 
 const VLLM_PRESET: ProviderPreset = {
@@ -777,16 +1169,24 @@ const LLAMACPP_PRESET: ProviderPreset = {
   keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  // `/props` gives `n_ctx`; `/v1/models` gives `meta.n_ctx_train`.
+  // `/v1/models` gives the live window as `meta.n_ctx` (`--ctx-size`)
+  // with the trained window in `meta.n_ctx_train`; `/props` repeats
+  // `n_ctx` in `default_generation_settings`.
   modelsList: { path: '/v1/models', windowField: 'n_ctx', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
-    toolChoice: 'string-only',
+    // Captured 2026-10-10 (b11541): the object form is accepted and the
+    // template reports `supports_object_arguments`, so this is `auto`.
+    toolChoice: 'auto',
     sendsParallelToolCalls: false,
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // The server documents `reasoning_effort` for every model, routed to
+    // the chat template (`tools/server/README.md`, read 2026-10-12).
+    sendUndeclaredEffort: true,
   },
-  wireCapture: false,
+  wireCapture: true,
+  capturedBuild: 'b11541 (0.6.0-dev, commit f2918cabb)',
 }
 
 const CUSTOM_PRESET: ProviderPreset = {
@@ -872,6 +1272,22 @@ export function azureOrigin(resource: string): string | undefined {
     : undefined
 }
 
+/**
+The model name on the wire for an entry (research §1.2 [AZ1, AZ6]):
+Azure's v1 API takes the deployment name, every other preset the listed
+model. Records stay keyed by the model family in the entry's models, so
+a deployment name never becomes a record lookup.
+*/
+export function wireModelFor(
+  entry: { readonly preset: string; readonly deployment?: string | undefined },
+  nativeModel: string,
+): string {
+  if (entry.preset !== 'azure') return nativeModel
+  const deployment = entry.deployment
+  if (deployment === undefined || deployment === '') throw new Error(UI_TEXT.actionFailed)
+  return deployment
+}
+
 // --- OpenRouter as a first-class provider (D74) ---
 
 export const OPENROUTER_AUTH_URL = 'https://openrouter.ai/auth'
@@ -949,10 +1365,10 @@ export function openRouterRoutingRequest(
 }
 
 /**
- * The browser URL **Connect OpenRouter account** opens: `callback_url`
- * (a loopback address on any port, or absent for the paste flow),
- * `code_challenge` (S256), `code_challenge_method` and `state`.
- */
+The browser URL **Connect OpenRouter account** opens: `callback_url`
+(a loopback address on any port, or absent for the paste flow),
+`code_challenge` (S256), `code_challenge_method` and `state`.
+*/
 export function buildOpenRouterAuthUrl(options: {
   readonly challenge: string
   readonly state: string

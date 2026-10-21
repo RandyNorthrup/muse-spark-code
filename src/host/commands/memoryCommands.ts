@@ -7,7 +7,6 @@
 // interaction is injected.
 
 import type { MemoryNote, MemoryStore } from '../../core/memory/memoryStore'
-import { redactSecrets } from '../../core/redact'
 import {
   MEMORY_INDEX_FILE,
   MEMORY_NOTE_EXTENSION,
@@ -15,13 +14,14 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { isMissingPath } from '../canonicalPath'
 import type { PickItem, PickOne } from './pickItem'
 
 /**
- * One mutation of the notes. A scope whose notes lie under the workspace
- * folder holds the pure checkpoint lease until `work` settles; `work` gets
- * the guard to honour right before each native write.
- */
+One mutation of the notes. A scope whose notes lie under the workspace
+folder holds the pure checkpoint lease until `work` settles; `work` gets
+the guard to honour right before each native write.
+*/
 export type MemoryEdit = <T>(
   scope: MemoryScope,
   work: (assertCanWrite: () => void) => Promise<T>,
@@ -56,10 +56,6 @@ const DOCS = 'action:docs'
 const OPEN = 'open'
 const DELETE = 'delete'
 const EXTENSION = /\.[^./\\]+$/
-
-function describe(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
-}
 
 function noteItem(note: MemoryNote, index: number): PickItem {
   const detail = note.path === MEMORY_INDEX_FILE ? UI_TEXT.memoryIndexDetail : note.summary
@@ -199,11 +195,17 @@ async function showMemoryView(deps: MemoryViewDeps): Promise<void> {
   deps.openDocs()
 }
 
-/** The view; a failure on the way (a folder that cannot be read or written) is said, not thrown. */
+/** The view; a failure on the way (a folder that cannot be read or written) is said in fixed words. */
 export async function showMemory(deps: MemoryViewDeps): Promise<void> {
   try {
     await showMemoryView(deps)
   } catch (error: unknown) {
-    deps.showError(`${UI_TEXT.memoryFailed}: ${describe(error)}`)
+    // A note or folder that vanished mid-view is said as the view failing
+    // (its text can name paths, so no detail is shown); anything else
+    // reaches the command as the failure it is, with its cause.
+    if (!isMissingPath(error)) {
+      throw new Error(UI_TEXT.memoryFailed, { cause: error })
+    }
+    deps.showError(UI_TEXT.memoryFailed)
   }
 }

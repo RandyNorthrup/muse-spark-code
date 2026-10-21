@@ -1,0 +1,554 @@
+[
+  {
+    "drill": "wav-geometry",
+    "file": "src/shared/companionWav.ts",
+    "sha256": "218e0682e61b19dc8de4a9230d079a632de43aa44f1f9d9f90c4ab69d5b98d1f",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 0",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 4",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 8",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 12",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 16",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 20",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 22",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 24",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 28",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 32",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 34",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 36",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses tampered WAV field 40",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses trailing bytes, odd PCM and permissive base64",
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses malformed audio without transcribing"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "wav-size",
+    "file": "src/shared/companionWav.ts",
+    "sha256": "218e0682e61b19dc8de4a9230d079a632de43aa44f1f9d9f90c4ab69d5b98d1f",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses empty or oversized WAV (0 bytes)",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses empty or oversized WAV (44 bytes)",
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses empty or oversized WAV (1920046 bytes)"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "wav-duration",
+    "file": "src/shared/companionWav.ts",
+    "sha256": "218e0682e61b19dc8de4a9230d079a632de43aa44f1f9d9f90c4ab69d5b98d1f",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion WAV boundary > derives exact duration from canonical PCM bytes and accepts the hard cap",
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > inserts a transcript only after Send and wipes the engine buffer"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "release-hold",
+    "file": "src/shared/constants.ts",
+    "sha256": "c3412b9ce305f6c4951aae5821e7280efb0bac9a3f076ffe9c8d145f18f31383",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > keeps new release entry points hidden"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "ticket-ownership-expiry",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "71199143aa152a8d96e7d146f144a3bf1d674706897c5b888e17bcf6f358231e",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses wrong audio without transcribing",
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses expired audio without transcribing"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "ticket-replay-cancel",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "71199143aa152a8d96e7d146f144a3bf1d674706897c5b888e17bcf6f358231e",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses replay audio without transcribing",
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses cancelled audio without transcribing"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "owner-fence",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "71199143aa152a8d96e7d146f144a3bf1d674706897c5b888e17bcf6f358231e",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses an unowned page and a stale runtime"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "concurrency",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "71199143aa152a8d96e7d146f144a3bf1d674706897c5b888e17bcf6f358231e",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > rejects overlap; disconnect aborts a pending recogniser and blocks late transcript"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "disconnect-late",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "71199143aa152a8d96e7d146f144a3bf1d674706897c5b888e17bcf6f358231e",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > rejects overlap; disconnect aborts a pending recogniser and blocks late transcript"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "buffer-wipe-send",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "71199143aa152a8d96e7d146f144a3bf1d674706897c5b888e17bcf6f358231e",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > inserts a transcript only after Send and wipes the engine buffer",
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > keeps retryable Send failures honest without discarding the transcript"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "paid-consent",
+    "file": "src/runtime/companion/voicePaid.ts",
+    "sha256": "47c8cca89d254d06e20eba2626b540fe2065b0421873cc5608b493388d5969fd",
+    "failed": [
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > asks once with price and budget, sends captured multipart, settles billed whole seconds",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refuses off before any charge",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refuses no key before any charge",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refuses deny before any charge",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refuses stale before any charge",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refuses cancel before any charge",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refunds nonsent key rotation after reserve and asks again on a new key",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records network honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records redirect honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records malformed honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records oversize honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records wrong session honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records duration missing honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records over cap honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records empty text honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: cancel",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: rotation",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: disabled",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: stale"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "paid-settlement",
+    "file": "src/runtime/companion/voicePaid.ts",
+    "sha256": "47c8cca89d254d06e20eba2626b540fe2065b0421873cc5608b493388d5969fd",
+    "failed": [
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > asks once with price and budget, sends captured multipart, settles billed whole seconds",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records network honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records redirect honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records malformed honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records oversize honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records wrong session honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records duration missing honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records over cap honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records empty text honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: cancel",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: rotation",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: disabled",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: stale"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "paid-admission-key",
+    "file": "src/runtime/companion/voicePaid.ts",
+    "sha256": "47c8cca89d254d06e20eba2626b540fe2065b0421873cc5608b493388d5969fd",
+    "failed": [
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refunds nonsent key rotation after reserve and asks again on a new key"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "paid-daily-admission",
+    "file": "src/runtime/companion/voicePaid.ts",
+    "sha256": "47c8cca89d254d06e20eba2626b540fe2065b0421873cc5608b493388d5969fd",
+    "failed": [
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > asks once with price and budget, sends captured multipart, settles billed whole seconds",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > refunds nonsent key rotation after reserve and asks again on a new key",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records network honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records redirect honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records malformed honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records oversize honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records wrong session honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records duration missing honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records over cap honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > records empty text honestly, without retries or a fake zero refund",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: cancel",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: rotation",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: disabled",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: stale",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > shares durable daily admission across windows and refuses a full budget before dispatch"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "paid-postdispatch",
+    "file": "src/runtime/companion/voicePaid.ts",
+    "sha256": "47c8cca89d254d06e20eba2626b540fe2065b0421873cc5608b493388d5969fd",
+    "failed": [
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: cancel",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: rotation",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: disabled",
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > keeps the bill but refuses a transcript after dispatch: stale"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "consent-id-grant",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "71199143aa152a8d96e7d146f144a3bf1d674706897c5b888e17bcf6f358231e",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses a foreign consent id and unoffered workspace remembrance"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "system-refusals",
+    "file": "src/runtime/companion/voiceSystem.ts",
+    "sha256": "87c8faa8d1034c40722ce378d718a497c67f6b70b36225b50b956219c31e50fd",
+    "failed": [
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up error recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up invalid frame recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up silent recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up exit recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up cancel recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up output cap recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > times out a silent helper, stops it and removes audio",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > writes only into an owner-only private directory and file"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "system-file-mode",
+    "file": "src/runtime/companion/voiceSystem.ts",
+    "sha256": "87c8faa8d1034c40722ce378d718a497c67f6b70b36225b50b956219c31e50fd",
+    "failed": [
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > uses win32 file mode without a host microphone and removes private audio",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > uses darwin file mode without a host microphone and removes private audio"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "system-cleanup",
+    "file": "src/runtime/companion/voiceSystem.ts",
+    "sha256": "87c8faa8d1034c40722ce378d718a497c67f6b70b36225b50b956219c31e50fd",
+    "failed": [
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > uses win32 file mode without a host microphone and removes private audio",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > uses darwin file mode without a host microphone and removes private audio",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up error recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up invalid frame recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up silent recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up exit recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up cancel recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > cleans up output cap recognition without an empty success",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > times out a silent helper, stops it and removes audio",
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > writes only into an owner-only private directory and file"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "system-linux-refusal",
+    "file": "src/runtime/companion/voiceSystem.ts",
+    "sha256": "87c8faa8d1034c40722ce378d718a497c67f6b70b36225b50b956219c31e50fd",
+    "failed": [
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > refuses Linux before writing or spawning"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "paid-consent-once",
+    "file": "src/runtime/companion/voicePaid.ts",
+    "sha256": "47c8cca89d254d06e20eba2626b540fe2065b0421873cc5608b493388d5969fd",
+    "failed": [
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > asks once with price and budget, sends captured multipart, settles billed whole seconds"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "captured-wire",
+    "file": "src/runtime/companion/voicePaid.ts",
+    "sha256": "47c8cca89d254d06e20eba2626b540fe2065b0421873cc5608b493388d5969fd",
+    "failed": [
+      "test/unit/companionVoicePaid.test.ts > captured U18 companion transcription and accounting > asks once with price and budget, sends captured multipart, settles billed whole seconds"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "no-engine-launch",
+    "file": "src/runtime/companion/voiceEntry.ts",
+    "sha256": "bc5c42bd88a2502e689b14883932ba5b8677b5c07f98e6a13b49a846c7dbc670",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > refuses a Linux free-only launch with an honest engine error"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "browser-cancel-late-mic",
+    "file": "src/webview/voice/companion.ts",
+    "sha256": "bd95cacbaa998c79e1ae0aa0f4ce0f6774302217ff2ec7b8fe1bfaa90745abbd",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > cancels a pending microphone permission and stops a late stream"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "browser-a11y",
+    "file": "src/runtime/companion/voiceEntry.ts",
+    "sha256": "bc5c42bd88a2502e689b14883932ba5b8677b5c07f98e6a13b49a846c7dbc670",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > stays accessible and within 320px in every token theme, including the paid dialog"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "browser-explicit-send",
+    "file": "src/webview/voice/companion.ts",
+    "sha256": "bd95cacbaa998c79e1ae0aa0f4ce0f6774302217ff2ec7b8fe1bfaa90745abbd",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > captures real fake-device audio after consent, asks once, reviews at the caret and sends explicitly",
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > submits the reviewed transcript into its owning fake ACP session without starting a turn at launch"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "origin-refusal",
+    "file": "src/runtime/companion/guard.ts",
+    "sha256": "38d0416104afbabf5e5267b3e0e496a40afc7134d0d5670eee91f2479978f785",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > refuses foreign origin, missing bearer and oversized request before an engine runs"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "bearer-refusal",
+    "file": "src/runtime/companion/sessions.ts",
+    "sha256": "a43de97173bdfef1ca5da3ccc4427725aacf0fdbf6efed98e13b85a119922ab5",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > refuses foreign origin, missing bearer and oversized request before an engine runs"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "http-body-cap",
+    "file": "src/runtime/companion/guard.ts",
+    "sha256": "38d0416104afbabf5e5267b3e0e496a40afc7134d0d5670eee91f2479978f785",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > refuses foreign origin, missing bearer and oversized request before an engine runs"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "microphone-policy",
+    "file": "src/runtime/companion/guard.ts",
+    "sha256": "38d0416104afbabf5e5267b3e0e496a40afc7134d0d5670eee91f2479978f785",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > captures real fake-device audio after consent, asks once, reviews at the caret and sends explicitly",
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > cancels a pending microphone permission and stops a late stream",
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > submits the reviewed transcript into its owning fake ACP session without starting a turn at launch"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "base64-boundary",
+    "file": "src/shared/companionVoice.ts",
+    "sha256": "afc872e0e9060581660b8a2be6fe61c2eccb070fcf2cbc03d8d68f5012d44bec",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion WAV boundary > refuses trailing bytes, odd PCM and permissive base64"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "split-boundary",
+    "file": "scripts/lib/deferredBundles.mjs",
+    "sha256": "9723a9b77c0766f79dd2289e2766ba8303507553d8abae9d1eb98a2b6b7cc8d7",
+    "failed": [
+      "test/unit/deferredBundles.test.ts > deferred cohort bundles > keeps companion microphone code lazy and fires for each initial parent"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "paid-usage-liability",
+    "file": "src/core/paid/paidFeatures.ts",
+    "sha256": "9d0ebd86fdedf25e2cb6a33c66ade12e7a54a37c016e27fe471970179eb8209e",
+    "failed": [
+      "test/unit/paidFeatures.test.ts > preserves uncertain companion voice liability in the account usage journal"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "private-audio-mode",
+    "file": "src/runtime/companion/voiceSystem.ts",
+    "sha256": "87c8faa8d1034c40722ce378d718a497c67f6b70b36225b50b956219c31e50fd",
+    "failed": [
+      "test/unit/companionVoiceSystem.test.ts > free companion OS recognition lifecycle > writes only into an owner-only private directory and file"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "runtime-lifetime",
+    "file": "src/runtime/companion/voiceEntry.ts",
+    "sha256": "bc5c42bd88a2502e689b14883932ba5b8677b5c07f98e6a13b49a846c7dbc670",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > closes the companion and cancels pending consent when its runtime lifetime ends"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "responsive-layout",
+    "file": "src/webview/voice/companion.css",
+    "sha256": "5f8167dbc012eb36bb3129e8b26ca51805c7a40ed5bf374f4105fe6de6136250",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > stays accessible and within 320px in every token theme, including the paid dialog",
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > keeps the review and consent dialog within the desktop viewport"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "held-cli-inventory",
+    "file": "src/shared/cliCommands.ts",
+    "sha256": "28d374082cf45309b12b9a499f7498f7f988cefbdcb0b88e4d11ae51510a9a86",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > keeps new release entry points hidden"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "editor-paid-consent",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "868a566b76edc1628b456dd0e58441291e6602d15d8ee9c8fd6d755b51b5edae",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > ACP editor permission once keeps microphone and prompt ownership honest",
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > ACP editor permission deny keeps microphone and prompt ownership honest",
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > ACP editor permission closed keeps microphone and prompt ownership honest"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "runtime-voice-grant-revocation",
+    "file": "src/runtime/backends.ts",
+    "sha256": "75cf1803a74631c8dbff0c97a8fad63b1037aff16d95770e0204a8ae3ac17dd1",
+    "failed": [
+      "test/unit/acpRuntime.test.ts > createRuntimeBackend > revokes unflagged voice on either backend and other paid grants on Model API only"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "free-cli-voice-grant-revocation",
+    "file": "src/runtime/companion/voiceEntry.ts",
+    "sha256": "4042a500b6e5488001fde2ef969678827af100c0aa2c83ae75e35b58f947d142",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > refuses a Linux free-only launch with an honest engine error"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "cli-paid-flag-grammar",
+    "file": "src/runtime/cliArgs.ts",
+    "sha256": "0af959376f7fc096dd67121c0fc54d2bea0032bef17e256950472a517f173396",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > parses only explicit paid and trust flags when the held CLI is enabled"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "send-during-capture",
+    "file": "src/runtime/companion/voiceHandler.ts",
+    "sha256": "ce236654f064f573f778e910c0f2acf531c43879ca435bcb1e47989ba78ea164",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion voice ownership and lifecycle > refuses Send while a second recording owns the capture ticket"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "capture-send-control",
+    "file": "src/webview/voice/companion.ts",
+    "sha256": "ed36f66bb129f57a1d999cbc3f02c8b1c190ad7c6013f4a79cb50ff426783526",
+    "failed": [
+      "test/unit/companionVoiceBrowser.test.mjs > authenticated voice companion in real Chrome > captures real fake-device audio after consent, asks once, reviews at the caret and sends explicitly"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "budget-voiceCompanion.js-host",
+    "file": "dist/voiceCompanion.js",
+    "sha256": "14fd2beab4537aaf6edde4dd01da9fecc29964ea51317e44e34605dad59986b6",
+    "failed": ["bundle-size: OVER dist/voiceCompanion.js"],
+    "exit": 1
+  },
+  {
+    "drill": "budget-voiceCompanion.js-web",
+    "file": "dist/webview/voiceCompanion.js",
+    "sha256": "b1e4fc4798373fa556966734e5bc2ad9d7aeb0d5ae5350387fd14b4dd0cbd88e",
+    "failed": ["bundle-size: OVER dist/webview/voiceCompanion.js"],
+    "exit": 1
+  },
+  {
+    "drill": "budget-voiceCompanion.css-web",
+    "file": "dist/webview/voiceCompanion.css",
+    "sha256": "d8a6301a8a68b4de37e9daa5d3fc9a76cc90bdd796a52cbf57999b6cafd6c7a1",
+    "failed": ["bundle-size: OVER dist/webview/voiceCompanion.css"],
+    "exit": 1
+  },
+  {
+    "drill": "cli-paid-journal-binding",
+    "file": "src/runtime/main.ts",
+    "sha256": "f3f276ae3daf88afc9b4d6d75d96e4cfef78b93bff8461b0f06684b1dd9a3ad9",
+    "failed": [
+      "test/unit/companionVoiceCli.test.mjs > held companion CLI with fake browser and billing > send keeps stdout and final tally honest"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "cli-paid-journal-flush",
+    "file": "src/runtime/main.ts",
+    "sha256": "f3f276ae3daf88afc9b4d6d75d96e4cfef78b93bff8461b0f06684b1dd9a3ad9",
+    "failed": [
+      "test/unit/companionVoiceCli.test.mjs > held companion CLI with fake browser and billing > send keeps stdout and final tally honest"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "stereo-pcm-mixing",
+    "file": "src/shared/companionWav.ts",
+    "sha256": "e52d1eee3eb39a888789d96a913117992fbc420ad2e9bd279251571fbc2cb04c",
+    "failed": [
+      "test/unit/companionVoice.test.ts > companion WAV boundary > mixes stereo before clipping and rounding without signed PCM overflow"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "rvcmiccomp-3-capture-generation-fence",
+    "file": "src/webview/voice/companion.ts",
+    "sha256": "ae7e2237eb4e925c0a9f32b1f8e28cfef8ed2944b6e1e8eb501916b2adcd2a0c",
+    "failed": [
+      "test/unit/companionVoicePage.test.ts > voice companion page without a browser > a replaced capture’s late microphone rejection leaves the new recording live"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "rvcmiccomp-5-send-reenable-on-input",
+    "file": "src/webview/voice/companion.ts",
+    "sha256": "ae7e2237eb4e925c0a9f32b1f8e28cfef8ed2944b6e1e8eb501916b2adcd2a0c",
+    "failed": [
+      "test/unit/companionVoicePage.test.ts > voice companion page without a browser > typing after an empty reviewed prompt re-enables Send"
+    ],
+    "exit": 1
+  },
+  {
+    "drill": "rvcmiccomp-4-permission-cancellation-signal",
+    "file": "src/acp/agent.ts",
+    "sha256": "5f6c1a504b0996a7e34c9ab3b30b93c4d98b60e53f4de566b0da805253897fbd",
+    "failed": [
+      "test/unit/acpAgent.test.ts > the ACP agent (M63) > companion cancellation cancels the editor permission request"
+    ],
+    "exit": 1
+  }
+]

@@ -34,10 +34,17 @@
     "other": "单次调用导出仅适用于最近{count}天。"
   },
   "exportComplete": "用量已导出。",
+  "exportTooLarge": "此导出文件过大，浏览器无法处理。请选择较短的时间范围或使用CLI导出。",
+  "exportBound": "浏览器导出大小上限为{limit}，包含JSON编码。",
+  "editorActionsUnavailable": "此页面无法打开编辑器设置、显示历史文件夹或编辑模型价格。请使用编辑器设置及“模型与智能体”控件。此处仍可阅读、筛选、查看图表和导出。",
+  "readOnlyActions": "此文本界面为只读。请打开配套页面以查看图表、管理历史和下载。",
   "deleteHistory": "删除用量历史记录…",
   "deleteTitle": "删除用量历史记录？",
   "deleteConfirm": {
     "other": "要删除此机器上的{count}条用量记录吗？支出账本和已授予的权限将保留。"
+  },
+  "deleteConfirmResources": {
+    "other": "还会删除{count}条资源历史记录。"
   },
   "deleteAction": "删除历史记录",
   "deleteComplete": "用量历史记录已删除。",
@@ -100,11 +107,15 @@
   "certaintyReported": "已上报",
   "certaintyComputed": "已计算",
   "certaintyUncertain": "不确定",
+  "reservedLabel": "已预留",
   "certaintyPlan": "方案",
   "certaintyLocal": "本地",
   "certaintyUnpriced": "未定价",
   "certaintyEstimated": "预估",
   "uncertainNote": "请求已发送，但未返回用量。其费用责任予以保留。",
+  "unknownCalls": {
+    "other": "{count}次成本未知的请求"
+  },
   "unpricedNote": "没有可用的价格卡。未知费用不是零。",
   "estimatedNote": "Token 数量为估计值。",
   "localNote": "本地模型：无 API 费用。",
@@ -205,12 +216,6 @@
   "sortAscending": "升序排列",
   "sortDescending": "降序排列",
   "retentionNote": "单次调用详情保留{detailDays}天；每日汇总保留{historyDays}天。",
-  "privacyNote": "历史记录保留在此机器上，不包含提示、回复、工具参数、路径或密钥。",
-  "exportTooLarge": "此导出文件过大，浏览器无法处理。请选择较短的时间范围或使用CLI导出。",
-  "exportBound": "浏览器导出大小上限为{limit}，包含JSON编码。",
-  "editorActionsUnavailable": "此页面无法打开编辑器设置、显示历史文件夹或编辑模型价格。请使用编辑器设置及“模型与智能体”控件。此处仍可阅读、筛选、查看图表和导出。",
-  "readOnlyActions": "此文本界面为只读。请打开配套页面以查看图表、管理历史和下载。",
-  "deleteConfirmResources": {
-    "other": "还会删除{count}条资源历史记录。"
-  }
+  "retentionNoteKept": "单次调用详情保留{detailDays}天；每日汇总一直保留，直到您设置天数或将其清除。",
+  "privacyNote": "历史记录保留在此机器上，不包含提示、回复、工具参数、路径或密钥。"
 }

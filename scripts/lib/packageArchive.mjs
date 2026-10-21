@@ -30,7 +30,7 @@ const CODE_ARCHIVE = 'runtime.bundles.json.br'
 const digest = (text) => createHash('sha256').update(text).digest('hex')
 const compressBrotli = promisify(brotliCompress)
 
-export async function packRuntimeArchive(root, stage, files, tables) {
+export async function packRuntimeArchive(root, stage, files, tables, compressionQuality) {
   const orderedTables = tables.toSorted(([left], [right]) => left.localeCompare(right, 'en'))
   const {
     EN,
@@ -80,7 +80,7 @@ export async function packRuntimeArchive(root, stage, files, tables) {
         const text = statement.getText(tree)
         if (/^0\s*&&\s*\(module\.exports\s*=\s*\{/.test(text)) return [text]
         const name = /^exports\.([\w$]+)\s*=/.exec(text)?.[1]
-        return name === undefined ? [] : [`0&&(exports.${name}=0);`]
+        return name === undefined ? [] : `0&&(exports.${name}=0);`
       })
       .join('\n')
     codeArchive.bundles[path.basename(file)] = source
@@ -174,10 +174,19 @@ module.readPackedRuntime=(()=>{
     [path.join(stage, 'dist', CODE_ARCHIVE), codeText],
     [path.join(stage, 'l10n', USAGE_TABLE_ARCHIVE_FILE), usageText],
   ]
+  // Parity tests pack with a low quality: they assert decoded tables, which
+  // are quality-invariant, while production keeps its own quality. Window
+  // sizes are decode-invariant too: the 7 MB code archive compresses about
+  // 31 KiB smaller with an 8 MiB window than the 4 MiB default (measured),
+  // while the locale tables compress best at the default.
+  const quality = compressionQuality ?? L10N_COMPRESSION_QUALITY
   const packed = await Promise.all(
-    members.map(([, contents]) =>
+    members.map(([file, contents]) =>
       compressBrotli(contents, {
-        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+        params: {
+          [zlibConstants.BROTLI_PARAM_QUALITY]: quality,
+          ...(file.endsWith(CODE_ARCHIVE) && { [zlibConstants.BROTLI_PARAM_LGWIN]: 23 }),
+        },
       }),
     ),
   )

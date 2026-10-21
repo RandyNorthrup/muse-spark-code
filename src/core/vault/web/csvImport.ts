@@ -20,7 +20,11 @@ export interface WebLoginImportPort {
 export type WebLoginImportResult =
   | { readonly kind: 'imported'; readonly items: readonly VaultItemMetadata[] }
   | { readonly kind: 'declined' }
-  | { readonly kind: 'failed'; readonly items: readonly VaultItemMetadata[] }
+  | {
+      readonly kind: 'failed'
+      readonly items: readonly VaultItemMetadata[]
+      readonly cause: unknown
+    }
 
 /** RFC 4180: quoted commas, escaped quotes, CRLF and embedded newlines; malformed input refuses. */
 function parseCsv(text: string): string[][] {
@@ -171,11 +175,11 @@ export async function importWebLogins(
           material: { kind: 'webLogin', origins: [origin], username, password, totpSeed },
         })
         pending.push(item)
-      } catch {
+      } catch (error: unknown) {
         username.fill(0)
         password.fill(0)
         totpSeed?.fill(0)
-        throw new Error('invalidCsv')
+        throw new Error('invalidCsv', { cause: error })
       }
     }
     if (!(await deps.review(pending.map((item) => structuredClone(item.metadata)))))
@@ -185,9 +189,10 @@ export async function importWebLogins(
       saved.push(item.metadata)
     }
     return { kind: 'imported', items: saved }
-  } catch {
-    // A multi-item port has no transaction. Tell the host exactly what committed before failure.
-    return { kind: 'failed', items: saved }
+  } catch (error: unknown) {
+    // A multi-item port has no transaction. Tell the host exactly what
+    // committed before failure, with the failure as the cause.
+    return { kind: 'failed', items: saved, cause: error }
   } finally {
     eraseItems(pending)
   }

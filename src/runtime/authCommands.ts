@@ -4,17 +4,25 @@
 // exit code. Nothing here prints the key or any part of it.
 
 import type { LaunchResolution } from '../core/backends/musecode/launch'
+import type { GuardedChildEnv } from '../core/executables'
 import { isValidModelApiKey, type SecretStore } from '../host/auth/credentialStore'
 import type { ProvidersFileRead } from '../core/providers/providersFile'
+import { distinctProviderLabels } from '../shared/providerLabels'
 import {
   CREDENTIAL_RECORD_VERSION,
+  type GITHUB_AUTH_ACTIONS,
   MUSE_LOGIN_ARGS,
   SECRET_KEYS,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
+import { signInFailureText } from '../core/git/deviceFlow'
+import type { DeviceFlowSource } from './github/deviceFlowSource'
+import { providerKeyFailureText } from './exec/keyInput'
+import { isNonTextStdin } from './hiddenInput'
 import {
   formatStoredProviderSecret,
+  isStoreUnavailable,
   parseStoredProviderSecret,
   providerSecretAccount,
 } from './keyStore'
@@ -25,6 +33,12 @@ export interface AuthCommandDeps {
   readonly storeName: string
   /** One line from the user, not echoed when it comes from a terminal. */
   readonly readSecret: (prompt: string) => Promise<string>
+  /**
+  Whether to use a key that looks like the wrong thing (a URL, a path,
+  placeholder text, inner whitespace). A pipe cannot answer, so it names
+  the value and proceeds; a terminal asks and waits for the answer.
+  */
+  readonly confirmKeyUse: (message: string) => Promise<boolean>
   readonly print: (line: string) => void
   readonly printError: (line: string) => void
 }
@@ -36,13 +50,28 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function unavailable(deps: AuthCommandDeps, error: unknown): number {
-  deps.printError(fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }))
+function unavailable(deps: Pick<AuthCommandDeps, 'printError'>, error: unknown): number {
+  deps.printError(
+    isStoreUnavailable(error)
+      ? UI_TEXT.acpStoreDown
+      : fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+  )
   return EXIT_FAILED
 }
 
 export async function authSet(deps: AuthCommandDeps): Promise<number> {
-  const typed = await deps.readSecret(UI_TEXT.acpKeyPrompt)
+  let typed: string
+  try {
+    typed = await deps.readSecret(UI_TEXT.acpKeyPrompt)
+  } catch (error: unknown) {
+    // Non-text stdin is not a valid Model API key either; the sentence is
+    // the one this command already shows for that input.
+    if (isNonTextStdin(error)) {
+      deps.printError(UI_TEXT.apiKeyInvalid)
+      return EXIT_FAILED
+    }
+    throw error
+  }
   const candidate = typed.trim()
   if (candidate === '') {
     deps.printError(UI_TEXT.acpKeyNotStored)
@@ -61,19 +90,100 @@ export async function authSet(deps: AuthCommandDeps): Promise<number> {
   return EXIT_OK
 }
 
-export async function authStatus(deps: AuthCommandDeps): Promise<number> {
+function storeDown(deps: AuthCommandDeps, error: unknown): number | undefined {
+  // A failed read cannot establish whether the store contains a key.
+  if (isStoreUnavailable(error)) {
+    deps.print(UI_TEXT.acpStoreDown)
+    return EXIT_FAILED
+  }
+  return undefined
+}
+
+/**
+D6: bare `auth status` answers every credential, not only the Meta key.
+Exits 0 when any key is stored (Meta or provider), 1 when none is or the
+store cannot be read. A missing providers file is the first-run state.
+*/
+export async function authStatusAll(
+  deps: AuthCommandDeps,
+  readUserFile: () => Promise<ProvidersFileRead>,
+): Promise<number> {
   let stored: string | undefined
   try {
     stored = await deps.secrets.get(SECRET_KEYS.modelApiKey)
   } catch (error: unknown) {
-    return unavailable(deps, error)
+    return storeDown(deps, error) ?? unavailable(deps, error)
   }
-  if (stored === undefined || stored === '') {
-    deps.print(UI_TEXT.acpKeyAbsent)
+  const hasMetaKey = stored !== undefined && stored !== ''
+  deps.print(
+    hasMetaKey ? fill(UI_TEXT.acpKeyPresent, { store: deps.storeName }) : UI_TEXT.acpKeyAbsent,
+  )
+  const read = await readUserFile()
+  if (!read.ok && read.reason !== 'missing') {
+    deps.printError(read.detail)
     return EXIT_FAILED
   }
-  deps.print(fill(UI_TEXT.acpKeyPresent, { store: deps.storeName }))
-  return EXIT_OK
+  const entries = read.ok ? read.file.providers : []
+  // Two providers can carry one preset's label (two Anthropic keys): the
+  // lines then tell them apart by id, as the Models panel does.
+  const named: { id: string; label: string }[] = []
+  for (const entry of entries)
+    named.push({ id: entry.id, label: await providerLabel(read, entry.id) })
+  const labels = new Map(distinctProviderLabels(named).map((row) => [row.id, row.label]))
+  const labelFor = (id: string): string => labels.get(id) ?? id
+  let hasAnyKey = hasMetaKey
+  let hasFailure = false
+  for (const entry of entries) {
+    const account = providerSecretAccount(entry.id)
+    let value: string | undefined
+    try {
+      value = account === undefined ? undefined : await deps.secrets.get(account)
+    } catch (error: unknown) {
+      return unavailable(deps, error)
+    }
+    const label = labelFor(entry.id)
+    if (value === undefined || value === '') {
+      deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
+      continue
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(value)
+    } catch (error) {
+      // Only malformed text fails here; anything else is not this parse's answer.
+      if (!(error instanceof SyntaxError)) throw error
+      parsed = undefined
+    }
+    const record = parsed === undefined ? undefined : parseStoredProviderSecret(parsed)
+    if (record === undefined) {
+      deps.printError(fill(UI_TEXT.providerSecretUnreadable, { provider: label }))
+      hasFailure = true
+      continue
+    }
+    hasAnyKey = true
+    deps.print(
+      fill(UI_TEXT.providerKeyPresent, {
+        provider: label,
+        store: deps.storeName,
+        origin: record.record.origin,
+      }),
+    )
+  }
+  return hasFailure || !hasAnyKey ? EXIT_FAILED : EXIT_OK
+}
+
+/** D6: the stored-key sentence names the provider's label, never its bare id. */
+async function providerLabel(
+  read: ProvidersFileRead | undefined,
+  providerId: string,
+): Promise<string> {
+  if (read?.ok !== true) return providerId
+  const entry = read.file.providers.find((candidate) => candidate.id === providerId)
+  if (entry === undefined) return providerId
+  // D6: presets load only in the providers bundle; the split gate forbids
+  // carrying them in any other entry.
+  const { presets } = await import('../host/backend/providersEntry')
+  return presets.presetById(entry.preset)?.label ?? providerId
 }
 
 export async function authClear(deps: AuthCommandDeps): Promise<number> {
@@ -87,11 +197,12 @@ export async function authClear(deps: AuthCommandDeps): Promise<number> {
 }
 
 /**
- * `auth set --provider <id>`: the key comes from standard input only (the
- * reader hides terminal typing and takes a pipe's first line), is checked
- * against the preset's shape, and is stored bound to the exact origin it
- * was entered for. Never an argument, a setting, a file or the environment.
- */
+`auth set --provider <id>`: the key comes from standard input only (the
+reader hides terminal typing and takes a pipe's first line), is never
+refused for its shape (the provider judges it), and is stored bound to
+the exact origin it was entered for. Never an argument, a setting, a
+file or the environment.
+*/
 export async function authSetProvider(
   deps: AuthCommandDeps,
   providerId: string,
@@ -109,18 +220,40 @@ export async function authSetProvider(
     deps.printError(fill(UI_TEXT.providerNotConfigured, { provider: providerId }))
     return EXIT_FAILED
   }
-  const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
-  const candidate = typed.trim()
-  if (candidate === '') {
-    deps.printError(UI_TEXT.providerKeyNotStored)
-    return EXIT_FAILED
-  }
-  const { presets } = await import('../host/backend/providersEntry')
-  if (!presets.isKeyShape(preset.keyShape, candidate)) {
-    deps.printError(
-      fill(UI_TEXT.providerKeyShape, { provider: preset.label, hint: preset.keyHint }),
-    )
-    return EXIT_FAILED
+  const { presets, setUiText } = await import('../host/backend/providersEntry')
+  // Any non-blank key is stored for the provider to judge; a value that
+  // looks like the wrong thing is named first. A pipe cannot answer, so
+  // the run continues; a "no" on a terminal asks for the key again, like
+  // the panel's password box. The notice is formatted in the providers
+  // bundle, which keeps its own installed language: install this
+  // command's table before reading it.
+  setUiText(UI_TEXT, uiLocale())
+  let candidate: string
+  for (;;) {
+    let typed: string
+    try {
+      typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
+    } catch (error: unknown) {
+      if (isNonTextStdin(error)) {
+        deps.printError(providerKeyFailureText('invalid'))
+        return EXIT_FAILED
+      }
+      throw error
+    }
+    const key = typed.trim()
+    if (key === '') {
+      deps.printError(providerKeyFailureText('empty'))
+      return EXIT_FAILED
+    }
+    const inspection = presets.inspectProviderKey(key)
+    if (
+      inspection === 'ok' ||
+      inspection === 'empty' ||
+      (await deps.confirmKeyUse(presets.providerKeyNoticeText(inspection)))
+    ) {
+      candidate = key
+      break
+    }
   }
   const account = providerAccount(deps, providerId)
   if (account === undefined) return EXIT_FAILED
@@ -151,33 +284,45 @@ function providerAccount(deps: AuthCommandDeps, providerId: string): string | un
 export async function authStatusProvider(
   deps: AuthCommandDeps,
   providerId: string,
+  readUserFile?: () => Promise<ProvidersFileRead>,
 ): Promise<number> {
   const account = providerAccount(deps, providerId)
   if (account === undefined) return EXIT_FAILED
+  // D6: the stored-key sentence names the provider's label, never its bare id.
+  let label = providerId
+  if (readUserFile !== undefined) {
+    try {
+      label = await providerLabel(await readUserFile(), providerId)
+    } catch {
+      label = providerId
+    }
+  }
   let stored: string | undefined
   try {
     stored = await deps.secrets.get(account)
   } catch (error: unknown) {
-    return unavailable(deps, error)
+    return storeDown(deps, error) ?? unavailable(deps, error)
   }
   if (stored === undefined || stored === '') {
-    deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: providerId }))
+    deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
     return EXIT_FAILED
   }
   let value: unknown
   try {
-    value = JSON.parse(stored) as unknown
-  } catch {
+    value = JSON.parse(stored)
+  } catch (error) {
+    // Only malformed text fails here; anything else is not this parse's answer.
+    if (!(error instanceof SyntaxError)) throw error
     value = undefined
   }
   const parsed = value === undefined ? undefined : parseStoredProviderSecret(value)
   if (parsed === undefined) {
-    deps.printError(fill(UI_TEXT.providerSecretUnreadable, { provider: providerId }))
+    deps.printError(fill(UI_TEXT.providerSecretUnreadable, { provider: label }))
     return EXIT_FAILED
   }
   deps.print(
     fill(UI_TEXT.providerKeyPresent, {
-      provider: providerId,
+      provider: label,
       store: deps.storeName,
       origin: parsed.record.origin,
     }),
@@ -209,12 +354,22 @@ export interface ExitingProcess {
 
 export interface LoginDeps {
   readonly resolveLaunch: () => LaunchResolution
-  readonly environment: () => NodeJS.ProcessEnv
+  /**
+  The guarded serve environment for `cwd` below: only a guarded child
+  environment flows into the login spawn.
+  */
+  readonly environment: () => GuardedChildEnv
+  /**
+  The directory the login child runs in: the same directory the
+  environment is guarded for, so no workspace program resolves from PATH.
+  */
+  readonly cwd: string
   /** Governed launch with terminal streams forwarded after admission. */
   readonly spawnInTerminal: (
     command: string,
     args: readonly string[],
-    env: NodeJS.ProcessEnv,
+    env: GuardedChildEnv,
+    cwd: string,
   ) => ExitingProcess | Promise<ExitingProcess>
   readonly printError: (line: string) => void
 }
@@ -234,6 +389,7 @@ export function login(deps: LoginDeps): Promise<number> {
     launch.command,
     [...prefix, ...MUSE_LOGIN_ARGS],
     deps.environment(),
+    deps.cwd,
   )
   const waitForExit = (process: ExitingProcess): Promise<number> =>
     new Promise((resolve) => {
@@ -247,4 +403,56 @@ export function login(deps: LoginDeps): Promise<number> {
     })
   const waitForLaunch = async (pending: Promise<ExitingProcess>) => await waitForExit(await pending)
   return child instanceof Promise ? waitForLaunch(child) : waitForExit(child)
+}
+
+export type GitHubAuthAction = (typeof GITHUB_AUTH_ACTIONS)[number]
+
+export interface GitHubAuthDeps {
+  readonly source: DeviceFlowSource
+  /** Where the token lives, as the user knows it (`credentialStoreName`). */
+  readonly storeName: string
+  /** Ctrl+C. */
+  readonly signal: AbortSignal
+  readonly print: (line: string) => void
+  readonly printError: (line: string) => void
+}
+
+/**
+`auth github login|logout|status` (M123, PLAN.md D104 source b): the
+device flow in this terminal, its code printed here; the token goes only
+into the credential store and is never printed.
+*/
+export async function authGitHub(action: GitHubAuthAction, deps: GitHubAuthDeps): Promise<number> {
+  const text = UI_TEXT.githubSignIn
+  try {
+    switch (action) {
+      case 'status': {
+        const isSignedIn = await deps.source.isSignedIn()
+        deps.print(isSignedIn ? fill(text.signedIn, { store: deps.storeName }) : text.notSignedIn)
+        return isSignedIn ? EXIT_OK : EXIT_FAILED
+      }
+      case 'logout': {
+        await deps.source.signOut()
+        return EXIT_OK
+      }
+      case 'login': {
+        const credential = await deps.source.credential('ask', deps.signal)
+        if (credential === undefined) {
+          deps.printError(text.notSignedIn)
+          return EXIT_FAILED
+        }
+        deps.print(fill(text.signedIn, { store: deps.storeName }))
+        return EXIT_OK
+      }
+    }
+  } catch (error: unknown) {
+    if (deps.signal.aborted) {
+      deps.printError(text.cancelled)
+      return EXIT_FAILED
+    }
+    const failure = signInFailureText(error)
+    if (failure === undefined) return unavailable(deps, error)
+    deps.printError(failure)
+    return EXIT_FAILED
+  }
 }

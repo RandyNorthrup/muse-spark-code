@@ -14,28 +14,32 @@
 // or junction on the way, or a name the volume reads as another, refuses
 // the checkout, and the half-written worktree is removed.
 
-import { type Buffer } from 'node:buffer'
-import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { isCommitSha } from '../../core/git/github'
 import { BlobAnswers, heldDestination } from '../../core/git/heldCheckoutCore'
-import { heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
+import {
+  ListingRecords,
+  heldTreeFromRecords,
+  type HeldEntry,
+  unsafePathReason,
+} from '../../core/git/heldTree'
 import { isSamePath } from '../../core/paths'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
   GIT_WORKTREE_TIMEOUT_MS,
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
   HELD_EXECUTABLE_MODE,
   HELD_FILE_MODE,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatBytes } from '../../shared/l10n/text'
+import type { Logger } from '../logger'
+import { type GitProcess } from '../git'
+import { quietGitEnvironment } from '../../core/execGuard'
+import { type Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
-import { type GitProcess, quietGitEnvironment } from '../git'
-import type { Logger } from '../logger'
 import { GitUnavailableError } from './gitExtension'
 import { UNTRUSTED_CHECKOUT_OPTIONS } from './untrustedGit'
 
@@ -57,10 +61,10 @@ export interface HeldCheckoutDeps {
 }
 
 /**
- * Adds `commit` at `folder`, held, from the repository at `cwd`; `check`
- * (trust and the repository's owner) speaks before every git and every
- * write. Rejects with the reason in words.
- */
+Adds `commit` at `folder`, held, from the repository at `cwd`; `check`
+(trust and the repository's owner) speaks before every git and every
+write. Rejects with the reason in words.
+*/
 export type HeldCheckout = (
   folder: string,
   commit: string,
@@ -146,9 +150,14 @@ async function writeEntries(
   target.check()
   await deps.gitProcess([...UNTRUSTED_CHECKOUT_OPTIONS, ...BATCH_ARGS], {
     cwd: target.cwd,
-    env: quietGitEnvironment(deps.env),
+    env: quietGitEnvironment(deps.env, {
+      workspaceRoot: target.cwd,
+      platform: deps.platform,
+      realpath: realpathSync,
+    }),
     input: blobs.map((entry) => `${entry.oid}\n`).join(''),
-    timeoutMs: GIT_WORKTREE_TIMEOUT_MS,
+    // No deadline of ours (M123): the checkout's size caps bound the work.
+    timeoutMs: undefined,
     onStdout: (chunk) => answers.take(chunk),
   })
   answers.finish()
@@ -162,7 +171,7 @@ async function removeWorktree(deps: HeldCheckoutDeps, target: Target): Promise<v
     await deps.runGit(
       ['worktree', 'remove', '--force', target.folder],
       target.cwd,
-      GIT_WORKTREE_TIMEOUT_MS,
+      Infinity,
       undefined,
       target.check,
     )
@@ -177,44 +186,33 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
       throw new GitUnavailableError(UI_TEXT.openPullRequestFetchFailed)
     }
     const target: Target = { folder, cwd, check }
-    let listing: string
-    try {
-      listing = await deps.runGit(
-        ['ls-tree', '-r', '-z', '--full-tree', '--long', commit],
-        cwd,
-        GIT_WORKTREE_TIMEOUT_MS,
-        undefined,
-        check,
-      )
-    } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
-      ) {
-        throw new GitUnavailableError(
-          fill(UI_TEXT.openPullRequestTooLarge, {
-            files: HELD_CHECKOUT_MAX_ENTRIES,
-            size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-          }),
-        )
-      }
-      throw error
-    }
-    const tree = heldTree(listing, deps.platform)
+    // The listing streams record by record, at any size: no buffered reader
+    // (and its fixed ceiling) stands between git and the validator.
+    check()
+    const listing = new ListingRecords()
+    const records: string[] = []
+    await deps.gitProcess(['ls-tree', '-r', '-z', '--full-tree', '--long', commit], {
+      cwd,
+      env: quietGitEnvironment(deps.env, {
+        workspaceRoot: cwd,
+        platform: deps.platform,
+        realpath: realpathSync,
+      }),
+      timeoutMs: GIT_WORKTREE_TIMEOUT_MS,
+      onStdout: (chunk) => {
+        records.push(...listing.take(chunk))
+        return Promise.resolve()
+      },
+    })
+    records.push(...listing.finish())
+    const tree = heldTreeFromRecords(records, deps.platform)
     if (!tree.ok) {
       throw new GitUnavailableError(tree.reason)
     }
-    await deps.runGit(
-      worktreeAddHeldArgs(folder, commit),
-      cwd,
-      GIT_WORKTREE_TIMEOUT_MS,
-      undefined,
-      check,
-    )
+    await deps.runGit(worktreeAddHeldArgs(folder, commit), cwd, Infinity, undefined, check)
     try {
       // In the worktree, so named hooks its own configuration defines are found and switched off.
-      await deps.runGit(['read-tree', commit], folder, GIT_WORKTREE_TIMEOUT_MS, undefined, check)
+      await deps.runGit(['read-tree', commit], folder, Infinity, undefined, check)
       await writeEntries(deps, target, tree.entries)
     } catch (error: unknown) {
       await removeWorktree(deps, target)

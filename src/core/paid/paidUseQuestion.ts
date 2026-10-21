@@ -1,14 +1,16 @@
 // The paid popup's formatter loads with the existing imported-hook runtime on first use.
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import { Usd } from '../../shared/usd'
 import {
   paidFeaturePrice,
+  paidFeatureName,
   autoReviewPrice,
   bestOfNPrice,
   modelApiPaidTier,
   hookModelPrice,
+  paidStoreReasonText,
   scheduledRunPrice,
   subagentTaskPrice,
   type PaidUseRequest,
@@ -23,7 +25,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
     case 'autoCompaction': {
       return {
         title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.autoCompactionName }),
-        detail: `${request.modelId}: ${scheduledRunPrice(request.modelId)}\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
+        detail: `${request.modelId}: ${scheduledRunPrice(request.modelId)}\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(request.dailyBudgetUsd) })}`,
       }
     }
     case 'judge': {
@@ -34,7 +36,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
         title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
         detail: fill(UI_TEXT.paidConfirmJudge, {
           price,
-          budget: formatUsd(request.dailyBudgetUsd, 2),
+          budget: formatDailyBudget(request.dailyBudgetUsd),
         }),
       }
     }
@@ -51,6 +53,13 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
                 fill(UI_TEXT.paidSearchQuote, {
                   provider: request.quote.provider,
                   model: request.quote.model,
+                }),
+              ]),
+          ...(request.quoteNotice === undefined
+            ? []
+            : [
+                fill(UI_TEXT.paidQuoteChoicesUnreadable, {
+                  kind: paidStoreReasonText(request.quoteNotice.kind),
                 }),
               ]),
         ].join('\n'),
@@ -78,6 +87,24 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
       }
     }
     case 'scheduledPrompts': {
+      if (request.schedule !== undefined) {
+        const scope = request.schedule
+        return {
+          title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidScheduledName }),
+          detail:
+            fill(UI_TEXT.scheduleV2.messages.paidConsent, {
+              prompt: request.prompt,
+              model: request.modelId,
+              price: scope.price,
+              cadence: scope.cadence,
+              cap: formatUsd(scope.dailyCapUsd, 2),
+              budget: formatUsd(scope.sharedDailyBudgetUsd, 2),
+            }) +
+            (scope.extras.length === 0
+              ? ''
+              : `\n${scope.extras.map((feature) => `${paidFeatureName(feature)}: ${paidFeaturePrice(feature)}`).join(', ')}`),
+        }
+      }
       return {
         title: fill(UI_TEXT.scheduleRunConfirmTitle, { model: request.modelId }),
         detail: [
@@ -93,7 +120,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
         title: fill(UI_TEXT.paidSubagentTaskTitle, { role: task.role }),
         detail: fill(UI_TEXT.paidSubagentTaskDetail, {
           objective: task.objective,
-          price: subagentTaskPrice(task.modelId, task.attemptLimit),
+          price: subagentTaskPrice(task.modelId),
         }),
       }
     }
@@ -139,17 +166,29 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
           price:
             request.dailyBudgetUsd === undefined
               ? hookModelPrice(request.modelId)
-              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
+              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatDailyBudget(request.dailyBudgetUsd) })}`,
         }),
       }
     }
     case 'tab': {
       // Tab bills the request's model per token (M94, PLAN.md D73): the
-      // popup names its rates, today's budget and the training note. An
-      // unpriced model has no rate to quote, so it never reaches a popup.
+      // popup names its rates, today's budget and the training note. With no
+      // budget set it says so instead of naming one. An unpriced model has
+      // no rate to quote, so it never reaches a popup.
       const tier = modelApiPaidTier(request.modelId)
       if (tier === undefined) {
         throw new Error(UI_TEXT.subagentTariffUnknown)
+      }
+      const training = tier === 'contributor' ? UI_TEXT.tabTrainingContributor : ''
+      if (Usd.from(request.budgetUsd).compare(Usd.from(0)) === 0) {
+        return {
+          title: UI_TEXT.paidUseTabTitle,
+          detail: fill(UI_TEXT.paidUseTabDetailNoBudget, {
+            model: request.modelId,
+            price: scheduledRunPrice(request.modelId),
+            training,
+          }),
+        }
       }
       return {
         title: UI_TEXT.paidUseTabTitle,
@@ -157,7 +196,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
           model: request.modelId,
           price: scheduledRunPrice(request.modelId),
           budget: formatUsd(request.budgetUsd, 2),
-          training: tier === 'contributor' ? UI_TEXT.tabTrainingContributor : '',
+          training,
         }),
       }
     }

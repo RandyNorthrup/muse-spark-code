@@ -11,12 +11,34 @@ import { evaluateCompatibility } from '../../src/core/legal/compat'
 import { evaluateDependencyLicenses } from '../../src/core/legal/depLicenses'
 import { dependency } from '../../src/core/legal/dependencies'
 import { parseSpdxExpression, orAlternatives } from '../../src/core/legal/spdx'
+import { scrubLegalText } from '../../src/core/legal/files'
 import { scanLegal } from '../../src/core/legal/scan'
 import { scanHeaders } from '../../src/core/legal/headers'
 import { LEGAL_SCAN_PATHS_MAX, LEGAL_PATH_MAX_CHARS } from '../../src/shared/constants'
 import { snapshotFrom } from './legal/helpers'
 
 describe('legal evidence regressions', () => {
+  it.each([
+    'leftpad@1.3.0',
+    '@scope/pkg@1.2.3-beta.4',
+    'package@1.2.3+build.4',
+    'crate@v1.2.3',
+    'python@2.0',
+    'python@2.0rc1',
+    'python@2.0.dev4',
+    'gem@1.2.3.pre.2',
+  ])('preserves package coordinate %s while scrubbing real email', (coordinate) => {
+    expect(scrubLegalText(`${coordinate} contact owner@example.com`)).toBe(
+      `${coordinate} contact [redacted]`,
+    )
+    expect(scrubLegalText('1.2.3@example.com')).toBe('[redacted]')
+  })
+
+  it('retains email scrubbing for punycode and numeric address domains', () => {
+    for (const email of ['owner@example.xn--p1ai', 'owner@127.0.0.1', 'owner@1.2.dev'])
+      expect(scrubLegalText(email)).toBe('[redacted]')
+  })
+
   it('reports conflicting Maven and NuGet metadata instead of choosing one license', () => {
     const jvm = readJvm(
       snapshotFrom({
@@ -256,24 +278,24 @@ describe('legal evidence regressions', () => {
     ).toBe(true)
   })
 
-  it('rejects excessive input path counts and overlong paths before reading', () => {
-    expect(() =>
+  it('rejects excessive input path counts and overlong paths before reading', async () => {
+    await expect(
       scanLegal(snapshotFrom({}), {
         headerPolicy: 'off',
         paths: Array.from({ length: LEGAL_SCAN_PATHS_MAX + 1 }, () => 'x'),
       }),
-    ).toThrow()
-    expect(() =>
+    ).rejects.toThrow()
+    await expect(
       scanLegal(snapshotFrom({ ['a'.repeat(LEGAL_PATH_MAX_CHARS + 1)]: 'x' }), {
         headerPolicy: 'off',
       }),
-    ).toThrow()
+    ).rejects.toThrow()
   })
 })
 
 describe('legal scan uncertainty', () => {
-  it('reports a dependency LICENSE conflict instead of trusting its metadata', () => {
-    const report = scanLegal(
+  it('reports a dependency LICENSE conflict instead of trusting its metadata', async () => {
+    const report = await scanLegal(
       snapshotFrom({
         'package.json': '{"license":"MIT"}',
         'package-lock.json': JSON.stringify({
@@ -291,8 +313,8 @@ describe('legal scan uncertainty', () => {
     ).toBe(true)
   })
 
-  it('does not treat an upstream NOTICE as a packaged notice or a bare package name as preserved attribution', () => {
-    const report = scanLegal(
+  it('does not treat an upstream NOTICE as a packaged notice or a bare package name as preserved attribution', async () => {
+    const report = await scanLegal(
       snapshotFrom({
         'package.json': '{"license":"MIT"}',
         'package-lock.json': JSON.stringify({
@@ -313,8 +335,8 @@ describe('legal scan uncertainty', () => {
     ).toBe(true)
   })
 
-  it('keeps sidecar/REUSE evidence available for a selected source subset and rejects empty sidecars', () => {
-    const valid = scanLegal(
+  it('keeps sidecar/REUSE evidence available for a selected source subset and rejects empty sidecars', async () => {
+    const valid = await scanLegal(
       snapshotFrom({
         'x.ts': 'x',
         'x.ts.license': 'SPDX-FileCopyrightText: 2026 Holder\nSPDX-License-Identifier: MIT\n',
@@ -322,15 +344,15 @@ describe('legal scan uncertainty', () => {
       { headerPolicy: 'required', paths: ['x.ts'] },
     )
     expect(valid.findings.some((finding) => finding.category === 'copyrightHeader')).toBe(false)
-    const empty = scanLegal(snapshotFrom({ 'x.ts': 'x', 'x.ts.license': '' }), {
+    const empty = await scanLegal(snapshotFrom({ 'x.ts': 'x', 'x.ts.license': '' }), {
       headerPolicy: 'required',
     })
     expect(empty.findings.some((finding) => finding.category === 'copyrightHeader')).toBe(true)
   })
 
-  it('scrubs secrets and email values and bounds malicious evidence fields without crashing', () => {
+  it('scrubs secrets and email values and bounds malicious evidence fields without crashing', async () => {
     const synthetic = 'ghp_' + 'test'.repeat(10)
-    const report = scanLegal(
+    const report = await scanLegal(
       snapshotFrom({
         LICENSE: 'custom terms for private@example.invalid\n' + synthetic,
         'package.json': JSON.stringify({ license: 'x'.repeat(3000) }),

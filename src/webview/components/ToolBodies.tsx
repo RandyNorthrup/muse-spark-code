@@ -184,9 +184,9 @@ export function WebBody({
 }
 
 /**
- * An image call (M34, M44): what it asked for, the images an edit started
- * from, and what came of it; the picture itself follows the body.
- */
+An image call (M34, M44): what it asked for, the images an edit started
+from, and what came of it; the picture itself follows the body.
+*/
 export function ImageBody({ entry }: { readonly entry: ToolEntry }) {
   const { prompt, sources } = imageRequestOf(entry.args)
   return (
@@ -209,9 +209,9 @@ export function ImageBody({ entry }: { readonly entry: ToolEntry }) {
 }
 
 /**
- * The Workflow tool's captured inline script and whether Muse Code launched
- * it (M47). The run itself is its own card, which follows the row.
- */
+The Workflow tool's captured inline script and whether Muse Code launched
+it (M47). The run itself is its own card, which follows the row.
+*/
 export function WorkflowBody({ entry }: { readonly entry: ToolEntry }) {
   const launch = workflowLaunch(entry.args, entry.output)
   let answer = null
@@ -240,9 +240,9 @@ export function WorkflowBody({ entry }: { readonly entry: ToolEntry }) {
 }
 
 /**
- * The picture a tool read or made (M43), asked of the host once the row
- * shows it; it opens in VS Code's image viewer on click.
- */
+The picture a tool read or made (M43), asked of the host once the row
+shows it; it opens in VS Code's image viewer on click.
+*/
 export function ToolImage({
   path,
   image,

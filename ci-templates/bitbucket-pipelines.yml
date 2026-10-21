@@ -1,0 +1,139 @@
+# Muse Spark Code (Unofficial): Bitbucket Pipelines template (PLAN.md M80/D65, lane CM80CI-R2).
+# Not endorsed by Meta. Guide: docs/ci-other-systems.md.
+#
+# Shared bootstrap: download/digest/unpack in a credential-free subshell;
+# the parent never reads/copies the key and runs Node (plain invocation,
+# not exec) with the original vendor environment. Node takes the
+# source, deletes names and value copies, and sends the value only over trusted exec/scanner stdin.
+# Extra secret bindings MUST be declared by name in MUSE_CI_KEY_ALIASES
+# (space-separated); never bind undeclared credential copies.
+# Output is created by Node outside the repository under job temp.
+# Secret: MUSE_MODEL_API_KEY as a Secured DEPLOYMENT variable in the
+# muse-spark deployment environment (narrower than repository/workspace).
+# Restrict that deployment to trusted refs/users. This does NOT prove the
+# environment of vendor-managed clone/setup/upload; process isolation is
+# unqualified without a hosted receipt. Bitbucket uploads relative to the
+# clone, not external temp, so after-script copies the five fixed publisher
+# filenames into a fresh muse-spark-out/ directory in the clone (a planted
+# directory or symlink of that name is removed first, never uploaded) and
+# declares them as artifacts. Only those filenames are ever copied or
+# uploaded, never a directory glob.
+# Pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256 to a release
+# carrying ci/ (first after 0.17.0); no such release is claimed here.
+
+# Inputs, as repository variables (empty or unset takes the default; an
+# explicitly empty MUSE_INPUT_MAX_BUDGET_USD stays empty and is refused):
+#   MUSE_INPUT_MODE                     review (plan mode, no edits) or fix (a patch is proposed)
+#   MUSE_INPUT_MAX_BUDGET_USD           hard USD cap, more than 0; 2.00 when unset
+#   MUSE_INPUT_MAX_REQUESTS             billable HTTP attempts, retries included (any positive integer); empty sets no request limit
+#   MUSE_INPUT_TIMEOUT_MINUTES          the run's deadline (any positive integer); 20; max-time must cover it
+#   MUSE_INPUT_MODEL                    Model API model id; the agent's default
+#   MUSE_INPUT_EFFORT                   reasoning effort; the model's default
+#   MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS true allows a contributor model (training-eligible); false
+#   MUSE_INPUT_IMAGE_GENERATION         true allows paid images in fix mode; false
+#   MUSE_INPUT_MAX_DIFF_BYTES           the diff given to the model is cut to this (1-1048576); 262144
+#   MUSE_INPUT_EXTRA_INSTRUCTIONS       trusted instructions from the pipeline author
+#   MUSE_INPUT_TRUST_PULL_REQUESTS      true reviews pull requests from this repository; false
+#   MUSE_INPUT_HTTPS_PROXY, MUSE_INPUT_NO_PROXY, MUSE_INPUT_EXTRA_CA_CERTS
+
+clone:
+  depth: full # The base commit must be in the clone.
+
+definitions:
+  steps:
+    - step: &muse-spark
+        name: Muse Spark
+        image: node:22
+        deployment: muse-spark
+        # MUSE_CI_JOB_TIMEOUT_MINUTES below names the same deadline for the launcher.
+        max-time: 35
+        script:
+          - export MUSE_INPUT_MAX_BUDGET_USD="${MUSE_INPUT_MAX_BUDGET_USD-2.00}"
+          - export MUSE_CI_JOB_TIMEOUT_MINUTES=35
+          # The launcher publishes the five fixed result files under this
+          # job-temp root, outside the clone; after-script carries them into
+          # the clone for the artifact uploader.
+          - export MUSE_CI_OUTPUT_ROOT="/tmp/muse-spark-$BITBUCKET_BUILD_NUMBER"
+          - |
+            # BEGIN MUSE BOOTSTRAP (generated from ci-templates/bootstrap.sh - do not edit)
+            # Muse Spark Code (Unofficial): shared POSIX bootstrap, generated into the
+            # four templates by node scripts/sync-ci-bootstrap.mjs. The parent never
+            # reads the credential. Only names/paths/timestamps cross this subshell.
+            set +x
+            set -efu
+            umask 077
+            # timeout(1) bounds temp removal where it runs. Probe once, before any trap
+            # is armed: a missing timeout selects plain rm up front, and a removal that
+            # itself exceeds the bound is never retried without one. The holder uses the
+            # reserved internal namespace so declared aliases cannot overwrite it.
+            if command -v timeout >/dev/null 2>&1; then muse_ci_internal_rm='timeout -s KILL 5 rm -rf'; else muse_ci_internal_rm='rm -rf'; fi
+            # Parent holders own paths, never credentials. Reserve their namespace before
+            # assigning the bootstrap result, so declared bindings cannot be overwritten.
+            for muse_ci_internal_alias in ${MUSE_CI_KEY_ALIASES:-}; do
+              case "$muse_ci_internal_alias" in ''|[0-9]*|*[!A-Za-z0-9_]*|muse_ci_internal_*|MUSE_CI_*|MUSE_INPUT_*|MUSE_AGENT_*) echo 'muse-spark: invalid or reserved key alias name' >&2; exit 1;; esac
+            done
+            # Extra bindings must be declared by NAME, never by value. The launcher
+            # reads this same name list and also scrubs every copy of the value. Every
+            # name was validated by the reserved-prefix loop above (its shape check
+            # subsumes the old inner one); macOS sh (bash 3.2) cannot parse case inside
+            # $( ), so only the value removals stay in this subshell, keeping the
+            # download children blind to every declared copy.
+            muse_ci_internal_setup="$(
+              unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias
+              for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done
+              if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+              # The download runs before Node maps the inputs into its child
+              # environment, so the bootstrap maps the network inputs itself: the proxy
+              # inputs become the standard variables curl reads, and the CA input is
+              # refused here when it is not a readable file. Vendor-standard proxy
+              # variables set on the job already reach curl unchanged.
+              if [ -n "${MUSE_INPUT_HTTPS_PROXY:-}" ]; then https_proxy="$MUSE_INPUT_HTTPS_PROXY"; HTTPS_PROXY="$MUSE_INPUT_HTTPS_PROXY"; export https_proxy HTTPS_PROXY; fi
+              if [ -n "${MUSE_INPUT_NO_PROXY:-}" ]; then no_proxy="$MUSE_INPUT_NO_PROXY"; NO_PROXY="$MUSE_INPUT_NO_PROXY"; export no_proxy NO_PROXY; fi
+              if [ -n "${MUSE_INPUT_EXTRA_CA_CERTS:-}" ] && [ ! -r "$MUSE_INPUT_EXTRA_CA_CERTS" ]; then echo 'muse-spark: MUSE_INPUT_EXTRA_CA_CERTS is not readable' >&2; exit 1; fi
+              muse_start_ms=$(($(date +%s) * 1000))
+              muse_dir="$(mktemp -d)"
+              # One bounded removal (muse_ci_internal_rm, probed above): a removal that
+              # exceeds its bound is reported, never retried without one.
+              trap '$muse_ci_internal_rm "$muse_dir" 2>/dev/null' EXIT HUP INT TERM
+              if [ -n "${MUSE_INPUT_EXTRA_CA_CERTS:-}" ]; then
+                curl --fail --silent --show-error --location --max-time 120 --cacert "$MUSE_INPUT_EXTRA_CA_CERTS" --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+              else
+                curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+              fi
+              muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
+              if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+              mkdir "$muse_dir/launcher"
+              tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
+              printf '%s:%s' "$muse_start_ms" "$muse_dir"
+              trap - EXIT HUP INT TERM
+            )"
+            muse_ci_internal_start_ms="${muse_ci_internal_setup%%:*}"
+            muse_ci_internal_dir="${muse_ci_internal_setup#*:}"
+            # A launch failure still belongs to this shell: plain invocation (not exec)
+            # keeps every shell's exit status, because macOS sh (bash 3.2) reports a
+            # failed bare exec as success once an EXIT trap runs. The reserved holders
+            # survive both generated and alias unsets.
+            trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; $muse_ci_internal_rm "$muse_ci_internal_rm_dir" 2>/dev/null)' EXIT HUP INT TERM
+            MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" bitbucket
+            # END MUSE BOOTSTRAP
+        after-script:
+          # Carry the published result files into the clone for upload, even
+          # when the run failed: only the five fixed publisher filenames,
+          # never a glob. A planted directory or symlink of the destination
+          # name is removed first and never uploaded.
+          - export MUSE_CI_OUTPUT_ROOT="/tmp/muse-spark-$BITBUCKET_BUILD_NUMBER"
+          - rm -rf "$BITBUCKET_CLONE_DIR/muse-spark-out" && mkdir -p "$BITBUCKET_CLONE_DIR/muse-spark-out" && for muse_result_file in outputs.json result.json events.jsonl fix.patch manifest.json; do if [ -f "$MUSE_CI_OUTPUT_ROOT/muse-spark-out/$muse_result_file" ]; then cp -f "$MUSE_CI_OUTPUT_ROOT/muse-spark-out/$muse_result_file" "$BITBUCKET_CLONE_DIR/muse-spark-out/"; fi; done
+        artifacts:
+          - muse-spark-out/outputs.json
+          - muse-spark-out/result.json
+          - muse-spark-out/events.jsonl
+          - muse-spark-out/fix.patch
+          - muse-spark-out/manifest.json
+
+pipelines:
+  branches:
+    main:
+      - step: *muse-spark
+  custom:
+    muse-spark:
+      - step: *muse-spark

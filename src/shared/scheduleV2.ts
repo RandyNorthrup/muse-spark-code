@@ -68,8 +68,10 @@ export const scheduleZoneSchema = z.string().check(
       if (/^[+-]/.test(zone)) return false
       validatedScheduleZone.value = zone
       return true
-    } catch {
-      return false
+    } catch (error) {
+      // An unknown zone is invalid input. Anything else keeps its kind.
+      if (error instanceof RangeError) return false
+      throw error
     }
   }),
 )
@@ -227,15 +229,22 @@ export const scheduleActionSchema = z.discriminatedUnion('kind', [
   }),
 ])
 export type ScheduleReportAction = Extract<z.infer<typeof scheduleActionSchema>, { kind: 'report' }>
-export const schedulePaidConsentSchema = z.strictObject({
-  modelId: text,
-  accountId: text,
-  priceTier: text,
-  grantedAtMs: timestamp,
-  dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
-  sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),
-  extras: z.array(z.enum(PAID_FEATURES)),
-})
+export const schedulePaidConsentSchema = z
+  .strictObject({
+    modelId: text,
+    accountId: text,
+    priceTier: text,
+    /** Legacy records remain readable, but cannot authorize a paid-key fire. */
+    payerKind: z.optional(z.enum(['paidKey', 'plan'])),
+    grantedAtMs: timestamp,
+    dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
+    sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),
+    extras: z.array(z.enum(PAID_FEATURES)),
+    /** Absent on prior standing grants; Once is bound atomically before dispatch. */
+    scope: z.optional(z.enum(['once', 'schedule'])),
+    runId: z.optional(runId),
+  })
+  .check(z.refine((consent) => consent.runId === undefined || consent.scope === 'once'))
 export const scheduleCreatorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('user') }),
   z.strictObject({
@@ -401,12 +410,14 @@ export function noScheduleCost(): ScheduleFireRecord['cost'] {
 }
 
 export interface ScheduleStoreV2 {
+  /** In-process edits retire authority before their durable write awaits. */
+  authorityGeneration?(workspaceKey: string, scheduleId: string): number
   /** New ids start at revision zero and are never reused after removal. */
   create(schedule: ScheduleV2): Promise<void>
   list(workspaceKey: string): Promise<readonly ScheduleV2[]>
   /** Atomic compare-and-swap against schedule.revision; success increments it.
-   * False means missing or stale. Re-read and merge intent before retrying;
-   * never replay a stale authority snapshot against a fresh revision. */
+  False means missing or stale. Re-read and merge intent before retrying;
+  never replay a stale authority snapshot against a fresh revision. */
   update(schedule: ScheduleV2): Promise<boolean>
   remove(workspaceKey: string, scheduleId: string): Promise<boolean>
   /** Atomic, durable, never rolled back after a crash or refusal. */
@@ -417,11 +428,12 @@ export interface ScheduleStoreV2 {
 /** Complete, run-scoped final settlement, parsed with scheduleFireRecordSchema. */
 export type ScheduleDeliveryResult = ScheduleFireRecord
 /** Target-owned durable admission ledger. Absent means definitely unsent;
- * admitted is owned queued/running work; uncertain is terminal and must carry
- * honest accounting for a dispatched request whose response was lost. */
+admitted is owned queued/running work; uncertain is terminal and must carry
+honest accounting for a dispatched request whose response was lost. */
 export const scheduleDeliveryStateSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('absent') }),
   z.strictObject({ status: z.literal('admitted') }),
+  z.strictObject({ status: z.literal('dispatchStarted'), retainedLiabilityUsd: z.optional(money) }),
   z
     .strictObject({ status: z.enum(['settled', 'uncertain']), fire: scheduleFireRecordSchema })
     .check(
@@ -430,19 +442,20 @@ export const scheduleDeliveryStateSchema = z.discriminatedUnion('status', [
 ])
 export type ScheduleDeliveryState = z.infer<typeof scheduleDeliveryStateSchema>
 export interface ScheduleHostPort {
+  readonly signal?: AbortSignal | undefined
   now(): number
   monotonicNow(): number
   holds(workspaceKey: string): boolean
   lookupRun(runId: string): Promise<ScheduleDeliveryState>
   /** Resolves at final settlement, never at send/steer/queue admission.
-   * Queued, steered and idle-held work keeps this promise pending until its
-   * run finishes or is withdrawn; withdrawals settle as skipped/missed.
-   * The target durably admits context.runId BEFORE sending, refuses duplicates
-   * even after restart and exposes that receipt through lookupRun. Delivery
-   * identities survive the schedule's complete fence retention window. Recovery
-   * of an ambiguous sent request returns uncertain, informs the person and never
-   * sends it again. Failures after dispatch settle as failed with known/uncertain cost and
-   * retained liability. The result keeps context.runId and occurrenceMs. */
+  Queued, steered and idle-held work keeps this promise pending until its
+  run finishes or is withdrawn; withdrawals settle as skipped/missed.
+  The target durably admits context.runId BEFORE sending, refuses duplicates
+  even after restart and exposes that receipt through lookupRun. Delivery
+  identities survive the schedule's complete fence retention window. Recovery
+  of an ambiguous sent request returns uncertain, informs the person and never
+  sends it again. Failures after dispatch settle as failed with known/uncertain cost and
+  retained liability. The result keeps context.runId and occurrenceMs. */
   deliver(
     schedule: ScheduleV2,
     context: ScheduleRunContext,
@@ -486,7 +499,7 @@ export interface ScheduleBackgroundPort {
 }
 
 /** Pure mapping only: lane S copies, verifies, then removes the v1 source.
- * Old per-run consent never grants unattended spend or tool approval. */
+Old per-run consent never grants unattended spend or tool approval. */
 export function scheduleV1ToV2(
   job: ScheduledPrompt,
   workspaceKey: string,

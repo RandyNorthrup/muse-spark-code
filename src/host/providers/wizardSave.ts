@@ -7,6 +7,7 @@ import { type UsdAmount } from '../../shared/usd'
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { modelLimitsSchema, pruneModelLimits } from '../../shared/providerRouting'
 import { redactSecrets } from '../../shared/redact'
 import {
   applyWizardSessionBudget,
@@ -18,7 +19,12 @@ import type {
   CredentialRecord,
   ProviderCredentialStore as CredentialStore,
 } from './credentialRecords'
-import type { AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
+import type {
+  AddressPolicy,
+  ProviderEntry,
+  ProviderModelRow,
+  ProvidersStore,
+} from './providerPorts'
 
 /** The wizard's in-memory draft: never written until Save. */
 export interface WizardDraft {
@@ -158,50 +164,97 @@ function editedProvider(
 }
 
 /**
- * Validates before writing; later failures return an honest partial outcome.
- * Completed writes stay saved. No compensating writes or inverse recovery.
- */
+Validates before writing; later failures return an honest partial outcome.
+Completed writes stay saved. No compensating writes or inverse recovery.
+
+The scanned windows a save carries into `providers.json` (C-M95-4 R3):
+every saved local model keeps its server's reported window in
+`modelLimits`, so the request path never meets a missing window. The
+server reports no separate output cap, so output is bounded by the
+window. Undefined when nothing was carried (a keyed provider, whose
+catalogue owns its windows, or no scanned window for a saved model).
+*/
+export function scannedLocalModelLimits(
+  auth: ProviderEntry['auth'],
+  ids: readonly string[],
+  rows: readonly ProviderModelRow[],
+): Record<string, { readonly contextTokens: number; readonly outputTokens: number }> | undefined {
+  if (auth !== 'none') return undefined
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  const limits: Record<string, { contextTokens: number; outputTokens: number }> = {}
+  for (const id of ids) {
+    const context = byId.get(id)?.context
+    if (context !== undefined && Number.isSafeInteger(context) && context > 0)
+      limits[id] = { contextTokens: context, outputTokens: context }
+  }
+  return Object.keys(limits).length > 0 ? limits : undefined
+}
+
+/**
+Saves a finished draft: the file and the secret together, then the
+default model, then (for Save and use now) the composer's model. Throws
+on an invalid draft before writing anything.
+*/
 export async function saveWizardDraft(
   deps: WizardSaveDeps,
   draft: WizardDraft,
 ): Promise<WizardSaveOutcome> {
+  // C-M95-4 R5: limits exist only for ticked models. The save keeps limits
+  // for models in the list and drops the rest, so an unticked model's
+  // manual window never reaches the file (a later re-tick scans afresh).
+  const provider: ProviderEntry = {
+    ...draft.provider,
+    modelLimits: pruneModelLimits(draft.provider.models, draft.provider.modelLimits),
+  }
   if (
-    draft.provider.id.trim() === '' ||
-    draft.provider.preset.trim() === '' ||
-    draft.provider.address.trim() === '' ||
+    provider.auth === 'none' &&
+    provider.models.some((id) => !modelLimitsSchema.safeParse(provider.modelLimits?.[id]).success)
+  )
+    throw new Error(fill(UI_TEXT.localModelWindowUnknown, { model: draft.defaultModel }))
+  if (
+    provider.id.trim() === '' ||
+    provider.preset.trim() === '' ||
+    provider.address.trim() === '' ||
     draft.defaultModel.trim() === ''
   ) {
     throw new Error(UI_TEXT.actionFailed)
   }
   if (
-    draft.provider.auth !== 'none' &&
+    provider.auth !== 'none' &&
     (draft.credential ?? '').trim() === '' &&
     (draft.editSnapshot === undefined || draft.credential !== undefined)
   ) {
-    throw new Error(UI_TEXT.importNeedsKey)
+    throw new Error(fill(UI_TEXT.providerNeedsKey, { id: provider.id }))
   }
-  const address = await deps.policy.check(draft.provider.address)
+  const address = await deps.policy.check(provider.address)
   if (address.kind === 'refused') {
     throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: address.detail }))
   }
-  if (address.kind === 'private' && deps.isPrivateConfirmed?.(draft.provider.address) !== true) {
+  if (address.kind === 'private' && deps.isPrivateConfirmed?.(provider.address) !== true) {
     throw new Error(UI_TEXT.providerPrivateConfirm)
   }
   let origin: string
   try {
-    origin = new URL(draft.provider.address).origin
-  } catch {
-    throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: draft.provider.address }))
+    origin = new URL(provider.address).origin
+  } catch (error: unknown) {
+    // Only a malformed address fails here, always as a TypeError; anything
+    // else is not this parse's to refuse.
+    if (!(error instanceof TypeError)) {
+      throw error
+    }
+    throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: provider.address }), {
+      cause: error,
+    })
   }
   const secret = (draft.credential ?? '').trim()
   if (
     (draft.setDefault !== false || draft.useNow) &&
-    draft.provider.models.every((model) => draft.defaultModel !== `${draft.provider.id}/${model}`)
+    provider.models.every((model) => draft.defaultModel !== `${provider.id}/${model}`)
   ) {
     throw new Error(UI_TEXT.actionFailed)
   }
   deps.store.validate(
-    draft.provider,
+    provider,
     draft.setDefault !== false || draft.useNow ? draft.defaultModel : undefined,
   )
   const budgetInvalid = validateWizardSessionBudget(
@@ -215,7 +268,7 @@ export async function saveWizardDraft(
     throw new Error(UI_TEXT.wizardSessionBudgetInvalid)
   }
   const previousDefault = await deps.store.defaultModel()
-  const previousSecret = await deps.credentials.getProviderCredential(draft.provider.id)
+  const previousSecret = await deps.credentials.getProviderCredential(provider.id)
   const snapshot = draft.editSnapshot
   if (snapshot !== undefined) {
     if (secret !== '' && JSON.stringify(previousSecret) !== JSON.stringify(snapshot.credential)) {
@@ -225,27 +278,28 @@ export async function saveWizardDraft(
       editedValue(snapshot.defaultModel, draft.defaultModel, previousDefault)
     }
   }
+
   const previousEntries = await deps.store.list()
   if (draft.editing === true) {
-    if (previousEntries.every((entry) => entry.id !== draft.provider.id)) {
+    if (previousEntries.every((entry) => entry.id !== provider.id)) {
       throw new Error(UI_TEXT.actionFailed)
     }
-    const previous = previousEntries.find((entry) => entry.id === draft.provider.id)
-    if (JSON.stringify(snapshot?.provider ?? previous) !== JSON.stringify(draft.provider)) {
+    const previous = previousEntries.find((entry) => entry.id === provider.id)
+    if (JSON.stringify(snapshot?.provider ?? previous) !== JSON.stringify(provider)) {
       await deps.store.replaceAll((entries) => {
-        if (entries.every((entry) => entry.id !== draft.provider.id)) {
+        if (entries.every((entry) => entry.id !== provider.id)) {
           throw new Error(UI_TEXT.providerEditConflict)
         }
         return entries.map((entry) => {
-          if (entry.id !== draft.provider.id) return entry
+          if (entry.id !== provider.id) return entry
           return snapshot === undefined
-            ? draft.provider
-            : editedProvider(snapshot.provider, draft.provider, entry)
+            ? provider
+            : editedProvider(snapshot.provider, provider, entry)
         })
       })
     }
   } else {
-    await deps.store.add(draft.provider)
+    await deps.store.add(provider)
   }
   let isComposerSet = false
   let budget: SessionBudgetApplyOutcome | undefined
@@ -262,11 +316,11 @@ export async function saveWizardDraft(
     ) {
       if (
         snapshot !== undefined &&
-        JSON.stringify(await deps.credentials.getProviderCredential(draft.provider.id)) !==
+        JSON.stringify(await deps.credentials.getProviderCredential(provider.id)) !==
           JSON.stringify(previousSecret)
       )
         throw new Error(UI_TEXT.providerEditConflict)
-      await deps.credentials.setProviderCredential(draft.provider.id, {
+      await deps.credentials.setProviderCredential(provider.id, {
         v: 1,
         auth: draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth,
         origin,
@@ -324,7 +378,7 @@ export async function saveWizardDraft(
   }
   return {
     receipts,
-    providerId: draft.provider.id,
+    providerId: provider.id,
     modelRef: draft.defaultModel,
     composerSet: isComposerSet,
     sessionBudgetUsd: draft.sessionBudgetUsd,

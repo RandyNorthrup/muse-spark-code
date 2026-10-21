@@ -7,13 +7,13 @@ import {
   MEDIA_FILE_ID_MIN_BYTES,
   MILLISECONDS_PER_SECOND,
   PROCESS_TABLE_TIMEOUT_MS,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   SCREEN_RECORDING_REMOVE_ATTEMPTS,
   SCREEN_RECORDING_REMOVE_RETRY_MS,
 } from '../../../shared/constants'
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
 import type { MediaInfo } from '../../../shared/media'
+import { recordingNotFound, windowsRecordingPlaces } from './driver'
 import type {
   ScreenRecordingDriver,
   ScreenRecordingOptions,
@@ -26,7 +26,7 @@ const helperFrame = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('complete') }),
   z.strictObject({
     type: z.literal('error'),
-    code: z.enum(['permission', 'accessDenied', 'unavailable', 'cancelled', 'noRecent', 'limit']),
+    code: z.enum(['permission', 'accessDenied', 'unavailable', 'cancelled', 'notFound', 'limit']),
   }),
 ])
 
@@ -52,7 +52,7 @@ export interface WindowsRecorderDeps {
   /** Direct spawn, argument array, credential-free environment, no shell. */
   readonly launch: (executable: string, args: readonly string[]) => WindowsRecorderProcess
   /** Reserves a unique, absent absolute path under the host's trusted temp root.
-   * The helper atomically creates it with an owner-only Windows DACL. */
+  The helper atomically creates it with an owner-only Windows DACL. */
   readonly reserveDirectory: () => Promise<string>
   /** Confines deletion to this reserved path; removes only our private copy. */
   readonly removeDirectory: (directory: string) => Promise<void>
@@ -64,8 +64,9 @@ export interface WindowsRecorderDeps {
 }
 
 export interface WindowsScreenRecorder extends ScreenRecordingDriver {
-  /** Copies the newest recent Snipping Tool mp4 into a private preview.
-   * Its original is never deleted, modified, or uploaded by this driver. */
+  /** Copies the newest mp4 that Snipping Tool or Xbox Game Bar saved, of
+  any age, into a private preview. Its original is never deleted,
+  modified, or uploaded by this driver. */
   readonly attachLatest: () => Promise<ScreenRecordingResult>
 }
 
@@ -81,6 +82,23 @@ function unavailable(): string {
   return fill(UI_TEXT.media.recordingUnavailable, { reason: 'Windows.Graphics.Capture' })
 }
 
+/**
+Whether the removal failure is a lock a scanner may still hold: busy,
+denied, or not yet empty. Anything else is not worth the bounded wait.
+*/
+function isRemoveRetriable(error: unknown): boolean {
+  return (
+    isErrno(error, 'EBUSY') ||
+    isErrno(error, 'EPERM') ||
+    isErrno(error, 'EACCES') ||
+    isErrno(error, 'ENOTEMPTY')
+  )
+}
+
+function isErrno(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
+}
+
 export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenRecorder {
   let active: ScreenRecordingRun | undefined
   const remove = async (directory: string) => {
@@ -88,8 +106,11 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
       try {
         await deps.removeDirectory(directory)
         return
-      } catch (error) {
-        if (attempt >= SCREEN_RECORDING_REMOVE_ATTEMPTS) throw error
+      } catch (error: unknown) {
+        // Already removed is done. A scanner's lock retries bounded; any
+        // other failure surfaces at once instead of burning the attempts.
+        if (isErrno(error, 'ENOENT')) return
+        if (!isRemoveRetriable(error) || attempt >= SCREEN_RECORDING_REMOVE_ATTEMPTS) throw error
         await new Promise<void>((resolve) => setTimeout(resolve, SCREEN_RECORDING_REMOVE_RETRY_MS))
       }
     }
@@ -157,13 +178,15 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
       const unsubscribeShutdown = unsubscribe
       const outputDirectory = directory
       const output = path.win32.join(outputDirectory, 'recording.mp4')
+      // D121: `--latest` takes no age of ours, and `--record` gets the
+      // person's length as set (0 records until stopped).
       const args = [
         options === undefined ? '--latest' : '--record',
         outputDirectory,
         String(deps.maxBytes),
         String(process.pid),
         ...(options === undefined
-          ? [String(SCREEN_RECORDING_RECENT_MAX_AGE_MS)]
+          ? []
           : [
               String(options.maxSeconds),
               String(options.microphone),
@@ -198,6 +221,8 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         try {
           child.send(shouldCancel ? 'cancel' : 'stop')
         } catch {
+          // A dead helper channel counts as cancelled; the kill deadline
+          // below still ends the helper and settles the run.
           state.isCancelled = true
         }
       }
@@ -205,7 +230,10 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         let value: unknown
         try {
           value = JSON.parse(line)
-        } catch {
+        } catch (error: unknown) {
+          // JSON.parse throws only SyntaxError for text input: a malformed
+          // helper line cancels the run, and anything else surfaces.
+          if (!(error instanceof SyntaxError)) throw error
           end(true)
           return
         }
@@ -229,8 +257,8 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
               reason = UI_TEXT.media.recordingPermissionDenied
               break
             }
-            case 'noRecent': {
-              reason = UI_TEXT.media.recordingNoRecent
+            case 'notFound': {
+              reason = recordingNotFound(windowsRecordingPlaces())
               break
             }
             default: {
@@ -247,14 +275,31 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         try {
           onCountdown(remaining)
         } catch {
+          // A failing countdown ends the run instead of recording blind:
+          // the host owns the display, and a run without it must stop.
           end(true)
           return
         }
+        // D121: maxSeconds 0 records until stopped — the tick then reports
+        // seconds recorded and nothing ends the run automatically.
+        const isUncapped = options.maxSeconds === 0
+        let elapsed = 0
         countdown = setInterval(() => {
+          if (isUncapped) {
+            elapsed += 1
+            try {
+              onCountdown(elapsed)
+            } catch {
+              // A countdown listener that throws ends the recording with its failure.
+              end(true)
+            }
+            return
+          }
           remaining = Math.max(0, remaining - 1)
           try {
             onCountdown(remaining)
           } catch {
+            // A failing tick ends the run instead of recording blind.
             end(true)
           }
           if (remaining === 0) end(false)
@@ -288,7 +333,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
             info.sizeBytes > deps.maxBytes ||
             info.durationSeconds === null ||
             (options !== undefined &&
-              (info.durationSeconds > options.maxSeconds ||
+              ((options.maxSeconds > 0 && info.durationSeconds > options.maxSeconds) ||
                 info.hasSoundtrack !== (options.microphone || options.systemAudio)))
             ? { ok: false, reason: unavailable() }
             : { ok: true, preview: { path: output, info, dispose } }

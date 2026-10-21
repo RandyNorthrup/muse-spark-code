@@ -1,8 +1,12 @@
-import { resolveExecOutputCap } from './exec/runLedger'
+import { UserRefusalError } from '../shared/refusal'
+import type { ScheduleBillingPorts } from '../host/schedules/paidBinding'
+import type { ScheduleCallerContext } from './schedules/args'
+import { runtimeConverterPath } from './runtimeConverterPath'
+import { sumUsd } from '../shared/usd'
+import { providersFilePath } from './providerPaths'
+import { ModelApiClient } from '../core/backends/modelapi/client'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
-import { Usd } from '../shared/usd'
-import { loadLegalScanner } from './legal/legalScanner'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvidersEntry'
@@ -19,49 +23,27 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 // and nothing here sees an editor's unsaved buffers until file access goes
 // through the client (M63c).
 
-import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
-import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
-import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import {
-  buildChildEnvironment,
-  environmentValue,
-  withLoopbackBypass,
-} from '../core/backends/musecode/launch'
-import { personalSkillsRoot } from '../core/context/skills'
-import { personalAgentsRoot } from '../core/context/customAgents'
-import { memoryDataRoot } from '../core/memory/memoryLocation'
-import { MemoryStore } from '../core/memory/memoryStore'
-import { WorkspaceEdits } from '../core/verify/workspaceEdits'
-import { redactSecrets } from '../core/redact'
-import { recordPaidUse } from '../core/paid/paidFeatures'
+  checkScheduleOwnCap,
+  paidExtraAdmission,
+  passthroughSpendClaim,
+} from '../core/paid/spendClaim'
 import type { UsageRecording } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
-import { fileContextIo } from '../host/backend/contextIo'
-import { describeEnvironment } from '../host/backend/environment'
-import { createFileSessionStore } from '../host/backend/fileSessionStore'
-import { jobSourceReader } from '../host/backend/jobSource'
-import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
-import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
-import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
-import { shellJobAssembly } from '../host/backend/shellJob'
-import { createToolIo } from '../host/backend/toolIo'
-import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
-import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
-import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
 import type { Logger } from '../host/logger'
-import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
-import { pageConverter } from '../host/web/pageConverter'
-import { createWebFetcher } from '../host/web/webFetcher'
-import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
+  MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_UPLOADS_DIR,
+  MEDIA_PRIVATE_ROOT_DIR,
+  MUSE_CODE_BUNDLE_FILE,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -73,7 +55,7 @@ import {
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
-import { fill, uiLocale } from '../shared/l10n/text'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import type { ServeOptions } from './cliArgs'
 import {
   agentDataFolder,
@@ -86,12 +68,60 @@ import {
   withoutCredentials,
   withoutKeyringRoutes,
 } from './credentialVariables'
+import { isStoreUnavailable, StoreUnavailableError } from './keyStore'
+import { isPlanModelRef } from '../shared/providerRouting'
+import { providersFile } from '../host/backend/providersEntry'
+
+import type { AssembledProviderRun } from './exec/providerExec'
+import { type GuardedChildEnv, NO_WORKSPACE } from '../core/executables'
+import { withLoopbackBypass } from '../core/backends/musecode/launch'
+import { buildChildEnvironment, environmentValue } from '../core/execGuard'
+import { createToolIo } from '../host/backend/toolIo'
+import { resolveExecOutputCap } from './exec/runLedger'
+import { Usd } from '../shared/usd'
+import { loadLegalScanner } from './legal/legalScanner'
+import { existsSync, realpathSync } from 'node:fs'
+import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
+import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
+import { personalSkillsRoot } from '../core/context/skills'
+import { personalAgentsRoot } from '../core/context/customAgents'
+import { memoryDataRoot } from '../core/memory/memoryLocation'
+import { MemoryStore } from '../core/memory/memoryStore'
+import { WorkspaceEdits } from '../core/verify/workspaceEdits'
+import { redactSecrets } from '../core/redact'
+import { recordPaidUse } from '../core/paid/paidFeatures'
+import { fileContextIo } from '../host/backend/contextIo'
+import { describeEnvironment } from '../host/backend/environment'
+import { createFileSessionStore } from '../host/backend/fileSessionStore'
+import { jobSourceReader } from '../host/backend/jobSource'
+import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
+import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
+import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
+import { shellJobAssembly } from '../host/backend/shellJob'
+import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
+import type { ToolIo } from '../core/backends/modelapi/tools'
+import type { AcpMediaFactory } from '../acp/media'
+import type { AcpUploadsPort } from '../acp/uploads'
+import { createUploadedFilesPort } from '../core/media/uploadedFiles'
+import type { UploadLedger } from '../core/media/uploadLedger'
+import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
+import { lazyAttachedMedia } from '../core/media/attachedMediaPort'
+import type * as RuntimeMediaEntry from './runtimeMediaEntry'
+import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
+import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
+import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
+import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
+import { pageConverter } from '../host/web/pageConverter'
+import { createWebFetcher } from '../host/web/webFetcher'
+import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
+import { fill, uiLocale } from '../shared/l10n/text'
 import { walkFiles } from './fileWalk'
 import { paidGrantFile } from './paidGrants'
 
-import type { AssembledProviderRun } from './exec/providerExec'
+const { readProvidersFile } = providersFile
 
 export interface ExecRuntimeOptions {
+  readonly remainingModelCalls?: () => number
   readonly outputCap?: (policy: ModelPolicy) => number
   readonly providerRun?: AssembledProviderRun
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
@@ -121,6 +151,11 @@ export interface RuntimeBackendDeps {
 }
 
 export interface RuntimeBackend {
+  readonly scheduleBilling?: (
+    cwd: string,
+    modelId: string,
+    caller?: ScheduleCallerContext,
+  ) => Promise<ScheduleBillingPorts>
   readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
@@ -134,11 +169,23 @@ export interface RuntimeBackend {
   /** The flagged paid features and their questions, shared with the agent (M63c, M58). */
   readonly paid: AcpPaidUse
   /**
-   * At start: "always" lapses for a paid feature the Model API agent was
-   * started without. A Muse Code agent has no paid flags, so it leaves the
-   * grants to the Model API agent, which a user may run beside it.
-   */
+  At start: "always" lapses for a paid feature the Model API agent was
+  started without. A Muse Code agent has no paid flags, so it leaves the
+  grants to the Model API agent, which a user may run beside it.
+  */
   readonly forgetUnflaggedGrants: () => Promise<void>
+  /**
+  Lane V seam 5: ACP serve's and exec's media port on the Model API
+  backend, over the runtime's attached-media registry. Absent on Muse
+  Code, which refuses media with its own reason.
+  */
+  readonly media?: AcpMediaFactory
+  /**
+  M105 lane F: ACP serve's uploaded-files port on the Model API backend,
+  over the same account ledger the session store cleans. Absent without
+  upload storage (ephemeral runs say so and delete nothing).
+  */
+  readonly uploads?: AcpUploadsPort
   readonly close: () => Promise<void>
 }
 
@@ -161,7 +208,7 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
   // VS Code inherits its host environment (D1); the standalone runtime has
   // a stricter boundary, shared by serve, account hosts and login.
   const Manager = class extends MuseCodeBackendManager {
-    public override childEnvironment(): NodeJS.ProcessEnv {
+    public override childEnvironment(): GuardedChildEnv {
       const env = museCodeEnvironment(deps.env)
       return withLoopbackBypass(
         buildChildEnvironment({
@@ -170,6 +217,10 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
           extraVariables: [],
           systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
           programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
+          scope:
+            workspaceRoot === undefined
+              ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+              : { workspaceRoot, realpath: realpathSync },
         }),
         deps.platform,
       )
@@ -192,6 +243,8 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
       : undefined
   return new Manager({
     ...(windowsJobAssembly !== undefined && { shellJobAssembly: windowsJobAssembly }),
+    bundlePath: path.join(deps.distDir, MUSE_CODE_BUNDLE_FILE),
+    usageRecording: deps.usageRecording,
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
@@ -214,6 +267,39 @@ interface MuseHomes {
   readonly xdgDataHome: string | undefined
 }
 
+/**
+The last Meta-key probe's outcome, shared by the session gate (which
+probes) and the workspace managers (which list and dispatch). The gate
+runs before the model list, so a dead store is known before anything
+dials, and a step that needs the stored key can name the store instead
+of claiming that no key is stored.
+*/
+interface MetaKeyProbe {
+  state: 'key' | 'absent' | 'storeDown' | undefined
+}
+
+/**
+A Files-capable client over the pinned transport: the stored key, read
+per use and never handed to a child process. Shared by the session
+store's upload binding and the /uploads port.
+*/
+function newFilesClient(input: {
+  readonly fetch: typeof fetch
+  readonly apiKey: () => Promise<string | undefined>
+  readonly sleep: (ms: number) => Promise<void>
+  readonly log: Logger
+}): ModelApiClient {
+  return new ModelApiClient({
+    fetch: input.fetch,
+    baseUrl: MODEL_API_BASE_URL,
+    apiKey: input.apiKey,
+    sleep: input.sleep,
+    now: () => Date.now(),
+    random: () => Math.random(),
+    log: input.log,
+  })
+}
+
 function modelApiManager(
   deps: RuntimeBackendDeps,
   credentials: CredentialStore,
@@ -223,6 +309,13 @@ function modelApiManager(
   paid: AcpPaidUse,
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
+  metaKeyProbe: MetaKeyProbe,
+  media: {
+    /** The runtime's one registry: the media port writes, every session resolves. */
+    readonly attached: AttachedMediaPort
+    /** The folder's confined reads, for the media port. */
+    readonly onIo: (io: ToolIo) => void
+  },
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const providerConfigFile = path.join(
@@ -230,6 +323,16 @@ function modelApiManager(
     PROVIDERS_CONFIG_DIR_NAME,
     PROVIDERS_FILE_NAME,
   )
+  // A dead store simply holds no subscription secret; session creation
+  // must not fail before any key is needed.
+  const hasChatGptSecret = async (): Promise<boolean> => {
+    try {
+      return (await deps.secrets.get(PROVIDER_SECRET_PREFIX + 'chatgpt')) !== undefined
+    } catch (error: unknown) {
+      if (isStoreUnavailable(error)) return false
+      throw error
+    }
+  }
   let subscriptions: Promise<ReturnType<typeof runtimeSubscriptionClient>> | undefined
   let headlessProviders:
     ReturnType<typeof ConfiguredProvidersEntry.createConfiguredProviderServices> | undefined
@@ -241,7 +344,8 @@ function modelApiManager(
         fetch: deps.fetch,
         catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
         configFile: providerConfigFile,
-        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.failure)),
+        // A session never signs in: the terminal command does (`providers add chatgpt`).
+        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.browserUnavailable)),
         callbackText: () => UI_TEXT.acpChatGpt.callback,
       })
     })())
@@ -275,6 +379,9 @@ function modelApiManager(
   const io = createToolIo({
     platform,
     listFiles,
+    // The interpreter lookup excludes this workspace, so a planted `bash`
+    // there never becomes the shell that runs.
+    workspaceRoot,
     systemRoot,
     // No credential variable reaches a tool's process (AGENTS.md rule 8).
     env: () => withoutKeyringRoutes(withoutCredentials(deps.env)),
@@ -293,7 +400,10 @@ function modelApiManager(
             log: warn,
           })
         : undefined,
+    // The ACP agent exposes no hook-concurrency setting (D62).
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
   })
+  media.onIo(io)
   // Muse Code's memory (M49, PLAN.md D41), in the data home `muse serve` sees.
   const warnMemory = (message: string) => {
     warn(`Memory: ${message}`)
@@ -307,6 +417,24 @@ function modelApiManager(
     systemPath,
     warn: warnMemory,
   })
+  // The runtime's own Files-capable client for the session store's upload
+  // binding: the stored key over the pinned transport, read per use and
+  // never handed to a child process.
+  let filesClientValue: ModelApiClient | undefined
+  const filesClient = () =>
+    (filesClientValue ??= newFilesClient({
+      fetch: deps.fetch,
+      apiKey: () => credentials.getApiKey(),
+      sleep: deps.sleep,
+      log,
+    }))
+  // Production media ledger and calibration (MONEY017D, D85.2/D85.6); the
+  // CLI/ACP runtime shares createModelApiHost with VS Code, so this one
+  // directory wires the same real path. Ephemeral runs keep no storage.
+  const uploadLedgerDir =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR)
   const store =
     deps.exec?.isEphemeral === true
       ? undefined
@@ -317,6 +445,27 @@ function modelApiManager(
           retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
           now: () => Date.now(),
           sleep: deps.sleep,
+          // Production media (P1, D85.2/D85.6): the upload ledger binds
+          // the real session store, so a media turn saves and reopens
+          // and deletion/purge releases that session's provider uploads.
+          // It loads from dist/productionMedia.js on first use.
+          ...(uploadLedgerDir !== undefined && {
+            uploads: async (accountId: string) => {
+              const media = await import('../host/backend/productionMediaEntry')
+              media.setUiText(UI_TEXT, uiLocale())
+              return await media.createSessionUploads({
+                uploadLedgerDir,
+                currentAccountId: async () => {
+                  const key = await credentials.getApiKey()
+                  return key === undefined
+                    ? undefined
+                    : createHash('sha256').update(key).digest('hex')
+                },
+                filesClient: () => filesClient(),
+                expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
+              })(accountId)
+            },
+          }),
         })
   // Snapshot copies are plain structured data. Keep their type/shape while
   // replacing every string leaf before a headless transcript reaches disk.
@@ -333,17 +482,72 @@ function modelApiManager(
       : {
           ...store,
           async save(snapshot: Parameters<typeof store.save>[0]) {
-            const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+            // A dead store holds no key to redact against; the save itself
+            // must still succeed so a session starts without a key store.
+            let key: string | undefined
+            try {
+              key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+            } catch (error: unknown) {
+              if (!isStoreUnavailable(error)) throw error
+            }
             const copy = structuredClone(snapshot)
             redactSnapshot(copy, key === undefined ? [] : [key])
             await store.save(copy)
           },
         }
+  // Lanes V and VB: Windows conversion runs in M50's kill-on-close job under
+  // a kernel memory cap; its launcher compiles on first use from the C#
+  // shipped beside dist/ (scripts/package-acp.mjs JOB_SOURCES).
+  const mediaJobExecutable =
+    platform === 'win32' && systemRoot !== undefined
+      ? mcpJobExecutable({
+          storageDir: agentDataFolder(dataInput),
+          systemRoot,
+          readJobSource: jobSourceReader(path.dirname(deps.distDir)),
+          log: warn,
+        })
+      : undefined
   return new ModelApiBackendManager({
     log,
+    ...(mediaJobExecutable !== undefined && { mediaJobExecutable }),
+    // Each conversion's owner-only folder sits in this private root (VB).
+    mediaPrivateRoot: path.join(agentDataFolder(deps), MEDIA_PRIVATE_ROOT_DIR),
+    // Lane V seam 1/5: attached video and audio from ACP and exec resolve here.
+    attachedMedia: media.attached,
+    // ACP/exec keep their existing flag-controlled transcription default.
+    mediaAudioAction: undefined,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: async () => {
+      const key = await credentials.getApiKey()
+      if (key !== undefined) return key
+      // getApiKey degrades a dead store to undefined (D25). Once the gate
+      // has proven the store dead, a step that needs the stored key throws
+      // the store failure instead, so it names the store rather than
+      // claiming no key is stored. Unprobed sessions keep absent-key reads.
+      // The prompt turn runs no readiness check of its own, so the probe
+      // may predate an unlocked store: re-read once before refusing, and
+      // heal the probe when the store answers again.
+      if (metaKeyProbe.state === 'storeDown') {
+        let reread: string | undefined
+        try {
+          reread = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+          metaKeyProbe.state = reread !== undefined && reread !== '' ? 'key' : 'absent'
+        } catch (error: unknown) {
+          if (!isStoreUnavailable(error)) throw error
+        }
+        if (metaKeyProbe.state === 'storeDown') throw new StoreUnavailableError()
+        // The store answered again: this step gets the key it just read, not
+        // an absent-key read that would refuse the step the probe just healed.
+        if (reread !== undefined && reread !== '') return reread
+      }
+      return
+    },
+    // No Meta key on record means no catalogue dial: the model list comes
+    // from the providers file alone, so a keyless session still opens.
+    // Unprobed sessions keep today's dial behavior.
+    hasMetaCredential: () => metaKeyProbe.state === undefined || metaKeyProbe.state === 'key',
+    isCredentialStoreDown: () => metaKeyProbe.state === 'storeDown',
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
     assertWorkspaceCurrent,
@@ -374,6 +578,9 @@ function modelApiManager(
           configFile: providerConfigFile,
           catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
           secrets: run.secrets,
+          // Headless indefinite waits are said out loud too (PR #214
+          // review); per-request timing still goes nowhere.
+          log,
           hasMetaKey: () => Promise.resolve(false),
           resolve: run.resolveHost,
           send: async (target, body, headers, signal) => {
@@ -414,11 +621,12 @@ function modelApiManager(
           },
         })
         client = headlessProviders.client
-      } else if (
-        deps.exec === undefined &&
-        (existsSync(providerConfigFile) ||
-          (await deps.secrets.get(PROVIDER_SECRET_PREFIX + 'chatgpt')) !== undefined)
-      ) {
+      } else if (existsSync(providerConfigFile) || (await hasChatGptSecret())) {
+        // The editor protocol and a terminal plan-model exec share this
+        // construction: a plan model runs on its own subscription sign-in,
+        // with or without a Meta key. A plan exec bypasses the Meta-only
+        // transport (runExec), so its requests reach the subscription leg
+        // while admission and settlement stay on the shared accounting path.
         const subscriptions = await subscriptionClient()
         client = await subscriptions.createClient(meta)
       }
@@ -428,6 +636,7 @@ function modelApiManager(
         client,
         await dailyBudget(),
         deps.exec?.responseAccounting,
+        deps.exec?.providerRun?.dispatch,
         deps.exec?.outputCap,
       )
     },
@@ -439,17 +648,37 @@ function modelApiManager(
     ) => {
       if ('input' in body) return
       const budget = await dailyBudget()
-      return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
+      return budget.admit(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount(), signal)
     },
-    ...(deps.exec === undefined && {
+    // The machine's converter path (lane V seam 3B): the agent data folder's
+    // settings.json, never a workspace file or environment variable.
+    mediaConverterPath: () => runtimeConverterPath(agentDataFolder(deps)),
+    // D78's exact reservation for Muse Voice's batch transcription (lane V
+    // seam 4): the runtime's own daily ledger, estimate-checked and settled
+    // after (D208). With no daily limit there is nothing to enforce.
+    reservePaidExtra: async (costUsd, signal) => {
+      const budget = await dailyBudget()
+      return paidExtraAdmission(await budget.reserve(costUsd, signal), costUsd, signal)
+    },
+    ...(deps.exec?.providerRun === undefined && {
       getProviderAccountId: async () => {
-        const subscriptions = await subscriptionClient()
-        return await subscriptions.accountId()
+        // One shared subscription identity for the editor protocol and a
+        // terminal plan-model exec. No readable store means no readable
+        // account: unknown, not failed.
+        try {
+          const subscriptions = await subscriptionClient()
+          return await subscriptions.accountId()
+        } catch (error: unknown) {
+          if (!isStoreUnavailable(error)) throw error
+          // No readable store means no readable account.
+          return
+        }
       },
     }),
     ...(deps.exec?.providerRun !== undefined && {
       getProviderAccountId: async () => {
-        if (headlessProviders === undefined) throw new Error(UI_TEXT.execModelUnpriced)
+        if (headlessProviders === undefined)
+          throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
         return await headlessProviders.accountId()
       },
     }),
@@ -480,6 +709,8 @@ function modelApiManager(
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
     store: deps.exec === undefined ? store : headlessStore,
+    ...(uploadLedgerDir !== undefined && { uploadLedgerDir }),
+    uploadExpiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,
@@ -509,17 +740,37 @@ function modelApiManager(
     // ACP and headless share the panel's packing/recall engine. Without a
     // VS Code setting here, use D81.6's enabled policy in every editor.
     isObservationPackingOn: () => true,
+    // TOOLCAP: the headless run's --max-tool-output-bytes, if raised for one run.
+    maxToolOutputBytes: () => deps.options.maxToolOutputBytes,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
+    remainingModelCalls: deps.exec?.remainingModelCalls,
     pacingOwner: deps,
     strictTools: () => SETTING_DEFAULTS.modelApiStrictTools,
     parallelReads: () => SETTING_DEFAULTS.modelApiParallelReads,
     webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
+    hookMaxStopContinuations: () => SETTING_DEFAULTS.hooksMaxStopContinuations,
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
+    subagentMaxConcurrent: () => SETTING_DEFAULTS.subagentMaxConcurrent,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
-    // The wrapped runtime transport owns one daily claim per HTTP attempt.
+    // The route's own context-full stop: modelApi exec names its flag and
+    // budget, ACP the editor approval. Other routes keep the shared manual
+    // sentence.
+    ...(deps.exec !== undefined &&
+      deps.options.backend === 'modelApi' && {
+        contextWindowFullText: UI_TEXT.contextWindowFullExec,
+      }),
+    ...(deps.exec === undefined && { contextWindowFullText: UI_TEXT.contextWindowFullAcp }),
+    // The wrapped runtime transport checks a person-set daily limit per HTTP attempt.
     autoCompactionAccounting: 'transport',
+    // Compaction spending here is authorized by the editor's per-use paid
+    // question (serve) or exec's explicit flag under its run budget, never
+    // by workspace trust: exec refuses trust outright, so the editor's
+    // trust fence would make the headless flag a no-op (RVMSM101).
+    // Workspace trust still gates hooks, grants and tools as before.
+    autoCompactionTrusted: () => true,
     paidDailyBudgetUsd: async () => {
       const budget = await dailyBudget()
       return budget.capUsd()
@@ -552,13 +803,27 @@ function modelApiManager(
 
 /** The backend `--backend` names, its managers created per folder on first use. */
 export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
-  const museCode = museCodeManager(deps, undefined)
+  // The shared manager serves `login` and the account host, whose children
+  // keep this process's working directory: it is the directory they run in,
+  // so the PATH guard and the CLI lookup treat it as their workspace —
+  // otherwise a project directory they start from is still searched
+  // (docs/certification/pathguard.md).
+  const launchDirectory = process.cwd()
+  const museCode = museCodeManager(deps, launchDirectory)
   const museCodeHosts = new Map<string, MuseCodeBackendManager>()
   const modelApiHosts = new Map<
     string,
     { readonly manager: ModelApiBackendManager; readonly identity: string }
   >()
   const workspaceEdits = new Map<string, WorkspaceEdits>()
+  // Lane V seam 5: one attached-media registry for the runtime, and each
+  // folder's confined reads for its media port.
+  // The registry itself loads with dist/runtimeMedia.js on the first media
+  // prompt; until then nothing is attached and nothing resolves.
+  let mediaEntry: Promise<typeof RuntimeMediaEntry> | undefined
+  let registry: AttachedMedia | undefined
+  const attachedMedia = lazyAttachedMedia(() => registry)
+  const mediaIo = new Map<string, ToolIo>()
   const credentials = new CredentialStore(
     deps.secrets,
     (message) => {
@@ -566,18 +831,32 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     "the operating system's credential store",
   )
+  const grants = paidGrantFile({
+    file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
+    log: deps.log,
+    sleep: deps.sleep,
+  })
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
+    scheduleAuthorization: {
+      scheduledPrompts:
+        deps.options.backend === 'modelApi' && deps.options.scheduledPrompts === true,
+      ...(deps.options.maxBudgetUsd !== undefined && { maxBudgetUsd: deps.options.maxBudgetUsd }),
+    },
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+    autoCompactionOff: deps.options.autoCompaction === false,
     canRemember: () => deps.options.trustWorkspace,
-    grants: paidGrantFile({
-      file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
-      log: deps.log,
-      sleep: deps.sleep,
-    }),
+    grants,
     log: deps.log,
+    // The terminal operator's console is the runtime log: an "always" that
+    // could not be kept is said there at once. A served session's person
+    // hears it in the session instead (the agent attaches its notifier).
+    notify: (text) => {
+      deps.log.warn(text)
+    },
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
+  const metaKeyProbe: MetaKeyProbe = { state: undefined }
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {
     xdgConfigHome: environmentValue(museEnvironment, deps.platform, 'XDG_CONFIG_HOME'),
@@ -587,7 +866,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   // Muse Code's account methods on a short-lived host of their own, as the
   // panel asks them (PR #49): `account/read` when the file cannot say.
   const accountHosts = new AccountHosts(
-    (signal) => connectAccountSession(museCode, deps.version, deps.log, undefined, signal),
+    (signal) => connectAccountSession(museCode, deps.version, deps.log, launchDirectory, signal),
     deps.log,
   )
   const cliAccount = new CliAccount({
@@ -598,18 +877,18 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   })
 
   /**
-   * Muse Code's readiness, as the panel's sign-in gate counts it (D26):
-   * `META_API_KEY` in the CLI's environment (with it `muse serve` starts
-   * whatever the file says), or the CLI's own sign-in from the file's
-   * structure, asked of the CLI where only it can say. `authenticate`, the
-   * user saying they signed in, is the agent's user action, as the panel's
-   * Check again is: it forgets what the CLI said before and may ask on
-   * macOS, where a question can read the Keychain. A session or a list is
-   * not: on macOS it takes the file's word or the panel's passive estimate
-   * (a turn's `authRequired` corrects it) rather than start `muse serve`
-   * each time. A macOS file on Windows or Linux stops `muse serve`, so it is
-   * said as such.
-   */
+  Muse Code's readiness, as the panel's sign-in gate counts it (D26):
+  `META_API_KEY` in the CLI's environment (with it `muse serve` starts
+  whatever the file says), or the CLI's own sign-in from the file's
+  structure, asked of the CLI where only it can say. `authenticate`, the
+  user saying they signed in, is the agent's user action, as the panel's
+  Check again is: it forgets what the CLI said before and may ask on
+  macOS, where a question can read the Keychain. A session or a list is
+  not: on macOS it takes the file's word or the panel's passive estimate
+  (a turn's `authRequired` corrects it) rather than start `muse serve`
+  each time. A macOS file on Windows or Linux stops `muse serve`, so it is
+  said as such.
+  */
   const museCodeReadiness = async (isRecheck: boolean): Promise<BackendReadiness> => {
     const resolution = museCode.resolveLaunch()
     if (!resolution.ok) {
@@ -636,53 +915,137 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       : { state: 'signedOut', message: UI_TEXT.acpMuseCodeSignedOut }
   }
 
-  const modelApiReadiness = async (): Promise<BackendReadiness> => {
+  // `modelHint`: the exec run's requested model, when one is named. A plan
+  // model (chatgpt/…, copilot/…) runs on its own subscription sign-in, so a
+  // missing Meta key must not refuse it; a refusal then names the plan
+  // sign-in instead. Without a hint (the editor picks the model later) any
+  // subscription keeps the gate open.
+  const modelApiReadiness = async (modelHint?: string): Promise<BackendReadiness> => {
+    // One ChatGPT subscription client for both probes below: the same
+    // providers file, catalog and browser refusal; absent when no file.
+    const chatGptFactory = async (): Promise<
+      | {
+          readonly factory: ReturnType<typeof runtimeSubscriptionClient>
+          readonly failureOf: (error: unknown) => string | undefined
+        }
+      | undefined
+    > => {
+      const configFile = providersFilePath({
+        platform: process.platform,
+        homeDir: deps.homeDir,
+        xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+      })
+      if (!existsSync(configFile)) return undefined
+      const entry = await import('./chatGptProviderCommands')
+      return {
+        factory: entry.runtimeSubscriptionClient({
+          secrets: deps.secrets,
+          fetch: deps.fetch,
+          configFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+          callbackText: () => UI_TEXT.acpChatGpt.callback,
+        }),
+        failureOf: entry.chatGptFailureOf,
+      }
+    }
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+      metaKeyProbe.state = key !== undefined && key !== '' ? 'key' : 'absent'
     } catch (error: unknown) {
       // A refused providers file is not a keyring outage: the runtime is
       // already on the account service, so its own refusal stands as read
       // through the runtime's wrapped metadata port.
       if (isInvalidProvidersFileError(error))
         return { state: 'unavailable', message: accountErrorText(error) }
+      // A dead store reads as no key; only a step that needs a stored key
+      // still says so, in the one sentence for this condition.
+      if (isStoreUnavailable(error)) {
+        metaKeyProbe.state = 'storeDown'
+        return { state: 'signedOut', message: UI_TEXT.acpStoreDown, storeDown: true }
+      }
       return {
         state: 'unavailable',
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
       }
     }
     if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
-    if (deps.exec === undefined && (key === undefined || key === '')) {
+    if (key !== undefined && key !== '') return { state: 'ready' }
+    // No `--model`: the configured default decides, as the late default-model
+    // resolution does after the session starts (Codex on PR #227). A default
+    // plan model must reach the subscription checks below instead of this
+    // key gate, or the keyless default-plan flow never starts.
+    let hint = modelHint
+    if (hint === undefined && deps.exec !== undefined) {
       try {
-        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
-          return { state: 'ready' }
-        const configFile = path.join(
-          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
-          PROVIDERS_CONFIG_DIR_NAME,
-          PROVIDERS_FILE_NAME,
+        const read = await readProvidersFile(
+          path.join(
+            deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+            PROVIDERS_CONFIG_DIR_NAME,
+            PROVIDERS_FILE_NAME,
+          ),
         )
-        if (existsSync(configFile)) {
-          const entry = await import('./chatGptProviderCommands')
-          const factory = entry.runtimeSubscriptionClient({
-            secrets: deps.secrets,
-            fetch: deps.fetch,
-            configFile,
-            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
-            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-            callbackText: () => UI_TEXT.acpChatGpt.callback,
-          })
-          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
-        }
+        if (read.ok) hint = read.file.defaultModel
       } catch {
-        return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
+        // An unreadable providers file reads as no default: the key gate
+        // below still refuses, and the run surfaces the file's own error.
+      }
+      const chatGpt = await chatGptFactory()
+      if (chatGpt !== undefined) {
+        try {
+          if ((await chatGpt.factory.accountId()) !== undefined) return { state: 'ready' }
+        } catch (error: unknown) {
+          // The providers file, a stored ChatGPT grant or the store: each in
+          // its own words, never all of them as the store. The file's refusal
+          // carries its own sentence (unparseable or invalid); anything else
+          // is not this account read's answer to give.
+          if (isInvalidProvidersFileError(error))
+            return { state: 'unavailable', message: error.message }
+          const grantWords = chatGpt.failureOf(error)
+          if (grantWords !== undefined) return { state: 'unavailable', message: grantWords }
+          if (error instanceof StoreUnavailableError)
+            return {
+              state: 'unavailable',
+              message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+            }
+          throw error
+        }
       }
     }
-    return key === undefined || key === ''
-      ? { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
-      : { state: 'ready' }
+    const isPlan = hint !== undefined && isPlanModelRef(hint)
+    if (!isPlan && deps.exec !== undefined)
+      return { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
+    try {
+      if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
+        return { state: 'ready' }
+      const chatGpt = await chatGptFactory()
+      if (chatGpt !== undefined && (await chatGpt.factory.accountId()) !== undefined)
+        return { state: 'ready' }
+    } catch (error: unknown) {
+      if (isStoreUnavailable(error)) {
+        metaKeyProbe.state = 'storeDown'
+        return { state: 'signedOut', message: UI_TEXT.acpStoreDown, storeDown: true }
+      }
+      return { state: 'unavailable', message: UI_TEXT.acpChatGpt.failure }
+    }
+    // A plan model's refusal names its own sign-in, never the Meta key. The
+    // name comes from the resolved hint (the configured default included),
+    // not the flag: without `--model` the flag is empty here (Codex on PR
+    // #227).
+    let refusal = UI_TEXT.acpNoStoredKey
+    if (hint !== undefined && isPlanModelRef(hint)) {
+      if (hint.startsWith('chatgpt/')) refusal = UI_TEXT.acpChatGpt.states['signed-out']
+      // The Copilot dispatch adapter is VS Code's Language Model API
+      // (src/host/providers/copilotClient.ts): this terminal cannot reach that
+      // grant, so the refusal names its source instead of offering a sign-in
+      // no terminal can perform.
+      else if (hint.startsWith('copilot/')) refusal = UI_TEXT.planUi.copilotTerminalGrant
+    }
+    return { state: 'signedOut', message: refusal }
   }
 
-  const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
+  const modelApiHostFor = async (cwd: string) => {
     const identity = await captureWorkspaceIdentity(cwd)
     if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
@@ -711,6 +1074,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       paid,
       edits,
       assertWorkspaceCurrent,
+      metaKeyProbe,
+      {
+        attached: attachedMedia,
+        onIo: (io) => {
+          mediaIo.set(cwd, io)
+        },
+      },
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
@@ -725,18 +1095,74 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return manager.ensureHost()
   }
 
+  // M105 lane F: the /uploads port over the account ledger in the agent
+  // data folder. The media bundle loads on first use; without storage or
+  // an account it reads empty and deletes nothing. ACP answers in text,
+  // never through post.
+  const agentUploadLedgerDir =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR)
+  const uploadsAccountId = async (): Promise<string | undefined> => {
+    const key = await credentials.getApiKey()
+    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+  }
+  let uploadsClient: ModelApiClient | undefined
+  const uploadsFilesClient = () =>
+    (uploadsClient ??= newFilesClient({
+      fetch: deps.fetch,
+      apiKey: () => credentials.getApiKey(),
+      sleep: deps.sleep,
+      log: deps.log,
+    }))
+  const openUploadsLedger = async (
+    accountId: string | undefined,
+  ): Promise<UploadLedger | undefined> => {
+    if (agentUploadLedgerDir === undefined) return undefined
+    const media = await import('../host/backend/productionMediaEntry')
+    media.setUiText(UI_TEXT, uiLocale())
+    const uploadsDeps = {
+      uploadLedgerDir: agentUploadLedgerDir,
+      currentAccountId: uploadsAccountId,
+      filesClient: uploadsFilesClient,
+      expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
+    }
+    // Removing the key keeps the retained list across a restart: the
+    // last account's persisted ledger reads read-only (PLAN D85.2).
+    return accountId === undefined
+      ? await media.openLastAccountUploads(uploadsDeps)()
+      : await media.createSessionUploads(uploadsDeps)(accountId)
+  }
+  const uploads: AcpUploadsPort = createUploadedFilesPort({
+    ledger: async (): Promise<UploadLedger | undefined> =>
+      agentUploadLedgerDir === undefined
+        ? undefined
+        : await openUploadsLedger(await uploadsAccountId()),
+  })
+  let isClosed = false
   return {
     readUsageBudgets: async () => {
-      const budgets = await Promise.all(
-        Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
-      )
-      return budgets.flat()
+      // The shared daily paid budget first, then the live session budgets:
+      // the same pair VS Code passes (RVCM1132B finding 3). The ledger read
+      // never starts a backend.
+      const accounting = await import('./runtimeAccountingEntry.js')
+      const [daily, ...session] = await Promise.all([
+        accounting.readRuntimeDailyBudget({ dataFolder: agentDataFolder(deps), now: Date.now }),
+        ...Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
+      ])
+      return [...daily, ...session.flat()]
     },
     backend: {
       kind: deps.options.backend,
-      readiness: (isRecheck) =>
-        deps.options.backend === 'modelApi' ? modelApiReadiness() : museCodeReadiness(isRecheck),
+      readiness: (isRecheck, modelHint) =>
+        deps.options.backend === 'modelApi'
+          ? modelApiReadiness(modelHint)
+          : museCodeReadiness(isRecheck),
       hostFor,
+      // F91: the folder host's Linux capability probe, measured at its
+      // start; the editor hears it as a session update, the model as a tail
+      // note. Undefined where the probe does not apply or no host started.
+      shellSandboxReadiness: (cwd: string) => museCodeHosts.get(cwd)?.shellSandboxReadiness(),
     },
     configureOutputSchema: async (sessionId, model, mode, schema) => {
       if (deps.options.backend !== 'modelApi') throw new Error(UI_TEXT.execRequestShape)
@@ -746,13 +1172,86 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       }
       throw new Error(UI_TEXT.execRequestShape)
     },
+    scheduleBilling: async (cwd, modelId, caller) => {
+      if (deps.exec !== undefined || deps.options.backend !== 'modelApi')
+        throw new Error(UI_TEXT.schedulePaidOff)
+      const host = await modelApiHostFor(cwd)
+      const entry = await import('./runtimeAccountingEntry.js')
+      const daily = entry.createRuntimeDailyBudget({
+        dataFolder: agentDataFolder(deps),
+        now: Date.now,
+        sleep: deps.sleep,
+      })
+      return {
+        modelId: () => modelId,
+        host: () => Promise.resolve(host),
+        generation: () => 0,
+        capUsd: daily.capUsd,
+        isActive: () => !isClosed,
+        isOn: (feature) => paid.isOn(feature),
+        ...(caller !== undefined && { caller: () => caller }),
+        reportConsent: (question) => {
+          process.stderr.write(`${question.title}\n${question.detail}\n`)
+          return Promise.resolve()
+        },
+        ask: (question) =>
+          caller?.sessionId === undefined
+            ? Promise.resolve('deny')
+            : paid.askScheduleUse(caller.sessionId, question.request),
+        reserve: async (record, amount, signal) => {
+          signal.throwIfAborted()
+          // The shared daily cap first: over it the stop sentence refuses.
+          const claim = await daily.reserve(amount, signal)
+          // Then the schedule's own caps against the same day pool (the
+          // consent gates a shared budget, so the pool exists here).
+          await checkScheduleOwnCap(record, amount, async () => {
+            const rows = await daily.readToday()
+            return sumUsd(...rows.map((row) => row.budget.spentUsd))
+          })
+          // Paid consent always carries a shared budget; without one set
+          // the fire is admitted through a claim that enforces nothing.
+          return claim ?? passthroughSpendClaim(amount, signal)
+        },
+      }
+    },
     museCode,
     paid,
-    forgetUnflaggedGrants: () =>
-      deps.exec === undefined && deps.options.backend === 'modelApi'
-        ? paid.forgetUnflagged()
-        : Promise.resolve(),
+    ...(deps.options.backend === 'modelApi' && {
+      media: async (context) => {
+        // The folder's host first: it owns the confined reads the port uses.
+        await modelApiHostFor(context.cwd)
+        const io = mediaIo.get(context.cwd)
+        if (io === undefined) throw new Error(UI_TEXT.media.uploadUnavailable)
+        const entry = await (mediaEntry ??= import('./runtimeMediaEntry'))
+        entry.setUiText(UI_TEXT, uiLocale())
+        return entry.runtimeMediaPort(context, {
+          platform: deps.platform,
+          io,
+          attached: (registry ??= entry.createAttachedMedia()),
+          newToken: () => randomUUID(),
+          // Muse Voice transcribes attached sound only under its flag.
+          transcribesSound: (info) =>
+            paid.isOn('voice') &&
+            (info.mediaType === 'audio/wav' || info.mediaType === 'audio/mpeg'),
+        })
+      },
+    }),
+    ...(deps.options.backend === 'modelApi' && { uploads }),
+    forgetUnflaggedGrants: async () => {
+      if (deps.exec !== undefined) return
+      if (deps.options.backend === 'modelApi') await paid.forgetUnflagged()
+      // Companion voice uses the stored Model API key on either backend.
+      // Dropping its flag revokes remembered consent before a later re-enable.
+      if (COMPANION_VOICE_RELEASE.isReady && deps.options.companionVoice !== true) {
+        try {
+          await grants.forget(['voice'])
+        } catch {
+          deps.log.warn('Companion voice workspace grants could not be forgotten')
+        }
+      }
+    },
     close: async () => {
+      isClosed = true
       // A probe still waiting on its short-lived host ends with the agent.
       accountHosts.close()
       const managers = [
@@ -760,6 +1259,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
       ]
       await Promise.all(managers.map((manager) => manager.dispose()))
+      // Every attached source, embedded bytes included, ends with the runtime.
+      registry?.clear()
     },
   }
 }

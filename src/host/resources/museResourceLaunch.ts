@@ -2,9 +2,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { spawnMspConnection } from '@muse-code/sdk'
-import { spawnAccountMspConnection } from '../../core/backends/musecode/MuseCodeHost'
-import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
+// Type-only through the SDK's own module (see museCodeBackendManager.ts):
+// activation never value-imports the package root.
+import type { spawnMspConnection } from '@muse-code/sdk/dist/src/connection/spawn.js'
 import { posixQuoted } from '../../core/shellQuote'
 import { resourceWindowsJob } from '../../core/resources/admission'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
@@ -17,11 +17,17 @@ import {
   RESOURCE_TIMER_MAX_MS,
 } from '../../shared/constants'
 import { prepareMcpJobLaunch } from '../backend/mcpJobLaunch'
+import type { GuardedChildEnv } from '../../core/executables'
 
 interface MuseResourceCommand {
   readonly command: string
   readonly args: readonly string[]
-  readonly env?: NodeJS.ProcessEnv | undefined
+  /**
+  The child's whole environment: the guarded serve environment, so a raw
+  environment (or a silent `process.env` fallback) never reaches the
+  spawn — the compiler lists every construction site.
+  */
+  readonly env: GuardedChildEnv
   readonly cwd?: string | undefined
 }
 
@@ -59,7 +65,7 @@ async function museResourceLaunch(
       file: launch.command,
       args: launch.args,
       cwd: launch.cwd ?? process.cwd(),
-      env: launch.env ?? process.env,
+      env: launch.env,
       resource,
       resourceAssembly: assembly,
       isVerbatim: false,
@@ -92,7 +98,7 @@ async function museResourceLaunch(
   const file = path.join(folder, 'root')
   return {
     command: '/bin/sh',
-    env: resourceEnvironment(launch.env ?? process.env, resource),
+    env: resourceEnvironment(launch.env, resource),
     complete: (isTreeGone) => {
       resource.complete(isTreeGone)
     },
@@ -111,6 +117,7 @@ async function museResourceLaunch(
           resource.register({ pid, group: true, parentPid: process.pid })
           return
         } catch {
+          // The pid file is not there yet; wait for the next poll.
           await delay(RESOURCE_LAUNCH_POLL_MS)
         }
       }
@@ -119,6 +126,22 @@ async function museResourceLaunch(
     dispose: async () => {
       await rm(folder, { recursive: true, force: true })
     },
+  }
+}
+
+/**
+Closes a half-started launch while its failure crosses: the close runs
+first and the launch always completes as failed. A close that fails too
+still throws, so the failure always crosses with its cause.
+*/
+async function settleLaunchClose(
+  handshake: ResourceHandshake,
+  launch: Awaited<ReturnType<typeof museResourceLaunch>> | undefined,
+): Promise<void> {
+  try {
+    await handshake.close()
+  } finally {
+    launch?.complete(false)
   }
 }
 
@@ -133,12 +156,12 @@ interface ResourceHandshake {
 }
 
 async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
-  options: Parameters<typeof spawnMspConnection>[0],
+  options: GovernedMuseConnectionOptions,
   resource: ResourceLease | undefined,
   assembly: () => Promise<string | undefined>,
   systemRoot: string | undefined,
   assertCanRun: () => Promise<void>,
-  spawnConnection: (options: Parameters<typeof spawnMspConnection>[0]) => T,
+  spawnConnection: (options: GovernedMuseConnectionOptions) => T,
 ): Promise<T> {
   let launch: Awaited<ReturnType<typeof museResourceLaunch>> | undefined
   let handshake: T | undefined
@@ -162,7 +185,7 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
       args: [...launch.args],
       shutdownTimeoutMs:
         resource !== undefined && process.platform === 'win32' ? closeBoundMs : drainMs,
-      ...(launch.env !== undefined && { env: launch.env }),
+      env: launch.env,
     })
     // All SDK close surfaces retain their actual exit evidence. A failed native
     // proof or pipes that remain open reject within the bound, never report success.
@@ -241,6 +264,7 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
         ended()
       })
       .catch(() => {
+        // An exit report that rejects still ends the launch as failed.
         resource?.failed?.()
         ended()
       })
@@ -252,11 +276,7 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
       if (launch === undefined) resource?.complete(true)
       else launch.complete(true)
     } else {
-      try {
-        await handshake.close()
-      } finally {
-        launch?.complete(false)
-      }
+      await settleLaunchClose(handshake, launch)
     }
     throw error
   } finally {
@@ -264,38 +284,32 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
   }
 }
 
-/** Ordinary and account-owned transports use the same containment boundary. */
-export function spawnResourceMuseConnection(
-  options: Parameters<typeof spawnMspConnection>[0],
-  resource: ResourceLease | undefined,
-  assembly: () => Promise<string | undefined>,
-  systemRoot: string | undefined,
-  assertCanRun: () => Promise<void>,
-): Promise<ReturnType<typeof spawnMspConnection>> {
-  return spawnGovernedMuseConnection(
-    options,
-    resource,
-    assembly,
-    systemRoot,
-    assertCanRun,
-    spawnMspConnection,
-  )
+/**
+Ordinary and account-owned transports use the same containment boundary.
+The SDK spawn paths come from the Muse Code backend's bundle
+(dist/museCode.js), so this module — and the activation bundle holding
+it — never carries the SDK or the host: the caller hands in the spawner
+its loaded bundle exports. The environment is always the guarded serve
+environment for its cwd, so a raw environment does not type-check here.
+*/
+export type GovernedMuseConnectionOptions = Parameters<typeof spawnMspConnection>[0] & {
+  readonly env: GuardedChildEnv
 }
 
-export function spawnResourceAccountConnection(
-  options: Parameters<typeof spawnMspConnection>[0],
-  accountHome: MuseCodeAccountHome,
+export function spawnResourceConnection<T extends ResourceHandshake>(
+  spawnConnection: (launch: GovernedMuseConnectionOptions) => T,
+  options: GovernedMuseConnectionOptions,
   resource: ResourceLease | undefined,
   assembly: () => Promise<string | undefined>,
   systemRoot: string | undefined,
   assertCanRun: () => Promise<void>,
-): Promise<ReturnType<typeof spawnAccountMspConnection>> {
+): Promise<T> {
   return spawnGovernedMuseConnection(
     options,
     resource,
     assembly,
     systemRoot,
     assertCanRun,
-    (launch) => spawnAccountMspConnection(launch, accountHome),
+    spawnConnection,
   )
 }

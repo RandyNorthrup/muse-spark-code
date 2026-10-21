@@ -4,15 +4,12 @@ import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import {
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_MIN_SECONDS,
-  UI_TEXT,
-} from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { fill, formatUnit, setUiText } from '../../shared/l10n/text'
 import { screenRecordingOptionsSchema } from '../../shared/media'
 import { createNonce } from '../html'
 import type { RecordingCommandDeps, RecordingPreviewDeps } from './screenRecordBundle'
+import { resolveLatestRecording } from './screenRecordBundle'
 
 const previewMessage = z.strictObject({ type: z.enum(['attach', 'discard']) })
 const htmlEscapes: Readonly<Record<string, string>> = {
@@ -121,10 +118,12 @@ export async function runScreenRecordingCommand(
     return
   }
   if (isLatest) {
-    const preview = await deps.latest?.()
-    if (preview === undefined)
-      await vscode.window.showInformationMessage(UI_TEXT.media.recordingNoRecent)
-    else openRecordingPreview(preview, deps)
+    // Discovery ran: a conversation that cleared or closed mid-flight gets
+    // no stale preview (its copy is already disposed).
+    const settled = await resolveLatestRecording(deps)
+    if (settled.status === 'ready') openRecordingPreview(settled.preview, deps)
+    // The discovery's own words: where it looked, or why the copy failed.
+    else if (settled.status === 'absent') await vscode.window.showInformationMessage(settled.reason)
     return
   }
   const driver = deps.driver
@@ -150,13 +149,10 @@ export async function runScreenRecordingCommand(
     { canPickMany: true, title: UI_TEXT.media.recordingStart },
   )
   if (selected === undefined) return
-  // A setting outside the schema range clamps instead of failing the
-  // command with a raw schema error (M105 E1 review).
+  // D121: the person's length reaches the recorder as set (settings already
+  // read it as a whole number of seconds); 0 records until stopped.
   const options = screenRecordingOptionsSchema.parse({
-    maxSeconds: Math.min(
-      SCREEN_RECORDING_MAX_SECONDS,
-      Math.max(SCREEN_RECORDING_MIN_SECONDS, deps.maxSeconds),
-    ),
+    maxSeconds: deps.maxSeconds,
     microphone: selected.some((item) => item.audio === 'microphone'),
     systemAudio: selected.some((item) => item.audio === 'systemAudio'),
   })
@@ -171,11 +167,14 @@ export async function runScreenRecordingCommand(
   // status item (M105 E1 review).
   let isSettled = false
   try {
-    const run = await driver.start(options, (remaining) => {
+    const isUncapped = options.maxSeconds === 0
+    const run = await driver.start(options, (ticked) => {
       if (isSettled) return
-      status.text = fill(UI_TEXT.media.recordingCountdown, {
-        remaining: formatUnit(remaining, 'second'),
-      })
+      status.text = isUncapped
+        ? fill(UI_TEXT.media.recordingElapsed, { elapsed: formatUnit(ticked, 'second') })
+        : fill(UI_TEXT.media.recordingCountdown, {
+            remaining: formatUnit(ticked, 'second'),
+          })
       status.show()
     })
     // The conversation went away while the driver started: the run is

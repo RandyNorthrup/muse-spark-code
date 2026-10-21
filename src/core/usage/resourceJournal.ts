@@ -25,7 +25,6 @@ import {
   RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS,
   RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS,
   USAGE_FOLDER,
-  USAGE_HISTORY_DAYS_DEFAULT,
   USAGE_LINE_FEED_BYTE,
   USAGE_RECORD_MAX_BYTES,
   USAGE_VERSION_FOLDER,
@@ -111,7 +110,7 @@ export interface ResourceJournalOptions {
   /** A record past the per-file bound is dropped, not retried; called with no detail. */
   readonly onDropped?: () => void
   /** D82's usage-history days for daily rows; an unreadable choice throws and retains nothing. */
-  readonly historyDays?: () => number
+  readonly historyDays?: () => number | null
   /** The last Delete history: nothing stamped at or before it is ever written or read. */
   readonly resetAtMs?: () => number
   /** Retention failed (expired history is still stored); reported once an hour while it fails. */
@@ -146,11 +145,27 @@ function parseFile(
     offset = index + 1
     if (line.byteLength >= USAGE_RECORD_MAX_BYTES)
       throw new ResourceJournalError('resourceHistoryCorrupt')
+    let text: string
+    try {
+      text = decoder.decode(line)
+    } catch (error) {
+      // Bytes that are not UTF-8 corrupt the line; anything else keeps its
+      // kind past the journal.
+      if (error instanceof TypeError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
+    }
     let value: unknown
     try {
-      value = JSON.parse(decoder.decode(line))
-    } catch {
-      throw new ResourceJournalError('resourceHistoryCorrupt')
+      value = JSON.parse(text)
+    } catch (error) {
+      // Malformed JSON corrupts the line; anything else keeps its kind past
+      // the journal.
+      if (error instanceof SyntaxError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
     }
     // A newer build's line is skipped, as M102 skips newer usage records.
     if (isNewer(value)) continue
@@ -290,11 +305,11 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * The commit check of every change (RVM107W2H P2-4), run by the file system
-   * at the last step, after the destination is open or staged: it refuses unless
-   * this process still holds the write lease's current generation (a lease
-   * reclaimed after 30 s has a new one) and `atMs` is after the boundary.
-   */
+  The commit check of every change (RVM107W2H P2-4), run by the file system
+  at the last step, after the destination is open or staged: it refuses unless
+  this process still holds the write lease's current generation (a lease
+  reclaimed after 30 s has a new one) and `atMs` is after the boundary.
+  */
   private fence(lock: UsageLock, atMs: number): () => Promise<void> {
     return async () => {
       if (!(await lock.isHeld()) || atMs <= this.resetBoundary())
@@ -303,10 +318,10 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * Runs `action` holding the journal write lock, waiting a bounded time for
-   * another process's change. `acquireLock` returns only a lease it just proved
-   * held; each write inside `action` proves it again at its commit (`fence`).
-   */
+  Runs `action` holding the journal write lock, waiting a bounded time for
+  another process's change. `acquireLock` returns only a lease it just proved
+  held; each write inside `action` proves it again at its commit (`fence`).
+  */
   private async exclusive<T>(action: (lock: UsageLock) => Promise<T>): Promise<T> {
     const sleep =
       this.options.sleep ??
@@ -354,9 +369,9 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * One whole JSON file within `maxBytes` and the remaining read `budget`,
-   * charged the bytes actually read; a vanished file is undefined.
-   */
+  One whole JSON file within `maxBytes` and the remaining read `budget`,
+  charged the bytes actually read; a vanished file is undefined.
+  */
   private async readJson(
     file: string,
     maxBytes: number,
@@ -369,10 +384,26 @@ export class ResourceJournal implements ResourceRecordSink {
     if (stat.size > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
     const content = await this.fs.read(file, 0, stat.size)
     if (content.byteLength > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
+    let text: string
     try {
-      return { value: JSON.parse(decoder.decode(content)), bytes: content.byteLength }
-    } catch {
-      throw new ResourceJournalError('resourceHistoryCorrupt')
+      text = decoder.decode(content)
+    } catch (error) {
+      // Bytes that are not UTF-8 corrupt the file; anything else keeps its
+      // kind past the journal.
+      if (error instanceof TypeError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
+    }
+    try {
+      return { value: JSON.parse(text), bytes: content.byteLength }
+    } catch (error) {
+      // Malformed JSON corrupts the file; anything else keeps its kind past
+      // the journal.
+      if (error instanceof SyntaxError) {
+        throw new ResourceJournalError('resourceHistoryCorrupt')
+      }
+      throw error
     }
   }
 
@@ -439,8 +470,11 @@ export class ResourceJournal implements ResourceRecordSink {
     return { months, newer, bytes }
   }
 
-  private async rollUp(now: number, historyDays: number, lock: UsageLock): Promise<void> {
-    const keepFrom = utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
+  // NOLIMITSSET (PLAN.md D121): null keeps every rolled-up day — history is
+  // kept until the person sets a day count or clears it.
+  private async rollUp(now: number, historyDays: number | null, lock: UsageLock): Promise<void> {
+    const keepFrom =
+      historyDays === null ? '' : utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
     const completeBefore = utcDay(now - RESOURCE_JOURNAL_ROLLUP_DELAY_MS)
     const expiredBefore = utcDay(
       now -
@@ -608,11 +642,11 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * Delete history (RVM107W2G P2-2): `action` (write the reset boundary, then
-   * remove the usage folder) runs holding the write lock, so an append or live
-   * write in flight either finishes first and is deleted, or runs after and
-   * refuses on the new boundary.
-   */
+  Delete history (RVM107W2G P2-2): `action` (write the reset boundary, then
+  remove the usage folder) runs holding the write lock, so an append or live
+  write in flight either finishes first and is deleted, or runs after and
+  refuses on the new boundary.
+  */
   public async deleteWith(action: () => Promise<void>): Promise<void> {
     await this.exclusive(action)
     this.cache.clear()
@@ -626,6 +660,8 @@ export class ResourceJournal implements ResourceRecordSink {
       await this.retain()
       this.retentionReportedAt = undefined
     } catch {
+      // A failed retention is reported through the retention channel and
+      // retried later: nothing about it is hidden, and it fails no call.
       const now = this.options.now()
       if (isWithinRetainInterval(this.retentionReportedAt, now)) return
       this.retentionReportedAt = now
@@ -634,11 +670,11 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * Rolls completed days up into daily rows, then removes raw days past the
-   * detail window (only once rolled up), day rows past the usage-history days
-   * and expired live files. At most hourly, under the write lock (RVM107W2H
-   * P2-3), so it never runs alongside a Delete history.
-   */
+  Rolls completed days up into daily rows, then removes raw days past the
+  detail window (only once rolled up), day rows past the usage-history days
+  and expired live files. At most hourly, under the write lock (RVM107W2H
+  P2-3), so it never runs alongside a Delete history.
+  */
   public async retain(): Promise<void> {
     const now = this.options.now()
     if (isWithinRetainInterval(this.retainedAt, now)) return
@@ -647,7 +683,7 @@ export class ResourceJournal implements ResourceRecordSink {
     // Nothing stored yet: a reader never creates the journal folder or its lock.
     const stored = await this.fs.list(RESOURCE_JOURNAL_ROOT)
     if (stored.length === 0) return
-    const historyDays = this.options.historyDays?.() ?? USAGE_HISTORY_DAYS_DEFAULT
+    const historyDays = this.options.historyDays?.() ?? null
     await this.exclusive((lock) => this.rollUp(now, historyDays, lock))
     this.retainedAt = now
   }
@@ -699,13 +735,15 @@ export class ResourceJournal implements ResourceRecordSink {
       throw new ResourceJournalError('resourceHistoryTooLarge')
     const { months } = await this.readRollups(RESOURCE_JOURNAL_READ_MAX_BYTES - total)
     // An unreadable usage-history choice removes nothing, so every stored row is shown.
-    let historyDays = RESOURCE_HISTORY_MAX_DAYS
+    // NOLIMITSSET: null keeps every row — no day count of ours.
+    let historyDays: number | null = RESOURCE_HISTORY_MAX_DAYS
     try {
-      historyDays = this.options.historyDays?.() ?? USAGE_HISTORY_DAYS_DEFAULT
+      historyDays = this.options.historyDays?.() ?? null
     } catch {
       // Retention refuses on the same error; reads stay complete.
     }
-    const keepFrom = utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
+    const keepFrom =
+      historyDays === null ? '' : utcDay(now - (historyDays - 1) * MILLISECONDS_PER_DAY)
     return {
       records: [...records, ...live.records],
       sources: [...sources, ...live.sources],
@@ -719,9 +757,9 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * What Delete history removes: every stored line (read or not, valid or
-   * not), each live minute and each daily row. Counting never parses records.
-   */
+  What Delete history removes: every stored line (read or not, valid or
+  not), each live minute and each daily row. Counting never parses records.
+  */
   public async count(): Promise<number> {
     let entries = 0
     const days = await this.fs.list(RESOURCE_JOURNAL_ROOT)

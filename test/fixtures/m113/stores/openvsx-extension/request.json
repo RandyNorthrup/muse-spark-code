@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "url": "https://open-vsx.org/api/RandyNorthrup/muse-spark-code",
+  "headers": {
+    "User-Agent": "muse-spark-code-capture/1 (+repository owner's capture run)",
+    "Accept": "*/*",
+    "Connection": "close"
+  },
+  "body": null,
+  "wireRequestHead": "GET /api/RandyNorthrup/muse-spark-code HTTP/1.1\r\nUser-Agent: muse-spark-code-capture/1 (+repository owner's capture run)\r\nAccept: */*\r\nConnection: close\r\nHost: open-vsx.org\r\n\r\n",
+  "credentials": "none (no Authorization, Cookie, key or token header)",
+  "redirects": "not followed"
+}

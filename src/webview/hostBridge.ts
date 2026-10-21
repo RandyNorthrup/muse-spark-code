@@ -6,6 +6,7 @@
 // not change.
 
 import type { PanelToHostMessage } from '../shared/modelsPanel'
+import type { VaultClientMessage } from '../shared/hostApi/vaultMessages'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import type { UsagePageToServiceMessage } from '../shared/usagePage'
 import type { WebviewState } from './state/snapshot'
@@ -15,10 +16,15 @@ export type MessageSource = Pick<Window, 'addEventListener' | 'removeEventListen
 
 export interface HostBridge {
   /**
-   * Posts to the host. The chat panel's messages and the Models & Agents
-   * panel's (M95) share this bridge; each side validates what it receives.
-   */
-  post(message: WebviewToHostMessage | PanelToHostMessage | UsagePageToServiceMessage): void
+  Posts to the host. The chat panel's messages and the Models & Agents
+  panel's (M95) share this bridge; each side validates what it receives.
+  The panel's vault section (C-M109-1 P1) posts the vault's own messages
+  over the same bridge; the host routes them to the vault binding.
+  */
+  post(
+    message:
+      WebviewToHostMessage | PanelToHostMessage | UsagePageToServiceMessage | VaultClientMessage,
+  ): void
   /** The state saved before the document last went away, unvalidated (`restoredUiState` checks it). */
   savedState(): unknown
   saveState(state: WebviewState): void

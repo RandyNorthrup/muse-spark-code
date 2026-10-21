@@ -1,0 +1,234 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.2"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-13T00:52:19.537Z",
+  "endedAt": "2026-10-13T00:52:36.192Z",
+  "caps": {
+    "requests": 16,
+    "usd": "0.200000"
+  },
+  "totals": {
+    "passed": 4,
+    "failed": 0,
+    "notRun": 3,
+    "requests": 2,
+    "usd": "0.330698",
+    "productUsage": {
+      "requests": 2,
+      "usd": "0.330698"
+    }
+  },
+  "routes": [
+    {
+      "id": "anthropic",
+      "wire": "Anthropic Messages",
+      "model": "claude-haiku-4-5",
+      "state": "added as rl-anthropic; Key works · 13 models."
+    },
+    {
+      "id": "openai",
+      "wire": "OpenAI Responses",
+      "model": "gpt-5.6-luna",
+      "state": "added as rl-openai; Key works · 1 model."
+    },
+    {
+      "id": "meta",
+      "wire": "Meta Model API",
+      "model": "muse-spark-1.3-contributor",
+      "state": "the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards"
+    },
+    {
+      "id": "xai",
+      "wire": "OpenAI Responses (xAI)",
+      "model": "grok-4.3",
+      "state": "added as rl-xai; Key works · 14 models."
+    }
+  ],
+  "results": [
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com. | saw providers test says the key works: Key works · 13 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.6997689,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 13 models."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "model": "claude-haiku-4-5 (Anthropic Messages)",
+      "surface": "acp",
+      "outcome": "pass",
+      "observed": "saw the answer is under way when the person stops it: 75 characters so far | saw the turn ends as cancelled: cancelled | saw the turn ends within 5 seconds of the stop: 0.0 s | saw the answer stopped before its end: 177 characters arrived | saw the conversation takes the next message and answers it: end_turn: OK | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.330698",
+      "seconds": 2.7096585000000006,
+      "title": "A turn is cancelled in the middle",
+      "vendor": "anthropic",
+      "seen": [
+        {
+          "what": "the answer is under way when the person stops it",
+          "ok": true,
+          "saw": "75 characters so far"
+        },
+        {
+          "what": "the turn ends as cancelled",
+          "ok": true,
+          "saw": "cancelled"
+        },
+        {
+          "what": "the turn ends within 5 seconds of the stop",
+          "ok": true,
+          "saw": "0.0 s"
+        },
+        {
+          "what": "the answer stopped before its end",
+          "ok": true,
+          "saw": "177 characters arrived"
+        },
+        {
+          "what": "the conversation takes the next message and answers it",
+          "ok": true,
+          "saw": "end_turn: OK"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 2,
+        "usd": "0.330698"
+      }
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com. | saw providers test says the key works: Key works · 1 model.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 2.5793907,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "openai",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 1 model."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    },
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "grok-4.3 (OpenAI Responses (xAI))",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai. | saw providers test says the key works: Key works · 14 models.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 1.3943631999999997,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "xai",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: xai Code goes to: https://api.x.ai Models: grok-4.3 Default model: suggested Added rl-xai; code goes to https://api.x.ai."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 14 models."
+        }
+      ],
+      "recordedByProduct": {
+        "requests": 0,
+        "usd": "0.000000"
+      }
+    }
+  ],
+  "notRun": [
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "vendor": "openai",
+      "surface": "acp",
+      "reason": "not run: the dollar cap is reached ($0.330698 of $0.200000)"
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "modelapi",
+      "vendor": "meta",
+      "surface": "acp",
+      "reason": "not run: the dollar cap is reached ($0.330698 of $0.200000)"
+    },
+    {
+      "scenario": "cancel",
+      "claims": ["ref/feature/acp"],
+      "route": "provider",
+      "vendor": "xai",
+      "surface": "acp",
+      "reason": "not run: the dollar cap is reached ($0.330698 of $0.200000)"
+    }
+  ],
+  "keysLeftInTheCredentialStore": []
+}

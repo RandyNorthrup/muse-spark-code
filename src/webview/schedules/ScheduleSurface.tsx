@@ -221,7 +221,10 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
           }
           await reload()
         } else throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
-      } catch {
+      } catch (error: unknown) {
+        // A failed action reads failed: only a non-error keeps its kind
+        // past the surface.
+        if (!(error instanceof Error)) throw error
         if (id !== undefined) markAuthorityUnknown(id, true)
         setError(UI_TEXT.scheduleV2.editor.loadFailed)
       } finally {
@@ -242,7 +245,10 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
     return next
   }
   const retry = () => {
-    void reload().catch(() => {
+    void reload().catch((error: unknown) => {
+      // A failed reload reads failed: only a non-error keeps its kind past
+      // the surface.
+      if (!(error instanceof Error)) throw error
       setError(UI_TEXT.scheduleV2.editor.loadFailed)
     })
   }
@@ -438,8 +444,8 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
 }
 
 /** Standalone panel entry for VS Code, companion and native webview hosts.
- * @unwired M115 schedule surface mount
- */
+@unwired M115 schedule surface mount
+*/
 export function mountScheduleSurface(element: Element, context: ScheduleSurfaceProps): () => void {
   const tableError = installEmbeddedTable(element.ownerDocument)
   if (tableError !== undefined) throw tableError

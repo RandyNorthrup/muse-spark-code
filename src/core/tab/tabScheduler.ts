@@ -40,10 +40,10 @@ const START_WINDOW_MS = SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
 export class TabScheduler {
   private pending: TabScheduledWork | undefined
   /**
-   * The waiting work is ready: its debounce has elapsed, or it was an
-   * Invoke. Only ready work waits for capacity, so a settle never sends
-   * work whose debounce is still running.
-   */
+  The waiting work is ready: its debounce has elapsed, or it was an
+  Invoke. Only ready work waits for capacity, so a settle never sends
+  work whose debounce is still running.
+  */
   private pendingReady = false
   private timer: ReturnType<typeof setTimeout> | undefined
   private running = 0
@@ -97,10 +97,10 @@ export class TabScheduler {
   }
 
   /**
-   * Sent work runs to its end; its outcome is the work's own to report.
-   * Its slot then frees for work already waiting for one, and only that:
-   * a debounce still running keeps its timer and its cancellation window.
-   */
+  Sent work runs to its end; its outcome is the work's own to report.
+  Its slot then frees for work already waiting for one, and only that:
+  a debounce still running keeps its timer and its cancellation window.
+  */
   private async runToEnd(work: TabScheduledWork): Promise<void> {
     try {
       await work.run()
@@ -115,10 +115,10 @@ export class TabScheduler {
   }
 
   /**
-   * No slot: wait for one. A settle retries at once; the timer covers a
-   * slot freed by time alone (the minute window sliding with every request
-   * settled and nothing left running).
-   */
+  No slot: wait for one. A settle retries at once; the timer covers a
+  slot freed by time alone (the minute window sliding with every request
+  settled and nothing left running).
+  */
   private park(work: TabScheduledWork): void {
     this.pending = work
     this.pendingReady = true
@@ -132,9 +132,9 @@ export class TabScheduler {
   }
 
   /**
-   * Queue work: Automatic waits out the debounce, Invoke fires at once.
-   * Either replaces a waiting trigger, which is then never sent.
-   */
+  Queue work: Automatic waits out the debounce, Invoke fires at once.
+  Either replaces a waiting trigger, which is then never sent.
+  */
   public trigger(work: TabScheduledWork, options?: TabTriggerOptions): void {
     this.clearTimer()
     this.pending = work

@@ -4,6 +4,7 @@
 // regions whose values it reads. Serializing a full table reads every region.
 import { Buffer } from 'node:buffer'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readCompiledSource } from './compiledSources.mjs'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { brotliCompressSync, deflateSync, constants as zlibConstants } from 'node:zlib'
@@ -34,7 +35,7 @@ export const UI_TEXT_REGIONS = [
 
 /** The canonical object, parsed rather than searched through strings/comments. */
 export function uiTextProperties() {
-  const source = readFileSync(TABLE, 'utf8')
+  const source = readCompiledSource(TABLE)
   const tree = ts.createSourceFile(TABLE, source, ts.ScriptTarget.Latest, true)
   const declaration = tree.statements
     .filter((statement) => ts.isVariableStatement(statement))
@@ -234,10 +235,10 @@ function browserTableContract(value) {
 }
 
 /**
- * Collect every literal text reader in the shipped static and dynamic source graph.
- * `excluded` are roots that install their own deferred English when loaded
- * (the independent resource entries); a graph that reaches one stops there.
- */
+Collect every literal text reader in the shipped static and dynamic source graph.
+`excluded` are roots that install their own deferred English when loaded
+(the independent resource entries); a graph that reaches one stops there.
+*/
 export function browserTextKeys(entries, english, eagerSources = new Set(), excluded = new Set()) {
   const seen = new Set()
   const keys = new Set()
@@ -385,11 +386,88 @@ export const compactBrowserUiText = {
       )
       // M109: the vault group's English travels with the vault surface, whose
       // vaultEnglish.ts installs it before any vault render; never twice here.
+      // M116: the orchestrator playbook's English loads with its deferred
+      // surfaces (src/webview/playbook/), out of the shared surface closure.
+      const playbookKeys = deferredKeys.filter(
+        (key) =>
+          key.startsWith('playbook') &&
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
+      )
+      // Each deferred playbook module that reads it installs it before its
+      // body runs, however chat loads that module (an eager reader would
+      // carry the key in startup instead, so it needs no installer here).
+      const playbookReaders = new Set(
+        playbookKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                /UI_TEXT\.playbook/.test(readFileSync(file, 'utf8')),
+            ),
+      )
+      // JOIN0190: the ChatGPT plan sign-in's English loads with its deferred
+      // readers (the models page's provider sections), out of the shared
+      // surface closure, the way the playbook's English already does.
+      const chatGptKeys = deferredKeys.filter(
+        (key) =>
+          (key === 'acpChatGpt' || key.startsWith('acpChatGpt.')) &&
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
+          !playbookKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
+      )
+      // JOIN0190: the team runners' English loads with its deferred readers
+      // (the models page's runner sections), out of the shared surface
+      // closure, the same way.
+      const runnersKeys = deferredKeys.filter(
+        (key) =>
+          (key === 'teamRunners' || key.startsWith('teamRunners.')) &&
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
+          !playbookKeys.includes(key) &&
+          !chatGptKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
+      )
+      // Each deferred ChatGPT reader module installs it before its body
+      // runs (an eager reader would carry the key in startup instead).
+      const chatGptReaders = new Set(
+        chatGptKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                /UI_TEXT\.acpChatGpt/.test(readFileSync(file, 'utf8')),
+            ),
+      )
+      // Each deferred runners module installs it before its body runs.
+      const runnersReaders = new Set(
+        runnersKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                /UI_TEXT\.teamRunners/.test(readFileSync(file, 'utf8')),
+            ),
+      )
       const surfaceKeys = deferredKeys.filter(
         (key) =>
           !helpKeys.includes(key) &&
           !accountKeys.includes(key) &&
           !scheduleKeys.includes(key) &&
+          !playbookKeys.includes(key) &&
+          !chatGptKeys.includes(key) &&
+          !runnersKeys.includes(key) &&
           key !== 'vault' &&
           nonResourceKeys.has(key),
       )
@@ -413,6 +491,12 @@ export const compactBrowserUiText = {
         lanes,
         deferredKeys,
         surfaceKeys,
+        playbookKeys,
+        playbookReaders,
+        chatGptKeys,
+        chatGptReaders,
+        runnersKeys,
+        runnersReaders,
         helpKeys,
         accountKeys,
         scheduleKeys,
@@ -429,7 +513,7 @@ export const compactBrowserUiText = {
       return {
         contents:
           "import { forms } from './forms';\n" +
-          readFileSync(args.path, 'utf8').replace(
+          readCompiledSource(args.path).replace(
             'const english = EN.vault',
             () => `const english = ${property.source.slice('vault:'.length)}`,
           ),
@@ -445,10 +529,14 @@ export const compactBrowserUiText = {
     for (const namespace of [
       'browser-table-contract',
       'browser-surface-english',
+      'browser-playbook-english',
+      'browser-chatgpt-english',
+      'browser-runners-english',
       'browser-resource-english',
       'browser-reference-english',
       'browser-account-english',
       'browser-schedule-english',
+      'browser-playbook-english',
     ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
@@ -462,11 +550,11 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
       contents:
-        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }",
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english'), import('browser-chatgpt-english'), import('browser-runners-english')]) }",
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
-      contents: readFileSync(args.path, 'utf8').replace(
+      contents: readCompiledSource(args.path).replace(
         "import { EN, type UiText } from '../shared/l10n/en'",
         "import { EN } from 'browser-table-contract'; import type { UiText } from '../shared/l10n/en'",
       ),
@@ -477,6 +565,36 @@ export const compactBrowserUiText = {
     build.onResolve({ filter: /^browser-surface-english$/ }, () => ({
       path: 'browser-surface-english',
       namespace: 'browser-surface-english',
+    }))
+    build.onResolve({ filter: /^browser-playbook-english$/ }, () => ({
+      path: 'browser-playbook-english',
+      namespace: 'browser-playbook-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-playbook-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.playbookKeys.map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-chatgpt-english$/ }, () => ({
+      path: 'browser-chatgpt-english',
+      namespace: 'browser-chatgpt-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-chatgpt-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.chatGptKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-runners-english$/ }, () => ({
+      path: 'browser-runners-english',
+      namespace: 'browser-runners-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-runners-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.runnersKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
     }))
     build.onResolve({ filter: /^browser-account-english$/ }, () => ({
       path: 'browser-account-english',
@@ -489,6 +607,16 @@ export const compactBrowserUiText = {
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
 ${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-playbook-english$/ }, () => ({
+      path: 'browser-playbook-english',
+      namespace: 'browser-playbook-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-playbook-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.playbookKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
@@ -506,11 +634,52 @@ installSurfaceEnglish(EN);`,
     // that also declares a lazy() surface fails loudly rather than losing one.
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
       if (!data.scheduleReaders.has(path.resolve(args.path))) return
-      const source = readFileSync(args.path, 'utf8')
+      const source = readCompiledSource(args.path)
       if (/\blazy\(|ReferencePage/.test(source))
         throw new Error(`Unsupported lazy surface in a schedule English reader: ${args.path}`)
       return {
         contents: "await import('browser-schedule-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    // M116: same installer for the playbook's own English, beside the lazy()
+    // rewrite below, with the same loud failure when a reader declares one.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.playbookReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a playbook English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-playbook-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    // JOIN0190: same installer for the ChatGPT sign-in's own English, with
+    // the same loud failure when a reader declares one.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.chatGptReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a ChatGPT English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-chatgpt-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    // JOIN0190: same installer for the team runners' own English.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.runnersReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a runners English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-runners-english');\n" + source,
         loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
         resolveDir: path.dirname(args.path),
         watchFiles: [args.path],
@@ -537,7 +706,7 @@ installSurfaceEnglish(EN);`,
     }))
     // Independent resource roots install deferred English before their first render.
     build.onLoad({ filter: /[/\\](?:ResourceSurface|ResourcesSection)\.tsx$/ }, (args) => ({
-      contents: "import 'browser-resource-english';\n" + readFileSync(args.path, 'utf8'),
+      contents: "import 'browser-resource-english';\n" + readCompiledSource(args.path),
       loader: 'tsx',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],
@@ -555,13 +724,13 @@ installSurfaceEnglish(EN);`,
     build.onLoad({ filter: /[/\\]paletteRegistry\.ts$/ }, (args) => ({
       contents:
         "await Promise.all([import('browser-surface-english'), import('browser-schedule-english')]);\n" +
-        readFileSync(args.path, 'utf8'),
+        readCompiledSource(args.path),
       loader: 'ts',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],
     }))
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx$/ }, (args) => {
-      const source = readFileSync(args.path, 'utf8')
+      const source = readCompiledSource(args.path)
       if (!source.includes('lazy') && !source.includes('ReferencePage')) return
       const tree = ts.createSourceFile(
         args.path,
@@ -624,7 +793,7 @@ export function compressedReference(isProduction) {
     setup(build) {
       if (!isProduction) return
       build.onLoad({ filter: /[/\\]reference\.generated\.ts$/ }, async (args) => {
-        const source = readFileSync(args.path, 'utf8')
+        const source = readCompiledSource(args.path)
         const tree = ts.createSourceFile(args.path, source, ts.ScriptTarget.Latest, true)
         const factory = tree.statements.find(
           (node) => ts.isFunctionDeclaration(node) && node.name?.text === 'referenceModel',

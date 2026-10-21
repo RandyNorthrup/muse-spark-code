@@ -19,15 +19,14 @@ import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import {
+  CHATGPT_REGISTRATION_SECRET_KEY,
   HTTP_STATUS,
   MILLISECONDS_PER_SECOND,
   OAUTH_CODE_TTL_MS,
   OAUTH_LOOPBACK_HOST,
-  PKCE_STATE_BYTES,
   PROVIDER_SECRET_PREFIX,
   UI_TEXT,
 } from '../../shared/constants'
-import { isPkceState, pkceRandom } from '../backend/providersEntry'
 import {
   ChatGptSignIn,
   ChatGptSignInError,
@@ -35,6 +34,7 @@ import {
   type ChatGptHostPort,
 } from '../backend/subscriptionsEntry'
 import type { RecordStore } from './credentialRecords'
+import { loadChatGptHostId } from './chatgptHostId'
 
 type ChatGptCallback = Awaited<ReturnType<ChatGptHostPort['startCallback']>> & {
   readonly bindHost: string
@@ -44,6 +44,8 @@ type ChatGptCallback = Awaited<ReturnType<ChatGptHostPort['startCallback']>> & {
 export async function startChatGptCallback(
   state: string,
   timeoutMs: number,
+  /** The saved issued client a reauthorization's callback may omit. */
+  clientId?: string,
 ): Promise<ChatGptCallback> {
   const server = createServer()
   const completion: { resolve?: (url: string) => void; reject?: (error: Error) => void } = {}
@@ -51,7 +53,8 @@ export async function startChatGptCallback(
     completion.resolve = resolve
     completion.reject = reject
   })
-  void waiting.catch(() => null)
+  // The waiter below receives the callback's outcome; this only marks the rejection handled.
+  void waiting.catch(() => null) // The outcome reaches the waiter; handled here, said there.
   let isSettled = false
   const finish = (value: string | Error): void => {
     if (isSettled) return
@@ -62,13 +65,19 @@ export async function startChatGptCallback(
     if (typeof value === 'string') completion.resolve?.(value)
     else completion.reject?.(value)
   }
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, OAUTH_LOOPBACK_HOST, () => {
-      server.off('error', reject)
-      resolve()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(0, OAUTH_LOOPBACK_HOST, () => {
+        server.off('error', reject)
+        resolve()
+      })
     })
-  })
+  } catch (error) {
+    // The loopback listener could not open: this machine's cause, with its code.
+    const code = fileErrorCode(error)
+    throw new ChatGptSignInError('local-failed', typeof code === 'string' ? code : 'listen')
+  }
   const address = server.address()
   if (address === null || typeof address === 'string') {
     server.close()
@@ -98,23 +107,27 @@ export async function startChatGptCallback(
         answer(HTTP_STATUS.notFound)
         return
       }
-      parseChatGptCallback(url.href, redirectUri, state)
+      parseChatGptCallback(url.href, redirectUri, state, clientId)
       isClaimed = true
       // Let the response finish before forcibly closing idle sockets.
       response.on('finish', () => {
         finish(url.href)
       })
       answer(HTTP_STATUS.ok)
-    } catch {
+    } catch (error) {
       isClaimed = true
       response.on('finish', () => {
-        finish(new ChatGptSignInError('invalid-callback'))
+        // The parser's own validated code (a refusal, another attempt's
+        // state), never request text.
+        finish(
+          error instanceof ChatGptSignInError ? error : new ChatGptSignInError('invalid-callback'),
+        )
       })
       answer(HTTP_STATUS.badRequest)
     }
   })
   const timer = setTimeout(() => {
-    finish(new ChatGptSignInError('invalid-callback'))
+    finish(new ChatGptSignInError('callback-timeout'))
   }, timeoutMs)
   timer.unref()
   return {
@@ -138,6 +151,14 @@ const lockOwnerSchema = z.strictObject({
 
 function fileErrorCode(error: unknown): unknown {
   return error instanceof Error && 'code' in error ? error.code : undefined
+}
+/**
+The catch-gate-visible form of the expected file-lock condition: `is`-named
+so the inventory reads it as the one handled case, with exactly the same
+answer as the code-list check on every input.
+*/
+function isFileErrorCode(error: unknown, ...codes: readonly string[]): boolean {
+  return codes.includes(String(fileErrorCode(error)))
 }
 
 /** An expired lease alone never proves a live process has stopped refreshing. */
@@ -169,11 +190,7 @@ async function hasRecoveredLock(lockPath: string): Promise<boolean> {
     await rmdir(lockPath)
     return true
   } catch (error) {
-    if (
-      ['ENOENT', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'].includes(
-        String(fileErrorCode(error)),
-      )
-    )
+    if (isFileErrorCode(error, 'ENOENT', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'))
       return false
     throw error
   }
@@ -211,25 +228,21 @@ async function withFileLock<T>(
         try {
           const stat = await lstat(lockPath)
           if (!stat.isDirectory()) {
-            if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')
+            if (Date.now() >= deadline) throw new ChatGptSignInError('lock-busy')
             await pause(Math.min(pollMs, Math.max(0, deadline - Date.now())))
             continue
           }
         } catch (error) {
-          if (fileErrorCode(error) !== 'ENOENT') throw error
+          if (!isFileErrorCode(error, 'ENOENT')) throw error
         }
         await rename(prepared, lockPath)
         isOwned = true
         activeLocks.add(file)
       } catch (error) {
-        if (
-          !['EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'].includes(
-            String(fileErrorCode(error)),
-          )
-        )
+        if (!isFileErrorCode(error, 'EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'))
           throw error
         const isRecovered = await hasRecoveredLock(lockPath)
-        if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')
+        if (Date.now() >= deadline) throw new ChatGptSignInError('lock-busy')
         if (isRecovered) continue
         await pause(Math.min(pollMs, Math.max(0, deadline - Date.now())))
       }
@@ -244,6 +257,19 @@ async function withFileLock<T>(
       }
       await hasRecoveredLock(lockPath)
     } else await rm(prepared, { recursive: true, force: true })
+  }
+}
+
+/**
+The grant's SecretStorage calls. A refusal is the editor's credential
+store and is said as such: the sign-in core's guard would otherwise report
+any foreign error as a temporary ChatGPT failure (F14).
+*/
+async function grantStore<T>(work: () => Thenable<T>): Promise<T> {
+  try {
+    return await work()
+  } catch {
+    throw new ChatGptSignInError('store-unavailable')
   }
 }
 
@@ -271,47 +297,63 @@ export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<Chat
         deps.lockPollMs ?? MILLISECONDS_PER_SECOND,
         work,
       )
-    const hostId = await withRefreshLock(async () => {
-      const hostIdPath = path.join(directory, 'chatgpt.host-id')
-      try {
-        const stored = await readFile(hostIdPath, 'utf8')
-        if (!isPkceState(stored)) throw new ChatGptSignInError('invalid-token')
-        return stored
-      } catch (error) {
-        if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error
-      }
-      const id = pkceRandom(PKCE_STATE_BYTES)
-      await writeFile(hostIdPath, id, { flag: 'wx' })
-      return id
-    })
+    const hostId = await withRefreshLock(() => loadChatGptHostId(directory))
     const key = `${PROVIDER_SECRET_PREFIX}chatgpt`
+    const readStored = async (account: string): Promise<unknown> => {
+      const stored = await grantStore(() => deps.secrets.get(account))
+      if (stored === undefined) return
+      try {
+        const parsed: unknown = JSON.parse(stored)
+        return parsed
+      } catch (error: unknown) {
+        // Only the parser's own failure reads as an unreadable grant; anything
+        // else reaches the caller with its cause, never mislabelled.
+        if (error instanceof SyntaxError) {
+          throw new ChatGptSignInError(
+            account === key ? 'grant-unreadable' : 'registration-unreadable',
+          )
+        }
+        throw error
+      }
+    }
     return new ChatGptSignIn({
       hostId,
       fetch: deps.fetch,
       now: Date.now,
       withRefreshLock,
       openBrowser: async (url) => {
-        const isOpened = await (deps.openExternal ?? vscode.env.openExternal)(vscode.Uri.parse(url))
-        if (!isOpened) throw new ChatGptSignInError('request-failed')
+        let isOpened = false
+        try {
+          isOpened = await (deps.openExternal ?? vscode.env.openExternal)(vscode.Uri.parse(url))
+        } catch {
+          // The editor refused to open it: said as that below, never as a ChatGPT outage.
+        }
+        if (!isOpened) throw new ChatGptSignInError('browser-unavailable')
       },
-      startCallback: async (state, timeoutMs) => {
+      startCallback: async (state, timeoutMs, clientId) => {
         if (deps.isRemote) throw new ChatGptSignInError('invalid-callback')
-        return await startChatGptCallback(state, timeoutMs)
+        return await startChatGptCallback(state, timeoutMs, clientId)
       },
-      readRecord: async () => {
-        const stored = await deps.secrets.get(key)
-        if (stored === undefined) return
-        const parsed: unknown = JSON.parse(stored)
-        return parsed
-      },
+      readRecord: () => readStored(key),
       writeRecord: async (record) => {
-        await deps.secrets.store(key, JSON.stringify(record))
+        await grantStore(() => deps.secrets.store(key, JSON.stringify(record)))
       },
       deleteRecord: async () => {
-        await deps.secrets.delete(key)
+        await grantStore(() => deps.secrets.delete(key))
+      },
+      // The core validates both shapes; this port stores the JSON as given.
+      readRegistration: () => readStored(CHATGPT_REGISTRATION_SECRET_KEY),
+      writeRegistration: async (registration) => {
+        await grantStore(() =>
+          deps.secrets.store(CHATGPT_REGISTRATION_SECRET_KEY, JSON.stringify(registration)),
+        )
       },
     })
-  } catch {
-    throw new ChatGptSignInError('request-failed')
+  } catch (error) {
+    // A typed failure (a corrupt host id) keeps its own sentence; anything else
+    // is a local file problem, said with the operating system's code.
+    if (error instanceof ChatGptSignInError) throw error
+    const code = fileErrorCode(error)
+    throw new ChatGptSignInError('local-failed', typeof code === 'string' ? code : 'unknown')
   }
 }

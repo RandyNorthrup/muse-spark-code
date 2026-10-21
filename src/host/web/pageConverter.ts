@@ -168,7 +168,10 @@ function convertOnWorker(conversion: Conversion): Promise<HtmlConversion> {
         resourceLimits: { maxOldGenerationSizeMb: limits.maxHeapMib },
       })
     } catch (error: unknown) {
-      log.warn(`Web fetch: the page converter did not start: ${diagnosisOf(error)}`)
+      // The diagnosis is fixed vocabulary (name, code, frames — never the
+      // message, which can quote the page), so it is kept before the log.
+      const diagnosis = diagnosisOf(error)
+      log.warn(`Web fetch: the page converter did not start: ${diagnosis}`)
       resolve({ ok: false, kind: 'failed', detail: codeOf(error) })
       return
     }

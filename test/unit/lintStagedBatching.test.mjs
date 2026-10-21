@@ -6,6 +6,9 @@ import lintStaged from 'lint-staged'
 import { expect, it } from 'vitest'
 import { removeFolder } from './helpers/temporaryFolders'
 
+// The case drives real git and lint-staged (its own git work plus a node
+// process per batch) over 123 staged files. No checked-in time box: the
+// repository's own timeout applies, and our job caps stay out of the tree.
 it('batches all 123 merge files below the Windows command-shim limit', async () => {
   const hook = await readFile('.husky/pre-commit', 'utf8')
   const argumentLimit = /--max-arg-length\s+(\d+)/.exec(hook)?.[1]

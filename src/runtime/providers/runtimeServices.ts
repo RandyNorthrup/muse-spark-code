@@ -11,7 +11,11 @@ import { hostname } from 'node:os'
 import { AccountStore, type AccountsMetadataPort } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/accountCredentialRecord'
 import type { Account, AccountThresholds } from '../../shared/accounts'
-import { AccountSwitchRefusedError, isInvalidProvidersFileError } from '../../acp/accountText'
+import {
+  AccountSwitchRefusedError,
+  RevokeUnsupportedError,
+  isInvalidProvidersFileError,
+} from '../../acp/accountText'
 import {
   AccountSecrets,
   secretStorageAccountVault,
@@ -38,10 +42,11 @@ import {
 } from '../../shared/constants'
 
 /** No M95b revoker exists outside VS Code: removing a sign-in refuses loudly
- * rather than orphan it. API keys delete normally; revoke is never called
- * for them. */
+rather than orphan it. API keys delete normally; revoke is never called
+for them. The refusal is branded so `AccountSecrets.remove` preserves it
+instead of reporting a generic store outage. */
 export function runtimeRevokeSignIn(): Promise<void> {
-  return Promise.reject(new Error(UI_TEXT.accounts.unavailable))
+  return Promise.reject(new RevokeUnsupportedError())
 }
 
 export interface RuntimeAccountServicesInput {
@@ -61,14 +66,14 @@ export interface RuntimeAccountServices {
   /** The backend's key reads through the fixed account; nothing else changes. */
   secretsFor(provider: string, account: string, fallback: SecretStore): SecretStore
   /** The terminal `developer` owner: real store, real confirmation, while
-   * profile processes wait for M109's broker binding. */
+  profile processes wait for M109's broker binding. */
   developer(deps: {
     readLine(prompt: string): Promise<string>
     print(line: string): void
   }): Promise<DeveloperOptions>
   /** The terminal `developer reset` recovery when stored state belongs to
-   * another machine identity: `open` refuses it, so reset runs here without
-   * an owner (DEVID017B). */
+  another machine identity: `open` refuses it, so reset runs here without
+  an owner (DEVID017B). */
   developerReset(deps: {
     readLine(prompt: string): Promise<string>
     print(line: string): void
@@ -141,7 +146,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     // stay-put text instead of dispatching under the wrong identity (D88.7).
     // The commit signal has no transaction to guard here: AcpAccounts fences
     // generations and staleness before this port is reached.
-    if (state.currentAccount === null) throw new Error(UI_TEXT.accounts.unavailable)
+    if (state.currentAccount === null) throw new Error(UI_TEXT.accounts.none)
     const current = state.accounts.find((row) => row.id === state.currentAccount)
     throw new AccountSwitchRefusedError(this.provider, current?.label ?? state.currentAccount)
   }
@@ -226,13 +231,13 @@ function developerUnavailableProfile(): Promise<void> {
 }
 
 /** The one mapping point for a refused providers file: every runtime caller
- * (exec `--account`, the ACP store, developer multiple-accounts open, the
- * CLI account commands) reads through this port, so the brand reaches the
- * person as its own refusal sentence here — never a keyring-outage message
- * and never a raw code. The brand is kept so typed checks (the ACP store's
- * `providersInvalid` code, the CLI command's sentence) still match; only the
- * message becomes the person-facing sentence. Sibling typed failures pass
- * through untouched, each keeping its own refusal. */
+(exec `--account`, the ACP store, developer multiple-accounts open, the
+CLI account commands) reads through this port, so the brand reaches the
+person as its own refusal sentence here — never a keyring-outage message
+and never a raw code. The brand is kept so typed checks (the ACP store's
+`providersInvalid` code, the CLI command's sentence) still match; only the
+message becomes the person-facing sentence. Sibling typed failures pass
+through untouched, each keeping its own refusal. */
 function withProvidersFileRefusal(metadata: AccountsMetadataPort): AccountsMetadataPort {
   return {
     read: async (provider) => {
@@ -247,6 +252,31 @@ function withProvidersFileRefusal(metadata: AccountsMetadataPort): AccountsMetad
     },
     writeAccounts: (provider, accounts) => metadata.writeAccounts(provider, accounts),
   }
+}
+
+/** The terminal `developer` owner's account check against the stored pool. */
+export async function checkDeveloperAccount(
+  metadata: AccountsMetadataPort,
+  store: AccountStore,
+  provider: string,
+  account: string,
+): Promise<void> {
+  const entry = await metadata.read(provider)
+  let rows: Account[]
+  try {
+    rows = entry === undefined ? [] : await store.list(provider)
+  } catch (error: unknown) {
+    // A list the store cannot hand out is not an empty team (an empty team
+    // refuses as invalid below): the check is unavailable, with the cause
+    // kept, as the session read above answers the same failure.
+    if (isInvalidProvidersFileError(error)) throw error
+    throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
+  }
+  if (entry === undefined || rows.every((row) => row.id !== account))
+    throw new Error(UI_TEXT.developer.invalidRequest)
+  const policy = accountPolicyFor(entry.policyProvider, entry.product)
+  if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
+    throw new Error(UI_TEXT.developer.unavailable)
 }
 
 export function createRuntimeAccountServices(
@@ -290,20 +320,8 @@ export function createRuntimeAccountServices(
     store: (key, value) => fallback.store(key, value),
     delete: (key) => fallback.delete(key),
   })
-  const developerCheckAccount = async (provider: string, account: string): Promise<void> => {
-    const entry = await metadata.read(provider)
-    let rows: Account[]
-    try {
-      rows = entry === undefined ? [] : await store.list(provider)
-    } catch {
-      rows = []
-    }
-    if (entry === undefined || rows.every((row) => row.id !== account))
-      throw new Error(UI_TEXT.developer.invalidRequest)
-    const policy = accountPolicyFor(entry.policyProvider, entry.product)
-    if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
-      throw new Error(UI_TEXT.developer.unavailable)
-  }
+  const developerCheckAccount = (provider: string, account: string): Promise<void> =>
+    checkDeveloperAccount(metadata, store, provider, account)
   const developerBase = (deps: {
     readLine(prompt: string): Promise<string>
     print(line: string): void

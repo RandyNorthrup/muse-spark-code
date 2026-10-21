@@ -4,7 +4,15 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
-import { MODEL_API_REQUEST_TIMEOUT_MS } from '../../shared/constants'
+// RVCM1054D P2: the typed refusal is constructed across the provider
+// bundle seam, never here — this client ships in the Models panel bundle,
+// which must not carry src/core/backends/modelapi/codecs/* (they load only
+// in dist/providers.js) and is over its cap with even the leaf copy.
+// providersEntry is externalized to dist/providers.js in this bundle by the
+// deferredCohort plugin, as for subscriptionFeatures. The throwing calls
+// below sit outside the try blocks, so the catches never see the refusal
+// and need no guard for it.
+import { refuse } from '../backend/providersEntry'
 import type {
   ConfirmedModelRequest,
   ModelApiClient,
@@ -21,9 +29,11 @@ import type {
   CreateResponseBody,
   FunctionOutputPart,
   InputContentPart,
+  InputItem,
   OutputItem,
   StreamEvent,
 } from '../../core/backends/modelapi/schemas'
+import { CopilotFailureError } from '../backend/subscriptionsEntry'
 
 /** The M95 ProviderClient seam, absent from this base; no image-generation calls. */
 type ProviderClient = Pick<
@@ -131,13 +141,11 @@ function failureCode(error: unknown): CopilotFailure {
   return codes.includes('NotFound') ? 'unavailable' : 'request-failed'
 }
 
-class CopilotFailureError extends Error {}
-
 /**
- * Copilot's model tolerance for the shared confirmed-dispatch gate: the
- * session stores `copilot/<id>` while a request may carry the catalogue
- * `<id>`, and both name this adapter's model.
- */
+Copilot's model tolerance for the shared confirmed-dispatch gate: the
+session stores `copilot/<id>` while a request may carry the catalogue
+`<id>`, and both name this adapter's model.
+*/
 function withoutCopilotPrefix(id: string): string {
   return id.startsWith('copilot/') ? id.slice('copilot/'.length) : id
 }
@@ -158,15 +166,15 @@ class CopilotClient implements ProviderClient {
     private readonly api: CopilotPort,
   ) {}
 
-  private fail(code: CopilotFailure): Error {
-    return new CopilotFailureError(this.deps.failureText(code))
+  private fail(code: CopilotFailure, options?: { cause?: unknown }): Error {
+    return new CopilotFailureError(this.deps.failureText(code), options)
   }
   /**
-   * The pre-dispatch gate with Copilot's model tolerance: the session stores
-   * `copilot/<id>` while a request may carry the catalogue `<id>`, and both
-   * name this adapter's model. A lapse here keeps the adapter's refusal,
-   * like every direct call before it.
-   */
+  The pre-dispatch gate with Copilot's model tolerance: the session stores
+  `copilot/<id>` while a request may carry the catalogue `<id>`, and both
+  name this adapter's model. A lapse here keeps the adapter's refusal,
+  like every direct call before it.
+  */
   private assertConfirmed(
     body: CreateResponseBody,
     confirmed: ConfirmedModelRequest | undefined,
@@ -174,8 +182,8 @@ class CopilotClient implements ProviderClient {
     if (confirmed === undefined) return
     try {
       assertConfirmedAllowed(body.model, confirmed, isSameCopilotModel)
-    } catch {
-      throw this.fail('confirmation-expired')
+    } catch (error: unknown) {
+      throw this.fail('confirmation-expired', { cause: error })
     }
   }
   private check(): void {
@@ -189,12 +197,36 @@ class CopilotClient implements ProviderClient {
     message: vscode.LanguageModelChatMessage,
     parts: readonly (InputContentPart | FunctionOutputPart)[],
   ): void {
-    for (const part of parts) {
-      if (part.type === 'input_text' || part.type === 'output_text')
+    for (const part of parts) this.appendPart(message, part)
+  }
+  private appendPart(
+    message: vscode.LanguageModelChatMessage,
+    part: InputContentPart | FunctionOutputPart,
+  ): void {
+    switch (part.type) {
+      case 'input_text':
+      case 'output_text': {
         message.content.push(this.api.text(part.text))
-      else if (part.type === 'input_image' && this.deps.images?.supports(this.model) === true)
+        return
+      }
+      case 'input_image': {
+        // M105 lane V R4 (RVCM1054C P2): content this client cannot send
+        // refuses with the shared typed refusal and the model's own
+        // sentence, before any request, never the generic unavailable text.
+        // An image the model cannot take (no vision, or another provider's
+        // held file with no URL to send) reads as the gate's own
+        // unsupported-image sentence.
+        if (!('image_url' in part) || this.deps.images?.supports(this.model) !== true)
+          throw refuse(this.model)
         this.deps.images.append(message, part.image_url)
-      else throw this.fail('unsupported-content')
+        return
+      }
+      case 'input_video': {
+        throw refuse(this.model, true)
+      }
+      default: {
+        throw this.fail('unsupported-content')
+      }
     }
   }
   private messages(body: Omit<CreateResponseBody, 'stream'>): vscode.LanguageModelChatMessage[] {
@@ -208,8 +240,8 @@ class CopilotClient implements ProviderClient {
         let input: unknown
         try {
           input = JSON.parse(item.arguments)
-        } catch {
-          throw this.fail('unsupported-content')
+        } catch (error: unknown) {
+          throw this.fail('unsupported-content', { cause: error })
         }
         const parsed = callInputSchema.safeParse(input)
         if (!parsed.success) throw this.fail('unsupported-content')
@@ -227,17 +259,34 @@ class CopilotClient implements ProviderClient {
         )
         message.content.push(this.api.result(item.call_id, result.content))
         messages.push(message)
-      } else if (item.type !== 'reasoning') throw this.fail('unsupported-content')
+      } else {
+        this.skipUnsendable(item)
+      }
     }
     return messages
+  }
+  /**
+  Drops what the vscode language-model API cannot carry: reasoning
+  (this API has no thinking part) and hosted search calls (acceptance
+  11: never declared to a BYO model; the reply that used them replays
+  as text). Anything else fails the turn loudly instead of running on
+  silently dropped content.
+  */
+  private skipUnsendable(item: InputItem): void {
+    if (item.type === 'reasoning' || item.type === 'web_search_call') {
+      return
+    }
+    throw this.fail('unsupported-content')
   }
   private async tokens(
     input: string | vscode.LanguageModelChatMessage,
     cancellation: vscode.CancellationTokenSource,
-    deadline: number,
+    // No deadline of our own (owner 2026-10-16): the editor's cancellation
+    // ends it, else the tokenizer's answer. A named deadline still kills.
+    deadline?: number,
   ): Promise<number> {
     if (cancellation.token.isCancellationRequested) throw this.fail('cancelled')
-    if (Date.now() >= deadline) {
+    if (deadline !== undefined && Date.now() >= deadline) {
       cancellation.cancel()
       throw this.fail('request-failed')
     }
@@ -246,41 +295,49 @@ class CopilotClient implements ProviderClient {
       completion.reject = reject
     })
     // A tokenizer can synchronously cancel and throw before the race is built.
-    void stopped.catch(() => null)
+    // The race below receives the rejection; this only marks it handled.
+    void stopped.catch(() => null) // The rejection reaches the race; handled here, said there.
     const listener = cancellation.token.onCancellationRequested(() => {
       completion.reject?.(this.fail('cancelled'))
     })
-    const timer = setTimeout(
-      () => {
-        completion.reject?.(this.fail('request-failed'))
-        cancellation.cancel()
-      },
-      Math.max(0, deadline - Date.now()),
-    )
+    const timer =
+      deadline === undefined
+        ? undefined
+        : setTimeout(
+            () => {
+              completion.reject?.(this.fail('request-failed'))
+              cancellation.cancel()
+            },
+            Math.max(0, deadline - Date.now()),
+          )
     try {
       return tokenCountSchema.parse(
         await Promise.race([this.model.countTokens(input, cancellation.token), stopped]),
       )
     } finally {
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       listener.dispose()
     }
   }
+  // RVCM1054D P2: messages arrive built, so the typed refusal never enters
+  // the try below and the catch needs no guard for it.
   private async countInput(
     body: Omit<CreateResponseBody, 'stream'>,
     cancellation: vscode.CancellationTokenSource,
+    messages: readonly vscode.LanguageModelChatMessage[],
   ): Promise<number> {
     this.check()
-    const deadline = Date.now() + MODEL_API_REQUEST_TIMEOUT_MS
     try {
       let count = 0
-      for (const message of this.messages(body))
-        count += await this.tokens(message, cancellation, deadline)
-      count += await this.tokens(JSON.stringify(body.tools), cancellation, deadline)
+      // No deadline of our own (owner 2026-10-16): the editor's
+      // cancellation ends the count, else the tokenizer's answer. The
+      // messages arrive built, so they are counted once, never rebuilt.
+      for (const message of messages) count += await this.tokens(message, cancellation)
+      count += await this.tokens(JSON.stringify(body.tools), cancellation)
       return tokenCountSchema.parse(count)
     } catch (error) {
       if (error instanceof CopilotFailureError) throw error
-      throw this.fail('request-failed')
+      throw this.fail('request-failed', { cause: error })
     }
   }
   public listModels(): Promise<readonly string[]> {
@@ -296,11 +353,22 @@ class CopilotClient implements ProviderClient {
   public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
     await pause(ms, undefined, { signal })
   }
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
     const cancellation = this.api.cancellation()
+    // Stop ends a stalled tokenizer wait the same way it ends a stream:
+    // the turn signal cancels this locally created source (PR #214 review).
+    const abort = (): void => {
+      cancellation.cancel()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
     try {
-      return await this.countInput(body, cancellation)
+      // Built outside the try, so the typed refusal keeps its own sentence.
+      return await this.countInput(body, cancellation, this.messages(body))
     } finally {
+      signal?.removeEventListener('abort', abort)
       cancellation.cancel()
       cancellation.dispose()
     }
@@ -319,8 +387,18 @@ class CopilotClient implements ProviderClient {
     this.checkConsent()
     // The registry forwards a confirmation for a confirmed plan run, and a
     // direct caller may: like the other clients, run while still allowed and
-    // refuse only a lapsed or mismatched confirmation before dispatch.
+    // refuse only a lapsed or mismatched confirmation before dispatch. The
+    // typed codec refusal for this provider lives at the provider seam
+    // (registry.ts, RVCM1054D P2), not in this client.
     this.assertConfirmed(body, confirmed)
+    // RVCM1054D P2: built before any resource is acquired, so the typed
+    // refusal keeps its own sentence on the send path too, never the generic
+    // text — and a throw here needs no cleanup. Order matches the old body.
+    const messages = this.messages(body)
+    const tools: vscode.LanguageModelChatTool[] = body.tools.map((tool) => {
+      if (tool.type !== 'function') throw this.fail('unsupported-content')
+      return { name: tool.name, description: tool.description, inputSchema: tool.parameters }
+    })
     const cancellation = this.api.cancellation()
     const abort = (): void => {
       cancellation.cancel()
@@ -336,13 +414,7 @@ class CopilotClient implements ProviderClient {
       this.deps.recordEstimatedUsage(body.model, inputTokens, outputTokens, 'estimated')
     }
     try {
-      if (isAborted(signal)) throw this.fail('cancelled')
-      const messages = this.messages(body)
-      const tools: vscode.LanguageModelChatTool[] = body.tools.map((tool) => {
-        if (tool.type !== 'function') throw this.fail('unsupported-content')
-        return { name: tool.name, description: tool.description, inputSchema: tool.parameters }
-      })
-      inputTokens = await this.countInput(body, cancellation)
+      inputTokens = await this.countInput(body, cancellation, messages)
       if (inputTokens > this.model.maxInputTokens) throw this.fail('unsupported-content')
       this.check()
       this.checkConsent()
@@ -392,7 +464,8 @@ class CopilotClient implements ProviderClient {
         outputTokens = await this.tokens(
           assistant,
           cancellation,
-          Date.now() + MODEL_API_REQUEST_TIMEOUT_MS,
+          // No deadline of our own (owner 2026-10-16).
+          undefined,
         )
         yield event
         if (outputTokens > body.max_output_tokens) {
@@ -427,11 +500,12 @@ class CopilotClient implements ProviderClient {
         }
       else yield { type: 'response.completed', response: final }
     } catch (error) {
-      if (isAborted(signal)) throw this.fail('cancelled')
+      if (signal.aborted) throw this.fail('cancelled')
       // A mid-flight gate lapse keeps the run's own guidance instead of the
-      // adapter's failure text, like the registry's plan branches.
+      // adapter's failure text, like the registry's plan branches. Anything
+      // else keeps its kind on the failure (D207).
       if (error instanceof CopilotFailureError || isStaleConfirmedError(error)) throw error
-      throw this.fail(failureCode(error))
+      throw this.fail(failureCode(error), { cause: error })
     } finally {
       signal.removeEventListener('abort', abort)
       cancellation.cancel()

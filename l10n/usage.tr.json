@@ -37,11 +37,19 @@
     "other": "Çağrı başına CSV dışa aktarma yalnızca son {count} gün için kullanılabilir."
   },
   "exportComplete": "Kullanım dışa aktarıldı.",
+  "exportTooLarge": "Bu dışa aktarma tarayıcı için çok büyük. Daha kısa bir aralık seçin veya CLI ile dışa aktarın.",
+  "exportBound": "Tarayıcı dışa aktarımları JSON kodlaması dahil {limit} ile sınırlıdır.",
+  "editorActionsUnavailable": "Bu sayfa düzenleyici ayarlarını veya geçmiş klasörünü açamaz ve model fiyatlarını düzenleyemez. Düzenleyici ayarlarını ve Modeller ve Aracılar kontrollerini kullanın. Okuma, filtreler, grafikler ve dışa aktarma burada kullanılabilir.",
+  "readOnlyActions": "Bu metin arayüzü salt okunurdur. Grafikler, geçmiş kontrolleri ve indirmeler için yardımcı sayfayı açın.",
   "deleteHistory": "Kullanım geçmişini sil…",
   "deleteTitle": "Kullanım geçmişi silinsin mi?",
   "deleteConfirm": {
     "one": "Bu makinedeki {count} kullanım kaydını silmek istiyor musunuz? Harcama defterleri ve verilen izinler korunur.",
     "other": "Bu makinedeki {count} kullanım kaydını silmek istiyor musunuz? Harcama defterleri ve verilen izinler korunur."
+  },
+  "deleteConfirmResources": {
+    "one": "Kaynak geçmişindeki {count} girişi de siler.",
+    "other": "Kaynak geçmişindeki {count} girişi de siler."
   },
   "deleteAction": "Geçmişi sil",
   "deleteComplete": "Kullanım geçmişi silindi.",
@@ -109,11 +117,16 @@
   "certaintyReported": "Bildirilen",
   "certaintyComputed": "Hesaplanan",
   "certaintyUncertain": "Belirsiz",
+  "reservedLabel": "Ayrılmış",
   "certaintyPlan": "Plan",
   "certaintyLocal": "Yerel",
   "certaintyUnpriced": "Fiyatsız",
   "certaintyEstimated": "Tahmini",
   "uncertainNote": "İstek gönderildi ancak kullanım döndürülmedi. Maliyet sorumluluğu korunur.",
+  "unknownCalls": {
+    "one": "{count} bilinmeyen maliyetli istek",
+    "other": "{count} bilinmeyen maliyetli istek"
+  },
   "unpricedNote": "Kullanılabilir fiyat kartı yok. Bilinmeyen maliyet sıfır değildir.",
   "estimatedNote": "Belirteç sayıları tahmindir.",
   "localNote": "Yerel model: API ücreti yok.",
@@ -216,13 +229,6 @@
   "sortAscending": "Artan sıralama",
   "sortDescending": "Azalan sıralama",
   "retentionNote": "Çağrı ayrıntıları {detailDays} gün, günlük özetler {historyDays} gün saklanır.",
-  "privacyNote": "Geçmiş bu makinede kalır. İstemler, yanıtlar, araç bağımsız değişkenleri, yollar veya anahtarlar içermez.",
-  "exportTooLarge": "Bu dışa aktarma tarayıcı için çok büyük. Daha kısa bir aralık seçin veya CLI ile dışa aktarın.",
-  "exportBound": "Tarayıcı dışa aktarımları JSON kodlaması dahil {limit} ile sınırlıdır.",
-  "editorActionsUnavailable": "Bu sayfa düzenleyici ayarlarını veya geçmiş klasörünü açamaz ve model fiyatlarını düzenleyemez. Düzenleyici ayarlarını ve Modeller ve Aracılar kontrollerini kullanın. Okuma, filtreler, grafikler ve dışa aktarma burada kullanılabilir.",
-  "readOnlyActions": "Bu metin arayüzü salt okunurdur. Grafikler, geçmiş kontrolleri ve indirmeler için yardımcı sayfayı açın.",
-  "deleteConfirmResources": {
-    "one": "Kaynak geçmişindeki {count} girişi de siler.",
-    "other": "Kaynak geçmişindeki {count} girişi de siler."
-  }
+  "retentionNoteKept": "Çağrı ayrıntıları {detailDays} gün saklanır, günlük özetler bir gün sayısı ayarlayana veya temizleyene kadar saklanır.",
+  "privacyNote": "Geçmiş bu makinede kalır. İstemler, yanıtlar, araç bağımsız değişkenleri, yollar veya anahtarlar içermez."
 }

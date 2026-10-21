@@ -11,20 +11,20 @@
 // caller commits the report, once the model has it. Pure.
 
 import {
-  MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   type UncheckedReason,
   VERIFY_DIAGNOSTICS_MAX_ENTRIES,
+  VERIFY_MODEL_TEXT,
   VERIFY_SHOWN_FILES_MAX,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
 
 /**
- * A file an edit tool wrote, as confinement found it at the edit (links and
- * junctions resolved), so nothing done to it later follows a link retargeted
- * since (the Codex review of PR #54).
- */
+A file an edit tool wrote, as confinement found it at the edit (links and
+junctions resolved), so nothing done to it later follows a link retargeted
+since (the Codex review of PR #54).
+*/
 export interface EditedFile {
   /** Workspace-relative, forward slashes, links resolved (the canonical name). */
   readonly relative: string
@@ -108,30 +108,30 @@ export function clipText(text: string, max: number): string {
   return `${kept}${TOOL_OUTPUT_CLIP_MARKER}`
 }
 
-function uncheckedReason(reason: UncheckedReason, codeFile: string | undefined): string {
+function uncheckedReason(reason: UncheckedReason, codeFile: string | undefined = ''): string {
   switch (reason) {
     case 'noReport': {
-      return MODEL_API_MODEL_TEXT.verifyUncheckedNoReport
+      return VERIFY_MODEL_TEXT.verifyUncheckedNoReport
     }
     case 'notShown': {
-      return MODEL_API_MODEL_TEXT.verifyUncheckedNotShown
+      return VERIFY_MODEL_TEXT.verifyUncheckedNotShown
     }
     case 'unsaved': {
-      return MODEL_API_MODEL_TEXT.verifyUncheckedUnsaved
+      return VERIFY_MODEL_TEXT.verifyUncheckedUnsaved
     }
     case 'codeLoading': {
-      return fill(MODEL_API_MODEL_TEXT.verifyUncheckedCodeLoading, { file: codeFile ?? '' })
+      return fill(VERIFY_MODEL_TEXT.verifyUncheckedCodeLoading, { file: codeFile })
     }
     case 'tooMany': {
-      return fill(MODEL_API_MODEL_TEXT.verifyUncheckedTooMany, {
+      return fill(VERIFY_MODEL_TEXT.verifyUncheckedTooMany, {
         count: String(VERIFY_SHOWN_FILES_MAX),
       })
     }
     case 'stopped': {
-      return MODEL_API_MODEL_TEXT.verifyUncheckedStopped
+      return VERIFY_MODEL_TEXT.verifyUncheckedStopped
     }
     case 'changed': {
-      return MODEL_API_MODEL_TEXT.verifyUncheckedChanged
+      return VERIFY_MODEL_TEXT.verifyUncheckedChanged
     }
   }
 }
@@ -148,7 +148,7 @@ export class DiagnosticsHistory {
   private readonly previous = new Map<string, readonly string[]>()
 
   public report(files: readonly FileDiagnostics[], options: ReportOptions): PendingReport {
-    const lines: string[] = [MODEL_API_MODEL_TEXT.verifyDiagnosticsHeading]
+    const lines: string[] = [VERIFY_MODEL_TEXT.verifyDiagnosticsHeading]
     const listed: WorkspaceDiagnostic[] = []
     const reads = new Map<string, readonly string[]>()
     let errors = 0
@@ -158,7 +158,7 @@ export class DiagnosticsHistory {
       if (reason !== undefined) {
         unchecked += 1
         lines.push(
-          fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, {
+          fill(VERIFY_MODEL_TEXT.verifyFileUnchecked, {
             path: file.relative,
             reason: uncheckedReason(reason, options.codeFile),
           }),
@@ -174,8 +174,8 @@ export class DiagnosticsHistory {
       reads.set(file.relative, keys)
       const summary =
         reported.length === 0
-          ? fill(MODEL_API_MODEL_TEXT.verifyFileClean, { path: file.relative })
-          : fill(MODEL_API_MODEL_TEXT.verifyFileCounts, {
+          ? fill(VERIFY_MODEL_TEXT.verifyFileClean, { path: file.relative })
+          : fill(VERIFY_MODEL_TEXT.verifyFileCounts, {
               path: file.relative,
               errors: String(fileErrors),
               warnings: String(reported.length - fileErrors),
@@ -184,7 +184,7 @@ export class DiagnosticsHistory {
       lines.push(
         delta === undefined || (delta.added === 0 && delta.fixed === 0)
           ? summary
-          : `${summary} ${fill(MODEL_API_MODEL_TEXT.verifyFileChanges, {
+          : `${summary} ${fill(VERIFY_MODEL_TEXT.verifyFileChanges, {
               added: String(delta.added),
               fixed: String(delta.fixed),
             })}`,

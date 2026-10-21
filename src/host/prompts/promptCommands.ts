@@ -6,7 +6,7 @@ import type {
   PromptImportSource,
   PromptSharer,
 } from '../../core/prompts/promptImport'
-import { PROMPT_LIMITS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { savedPromptSchema, type SavedPrompt } from '../../shared/prompts'
 import { promptDraftSchema } from '../../core/prompts/promptTypes'
 import * as z from 'zod/mini'
@@ -269,7 +269,7 @@ export class PromptCommands {
     else {
       const body = promptContextText(input)
       if (body === undefined || body.trim() === '') throw new Error(UI_TEXT.promptFileInvalid)
-      const firstLine = body.split('\n', 1)[0]?.trim().slice(0, PROMPT_LIMITS.title) ?? ''
+      const firstLine = body.split('\n', 1)[0]?.trim() ?? ''
       const title = firstLine === '' ? UI_TEXT.sharePrompt : firstLine
       prompt = this.deps.library.prepare({ title, body, tags: [], scope: 'user' })
     }

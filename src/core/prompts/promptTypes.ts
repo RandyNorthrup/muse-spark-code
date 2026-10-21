@@ -1,16 +1,18 @@
 import type { SavedPrompt } from '../../shared/prompts'
 
 import * as z from 'zod/mini'
-import { PROMPT_LIMITS } from '../../shared/constants'
 
-/** The editable fields only; trust, identities and timestamps belong to the host. */
+/**
+The editable fields only; trust, identities and timestamps belong to the
+host. D121: any title/body length stands — the removed 80/10000 ceilings
+were invented — so only a blank title refuses.
+*/
 export const promptDraftSchema = z.object({
   title: z.string().check(
     z.minLength(1),
-    z.maxLength(PROMPT_LIMITS.title),
     z.refine((title) => title.trim() !== ''),
   ),
-  body: z.string().check(z.maxLength(PROMPT_LIMITS.body)),
+  body: z.string(),
   tags: z.array(z.string().check(z.minLength(1))),
   scope: z.enum(['user', 'workspace']),
 })

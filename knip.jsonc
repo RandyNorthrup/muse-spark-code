@@ -19,6 +19,8 @@
     "src/webview/reporting/destinations/DestinationPicker.tsx",
     "src/runtime/reference.node.generated.ts",
     "src/runtime/reporting/reportsEntry.ts",
+    "src/runtime/reporting/reportInputsEntry.ts",
+    "src/runtime/reporting/playbookSchedulesInputsEntry.ts",
     "src/host/reporting/reportPanelEntry.ts",
     "src/webview/reporting/main.tsx",
     "src/extension.ts",
@@ -30,13 +32,25 @@
     "src/host/backend/providerPolicyEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    "src/host/backend/productionMediaEntry.ts",
+    "src/host/backend/productionAudioEntry.ts",
+    "src/runtime/runtimeMediaEntry.ts",
     // The deferred per-call helpers, built as dist/modelApiTools.js (MODELAPIDIET).
     "src/core/backends/modelapi/modelApiToolsEntry.ts",
+    // The verify loop's session side, built as dist/modelApiVerify.js (M68).
+    "src/core/backends/modelapi/modelApiVerifyEntry.ts",
+    // The image run-path, built as dist/modelApiImage.js (D6), loaded on the first image call.
+    "src/core/backends/modelapi/modelApiImageEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",
     "src/webview/usage/usage.tsx",
+    "src/runtime/companion/voiceEntry.ts",
+    "src/webview/voice/companion.ts",
     "src/host/conversation/conversationEntry.ts",
+    // CONVBUDGET: the session-transfer flows, required by path on the first
+    // export, import or share-file preview.
+    "src/host/conversation/conversationTransferEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
     "src/shared/reference/referenceEntry.ts",
@@ -55,16 +69,33 @@
     "src/runtime/resources/resourceJournalEntry.ts",
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
+    "src/runtime/vault/vaultBrokerEntry.ts",
+    "src/runtime/vault/vaultRuntimeEntry.ts",
+    // Installed lazy vault siblings, loaded by their same-build runtime paths.
+    "src/runtime/vault/brokerBindings.ts",
+    "src/runtime/vault/posixEntry.ts",
+    "src/runtime/vault/windowsEntry.ts",
+    "src/runtime/vault/storeEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
+    // The legal header-fix planner, built as dist/legalFix.js (D6), loaded by path.
+    "src/core/legal/legalFixEntry.ts",
     "src/host/prompts/promptEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
+    // The Muse Code backend's own bundle (PR206), required by path on its first start.
+    "src/host/backend/museCodeEntry.ts",
     "src/host/backend/providersEntry.ts",
     "src/host/backend/subscriptionsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+    // The sign-in gate's own bundle (CIFIX161B), required by path on the
+    // first credential, money or consent read.
+    "src/host/auth/authEntry.ts",
+    // The paid features' own bundle (CIFIX161B), required by path on the
+    // first paid consent, gate or usage read.
+    "src/host/paid/paidEntry.ts",
     "src/host/models/modelsSubscriptionsEntry.ts",
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
@@ -75,6 +106,13 @@
     // M115W: the lazy schedules bundle entry (v1 beside the v2 binding),
     // required by path on the first schedule use.
     "src/runtime/schedules/schedulesBundle.ts",
+    // SCHEDULEDELIVERY: the schedules' deferred editor-delivery binding,
+    // required by path on the first schedule delivery.
+    "src/host/schedules/scheduleDeliveryEntry.ts",
+    // SCHEDULESURFACES: the conversation's deferred schedule surfaces,
+    // required by path on the first schedule delivery, panel command or
+    // scheduled question.
+    "src/host/conversation/scheduleSurfacesEntry.ts",
     "src/core/backends/modelapi/foreignHooksEntry.ts",
     // M91: the hook and MCP-form runtime, imported by path on first use.
     "src/core/backends/modelapi/hookRuntimeEntry.ts",
@@ -93,16 +131,30 @@
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
     "src/host/git/conversationGitEntry.ts",
+    // M123's native Git route (D104), required by path by the conversation Git
+    // bundle where `vscode.git` is missing.
+    "src/runtime/panel/git/nativeGitEntry.ts",
     // The Model API's session store (D14), required by path when its host is first built.
     "src/host/backend/fileSessionStoreEntry.ts",
     // The Create AGENTS.md command (D15), required by path when that command runs.
     "src/host/commands/rulesFileEntry.ts",
+    // ACTIVATIONROOM: the CLI-backed and workspace command flows, required by
+    // path on the first of those commands.
+    "src/host/commands/commandsEntry.ts",
+    // The guarded process-start layer (D24), required by path beside activation.
+    "src/core/execGuardEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by
     // path on its first use (D6, 2026-10-03).
     "src/host/ide/codeIntelEntry.ts",
     "src/host/voice/voiceEntry.ts",
+    // Linux's offline voice driver, required by path on the first Linux
+    // recording (D6, D140).
+    "src/host/voice/voiceLinuxEntry.ts",
+    // Voice dictation's setups, required by path at their construction
+    // points (D6).
+    "src/host/voice/dictationEntry.ts",
     // The window's web fetch (M69), required by path on the first fetch (D6, 2026-10-04).
     "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.
@@ -110,6 +162,9 @@
     // The capacity estimator's engine (M117, PLAN.md D97), required by path
     // on the first estimate.
     "src/host/estimator/estimatorEntry.ts",
+    // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6), required by
+    // path the first time an estimate needs a plan snapshot.
+    "src/host/estimator/planSnapshotEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.
@@ -130,9 +185,11 @@
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
     "src/runtime/sharing/sharingEntry.ts",
-    // M105 media attachments and screen recording, each required by path on
-    // first use (dist/media.js, dist/screenRecord.js).
+    // M105 media attachments, the window's media registry and screen
+    // recording, each required by path on first use (dist/media.js,
+    // dist/mediaHost.js, dist/screenRecord.js).
     "src/host/media/mediaEntry.ts",
+    "src/host/media/mediaHostEntry.ts",
     "src/host/media/screenRecordEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
@@ -144,11 +201,25 @@
     "src/runtime/schedules/backgroundEntry.ts",
     // The vault's window (M109 W), required by path on the first vault command.
     "src/host/vault/vaultPanelEntry.ts",
+    // The vault's explicit-action code, required by path on the first vault
+    // action (RVAPP-CM1091D5 BYTES).
+    "src/host/vault/vaultActionsEntry.ts",
+    // C-M109-1 (lead decision 5): the vault runtime bundle's esbuild entry
+    // (scripts/build.mjs), loaded by file name on the first vault need,
+    // which knip does not trace.
+    "src/runtime/vault/vaultRuntimeEntry.ts",
+    // The key-store migration's own chunk (D89.14 lane M), required by path
+    // on the first unlock edge.
+    "src/host/vault/vaultMigrationEntry.ts",
     // The vault harness page and its runner (M109 U): the page is the harness
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
     "test/harness/vault/main.tsx",
     "test/harness/vault/run.mjs",
+    // The mounted-vault harness page and its runner (C-M109-1 P1): same
+    // by-path shape as U's (`node test/harness/vault/run-mounted.mjs`).
+    "test/harness/vault/mounted.tsx",
+    "test/harness/vault/run-mounted.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
@@ -161,13 +232,31 @@
     "test/harness/usageHost.mjs",
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
+    // The badge Worker; wrangler deploys worker.js by path (lane STANDINS:
+    // its only in-repo importer was the deleted KV-stand-in test).
+    "infra/marketplace-hook/worker.js",
     "test/e2e/**/*.test.ts",
+    "test/unit/helpers/vault/sessionClientChild.ts",
+    "test/unit/helpers/vault/sessionBrokerChild.ts",
+    // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
+    "test/unit/helpers/vault/writerCrashChild.ts",
+    // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
+    // by path; knip does not trace esbuild entryPoints.
+    "test/unit/helpers/vault/windowsPipeRelayChild.ts",
+    // Round-4 two-process ledger proof bundles this child by path; esbuild
+    // entries are not traced.
+    "test/unit/helpers/media/ledgerChild.ts",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.
     "test/e2e/reportsEntry.ts",
     // The README-shots script starts this reporting verifier by path
     // (scripts/readme-shots.mjs), which knip does not trace.
     "test/harness/reporting/verify.mjs",
+    // The verifier's esbuild stdin bundle (`export * from
+    // './test/unit/reportKindRenderFixtures' plus a computed dynamic import)
+    // reads this fixture module's renderFixture/REPORT_THEMES, which knip
+    // does not trace.
+    "test/unit/reportKindRenderFixtures.ts",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
@@ -194,19 +283,35 @@
     // M109 (A credential vault and broker for agents, D89): the vault/broker
     // service lands later; remote-server MCP OAuth tokens are born in the
     // vault. Wiring: the vault panel and broker entries require these by path.
+    // C-M109-1's broker management side, repository, Windows pipe relay,
+    // batch-import builder and keyring anchor ride the pending broker-process
+    // lanes (C-M109-1b/c; REPORTJOIN knip deferral, PLAN.md section 7):
+    // constructed beside the broker or required by its entry, never imported
+    // statically yet.
+    "src/core/vault/broker/management.ts",
+    "src/core/vault/broker/repository.ts",
+    "src/core/vault/broker/windowsPipe.ts",
+    "src/core/vault/migrate/prepareImport.ts",
+    "src/runtime/vault/keyringAnchor.ts",
     "src/core/vault/backup.ts",
     "src/core/vault/broker/audit.ts",
     "src/core/vault/broker/epoch.ts",
+    // RVMSM109: restored held work MSM109 deleted as scaffolding. windowsPipe
+    // is lane C-M109-1c's contract (docs/design/vault-windows-pipe-helper.md);
+    // the two migration codecs are the key-store migration's (D89.14, lane M).
+    "src/core/vault/broker/windowsPipe.ts",
     "src/core/vault/exec/brokerLease.ts",
     "src/core/vault/exec/entry.ts",
     "src/core/vault/exec/helpers.ts",
     "src/core/vault/exec/tools.ts",
     "src/core/vault/fleet.ts",
     "src/core/vault/keyslots.ts",
+    "src/core/vault/migrate/accountSecrets.ts",
     "src/core/vault/migrate/importFile.ts",
     "src/core/vault/migrate/material.ts",
     "src/core/vault/migrate/migrate.ts",
     "src/core/vault/migrate/modelApi.ts",
+    "src/core/vault/migrate/providerCredentials.ts",
     "src/core/vault/remote.ts",
     "src/core/vault/ssh/brokerAccess.ts",
     "src/core/vault/ssh/endpoint.ts",
@@ -267,7 +372,6 @@
     "src/core/schedules/events/git.ts",
     "src/core/schedules/grant.ts",
     "src/core/schedules/time/clock.ts",
-    "src/core/schedules/time/loop.ts",
     "src/core/schedules/time/missed.ts",
     "src/host/schedules/backgroundTarget.ts",
     "src/webview/schedules/DeferredReportActionEditor.tsx",
@@ -479,7 +583,21 @@
   // System programs the tests start by name: mkfifo (POSIX coreutils) makes
   // the M80 stuck-output pipe and the pipe M86 refuses to open
   // (test/unit/writeRecorder.test.ts); both cases skip Windows.
-  "ignoreBinaries": ["gitleaks", "mkfifo"],
+  // M9 uses the installed CMake/strip toolchain for prebuilt native artifacts;
+  // cc/c++ compile only the fake-engine and hostile-plugin test fixtures.
+  // readelf checks the actual packaged loader search paths in real-engine tests.
+  // The vault suites drive the installed ssh-keygen probe binary for real.
+  // These are system programs, not npm dependencies.
+  "ignoreBinaries": [
+    "gitleaks",
+    "mkfifo",
+    "cmake",
+    "strip",
+    "readelf",
+    "cc",
+    "^c\\+\\+$",
+    "ssh-keygen"
+  ],
 
   "ignoreExportsUsedInFile": true,
 

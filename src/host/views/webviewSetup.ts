@@ -1,29 +1,33 @@
+import { estimateFailureText } from '../../shared/estimateDiagnostic'
 // Shared wiring for both webview surfaces (sidebar view and editor panel):
 // options, HTML with a fresh CSP nonce and document id (M107), the inbound message handler, and the
 // `ChatSurface` handle (chatSurface.ts) the rest of the host uses to talk back.
 
 import * as vscode from 'vscode'
-import {
-  UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
-  WEBVIEW_SCRIPT_FILE,
-  WEBVIEW_STYLE_FILE,
-} from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { UI_TEXT, WEBVIEW_SCRIPT_FILE, WEBVIEW_STYLE_FILE } from '../../shared/constants'
 import {
   type HostToWebviewMessage,
   parseWebviewToHostMessage,
   isEstimatorWebviewMessage,
   type SettingsSnapshot,
 } from '../../shared/protocol'
+import { composerPlaceholderFor } from './composerPlaceholder'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from './chatSurface'
 import { mintFocusRequest, shouldDeliverFocusInput } from './focusGate'
+import { webviewBundleErrorHtml, type WebviewBundleResolution } from './webviewBundle'
+import { resolveWebviewBundleDir, WebviewBundleError } from './webviewBundleRoot'
 import { webviewErrorLog } from './webviewErrors'
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
+  /** The machine's storage for the verified webview copy (VSIXWEB A). */
+  readonly globalStoragePath: string
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   /** The display language's table, installed at activation, for every webview's HTML (D33). */
   readonly l10n: UiTable
   readonly log: Logger
@@ -41,10 +45,10 @@ export interface SurfaceOptions {
   readonly restoredSessionId: string | undefined
   readonly reveal: () => void
   /**
-   * Whether this surface is the active one for a focus decision (panel-focus
-   * F3): the panel's `active`, the sidebar's `visible`. Absent in tests,
-   * where every surface counts as active.
-   */
+  Whether this surface is the active one for a focus decision (panel-focus
+  F3): the panel's `active`, the sidebar's `visible`. Absent in tests,
+  where every surface counts as active.
+  */
   readonly isActive?: () => boolean
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
@@ -53,10 +57,10 @@ export interface SurfaceOptions {
 }
 
 /**
- * Whether a message ends the restore a panel is owed (M25): a session is
- * live on the surface (its history went out, or a new one started), or the
- * conversation was cleared (from the panel or a keybinding).
- */
+Whether a message ends the restore a panel is owed (M25): a session is
+live on the surface (its history went out, or a new one started), or the
+conversation was cleared (from the panel or a keybinding).
+*/
 function isRestoreEnding(message: HostToWebviewMessage): boolean {
   return (
     message.type === 'historyLoaded' ||
@@ -69,7 +73,7 @@ function buildInitMessage(context: WebviewHostContext, isSideChat: boolean): Hos
   return {
     type: 'init',
     emptyStateHint: UI_TEXT.emptyStateHint,
-    composerPlaceholder: UI_TEXT.composerPlaceholder,
+    composerPlaceholder: composerPlaceholderFor(process.platform),
     settings: isSideChat
       ? { ...context.getSettings(), initialPermissionMode: 'plan' }
       : context.getSettings(),
@@ -78,16 +82,67 @@ function buildInitMessage(context: WebviewHostContext, isSideChat: boolean): Hos
 }
 
 /**
- * Configures `webview` and starts handling its messages. Disposing the
- * returned surface stops the message handling; callers tie it to the owning
- * view's or panel's `onDidDispose`.
- */
+A surface with no verified bundle behind it (VSIXWEB A): the panel shows
+the fixed sentence, messages drop, and revealing still brings the failure
+into view. Reload and dispose stay quiet; a fresh surface (a reopened
+panel) retries the bundle.
+*/
+function inertSurface(options: SurfaceOptions): ChatSurface {
+  return {
+    id: options.id,
+    isSideChat: options.isSideChat === true,
+    documentId: '',
+    post() {
+      // No verified bundle behind the surface: outbound messages drop.
+    },
+    reveal: () => {
+      options.reveal()
+    },
+    markUnread() {
+      // Nothing unread or titled without a document.
+    },
+    setTitle() {
+      // Nothing unread or titled without a document.
+    },
+    reload() {
+      // A reopened panel retries the bundle; the dead document never rebuilds.
+    },
+    takeRestoredSessionId: () => options.restoredSessionId,
+    dispose() {
+      // Nothing subscribed, so nothing to stop.
+    },
+  }
+}
+
+/**
+Configures `webview` and starts handling its messages. Disposing the
+returned surface stops the message handling; callers tie it to the owning
+view's or panel's `onDidDispose`.
+*/
 export function configureWebview(
   webview: vscode.Webview,
   context: WebviewHostContext,
   options: SurfaceOptions,
 ): ChatSurface {
-  const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  // The verified webview copy (VSIXWEB A): a packaged install extracts it
+  // once per archive digest into global storage, the source tree serves its
+  // loose files. A missing, damaged or unwritable extraction shows the
+  // fixed sentence and drops messages, never unverified files.
+  let bundleRoot: vscode.Uri
+  try {
+    bundleRoot = vscode.Uri.file(
+      resolveWebviewBundleDir({
+        extensionPath: context.extensionUri.fsPath,
+        globalStoragePath: context.globalStoragePath,
+      }),
+    )
+  } catch (error: unknown) {
+    if (!(error instanceof WebviewBundleError)) throw error
+    context.log.error(`Chat webview bundle failed: ${failureForLog(error)}`)
+    webview.options = { enableScripts: true, localResourceRoots: [] }
+    webview.html = webviewBundleErrorHtml(UI_TEXT.webviewBundleUnavailable, context.l10n.locale)
+    return inertSurface(options)
+  }
   webview.options = { enableScripts: true, localResourceRoots: [bundleRoot] }
   // M107: each build names its document; the id it returns is the only current one.
   const buildDocument = (): string => {
@@ -170,16 +225,37 @@ export function configureWebview(
           const parsed = parser.parseEstimatorToHostMessage(raw)
           if (!parsed.ok) {
             context.log.warn(`Dropped malformed webview message: ${parsed.error}`)
+            surface.post({
+              type: 'estimatorFailure',
+              diagnostic: { estimateDiagnostic: 'invalid-input' },
+            })
+            surface.post({
+              type: 'estimatorStarted',
+              diagnostic: { estimateDiagnostic: 'invalid-input' },
+            })
             return
           }
           context.onConversationMessage(surface, parsed.message)
         })
         .catch((error: unknown) => {
-          if (!isActive || generation !== estimatorGeneration) return
-          context.log.error(`Estimator boundary unavailable: ${String(error)}`)
-          surface.post({ type: 'estimatorFailure', reason: UI_TEXT.estimateUnavailable })
-          surface.post({ type: 'estimatorStarted', error: UI_TEXT.estimateUnavailable })
-          surface.post({ type: 'notice', level: 'warning', text: UI_TEXT.estimateUnavailable })
+          if (!isActive || generation !== estimatorGeneration) {
+            context.log.warn(`Estimator boundary unavailable: ${failureForLog(error)}`)
+            return
+          }
+          context.log.error(`Estimator boundary unavailable: ${failureForLog(error)}`)
+          surface.post({
+            type: 'estimatorFailure',
+            diagnostic: { estimateDiagnostic: 'estimate-unavailable' },
+          })
+          surface.post({
+            type: 'estimatorStarted',
+            diagnostic: { estimateDiagnostic: 'estimate-unavailable' },
+          })
+          surface.post({
+            type: 'notice',
+            level: 'warning',
+            text: estimateFailureText({ estimateDiagnostic: 'estimate-unavailable' }),
+          })
         })
       return
     }

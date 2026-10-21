@@ -109,10 +109,10 @@ export function teamEntryForItem(item: ItemSnapshot): TeamTranscriptEntry | unde
 }
 
 /**
- * Fold a full item re-emission into its card: the host's latest status and
- * payload win; a re-emission without the payload keeps the card and moves
- * its status and confirmed answer (`teamDecision`).
- */
+Fold a full item re-emission into its card: the host's latest status and
+payload win; a re-emission without the payload keeps the card and moves
+its status and confirmed answer (`teamDecision`).
+*/
 export function mergeTeamEntry(
   entry: TranscriptEntry,
   item: ItemSnapshot,

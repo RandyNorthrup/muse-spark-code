@@ -1,21 +1,17 @@
-import { execResourceFile } from '../resources/launcher'
 import * as z from 'zod/mini'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { lstat, mkdir, open, readFile, readdir, realpath, rename, unlink } from 'node:fs/promises'
+import { lstat, mkdir, open, readdir, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_HISTORY_MAX_PER_KIND,
   REPORT_MAX_ID_CHARS,
-  REPORT_PROCESS_START_FIELD_INDEX,
   REPORT_WRITER_LOCK_WAIT_MS,
   REPORT_WRITER_LOCK_BACKOFF_MS,
   REPORT_WRITER_LOCK_BACKOFF_MAX_MS,
   REPORT_WRITER_LOCK_PROBE_MS,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
   REPORT_MAX_SOURCES,
   REPORT_MAX_TEXT_CHARS,
   REPORT_STORAGE_FILE_MODE,
@@ -30,8 +26,9 @@ import {
   type ReportKind,
 } from '../../shared/reportSchema'
 import { handleIdentity, lstatIdentity, sameFile } from '../fs/fileIdentity'
-import { withoutCredentials } from '../credentialEnvironment'
 import { compareReports } from './diff'
+import { processStartTime } from '../locks/processOwner'
+import { isErrno } from '../fs/errno'
 
 /** R supplies canonical, scrubbed JSON and verifies the saved content hash on decode. */
 export interface ReportHistoryCodec {
@@ -63,12 +60,10 @@ function compareSavedReports(a: SavedReport, b: SavedReport): number {
   return a.id > b.id ? 1 : 0
 }
 
-function hasCode(error: unknown, code: string): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
-}
-
 function validName(name: string): void {
-  if (!REPORT_STORAGE_KEY_PATTERN.test(name)) throw new Error(UI_TEXT.reportUi.generationFailed)
+  const reportUi = UI_TEXT.reportUi
+
+  if (!REPORT_STORAGE_KEY_PATTERN.test(name)) throw new Error(reportUi.generationFailed)
 }
 
 const lockOwnerSchema = z.strictObject({
@@ -76,79 +71,68 @@ const lockOwnerSchema = z.strictObject({
   startedAt: z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_ID_CHARS)),
   token: z.uuid(),
 })
-const execFileAsync = execResourceFile
+// A lock owner's birth when no process table answers it. Real births are
+// digits on every platform (the probe enforces it), so this value can never
+// collide with one; isDead skips birth comparison for it and lets the
+// signal govern.
+const BIRTH_UNAVAILABLE = 'birth-unavailable'
 const processBirth: { own?: Promise<string | undefined> } = {}
 
-/** OS birth identity, so a reused PID never keeps an abandoned writer lock alive. */
-async function processStart(pid: number, probeBudgetMs: number): Promise<string | undefined> {
-  try {
-    process.kill(pid, 0)
-  } catch (error: unknown) {
-    if (hasCode(error, 'ESRCH')) return
-    throw error
-  }
-  if (process.platform === 'linux') {
-    try {
-      const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
-      const fields = stat
-        .slice(stat.lastIndexOf(')') + 1)
-        .trim()
-        .split(/\s+/)
-      const startedAt = fields[REPORT_PROCESS_START_FIELD_INDEX]
-      if (startedAt === undefined || !/^\d+$/.test(startedAt))
-        throw new Error(UI_TEXT.reportUi.saveFailed)
-      return startedAt
-    } catch (error: unknown) {
-      if (hasCode(error, 'ENOENT') || hasCode(error, 'ESRCH')) return
-      throw error
-    }
-  }
-  const env = { ...withoutCredentials(process.env), LC_ALL: 'C', TZ: 'UTC' }
-  let file = '/bin/ps'
-  let args = ['-o', 'lstart=', '-p', String(pid)]
-  if (process.platform === 'win32') {
-    const systemRoot = process.env['SystemRoot']
-    if (systemRoot === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
-    file = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
-    args = [
-      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      // Module discovery can consume the probe deadline on a cold/loaded rig.
-      `try { [Diagnostics.Process]::GetProcessById(${String(pid)}).StartTime.ToFileTimeUtc() } catch [ArgumentException] { }`,
-    ]
-  }
-  const { stdout } = await execFileAsync('probe', file, args, {
-    env,
-    windowsHide: true,
-    timeout: Math.min(REPORT_WRITER_LOCK_PROBE_MS, probeBudgetMs),
-  })
-  return stdout.trim() || undefined
+/**
+OS birth identity as digits, so a reused PID never keeps an abandoned
+writer lock alive: the shared table probe (epoch milliseconds on macOS
+and Windows, ticks on Linux), which needs no resource host and never
+throws. A governed launch here would fail wherever no host is
+configured and strand every lock birthless.
+*/
+async function processStart(pid: number): Promise<string | undefined> {
+  const started = await processStartTime(pid)
+  return started === undefined ? undefined : String(started)
 }
 
+// This process's lock identity. The OS birth when the table answers;
+// BIRTH_UNAVAILABLE when it does not (a sandboxed or hardened machine with
+// no process table). A birthless owner still locks safely: death is proven
+// by signal, and an unreadable birth never authorizes removal (see isDead).
 async function ownStart(): Promise<string> {
-  const deadline = performance.now() + REPORT_WRITER_LOCK_PROBE_MS
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const remaining = deadline - performance.now()
-      if (remaining <= 0) throw new Error(UI_TEXT.reportUi.saveFailed)
-      const startedAt = await processStart(
-        process.pid,
-        Math.max(1, Math.floor(remaining / (2 - attempt))),
-      )
-      if (startedAt === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
-      return startedAt
-    } catch (error: unknown) {
-      if (attempt === 1 || performance.now() >= deadline)
-        throw new Error(UI_TEXT.reportUi.saveFailed, { cause: error })
-    }
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    const startedAt = await Promise.race([
+      processStart(process.pid),
+      new Promise<undefined>((resolve) => {
+        timeout = setTimeout(() => {
+          resolve(undefined)
+        }, REPORT_WRITER_LOCK_PROBE_MS)
+      }),
+    ])
+    return startedAt ?? BIRTH_UNAVAILABLE
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout)
   }
-  throw new Error(UI_TEXT.reportUi.saveFailed)
 }
 
 async function startOf(
   pid: number,
   probeBudgetMs = REPORT_WRITER_LOCK_PROBE_MS,
 ): Promise<string | undefined> {
-  if (pid !== process.pid) return await processStart(pid, probeBudgetMs)
+  if (pid !== process.pid) {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await Promise.race([
+        processStart(pid),
+        new Promise<undefined>((resolve) => {
+          timeout = setTimeout(
+            () => {
+              resolve(undefined)
+            },
+            Math.max(1, Math.floor(probeBudgetMs)),
+          )
+        }),
+      ])
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout)
+    }
+  }
   processBirth.own ??= ownStart()
   const pending = processBirth.own
   try {
@@ -168,6 +152,8 @@ export class ReportStorage {
     isWriting: boolean,
     work: (files: ReportFiles) => Promise<T>,
   ): Promise<T> {
+    const reportUi = UI_TEXT.reportUi
+
     for (const part of parts) validName(part)
     const root = path.resolve(this.agentDataFolder)
     if (isWriting) await mkdir(root, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
@@ -179,15 +165,15 @@ export class ReportStorage {
         try {
           await mkdir(directory, { mode: CHECKPOINT_STORAGE_MODE })
         } catch (error: unknown) {
-          if (!hasCode(error, 'EEXIST')) throw error
+          if (!(isErrno(error) && error.code === 'EEXIST')) throw error
         }
       }
       try {
         const info = await lstat(directory)
-        if (!info.isDirectory() || info.isSymbolicLink())
-          throw new Error(UI_TEXT.reportUi.generationFailed)
+        if (!info.isDirectory() || info.isSymbolicLink()) throw new Error(reportUi.generationFailed)
       } catch (error: unknown) {
-        if (isWriting || !hasCode(error, 'ENOENT')) throw error
+        if (isWriting) throw error
+        if (!(isErrno(error) && error.code === 'ENOENT')) throw error
         isMissing = true
         break
       }
@@ -195,17 +181,17 @@ export class ReportStorage {
     const realDirectory = isMissing ? undefined : await realpath(directory)
     const canonical = realDirectory?.replaceAll('\\', '/')
     const confined = async () => {
-      if (canonical === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
+      if (canonical === undefined) throw new Error(reportUi.generationFailed)
       const info = await lstat(directory)
       const actual = await realpath(directory)
       if (info.isSymbolicLink() || actual.replaceAll('\\', '/') !== canonical)
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(reportUi.generationFailed)
       // An ancestor must not have become a link into a different tree.
       let ancestor = directory
       while (ancestor.replaceAll('\\', '/') !== root.replaceAll('\\', '/')) {
         ancestor = path.dirname(ancestor)
         const info = await lstat(ancestor)
-        if (info.isSymbolicLink()) throw new Error(UI_TEXT.reportUi.generationFailed)
+        if (info.isSymbolicLink()) throw new Error(reportUi.generationFailed)
       }
     }
     const fileFor = (name: string) => {
@@ -216,8 +202,7 @@ export class ReportStorage {
     // reached with no links left, by lstat or through an open handle. It is
     // gone, as if ENOENT, not an unsafe file: refusing it failed a release
     // and left a live lease behind (CIFIX017R3).
-    const absent = () =>
-      Object.assign(new Error(UI_TEXT.reportUi.generationFailed), { code: 'ENOENT' })
+    const absent = () => Object.assign(new Error(reportUi.generationFailed), { code: 'ENOENT' })
     const regular = async (file: string) => {
       const info = await lstatIdentity(file)
       if (info.nlink < BigInt(REPORT_STORAGE_LINK_COUNT)) throw absent()
@@ -226,7 +211,7 @@ export class ReportStorage {
         info.isSymbolicLink() ||
         info.nlink !== BigInt(REPORT_STORAGE_LINK_COUNT)
       )
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(reportUi.generationFailed)
       return info
     }
     const files: ReportFiles = {
@@ -242,7 +227,7 @@ export class ReportStorage {
           const info = await lstat(fileFor(name))
           return info.mtimeMs
         } catch (error: unknown) {
-          if (hasCode(error, 'ENOENT')) return
+          if (isErrno(error) && error.code === 'ENOENT') return
           throw error
         }
       },
@@ -267,7 +252,7 @@ export class ReportStorage {
               actual.nlink !== BigInt(REPORT_STORAGE_LINK_COUNT) ||
               actual.size > BigInt(maximum)
             )
-              throw new Error(UI_TEXT.reportUi.generationFailed)
+              throw new Error(reportUi.generationFailed)
             const bytes = Buffer.alloc(Number(actual.size) + 1)
             let size = 0
             while (size < bytes.length) {
@@ -277,25 +262,25 @@ export class ReportStorage {
             }
             await confined()
             if (size > Number(actual.size) || !sameFile(actual, await regular(file)))
-              throw new Error(UI_TEXT.reportUi.generationFailed)
+              throw new Error(reportUi.generationFailed)
             return bytes.subarray(0, size).toString('utf8')
           } finally {
             await handle.close()
           }
         } catch (error: unknown) {
-          if (hasCode(error, 'ENOENT')) return
+          if (isErrno(error) && error.code === 'ENOENT') return
           throw error
         }
       },
       async write(name, text) {
         if (!isWriting || Buffer.byteLength(text) > REPORT_MAX_TEXT_CHARS * REPORT_MAX_SOURCES)
-          throw new Error(UI_TEXT.reportUi.saveFailed)
+          throw new Error(reportUi.saveFailed)
         const target = fileFor(name)
         await confined()
         try {
           await regular(target)
         } catch (error: unknown) {
-          if (!hasCode(error, 'ENOENT')) throw error
+          if (!(isErrno(error) && error.code === 'ENOENT')) throw error
         }
         const stage = fileFor(`stage-${randomUUID()}`)
         const handle = await open(stage, 'wx', REPORT_STORAGE_FILE_MODE)
@@ -305,7 +290,7 @@ export class ReportStorage {
           try {
             if (sameFile(identity, await regular(stage))) await unlink(stage)
           } catch (error: unknown) {
-            if (!hasCode(error, 'ENOENT')) throw error
+            if (!(isErrno(error) && error.code === 'ENOENT')) throw error
           }
         }
         try {
@@ -317,15 +302,14 @@ export class ReportStorage {
             await handle.close()
           }
           await confined()
-          if (!sameFile(identity, await regular(stage)))
-            throw new Error(UI_TEXT.reportUi.saveFailed)
+          if (!sameFile(identity, await regular(stage))) throw new Error(reportUi.saveFailed)
           await rename(stage, target)
         } finally {
           await cleanup()
         }
       },
       async remove(name) {
-        if (!isWriting) throw new Error(UI_TEXT.reportUi.saveFailed)
+        if (!isWriting) throw new Error(reportUi.saveFailed)
         await confined()
         const file = fileFor(name)
         await regular(file)
@@ -335,7 +319,7 @@ export class ReportStorage {
     if (!isWriting) return await work(files)
     const lock = fileFor('writer.lock')
     const startedAt = await startOf(process.pid)
-    if (startedAt === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
+    if (startedAt === undefined) throw new Error(reportUi.saveFailed)
     const owner = lockOwnerSchema.parse({ pid: process.pid, startedAt, token: randomUUID() })
     const deadline = performance.now() + REPORT_WRITER_LOCK_WAIT_MS
     let backoff = REPORT_WRITER_LOCK_BACKOFF_MS
@@ -354,9 +338,27 @@ export class ReportStorage {
       const names = await files.list()
       return names.filter((name) => name.startsWith('lease-'))
     }
-    const isDead = async (recorded: z.infer<typeof lockOwnerSchema>) =>
-      (await startOf(recorded.pid, Math.max(1, Math.floor(deadline - performance.now())))) !==
-      recorded.startedAt
+    // Death is proven by signal; birth comparison only refines a live
+    // process (PID reuse). An unreadable birth — ours, theirs, or a
+    // birthless record — never authorizes removal: doubt keeps the lock.
+    const isDead = async (recorded: z.infer<typeof lockOwnerSchema>) => {
+      try {
+        process.kill(recorded.pid, 0)
+      } catch (error: unknown) {
+        return isErrno(error) && error.code === 'ESRCH'
+      }
+      if (recorded.startedAt === BIRTH_UNAVAILABLE) return false
+      try {
+        const live = await startOf(
+          recorded.pid,
+          Math.max(1, Math.floor(deadline - performance.now())),
+        )
+        return live !== undefined && live !== recorded.startedAt
+      } catch {
+        // A failed probe proves nothing about a live process: doubt keeps.
+        return false
+      }
+    }
     // Rename creates a barrier at the same instant the lock name becomes free.
     // Unique tombstone names are never reused, so deletion cannot hit a replacement.
     const didRetire = async (
@@ -398,7 +400,7 @@ export class ReportStorage {
     }
     const pause = async () => {
       const remaining = deadline - performance.now()
-      if (remaining <= 0) throw new Error(UI_TEXT.reportUi.saveFailed)
+      if (remaining <= 0) throw new Error(reportUi.saveFailed)
       await delay(Math.min(backoff, remaining))
       backoff = Math.min(backoff * 2, REPORT_WRITER_LOCK_BACKOFF_MAX_MS)
     }
@@ -416,7 +418,7 @@ export class ReportStorage {
       try {
         handle = await open(lock, 'wx', REPORT_STORAGE_FILE_MODE)
       } catch (error: unknown) {
-        if (!hasCode(error, 'EEXIST')) throw error
+        if (!(isErrno(error) && error.code === 'EEXIST')) throw error
         try {
           const recorded = await readOwner('writer.lock')
           if (recorded !== undefined && (await isDead(recorded)))
@@ -443,10 +445,10 @@ export class ReportStorage {
               }
               if (await didRetire(name, owner.token, identity)) return
             } catch (error: unknown) {
-              if (!hasCode(error, 'ENOENT')) throw error
+              if (!(isErrno(error) && error.code === 'ENOENT')) throw error
             }
           }
-          if (performance.now() >= releaseDeadline) throw new Error(UI_TEXT.reportUi.saveFailed)
+          if (performance.now() >= releaseDeadline) throw new Error(reportUi.saveFailed)
           await delay(REPORT_WRITER_LOCK_BACKOFF_MS)
         }
       }
@@ -459,7 +461,7 @@ export class ReportStorage {
               return
             }
           } catch (error: unknown) {
-            if (!hasCode(error, 'ENOENT')) throw error
+            if (!(isErrno(error) && error.code === 'ENOENT')) throw error
           }
         }
       }
@@ -472,14 +474,14 @@ export class ReportStorage {
         await handle.close()
         isHandleOpen = false
         await confined()
-        if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
+        if (!sameFile(identity, await regular(lock))) throw new Error(reportUi.saveFailed)
         const pending = await tombstones()
         if (pending.length > 0) {
           await pause()
           continue
         }
         // Restoring a live tombstone can displace us while the scan is pending.
-        if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
+        if (!sameFile(identity, await regular(lock))) throw new Error(reportUi.saveFailed)
         return await work(files)
       } finally {
         // A restore can displace a tentative creator. Its unlinked inode owns
@@ -508,6 +510,8 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
   ) {}
 
   private async entries(files: ReportFiles, kind: ReportKind) {
+    const reportUi = UI_TEXT.reportUi
+
     const entries: SavedReport[] = []
     const names = await files.list()
     for (const name of names) {
@@ -519,21 +523,23 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
       const document = reportDocumentSchema.parse(this.deps.codec.decode(text))
       const id = createHash('sha256').update(text).digest('hex')
       if (name !== `${id}.json` || document.header.kind !== kind)
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(reportUi.generationFailed)
       entries.push({ id, document, savedAt })
     }
     return entries.toSorted(compareSavedReports)
   }
 
   private async retainedEntries(files: ReportFiles, kind: ReportKind) {
+    const reportUi = UI_TEXT.reportUi
+
     const saved = await this.entries(files, kind)
-    if (saved.length > REPORT_HISTORY_MAX_PER_KIND)
-      throw new Error(UI_TEXT.reportUi.generationFailed)
+    if (saved.length > REPORT_HISTORY_MAX_PER_KIND) throw new Error(reportUi.generationFailed)
     return saved
   }
 
   public async save(workspaceKey: string, input: ReportDocument) {
     if (!this.deps.keepHistory()) return { status: 'disabled' as const }
+    const reportUi = UI_TEXT.reportUi
     const document = reportDocumentSchema.parse(input)
     const scope = reportsMethods['reports/history'].params.parse({
       workspaceKey,
@@ -542,7 +548,7 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
     await this.deps.authorize(scope)
     const text = this.deps.codec.encode(document)
     const verified = reportDocumentSchema.parse(this.deps.codec.decode(text))
-    if (verified.header.kind !== scope.kind) throw new Error(UI_TEXT.reportUi.saveFailed)
+    if (verified.header.kind !== scope.kind) throw new Error(reportUi.saveFailed)
     const id = createHash('sha256').update(text).digest('hex')
     await this.deps.storage.transaction(
       ['history', workspaceKey, scope.kind],
@@ -558,7 +564,7 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
           { id, document: verified, savedAt },
         ].toSorted(compareSavedReports)
         const retained = entries.slice(0, REPORT_HISTORY_MAX_PER_KIND)
-        if (retained.every((entry) => entry.id !== id)) throw new Error(UI_TEXT.reportUi.saveFailed)
+        if (retained.every((entry) => entry.id !== id)) throw new Error(reportUi.saveFailed)
         const retainedIds = new Set(retained.map((entry) => entry.id))
         // Prune before publishing: a denied deletion cannot grow the bucket.
         // This also retries any excess artifacts left by an older writer.
@@ -573,6 +579,8 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
   public async history(
     input: Parameters<ReportsHostPort['history']>[0],
   ): ReturnType<ReportsHostPort['history']> {
+    const reportUi = UI_TEXT.reportUi
+
     try {
       const scope = reportsMethods['reports/history'].params.parse(input)
       await this.deps.authorize(scope)
@@ -588,13 +596,16 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
       )
       return { status: 'listed', entries }
     } catch {
-      return { status: 'failed', reason: UI_TEXT.reportUi.generationFailed }
+      // A history the storage cannot list is unavailable, never regenerated.
+      return { status: 'failed', reason: reportUi.generationFailed }
     }
   }
 
   public async get(
     input: Parameters<ReportsHostPort['get']>[0],
   ): ReturnType<ReportsHostPort['get']> {
+    const reportUi = UI_TEXT.reportUi
+
     try {
       const scope = reportsMethods['reports/get'].params.parse(input)
       await this.deps.authorize(scope)
@@ -610,12 +621,14 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
     } catch {
       // Malformed, redirected and foreign history is unavailable, never regenerated.
     }
-    return { status: 'failed', reason: UI_TEXT.reportUi.generationFailed }
+    return { status: 'failed', reason: reportUi.generationFailed }
   }
 
   public async compare(
     input: Parameters<ReportsHostPort['compare']>[0],
   ): ReturnType<ReportsHostPort['compare']> {
+    const reportUi = UI_TEXT.reportUi
+
     try {
       const scope = reportsMethods['reports/compare'].params.parse(input)
       const from = await this.get({
@@ -633,6 +646,6 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
     } catch {
       // Both saved ids must remain inside the authorized workspace and kind.
     }
-    return { status: 'failed', reason: UI_TEXT.reportUi.generationFailed }
+    return { status: 'failed', reason: reportUi.generationFailed }
   }
 }

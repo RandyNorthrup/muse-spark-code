@@ -1,5 +1,6 @@
 import process from 'node:process'
-import { spawn } from 'node:child_process'
+import type { GuardedChildEnv } from '../../executables'
+import { spawnGuarded } from '../../guardedChildProcess'
 import { randomUUID } from 'node:crypto'
 import { access, constants, mkdir, readFile, realpath } from 'node:fs/promises'
 import { setTimeout } from 'node:timers/promises'
@@ -13,6 +14,7 @@ import { LinuxResourceTreeReader, type LinuxTreeDeps } from './linux'
 import type { ResourceTreeKillResult } from './actions'
 import { ResourceTreeRegistry } from './registry'
 import { parseLinuxStat } from './posixTable'
+import { probeChildEnvironment } from '../../executables'
 import { runTreeProgram } from './run'
 
 /** Trusted launch site only. Scope gate runs before any workload instruction or fork. */
@@ -23,13 +25,13 @@ export async function launchLinuxResourceTree(
   options: {
     readonly ownedCgroupRoot?: string
     readonly cwd?: string
-    readonly env?: NodeJS.ProcessEnv
+    readonly env: GuardedChildEnv
     readonly deps?: LinuxTreeDeps
-  } = {},
+  },
 ) {
   if (process.platform !== 'linux') throw new Error('Linux resource launch unavailable')
   const id = `muse-spark-${randomUUID()}`
-  const env = options.env ?? {}
+  const env = options.env
   const gate = [
     '-c',
     `IFS= read -r scope && { [ "$scope" = - ] || printf '%s' "$$" > "$scope/cgroup.procs"; } && IFS= read -r gate && [ "$gate" = GO ] && exec "$@" 3<&-`,
@@ -45,7 +47,9 @@ export async function launchLinuxResourceTree(
       const managerOutput = await runTreeProgram(
         '/usr/bin/systemctl',
         ['--user', 'show', '--property=ControlGroup', '--value'],
-        { XDG_RUNTIME_DIR: `/run/user/${String(process.getuid?.())}` },
+        probeChildEnvironment({
+          XDG_RUNTIME_DIR: `/run/user/${String(process.getuid?.())}`,
+        }),
       )
       const manager = managerOutput.trim()
       const candidate = `/sys/fs/cgroup${manager}/app.slice/${id}.scope`
@@ -78,7 +82,7 @@ export async function launchLinuxResourceTree(
   })
   if (parent !== undefined) await reader.pinHome()
   const child = isManaged
-    ? spawn(
+    ? spawnGuarded(
         '/usr/bin/systemd-run',
         [
           '--user',
@@ -101,7 +105,7 @@ export async function launchLinuxResourceTree(
           stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
         },
       )
-    : spawn('/bin/sh', gate, {
+    : spawnGuarded('/bin/sh', gate, {
         cwd: options.cwd,
         env,
         detached: true,

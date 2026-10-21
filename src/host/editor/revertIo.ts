@@ -16,9 +16,9 @@ import type { RevertIo } from './editReview'
 
 export interface RevertIoDeps {
   /**
-   * The window's tool io, which records nothing (M86): a Revert is the
-   * user's edit, not the turn's.
-   */
+  The window's tool io, which records nothing (M86): a Revert is the
+  user's edit, not the turn's.
+  */
   readonly io: Pick<ToolIo, 'writeFileIfUnchanged' | 'hasUnsavedChanges'>
   readonly platform: NodeJS.Platform
   /** Moves a file to the trash (VS Code's `workspace.fs.delete` with `useTrash`). */

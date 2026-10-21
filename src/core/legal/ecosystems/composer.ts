@@ -5,8 +5,14 @@ import { UI_TEXT } from '../../../shared/constants'
 // licenses, the richest of the manifest formats; arrays of licenses read
 // as an `OR` choice. Nothing is installed.
 
-import type { EcosystemResult } from '../dependencies'
-import { dependency, parseJson, recordOf } from '../dependencies'
+import {
+  dependency,
+  parseJson,
+  recordOf,
+  countIncludedDependencies,
+  type EcosystemResult,
+  type LegalDependencyAdmission,
+} from '../dependencies'
 import { baseNameOf, compareLegalText, type LegalFileSnapshot } from '../files'
 
 function licenseOf(value: unknown): string | undefined {
@@ -72,10 +78,14 @@ function readRequirements(
 }
 
 /**
- * Read Composer evidence from the snapshot. Platform requirements
- * (`php`, `ext-*`) are the runtime, not distributed packages.
- */
-export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
+Read Composer evidence from the snapshot. Platform requirements
+(`php`, `ext-*`) are the runtime, not distributed packages.
+*/
+export function readComposer(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: LegalDependencyAdmission,
+): EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
   const projectLicenses: EcosystemResult['projectLicenses'][number][] = []
   const requirements: (ComposerPackage & {
@@ -223,15 +233,24 @@ export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
         licenseRaw: present.licenseRaw,
       }),
     )
-    incomplete.push(
-      fill(UI_TEXT.legalScanner.m152, { v0: entry.name, v1: entry.file, v2: present.file }),
-    )
+    if (isIncluded(dependency('composer', entry.file, entry.name, { version: entry.version })))
+      incomplete.push(
+        fill(UI_TEXT.legalScanner.m152, { v0: entry.name, v1: entry.file, v2: present.file }),
+      )
   }
-  const unresolved = dependencies.filter((dep) => dep.version === undefined).length
+  const unresolved = countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.version === undefined,
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m153, unresolved, { v0: unresolved }))
   }
-  const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
+  const withoutLicense = countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.licenseRaw === undefined,
+  )
   if (withoutLicense > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m154, withoutLicense, { v0: withoutLicense }))
   }

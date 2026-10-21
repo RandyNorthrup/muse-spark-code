@@ -6720,6 +6720,53 @@ the chat still focuses the input exactly as before
 
 <!-- plan-archive:end id="decisions-6409d5aad-14637" -->
 
+## D117 — The terminal agent documents itself per command
+
+<!-- plan-archive:begin id="decisions-819ec0f8b-14320" lines="14320-14357" at="819ec0f8b" bytes="2747" sha256="26ed459cf6b7b7ec0c1438e8f2a1ebb6c0754ec4dcc3c1a909c0b017fdc0123d" -->
+
+**Lead brief (2026-10-12).** Measured on the released 0.18.1 agent:
+`exec --help` printed the whole Help & Reference and never listed exec's own
+options; `auth --help` printed the top-level usage again; `providers --help`
+showed one line although `list|add|test|remove` exist with their flags; a
+provider entry's model list could not be changed after `providers add`; serve
+mode accepts `--max-budget-usd` but the top-level help did not list it.
+
+**Rule in force.** One table drives parsing and help
+(`src/runtime/cliHelp.ts`): per command its name, one-line purpose,
+positional syntax, each option (name, value shape, bounds/default from shared
+constants, repeatable from the parser registry, meaning from the installed
+language's `referenceCliOptions`), and two runnable examples. The parser reads
+`CLI_OPTION_REGISTRY`; each topic's routes are registry routes, and the guard
+test (`test/unit/cliHelp.test.ts`) fails when a parsed option is neither
+shown nor mapped in `CLI_NON_TOPIC_OPTIONS`. `<command> --help` and
+`help <command>` print that command's own help (exit 0, nothing else);
+`help --all` / `help reference` keep the full reference; a wrong option or
+value exits 2 naming the option, the accepted values and the nearest valid
+option, except a secret-looking name (`secret`, `token`, `password`,
+`credential`, `apikey` and kin), which is refused without repeating it so a
+mistyped credential flag never reaches output, logs or reports
+(`unknownOptionHidden`, all 15 tables; the fonts refusal reads the live
+table so it formats in the installed language). `providers models <entry> [--add] [--remove] [--force <reason>]`
+(`src/runtime/providersModelsCommand.ts`) edits the entry through the same
+validated atomic commit the Models panel writes; the stored key is read only
+to consult the provider's list, never for a forced add, whose reason is kept
+in the entry's `forcedModels` map. `docs/reference.md` is generated from the
+same `cliCommands()` table; `npm run check:reference` additionally requires
+every registry route (except in-progress `estimate`) in the help table and the
+`help <command>` route plus every topic name in the README's terminal
+section. Proof record: `docs/certification/cli-help.md`. Scope, stated
+plainly (review RVCLIHELP, 2026-10-14): the table's thirteen topics are the
+brief's commands plus `usage` and `resources`; the older grammars that parse
+outside `CLI_OPTION_REGISTRY` (`schedule`, `vault`, `providers accounts`,
+`developer`, `share`/`prompts`, `providers … chatgpt`, and the excluded
+`estimate`) keep their own usage text and are not `help <command>` topics
+yet — bringing them in needs their options in the registry and a translated
+purpose each, and is open work, not done by this decision.
+
+<!-- plan-archive:end id="decisions-819ec0f8b-14320" -->
+
+(Renumber note, 2026-10-17 main-now merge: the passage above was archived as D117 on the release train; PLAN.md now numbers the terminal-agent decision D119 for main's D117. The record above stands byte-exact.)
+
 ## D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
 
 <!-- plan-archive:begin id="decisions-a9720961e-14396" lines="14396-14449" at="a9720961e" bytes="3534" sha256="86987020f92891e7a1ff5fd00e99cba0d4432fdfa5fba9c237cece2fb873503f" -->
@@ -6780,3 +6827,1464 @@ proofs:
 repository (D122)".
 
 <!-- plan-archive:end id="decisions-a9720961e-14396" -->
+
+## D123 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12; numbered D108 until the 2026-10-17 merge with main)
+
+<!-- plan-archive:begin id="decisions-a64aebd4a-14315" lines="14315-14336" at="a64aebd4a" bytes="1420" sha256="04385ca919235e6aea41a6ba2fb179aa3a925a792ef99a07cfd37c0741652958" -->
+
+A released defect: a working Google Gemini key (beginning `AQ.`) was
+refused before anything was sent because the product held a frozen idea
+of each provider's key shape (`AIza…` for Gemini, `sk-ant-…`,
+`sk-or-…`, `gsk_…`, `fw_…`, `hf_…`, `xai-…`, `sk-…` elsewhere). The
+panel, `providers add`, the editor protocol's auth methods, `auth set
+--provider` and stdin all refused such keys with "not shaped like"
+errors, so the route could not be configured at all.
+
+**Decision.** No key is ever refused for its looks, on any surface.
+What decides is the provider's own answer to the first authenticated
+request the product already makes (the free model-list key test); a
+refusal shows the provider's reason. The only checks before sending are
+the ones that protect the person and hold for every provider — the
+value is not empty, has no whitespace or line break inside, and is not
+obviously the wrong thing (a URL, a file path, placeholder text) — each
+asked as a "use it anyway?" question, never a dead end. This supersedes
+M95 lane K's "password box with the preset's live shape check" (the
+milestone scope rows): the box now accepts any non-blank key, and every
+preset carries the open `{ kind: 'any' }` shape with a hint naming where
+the key comes from. The endpoint policy, log redaction and the
+product's own Meta-key format are unchanged. Full record:
+`docs/certification/provider-key-shapes.md`.
+
+<!-- plan-archive:end id="decisions-a64aebd4a-14315" -->
+
+## ### D1a — Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-653" lines="653-657" at="3087b10dd" bytes="1982" sha256="883207af6929f5f443290910f82af4e94a50acfbe181820e7272d334913a955b" -->
+
+| OS                    | Install dir (installer default)                                             | Entry                                                                                            | Beside it                                                                                       | Credential                                                                                   |
+| --------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Windows               | `%LOCALAPPDATA%\Programs\muse` (added to the user PATH)                     | `muse.cmd` → `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .muse-launcher.ps1 <args>` | `muse-bin-<version>.exe` (~415 MB), `.muse-version`, `.muse-release-info.json`, `.muse-channel` | `%USERPROFILE%\.config\muse\auth.json`                                                       |
+| Linux (Kubuntu 26.04) | `~/.local/bin` (`MUSE_INSTALL_DIR` overrides; PATH added to shell rc files) | `muse` bash launcher (33 KB; needs bash, not sh)                                                 | `muse-bin-<version>` (~314 MB), `.muse-version`, `.muse-release-info.json`                      | `$XDG_CONFIG_HOME/muse/auth.json` or `~/.config/muse/auth.json` (`MUSE_AUTH_PATH` overrides) |
+| macOS 15.7 (Mac mini) | `~/.local/bin` (PATH added to `~/.zshrc`)                                   | same bash launcher                                                                               | same                                                                                            | as Linux, a token-free pointer; the token in the login Keychain (D26)                        |
+
+<!-- plan-archive:end id="decisions-3087b10dd-653" -->
+
+## ### D15 — Harness parity: what the Claude Code extension preconfigures that we did not (2026-09-22)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-2496" lines="2496-2505" at="3087b10dd" bytes="9560" sha256="cdd6b8aaa8f6797b0908b36c86886443a9cad7693d0f452877142310a4475a80" -->
+
+| Area                       | Claude Code                                                                                                                                                                                                                                                                                                         | Muse Spark Code before M12                                                                                                                                                             | Decision                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Setting scopes             | `scope: machine` on `environmentVariables`, `allowDangerouslySkipPermissions`, `initialPermissionMode`, `claudeProcessWrapper`: a repository's `.vscode/settings.json` can never set them.                                                                                                                          | No scope on any setting; `restrictedConfigurations` only kept two keys out of Restricted Mode, so a trusted clone could enable Bypass or point `museBinaryPath` at its own executable. | M12: `scope: machine` on `museBinaryPath`, `environmentVariables`, `allowDangerouslySkipPermissions`, `initialPermissionMode`, `shellSandbox` and `backend` (a repository must not choose what runs or what is billed). `restrictedConfigurations` is dropped: a machine-scoped setting has no workspace value to restrict. `untrustedWorkspaces` stays `limited` (owner's call; Muse Code's own Restricted Mode model). |
+| Editor tabs after a reload | `onWebviewPanel:` activation and a `WebviewPanelSerializer`; the tab comes back on its conversation.                                                                                                                                                                                                                | `activationEvents: []`, no serializer: every editor-tab conversation vanished on Reload Window; only the sidebar's ten-minute rule existed.                                            | M12: the webview stores its session id with `setState`; `onWebviewPanel:museSpark.chatPanel` plus a serializer rebuild the tab and resume that session once signed in. No new setting: Claude's `continueAfterReload` continues an interrupted step, which MSP cannot do for a host that is gone.                                                                                                                        |
+| Walkthrough                | A four-step "Get started" walkthrough with images, opened by VS Code on install.                                                                                                                                                                                                                                    | None (the empty state's onboarding tips only).                                                                                                                                         | M12: `contributes.walkthroughs` with four steps (what it is, open the panel, sign in, chat and sessions) and `Muse Spark: Open Walkthrough`; the sign-in step completes on a `museSpark.signedIn` context key the auth service maintains.                                                                                                                                                                                |
+| Commands                   | New Conversation (optional Ctrl+N), Reopen Closed Session, Logout, Open in Terminal, Open Walkthrough, Show Logs, Focus/Blur, Update.                                                                                                                                                                               | No New Conversation, Sign Out, Open in Terminal or walkthrough command; sign-out only in the panel's menu.                                                                             | M12: `museSpark.newConversation` (Ctrl+N behind `enableNewConversationShortcut`, off by default as in Claude Code), `museSpark.signOut`, `museSpark.openInTerminal` (the `muse` TUI in a VS Code terminal at the workspace root), `museSpark.openWalkthrough`, and `museSpark.createRulesFile` (below). Reopen Closed Session and Update have no counterpart (no closed-tab register; VS Code updates the extension).    |
+| Keybinding hygiene         | Every chord carries a `when` clause (`editorTextFocus`, the panel id, a sidebar context key).                                                                                                                                                                                                                       | Four of five chords global; `Ctrl+Alt+F` fired in any editor.                                                                                                                          | M12: `Alt+K` only with `editorTextFocus`; `Ctrl+Alt+F` and `Ctrl+N` only while a Muse surface is active (`activeWebviewPanelId == 'museSpark.chatPanel'                                                                                                                                                                                                                                                                  |     | focusedView == 'museSpark.chatView'`, VS Code's own context keys, no custom one). `Ctrl+Esc`stays global (it toggles both ways) and`Ctrl+Shift+Esc` stays global as in Claude Code. |
+| Rules file scaffold        | (Claude Code: `/init` writes CLAUDE.md through the model.)                                                                                                                                                                                                                                                          | Nothing; the README explains the files.                                                                                                                                                | M12: `Muse Spark: Create AGENTS.md`: opens the file when it exists; otherwise runs `muse init` (the CLI's own scaffold, no model call, in a trusted workspace with the CLI present) or writes the same template itself (Model API only, or Restricted Mode), then opens it.                                                                                                                                              |
+| Model API system prompt    | (Claude's harness: an environment block with the date, cwd, platform and git state, and behaviour rules.)                                                                                                                                                                                                           | Tool descriptions, the D13 context; no date, no git state, no working rules.                                                                                                           | M12: a `# Environment` section (today's date, git branch, change count, recent commits, gathered once per session by the host with `git`, absent without a repository) and a `# How to work` section (read before editing, edits over rewrites, no commits or pushes unless asked, short answers with `path:line` references, stay within the ask). The CLI backend keeps Muse Code's own prompt.                        |
+| Not adopted                | Proposed-diff accept/reject in the editor (Muse applies edits, review is after, D11), worktrees (no MSP method), plugin install, terminal mode, the settings-schema `jsonValidation` (Muse publishes no settings schema), `disableLoginPrompt`, `lockEditorGroups`, `scrollToBottomOnSend`, `usePythonEnvironment`. | —                                                                                                                                                                                      | Recorded here so the next audit does not repeat the reading.                                                                                                                                                                                                                                                                                                                                                             |
+
+<!-- plan-archive:end id="decisions-3087b10dd-2496" -->
+
+## ### D16 — Production-readiness verification and its findings (2026-09-22)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-2514" lines="2514-2525" at="3087b10dd" bytes="13737" sha256="200089900d94321e6f5cd31fb035515ea8033bf2be790fa7297c192646b0e86a" -->
+
+| Check                    | Finding                                                                                                                                                                                                                                                          | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Markers                  | No TODO, FIXME, HACK, workaround, monkey-patch or legacy markers in `src`, `test`, `scripts`, `native` or the workflows.                                                                                                                                         | Nothing to do.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Fallbacks                | Every "fallback" in `src` is a logged, documented behaviour (invalid setting → default with a warning; no git → VS Code file search; a context file that fails → warning; Bypass disallowed → Manual). One type-only unreachable branch in `nextPermissionMode`. | M13: `availablePermissionModes` returns a non-empty tuple, so the wrap-around is a real branch and the type-only one is gone.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Escape hatches           | Exactly the four `nosemgrep` lines of §8; no `eslint-disable`, `ts-ignore`, `any` or non-null assertion in `src`. Two `as unknown as` casts in a test, building fakes of two classes.                                                                            | M13: the controller depends on `AuthPort` and `DictationHandle` (the member sets it uses), so the fakes need no cast.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Dead and orphaned code   | knip, dpdm and jscpd clean. `scripts/measure-markdown.mjs` (an M4 measurement) was wired to nothing and needed a gitignored scratch entry to run.                                                                                                                | M13: deleted; its numbers stay in `docs/certification/m4.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Dependencies and secrets | Every dependency pinned exactly; `npm audit` 0; gitleaks clean over the history; `temp/` ignored and untracked.                                                                                                                                                  | Nothing to do.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Red drills               | Every milestone record carries break-on-purpose proofs; 113 failure-path unit tests (corrupt files, malformed messages, host death, 429/500/503, timeouts, declined UAC, oversized files, the webview crash boundary).                                           | Kept; M13 adds process-level drills (below).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Coverage holes           | `toolIo.ts` shell child error and stderr paths, `MentionMenu` mouse handlers, `StatusLine` timer, `EffortSlider` mouse-down were untested. `searchWorker.ts` reads 0 % only because it runs on a real worker thread in its test.                                 | M13: tests for each.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| End-to-end               | **The hard gap.** The integration tests ran the extension in a real VS Code but never a conversation: the CLI backend bills the subscription per run and the Model API key is gone. Live turns had been manual scratch runs, recorded, not repeatable.           | M13: a fake Muse Code CLI (`test/e2e/fake-muse`: an NDJSON MSP host over stdio; a Node shebang script on POSIX, a C# stub compiled by the .NET Framework's own compiler on Windows) driven through the real backend manager as a real child process, covering a turn, approvals, refusal by mode, bypass, cancel, history, usage, and the drills (host dies mid-turn, malformed frame, a binary that will not start, no binary). Plus one opt-in live turn (`MUSE_LIVE_E2E=1`, `npm run test:e2e:live`) on the real CLI with the model-attempt count read from the CLI's trace log for the session and a budget of 40 (measured 31: one attempt answers, thirty are the CLI's three bundled reminder agents, even in an empty workspace; the marker string used since the cost incident never matched a line, so earlier "attempt" counts measured nothing, see m12.md's correction). |
+| Owner's screenshot       | Claude Code's user message carries one button that opens "Fork conversation from here / Rewind code to here / Fork conversation and rewind code"; ours showed an inline "Fork from here" button and had no rewind.                                               | M13: the same menu; "Rewind code to here" reverts every completed edit after the message, newest first, through the existing edit review, and reports the count.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Still human              | Tab restore after Reload Window, walkthrough rendering, Ctrl+N, Restricted Mode banner, Diagnostics output, boundary Reload.                                                                                                                                     | Owner F5 checks; listed in `docs/certification/m12.md` and `m13.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+
+<!-- plan-archive:end id="decisions-3087b10dd-2514" -->
+
+## ### D17 — Subagents, the Agent map, the Account & Usage modal, and the smaller parity gaps, in one milestone (2026-09-22)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-2544" lines="2544-2553" at="3087b10dd" bytes="9504" sha256="f198748bd5e480a8999745a3078213e82acd082bc3ffeae1ff9de6f1464c6a8f" -->
+
+| Area                    | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Choices as pickers      | Muse answered a choice in prose where the panel could show a picker; the card appears only when the model calls its `request_user_input` tool.                                                                                                                                                                                                                                                                                                            | A standing note rides on every CLI turn as a hidden text part (the M5 mechanism, `displayText` keeps the typed text): ask through `request_user_input` when offering options. The Model API prompt says the same about `ask_user`. Steering, not forcing.                                                                                                                                                                                                                                   |
+| Muse Code subagents     | Native subagents exist on the wire (`subagent` items: role, objective, child session id, control status, transitive usage, result; `subagent/*` commands; child approvals projected onto the parent) and the model has `subagent_spawn`, `subagent_wait`, … tools. **Off by default**: Muse Code 1.3.0 hides them unless `run.subagent_delegation_mode = "auto"` in its own settings file. The model decides when to delegate; nothing ties it to effort. | The extension renders subagent rows, the "N agents" pill and the Agent map (this conversation, its agents with role, objective, status, duration and tokens, the background tasks, an agent's own transcript through `session/read` of its child session). It reads the CLI's settings file to say when delegation is off and opens that file on request; it never writes it. The Model API backend spawns no agents.                                                                       |
+| Background tasks        | A `toolCall` the CLI durably backgrounds arrives as `item/updated` with `background: true` and who backgrounded it.                                                                                                                                                                                                                                                                                                                                       | A "background" badge on the row and a list in the Agent map.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Account & Usage         | Ours hung from the header with the plan and two bars. Claude's is a centred modal: account facts, bars, and "what's contributing to your limits" from the machine's local sessions.                                                                                                                                                                                                                                                                       | A shared `Modal` (backdrop dims the chat; Escape, the button and the backdrop close it). Account: auth method, plan, backend, CLI version, model. Cost: on the Model API, dollars from Meta's published per-token prices (standard vs contributor tier, read 2026-09-22) as an estimate, plus the cache-hit rate. Insights: from the CLI's trace logs on this machine, day or week: the share of model attempts from Muse's reminder agents, from subagents, from sessions active 8+ hours. |
+| Prompt caching          | The Model API backend already sends a per-session `prompt_cache_key`; the CLI caches on its own. Meta does not document the cache lifetime, so a "warm for N minutes" countdown would be a guess.                                                                                                                                                                                                                                                         | No warming. The cache-hit rate is shown; the rest is documented in the README.                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Unsupported uploads     | A rejected upload was a transcript notice; Claude shows a composer banner naming the supported types and the path hint. Muse's turn input takes text, image and skill parts only.                                                                                                                                                                                                                                                                         | The banner, above the box, dismissible: images as uploads; other files as `@` mentions, or an absolute path for files outside the workspace.                                                                                                                                                                                                                                                                                                                                                |
+| Compaction              | `/compact` existed; the context indicator was static. Muse reports usage, window and a pressure level, no auto-compact threshold.                                                                                                                                                                                                                                                                                                                         | The indicator is a button ("click to compact now"), its tooltip carries the pressure level.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Usage insight heuristic | A trace log is one `muse serve` process. The turn's own run is named by `runtime.run.lifecycle run_kind="turn"`; every other run in the file is a child the CLI started. A reminder agent registers one tool, a subagent the toolset (1 versus 30, measured).                                                                                                                                                                                             | `classifyRun`: turn, reminder (≤ 2 tools), subagent. Labelled approximate in the modal, as Claude labels its own.                                                                                                                                                                                                                                                                                                                                                                           |
+
+<!-- plan-archive:end id="decisions-3087b10dd-2544" -->
+
+## ### D31 — Rewind finds a hunk that only moved (2026-09-24)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-2858" lines="2858-2868" at="3087b10dd" bytes="660" sha256="567ee3344aad6e5896189ad084c1fd63628c7b5c63ac00b5b1cc85bf5434917c" -->
+
+- **First look:** the hunk's lines (context plus the edit's own) are looked
+  for where the edit left them, shifted by however far the previous hunk
+  moved.
+- **Then a search:** if they are not there, they are looked for anywhere
+  after the previous hunk. They are taken only where they occur exactly
+  once, matched character for character. This is `git apply`'s offset
+  rule without its fuzz factor.
+- **Refused, with the reason:** no occurrence (the user changed those
+  lines), or more than one (ambiguous).
+- **Unchanged:** out-of-order hunks are refused as overlapping, as before,
+  and a deletion with no context lines is placed only where recorded.
+
+<!-- plan-archive:end id="decisions-3087b10dd-2858" -->
+
+## ### D35 — Replay as Meta validates it (2026-09-25)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-2986" lines="2986-2996" at="3087b10dd" bytes="729" sha256="a6f269a6487478a419f55e24a5013d9bb5e465066291bed37a291881707f87d2" -->
+
+- **Commentary.** Text the model writes before a tool call comes back with
+  `phase: "commentary"`. Replayed as an ordinary answer before a
+  `function_call`, it is a 400, so the next request of any turn where the
+  model narrated before a tool failed. Now replayed with its phase; a final
+  answer (no phase) stays without one.
+- **Reasoning summary.** A replayed reasoning item must carry `summary`,
+  `[]` when there was none; it went back as it came, possibly without one.
+- **Reasoning alone.** A reasoning item must be followed by a message or a
+  call before the next user message; a reply that was reasoning alone is now
+  followed by a minimal assistant message ("(no reply text)", model text),
+  as the docs say to do.
+
+<!-- plan-archive:end id="decisions-3087b10dd-2986" -->
+
+## ### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-3117" lines="3117-3121" at="3087b10dd" bytes="328" sha256="86a2db5a98bc096b72e8788f8cd6374e55e77034d192356311cfa0a10d17e181" -->
+
+- **Minor for a batch of features, patch for fixes.** The minor number keeps
+  counting past nine: 0.9.0, 0.10.0, 0.11.0 and so on, each newer than the
+  last, with no ceiling below 1.0.
+- **1.0.0 only on the owner's word**, after the extension has been on the
+  Marketplace and field tested; no release proposes it on its own.
+
+<!-- plan-archive:end id="decisions-3087b10dd-3117" -->
+
+## ### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-3549" lines="3549-3557" at="3087b10dd" bytes="627" sha256="5d21ab5b92fa0e12633066e997075d274f03b1dd4446aabc8937b736c2c0d844" -->
+
+The preview lists kind, source item name, scope and target path, never
+bodies, commands, arguments, environment/header values or URLs. Picker
+details give scope, never source paths. Logs contain counts, kinds and
+fixed refusal reasons only. Item names remain visible as the source tool
+shows them. Hooks and MCP servers open as unsaved WorkspaceEdits in their
+same-scope target, for the user to review and save; no clipboard operation.
+Only active MCP transport fields are copied unchanged; inactive and
+unknown fields are listed as dropped by name, never emitted by value.
+Candidate IDs use one Set across registration calls.
+
+<!-- plan-archive:end id="decisions-3087b10dd-3549" -->
+
+## ### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-7207" lines="7207-7207" at="3087b10dd" bytes="42" sha256="833959076c58acae456962162209bb3dd05edc3d5901e6972f02e14ca924458d" -->
+
+**What the SDK is (checked 2026-10-04):**
+
+<!-- plan-archive:end id="decisions-3087b10dd-7207" -->
+
+## ### D101 — Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-13957" lines="13957-13963" at="3087b10dd" bytes="3549" sha256="b0e7e690b2bc7a938f68d885d7ae3ae8b5f57539939ee14e95a1f6a7a1591fa2" -->
+
+| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Muse Code subagents / child sessions | Captured M14/M18 item/control states, child-session transcript, tool calls, result and turn terminals                                                | No captured end reason, required-check declaration or private-worktree/checkpoint report. Ended normal agents remain unverified. Ended-child Continue refuses until preservation is captured; interrupted Resume is unchanged. Retry refuses without a verified isolated checkpoint. No new MSP fields or verbs guessed. |
+| Model API subagents                  | Owned child session, queued/running/interrupted/result/closed states, owned request/step budgets, tool exits and verification reports, final message | Children share the workspace; it is not their own worktree. Continue keeps the session and edits, obtains fresh paid consent and obeys current permissions/budgets. Retry refuses: resetting a shared workspace could destroy another agent's edits.                                                                     |
+| M47 workflow agents                  | Captured child ID, attempt, status, terminal, duration and usage; reconciled run report                                                              | No per-child session, commands, files or resumable checkpoint. Receipt explicitly marks missing evidence. Both recovery actions refuse with a reason.                                                                                                                                                                    |
+| Background tasks                     | Owned/captured tool arguments, output, exit and duration where reported                                                                              | Commands are tasks, not objective-completion proof. Missing exit evidence stays unverified. No resumable agent session/checkpoint; recovery refuses.                                                                                                                                                                     |
+| ACP / other editors                  | Same portable evidence mapping and receipts from session events/history                                                                              | Local /agents listing, receipt and explicitly confirmed Continue/Retry expose identical evidence and refusals; no model request for local inspection.                                                                                                                                                                    |
+
+<!-- plan-archive:end id="decisions-3087b10dd-13957" -->
+
+## ### D105 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-14404" lines="14404-14414" at="3087b10dd" bytes="659" sha256="d6a7dd9f1391a64b42fbeafa6f6ca08451a21582fe5e118e35960e071fdd55e7" -->
+
+- At and above the root, links and redirection are accepted. The root is
+  resolved once and trusted by identity (volume serial and file id, any
+  drive letter), never by a string prefix.
+- Below the root every component must be a plain file or folder. A link,
+  junction or other reparse point is refused at the first such component,
+  including one whose target stays inside the tree (today's policy kept).
+  The resolved leaf must also be the resolved root's own descendant by
+  identity.
+- Owner and ACL checks (`Test-TrustedAcl`) apply to the resolved root and
+  every component below it; nothing above the root is checked beyond what
+  the OS enforces.
+
+<!-- plan-archive:end id="decisions-3087b10dd-14404" -->
+
+## ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-14971" lines="14971-15007" at="3087b10dd" bytes="2448" sha256="13a596c64ffc9677e9b9411629772b41e634a2b1c2cd83fe423f64deabd2f8f4" -->
+
+- **A test stays only if it runs real code** (no `vi.mock`, fake timers,
+  stand-ins for our modules, providers, the CLI, GitHub, MCP, the editor
+  or stores, no hand-answering servers), checks behaviour a person or a
+  caller depends on, and is not an end-to-end run against a stand-in.
+  Live-provider `*.live.e2e.test.ts` files move under the real-life run.
+- **No screenshot runs in CI.** The pixel pipeline (`check:visual`, the
+  goldens, the visual matrix and audit, the visual workflow jobs) is
+  deleted. A UI change gets one small local look: `npm run ui:look --
+<scene> [--theme light|dark]`, pictures to `temp/ui-look/`, no
+  baseline, no comparison.
+- **No coverage gate.** `test:unit` runs without `--coverage`; the
+  thresholds and the merge job are gone.
+- **The short gate** (`quality:gates`): format, lint, typecheck, badges,
+  tokens, l10n, reference, host-api, plan, roadmap, deadcode, cycles,
+  duplication, the unit run, build and pack, audit. Accessibility runs
+  on merge groups, manual runs and releases, never on pull requests.
+- **The product's test is the real-life run**: the packed product used
+  for real against real providers on the cheapest models. The release
+  workflow reserves the `check:claims` step for it (branch
+  feat/claims-gate).
+- **This supersedes** D5's fake-transport unit pattern, its `vscode`
+  mock in unit tests and its coverage gate, and the M114 visual-CI jobs.
+  D32's accessibility gate stands, relocated. The golden request bytes,
+  the SoL-Pi invariants and the money-arithmetic suites stay: they run
+  real code over recorded data.
+- Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
+  1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants with real modules only (certification:
+  `docs/certification/invariants.md`); the full loopback golden stays listed
+  for the lead until recorded exchanges exist per golden scenario.
+- PR184FIX (review findings): quotes name real priced models at the listed
+  tariff, packing drives the recorded 04 output, every golden scenario's
+  tools/instructions/keys reproduce through the real builders with
+  byte-exact 01 turns, and the eval pins a digest of the complete task
+  definitions. Unit-test residual: the host's scalar assembly (a new body
+  field would still pass); the lead's loopback run covers it.
+
+<!-- plan-archive:end id="decisions-3087b10dd-14971" -->
+
+## ### D74 — Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-3728" lines="3728-3755" at="3087b10dd" bytes="2057" sha256="25a390e1b6eb0c62b7f0bf908161fb5f9908d74bf4e279fb81f3e12482389a01" -->
+
+The owner, 2026-10-04: "as an expansion to the byo agents i would like to
+design a system in which we can have different agents assigned different
+roles ie research, design, marketing, engineering, quality assurance, code
+review etc, we should be able to setup a cap on how many of each agents are
+allowed to be spun up for each role … and we need the current agent whatever
+the main chosen agent is that will be the orchestrator it needs to be aware
+of the roles that have available agents what the limits are and how to
+properly use them and when to effectively use them and if i am missing
+anything feel free to chime in". Later the same day: "we may run into
+situations where we want more than one of the same role with different
+models and caps and the ability to prefer one over the other so it will use
+from one until it consumes its cap then it starts consuming from the next in
+line and we should also be able to set token caps so once that cap has been
+met it switches to the next in line". Then: "all of the roles need to be
+defined properly so the agent assigned to the role knows what role it serves
+and if it should make changes or if it is read only or if it should work in a
+separate branch of the repo so agents can be working on the same project in
+parallel without conflicting then the orchestration agent should be in charge
+of merging the code etc but the agent that is the orchestrator also need to
+know when to defer and when to take on the task itself", and "we will also
+need to update our agent map to be able to show all of the roles and models
+and hierarchy etc we need to make sure each role has all of the tools it will
+need properly as well", and "we need to make sure that muse is also
+eligible to be set as a role and that the orchestrator slot is able to be
+filled with another model but by default should be the muse model picker as
+it currently is and that setup will be attached to "Default" for any role
+that does not have a custom set agent set". The configuration UI quote is
+under the Models & Agents panel below.
+
+<!-- plan-archive:end id="decisions-3087b10dd-3728" -->
+
+## ### D49 — Coding quality first: what to build next (2026-09-27)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-3285" lines="3285-3285" at="3087b10dd" bytes="24" sha256="989e50a6f43a76ff636de4f0f56af493e1dbaa9e0f24cfd05bcbb179c9b22a98" -->
+
+The owner (2026-09-27):
+
+<!-- plan-archive:end id="decisions-3087b10dd-3285" -->
+
+## ### D118 — Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-14871" lines="14871-14894" at="3087b10dd" bytes="1766" sha256="62b22ce7a1668a24c46ea023a1e0ed31ceaa14d9abaa016b1afeaf27fc08533e" -->
+
+**Rule in force.** One extractor reads an error body by what it IS (an
+`error` object with a message; an `error` string; a top-level `message`; a
+`detail` string; Google's `status` and `details[].reason` alongside),
+whatever the wire format; a shape none matches is unparsed with the status
+and the first bounded line, classified by that status like any other answer.
+The status and the provider's documented type, code or reason decide the
+kind; a phrase is used only where a recorded answer shows the provider gives
+nothing else (a table with its source in `providerRefusal.ts`). Parity: a
+bad key reads `authentication` at all eleven recorded providers, an unknown
+model reads `notFound` at all twelve. Reason and error-code signals ride the
+refusal into the classifier even when a parser did not promote them into
+`code`. Retry follows the preset's own table with the envelope code, so a
+quota 429 never retries while a bare one does. Anthropic `max_tokens` maps
+to the host's `max_output_tokens`, so a cut-off reply continues under the
+one rule every provider shares. Azure `content_filter` blocks read as their
+own kind (the route is another lane's). A provider's words keep their key
+remnants and account ids out of the log file, usage history, report bundles
+and telemetry by one scrub tested on the recorded answers; usage records
+carry the outcome and the request id only. Closed gap ids: XAI-G10,
+OPENAI-G20, GAPANTH-G20, GAPANTH-G11, AZURE-G06. UNVERIFIED until the lead's
+captures return: real 429 bodies, the spend-cap header set, a cut-off reply
+with partial tools, an Azure block, the xAI unsupported-parameter 400.
+Records: `docs/certification/proverr-round2.md`,
+`docs/certification/proverrr2.md`, `docs/certification/proverrr2-capture-plan.json`.
+
+<!-- plan-archive:end id="decisions-3087b10dd-14871" -->
+
+## ### D30 — What we can build now, and Remote Control (2026-09-24)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-2779" lines="2779-2790" at="3087b10dd" bytes="839" sha256="c995923588d4cc1d49967703a40dbe89fb6ab7246877ffd72c1f325cb56d079d" -->
+
+The owner asked whether Muse's connectors could give Claude Code's Remote
+Control (continue a local session from the web or a phone). Research,
+recorded privately in `temp/roadmap-2026-09-24.md` and
+`temp/meta-pipeline-report-2026-09-24.md`: Muse Code 1.3.0 has no remote
+surface (`muse serve --listen` answers "the unix-socket and websocket
+transports are deferred post-v1"), and Muse's connectors run on Meta's cloud
+VM against a public HTTPS endpoint, driven by the Muse agent rather than the
+user. **Owner rulings:** remote use must happen inside Meta's own apps, with
+no phone or web app of ours, so Remote Control waits for Meta
+(meta-models/muse-code-sdk#36, filed 2026-09-24 with the owner's go-ahead);
+then "fix the bugs you found and implement the able to do now stuff". The
+rows below are that list; each is a milestone in §6.
+
+<!-- plan-archive:end id="decisions-3087b10dd-2779" -->
+
+## ### D36 — Everything Muse Code and the Model API offer, on both backends (2026-09-25)
+
+<!-- plan-archive:begin id="decisions-3087b10dd-3008" lines="3008-3015" at="3087b10dd" bytes="595" sha256="10953eac4a9c20ad6a017ddbacea23a1dcaeb7c397f0e228c871a46b77f0f1b6" -->
+
+The owner (2026-09-25): "we need to make sure we are covering all of the
+provided functionality with feature rich robust enterprise grade production
+ready access and not omitting or missing any", then "i want everything fixed
+everything properly implemented and this app to be fully realized feature
+rich and production ready", and "web search and images are pretty important
+to be able to use on each i want the api and cli to be as close to feature
+parity as we can get them". Live checks no longer need his go-ahead; they
+use the contributor models and are counted and reported (2026-09-25).
+
+<!-- plan-archive:end id="decisions-3087b10dd-3008" -->
+
+## ### M9
+
+<!-- plan-archive:begin id="decisions-3087b10dd-19304" lines="19304-19310" at="3087b10dd" bytes="533" sha256="2c999be78dda8e8e2076d47105a88a732c325b4774b2511efff2bd65f4a232ee" -->
+
+- [x] Engine/model licence and synthetic accuracy/latency/size comparison.
+- [x] Helper protocol, pre-use consent, pinned resumable download, removal,
+      lifecycle and real CPU fixture recognition implemented and locally checked.
+- [x] Fourteen tables, manifest/reference, privacy and developer/user docs.
+- [ ] Hosted x64/arm64 native/package receipts and universal VSIX budget
+      decision (Q67); the existing cap remains unchanged, and publication
+      remains held. Full aggregate quality is the lead's gate per rig brief.
+
+<!-- plan-archive:end id="decisions-3087b10dd-19304" -->
+
+## ### M35
+
+<!-- plan-archive:begin id="decisions-3087b10dd-19514" lines="19514-19523" at="3087b10dd" bytes="756" sha256="0b388da07c2d5fa813ac82588ca657242ea30df19a5be61572c0e59598f3dfd8" -->
+
+- [x] Guarded WAV protocol and authenticated capture lifecycle, refusal tests.
+- [x] Captured batch adapter, consent, durable budget and tally, failure tests.
+- [x] Free Windows/macOS file engines and bounded child lifecycle (the
+      candidate lanes' fake cleanup suites are not in this tree; RVMSM9M35).
+      Native macOS compilation and actual OS recognition remain in the release hold.
+- [x] Accessible/responsive companion, explicit ACP/CLI prompt handoff.
+- [ ] Browser microphone e2e on a real rig (the candidate lanes' fake-mic
+      drills are records only, not suites in this tree; RVMSM9M35).
+- [x] Localization, Help/docs and focused gates; local hooked commit at handoff.
+- [ ] Windows/macOS browser and native-helper receipts on lead rigs.
+
+<!-- plan-archive:end id="decisions-3087b10dd-19514" -->
+
+## ### M89
+
+<!-- plan-archive:begin id="decisions-3087b10dd-21498" lines="21498-21507" at="3087b10dd" bytes="618" sha256="2a240b2ecbbb487c938d081e7f2658fad335fa8e942104620189b26c2754adba" -->
+
+- **Gates.** The full quality gate; the VSIX size gate; check-l10n; host-API.
+  - [x] Lane 0's keys in all 14 tables (2026-10-03, `check-l10n` 0 problems).
+  - [ ] Every acceptance item above, with its test and drill (1, 2, 3, 5 and 6
+        done by lanes S and I, `docs/certification/m89.md`; 4 and 7 are lane
+        V's).
+  - [ ] VSIX size within budget, measured.
+  - [x] Install and remove proven on Windows, macOS and Linux (the three
+        rigs, 56 tests each, real junctions and symlinks).
+  - [ ] README, PRIVACY, CHANGELOG and this record updated (lanes 0, S, I
+        and W done; lane V's rows to add).
+
+<!-- plan-archive:end id="decisions-3087b10dd-21498" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-20111" lines="20111-20111" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-20111" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-20113" lines="20113-20113" at="f77f1809b" bytes="107" sha256="9e6e1f998c239caaed1fcbd04c42276e2baa2dbbb31ed70d7d95971d7d297c0a" -->
+
+- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-20113" -->
+
+## ### M99
+
+<!-- plan-archive:begin id="decisions-3087b10dd-26230" lines="26230-26233" at="3087b10dd" bytes="245" sha256="ede58e7a997dcce78688a6784d52f5aa27ca46385e474cf61b61a9b1f5994548" -->
+
+Lane MSM99 reached the other editors: ACP's `/whatsnew` reads the package's
+own `dist/whatsNew.json` as text, answered locally with no model turn
+(`docs/certification/msm99.md`). The VS Code side is unchanged; the plan's
+acceptances still hold.
+
+<!-- plan-archive:end id="decisions-3087b10dd-26230" -->
+
+## ### M93
+
+<!-- plan-archive:begin id="decisions-3087b10dd-28124" lines="28124-28131" at="3087b10dd" bytes="618" sha256="864ffd5675831068abe3d1de5b9a3ce1ba67326c0a4d9c44cfcfc71594a96ab8" -->
+
+- **Lane R review correction (FIXM93R, 2026-10-04).** Address RVM93R
+  findings 1–12 with fixed error/package-file vocabularies, confined native
+  storage, live-owner-aware cleanup, append-time age/byte pruning, bounded
+  malformed-file recovery, visible read failures and shutdown cleanup. Correct
+  the description warning in all languages and prove each corrected guard with
+  a named regression and byte-exact red drill in `docs/certification/m93-r.md`.
+  An aggregate on-disk cap across live processes requires a shared transaction
+  protocol; record that redesign explicitly in §9 if it cannot fit this lane.
+
+<!-- plan-archive:end id="decisions-3087b10dd-28124" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-28133" lines="28133-28144" at="3087b10dd" bytes="2805" sha256="63cca792360adcbfc7a4df2172dc537ffa33d12ff612a142ca186a8e76779401" -->
+
+- **Acceptance and red drills.** Each row needs a real failing test, restored
+  source SHA-256, then passing receipt in `docs/certification/m93.md`.
+
+  | Proof                         | Test and intentional break                                                                                                                                                                                                                                       |
+  | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Privacy at rest and export    | Inject paths, names, email, IPv4/IPv6, URL queries, every supported token shape, prompt/code/file-content sentinels in errors, stack headers and extra fields; inspect raw disk and every export. Bypass write scrub and final scrub separately; each must fail. |
+  | Crash recovery                | Leave a marker set, restart, dismiss, restart again, then simulate a new crash. Offer once per abnormal activation; reload/new chat retain entries. Break marker consumption; test fails. Include normal deactivate, activation failure and two live windows.    |
+  | Caps and allowlist            | Controlled clock: day boundary and oldest-first eviction; UTF-8 byte size including multibyte input, oversize entry, corrupt/partial records, unknown schema/kind/code/fields, outside frames and traversal. Break each age/byte/schema guard separately.        |
+  | Exact export and URL fallback | Description/section changes update preview; Copy, decoded URL body, saved bytes and fallback clipboard equal it. URL at/over cap, Unicode encoding, clipboard/save/browser failures and cancellation. Break threshold/draft binding; test fails.                 |
+  | No network or charge          | Fetch/socket/HTTP/model/auth/backend-start fakes throw on contact during record/build/Copy/Save/standalone report. Only explicit Open actions call the opener or host command. Add a forbidden call; test fails.                                                 |
+  | UI and host routing           | Command, Support item, error row, notice and render fallback reach preview; malformed messages are dropped. Test absent/disabled native reporter; receipt in 1.99/current VS Code, remote host and ACP stdio. Break routing/schema; test fails.                  |
+  | SoL-Pi preservation           | Golden requests equal before/after recording and reporting; no history/output/tool mutation, no hidden prompt hook, no budget/consent change. Rerun owning M68/M73/M74/M75 invariant tests and record their guard drills.                                        |
+
+<!-- plan-archive:end id="decisions-3087b10dd-28133" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-28146" lines="28146-28212" at="3087b10dd" bytes="5066" sha256="1a02137014453b02a2f7cda38a115802eb89d6862dbeed4264dbf76c58fb50b2" -->
+
+- **Gates.** The lead runs `npm run quality`, integration/a11y, check-l10n
+  (all 14 tables), host-API, deadcode, duplication and production builds on
+  the required rigs. D6 caps stay unchanged: keep activation's observer small,
+  lazy-load the recorder/report implementation if needed, and extend split
+  checks to prove the heavy bundle is absent before first use. Record actual
+  sizes, no estimate presented as a pass. No new dependency is assumed.
+- **Security and privacy.** Threats: malicious error text/webview messages,
+  forged journal fields, external stack paths, failed disk writes, retention
+  overflow, concurrent windows and accidental export. Strict boundary schemas,
+  bounded local writes, both scrubs, per-window marker ownership and explicit
+  preview/actions address them. Local user/admin access and voluntarily typed
+  confidential prose remain residuals; a crash before initialization is unseen.
+  Existing raw MSP/stderr log cleanup is separate work; never ingest those logs.
+- **Docs.** README and `docs/acp.md` gain commands only after successfully run.
+  `docs/PRIVACY.md` must describe local storage (remote host when applicable),
+  7-day/256-KiB caps and next-use pruning, excluded content, crash-offer limits,
+  exact preview, browser/clipboard/file consequences, and VS Code reporter's
+  separate host data/network/submission policy. CHANGELOG calls implementation
+  shipped only once certified; this lane records a plan, not a working command.
+- **Lane I integration (2026-10-05).** The lead merged P, W, A and R (with
+  R's fix round) and fixed all ten RVM93W findings: webview frames only from
+  the bundle's own script URL; a revision and a host session on every draft
+  and export answer; the item list is the builder's selection; the report
+  dialog keeps the one-modal policy; browser refusals answer `openFailed`;
+  localized item ages; a real 320 px narrow scenario. Lane A's separate JSON
+  journal was replaced by R's ReportJournal in the agent's data folder (strict
+  records, links refused, pruning at append and read), and the standalone
+  report names no VS Code version. The dialog's builder, scrub, export paths
+  and handler are `dist/report.js`, loaded on first open; they take the
+  editor's clipboard, browser, save picker and issue reporter as
+  `ReportEditorIo`, so the portable conversation controller still reaches no
+  `vscode` (D60). The flight recorder's journal, policy and frame mapping
+  are `dist/recorder.js`: activation keeps only a front that answers and
+  queues, and the journal loads just after activation (or at the first
+  failure) to set the marker and offer a crash report. Appends prune
+  amortized: the whole journal is read again only past its byte cap (then
+  down to 192 KiB) or when it holds an expired record, so a long session is
+  no longer quadratic (owner's coordinator, 2026-10-05; the bounds are R's). An exported BigInt constant broke vitest's shared module cache
+  for every suite importing `constants.ts`; it is a number compared as
+  BigInt. Receipts: `docs/certification/m93.md`.
+- **Windows validation (WINM93, 2026-10-05).** Run M93's owning suites on
+  Windows 11, including UNC/extended paths, drive-letter case, journal storage
+  with spaces and Unicode, links/junctions, open-file append/prune, CRLF export
+  identity and the four-theme 320 px dialog. Correct Windows path scrubbing
+  when these probes fail; keep POSIX path handling unchanged. Windows native
+  checkboxes expose 22 px safe spacing in the report dialog: give its section
+  rows the same 24 px minimum as the existing native option rows, preserving
+  checkbox behavior and testing the real harness geometry. Record failing
+  probes, byte-exact red drills and restored receipts in `m93.md`.
+- **Certification checklist.**
+  - [x] Owner-approved decision and milestone planned; source research recorded.
+  - [x] All acceptance tests fail under their breaks, then pass on restored code
+        (lanes' drills in `m93-0/p/r/w/a.md`, integration drills in `m93.md`).
+  - [ ] Both backends, reload/new chat, crash recovery and multi-window proof:
+        unit-level on both backends' event paths, the per-window journals and
+        markers (R), and the command/notice/turn wiring; an installed-editor run
+        is still open.
+  - [ ] Engine floor/current VS Code, remote-host and standalone ACP receipts:
+        the standalone command is covered by unit tests over the real journal
+        adapter; installed-editor, remote and packaged-agent runs are still open.
+  - [x] Accessibility (the `report` and `report-narrow` harness scenarios in
+        the full gate's a11y run), real translations in all 14 tables and the
+        pseudo-locale, and exact-export proof (preview = Copy/Save/URL/reporter).
+  - [x] SoL-Pi invariants (golden request bytes with recording and a report
+        between turns; M68 and M73 guards re-drilled), D6 sizes measured, and the
+        full lead gate exit 0 on the final tree (`m93.md`).
+  - [x] README/ACP/privacy/changelog/host-API and `m93.md` match shipped behavior.
+
+<!-- plan-archive:end id="decisions-3087b10dd-28146" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-26725" lines="26725-26725" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-26725" -->
+
+<!-- plan-archive:begin id="decisions-d753c0d64-26554" lines="26554-26570" at="d753c0d64" bytes="3841" sha256="0371b133d46b08f7d0c087b4349d4d0dca4d6052122a70a414877f3fe8495ff7" -->
+
+- **Scope.** D72's journal, crash offer, report builder, preview and export;
+  error entry points and the standalone ACP command. No automatic issue
+  submission, log upload, telemetry, model call or wire-shape changes.
+- **Lanes and file ownership.** Muse implements; Codex reviews each completed
+  lane and its failing-test receipts. The lead serializes shared-file edits,
+  merges and aggregate certification. Lane 0 first; R and P next; W and A
+  after their contracts; I last. These are future lanes, not agents launched
+  by this plan-only task.
+
+  | Lane                | Muse owns                                                                                                                                                                                                                                                                               | Codex review focus                                                                                   |
+  | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+  | 0 Strings/contracts | Report constants region; `src/shared/l10n/en.ts`, all 14 `l10n/ui.*.json`, `package.nls*.json`; report-message region in shared protocol; owning schema tests                                                                                                                           | Real translations, runtime lookup, bounded zod shapes, no free-text event payload                    |
+  | R Recorder          | New portable `src/core/support/flightRecorder.ts`; journal/marker adapter in `src/host/support/`; `test/unit/flightRecorder.test.ts`                                                                                                                                                    | Write-time scrub, size/age caps, truncated/tampered records, multi-window ownership, storage failure |
+  | P Report/export     | `src/core/support/report.ts`, new scrubbed report builder and `src/host/support/reportProblem.ts`; owning report/export unit tests                                                                                                                                                      | D14 value allowlist, final draft identity, second scrub, URL/clipboard/save failures, no network     |
+  | W Webview           | Report preview and render-failure UI in `src/webview/**`; report-only message handler in `src/host/conversation/`; error-row/notice regions; harness scenarios and owning UI tests                                                                                                      | Error transport contains no raw text; keyboard/focus/labels; 320px, pseudo-locale, four themes       |
+  | A ACP/headless      | `src/runtime/**` report subcommand and recorder adapter; ACP error-observer region; runtime/stdio owning tests; `docs/acp.md`                                                                                                                                                           | No backend/auth/model startup; local capped data; stdout is text only in standalone report mode      |
+  | I Integration/docs  | Report registration/activation/error-observer regions in `src/extension.ts` and backend managers; `src/shared/palette.ts`, `package.json`, build/split scripts if needed; README, `docs/PRIVACY.md`, CHANGELOG, PLAN, `docs/ide-compatibility/host-api.md`, `docs/certification/m93.md` | Both backends; native-command disclosure/fallback; D6 measured; invariant and complete gate receipts |
+
+<!-- plan-archive:end id="decisions-d753c0d64-26554" -->
+
+## ### M118
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35335" lines="35335-35356" at="3087b10dd" bytes="1684" sha256="04f645f4d9d4fb0a005bb058f181a0628a35fedbb6931e898c082e7721546072" -->
+
+Status detail retained: phase 1 integrated on M118INT; bounded rig certification complete
+**FIX0144W follow-up (2026-10-06).** Give the lazy prompt host one lifetime
+owner that rejects new operations during disposal and awaits admitted work,
+including startup/configuration mirror merges. Extension deactivation and
+Windows test cleanup await that owner before storage is removed. Prove the
+drain and admission guards with paused-write regressions and restored red
+drills; run the M118 prompt/sharing files three times at repository defaults.
+**FIX0144W D89.5 continuation (2026-10-06).** Compare three complete native
+origin/admission runs on release `555a95158` and main `8c6351d73` before
+editing. The unchanged origin regression fails on both at its one-second
+polling deadline. Await the matching shell-completion event before assertions
+and cleanup, preserving the repository's five-second test deadline. Read raw
+native environment values in the real-shell probes instead of PowerShell's
+display table. Retain every positive/negative credential assertion, deliberately
+break the production fence once, restore byte-exact, and rerun both files
+three times plus the prompt/sharing regressions. Record bounded Windows checks
+and the baseline comparison in `docs/certification/envfence.md`; no paid calls.
+The shared React/VS Code and CLI/ACP bindings are implemented. Native/companion
+MHP mounting waits for M104; the TUI waits for M110a0 lane T. Installed-editor
+parity and the hosted full gate remain unclaimed. About 34 lane-hours. No model call is needed.
+Phase 1 targets the next patch release after 0.14.3, phase 2 the one after;
+phase 3 waits for M110, M96, M113 and M115.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35335" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35380" lines="35380-35386" at="3087b10dd" bytes="5366" sha256="c0818b9f39fd4c35de1d9079e24fb4e69de9408bceb8b08e2c9ab7cb2e9cd325" -->
+
+| Lane                               | Items                                                                                                                                                                                                                                                                                                                                                                                              | Files it owns                                                                                            | Its regions in shared files                                                                                                                                                                             | Starts  | Rig      | Hours |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
+| 0 Contracts and strings (lead)     | The saved prompt's schema and the `.muse-prompt.md` front matter; the share options (mode, range, toggles, format) and `chat-share` v1; the item-kind allow-list; the MHP messages; the commands and menus; every string; the fakes (a transcript of every item kind, a clipboard, a browser opener, a fetch)                                                                                      | new `src/shared/prompts.ts`, `src/shared/chatShare.ts`, `test/unit/helpers/sharing/**`                   | `constants.ts` (`PROMPT_*`, `SHARE_*`); `src/shared/protocol.ts` (the messages); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (with M104 lane 0's owner)                        | day 0   | Kubuntu  |     4 |
+| P Saved prompts and prompt sharing | D98.1 and 2: the user and workspace stores, the sync mirror, the library picker (search, tags, edit, delete, duplicate, insert, run with variables), **Save prompt** in the composer's, the messages' and the editor selection's menus, **Use saved prompt…**, loading in any workspace, **Copy to my prompts**; copy, `.muse-prompt.md` export, import from a file, link or gist with its preview | new `src/core/prompts/**`, `src/host/prompts/**`, `src/webview/prompts/**` (a lazy chunk)                | `Composer.tsx` (the menu and the insert); `useRowMenu` (the message menu); `palette.ts`; `package.json` (`editor/context`, `webview/context` and the commands); `extension.ts` (commands, loaders only) | after 0 | Mac mini |    12 |
+| C Chat sharing                     | D98.3–5: the modes with the allow-list, the range, the toggles; Markdown, HTML and JSON on `exportConversation` and `renderTranscriptMarkdown`; the preview pane with highlighted redactions; the scrub (M84's, registered values, paths, user name); the confidential refusal; copy, save and open in the browser; the header's **Share**                                                         | new `src/core/sharing/chatShare.ts`, `src/core/sharing/html.ts`, `src/webview/sharing/**` (a lazy chunk) | `exportConversation.ts` (the share entry); `transcriptMarkdown.ts` (the mode filter, with M84's owner); `sessionTransfer.ts` (the scrub, reused); the panel header; `docs/schemas/`                     | after 0 | Kubuntu  |    10 |
+| X ACP, CLI, TUI and MHP            | D98.6: ACP's `/share chat` and `/prompt save\|list\|use\|share`; the CLI's `share` and `prompts`; the TUI's views on lane 0's messages; the MHP handoff for the native hosts' menus and the companion page                                                                                                                                                                                         | new `src/acp/sharing.ts`, `src/runtime/sharing/**`                                                       | `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts`; M110a0's lane T views (once merged, with T's owner)                                                                                            | after 0 | Win11 VM |     6 |
+| W Wiring and docs (lead)           | The lazy chunks, budgets, the docs, the `/help` rows, certification, the full gate                                                                                                                                                                                                                                                                                                                 | `docs/certification/m118*.md`                                                                            | `scripts/build.mjs`; the split and size gates; README; PRIVACY; CHANGELOG; CONTRIBUTING; `docs/acp.md`; `src/shared/featureCatalog.ts`; PLAN                                                            | last    | Kubuntu  |     2 |
+
+<!-- plan-archive:end id="decisions-3087b10dd-35380" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35388" lines="35388-35389" at="3087b10dd" bytes="92" sha256="ad4cdd622baf6745e093af639c0e0d8d2b3f3e29702d9293953ed6593efe6b48" -->
+
+Total: about 34 lane-hours (P is 12: the right-click menus and loading
+anywhere joined it).
+
+<!-- plan-archive:end id="decisions-3087b10dd-35388" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35391" lines="35391-35450" at="3087b10dd" bytes="3921" sha256="31d37407fb7819dd68100ffc1074343e151e2e4ae923116d139e1d5e95feb869" -->
+
+- **Acceptance** (fakes; no model calls):
+  1. **The mode filter.** A golden per item kind: the full transcript keeps
+     every kind; conversation-only keeps only the user's and the assistant's
+     messages, with the assistant's text intact, code blocks by default,
+     attachments as names, diffs only when toggled. The red drill adds a new
+     item kind, and conversation-only leaves it out without a code change.
+  2. **The scrub.** Planted keys, registered values, absolute paths, the
+     user name and the home path are absent or replaced in every format and
+     in the preview, which highlights each redaction; attachment contents are
+     absent unless chosen.
+  3. **The range.** From message A to message B, inclusive, in both modes.
+  4. **Determinism.** The same transcript, options and `exportedAt` give the
+     same bytes in each format; JSON validates against the committed schema.
+  5. **Confidential.** A confidential workspace refuses every share, and says
+     why.
+  6. **Nothing leaves without the click:** no clipboard write, file or
+     browser open before the final button (a spy).
+  7. **Prompts.** Save from the composer, a message and an editor selection;
+     the library's actions; Run asks for the variables and Insert never runs;
+     the caps hold; a damaged store is kept and reported (D67's rule).
+  8. **The round trip.** Save, export to `.muse-prompt.md`, import: nothing is
+     lost. An imported prompt is previewed in full, its variables listed, and
+     it never runs by itself (a red drill runs it on import, and the test
+     fails).
+  9. **Anywhere.** A user-scope prompt appears in another workspace, in ACP,
+     the CLI and the companion page; the picker labels each prompt's scope;
+     **Copy to my prompts** works; a duplicate title is shown as such; loading
+     never sends.
+  10. **Menus.** **Save prompt** and **Use saved prompt…** appear where D98.1
+      puts them on each surface (VS Code's message, composer and editor
+      menus; the native hosts' through the fake bridges).
+  11. **The HTML** passes axe in light and dark and at 320 px.
+  12. **Editors.** ACP's `/share chat` and `/prompt`; the CLI's `share` and
+      `prompts`; the TUI on lane 0's fakes, or named as waiting.
+- **Tests.** `promptStore.test.ts`, `promptLibrary.test.tsx`,
+  `promptImport.test.ts`, `promptMenus.test.ts`, `chatShareFilter.test.ts`
+  (the allow-list goldens), `chatShareScrub.test.ts`, `chatShareRange.test.ts`,
+  `chatShareFormats.test.ts`, `acpSharing.test.ts`, `shareCommand.test.ts`;
+  each with a red drill recorded in `docs/certification/m118-<lane>.md`.
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard, `test:a11y`, `check:reference`, gitleaks
+  over the fixtures.
+- **Security.** Imported prompts are untrusted text, never run on import;
+  every share is previewed and scrubbed and leaves only on the user's click;
+  a confidential workspace shares nothing; a link or gist is fetched only on
+  the user's click under a size cap. PLAN §9 records the residual: a secret
+  in a shape the scrub does not know can reach a share; the preview is the
+  user's last check.
+- **Performance and bundles.** The library joins the existing 25 KiB
+  action-dialog group; the chat dialog has its own measured 25 KiB cap.
+  The original deferred UI total remains capped at 50 KiB. `dist/extension.js`
+  gains at most 1 KiB for the commands; no existing cap rises.
+- **Size.** S: about 34 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [x] The allow-list goldens and the new-kind drill
+  - [x] The scrub, range, round-trip and untrusted-import drills
+  - [ ] The menus on each surface; prompts in every workspace
+  - [x] Phase 2's gists and phase 3's destinations named as planned
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        budgets measured; the full gate green
+
+<!-- plan-archive:end id="decisions-3087b10dd-35391" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35454" lines="35454-35462" at="3087b10dd" bytes="654" sha256="21a9796b75cfded5b2a81966c8a92ea5c5a62eb46fc6975d853fd658ca7ba5e9" -->
+
+The authoritative rig brief stages D98/M118 for P (prompt library), C (chat
+sharing) and X (ACP/CLI/TUI/MHP). This lane adds only validated contracts,
+translations, fake fixtures and integration handoffs. D67's unimplemented
+VS Code state storage is superseded here by portable user prompts in
+`agentDataFolder()/prompts/` and workspace prompts in `.muse/prompts/`.
+Loading inserts into the active chat, creating one if needed, never sends.
+Right-click Save prompt covers own transcript messages, composer text and
+editor selections; the composer also offers Use saved prompt. Both scopes
+remain visible, user first, preserving duplicates across scopes.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35454" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35464" lines="35464-35474" at="3087b10dd" bytes="772" sha256="397c77a14ef86a3adff98fe0922c16d04fd0a93000c5a72280d02bdaf36669d4" -->
+
+Saved prompts use versioned JSON front matter (a YAML-compatible subset)
+followed by verbatim Markdown, with declared built-in/named variables and
+an imported-untrusted flag. Sharing has inclusive message-id ranges,
+full/conversation modes, explicit final confirmation, local phase-one
+destinations and reserved hosted destinations. Conversation mode uses an
+allow-list beside each existing transcript representation; future kinds
+stay excluded. Privacy ports reuse registered-secret and shared redaction,
+normalise workspace/home/absolute paths and recheck the existing
+confidential-workspace setting immediately before release. Attachment
+contents require explicit selection. These are our own formats, not new
+provider wire shapes; no live or paid captures are needed.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35464" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35476" lines="35476-35480" at="3087b10dd" bytes="370" sha256="95c2cd03787bbf8be24822dae1fc566275f847198afa7b2a1e21cf5fbd0a64d3" -->
+
+- [x] Contracts, round trips, default-deny guards and all-kind fakes.
+- [x] Fourteen real translations, pending manifest patch and strict checks.
+- [x] Deterministic share JSON Schema/check; P/C/X entry-point handoffs.
+- [x] Bounded rig checks and 45 byte-exact deliberate-failure controls;
+      `docs/certification/m118-l0.md` records receipts and integration limits.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35476" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35482" lines="35482-35484" at="3087b10dd" bytes="231" sha256="0c7ba3461a53c285186583117989a8ff7ca37d6abfe07ed5877dc68da60442e6" -->
+
+`src/shared/featureCatalog.ts` and its generation/check scripts do not exist
+on base `81a5ccfa`; no commands are registered by this lane. P/C/X must add
+their actual commands to the help reference when that parallel feature lands.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35482" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35488" lines="35488-35498" at="3087b10dd" bytes="799" sha256="f657884840bef07862d55bc204f29305e6e936855822a4e08a9643a3dd8e8ca2" -->
+
+Authority: `C:/lanes/_ctx/M118X.rig.md`, D98/M118 on
+`plan/m105-m107`, and `docs/certification/m118-handoff-x.md`.
+Implement `/share chat`, `/prompt save|list|use|share` and the CLI
+`share`/`prompts` parser and runner against lane 0's portable contracts.
+Prompt storage and the scrubbed renderer are injected P/C ports, shared across
+workspaces through `agentDataFolder`; never a separate library or a model turn.
+ACP command interception is opt-in through a runtime binding, with reserved
+commands failing explicitly when that binding is absent. A preview's exact
+bytes/request are held in memory, bound to its one-use final action, and the
+live confidential setting is checked again at release. Cancellation or session
+replacement invalidates pending actions. Prompt use returns insert-only text.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35488" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35500" lines="35500-35506" at="3087b10dd" bytes="542" sha256="d2a40d7558c71f31a932aabe5d180ba5a3d3df57216854047aff11e6aadd04c1" -->
+
+The base lacks P/C implementations, M110a0's TUI, M104's MHP and the feature
+catalog. Supply tested adapters and named integration handoffs for their actual
+runtime/main, bridge, menus, TUI, help, README/ACP guide and changelog bindings.
+Do not edit those other lanes' files or invent a protocol method. Lane X's
+certification records exact parser syntax, lifecycle and final-confirmation
+drills. Scoped checks run directly on win11; full quality and native editor
+certification remain with W. No paid/live/network calls or new dependencies.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35500" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35508" lines="35508-35513" at="3087b10dd" bytes="466" sha256="5b9b6911e55fc1797efb5248b87b72d9d2a7cc42f8032f9ce029e4d65db75231" -->
+
+- [x] X parser/runner, ACP local interception and native-menu adapters behind
+      injected P/C/UI ports; no model send and no fake production bindings.
+- [x] Win11 owning/regression tests and static/build checks recorded in
+      `docs/certification/m118-x.md`; 67 named red drills, byte-exact restores.
+- [x] Missing runtime, TUI, MHP, help/docs and lazy-bundle bindings named in
+      `docs/certification/m118-x-handoff.md`; installed/native parity remains W's.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35508" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35515" lines="35515-35523" at="3087b10dd" bytes="663" sha256="f9fce93a6222605670652819589e7ba63e9229634b8385506dcd1143d80e360e" -->
+
+**FIXM118X / RVM118X (2026-10-06, Kubuntu).** Repair all four reviewed P2
+adapter defects within X's files: reuse workspace-path confinement for the
+resolved output and allowed root at release; require explicit headless
+destination and file output flags; abort every pending sharing UI when ACP
+cancels/releases/exits; reuse the shared skill/slash parser for reserved
+commands with leading whitespace. Interactive defaults stay unchanged.
+No new dependency, model call or production P/C/native binding is in scope.
+Record regression failures, byte-exact red drills and bounded checks in
+`docs/certification/m118-x.md`, and update W's integration contracts there.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35515" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35525" lines="35525-35528" at="3087b10dd" bytes="278" sha256="9b5af78a833d8540e1f17875218c138850b60c859728fcdc5db1ecf93d561409" -->
+
+- [x] P2-1 output confinement and resolved path/root release contract.
+- [x] P2-2 explicit headless destination and file output admission.
+- [x] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
+- [x] P2-4 shared leading-whitespace local-command interception.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35525" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-33833" lines="33833-33833" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-33833" -->
+
+## ### M97
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35557" lines="35557-35578" at="3087b10dd" bytes="1501" sha256="41a62ac72e3dfc121c25d6ac5e9dbbf3f1fd7f374d6fce55aec04f8fd946bbd9" -->
+
+- **Decision 2026-10-10 (owner).** The bundled SPDX License List 3.28.0
+  templates and equivalent-words list (CM971-R3) stay attributed under
+  CC-BY-3.0, Linux Foundation and its Contributors; the licence texts in
+  them keep their own terms (release issue I-R11).
+- **Decision 2026-10-10 (lead): scan scope.** A workspace scan judges what
+  the workspace distributes; a product rule for every user's workspace.
+  (1) Distribution is decided from the build records first (or the package
+  manifest's files list when there are none), never by walking
+  `node_modules`; the records, their listed files and the shipped packages'
+  metadata and licence files are admitted before the walk, outside the
+  directory-entry budget, which applies to the rest. An input the bundler
+  shook out (no bytes in any output) does not ship. (2) Licence texts of
+  shipping dependencies must match a template or keep human review;
+  dependencies that do not ship, and undistributed files such as test
+  fixtures, are informational and never make the scan incomplete. (3)
+  `.git` and `node_modules` are expected and skipped, not incomplete
+  reasons. (4) The SPDX guidelines' equivalences apply (quote styles,
+  Markdown emphasis, list markers, whitespace, titles and notices outside
+  the template's slot, an appendix given from its applied notice); real
+  wording differences keep review, and every pinned template is tried
+  (MIT-0 added). Omitted advice in a long report is summarized, not an
+  incomplete reason.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35557" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35580" lines="35580-35595" at="3087b10dd" bytes="1250" sha256="d9a8abcf7564275a7e7d6f0c9444b3dc0861e835ac19e324c6a8ea003278e0dd" -->
+
+- **Decision 2026-10-11 (lead, CM971R5).** Keep strict default matching
+  and exits unchanged. Admit only benign holder/notice forms measured on the
+  eight shipped upstream texts: the literal `and affiliates.` and `et al.`
+  suffixes, a final full stop after a two-word capitalized name, and a parenthesized email/URL pair.
+  Existing copyright markers, year lists/ranges and rights-reserved notices
+  retain their guards; restriction sentences, including Title Case and every
+  supported language, still require review. Remaining notice-only differences
+  may use root `licence-review.json` receipts pinned to package, exact version,
+  exact licence-byte SHA-256 and the found single SPDX identifier, with a reason.
+  Report every applied receipt visibly as advice in all formats and resolve
+  only that text check; declaration conflicts and other gaps remain. Never
+  issue an SDK receipt: report its metadata and first five licence lines for
+  the owner's redistribution decision. Preserve the legal 150-KiB cap by
+  simplifying existing bundle code if necessary, without new dependencies.
+  Record per-package comparisons, red/restored guards and repository scan in
+  `docs/certification/m97.md`; full aggregate quality remains the lead's gate.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35580" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35597" lines="35597-35607" at="3087b10dd" bytes="804" sha256="5e56f97a148ce8e44f2a1780222d19903f8b0c6bf1949cb9e911b0dd3c071997" -->
+
+- **CM971R4 repair scope (2026-10-10, RVCM971C).** Exact variable
+  matches require short names (at most eight tokens), multilingual restriction
+  rejection after Unicode case/separator splitting, and no sentence punctuation
+  beyond company abbreviations. Compound `non profit` is a
+  phrase, never a ban on `Profit Inc.`. Scope reader gaps to shipped material,
+  preserve declaration/text conflicts, prioritize distribution evidence within
+  the unchanged file cap, preserve package versions during privacy scrubbing,
+  and align the exit documentation with blocker-only exit 1. Ecosystem admission
+  counting is shared in the existing dependency module to retain the unchanged
+  zero-duplication gate. Every finding has
+  a regression and byte-exact red/restored drill in `docs/certification/m97.md`.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35597" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35624" lines="35624-35631" at="3087b10dd" bytes="2456" sha256="a899dd9a843c7d573d66fceda91eb63714d0372ac0eb3efe14c208e006d862a1" -->
+
+| Lane                   | Muse implementation ownership                                                                                                                       | Codex review / acceptance focus                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contract / strings   | Finding/tool/postMessage schemas, named limits in `constants.ts`, English and all 14 `l10n/ui.*.json`, manifest translations, header-policy setting | Boundary validation, runtime text reads, complete real translations, no secret-bearing result fields                            |
+| S Scanner              | `src/core/legal/**`, pinned data/provenance, ecosystem and distribution fixtures in `test/**`                                                       | Offline/no execution/no writes, expressions, evidence conflicts, incomplete coverage, actual shipped dependency set             |
+| B Backend / skill      | Native tool, `src/host/ide/**` adapter, `/legal` routing and Plan hold, D68 bundled-skill integration                                               | Both backends, actual read-only enforcement, trust/cancellation/hold ownership, no vendor-package mutation                      |
+| W Report / fix         | Accessible webview report and selected-patch handoff using existing approval/edit paths; owned harness cases                                        | Exact selection/preview, stale evidence refusal, Bypass still requires user selection, Plan refuses writes, themes/narrow panel |
+| R Runtime / enrichment | Reserved exec subcommand in `src/runtime/**`, lazy build/package wiring, optional public registry reader                                            | No backend/auth/ACP stdout contamination; exit semantics; captures before parsers; disclosed bounded network calls              |
+| I Docs / integration   | README, `docs/acp.md`, `docs/PRIVACY.md`, CHANGELOG, PLAN and `docs/certification/m97.md`                                                           | Truthful scope/cost, packaged notices/data, exact-tree rig and installed-host receipts                                          |
+
+<!-- plan-archive:end id="decisions-3087b10dd-35624" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35633" lines="35633-35753" at="3087b10dd" bytes="8954" sha256="88e712b978bdbfdcbe66db6c47ac64dfc1839e63bd4743ab657927b88a83ac07" -->
+
+- **Acceptance.**
+  1. `/legal`, palette and both tools yield the same deterministic findings for
+     identical workspace bytes, policy, distribution evidence and rule/data
+     versions; changing only the model/backend cannot change the facts.
+  2. All ecosystem rows in D76 have known-license and incomplete/conflicting
+     metadata fixtures. Unknown, UNLICENSED, proprietary and source-available
+     entries stay visible; dual licenses/exceptions are evaluated correctly.
+  3. A copyleft/distribution fixture flags its specific unmet obligation;
+     permissive/GPL combination, LGPL linkage, MPL files and development-only
+     versus actually bundled dependencies do not collapse into one rule.
+  4. Missing/mismatched project LICENSE/manifest/README, missing Apache NOTICE
+     attribution, incomplete packaged third-party notices, foreign vendored
+     headers and an asset lacking provenance each have attributable findings.
+  5. Required/optional/off header policies, existing REUSE/sidecars, generated
+     exclusions, conflicting holders/year formats and legitimate old years are
+     covered; no guessed owner or automatic year rewrite is offered.
+  6. Scan writes nothing: compare the complete fixture tree's paths, types and
+     SHA-256 bytes before/after success, error and cancellation, and assert no
+     write/network/spawn/format/hook/check adapter was invoked. Seed an unsafe
+     shell/build/gemspec and a prompt-injection file; neither executes. Deny
+     traversal, escaping links/reparse points and unbounded input. Optional
+     enrichment runs only after its exact query list is approved.
+  7. Selecting fixes changes only selected project-owned files after explicit
+     preview/authorization and current-mode approval. Denial, Plan/Restricted
+     Mode, changed bytes, trust loss, disposal or switched workspace refuses
+     writes. Project-license changes ask separately; dependency edits and
+     automatic removal remain impossible. Partial failures are listed and
+     rescanned, never reported as complete success.
+  8. Report/export preserves severity, evidence, uncertainty, fixability and
+     disclaimer, with no secret/PII values in model context, logs or exports.
+     Keyboard/screen-reader, 320px panel, zoom, four themes and pseudo-locale
+     receipts pass; all user strings are translated in the 14 tables.
+  9. Installed VSIX on Muse Code and Model API, and installed ACP headless
+     `exec legal-scan --json`, exercise real scanner routing with fake model
+     transports. No credential or model is required for deterministic scan.
+     Optional explanations have separate confinement and billed-use receipts.
+  10. Scanner stays lazy, packaged data/skill/licenses/notices ship, and every
+      existing D6 cap plus the reviewed scanner cap passes on the final tree.
+- **Tests and red drills.** Fixture repos live only under `test/**`, use small
+  local files and fake registries, and cover every item above. Each new assertion
+  and guard is deliberately broken once, observed failing, restored byte-exact
+  (SHA-256), then its complete owning test file rerun; record mutation, failure,
+  restoration, machine and exit code in `docs/certification/m97.md`. Include
+  scan write/network admission, expression/NOTICE mismatches, missing adapters,
+  secret redaction, selected-file authorization and stale-file refusal. Never
+  mutate a user's repo as a drill. Windows reparse/path and installed-host
+  checks run on Windows 11; other checks/builds use Mac mini and Kubuntu.
+- **Gates.** Lead runs full `npm run quality` and required CI/installed-host
+  gates on the final integrated tree. Lane tests/builds and multi-project types
+  run on rigs; local changed-file formatting/lint only. Preserve coverage,
+  security, localization, host-API, accessibility, duplication, dead-code,
+  bundle/split and package budgets. New external response parsers need counted
+  captures before implementation, not invented fixtures. No paid/live call is
+  authorized by this planning lane.
+- **Security and cost.** Bound all reads, file counts and result sizes through
+  named constants; root-confine and cancel; treat repository contents as data.
+  No workspace scripts, credentials, model weights or confidential file bodies
+  are uploaded. D76's free default, registry disclosure and one-turn explanation
+  consent apply. Existing hidden-turn, request packing, checkpoint, paid-use and
+  verification invariants remain intact; run their owning regression files if
+  routing changes them.
+- **Docs and owner steps.** None expected from the owner. Delivery documents
+  commands/settings only after each documented invocation succeeds; update
+  README, ACP guide, PRIVACY, CHANGELOG and certification together. This planning
+  commit documents the decision, not availability of a new product command.
+- **Integration status (2026-10-04, lane I, macmini).** S/B/R/W merged in
+  order with their intent retained; real lazy scanner, native manager wiring,
+  packaging/data notices and report metadata integrated. Aggregate receipts and
+  acceptance gaps are in `docs/certification/m97.md`. Selected-fix application,
+  Markdown export, scanner-prose translations, registry consent/network review,
+  optional explanations and installed/Windows checks remain open; no full M97
+  delivery or compliance certification is claimed.
+  The continuation's unchanged zero-duplication gate caught repeated legal
+  schema fields and test setup. Reuse the scan contract's field schemas and
+  local fixture helpers, retaining strict validation and every assertion.
+  The full coverage run also caught M80's isolated packaging fixture missing
+  M97's new bundle/data inputs. Extend that fixture and its packed-content
+  assertions; preserve every existing headless/package guard.
+  The combined coverage run caught the canonical entry importing a timer
+  module outside the scanner's strict import boundary. Use the existing Node
+  global scheduler for the same event-loop yield; preserve final cancellation
+  admission and the unchanged guard. Three unrelated timing failures on the
+  shared rig are retried with two test workers, preserving every deadline and
+  coverage threshold.
+- **Finish lane (2026-10-05, M97FIN).** Merge the finished S/W repair branch
+  without merging main. Close deterministic fixes using verified existing
+  project headers only: prepare exact diffs, confirm project ownership, admit
+  each selected edit through the existing checkpoint/conditional-write path,
+  recheck live mode/trust/evidence, list failures and rescan. No guessed owner
+  or license is permitted. Keep attribution patterns linear on malformed
+  whitespace. Add requested Markdown export and tool disclaimers.
+  Remove dynamic scanner regex construction and review historical gitleaks
+  findings without exposing values; only exact benign fingerprints may be
+  ignored. Run every full-quality gate and package cap unchanged. A persistent
+  Chrome driver may replace the slow per-page CLI launch while retaining all
+  all 460 pages (including S/W additions), harness assertions, axe rules and
+  fail-closed result admission.
+  Remaining cross-platform/live/explanation and translation gaps keep explicit
+  owners and release-blocking dispositions in §9 until their receipts exist.
+- **Certification checklist.**
+  - [x] Owner request, D76 design, lanes and source-grounded research recorded.
+  - [ ] Acceptance 1–10, each with its failing drill and passing receipt.
+  - [x] Optional registry shapes captured; SPDX data provenance/terms pinned.
+  - [x] Windows final-head legal accessibility receipt: 96 Chromium/keyboard/
+        device-metric zoom checks and 24 English/pseudo WCAG pages on Windows
+        11 25H2, build 26200.9457; exit 0 on `2fd060c3`. Receipt and screen-reader
+        scope are recorded in `docs/certification/m97.md` (M97WIN).
+  - [x] Windows installed VSIX: both selected backends pass 3/3 keyless host
+        checks; NVDA 2026.2 speaks all report controls, evidence links, native
+        dialogs, export and shipped notices/license editors. Fifteen controls
+        retain visual focus order at 100% and actual 207% VS Code zoom; native
+        dialog containment/restoration and raw UIA bridge limits are recorded
+        in `docs/certification/m97.md` and `m97sr-receipt.json` (M97SR).
+  - [ ] M97SR rig directory cleanup: extension uninstalled, private extension
+        list empty, owned Code/NVDA stopped and temporary task removed.
+        Automatic approval review rejects unlinking the four private skill
+        junctions and removing `C:/lanes/M97SR-host` with only "blocked by
+        policy". The inactive directory remains; no deletion bypass is used.
+  - [ ] Muse Code explanation read-only confinement proved, or explicitly refused.
+  - [ ] Final-tree rig/full-quality, a11y, package/bundle and installed-host gates.
+  - [ ] Delivered commands, costs, limits and privacy documented from real runs.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35633" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35755" lines="35755-35768" at="3087b10dd" bytes="1061" sha256="a5ab54380a34916e3717820fb9d99ae776f9b8ee0e2a70300ebabf69c71cb7a6" -->
+
+- **Windows packaging repair (2026-10-05, M97WIN; before implementation).**
+  The unchanged `vsixCompression` archive-preservation test fails because
+  Windows' `python3` Store alias exits 9009, while the installed `python` and
+  `py` both work. Probe each existing interpreter candidate with `--version`
+  before dispatch; skip unavailable candidates, but retain the selected
+  compressor's real exit code without retrying failed compression. Add no
+  dependency, configuration option, gate exception or machine-setting change.
+  Prove the existing complete test file red/green, deliberately remove the new
+  availability guard once, restore byte-exact with SHA-256, and record receipts.
+  With compression now reached, the same test exposes a separate fixture
+  failure: printing the full Czech table through Python's Windows cp1252
+  stdout raises UnicodeEncodeError. Print that JSON transport with ASCII
+  escapes; retain every real UTF-8 archive byte/value and metadata assertion,
+  and the parsed table must still equal the complete original translation.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35755" -->
+
+<!-- plan-archive:begin id="decisions-3087b10dd-35770" lines="35770-35783" at="3087b10dd" bytes="1057" sha256="7a5607b07c7e823d7d90b97e3147f1d191e5260b5b1ac848b877eae2f5103994" -->
+
+- **Installed Windows screen-reader repair (2026-10-05, M97SR; before implementation).**
+  NVDA's input/output log from the installed VSIX shows a spurious sign-in
+  warning when an unauthenticated user types `/legal`: opening the local
+  slash menu requests authenticated skills before the free scanner runs.
+  Request skills only while signed in. Keep the local legal command available,
+  and prove both the signed-out scan and signed-in skill request in the full
+  report test file before rebuilding the installed artifact and repeating
+  the keyboard/speech receipt. This adds no new command, string or auth bypass.
+  The installed native Save As cancellation also leaves the open report's
+  focus on the webview document, losing the Export button. Remember that
+  button for the export's window-focus return only; clear the pending return
+  after restoring it, and remove the listener when the report closes. Prove
+  cancellation and ordinary focus retention in the owning report tests, then
+  repeat native cancellation in the rebuilt installed VSIX.
+
+<!-- plan-archive:end id="decisions-3087b10dd-35770" -->
+
+## ### M98
+
+<!-- plan-archive:begin id="decisions-3087b10dd-36027" lines="36027-36078" at="3087b10dd" bytes="3066" sha256="5f9e5439b8de00b602671aa27602522d01d81f94e70d0f5bf77f703d6800ce4c" -->
+
+- **Gates.**
+  - The lead runs the full `npm run quality` and the required CI checks on
+    the final integrated tree. Lane tests and builds run on the rigs; local
+    work is limited to changed-file formatting and lint.
+  - All existing budgets are preserved.
+  - New external shapes need counted captures before their parsers: for
+    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
+    allow-rule format.
+  - This planning lane authorizes no paid or live call beyond its recorded
+    probes.
+  - [x] Owner requests and rulings; D77's policy of record; research and
+        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
+        prototypes labelled).
+  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
+        by this redesign. C1 and C2 move with the local judge to the 2j
+        spike; C3–C6 are fixed for phase 1.
+  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
+        and byte-exact red drills; no finding remains as an accepted residual.
+  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
+        receipt.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
+  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
+  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
+        installed-host receipts.
+  - [ ] Each phase-2 section certified on its own when it ships.
+- **Gates.**
+  - The lead runs the full `npm run quality` and the required CI checks on
+    the final integrated tree. Lane tests and builds run on the rigs; local
+    work is limited to changed-file formatting and lint.
+  - All existing budgets are preserved.
+  - New external shapes need counted captures before their parsers: for
+    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
+    allow-rule format.
+  - This planning lane authorizes no paid or live call beyond its recorded
+    probes.
+  - [x] Owner requests and rulings; D77's policy of record; research and
+        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
+        prototypes labelled).
+  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
+        by this redesign. C1 and C2 move with the local judge to the 2j
+        spike; C3–C6 are fixed for phase 1.
+  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
+        and byte-exact red drills; no finding remains as an accepted residual.
+  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
+        receipt.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
+  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
+  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
+        installed-host receipts.
+  - [ ] Each phase-2 section certified on its own when it ships.
+
+<!-- plan-archive:end id="decisions-3087b10dd-36027" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-34093" lines="34093-34093" at="f77f1809b" bytes="115" sha256="6ccac683eca047043069a12409e5dd1e280ed950878fa1c57a8b952ff13503e5" -->
+
+- **Archived.** The record that stood here is in [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-34093" -->
+
+<!-- plan-archive:begin id="decisions-f77f1809b-34095" lines="34095-34095" at="f77f1809b" bytes="107" sha256="9e6e1f998c239caaed1fcbd04c42276e2baa2dbbb31ed70d7d95971d7d297c0a" -->
+
+- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-34095" -->
+
+## ### M73
+
+<!-- plan-archive:begin id="decisions-f77f1809b-19491" lines="19491-19491" at="f77f1809b" bytes="107" sha256="9e6e1f998c239caaed1fcbd04c42276e2baa2dbbb31ed70d7d95971d7d297c0a" -->
+
+- **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+<!-- plan-archive:end id="decisions-f77f1809b-19491" -->
+
+<!-- plan-archive:begin id="decisions-d753c0d64-19283" lines="19283-19287" at="d753c0d64" bytes="356" sha256="7fc2318b0c5d4dbf8575133f3b0348bd2d5c50a2ef6135153dc42edddf827051" -->
+
+- **D78 released-main default (2026-10-04): on.** The owner's target makes
+  `museSpark.modelApiObservationPacking` available by default.
+  **Candidate packing default: on.** M101INT integrated the released manifest
+  and runtime default with the README; ACP/headless uses the same shared packing
+  engine. Explicit-off requests retain their golden bytes.
+
+<!-- plan-archive:end id="decisions-d753c0d64-19283" -->
+
+## ### M92
+
+<!-- plan-archive:begin id="decisions-473930d25-26577" lines="26577-26621" at="473930d25" bytes="3154" sha256="d809bc504122a4c59fc2abde7b6320465a891d3e2620a06291bb193fd212e9b4" -->
+
+- **Scope.**
+  - **M92a, tokens:** `src/core/redact.ts` and its consumers; the existing
+    secret warnings; tests; CHANGELOG Security; README, SECURITY.md and
+    PRIVACY where they list secret kinds.
+  - **M92b, bounded runs:** a proof, on Windows, macOS and Linux with fakes,
+    that a timed-out shell command returns its captured output and leaves no
+    process behind (a fake never-ending "monitor" that prints, then sleeps,
+    with a child process). Fix the shell tool only where the proof fails.
+  - **M92c, skill:** `muse_gadgets` in the bundled source (D68's vendor
+    layout, or a first-party folder beside it), the model-facing text, and
+    strings in all 14 tables if any UI names it.
+  - **M92d, docs:** a README "Muse Gadgets" section (what helps, the phone-ping
+    hook recipe after M91, and the never-a-gadget warning); CHANGELOG; this
+    plan.
+  - **M92e, secret guards (lead decision 2026-10-05, approved scope "robust
+    and feature rich"):** the M92a lane found no prompt, commit or shell
+    secret warning anywhere, so M92e builds the three asked-for guards on the
+    ONE shared detection table (`src/core/redact.ts`, no second pattern
+    list):
+    - a prompt holding a detected secret is held before sending: the panel
+      shows a dialog (Send anyway / Edit) and the transcript card carries the
+      redacted text. The host scans a plain composer send, posts
+      `secretPromptDetected` with the redacted text instead of starting the
+      turn, and only sends on with an explicit `secretAccepted` re-post. The
+      browser scans through the same pure table in `src/shared/redact.ts`
+      without importing host or core code. The session store keeps the raw text once the user
+      accepts (resume needs it); the panel transcript, extension logs and
+      extension-rendered exports never hold it. Native CLI session logs
+      remain raw backend records, as the export guide states. Slash-command, review, goal, handoff, loop and
+      `!`-command sends are out of scope: only the plain-message path warns.
+    - the commit guard is skipped: no commit-writing path exists. `git.ts`
+      only runs git, best-of-N snapshots with `write-tree` explicitly without
+      a commit, and review only reads messages and diffs. The user commits
+      outside the extension by definition; a `git commit` the agent proposes
+      as a shell command meets the shell guard.
+    - a shell command holding a detected secret requires explicit approval
+      before execution on the Model API backend: the engine settles it `secretDetected` (no allow-rule or session-rule
+      auto-allow, no Auto reviewer, no session choice, no hook auto-allow),
+      and the controller scrubs every approval card before the panel (the
+      value shown redacted, a secret note, all non-once approve choices
+      dropped) on both backends. The Auto reviewer on Muse Code never sees
+      one (`isReviewableApproval` excludes them). An explicit user approval
+      still runs the command as proposed. Model API Bypass asks too. Muse
+      Code Bypass can execute without an approval event; see the named §9
+      residual, RVM92E-BYPASS-MUSE.
+
+<!-- plan-archive:end id="decisions-473930d25-26577" -->
+
+<!-- plan-archive:begin id="decisions-473930d25-26623" lines="26623-26639" at="473930d25" bytes="1252" sha256="5d276252ee374b5e32c8310ea0ddc7282d8a05a9bf64e2ef60ab03602bf37c77" -->
+
+- **RVM92E corrections (2026-10-04, FIXM92E).** Fix all four P1s and
+  the prompt concurrency, explicit resend and approval-note P2s with failing
+  regressions and byte-exact red drills. The pure shared detection table must
+  also run before the browser creates a user card and when it replays history;
+  place its existing implementation in `src/shared/redact.ts`, keeping the
+  `src/core/redact.ts` entry for existing consumers. Persist redacted draft
+  recovery and redact Markdown content and its filename. Keep all pending
+  sends by local id; Send anyway sends the held text, attachments and reference
+  without consuming a newer composer draft. Scrub every reviewer fallback,
+  redact whole stage lines and omit standing-prefix metadata, remove every
+  non-once approve choice, and propagate update notes. Model API secret shell
+  calls ask in Bypass too, while forbids and denied modes still deny.
+  Muse Code Bypass cannot be intercepted when the CLI sends no approval;
+  record that named redesign residual in §9 and narrow the public claim.
+  The duplication gate also exposes copied M92 secret-dialog boot setup;
+  replace that owned test setup with an initialized UI store, preserving all
+  assertions and the zero-duplication threshold.
+
+<!-- plan-archive:end id="decisions-473930d25-26623" -->
+
+<!-- plan-archive:begin id="decisions-473930d25-26641" lines="26641-26659" at="473930d25" bytes="1168" sha256="9e45873d2498abdc532bd55b626a81a1abdca4150168288c0fcd7ed7067f441e" -->
+
+- **Acceptance.**
+  1. A valid `mgst_` token is redacted everywhere the shared table applies, and
+     `scan-secrets` counts it. Near-misses (wrong last character or length,
+     embedded in a word, hyphen-glued overlength runs) are not matched as
+     gadget tokens.
+  2. A shell command with `timeout_ms` that never exits returns its captured
+     output with `isTimedOut: true`, and its process tree is gone afterwards,
+     on all three OSes.
+  3. With bundled skills on, `/muse_gadgets` is listed and loads; with them
+     off, it isn't.
+  4. README states what the extension does and doesn't do with gadgets, with
+     the security warning.
+  5. A prompt holding a detected secret warns before sending (Send anyway /
+     Edit); the transcript card shows the redacted text either way.
+  6. A shell command holding a detected secret shows its card with the value
+     redacted and a secret note and offers no standing approve choice. On
+     Model API it is never auto-approved by an allow rule, a session rule,
+     a hook or the Auto reviewer; on Muse Code every emitted approval is
+     scrubbed and excluded from the reviewer (CLI admission residual in §9).
+
+<!-- plan-archive:end id="decisions-473930d25-26641" -->
+
+<!-- plan-archive:begin id="decisions-473930d25-26661" lines="26661-26663" at="473930d25" bytes="179" sha256="f04ae231583297feb51c5a3072454adc9fd0906ffd8876ce655bc75320badd60" -->
+
+- **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
+  proof runs on the three rigs (targeted files only). No hardware, network or
+  model call is needed.
+
+<!-- plan-archive:end id="decisions-473930d25-26661" -->
+
+<!-- plan-archive:begin id="decisions-473930d25-26665" lines="26665-26665" at="473930d25" bytes="69" sha256="eb5037a569cc7fd3fe6f12dfbc70e80af2286c0d7f1421bb82052e3e80fd3e08" -->
+
+- **Gates.** The full quality gate, check-l10n, host-API, VSIX size.
+
+<!-- plan-archive:end id="decisions-473930d25-26665" -->
+
+<!-- plan-archive:begin id="decisions-473930d25-26667" lines="26667-26670" at="473930d25" bytes="264" sha256="d1b1082b9ab08744eda44237755c8fc7ca8031be887e5dba616957b66530b33e" -->
+
+- **Security.** A token never appears in a fixture literal (fixtures are built
+  at runtime). The skill tells the user to enter tokens themselves. Nothing
+  installs or talks to gadget services. M92e adds no pattern list: every
+  guard reads the one shared table.
+
+<!-- plan-archive:end id="decisions-473930d25-26667" -->
+
+<!-- plan-archive:begin id="decisions-473930d25-26672" lines="26672-26682" at="473930d25" bytes="545" sha256="26ce8eabf20804d0e6fc7f0dab7914f108df3b5c6da9e036a6752b097390f94d" -->
+
+- **Certification checklist.**
+  - [x] M92a: redaction, consumers and warnings, with drills
+        (`docs/certification/m92.md`)
+  - [x] M92b: bounded-run proof (Windows here, macOS/Linux on the rigs;
+        no shell fix needed)
+  - [x] M92c: bundled skill listed, loaded and toggled
+  - [x] M92d: README, CHANGELOG and this record (the phone-ping hook
+        recipe waits on M91)
+  - [x] M92e: prompt and shell secret guards, with drills
+        (`docs/certification/m92.md`); the commit guard skipped, no
+        commit-writing path exists
+
+<!-- plan-archive:end id="decisions-473930d25-26672" -->
+
+## ### M91
+
+<!-- plan-archive:begin id="decisions-d753c0d64-23468" lines="23468-23483" at="d753c0d64" bytes="894" sha256="265b736edaf8db46b940e353401e5f39232d5f4012dbf6341f521df1afaf20a6" -->
+
+- **Scope.**
+  - Muse parity: Interrupt, SessionFork's acceptance, and the
+    PostToolUseFailure correction.
+  - The 21 extension events, with the operations that ten of them need: the
+    kept shell directory, MCP elicitation, the Setup and Manual commands,
+    added folders, TeammateIdle, the MessageDisplay marker,
+    BeforeToolSelection's admission check, and AfterAgentThought.
+  - spark-hooks.json, with its rows in the Hooks picker.
+  - The handler types `http`, `mcp_tool`, `prompt` and `agent`.
+  - Importers for Codex, Gemini, Cursor, Copilot and VS Code, Windsurf, Kiro
+    and Cline, plus Claude Code's extended set.
+  - The format adapters, and the out-of-process plugin host for Amp and
+    OpenCode.
+  - Strings in all 14 tables.
+  - Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan
+    (D70 and the M83 Codex correction), and `docs/certification/m91.md`.
+
+<!-- plan-archive:end id="decisions-d753c0d64-23468" -->
+
+<!-- plan-archive:begin id="decisions-d753c0d64-23502" lines="23502-23533" at="d753c0d64" bytes="7101" sha256="b7ea6663d451fba6b1da73176935094ddfa6618b6ea55d82a7b84a9df27cc557" -->
+
+- **Lanes.** One branch, `feature/m91-hooks-parity`.
+  - Lane 0 goes first. Then R, E, I, P, S, M, H and X run in parallel, and
+    W goes last.
+  - Region rules are as in M87. Each lane adds its tunables beside the hook
+    region of `src/shared/constants.ts`, never at the file's end.
+  - `hooks.ts` is region-owned: lane R owns its events, lane H its handler
+    fields.
+  - **Settings and commands.** A lane that adds a setting or a command adds
+    all of it in one commit:
+    - its constant and `SETTING_DEFAULTS` entry, and its place among the
+      machine-scoped settings;
+    - its `package.json` contribution;
+    - its text in `package.nls.json` and the 14 `package.nls.<lang>.json`;
+    - its registration.
+
+    `manifest.test.ts` holds every contributed command to a registered one,
+    and check-l10n holds every manifest string to its use, so none can land
+    ahead. `package.json` and the 15 `package.nls*.json` are region-owned:
+    each lane edits only its own entries, beside the related ones.
+
+  | Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | 0 Strings and constants | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json` and `l10n/untranslated.json`; the hook region of `src/shared/constants.ts` (`SPARK_HOOKS_SEGMENTS`, `EXTENSION_HOOK_EVENTS`, `HOOK_FILE_CHANGED_DEBOUNCE_MS`, `HOOK_FILE_CHANGED_MAX_PER_MINUTE`)                                                                                                                                                                                                                                         |
+  | R Muse parity           | `hooks.ts`'s events (Interrupt, SessionFork's acceptance, PostToolUseFailure `updatedInput`); the cancel, dispose, forkSession and tool-failure regions of `ModelApiHost.ts`; the modelApiHooks tests                                                                                                                                                                                                                                                                                      |
+  | E Extension events      | the new `src/core/backends/modelapi/extensionHooks.ts`; `toolHookPayload.ts`; the setModel, todo_write, skill-invocation, touchPath/rules, autoReview/refused, noteExternalEdit, request (BeforeToolSelection's admission), reasoning and message regions of `ModelApiHost.ts`; `bestOfNRunner.ts` and `worktrees.ts`; the watcher, configuration, folders and command regions of `extension.ts`; the ACP agent's `setup` command (`src/runtime/cliArgs.ts`, `src/runtime/main.ts`); tests |
+  | I Import                | `agentImport.ts`, `importConvert.ts`, the `AGENT_IMPORT_*` constants (new sources gemini, copilot, windsurf, kiro and cline; their paths; per-source event and tool maps); tests                                                                                                                                                                                                                                                                                                           |
+  | P Adapters              | the new `src/core/backends/modelapi/hookFormats.ts` (formats gemini, cursor, copilot, windsurf, kiro and cline); tests                                                                                                                                                                                                                                                                                                                                                                     |
+  | S Shell directory       | the shell tool's directory: its regions of `tools.ts`, `ModelApiHost.ts` and `src/host/backend/toolIo.ts`; the tool row's directory; tests                                                                                                                                                                                                                                                                                                                                                 |
+  | M MCP elicitation       | `src/core/backends/modelapi/mcp/` (the capability, `elicitation/create`, the answer); the panel's form and its protocol messages; the ACP agent's form (`src/acp/questions.ts`); tests                                                                                                                                                                                                                                                                                                     |
+  | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                                                           |
+  | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                                                         |
+  | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                                                                                                                                  |
+
+<!-- plan-archive:end id="decisions-d753c0d64-23502" -->
+
+## D63 — Turn checkpoints restore the tools' own writes (2026-10-01)
+
+<!-- plan-archive:begin id="decisions-406932fef-3479" lines="3479-3503" at="406932fef" bytes="1774" sha256="145f31b5c7d0afca3df2587d01a9240cd24633f4cf12dc1634ac63b379dcc43c" -->
+
+- **What happened.** PR #55 went through seven Codex review rounds. From
+  the third on, each round found new races in attributing whole-workspace
+  differences to the model rather than the user, another window or a
+  process. The owner's redesign rule applied from round three.
+- **Decision (owner, 2026-10-01).** 0.10.0 shipped with
+  `museSpark.turnCheckpoints` off by default and marked Preview. M86 turns
+  it on again with restoration rebuilt on the model's own file-tool
+  writes. [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md) and the
+  [build contract](docs/design/m86-build-contract.md) govern the work.
+- **The new design (M86).** Every model file-tool write records its bytes
+  before and after in a durable owner-bound journal. A restore follows
+  an unbroken chain for each file, restoring only while its current bytes
+  equal the last recorded after; a file already at the earlier state is
+  unchanged. Captures and ignored-file scans are removed. Commands,
+  hooks and MCP tools are noted when they run; their changed files are
+  neither listed nor undone. The user's edits, other windows' writes and
+  personal memory are never undone. This narrows D51's restore promise.
+  Missing records refuse the whole range; per-file refusals name the
+  reason. Mixed-version fences, native process safety and the ABA and
+  final compare-to-rename limits remain explicit in the spec.
+- **Lead decision (2026-10-02), F07 closed by decision.** File copies and
+  unit payloads remain bounded by sequence, age and session. Shared-journal
+  identity metadata, never file contents, may persist until its owning
+  instance retires; only that instance compacts its journal, at retirement.
+  Removing extension storage clears it. SPEC section 9 records this exception.
+
+<!-- plan-archive:end id="decisions-406932fef-3479" -->
+
+## D5 — Testing strategy
+
+<!-- plan-archive:begin id="decisions-406932fef-936" lines="936-960" at="406932fef" bytes="1646" sha256="0d5e43f48d5ef80d455897a105570f4055aa23209f6de75cae03e8532da8ef8b" -->
+
+- **Unit (vitest, node env)**: everything in `src/core/**` (protocol types,
+  backends with fake transports, the host ⇄ webview protocol, settings
+  mapping, path guards). The `vscode` module is aliased to
+  `test/unit/mocks/vscode.ts`.
+- **Unit (vitest, jsdom env)**: webview components with Testing Library.
+- **Integration (@vscode/test-cli)**: activates the extension in a real VS Code
+  (xvfb on CI), asserts commands/views register and the webview posts its
+  ready message.
+- **Coverage thresholds are gates**: 90 % statements/lines/functions, 85 %
+  branches on `src/**` excluding `src/extension.ts` and `src/webview/main.tsx`
+  (entry points exercised by integration tests). A threshold flagging an
+  unreachable branch means the branch is dead — delete it, do not lower the bar.
+- **Every test must be able to fail**: each new assertion is checked once
+  against a deliberately broken implementation (recorded in the milestone
+  certification checklist).
+- **The real-life run (2026-10-12, the owner: "test the app in real life
+  thats the tests")**: the product's test is the packed product used for
+  real. `scripts/real-life/run.mjs` installs the candidate into a new empty
+  folder with a new empty home and drives it by the terminal agent and the
+  editor protocol, against real providers on their cheapest models, under a
+  request cap and a dollar cap. A scenario observes what a person observes
+  (an answer, a file on disk, an exit code, a sentence, a cost, a session
+  that loads again). Its record is the release's gate and the proof behind
+  a claim (`docs/testing/real-life.md`); nothing is tested against fake
+  code.
+
+<!-- plan-archive:end id="decisions-406932fef-936" -->
+
+## D2 — Thin, schema-validated HTTP client for the Model API instead of the `openai` npm SDK
+
+<!-- plan-archive:begin id="decisions-406932fef-684" lines="684-693" at="406932fef" bytes="732" sha256="52b2b54c5483ec2b7851d38bae87e3869c8f1d4220bd2100944c67bc9e765972" -->
+
+The `openai` package (7.20.0) pulls seven optional peers, requires Node ≥ 22
+and would ship an entire API surface of which the extension uses three
+endpoints. A ~300-line client over global `fetch` with `zod` schemas for
+every response boundary is smaller, keeps `no-unsafe-*` lint rules
+meaningful, and lets us model Meta's documented deviations (`tool_choice`
+only `"auto"`, `reasoning_effort` `none` → 400). Revisit if Meta ships a
+first-party SDK. **Amended at M7:** the stream is plain WHATWG server-sent
+events (`event:` / `data:` lines), so the planned `eventsource-parser`
+dependency was not added; `src/core/backends/modelapi/sse.ts` (80 lines) is
+tested on chunk splits inside frames and inside multi-byte characters.
+
+<!-- plan-archive:end id="decisions-406932fef-684" -->
+
+## D8 — Attachments live in the host; images are validated by header parsing
+
+<!-- plan-archive:begin id="decisions-406932fef-2444" lines="2444-2449" at="406932fef" bytes="416" sha256="141a5942c35950975f8c703ba070948bf2c9df14e2ca6632d2019368cf60f4a6" -->
+
+Pasted or dropped images cross postMessage once (base64) into an
+`AttachmentStore` owned by the conversation controller; the webview only
+shows chips. Width, height and media type come from the file's own header
+(`src/core/imageDimensions.ts`: PNG, GIF, JPEG SOF scan, WebP VP8/VP8L/VP8X),
+which is what the MSP `image` part needs and what refuses non-images with a
+reason. Limits: 10 MiB per image, 20 per message.
+
+<!-- plan-archive:end id="decisions-406932fef-2444" -->
+
+## D9 — Mention index from `git ls-files`, VS Code file search as fallback
+
+<!-- plan-archive:begin id="decisions-406932fef-2453" lines="2453-2460" at="406932fef" bytes="588" sha256="65350f9fb8c7c73ff5168bbdffc8a4de0cf79fb3f6b67e0dbc41f096813eb470" -->
+
+`workspace.findFiles` honours `files.exclude` but not `.gitignore`, and the
+`findFiles2` API that does is still proposed. With `museSpark.respectGitIgnore`
+on, the index runs `git ls-files --cached --others --exclude-standard -z` in
+the workspace root (git's own ignore semantics), falls back to `findFiles`
+with a logged warning when git is missing or the folder is not a repository,
+with no path count of ours, cached for 15 s and invalidated by a
+create/delete file watcher. Ranking is a deterministic fuzzy scorer
+(`src/core/fuzzy.ts`), file-name matches winning over folder matches.
+
+<!-- plan-archive:end id="decisions-406932fef-2453" -->
+
+## D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
+
+<!-- plan-archive:begin id="decisions-406932fef-7161" lines="7161-7176" at="406932fef" bytes="1033" sha256="95a696cf3644d3ccf185b39271e6802a7b4572b6a90a83f67049871c3f1d03f4" -->
+
+- **ESP32 SDK:** firmware on ESP-IDF 6.0.1 for about 17 boards. Build with
+  `idf.py build`; flash and watch with `idf.py -p <port> flash monitor`
+  (Ctrl-] ends the monitor), or `tools/board.sh BOARD …`. The per-user SDK
+  token is set in menuconfig as `CONFIG_GADGET_SDK_TOKEN`, which lands in
+  `sdkconfig` and is compiled into the firmware. Pairing goes over BLE with
+  the Muse phone app; after that the device reaches Muse's cloud over Wi-Fi.
+- **Linux SDK:** a Python service (`/opt/musegadget`) installed with
+  `install.sh --sdk-token mgst_…`. It gives the Muse assistant `system.run`,
+  `file.read`, `file.write` and `device.health` on that machine, with the
+  installing account's rights. `musegadget send-user-msg "…"` posts to the
+  user's Muse chat.
+- **Built for coding agents already:** each SDK folder ships an `AGENTS.md`
+  (setup, build, flash), and `skills/` holds 50+ community `SKILL.md` device
+  skills.
+- **The token** matches `^mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$` (the
+  installer's own check).
+
+<!-- plan-archive:end id="decisions-406932fef-7161" -->
+
+## D117 — A provider's refusal reads as the provider's refusal (lane PROVERR, 2026-10-12; numbered D108 until 2026-10-17, when that number was found shared with the test overhaul)
+
+<!-- plan-archive:begin id="decisions-406932fef-14803" lines="14803-14813" at="406932fef" bytes="785" sha256="a70f16375bddb9cd8d5d328ecf23801acd27435bad20a81dbcb2b09fafa36d71" -->
+
+**Cause.** On 2026-10-12 an Anthropic account ran out of credit; Anthropic
+answered HTTP 400 with `invalid_request_error` "Your credit balance is too
+low …", and the product ended the turn with "Internal error: Models &
+Agents is not available in this build", requests 1, settled 0, uncertain
+2.262144. The raise site was `src/core/providers/configured.ts`
+`streamResponse`'s catch (`return fail()`, base `:106`, called at base
+`:800`), measured by stack on base. The fix replaces the catch's tail with
+the refusal sentence, keeps status/kind/code/request id/wait, and releases
+definite 4xx reservations. Nine answers, the raise-site table, the
+providers' documentation quotes for "not billed" (with what they do not say
+marked), and five red drills are in the certification record.
+
+<!-- plan-archive:end id="decisions-406932fef-14803" -->

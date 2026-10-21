@@ -113,8 +113,11 @@ function parseBackup(bytes: Uint8Array, maxBytes: number) {
     const parsed = backupSchema.safeParse(input)
     if (!parsed.success) throw new VaultError('invalid')
     return { ...parsed.data, slot: portableSlot(parsed.data.slot, parsed.data.vaultId) }
-  } catch {
-    throw new VaultError('invalid')
+  } catch (error: unknown) {
+    // A malformed backup reads invalid; a VaultError keeps its own code and
+    // the failure rides along as the cause while the person keeps fixed words.
+    if (error instanceof VaultError) throw error
+    throw new VaultError('invalid', { cause: error })
   }
 }
 
@@ -123,6 +126,7 @@ export async function restoreEncryptedBackup(
   bytes: Uint8Array,
   maxBytes: number,
   isConfirmed = false,
+  recovery?: string,
 ): Promise<VaultStore> {
   if (!isConfirmed) throw new VaultError('invalid')
   const backup = parseBackup(bytes, maxBytes)
@@ -158,10 +162,12 @@ export async function restoreEncryptedBackup(
       document.data.generation !== backup.generation
     )
       throw new VaultError('invalid')
-    return await VaultStore.restore(options, shape.data, [backup.slot], isConfirmed)
-  } catch (error) {
+    return await VaultStore.restore(options, shape.data, [backup.slot], isConfirmed, recovery)
+  } catch (error: unknown) {
+    // A restore failure reads invalid either way, but the cause stays on
+    // the error for the caller (D207).
     if (error instanceof VaultError) throw error
-    throw new VaultError('invalid')
+    throw new VaultError('invalid', { cause: error })
   } finally {
     plaintext.fill(0)
   }

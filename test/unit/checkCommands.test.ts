@@ -12,11 +12,10 @@ import {
   verifyGuidance,
 } from '../../src/core/verify/checkCommands'
 import {
-  CHECK_COMMANDS_MAX,
   CHECK_DEFAULT_TIMEOUT_SECONDS,
-  CHECK_MAX_TIMEOUT_SECONDS,
   MILLISECONDS_PER_SECOND,
   MODEL_TEXT,
+  VERIFY_GUIDANCE_DIAGNOSTICS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -51,7 +50,7 @@ describe('checkCommandsSchema', () => {
     ])
   })
 
-  it('refuses a blank command, a repeated name, a bad time cap and too many checks', () => {
+  it('refuses a blank command, a repeated name and a non-positive time cap', () => {
     expect(checkCommandsSchema.safeParse([{ name: 'lint', command: '  ' }]).success).toBe(false)
     expect(
       checkCommandsSchema.safeParse([
@@ -60,18 +59,22 @@ describe('checkCommandsSchema', () => {
       ]).success,
     ).toBe(false)
     expect(
-      checkCommandsSchema.safeParse([
-        { name: 'lint', command: 'a', timeoutSeconds: CHECK_MAX_TIMEOUT_SECONDS + 1 },
-      ]).success,
-    ).toBe(false)
-    expect(
       checkCommandsSchema.safeParse([{ name: 'lint', command: 'a', timeoutSeconds: 0 }]).success,
     ).toBe(false)
-    const many = Array.from({ length: CHECK_COMMANDS_MAX + 1 }, (_, index) => ({
+  })
+
+  it('takes any number of checks and any positive per-check seconds (D121)', () => {
+    const many = Array.from({ length: 9 }, (_, index) => ({
       name: `c${String(index)}`,
       command: 'x',
     }))
-    expect(checkCommandsSchema.safeParse(many).success).toBe(false)
+    expect(checkCommandsSchema.safeParse(many).success).toBe(true)
+    expect(
+      checkCommandsSchema.safeParse([{ name: 'slow', command: 'x', timeoutSeconds: 3600 }]).success,
+    ).toBe(true)
+    expect(checkTimeoutMs({ name: 'slow', command: 'x', timeoutSeconds: 3600 })).toBe(
+      3600 * MILLISECONDS_PER_SECOND,
+    )
   })
 })
 
@@ -135,8 +138,12 @@ describe('checkCommandLine', () => {
   afterAll(async () => {
     await removeFolder(folder)
   })
-  const throughPowerShell = (command: string, paths: readonly string[]): unknown => {
-    const built = checkCommandLine({ name: 'argv', command, changedFiles: true }, paths, 'win32')
+  const throughPowerShell = (command: string): unknown => {
+    const built = checkCommandLine(
+      { name: 'argv', command, changedFiles: true },
+      SAFE_ON_WINDOWS,
+      'win32',
+    )
     if (!built.ok) {
       throw new Error(built.reason)
     }
@@ -166,7 +173,7 @@ describe('checkCommandLine', () => {
   }, 0)
 
   it.skipIf(!isWindows)('hands a native program each path as one argument', () => {
-    expect(throughPowerShell(`& '${process.execPath}' ${NODE_ARGV}`, SAFE_ON_WINDOWS)).toEqual([
+    expect(throughPowerShell(`& '${process.execPath}' ${NODE_ARGV}`)).toEqual([
       'probe',
       '--',
       ...SAFE_ON_WINDOWS,
@@ -179,11 +186,7 @@ describe('checkCommandLine', () => {
       probe,
       `@"${process.execPath}" -e "console.log(JSON.stringify(process.argv.slice(1)))" probe %*\r\n`,
     )
-    expect(throughPowerShell(`& '${probe}'`, SAFE_ON_WINDOWS)).toEqual([
-      'probe',
-      '--',
-      ...SAFE_ON_WINDOWS,
-    ])
+    expect(throughPowerShell(`& '${probe}'`)).toEqual(['probe', '--', ...SAFE_ON_WINDOWS])
   })
 
   it.skipIf(process.platform === 'win32')('hands bash each path as one argument', () => {
@@ -215,14 +218,14 @@ describe('verifyGuidance (Muse Code)', () => {
   it('names the diagnostics tool and the checks inside a harness note', () => {
     const note = verifyGuidance(true, [LINT, { name: 'test', command: 'npm test' }])
     expect(note).toBe(
-      `<harness_note>${MODEL_TEXT.verifyGuidanceDiagnostics} The user's check commands are: lint (\`npm run lint\`), test (\`npm test\`). Before you finish, run the ones your change affects.</harness_note>`,
+      `<harness_note>${VERIFY_GUIDANCE_DIAGNOSTICS} The user's check commands are: lint (\`npm run lint\`), test (\`npm test\`). Before you finish, run the ones your change affects.</harness_note>`,
     )
     expect(note).toContain('mcp__ide__getDiagnostics')
   })
 
   it('says only what is on, and nothing when neither is', () => {
     expect(verifyGuidance(true, [])).toBe(
-      `<harness_note>${MODEL_TEXT.verifyGuidanceDiagnostics}</harness_note>`,
+      `<harness_note>${VERIFY_GUIDANCE_DIAGNOSTICS}</harness_note>`,
     )
     expect(verifyGuidance(false, [LINT])).toBe(
       `<harness_note>The user's check commands are: ${checkListText([LINT])}. Before you finish, run the ones your change affects.</harness_note>`,

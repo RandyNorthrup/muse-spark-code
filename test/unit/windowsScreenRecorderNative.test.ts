@@ -1,6 +1,5 @@
-import { createHash } from 'node:crypto'
-import { execFile } from 'node:child_process'
 import {
+  copyFile,
   mkdir,
   mkdtemp,
   readFile,
@@ -10,24 +9,32 @@ import {
   utimes,
   writeFile,
 } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
-import { runProgram } from '../../src/host/processTree'
+import { windowsPowerShell } from '../../src/core/execGuard'
+import { windowsTrustedPathVerifier } from '../../src/runtime/windowsTrustedPath'
 import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_MIB,
-  SCREEN_RECORDING_MIN_SECONDS,
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_RECENT_MAX_AGE_MS,
   PROCESS_TABLE_TIMEOUT_MS,
 } from '../../src/shared/constants'
+import {
+  createWindowsLatestPort,
+  resolveWindowsRecordingFolders,
+} from '../../src/host/media/recordingLatest'
+import { noWorkspaceChildEnvironment } from '../../src/core/execGuard'
+import { runProgram } from '../../src/host/processTree'
+import { createHash } from 'node:crypto'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded } from '../../src/core/guardedChildProcess'
+import { tmpdir } from 'node:os'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
 import { removeFolder } from './helpers/temporaryFolders'
 
-const paths = { root: '', executable: '' }
+const paths = { root: '', executable: '', source: '' }
 const systemRoot = process.env['SystemRoot'] ?? ''
-const env = { SystemRoot: systemRoot }
+const env = noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync)
+const icacls = path.win32.join(systemRoot, 'System32', 'icacls.exe')
 const SOURCE = path.resolve('native/windows/MuseSparkScreenRecord.cs')
 const CHECKS = path.resolve('test/unit/helpers/windowsScreenRecorderChecks.cs')
 
@@ -36,14 +43,36 @@ const check = async (...args: string[]) => {
   return result.trim()
 }
 const destination = () => path.join(paths.root, `muse-spark-screen-${crypto.randomUUID()}`)
-const latest = async (source: string, target: string, maxBytes = 100) =>
-  await check(
-    'latest',
-    source,
-    target,
-    String(maxBytes),
-    String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-  )
+/** The production CopyLatest over these folders ('|' joins them; no Windows path holds one). */
+const latest = async (source: string | readonly string[], target: string) =>
+  await check('latest', typeof source === 'string' ? source : source.join('|'), target, String(100))
+const HOUR_MS = 60 * 60 * 1000
+// The real Windows trust check: the inbox compiler and the built helper must
+// each pass the owner, ACL and link checks in their real folders before the
+// helper is built or run. Its PowerShell probes run as real processes through
+// the same runner as the compiler; a probe that exits non-zero refuses.
+const powershell = windowsPowerShell(systemRoot)
+const verifier = windowsTrustedPathVerifier(async (file, args) => {
+  if (file !== 'powershell.exe') throw new Error(`unexpected trust probe ${file}`)
+  return { exitCode: 0, stdout: await runProgram(powershell.file, args, powershell.env) }
+})
+const isTrusted = async (file: string) =>
+  'ok' in (await verifier.verify(file, { leafKind: 'file' }))
+const helperIn = async (storageDir: string) =>
+  await screenRecordExecutable({
+    storageDir,
+    systemRoot,
+    readSource: () => Promise.resolve(paths.source),
+    verifyTrustedPath: isTrusted,
+    run: (file, args, environment) =>
+      runProgram(
+        file,
+        args[0] === '--self-test'
+          ? args
+          : [...args, '/main:WindowsScreenRecorderChecks', '/warnaserror'],
+        environment,
+      ),
+  })()
 const folder = async () => await mkdtemp(path.join(paths.root, 'snipping-'))
 const clip = async (source: string, name: string, age = 0, size = 1) => {
   const file = path.join(source, name)
@@ -100,20 +129,34 @@ describe.skipIf(process.platform !== 'win32')(
       ]
         .map((name) => `using ${name};`)
         .join('\n')
-      const executable = await screenRecordExecutable({
-        storageDir: paths.root,
-        systemRoot,
-        readSource: () => Promise.resolve(`${imports}\n${source}`),
-        verifyTrustedPath: () => Promise.resolve(true),
-        run: (file, args, environment) =>
-          runProgram(
-            file,
-            args[0] === '--self-test'
-              ? args
-              : [...args, '/main:WindowsScreenRecorderChecks', '/warnaserror'],
-            environment,
-          ),
-      })()
+      paths.source = `${imports}\n${source}`
+      // The helper's storage as an extension's own folder is: only this user,
+      // SYSTEM and Administrators may change it. A temporary folder may
+      // inherit other accounts' write access (it does on some rigs), and the
+      // trust check refuses a helper there.
+      const storageDir = path.join(paths.root, 'storage')
+      await mkdir(storageDir)
+      const user = await runProgram(
+        powershell.file,
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          '[Security.Principal.WindowsIdentity]::GetCurrent().User.Value',
+        ],
+        powershell.env,
+      )
+      await runProgram(
+        icacls,
+        [
+          storageDir,
+          '/inheritance:r',
+          '/grant:r',
+          ...[user.trim(), 'S-1-5-18', 'S-1-5-32-544'].map((sid) => `*${sid}:(OI)(CI)F`),
+        ],
+        env,
+      )
+      const executable = await helperIn(storageDir)
       if (executable === undefined)
         throw new Error('inbox recorder/check fixture failed to compile or self-test')
       paths.executable = executable
@@ -124,34 +167,43 @@ describe.skipIf(process.platform !== 'win32')(
     })
     afterAll(() => removeFolder(paths.root))
 
-    it('keeps native bounds identical to the shared contract', async () => {
-      expect(await check('constants')).toBe(
-        [
-          SCREEN_RECORDING_MIN_SECONDS,
-          SCREEN_RECORDING_MAX_SECONDS,
-          MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES,
-          SCREEN_RECORDING_RECENT_MAX_AGE_MS,
-        ].join(','),
-      )
+    it('keeps the native byte bound identical to the shared contract', async () => {
+      expect(await check('constants')).toBe(String(MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES))
     })
 
-    it('keeps Cancel atomic when a concurrent normal Stop finishes later', async () => {
-      expect(await check('cancelRace')).toBe('cancelled:True,closed:True,finish:False')
-    })
-
-    it.each(['selection', 'file', 'open', 'prepare'])(
-      'Stop cancels a pending %s operation before recording starts',
-      async (stage) => {
-        expect(await check('pending', stage)).toBe('cancelled:True,closed:True,finish:False')
+    // D121: the person's recording length reaches the helper's --record as
+    // set, through its own argument parsing; no floor or ceiling of ours.
+    it.each(['5', '3600', '0'])(
+      'takes a set recording length of %s seconds as set',
+      async (seconds) => {
+        expect(await check('record', destination(), String(process.pid), seconds)).toBe(seconds)
       },
     )
 
-    it('cancels an operation registered after Cancel was already latched', async () => {
-      expect(await check('latePending')).toBe('cancelled:True,closed:True,finish:False')
+    it('refuses a negative recording length', async () => {
+      expect(await check('record', destination(), String(process.pid), '-1')).toBe(
+        'error:ArgumentException',
+      )
     })
 
-    it('normal Stop finalizes encoding while a later Cancel cancels it', async () => {
-      expect(await check('pendingEncode')).toBe('cancelled:True,closed:True')
+    // The helper's own known-folder resolution (read only) names the same two
+    // folders the editor's discovery scans: Snipping Tool's and Xbox Game Bar's.
+    it('searches the same Screen Recordings and Captures folders as the editor', async () => {
+      const folders = await resolveWindowsRecordingFolders()
+      expect(folders.videosDir).toEqual(expect.any(String))
+      const port = createWindowsLatestPort({ tempRoot: paths.root, ...folders })
+      const searched = await check('folders')
+      expect(searched.split('|')).toEqual(port.roots)
+    })
+
+    it('never runs a built helper from a folder other users may write to', async () => {
+      const storageDir = await mkdtemp(path.join(paths.root, 'replaceable-'))
+      // The same build, already in place: the helper is not compiled again,
+      // so only the trust check stands between it and its self-test.
+      await copyFile(paths.executable, path.join(storageDir, path.basename(paths.executable)))
+      await runProgram(icacls, [storageDir, '/grant', '*S-1-1-0:(OI)(CI)W'], env)
+      expect(await isTrusted(path.join(storageDir, path.basename(paths.executable)))).toBe(false)
+      expect(await helperIn(storageDir)).toBeUndefined()
     })
 
     it.each(['stdin', 'owner'] as const)(
@@ -163,22 +215,22 @@ describe.skipIf(process.platform !== 'win32')(
         const target = destination()
         const owner =
           control === 'owner'
-            ? execFile(paths.executable, ['owner'], { env, windowsHide: true })
+            ? execFileGuarded(paths.executable, ['owner'], {
+                env,
+                windowsHide: true,
+              })
             : undefined
         try {
           const ownerPid = owner?.pid ?? process.pid
           const output = await new Promise<string>((resolve, reject) => {
-            const child = execFile(
+            const child = execFileGuarded(
               paths.executable,
-              [
-                'controlledLatest',
-                source,
-                target,
-                String(before.length),
-                String(ownerPid),
-                String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-              ],
-              { env, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
+              ['controlledLatest', source, target, String(before.length), String(ownerPid)],
+              {
+                env,
+                windowsHide: true,
+                timeout: PROCESS_TABLE_TIMEOUT_MS,
+              },
               (error, stdout) => {
                 if (error === null) resolve(stdout)
                 else reject(new Error(error.message, { cause: error }))
@@ -207,16 +259,9 @@ describe.skipIf(process.platform !== 'win32')(
       const source = await folder()
       await clip(source, 'clip.mp4')
       const target = destination()
-      expect(
-        await check(
-          'mainLatest',
-          source,
-          target,
-          '100',
-          '2147483647',
-          String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-        ),
-      ).toBe('{"type":"error","code":"cancelled"}\r\nexit:1')
+      expect(await check('mainLatest', source, target, '100', '2147483647')).toBe(
+        '{"type":"error","code":"cancelled"}\r\nexit:1',
+      )
       expect(await readdir(paths.root)).not.toContain(path.basename(target))
     })
 
@@ -224,15 +269,7 @@ describe.skipIf(process.platform !== 'win32')(
       const source = await folder()
       const file = await clip(source, 'clip.mp4')
       const target = destination()
-      expect(
-        await check(
-          'lateCopyCancel',
-          source,
-          target,
-          '100',
-          String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-        ),
-      ).toBe('finish:False\r\nok')
+      expect(await check('lateCopyCancel', source, target, '100')).toBe('finish:False\r\nok')
       expect(await readdir(paths.root)).not.toContain(path.basename(target))
       expect(await readFile(file)).toEqual(Buffer.alloc(1, 1))
     })
@@ -240,10 +277,14 @@ describe.skipIf(process.platform !== 'win32')(
     it('exits on owner death even when native work never cooperates', async () => {
       const result = await new Promise<{ code: string | number | undefined; stdout: string }>(
         (resolve) => {
-          execFile(
+          execFileGuarded(
             paths.executable,
             ['ownerDeath'],
-            { env, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
+            {
+              env,
+              windowsHide: true,
+              timeout: PROCESS_TABLE_TIMEOUT_MS,
+            },
             (error, stdout) => {
               resolve({ code: error?.code ?? 0, stdout })
             },
@@ -325,7 +366,7 @@ describe.skipIf(process.platform !== 'win32')(
       expect(await check(mode)).toBe('error:RecordingLimitException')
     })
 
-    it('copies the newest recent mp4, case-insensitively, byte-exact into a private preview', async () => {
+    it('copies the newest mp4, case-insensitively, byte-exact into a private preview', async () => {
       const source = await folder()
       await clip(source, 'older.mp4', 1000)
       const newest = await clip(source, 'newest.MP4', 0, 100)
@@ -348,15 +389,50 @@ describe.skipIf(process.platform !== 'win32')(
       expect(await check('private', target)).toBe('error:Win32Exception')
     })
 
-    it.each([
-      { label: 'stale', age: SCREEN_RECORDING_RECENT_MAX_AGE_MS + 1000 },
-      { label: 'future-dated', age: -SCREEN_RECORDING_RECENT_MAX_AGE_MS },
-    ])('refuses $label recordings before copying', async ({ age }) => {
+    // D121: no age cutoff. A recording made two hours ago is still the latest.
+    it('takes a two-hour-old recording as the latest', async () => {
       const source = await folder()
-      await clip(source, 'clip.mp4', age)
+      const old = await clip(source, 'clip.mp4', 2 * HOUR_MS, 7)
+      const target = destination()
+      expect(await latest(source, target)).toBe('ok')
+      expect(await readFile(path.join(target, 'recording.mp4'))).toEqual(await readFile(old))
+    })
+
+    it('refuses a future-dated recording before copying', async () => {
+      const source = await folder()
+      await clip(source, 'clip.mp4', -HOUR_MS)
       const target = destination()
       expect(await latest(source, target)).toBe('error:FileNotFoundException')
       expect(await readdir(paths.root)).not.toContain(path.basename(target))
+    })
+
+    // Snipping Tool's Screen Recordings and Xbox Game Bar's Captures: the
+    // newest mp4 across both wins; Game Bar's screenshots (.png) never do.
+    it('picks the newest mp4 across Screen Recordings and Captures, never a newer screenshot', async () => {
+      const screenRecordings = await folder()
+      const captures = await folder()
+      await clip(screenRecordings, 'Screen Recording.mp4', 3 * HOUR_MS, 3)
+      const gameClip = await clip(captures, 'Game Clip.mp4', 2 * HOUR_MS, 5)
+      await clip(captures, 'Screenshot.png', 0, 9)
+      const target = destination()
+      expect(await latest([screenRecordings, captures], target)).toBe('ok')
+      expect(await readFile(path.join(target, 'recording.mp4'))).toEqual(await readFile(gameClip))
+      const snip = await clip(screenRecordings, 'Newer Recording.mp4', HOUR_MS, 4)
+      const second = destination()
+      expect(await latest([screenRecordings, captures], second)).toBe('ok')
+      expect(await readFile(path.join(second, 'recording.mp4'))).toEqual(await readFile(snip))
+    })
+
+    it('a missing folder, or a junction in place of one, hides nothing in the others', async () => {
+      const captures = await folder()
+      const gameClip = await clip(captures, 'Game Clip.mp4', HOUR_MS, 6)
+      const linked = path.join(paths.root, `screen-junction-${crypto.randomUUID()}`)
+      await symlink(await folder(), linked, 'junction')
+      const target = destination()
+      expect(
+        await latest([path.join(paths.root, 'no-such-folder'), linked, captures], target),
+      ).toBe('ok')
+      expect(await readFile(path.join(target, 'recording.mp4'))).toEqual(await readFile(gameClip))
     })
 
     it('refuses the latest oversize file instead of silently importing an older recording', async () => {

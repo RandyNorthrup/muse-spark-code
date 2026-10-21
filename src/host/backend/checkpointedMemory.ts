@@ -29,9 +29,9 @@ import { createMemoryIo } from './memoryIo'
 
 export interface CheckpointedMemoryDeps extends Omit<MemoryStoreDeps, 'io'> {
   /**
-   * A guard for one mutation, captured when it starts: it throws once the
-   * window or the backend it was taken for is gone.
-   */
+  A guard for one mutation, captured when it starts: it throws once the
+  window or the backend it was taken for is gone.
+  */
   readonly captureGuard: () => () => void
 }
 

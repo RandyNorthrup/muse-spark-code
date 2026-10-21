@@ -100,8 +100,8 @@ export const USAGE_HEADER_ALLOW_LIST = [
   'ratelimit',
   'ratelimit-policy',
   'retry-after',
-  // Azure OpenAI's wait in milliseconds on a 429 (lane PROVERRORS, research
-  // azure-openai.md ZB2): kept beside `retry-after`, never a meter.
+  // Azure's millisecond 429 wait (research §1.2 [AZ5]; lane PROVERRORS,
+  // research azure-openai.md ZB2); stored beside `retry-after`, never a meter.
   'retry-after-ms',
   // The provider's request id (GAPANTH-G20; support asks for it — the
   // refusal path already attaches it, this keeps it on usage records too).
@@ -206,6 +206,7 @@ export const usageLimitWindowSchema = /* @__PURE__ */ z.strictObject({
   resetsAt: z.optional(usageCountSchema),
   windowMins: z.optional(usageAmountSchema),
 })
+
 export function limitSchemaWith<
   V extends number,
   M extends typeof usageUsdSchema | typeof legacyUsdSchema,
@@ -216,8 +217,16 @@ export function limitSchemaWith<
       v: z.literal(version),
       type: z.literal('limit'),
       source: z.enum(['museCode', 'openRouter', 'headers', 'chatgpt']),
+      // M95: which stored credential an OpenRouter observation was admitted
+      // for (its key digest) and which observation, so rotations invalidate
+      // stale reads and the recorder dedupes by slot.
+      credentialId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
+      observationId: z.optional(usageLabelSchema),
       observedAt: usageCountSchema,
       windows: z.array(usageLimitWindowSchema),
+      // The subscription meter's own plan name, verbatim (Muse Code's
+      // `usage/changed` tier): plan rows say whose plan the spend rode on.
+      plan: z.optional(usageLabelSchema),
       account: z.optional(
         z.strictObject({
           usedUsd: z.optional(money),
@@ -235,6 +244,7 @@ export const usageLimitSnapshotSchema = /* @__PURE__ */ limitSchemaWith(
   USAGE_JOURNAL_VERSION,
   usageUsdSchema,
 )
+
 export type UsageLimitSnapshot = z.infer<typeof usageLimitSnapshotSchema>
 export const usageJournalEntrySchema = /* @__PURE__ */ z.discriminatedUnion('type', [
   usageRecordSchema,

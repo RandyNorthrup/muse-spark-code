@@ -46,11 +46,11 @@ import { REDACTED_MARK, REDACT_HEX_RADIX, REDACT_JSON_UNICODE_DIGITS } from './c
 export interface SecretScrubPort {
   scrub(text: string): Promise<string>
   /**
-   * Rotation counter the sender reads around awaits: when it moves between
-   * the scrub and the dispatch, the body is rebuilt from current values. A
-   * Lock in the same window fails the rebuild, so it never sends either.
-   * Absent for foreign ports, which the sender treats as unchanging.
-   */
+  Rotation counter the sender reads around awaits: when it moves between
+  the scrub and the dispatch, the body is rebuilt from current values. A
+  Lock in the same window fails the rebuild, so it never sends either.
+  Absent for foreign ports, which the sender treats as unchanging.
+  */
   readonly generation?: number | undefined
 }
 
@@ -91,12 +91,12 @@ function isTokenPayload(part: string | undefined): boolean {
 }
 
 /**
- * `words` (three or more dotted words) with every token in it redacted: a
- * word holding `eyJ` and more, then a word starting `eyJ` and more, then any
- * word. A token is redacted from its first `eyJ` through its third word;
- * tokens that share a word are one redaction. Words without `eyJ` come back
- * as they were.
- */
+`words` (three or more dotted words) with every token in it redacted: a
+word holding `eyJ` and more, then a word starting `eyJ` and more, then any
+word. A token is redacted from its first `eyJ` through its third word;
+tokens that share a word are one redaction. Words without `eyJ` come back
+as they were.
+*/
 function redactTokens(words: string): string {
   if (!words.includes(TOKEN_HEAD)) {
     return words
@@ -126,10 +126,10 @@ function redactTokens(words: string): string {
 export interface SecretRule {
   readonly pattern: RegExp
   /**
-   * Lower case; every match of `pattern` that `replace` changes holds at
-   * least one of these, case ignored. `MAY_HOLD_SECRET` must find each, or
-   * the pattern never runs.
-   */
+  Lower case; every match of `pattern` that `replace` changes holds at
+  least one of these, case ignored. `MAY_HOLD_SECRET` must find each, or
+  the pattern never runs.
+  */
   readonly literals: readonly string[]
   readonly replace: (match: string, lead: string, quote: string) => string
 }
@@ -414,13 +414,13 @@ function redactPatterns(text: string, matched?: () => void, cuts?: SliceCut[]): 
 }
 
 /**
- * The forms of one exact literal that literal-first redaction replaces (M80,
- * SPEC §4.2): raw, JSON-escaped, URL/form encoded, UTF-8 base64/base64url
- * (with and without padding), hexadecimal, and what a pattern-only
- * pass leaves of it. Text that an earlier step already redacted by pattern
- * alone (a network error's description) still carries that residue, such as a
- * legacy key's tail after the `%` its pattern stops at.
- */
+The forms of one exact literal that literal-first redaction replaces (M80,
+SPEC §4.2): raw, JSON-escaped, URL/form encoded, UTF-8 base64/base64url
+(with and without padding), hexadecimal, and what a pattern-only
+pass leaves of it. Text that an earlier step already redacted by pattern
+alone (a network error's description) still carries that residue, such as a
+legacy key's tail after the `%` its pattern stops at.
+*/
 function literalForms(literal: string): string[] {
   const json = JSON.stringify(literal).slice(1, -1)
   const unicode = (unit: string): string =>
@@ -590,6 +590,11 @@ export function registerSecretValue(value: string): () => void {
   }
 }
 
+/** An error in words for the panel or session: external text is redacted first. */
+export function describeError(error: unknown): string {
+  return redactSecrets(error instanceof Error ? error.message : String(error))
+}
+
 /** Exact run/account keys precede patterns, including percent-containing keys. */
 export function redactSecrets(
   text: string,
@@ -600,10 +605,10 @@ export function redactSecrets(
 }
 
 /**
- * `redactSecrets` with fixed literals, for one stream's many strings: the
- * literals' encoded forms and the matcher are built once, and again only
- * when a registered secret changes, instead of on every call.
- */
+`redactSecrets` with fixed literals, for one stream's many strings: the
+literals' encoded forms and the matcher are built once, and again only
+when a registered secret changes, instead of on every call.
+*/
 export function secretRedactor(
   literals: readonly string[],
   shouldIncludePatterns = true,
@@ -661,10 +666,10 @@ function afterWhitespace(text: string, at: number): number {
 }
 
 /**
- * Whether the last word before `cut`, after `from`, could start a match that
- * goes on past `cut`. Only white space since `from` (a cut already found
- * safe, or the text's start) leaves nothing open.
- */
+Whether the last word before `cut`, after `from`, could start a match that
+goes on past `cut`. Only white space since `from` (a cut already found
+safe, or the text's start) leaves nothing open.
+*/
 function isWordOpen(text: string, from: number, cut: number): boolean {
   let end = cut
   while (end > from && WHITESPACE.test(text.charAt(end - 1))) {
@@ -695,9 +700,9 @@ function pemEndAround(text: string, from: number, cut: number): number | undefin
 }
 
 /**
- * The first cut at or after `target`, just after a line break, that no match
- * goes on past; undefined when there is none before the text's end.
- */
+The first cut at or after `target`, just after a line break, that no match
+goes on past; undefined when there is none before the text's end.
+*/
 function safeCut(text: string, from: number, target: number): number | undefined {
   let at = target
   for (;;) {
@@ -730,12 +735,12 @@ function safeCut(text: string, from: number, target: number): number | undefined
 }
 
 /**
- * `text` in pieces of `sliceChars` or a little more, each ending just after
- * a line break that no credential goes on past, so `redactSecrets` of each
- * piece, joined, is `redactSecrets` of the whole: a long text can be redacted
- * a piece at a time, letting the event loop run between. A line longer than
- * `sliceChars` stays in one piece.
- */
+`text` in pieces of `sliceChars` or a little more, each ending just after
+a line break that no credential goes on past, so `redactSecrets` of each
+piece, joined, is `redactSecrets` of the whole: a long text can be redacted
+a piece at a time, letting the event loop run between. A line longer than
+`sliceChars` stays in one piece.
+*/
 export function redactableSlices(text: string, sliceChars: number): string[] {
   const cuts: SliceCut[] = []
   let from = 0

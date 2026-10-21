@@ -35,8 +35,8 @@ import {
 } from './modules'
 
 /** The planner must share one journal per canonical workspace, across teams,
- * branches and lanes. replace is synchronous, atomic and compare-and-swap;
- * rejection must throw before the caller grants admission. */
+branches and lanes. replace is synchronous, atomic and compare-and-swap;
+rejection must throw before the caller grants admission. */
 export interface PlaybookJournal {
   read(): readonly unknown[]
   replace(records: readonly PlaybookRecord[], expected: readonly unknown[]): void
@@ -89,17 +89,17 @@ function scrub(value: unknown): unknown {
 }
 
 /** Second scrub applies on both publication and recovery, including reasons,
- * dispositions, paths and identifiers. Strict schemas forbid raw output. */
+dispositions, paths and identifiers. Strict schemas forbid raw output. */
 export function validatedRecords(records: readonly unknown[]): PlaybookRecord[] {
   if (records.length > PLAYBOOK_RECORD_MAX) throw new Error(UI_TEXT.playbookUnavailable)
   return records.map((record) => playbookRecordSchema.parse(scrub(record)))
 }
 
 /** Keep safety history, module lineage, every review identity and every design.
- * Evict oldest informational notes. Settings retain every audited opt-out.
- * Round snapshots stay in publication order: moving an answer ahead of a split would change
- * the evidence that the child inherited.
- * If mandatory evidence alone fills the bound, stop instead of resetting it. */
+Evict oldest informational notes. Settings retain every audited opt-out.
+Round snapshots stay in publication order: moving an answer ahead of a split would change
+the evidence that the child inherited.
+If mandatory evidence alone fills the bound, stop instead of resetting it. */
 export function retainRecords(records: readonly PlaybookRecord[]): PlaybookRecord[] {
   let excess = records.length - PLAYBOOK_RECORD_MAX
   const bounded = records.filter((record) => {
@@ -133,8 +133,8 @@ export function retainRecords(records: readonly PlaybookRecord[]): PlaybookRecor
 /** Bindings surface this storage failure as a user recovery item. */
 export class PlaybookHistoryLostError extends Error {
   readonly needsUser = true
-  constructor() {
-    super(UI_TEXT.playbookUnavailable)
+  constructor(options?: { cause?: unknown }) {
+    super(UI_TEXT.playbookUnavailable, options)
   }
 }
 
@@ -172,10 +172,12 @@ export class FilePlaybookJournal implements PlaybookJournal {
       text = readFileSync(this.file, 'utf8')
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        if (existsSync(this.marker)) throw new PlaybookHistoryLostError()
+        if (existsSync(this.marker)) throw new PlaybookHistoryLostError({ cause: error })
         return []
       }
-      throw new PlaybookHistoryLostError()
+      // A journal that exists but cannot be read is lost to this run; the
+      // unreadable failure stays on the error as its cause.
+      throw new PlaybookHistoryLostError({ cause: error })
     }
     // Also mark journals written by builds predating this loss guard.
     this.markEstablished()
@@ -187,7 +189,10 @@ export class FilePlaybookJournal implements PlaybookJournal {
       let parsed: unknown
       try {
         parsed = JSON.parse(line)
-      } catch {
+      } catch (error) {
+        // Only malformed text fails here; anything else is not the line and
+        // reaches the caller.
+        if (!(error instanceof SyntaxError)) throw error
         parsed = undefined
       }
       // JSON.parse errors quote input. Never expose even a malformed record's

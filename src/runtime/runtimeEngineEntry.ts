@@ -6,15 +6,24 @@ export { PROTOCOL_VERSION, ndJsonStream, RequestError } from '@agentclientprotoc
 export { setUiText } from '../shared/l10n/text'
 import { MuseCodeHost } from '../core/backends/musecode/MuseCodeHost'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
+import { MuseCodeBackendManager } from '../host/backend/museCodeBackendManager'
 import type { UsageRecording } from '../core/usage/recording'
 
 export function installUsageRecording(recording: UsageRecording): () => void {
   const model = ModelApiBackendManager.usageRecording
   const muse = MuseCodeHost.usageRecording
+  const manager = MuseCodeBackendManager.usageRecording
   ModelApiBackendManager.usageRecording = recording
   MuseCodeHost.usageRecording = recording
+  // The Muse Code host that runs is dist/museCode.js's own copy of the
+  // class; the manager forwards this onto it at every bundle load.
+  MuseCodeBackendManager.usageRecording = recording
   return () => {
     ModelApiBackendManager.usageRecording = model
     MuseCodeHost.usageRecording = muse
+    MuseCodeBackendManager.usageRecording = manager
   }
 }
+
+// Runtime-only schedule session ownership stays behind this existing engine boundary.
+export { createRuntimeScheduleDelivery } from './schedules/delivery'

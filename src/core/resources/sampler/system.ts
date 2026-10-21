@@ -1,6 +1,8 @@
 import type { ResourceDiskSampler } from '../disk'
-import { execFile } from 'node:child_process'
 import { access, open, readdir } from 'node:fs/promises'
+import { probeChildEnvironment, type GuardedChildEnv } from '../../executables'
+import { windowsPowerShell } from '../../execGuard'
+import { execFileGuarded } from '../../guardedChildProcess'
 import * as os from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -11,6 +13,7 @@ import {
   RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR,
 } from '../../../shared/constants'
 import type { ResourceSampler, ResourceSettings } from '../../../shared/resources'
+import { isErrno } from '../../fs/errno'
 import { MachineResourceSampler } from './machineSampler'
 import type { ResourceProbePort } from './optionalProbes'
 
@@ -50,32 +53,27 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
         await handle.close()
       }
     } catch (error) {
-      return typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'ENOENT'
-        ? undefined
-        : null
+      // A missing probe file is absent; an unreadable one is unknown. Only
+      // errno failures read either way: anything else is not a probe outcome.
+      if (isErrno(error)) return error.code === 'ENOENT' ? undefined : null
+      throw error
     }
   }
 
-  async function executable(name: 'nvidia-smi' | 'powershell'): Promise<string | null> {
+  async function executable(name: 'nvidia-smi' | 'powershell' | 'ioreg'): Promise<string | null> {
     const candidates: string[] = []
     if (platform === 'win32') {
       if (systemRoot !== undefined && paths.isAbsolute(systemRoot))
         candidates.push(
-          paths.join(
-            systemRoot,
-            'System32',
-            name === 'powershell'
-              ? String.raw`WindowsPowerShell\v1.0\powershell.exe`
-              : 'nvidia-smi.exe',
-          ),
+          name === 'powershell'
+            ? windowsPowerShell(systemRoot, {}).file
+            : paths.join(systemRoot, 'System32', 'nvidia-smi.exe'),
         )
       if (name === 'nvidia-smi' && programFiles !== undefined && paths.isAbsolute(programFiles))
         candidates.push(paths.join(programFiles, 'NVIDIA Corporation', 'NVSMI', 'nvidia-smi.exe'))
     } else if (name === 'nvidia-smi' && platform === 'linux')
       candidates.push('/usr/bin/nvidia-smi', '/usr/local/bin/nvidia-smi')
+    else if (name === 'ioreg' && platform === 'darwin') candidates.push('/usr/sbin/ioreg')
     for (const candidate of candidates) {
       try {
         await access(candidate)
@@ -87,16 +85,23 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
     return null
   }
 
-  function run(file: string, args: readonly string[]): Promise<string | null> {
-    if (!paths.isAbsolute(file)) return Promise.resolve(null)
+  /** The probe's empty environment; Windows PowerShell gets its own module path too. */
+  function probeEnvironment(file: string): GuardedChildEnv {
     const env: NodeJS.ProcessEnv = {}
     for (const name of RESOURCE_PROBE_EMPTY_ENV_KEYS) env[name] = ''
-    if (platform === 'win32' && systemRoot !== undefined && paths.isAbsolute(systemRoot)) {
-      env['SystemRoot'] = systemRoot
-      env['windir'] = systemRoot
-    }
+    if (platform !== 'win32' || systemRoot === undefined || !paths.isAbsolute(systemRoot))
+      return probeChildEnvironment(env)
+    env['SystemRoot'] = systemRoot
+    env['windir'] = systemRoot
+    const powershell = windowsPowerShell(systemRoot, env)
+    return file === powershell.file ? powershell.env : probeChildEnvironment(env)
+  }
+
+  function run(file: string, args: readonly string[]): Promise<string | null> {
+    if (!paths.isAbsolute(file)) return Promise.resolve(null)
+    const env = probeEnvironment(file)
     return new Promise((resolve) => {
-      execFile(
+      execFileGuarded(
         file,
         [...args],
         {
@@ -124,7 +129,10 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
     list: async (directory) => {
       try {
         return await readdir(directory)
-      } catch {
+      } catch (error) {
+        // A directory the sampler cannot list holds no probe cards. Only
+        // errno failures read that way.
+        if (!isErrno(error)) throw error
         return null
       }
     },

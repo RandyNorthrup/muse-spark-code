@@ -1,3 +1,4 @@
+import { Usd, sumUsd } from '../../shared/usd'
 import { useEffect, useState } from 'react'
 import {
   HOURS_PER_DAY,
@@ -11,7 +12,7 @@ import {
 } from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import { fill, formatDateTime, formatPercent, formatUnit, plural } from '../../shared/l10n/text'
-import { formatDuration } from '../../shared/usage'
+import { formatDuration, planLabel } from '../../shared/usage'
 import type { UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState } from '../../shared/usagePage'
 import { money, percentOf, remainingUsd, type PostUsage } from './display'
@@ -101,7 +102,7 @@ export function LimitCard({
   return (
     <article className="usage-limit-card">
       <h3>
-        {snapshot.provider}: {label}
+        {snapshot.plan === undefined ? snapshot.provider : planLabel(snapshot.plan)}: {label}
       </h3>
       <p>{fill(USAGE_TEXT.asOf, { date: formatDateTime(snapshot.observedAt) })}</p>
       {isStale ? <p className="usage-warning">{USAGE_TEXT.stale}</p> : null}
@@ -158,15 +159,35 @@ export function BudgetCard({
       {budget.capUsd === undefined ? null : (
         <p>
           {fill(USAGE_TEXT.budgetRemaining, {
-            remaining: money(remainingUsd(budget.spentUsd, budget.capUsd)),
+            remaining: money(
+              remainingUsd(
+                sumUsd(
+                  budget.spentUsd,
+                  budget.uncertainUsd ?? Usd.from(0).toAmount(),
+                  budget.reservedUsd ?? Usd.from(0).toAmount(),
+                ),
+                budget.capUsd,
+              ),
+            ),
           })}
         </p>
       )}
       {budget.stopped ? <p className="usage-warning">{USAGE_TEXT.budgetStopped}</p> : null}
       {budget.raisedToday === true ? <p>{USAGE_TEXT.budgetRaised}</p> : null}
+      {budget.reservedUsd === undefined ? null : (
+        <p>
+          {USAGE_TEXT.reservedLabel}: {money(budget.reservedUsd)}
+        </p>
+      )}
       {budget.uncertainUsd === undefined ? null : (
         <p>
           {USAGE_TEXT.certaintyUncertain}: {money(budget.uncertainUsd)} · {USAGE_TEXT.uncertainNote}
+        </p>
+      )}
+      {budget.unknownChargeCalls === undefined ? null : (
+        <p>
+          {USAGE_TEXT.certaintyUncertain}:{' '}
+          {plural(USAGE_TEXT.unknownCalls, budget.unknownChargeCalls)}
         </p>
       )}
       {budget.resetsAt === undefined ? null : (

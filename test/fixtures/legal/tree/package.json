@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "license": "MIT",
   "files": [
-    "dist/"
+    "dist/",
+    "src/"
   ],
   "scripts": {
     "postinstall": "node ./scripts/install.js"

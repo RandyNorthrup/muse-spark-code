@@ -90,10 +90,10 @@ export interface RecordVersion {
 }
 
 /**
- * A checkout's hold on its folder's record: its checkout id and the fence
- * of the hold that last wrote the record. Any other writer's change to the
- * record moves the fence, so this no longer matches.
- */
+A checkout's hold on its folder's record: its checkout id and the fence
+of the hold that last wrote the record. Any other writer's change to the
+record moves the fence, so this no longer matches.
+*/
 export interface Reservation {
   readonly folder: string
   readonly checkoutId: string
@@ -101,10 +101,10 @@ export interface Reservation {
 }
 
 /**
- * What the held-worktree card showed and the user confirmed: one finished
- * checkout, by its id, record revision and fence, head and folder
- * identity. Single use: the release it authorizes moves both on.
- */
+What the held-worktree card showed and the user confirmed: one finished
+checkout, by its id, record revision and fence, head and folder
+identity. Single use: the release it authorizes moves both on.
+*/
 export interface TrustTicket {
   readonly folder: string
   readonly checkoutId: string
@@ -133,10 +133,10 @@ export type ClaimResult<T> =
   /** Claimed, but `make` failed: `reservation` is the claimed one, to discard. */
   | { readonly status: 'failed'; readonly reservation: Reservation; readonly error: unknown }
   /**
-   * Not known whether the claim landed (its write failed after it may
-   * have): nothing was made, and the record is one of `reservations` (the
-   * claimed ones, then the one claimed from), to discard.
-   */
+  Not known whether the claim landed (its write failed after it may
+  have): nothing was made, and the record is one of `reservations` (the
+  claimed ones, then the one claimed from), to discard.
+  */
   | {
       readonly status: 'unknown'
       readonly reservations: readonly Reservation[]
@@ -144,16 +144,16 @@ export type ClaimResult<T> =
     }
 
 /**
- * A write whose landing is not known: it failed after its publish may
- * have landed. `results` are what each such attempt would have written
- * (a reservation among them), so the caller can drop it.
- */
+A write whose landing is not known: it failed after its publish may
+have landed. `results` are what each such attempt would have written
+(a reservation among them), so the caller can drop it.
+*/
 export class UnknownWriteError<T> extends Error {
   public constructor(
     public readonly results: readonly T[],
-    cause: unknown,
+    options?: { readonly cause?: unknown },
   ) {
-    super(UI_TEXT.worktreeRecordsWriteUnknown, { cause })
+    super(UI_TEXT.worktreeRecordsWriteUnknown, options)
     this.name = 'UnknownWriteError'
   }
 }
@@ -195,17 +195,17 @@ export interface WorktreeRecordStore {
   list(): Promise<readonly WorktreeRecord[]>
   recordFor(folder: string): Promise<WorktreeRecord | undefined>
   /**
-   * absent → pending. Never replaces: when a record is already there the
-   * caller follows what is there (reopen, refuse, supersede), so a second
-   * checkout can never merge over the first one's record.
-   */
+  absent → pending. Never replaces: when a record is already there the
+  caller follows what is there (reopen, refuse, supersede), so a second
+  checkout can never merge over the first one's record.
+  */
   reserve(record: WorktreeRecord): Promise<ReserveResult>
   /**
-   * The exact version read → a new pending checkout, nothing of the old
-   * record kept (no trust), only while `isFolderAbsent` says so under the
-   * same hold. The caller supersedes only a finished record, or a pending
-   * one whose owner is gone or whose reservation is stale.
-   */
+  The exact version read → a new pending checkout, nothing of the old
+  record kept (no trust), only while `isFolderAbsent` says so under the
+  same hold. The caller supersedes only a finished record, or a pending
+  one whose owner is gone or whose reservation is stale.
+  */
   supersede(
     folder: string,
     expected: RecordVersion,
@@ -213,30 +213,30 @@ export interface WorktreeRecordStore {
     isFolderAbsent: () => boolean,
   ): Promise<ReserveResult>
   /**
-   * Still exactly `reservation`'s pending record → claimed under a new
-   * fence, then `make` (the folder) under the same hold. Refused, nothing
-   * is made.
-   */
+  Still exactly `reservation`'s pending record → claimed under a new
+  fence, then `make` (the folder) under the same hold. Refused, nothing
+  is made.
+  */
   claim<T>(reservation: Reservation, make: () => Promise<T>): Promise<ClaimResult<T>>
   /** pending → ready, only while the record is exactly `reservation`'s. */
   complete(reservation: Reservation, folderIdentity: string | undefined): Promise<boolean>
   /** pending → absent, only while the record is exactly `reservation`'s. */
   discard(reservation: Reservation): Promise<boolean>
   /**
-   * ready → trusted, only for the very checkout the ticket names, once.
-   * Never a pending checkout, never one already trusted. `isCurrent` (the
-   * caller's trust and lifetime) is asked under the hold and again just
-   * before the publish lands; false refuses the release.
-   */
+  ready → trusted, only for the very checkout the ticket names, once.
+  Never a pending checkout, never one already trusted. `isCurrent` (the
+  caller's trust and lifetime) is asked under the hold and again just
+  before the publish lands; false refuses the release.
+  */
   release(
     ticket: TrustTicket,
     now: number,
     isCurrent?: () => boolean,
   ): Promise<WorktreeRecord | undefined>
   /**
-   * Synchronously, for a gate with no await before it acts: whether the
-   * record is still exactly `reservation`'s. False when it cannot be read.
-   */
+  Synchronously, for a gate with no await before it acts: whether the
+  record is still exactly `reservation`'s. False when it cannot be read.
+  */
   holdsSync(reservation: Reservation): boolean
 }
 
@@ -257,11 +257,11 @@ export interface RegistryHold {
   /** The head, read under this hold. */
   readonly records: readonly WorktreeRecord[]
   /**
-   * Publishes `records` as the next head: a compare-and-swap on the head
-   * read, refused (`lost`) once another publish landed or this hold is no
-   * longer current (`GenerationWrite`), or once `isCurrent` (asked just
-   * before it lands) is false.
-   */
+  Publishes `records` as the next head: a compare-and-swap on the head
+  read, refused (`lost`) once another publish landed or this hold is no
+  longer current (`GenerationWrite`), or once `isCurrent` (asked just
+  before it lands) is false.
+  */
   publish(records: readonly WorktreeRecord[], isCurrent?: () => boolean): Promise<GenerationWrite>
 }
 
@@ -278,10 +278,10 @@ interface Mutation<T> {
   readonly records: readonly WorktreeRecord[]
   readonly result: T
   /**
-   * The one record a change wrote (undefined: removed), by its folder: the
-   * operation's committed identity, which a publish whose place in history
-   * can no longer be proven is reconciled against.
-   */
+  The one record a change wrote (undefined: removed), by its folder: the
+  operation's committed identity, which a publish whose place in history
+  can no longer be proven is reconciled against.
+  */
   readonly touched?: { readonly folder: string; readonly record: WorktreeRecord | undefined }
 }
 
@@ -312,9 +312,9 @@ function unheard(): void {
 const SILENT: CoreLogger = { trace: unheard, info: unheard, warn: unheard, error: unheard }
 
 /**
- * The transitions, pure: each validates against the head it is given and
- * stamps what it writes with the hold's `fence`.
- */
+The transitions, pure: each validates against the head it is given and
+stamps what it writes with the hold's `fence`.
+*/
 function transitions(platform: NodeJS.Platform) {
   const written = <T>(
     records: readonly WorktreeRecord[],
@@ -456,12 +456,12 @@ function withCheckoutId(record: WorktreeRecord): WorktreeRecord & { readonly che
 }
 
 /**
- * The store over `registry`. Every change takes one hold, applies its
- * transition to the head read under it and publishes; one that lost its
- * publish takes a new hold and applies again, and past the attempts it
- * throws — never a write over a state it did not read. Operations of one
- * store queue, so they never interleave either.
- */
+The store over `registry`. Every change takes one hold, applies its
+transition to the head read under it and publishes; one that lost its
+publish takes a new hold and applies again, and past the attempts it
+throws — never a write over a state it did not read. Operations of one
+store queue, so they never interleave either.
+*/
 export function createWorktreeRecordStore(
   registry: RecordRegistry,
   platform: NodeJS.Platform,
@@ -493,12 +493,12 @@ export function createWorktreeRecordStore(
     return isSameRecord(recordFor(head, touched.folder, platform), touched.record)
   }
   /**
-   * Applies `change` under one hold; `whileHeld` runs under the same hold
-   * once the change is in effect (a refused change runs nothing). A
-   * failure after a publish may have landed throws `UnknownWriteError`
-   * with what such attempts would have written; a landed write is never
-   * reported as failed for anything after it.
-   */
+  Applies `change` under one hold; `whileHeld` runs under the same hold
+  once the change is in effect (a refused change runs nothing). A
+  failure after a publish may have landed throws `UnknownWriteError`
+  with what such attempts would have written; a landed write is never
+  reported as failed for anything after it.
+  */
   const mutate = <T>(
     change: (records: readonly WorktreeRecord[], fence: number) => Mutation<T>,
     whileHeld?: (result: T) => Promise<void>,
@@ -536,7 +536,7 @@ export function createWorktreeRecordStore(
         } catch (error: unknown) {
           if (unknown.length > 0) {
             log.warn('The worktree records may have been written; not known')
-            throw new UnknownWriteError(unknown, error)
+            throw new UnknownWriteError(unknown, { cause: error })
           }
           throw error
         }
@@ -637,9 +637,9 @@ export function createWorktreeRecordStore(
 }
 
 /**
- * One window's registry, in memory: holds queue in turn, each with the
- * next fence; a publish lands only on the head it read.
- */
+One window's registry, in memory: holds queue in turn, each with the
+next fence; a publish lands only on the head it read.
+*/
 export function createMemoryRecordRegistry(): RecordRegistry {
   let records: readonly WorktreeRecord[] = []
   let generation = 0
@@ -707,10 +707,10 @@ export interface FileWorktreeRecordStoreOptions {
 }
 
 /**
- * The registry as record generations under the runtime data folder, held
- * by the records' file lease. No window keeps the registry: every hold
- * reads the head first, and reads never write.
- */
+The registry as record generations under the runtime data folder, held
+by the records' file lease. No window keeps the registry: every hold
+reads the head first, and reads never write.
+*/
 export function createFileRecordRegistry(
   dataFolder: string,
   log: CoreLogger,

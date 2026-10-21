@@ -107,6 +107,9 @@ function invalid(detail: string): never {
   throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail }))
 }
 
+/** Answer validation spent its work budget: the caller's verdict, never a structure defect. */
+class OutputSchemaBudgetError extends Error {}
+
 /** Bound nesting before recursive zod parsing; grammar depth counts schema nodes separately. */
 function isBounded(value: unknown): boolean {
   const pending = [{ value, depth: 0 }]
@@ -125,11 +128,11 @@ function isBounded(value: unknown): boolean {
 }
 
 /**
- * A conservative strict subset, never a rewrite: closed objects with every key
- * required, homogeneous arrays, scalar enums, nullable types, nested anyOf and
- * local references. Constraints we cannot enforce are refused, never discarded.
- * Uses the existing strict JSON grammar's resource limits (MCP_SCHEMA_LIMITS).
- */
+A conservative strict subset, never a rewrite: closed objects with every key
+required, homogeneous arrays, scalar enums, nullable types, nested anyOf and
+local references. Constraints we cannot enforce are refused, never discarded.
+Uses the existing strict JSON grammar's resource limits (MCP_SCHEMA_LIMITS).
+*/
 export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
   if (bytes.byteLength > EXEC_PROMPT_MAX_BYTES) invalid('bytes')
   let decoded: unknown
@@ -137,15 +140,28 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
   try {
     source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
     decoded = JSON.parse(source.replace(/^\u{FEFF}/u, ''))
-  } catch {
-    invalid('JSON / UTF-8')
+  } catch (error) {
+    // The decoder and the JSON parser fail only as these; anything else is
+    // not this text's answer to give.
+    if (error instanceof TypeError) invalid('JSON / UTF-8')
+    if (error instanceof SyntaxError) invalid('JSON / UTF-8')
+    if (error instanceof RangeError) invalid('JSON / UTF-8')
+    throw error
   }
   if (!isBounded(decoded)) invalid('depth / nodes')
   let record: Record<string, unknown>
   try {
     record = parseExecRecord(decoded)
   } catch (error: unknown) {
-    invalid(error instanceof Error ? error.message : 'record')
+    // The record copy names its two refusals and the schema parser fails as
+    // $ZodError (zod/mini, verified); anything else is not this record's
+    // answer to give.
+    if (error instanceof Error) {
+      if (error.message === 'forbidden record key') invalid('forbidden record key')
+      else if (error.message === 'depth / nodes') invalid('depth / nodes')
+      else if (error.name === '$ZodError') invalid(error.message)
+    }
+    throw error
   }
   const parsed = nodeSchema.safeParse(record)
   if (!parsed.success) invalid('keywords / types')
@@ -307,7 +323,9 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
     const spend = (count: number): void => {
       steps += count
       if (steps > EXEC_OUTPUT_SCHEMA_LIMITS.validationSteps)
-        throw new Error(fill(UI_TEXT.outputSchemaWorkBudget, { count: formatNumber(steps) }))
+        throw new OutputSchemaBudgetError(
+          fill(UI_TEXT.outputSchemaWorkBudget, { count: formatNumber(steps) }),
+        )
     }
     const isMatch = (node: SchemaNode, value: z.core.util.JSONType): boolean => {
       spend(1)
@@ -348,14 +366,18 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
       try {
         answer = parseExecRecord(JSON.parse(text))
       } catch (error: unknown) {
-        return {
-          ok: false,
-          detail:
-            error instanceof Error &&
-            ['forbidden record key', 'depth / nodes'].includes(error.message)
-              ? error.message
-              : 'JSON',
+        // JSON.parse fails only as these; the record copy names its two
+        // refusals and the schema parser fails as $ZodError (zod/mini,
+        // verified); anything else is not this answer's verdict to give.
+        if (error instanceof SyntaxError) return { ok: false, detail: 'JSON' }
+        if (error instanceof RangeError) return { ok: false, detail: 'JSON' }
+        if (error instanceof Error) {
+          if (error.message === 'forbidden record key')
+            return { ok: false, detail: 'forbidden record key' }
+          if (error.message === 'depth / nodes') return { ok: false, detail: 'depth / nodes' }
+          if (error.name === '$ZodError') return { ok: false, detail: 'JSON' }
         }
+        throw error
       }
       if (!isBounded(answer)) return { ok: false, detail: 'depth / nodes' }
       const json = outputJsonSchema.safeParse(answer)
@@ -365,11 +387,15 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
           ? { ok: true, value: json.data }
           : { ok: false, detail: 'schema' }
       } catch (error: unknown) {
-        return {
-          ok: false,
-          kind: 'output_schema_validation_budget',
-          detail: error instanceof Error ? error.message : UI_TEXT.outputSchemaWorkBudget,
-        }
+        // Only the spent budget fails here with this verdict; a structure
+        // defect is not a spent budget and stays what it is.
+        if (error instanceof OutputSchemaBudgetError)
+          return {
+            ok: false,
+            kind: 'output_schema_validation_budget',
+            detail: error.message,
+          }
+        throw error
       }
     },
   }

@@ -49,14 +49,12 @@ function continueItems(skills: readonly SkillOption[] | undefined): readonly Pal
   return SKILL_IMPORT_SOURCES.flatMap((source) => {
     const selector = RESUME_SKILL_SELECTORS[source]
     return skills?.some((skill) => skill.selector === selector) === true
-      ? [
-          {
-            id: `continue:${source}`,
-            label: continueLabel(source),
-            detail: UI_TEXT.continueDetail,
-            action: { type: 'insertSkill', selector } as const,
-          },
-        ]
+      ? {
+          id: `continue:${source}`,
+          label: continueLabel(source),
+          detail: UI_TEXT.continueDetail,
+          action: { type: 'insertSkill', selector } as const,
+        }
       : []
   })
 }
@@ -82,9 +80,9 @@ function skillManagementItems(backend: BackendKind | undefined): readonly Palett
 }
 
 /**
- * What Muse Code loads from its own settings (M31). The Model API backend
- * runs the same MCP servers itself (M50) and may load reviewed hooks (M51).
- */
+What Muse Code loads from its own settings (M31). The Model API backend
+runs the same MCP servers itself (M50) and may load reviewed hooks (M51).
+*/
 function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem[] {
   if (backend === undefined) {
     return []
@@ -109,13 +107,13 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
 }
 
 /**
- * The paid features' toggles (M33, PLAN.md D30), where they can be used: all
- * on the Model API backend, and on Muse Code the key's images and voice when
- * a key is stored (M44). Each names its price, and turning one on asks the
- * host's confirmation first. Prices arrive with the lazy money chunk
- * (STARTUP017): unknown while it loads, so rows read without prices rather
- * than with guessed ones.
- */
+The paid features' toggles (M33, PLAN.md D30), where they can be used: all
+on the Model API backend, and on Muse Code the key's images and voice when
+a key is stored (M44). Each names its price, and turning one on asks the
+host's confirmation first. Prices arrive with the lazy money chunk
+(STARTUP017): unknown while it loads, so rows read without prices rather
+than with guessed ones.
+*/
 function paidItems(
   context: PaletteContext,
   priceOf: ((feature: PaidFeature) => string | undefined) | undefined,
@@ -234,11 +232,11 @@ function scheduleItems(context: PaletteContext): readonly PaletteItem[] {
 }
 
 /**
- * Review (M70, PLAN.md D49), the same on both backends: `/review` for what
- * to look at, the git presets, the security preset and the review pane. The
- * presets that read git say why when Restricted Mode refuses them (the host
- * answers the request).
- */
+Review (M70, PLAN.md D49), the same on both backends: `/review` for what
+to look at, the git presets, the security preset and the review pane. The
+presets that read git say why when Restricted Mode refuses them (the host
+answers the request).
+*/
 function reviewItems(): readonly PaletteItem[] {
   return [
     {
@@ -303,21 +301,26 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
       },
     ]
   }
+  // A person-facing line only (F68): the skill's title, never the
+  // description its SKILL.md wrote for the model (`read_skill` calls and
+  // other assistant instructions). The model still reads the description
+  // from the skill file itself when the skill runs.
   return skills
     .filter(
       (skill) =>
         skill.selector !== SLASH_COMMAND_NAMES.help &&
         skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+        skill.selector !== SLASH_COMMAND_NAMES.playback &&
         skill.selector !== 'schedule',
     )
     .map((skill) => ({
       id: `skill:${skill.selector}`,
       label: `/${skill.selector}`,
-      tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
+      tip: fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
       detail:
         skill.argumentHint === undefined
-          ? skill.description
-          : `${skill.description} — ${skill.argumentHint}`,
+          ? skill.displayName
+          : `${skill.displayName} — ${skill.argumentHint}`,
       action: { type: 'insertSkill', selector: skill.selector },
     }))
 }
@@ -427,6 +430,24 @@ export function buildPalette(
           slashName: SLASH_COMMAND_NAMES.checkoutPullRequest,
           detail: UI_TEXT.gitCheckoutItemDetail,
           action: { type: 'openPullRequestInConversation' },
+        },
+        // M123 (PLAN.md D104 §2): GitHub's device flow, the code shown in the
+        // panel's card, wherever the editor has a sign-in of its own or not.
+        {
+          id: 'githubSignInWithCode',
+          label: UI_TEXT.gitHubSignInWithCodeItem,
+          tip: UI_TEXT.gitHubSignInWithCodeDetail,
+          slashName: SLASH_COMMAND_NAMES.githubLogin,
+          detail: UI_TEXT.gitHubSignInWithCodeDetail,
+          action: { type: 'gitAction', action: 'signInGitHubWithCode' },
+        },
+        {
+          id: 'githubSignOut',
+          label: UI_TEXT.gitHubSignOutItem,
+          tip: UI_TEXT.gitHubSignOutItemDetail,
+          slashName: SLASH_COMMAND_NAMES.githubLogout,
+          detail: UI_TEXT.gitHubSignOutItemDetail,
+          action: { type: 'gitAction', action: 'signOutGitHub' },
         },
       ],
     },
@@ -603,6 +624,13 @@ export function buildPalette(
           label: UI_TEXT.goalItem,
           detail: UI_TEXT.goalItemDetail,
           action: { type: 'startGoal' },
+        },
+        // The agent's own understanding, from memory only (D203), on both backends.
+        {
+          id: 'playback',
+          label: UI_TEXT.playbackItem,
+          detail: UI_TEXT.playbackDetail,
+          action: { type: 'startPlayback' },
         },
         // The read-only legal scan (M97, PLAN.md D76), on both backends.
         {

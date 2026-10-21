@@ -18,12 +18,14 @@ import * as z from 'zod/mini'
 export interface AgentImportHostDeps {
   readonly workspaceRoot: string | undefined
   readonly isActive: () => boolean
+  /** Ends the import's git probes when it aborts (the window closing). */
+  readonly signal?: AbortSignal
   /**
-   * Whether the project's own configuration may load (M71): VS Code trusts
-   * the folder and the window is not held on someone else's pull request.
-   * Carried as the import's workspace trust so every project-scope read and
-   * editor copy respects the hold; user-scope imports never consult it.
-   */
+  Whether the project's own configuration may load (M71): VS Code trusts
+  the folder and the window is not held on someone else's pull request.
+  Carried as the import's workspace trust so every project-scope read and
+  editor copy respects the hold; user-scope imports never consult it.
+  */
   readonly isProjectTrusted: () => boolean
   /** Whether this window is held on someone else's pull request (M71). */
   readonly isProjectHeld?: () => boolean
@@ -79,39 +81,50 @@ function mergedConfig(
   current: string,
   additions: string,
 ): { readonly text: string } | { readonly reason: 'exists' | 'unreadable' } {
+  let priorRaw: unknown
+  let addedRaw: unknown
   try {
-    const prior = configSchema.parse(current.trim() === '' ? {} : JSON.parse(current))
-    const added = configSchema.parse(JSON.parse(additions))
-    if (
-      Object.keys(added.mcpServers ?? {}).some((name) =>
-        Object.hasOwn(prior.mcpServers ?? {}, name),
-      )
-    )
-      return { reason: 'exists' }
-    const events = new Set([...Object.keys(prior.hooks ?? {}), ...Object.keys(added.hooks ?? {})])
-    return {
-      text: JSON.stringify(
-        {
-          ...added,
-          ...prior,
-          ...(added.mcpServers !== undefined && {
-            mcpServers: { ...added.mcpServers, ...prior.mcpServers },
-          }),
-          ...(added.hooks !== undefined && {
-            hooks: Object.fromEntries(
-              [...events].map((event) => [
-                event,
-                [...(prior.hooks?.[event] ?? []), ...(added.hooks?.[event] ?? [])],
-              ]),
-            ),
-          }),
-        },
-        undefined,
-        2,
-      ),
+    priorRaw = current.trim() === '' ? {} : JSON.parse(current)
+    addedRaw = JSON.parse(additions)
+  } catch (error: unknown) {
+    // Malformed text cannot merge; anything else is not ours to swallow.
+    if (error instanceof SyntaxError) {
+      return { reason: 'unreadable' }
     }
-  } catch {
+    throw error
+  }
+  const priorParsed = configSchema.safeParse(priorRaw)
+  const addedParsed = configSchema.safeParse(addedRaw)
+  if (!priorParsed.success || !addedParsed.success) {
     return { reason: 'unreadable' }
+  }
+  const prior = priorParsed.data
+  const added = addedParsed.data
+  if (
+    Object.keys(added.mcpServers ?? {}).some((name) => Object.hasOwn(prior.mcpServers ?? {}, name))
+  )
+    return { reason: 'exists' }
+  const events = new Set([...Object.keys(prior.hooks ?? {}), ...Object.keys(added.hooks ?? {})])
+  return {
+    text: JSON.stringify(
+      {
+        ...added,
+        ...prior,
+        ...(added.mcpServers !== undefined && {
+          mcpServers: { ...added.mcpServers, ...prior.mcpServers },
+        }),
+        ...(added.hooks !== undefined && {
+          hooks: Object.fromEntries(
+            [...events].map((event) => [
+              event,
+              [...(prior.hooks?.[event] ?? []), ...(added.hooks?.[event] ?? [])],
+            ]),
+          ),
+        }),
+      },
+      undefined,
+      2,
+    ),
   }
 }
 
@@ -136,6 +149,7 @@ export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void>
       isWorkspaceTrusted: deps.isProjectTrusted,
       ...(deps.isProjectHeld !== undefined && { isProjectHeld: deps.isProjectHeld }),
       isActive: deps.isActive,
+      ...(deps.signal !== undefined && { signal: deps.signal }),
       museSettingsFile: deps.museSettingsPath(),
       editProject: deps.editProject,
       beforeProjectWrite: deps.beforeProjectWrite,

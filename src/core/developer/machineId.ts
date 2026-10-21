@@ -15,14 +15,10 @@ import {
 } from '../../shared/constants'
 import { DeveloperOptionsError } from './developerOptions'
 
-function hasCode(error: unknown, code: string): boolean {
-  return error instanceof Error && 'code' in error && error.code === code
-}
-
 /** The machine identity file every host on this machine shares (DEVID017B,
- * PLAN.md D88): `<dataDir>/machine-id`, beside the runtime's other
- * machine-scoped files. The extension host resolves the same folder through
- * `agentDataFolder`, so either host honours the other's unlock. */
+PLAN.md D88): `<dataDir>/machine-id`, beside the runtime's other
+machine-scoped files. The extension host resolves the same folder through
+`agentDataFolder`, so either host honours the other's unlock. */
 export function developerMachineIdFile(dataDir: string): string {
   return path.join(dataDir, DEVELOPER_MACHINE_ID_FILE)
 }
@@ -34,14 +30,25 @@ function isPublishedMachineId(value: string): boolean {
   return /^[0-9a-f]{64}\n?$/.test(value)
 }
 
+/** Best effort: a failed staging must not leave its claim file behind. */
+async function removeStaged(temporary: string): Promise<void> {
+  try {
+    await rm(temporary, { force: true })
+  } catch {
+    // The staging file is already gone; the load still failed honestly.
+  }
+}
+
 /** Read a published id, waiting briefly for a racing creator to finish. */
 async function readPublishedMachineId(file: string): Promise<string> {
   for (let attempt = 1; ; attempt += 1) {
     let text: string
     try {
       text = await readFile(file, 'utf8')
-    } catch {
-      throw new DeveloperOptionsError('unavailable')
+    } catch (error) {
+      // An unreadable identity file refuses in fixed words, carrying the
+      // read failure that proved it.
+      throw new DeveloperOptionsError('unavailable', { cause: error })
     }
     if (isPublishedMachineId(text)) return text.endsWith('\n') ? text.slice(0, -1) : text
     if (attempt >= DEVELOPER_MACHINE_ID_READ_ATTEMPTS)
@@ -51,22 +58,24 @@ async function readPublishedMachineId(file: string): Promise<string> {
 }
 
 /** Load the machine's stable id, creating it once (DEVID017B, redesigned
- * DEVID017C, read-first DEVID017D). An already published id is returned
- * before any staging, so read-only storage still loads the identity.
- * Otherwise the full id is staged to a private temp file in the same
- * folder and fsynced, then published atomically and exclusively with
- * `link`, which fails when the final name exists — the calibration
- * journal's (`src/core/estimator/calibration/journal.ts`) claim pattern,
- * which also links on Windows. The temp file is removed afterwards. A
- * reader racing a creator therefore sees no file or the complete id, never
- * a prefix. A missing, unreadable or invalid file refuses honestly; the id
- * is never derived from the hostname, so renames change nothing. */
+DEVID017C, read-first DEVID017D). An already published id is returned
+before any staging, so read-only storage still loads the identity.
+Otherwise the full id is staged to a private temp file in the same
+folder and fsynced, then published atomically and exclusively with
+`link`, which fails when the final name exists — the calibration
+journal's (`src/core/estimator/calibration/journal.ts`) claim pattern,
+which also links on Windows. The temp file is removed afterwards. A
+reader racing a creator therefore sees no file or the complete id, never
+a prefix. A missing, unreadable or invalid file refuses honestly; the id
+is never derived from the hostname, so renames change nothing. */
 export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
   const file = developerMachineIdFile(dataDir)
   try {
     await mkdir(dataDir, { recursive: true, mode: DEVELOPER_DIRECTORY_MODE })
-  } catch {
-    throw new DeveloperOptionsError('unavailable')
+  } catch (error) {
+    // A data directory that cannot open refuses in fixed words, carrying
+    // the failure that proved it.
+    throw new DeveloperOptionsError('unavailable', { cause: error })
   }
   // A published id wins without staging anything: storage that refuses new
   // files (permissions or quota) still loads the existing identity instead
@@ -90,22 +99,20 @@ export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
     } finally {
       await staged.close()
     }
-  } catch {
+  } catch (error) {
     // Every staging failure removes its temp file: a failed write, fsync
     // or close must not leave another claim file behind for the next load.
-    try {
-      await rm(temporary, { force: true })
-    } catch {
-      // The staging file is already gone; the load still failed honestly.
-    }
-    throw new DeveloperOptionsError('unavailable')
+    await removeStaged(temporary)
+    throw new DeveloperOptionsError('unavailable', { cause: error })
   }
   try {
     await link(temporary, file)
   } catch (error: unknown) {
     await rm(temporary, { force: true })
     // Another creator published first: its id is authoritative, never ours.
-    if (!hasCode(error, 'EEXIST')) throw new DeveloperOptionsError('unavailable')
+    // Any other link failure refuses, carrying the failure that proved it.
+    if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST'))
+      throw new DeveloperOptionsError('unavailable', { cause: error })
     return await readPublishedMachineId(file)
   }
   await rm(temporary, { force: true })
@@ -113,17 +120,17 @@ export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
 }
 
 /** The DEVID017 derivation, kept only to recognise stored state from before
- * DEVID017B, never as the machine's identity: lowercase, domain-separated
- * SHA-256 hex of an operating-system hostname. */
+DEVID017B, never as the machine's identity: lowercase, domain-separated
+SHA-256 hex of an operating-system hostname. */
 export function legacyDeveloperMachineId(hostname: string): string {
   const normalized = hostname.trim().toLowerCase()
   return createHash('sha256').update(`${DEVELOPER_MACHINE_ID_DOMAIN}:${normalized}`).digest('hex')
 }
 
 /** Stored ids this machine may have carried before DEVID017B, compared
- * case-insensitively by `DeveloperOptions.open`: the raw hostname
- * (pre-DEVID017 state), its digest (DEVID017 state), and the digest of its
- * short and `.local` forms, since the OS reports either spelling. */
+case-insensitively by `DeveloperOptions.open`: the raw hostname
+(pre-DEVID017 state), its digest (DEVID017 state), and the digest of its
+short and `.local` forms, since the OS reports either spelling. */
 export function developerMachineIdAliases(hostname: string): readonly string[] {
   const full = hostname.trim().toLowerCase()
   const short = full.split('.', 1)[0] ?? full

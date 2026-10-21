@@ -179,6 +179,13 @@ export class ResourceQueue {
           this.grant(entry)
           continue
         }
+        if (entry.request.kind === 'museServe' && entry.request.class === 'foreground') {
+          // The host's own start is foreground work the person waits for
+          // (the panel's first open, a restart): the engine never queues
+          // behind paused work. Background admissions keep pause semantics.
+          this.grant(entry)
+          continue
+        }
         const limit = this.options.capacity(entry.request.kind)
         if (limit !== null && limit !== 0 && limit !== 1)
           throw new RangeError('Invalid resource capacity')

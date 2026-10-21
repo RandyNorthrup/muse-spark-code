@@ -38,18 +38,27 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   GIT_METADATA_OPTIONS,
   AGENT_IMPORT_GIT_NOT_REPOSITORY_EXIT,
-  GIT_TIMEOUT_MS,
   RULES_FILE_MAX_BYTES,
 } from '../shared/constants'
 import { canonicalPath, isMissingPath } from './canonicalPath'
+import { isStoreErrorCode } from './backend/storeErrors'
 import { writeFileAtomically } from './fsAtomic'
 import { isGitExitError, processGitProcess } from './git'
 import { withoutCredentials } from '../runtime/credentialVariables'
 
 const importGit = processGitProcess()
 
-/** Ignore metadata only: no workspace executable, inherited git override or configured monitor. */
-async function isImportIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean> {
+/**
+Ignore metadata only: no workspace executable, inherited git override or
+configured monitor. `signal` ends a stalled probe's child (PR #214
+review): the probes name no deadline of their own, and the window
+closing must still reach the child.
+*/
+async function isImportIgnored(
+  absolutePath: string,
+  workspaceRoot: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
   // Git uses the file's nearest repository, including a nested repository.
   // Missing target directories are walked up to their first existing parent.
   let cwd = path.dirname(absolutePath)
@@ -74,7 +83,7 @@ async function isImportIgnored(absolutePath: string, workspaceRoot: string): Pro
   const options = {
     cwd,
     env: { ...env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
-    timeoutMs: GIT_TIMEOUT_MS,
+    ...(signal !== undefined && { signal }),
   }
   try {
     await importGit([...GIT_METADATA_OPTIONS, 'rev-parse', '--is-inside-work-tree'], options)
@@ -99,7 +108,6 @@ async function isImportIgnored(absolutePath: string, workspaceRoot: string): Pro
   }
 }
 
-const EXISTS = 'EEXIST'
 const LINK_REFUSED = 'ELOOP'
 const CHANGED = 'ESTALE'
 const TOO_LARGE = 'EFBIG'
@@ -107,8 +115,12 @@ const EXCLUSIVE_CREATE = 'wx'
 /** Owner, group or other may execute (`chmod +x`). */
 const EXECUTE_BITS = 0o111
 
-function refused(code: string): Error {
-  return Object.assign(new Error('Import path cannot be used safely'), { code })
+function refused(code: string, cause?: unknown): Error {
+  const error =
+    cause === undefined
+      ? new Error('Import path cannot be used safely')
+      : new Error('Import path cannot be used safely', { cause })
+  return Object.assign(error, { code })
 }
 
 /** The canonical form the import confines by: broken links followed to where they lead. */
@@ -133,8 +145,8 @@ async function assertRoot(project: ImportProjectRoot): Promise<void> {
   let now: ImportRootIdentity
   try {
     now = await identifyRoot(project.path)
-  } catch {
-    throw refused(AGENT_IMPORT_ROOT_CHANGED_CODE)
+  } catch (error: unknown) {
+    throw refused(AGENT_IMPORT_ROOT_CHANGED_CODE, error)
   }
   if (
     !isSamePath(now.canonical, project.identity.canonical, process.platform) ||
@@ -200,10 +212,10 @@ async function isDirectoryLink(absolutePath: string): Promise<boolean> {
 }
 
 /**
- * Read through one verified handle, at most maxBytes plus one sentinel
- * byte. A scan's project read is bound to the workspace root by path; a
- * plan-bound read (`project`) also compares the root's identity.
- */
+Read through one verified handle, at most maxBytes plus one sentinel
+byte. A scan's project read is bound to the workspace root by path; a
+plan-bound read (`project`) also compares the root's identity.
+*/
 async function readImportFile(
   absolutePath: string,
   maxBytes: number,
@@ -345,7 +357,7 @@ async function createImportFile(
     await link(temporary, absolutePath)
     return 'created'
   } catch (error: unknown) {
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === EXISTS) {
+    if (isStoreErrorCode(error, 'EEXIST')) {
       return 'exists'
     }
     throw error

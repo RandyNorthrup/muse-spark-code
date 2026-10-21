@@ -1,5 +1,16 @@
-import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
-import { notify } from './core/events/notify'
+import { SpendLedgerError } from './core/paid/spendLedgerError'
+import {
+  checkScheduleOwnCap,
+  paidExtraAdmission,
+  passthroughSpendClaim,
+} from './core/paid/spendClaim'
+import { scheduleWindowWorkspace } from './host/schedules/schedulesBridge'
+import type { ScheduleEditorDeliveryPorts } from './host/schedules/deliveryBinding'
+import type { BackendSession } from './host/schedules/backgroundTarget'
+import type { StartSessionOptions } from './core/agent/agentBackend'
+import type { ScheduleV2 } from './shared/scheduleV2'
+import { isChildTurn } from './shared/agentEvents'
+import { unlessAborted } from './core/timeouts'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
@@ -12,6 +23,8 @@ import {
   BACKEND_SETTING,
   BYPASS_SETTING,
   CLI_PROCESS_SETTINGS,
+  HTTP_POSTURE_SETTINGS,
+  HTTP_PROXY_SETTING,
   HTTP_SETTINGS_SECTION,
   POSIX_TERMINAL_SHELL,
   TERMINAL_ENV_KEYS,
@@ -20,10 +33,13 @@ import {
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
+  SCHEDULE_BACKGROUND_TITLES_KEPT,
   OPTIONAL_RUNTIME_AVAILABILITY,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   EXTENSION_NAME,
+  EXTENSION_QUALIFIED_ID,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
@@ -37,11 +53,14 @@ import {
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   ESTIMATOR_BUNDLE_FILE,
+  PLAN_SNAPSHOT_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   WHATS_NEW_BUNDLE_FILE,
   WHATS_NEW_CLAIMS_DIR,
   WHATS_NEW_CONTENT_FILE,
   OUTPUT_CHANNEL_SCHEME,
+  GITHUB_AUTH_PROVIDER,
+  GITHUB_AUTH_SCOPES,
   CHECKPOINT_STORE_BUNDLE_FILE,
   BROWSER_CHECK_BUNDLE_FILE,
   BROWSER_RUNTIME_BUNDLE_FILE,
@@ -49,14 +68,22 @@ import {
   MODELS_PANEL_BUNDLE_FILE,
   MODELS_SUBSCRIPTIONS_BUNDLE_FILE,
   LEGAL_SCAN_BUNDLE_FILE,
+  LEGAL_FIX_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
+  DICTATION_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
+  VOICE_LINUX_BUNDLE_FILE,
+  MUSE_CODE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
+  AUTH_BUNDLE_FILE,
+  PAID_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
   EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
+  MODEL_API_UPLOADS_DIR,
+  MEDIA_PRIVATE_ROOT_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
@@ -79,6 +106,7 @@ import {
   MUSE_INIT_TIMEOUT_MS,
   MUSE_INSTALL_COMMANDS,
   RULES_FILE_BUNDLE_FILE,
+  NATIVE_GIT_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
   PROMPT_BUNDLE_FILE,
@@ -99,115 +127,51 @@ import {
   WORKSPACE_STATE_KEYS,
   TAB_CONTEXT_FILES,
 } from './shared/constants'
-import { PaidAuthority } from './core/paid/paidAuthority'
-import { Usd } from './shared/usd'
+import { Usd, sumUsd, type UsdAmount } from './shared/usd'
+
 import {
   createUsageRecording,
   isUsageWriterBundle,
   type UsageRecording,
 } from './core/usage/recording'
-import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
-import { agentDataFolder } from './runtime/dataFolder'
-import { requireFile } from './host/lazyBundle'
-import { isJudgeEngineOn } from './core/judge/engine'
-import { promptBundleLoader } from './host/prompts/promptBundle'
+import { isCodedError } from './core/workspaceRoot'
 import type { createPromptHost } from './host/prompts/promptEntry'
-import { judgeWindowPort } from './host/judge/judgeBundle'
-import { storeErrorCode } from './host/backend/storeErrors'
 
-import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
-import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
-import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
-import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
-import { reportPanelLoader } from './host/reporting/reportPanelBundle'
 import type { ReportPanel } from './host/reporting/reportPanel'
 
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { homedir, hostname, userInfo } from 'node:os'
-import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
+import { createHash } from 'node:crypto'
 import type { UsagePanel } from './host/usage/usagePanel'
-
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
-import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
-import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
-import { isProtectedPath } from './core/protectedPaths'
+
 import type { EditedFile } from './core/verify/diagnosticsReport'
-import { readBackendChoice } from './core/backendSelection'
-import { personalAgentsRoot } from './core/context/customAgents'
 import {
   bundledSkillSourcesRoot,
   bundledSkillsPackageRoot,
   firstPartySkillsRoot,
   personalSkillsRoot,
 } from './core/context/skills'
-import { memoryDataRoot } from './core/memory/memoryLocation'
-import { isSamePath } from './core/paths'
-import { terminalArgument } from './core/shellQuote'
-import { renderSupportReport } from './core/support/report'
-import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
-import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
+import type * as ReportBundle from './host/support/reportEntry'
 import type { EditorContext } from './core/editorContext'
 import type { MentionSource } from './core/mention'
-import { MentionIndex } from './core/mentionIndex'
 import {
   type FolderLookup,
   hostSideUri,
   resolveAgainstRoot,
   rootRelativePath,
 } from './core/workspaceRoot'
-import { keychainItemPresence } from './core/backends/musecode/credentialFile'
-import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
-import { AuthService } from './host/auth/authService'
-import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
-import { runDeviceSignIn } from './host/auth/deviceSignIn'
-import { isValidModelApiKey } from './host/auth/credentialStore'
-import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
-import { createFileScheduleStore } from './host/backend/fileScheduleStore'
-import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
-import { chooseAuthorizedHost } from './host/backend/selectedHost'
-import { SandboxSetup } from './host/backend/sandboxSetup'
-import { fileContextIo } from './host/backend/contextIo'
-import { describeEnvironment } from './host/backend/environment'
-import { lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
 import type { QuestionStore } from './shared/questions'
-import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
-import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
-import { mcpJobExecutable, sealedMcpJobExecutable } from './host/backend/mcpJobExecutable'
-import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
-import { systemPath } from './host/backend/memoryIo'
 import {
   museSettingsPath,
   readDelegationMode,
   readWorkflowTriggerMode,
 } from './host/backend/museSettings'
-import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
-import {
-  createToolIo,
-  runResourceCommand as runProcess,
-  readPickedFile,
-  toolImagePreviewIo,
-  hookEnvironment,
-  terminalPlatform,
-  withTerminalOverrides,
-} from './host/backend/toolIo'
-import { pluginContainment } from './host/backend/pluginContainment'
-import { EditorContextTracker } from './host/editor/editorContextTracker'
-import { createRevertIo } from './host/editor/revertIo'
-import { createVerifyEditor } from './host/editor/verifyEditor'
-import { verifyGuidance } from './core/verify/checkCommands'
-import { IdeMcpServer } from './host/ide/ideMcpServer'
 import type { CreateRulesFileDeps } from './host/commands/createRulesFile'
-import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
-import { insertMentionReference } from './host/commands/insertMention'
-import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
-import { toggleInputFocus } from './host/commands/focusInput'
-import { toggleFocusView } from './host/commands/toggleFocusView'
 import type {
   ConversationController,
   ConversationReports,
@@ -215,10 +179,142 @@ import type {
   PickedFile,
   SessionMemory,
 } from './host/conversation/conversationController'
+import type { ReportDataSource } from './host/conversation/reportProblemHandler'
+
+import {
+  TAB_BUNDLE_FILE,
+  TAB_CONSENT_STATE_KEY,
+  TAB_LEDGER_DIR,
+  TAB_SNOOZE_STATE_KEY,
+  type TabFilesExclude,
+  createTabActivation,
+  createTabConsent,
+  tabPriceFingerprint,
+  tabTextChangeEvent,
+  deferredRefresh,
+} from './host/tab/tabBundle'
+import {
+  bundledSkillsLoader,
+  createBundledSkillsOffer,
+  type BundledSkillsCommandDeps,
+} from './host/skills/bundledSkills'
+import {
+  conversationGitFactory,
+  conversationGitLoader,
+  gitFeaturesLoader,
+  openPullRequestInConversation,
+} from './host/git/conversationGitBundle'
+import type { ExtensionHookRunner } from './host/extensionHooksEntry'
+import {
+  configureResources,
+  loadResourceWindow,
+  onResourceWindow,
+} from './core/resources/admission'
+import {
+  createCheckpointPort,
+  finishCheckpointTurn,
+  prepareCheckpointTurn,
+  withCheckpointStorageGuard,
+  withCheckpointEdit,
+  withCheckpointEditAt,
+} from './host/checkpoints/checkpointHost'
+import type * as RecorderBundle from './host/support/recorderEntry'
+import {
+  changedSettingNames,
+  extensionReportFacts,
+  manifestSettingNames,
+  reportScrubContext,
+} from './host/support/reportFacts'
+import type { ChatSurface } from './host/views/chatSurface'
+import type { WebviewHostContext } from './host/views/webviewSetup'
+import type { WebviewBundleResolution } from './host/views/webviewBundle'
+import { withFailureDocument } from './host/views/webviewBundle'
+import { tryResolveWebviewBundleDir } from './host/views/webviewBundleRoot'
+import {
+  modelsPanelLoader,
+  providerCredentials,
+  recoverProviderRemovals,
+} from './host/models/modelsPanelBundle'
+import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
+import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+
+import type { AccountFacts } from './shared/usage'
+import { terminalEnvironment } from './core/backends/musecode/launch'
+import { environmentValue, windowsPowerShellEnvironment } from './core/execGuard'
+import {
+  createToolIo,
+  runResourceCommand as runProcess,
+  readPickedFile,
+  toolImagePreviewIo,
+  terminalPlatform,
+  withTerminalOverrides,
+} from './host/backend/toolIo'
+import { hookEnvironment } from './core/execGuard'
+import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
+import { NO_WORKSPACE } from './core/executables'
+import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
+import { notify } from './core/events/notify'
+import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
+import { requireFile } from './host/lazyBundle'
+import { isJudgeEngineOn } from './core/judge/engine'
+import { promptBundleLoader } from './host/prompts/promptBundle'
+import { judgeWindowPort } from './host/judge/judgeBundle'
+import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
+import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
+import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
+import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
+import { reportPanelLoader } from './host/reporting/reportPanelBundle'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { homedir, hostname, userInfo } from 'node:os'
+import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
+import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
+import { isProtectedPath } from './core/protectedPaths'
+import { readBackendChoice } from './core/backendSelection'
+import { personalAgentsRoot } from './core/context/customAgents'
+import { memoryDataRoot } from './core/memory/memoryLocation'
+import { isSamePath } from './core/paths'
+import { terminalArgument } from './core/shellQuote'
+import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
+import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
+import { MentionIndex } from './core/mentionIndex'
+import { keychainItemPresence } from './core/backends/musecode/credentialFile'
+import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
+import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
+import { runDeviceSignIn } from './host/auth/deviceSignIn'
+import { isValidModelApiKey } from './host/auth/credentialStore'
+import type { DamagedChoiceNotice } from './runtime/resources/history'
+import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
+import {
+  createFileScheduleMigrationSource,
+  createFileScheduleStore,
+} from './host/backend/fileScheduleStore'
+import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
+import { chooseAuthorizedHost } from './host/backend/selectedHost'
+import { SandboxSetup } from './host/backend/sandboxSetup'
+import { fileContextIo } from './host/backend/contextIo'
+import { describeEnvironment } from './host/backend/environment'
+import { fileSessionBundleApi, lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
+import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
+import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
+import { mcpJobExecutable, sealedMcpJobExecutable } from './host/backend/mcpJobExecutable'
+import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
+import { systemPath } from './host/backend/memoryIo'
+import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
+import { pluginContainment } from './host/backend/pluginContainment'
+import { EditorContextTracker } from './host/editor/editorContextTracker'
+import { createRevertIo } from './host/editor/revertIo'
+import { createVerifyEditor } from './host/editor/verifyEditor'
+import { verifyGuidance } from './core/verify/checkCommands'
+import { IdeMcpServer } from './host/ide/ideMcpServer'
+import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
+import { insertMentionReference } from './host/commands/insertMention'
+import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
+import { toggleInputFocus } from './host/commands/focusInput'
+import { toggleFocusView } from './host/commands/toggleFocusView'
 import { conversationLoader } from './host/conversation/conversationBundle'
 import { restartConversationBackends } from './host/conversation/conversationBackends'
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
-import type { ReportDataSource } from './host/conversation/reportProblemHandler'
+import { vscodeBackgroundNoticeDeps } from './host/conversation/vscodeBackgroundNotices'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
 import { modelApiClientLoader } from './host/backend/modelApiBundle'
@@ -237,86 +333,43 @@ import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
 
-import { fill as fillLegalNotice, fill, plural, uiLocale } from './shared/l10n/text'
-import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
+import { fill as fillLegalNotice, fill, formatBytes, plural, uiLocale } from './shared/l10n/text'
+import { legalFixLoader, legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
-import {
-  TAB_BUNDLE_FILE,
-  TAB_CONSENT_STATE_KEY,
-  TAB_LEDGER_DIR,
-  TAB_SNOOZE_STATE_KEY,
-  type TabFilesExclude,
-  createTabActivation,
-  createTabConsent,
-  tabPriceFingerprint,
-  tabTextChangeEvent,
-  deferredRefresh,
-} from './host/tab/tabBundle'
 import { createCliFeatures } from './host/cliFeatures'
-import {
-  bundledSkillsLoader,
-  createBundledSkillsOffer,
-  runBundledSkillsInstall,
-  runBundledSkillsRemove,
-  type BundledSkillsCommandDeps,
-} from './host/skills/bundledSkills'
+import { hasIgnoreFile } from './host/tab/tabIgnoreFile'
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
-import {
-  conversationGitFactory,
-  conversationGitLoader,
-  gitFeaturesLoader,
-  openPullRequestInConversation,
-} from './host/git/conversationGitBundle'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
+import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
-import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
-import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
-import {
-  configureResources,
-  loadResourceWindow,
-  onResourceWindow,
-} from './core/resources/admission'
 import { createResourceWindow } from './host/resources/resourceWindow'
-import {
-  createCheckpointPort,
-  finishCheckpointTurn,
-  prepareCheckpointTurn,
-  withCheckpointStorageGuard,
-  withCheckpointEdit,
-  withCheckpointEditAt,
-} from './host/checkpoints/checkpointHost'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { ReportRecorder } from './host/support/reportRecorder'
-import type * as RecorderBundle from './host/support/recorderEntry'
 import { vscodeReportEditorIo } from './host/support/reportEditorIo'
-import {
-  changedSettingNames,
-  extensionReportFacts,
-  manifestSettingNames,
-  reportScrubContext,
-} from './host/support/reportFacts'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
+import { failureForLog } from './core/backends/musecode/logText'
 import {
   liveFetch,
   managedConfiguration,
   readNetworkFacts,
   readProxySettings,
+  readVoiceNetworkPosture,
 } from './host/networkPosture'
 import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
@@ -327,39 +380,30 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvi
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
-import type { ChatSurface } from './host/views/chatSurface'
-import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
-import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { voiceLoader } from './host/voice/voiceBundle'
-import {
-  createMediaAttachDeps,
-  createMediaSourceOpen,
-  dialogFiltersOption,
-} from './host/media/mediaProviders'
-import { mediaBundleLoader } from './host/media/mediaBundle'
+import type { DictationSetup } from './core/voice/dictation'
+import { dictationLoader, type DictationBundle } from './host/voice/dictationBundle'
+import { dialogFiltersOption } from './host/media/dialogFilters'
+import type { AttachedMedia } from './core/media/attachedMedia'
+import { lazyAttachedMedia } from './core/media/attachedMediaPort'
+import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
-import { createLinuxLatestPort } from './host/media/recordingLatest'
-import { latestLinuxRecording } from './core/media/record/linux'
-import type { ScreenRecordingPreview } from './core/media/record/driver'
-import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
+import type { ScreenRecordingResult } from './core/media/record/driver'
+import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPanelBundle'
+import { createMigrationShell, type MigrationShell } from './host/vault/migrationShell'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
-import {
-  modelsPanelLoader,
-  providerCredentials,
-  recoverProviderRemovals,
-} from './host/models/modelsPanelBundle'
 import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
-import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
-import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+import { paidBundleLoader } from './host/paid/paidBundle'
+import type { PaidFeatures } from './host/paid/paidHost'
+import type { askPaidUse as askPaidUseFn } from './host/paid/paidEntry'
+import type * as ScheduleSurfaces from './host/conversation/scheduleSurfacesEntry'
+import { authBundleLoader } from './host/auth/authBundle'
+import type { AuthPort, AuthService } from './host/auth/authService'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
-
 import { BACKEND_KINDS, type HostAction } from './shared/protocol'
-import type { AccountFacts } from './shared/usage'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
 // field we read instead of trusting it.
@@ -424,7 +468,10 @@ async function isExistingPath(fsPath: string): Promise<boolean> {
   try {
     await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
     return true
-  } catch {
+  } catch (error) {
+    // Only the file system's own failure reads absent: anything else
+    // keeps its kind past the check.
+    if (!(error instanceof vscode.FileSystemError)) throw error
     return false
   }
 }
@@ -463,7 +510,10 @@ function signInMethodFor(
 function readTextFileSync(fsPath: string): string | undefined {
   try {
     return readFileSync(fsPath, 'utf8')
-  } catch {
+  } catch (error: unknown) {
+    // Only a missing file is absent: anything else (no permission, a
+    // folder) is raised, so a broken config never reads as unset.
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     return undefined
   }
 }
@@ -472,18 +522,43 @@ function readTextFileSync(fsPath: string): string | undefined {
 function modifiedAt(fsPath: string): number | undefined {
   try {
     return statSync(fsPath).mtimeMs
-  } catch {
+  } catch (error: unknown) {
+    // Only a missing file is timeless: anything else (no permission, a
+    // folder) is raised, so a broken credential file never reads as gone.
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     return undefined
   }
 }
 
 /**
- * Runs the CLI where the user can see and interact with it. The terminal's
- * shell is pinned so the call syntax is known (PLAN.md D25): Windows
- * PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
- * default shell of pwsh or nushell would not run `"path" login` as a
- * command). `env` is added to the terminal's own environment.
- */
+The pinned Windows PowerShell terminal: its absolute path, and `env` (the
+variables added to the terminal's own environment) under the guarded
+layer's rule, so Windows PowerShell 5.1 loads its own modules whatever
+shell VS Code came from. Undefined when Windows names no system folder.
+*/
+function windowsTerminalShell(
+  env: Record<string, string>,
+): { readonly shellPath: string; readonly env: Record<string, string> } | undefined {
+  const systemRoot = process.env['SystemRoot']
+  return systemRoot === undefined
+    ? undefined
+    : {
+        shellPath: `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`,
+        env: windowsPowerShellEnvironment(
+          env,
+          systemRoot,
+          environmentValue(process.env, 'win32', 'ProgramFiles'),
+        ),
+      }
+}
+
+/**
+Runs the CLI where the user can see and interact with it. The terminal's
+shell is pinned so the call syntax is known (PLAN.md D25): Windows
+PowerShell on Windows (the CLI's own shim shell), `/bin/sh` elsewhere (a
+default shell of pwsh or nushell would not run `"path" login` as a
+command). `env` is added to the terminal's own environment.
+*/
 function runInTerminal(
   cliPath: string,
   args: readonly string[],
@@ -491,15 +566,13 @@ function runInTerminal(
   env: Record<string, string>,
 ): void {
   const isWindows = process.platform === 'win32'
-  const systemRoot = process.env['SystemRoot']
-  const windowsShell =
-    systemRoot === undefined ? undefined : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
-  const shellPath = isWindows ? windowsShell : POSIX_TERMINAL_SHELL
+  const windowsShell = isWindows ? windowsTerminalShell(env) : undefined
+  const shellPath = isWindows ? windowsShell?.shellPath : POSIX_TERMINAL_SHELL
   const terminal = vscode.window.createTerminal({
     name: options.name,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(shellPath !== undefined && { shellPath }),
-    env,
+    env: windowsShell?.env ?? env,
   })
   terminal.show(true)
   // The path and each argument single-quoted for the pinned shell (M31):
@@ -561,10 +634,10 @@ const runGit = processGitRunner()
 const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
 
 /**
- * A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
- * the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
- * Undefined off Windows.
- */
+A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
+the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
+Undefined off Windows.
+*/
 function windowsJobHelper<T>(
   build: (deps: ShellJobDeps) => () => Promise<T | undefined>,
   storageDir: string,
@@ -588,33 +661,44 @@ function windowsJobHelper<T>(
 function pathSpellings(fsPath: string): readonly string[] {
   try {
     return [fsPath, realpathSync.native(fsPath)]
-  } catch {
-    // Not there yet (no pull request checked out anywhere): the given path is all there is.
+  } catch (error: unknown) {
+    // Not there yet (no pull request checked out anywhere): only a shaped
+    // file-system failure reads as the given path alone, so anything else
+    // keeps its kind past the spellings.
+    if (!isCodedError(error)) throw error
     return [fsPath]
   }
 }
 
 /**
- * Set by `activate`: stops the hosts, their turns and their processes; and
- * the window's flight recorder (M93), whose marker a normal exit clears.
- */
+Set by `activate`: stops the hosts, their turns and their processes; and
+the window's flight recorder (M93), whose marker a normal exit clears.
+*/
 const lifecycle: {
   shutdown: (() => Promise<void>) | undefined
   reports: ReportRecorder | undefined
 } = { shutdown: undefined, reports: undefined }
 
 /**
- * VS Code awaits this before the extension host exits (PLAN.md D25): running
- * turns are cancelled and `muse serve` is closed rather than left to the
- * process teardown, while the log channel is still open to say so. Last, the
- * flight recorder clears this activation's marker: only a window that never
- * got here leaves one behind (M93, D72).
- */
+VS Code awaits this before the extension host exits (PLAN.md D25): running
+turns are cancelled and `muse serve` is closed rather than left to the
+process teardown, while the log channel is still open to say so. Last, the
+flight recorder clears this activation's marker: only a window that never
+got here leaves one behind (M93, D72).
+*/
 export async function deactivate(): Promise<void> {
-  await lifecycle.shutdown?.()
-  lifecycle.shutdown = undefined
-  await lifecycle.reports?.shutdown()
-  lifecycle.reports = undefined
+  // The editor asked for this stop: the crash marker goes first. The
+  // editor ends the extension host on its own clock, and a shutdown it
+  // cuts short, or one that fails, is no crash to offer at the next start
+  // (it was offered at every start on Windows).
+  await lifecycle.reports?.markOrderlyStop()
+  try {
+    await lifecycle.shutdown?.()
+  } finally {
+    lifecycle.shutdown = undefined
+    await lifecycle.reports?.shutdown()
+    lifecycle.reports = undefined
+  }
 }
 
 /** `files.exclude` as Tab reads it: the switches and the `when` conditions (M94). */
@@ -640,10 +724,10 @@ function tabFilesExcludeTable(value: unknown): TabFilesExclude {
 }
 
 /**
- * A command whose failure is logged, with its stack, and said once (M39). A
- * rejected command would otherwise reach only VS Code's Extension Host log.
- * Arguments pass through for the commands that take them (Tab's accept).
- */
+A command whose failure is logged, with its stack, and said once (M39). A
+rejected command would otherwise reach only VS Code's Extension Host log.
+Arguments pass through for the commands that take them (Tab's accept).
+*/
 function registerLoggedCommand(
   log: Logger,
   id: string,
@@ -653,7 +737,9 @@ function registerLoggedCommand(
     try {
       return await run(...args)
     } catch (error: unknown) {
-      log.error(`${id} failed: ${errorDetail(error)}`)
+      // The log names the failure, never its text; the person still hears
+      // the reason the command gives.
+      log.error(`${id} failed: ${failureForLog(error)}`)
       const reason = error instanceof Error ? error.message : String(error)
       void vscode.window.showErrorMessage(`${UI_TEXT.actionFailed}: ${reason}`)
       return
@@ -676,10 +762,10 @@ function isUsageInsightsBundle(value: unknown): value is {
 const EXIT_SIGNAL = /\bSIG[A-Z]{2,6}\b/
 
 /**
- * How Muse Code's process ended, as one word of the recorder's vocabulary
- * (M93, D72): the signal named in the exit's description, or `exited`.
- * The description itself (which can name a path) is never recorded.
- */
+How Muse Code's process ended, as one word of the recorder's vocabulary
+(M93, D72): the signal named in the exit's description, or `exited`.
+The description itself (which can name a path) is never recorded.
+*/
 function exitCodeWord(description: string): string {
   const signal = EXIT_SIGNAL.exec(description)?.[0]
   return signal !== undefined && REPORT_ERROR_CODES.has(signal) ? signal : REPORT_EXIT_CODE
@@ -723,13 +809,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     isEnabled: () =>
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+    // A damaged usage-history choice as a notice, once per distinct damage,
+    // with what is damaged and what to do (the log keeps the onError line).
+    onDamagedChoice: (notice: DamagedChoiceNotice) => {
+      void vscode.window.showWarningMessage(notice.text)
+    },
   }
   context.subscriptions.push({
     dispose: configureResources({
       history: resourceHistory,
       inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
-      onError: () => {
-        log.warn('Resource tree or sampler reading is unavailable')
+      // The cause, when there is one: a usage-history write failure once
+      // read as an unavailable sampler every 30 seconds.
+      onError: (error?: unknown) => {
+        log.warn(
+          error === undefined
+            ? 'Resource tree or sampler reading is unavailable'
+            : `The resource governor carried on after a failure: ${errorDetail(error)}`,
+        )
       },
       windowsJob: async () => {
         const assemblyPath = await resourceAssembly?.()
@@ -761,10 +858,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         isEnabled: () =>
           vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
         onWriteError,
+        onInvalidSettings: () => {
+          log.warn(
+            'Usage history settings are invalid, so usage history is paused. Delete usage-settings.json in the agent data folder or turn usage history off and on again to record history again.',
+          )
+        },
       })
     },
   })
-  MuseCodeHost.usageRecording = usageRecording
   ModelApiBackendManager.usageRecording = usageRecording
   context.subscriptions.push({
     dispose: () => {
@@ -853,6 +954,7 @@ async function activateWindow(
   let promptHost: ReturnType<typeof createPromptHost> | undefined
 
   const controllers = new Map<string, ConversationController>()
+  const controllerDisposals = new Set<Promise<void>>()
   // Approvals and questions waiting on the user, shared by every surface's
   // controller so the session board marks them window-wide (M77).
   const boardPrompts = new PendingPrompts()
@@ -885,6 +987,10 @@ async function activateWindow(
   }
   const currentSettings = () =>
     readSettings(vscode.workspace.getConfiguration(SETTINGS_SECTION), log)
+  // Lane RETRYLIMITS: the person's retry limit, read live wherever a retry
+  // limit is needed; null stays unset. One reader for the three clients
+  // below keeps the activation bundle small (modelsActivationBudget).
+  const personCap = (): number | undefined => currentSettings().modelApiMaxRetries ?? undefined
   const updateSetting = (key: string, value: unknown) =>
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
@@ -928,10 +1034,10 @@ async function activateWindow(
     )
   }
   /**
-   * Whether the project's own configuration may load (rules, skills, hooks,
-   * MCP servers, and the backends' workspace shell): VS Code trusts the
-   * folder, and the window is not held (M71).
-   */
+  Whether the project's own configuration may load (rules, skills, hooks,
+  MCP servers, and the backends' workspace shell): VS Code trusts the
+  folder, and the window is not held (M71).
+  */
   const isProjectTrusted = () =>
     !nativeStarts.signal.aborted &&
     windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)
@@ -1060,6 +1166,20 @@ async function activateWindow(
       .fsPath,
     log,
   })
+  // The key-store migration's shell (D89.14, lane M): every host
+  // credential path below shares this store instead of SecretStorage
+  // directly. Reads always pass through, so activation and a vault-less
+  // window behave exactly as now; writes mirror into the vault once the
+  // Models & Agents binding binds the migration after an unlock.
+  const migrationShell: MigrationShell = createMigrationShell(context.secrets)
+  const secrets = migrationShell.store
+  const migrationMinorRelease = (): number => {
+    // A damaged manifest ordinal refuses the migration (the engine records
+    // it as storage failure and the keys keep working in SecretStorage).
+    const minor = Number(version.split('.', 2)[1])
+    if (!Number.isSafeInteger(minor) || minor < 0) throw new Error('Invalid installed version')
+    return minor
+  }
   const providerConfigFile = path.join(
     process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
     PROVIDERS_CONFIG_DIR_NAME,
@@ -1072,12 +1192,13 @@ async function activateWindow(
   const subscriptionFeatures = () =>
     (subscriptions ??= modelsSubscriptionsBundle().createSubscriptionFeatures({
       log,
-      secrets: context.secrets,
+      secrets,
       globalStorageUri: context.globalStorageUri,
       globalState: context.globalState,
       l10n,
       catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
       configFile: providerConfigFile,
+      personCap,
       isRemote: vscode.env.remoteName !== undefined,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,
@@ -1100,7 +1221,7 @@ async function activateWindow(
       },
     }))
   const providersSeamBundle = () => subscriptionFeatures().seam
-  const credentials = providerCredentials(context.secrets, log, async () => {
+  const credentials = providerCredentials(secrets, log, async () => {
     const features = subscriptionFeatures()
     const entries = await features.seam.store.list()
     // Only a live, non-confidential host grant supplies credential-free readiness.
@@ -1121,7 +1242,16 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
-  const paidAuthority = new PaidAuthority()
+  void vscode.commands.executeCommand(
+    VSCODE_COMMANDS.setContext,
+    CONTEXT_KEYS.scheduleDeliveryCertified,
+    SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady,
+  )
+  const dailyBudgetDataFolder = agentDataFolder({
+    platform: process.platform,
+    env: process.env,
+    homeDir: homedir(),
+  })
   let paidDaily: ReturnType<typeof createPaidDailyBudget> | undefined
   const loadDailyPaid = () => {
     if (paidDaily !== undefined) return paidDaily
@@ -1131,8 +1261,10 @@ async function activateWindow(
     if (!isUsageBudgetBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
     paidDaily = bundle.createUsageBudget({
       l10n,
-      authority: paidAuthority,
-      directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
+      // The one shared pool both families enforce: the data-folder spend
+      // files the standalone runtime reads too (a day's files only, so no
+      // migration: yesterday's pool is never read again).
+      directory: path.join(dailyBudgetDataFolder, PAID_DAILY_BUDGET.directory),
       now: Date.now,
       capUsd: () => currentSettings().paidDailyBudgetUsd,
       isModelApi: () => paidBackend === 'modelApi',
@@ -1147,42 +1279,64 @@ async function activateWindow(
     capUsd: () => loadDailyPaid().capUsd(),
     reserve: (...args) => loadDailyPaid().reserve(...args),
     reserveExact: (costUsd) => loadDailyPaid().reserveExact(costUsd),
-    reserveSchedule: (...args) => loadDailyPaid().reserveSchedule(...args),
     readToday: () => loadDailyPaid().readToday(),
     judgeLedger: {
       remainingUsd: () => loadDailyPaid().judgeLedger.remainingUsd(),
       reserve: (costUsd) => loadDailyPaid().judgeLedger.reserve(costUsd),
     },
-    latestDay: () => loadDailyPaid().latestDay(),
-    lookupByClaimId: (scope, claimId) => loadDailyPaid().lookupByClaimId(scope, claimId),
   }
-  const paid = createPaidFeatures({
-    usageRecording,
-    authority: paidAuthority,
-    orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
-    globalState: context.globalState,
-    workspaceState: context.workspaceState,
-    isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
-    isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
-    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
-    isAvailable: (feature) =>
-      feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
-    isDefaultOn: isDefaultPaidOn,
-    dailyBudgetUsd: (feature) =>
-      paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
-    isKeyStored: () => isKeyStored,
-    // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
-    // and never in Restricted Mode.
-    canRememberPaidUse: () =>
-      vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
-    // Account & usage's Tab row reads the configured budget and the ledger's
-    // cross-window day (RVM94HU 23–24); `tab` is read only when it runs.
-    tabDay: () => ({
-      budgetUsd: currentSettings().tabDailyBudgetUsd,
-      todayUsd: tab.todayTotalUsd(),
-    }),
+  // The paid gate, consent, usage and authority load with the paid bundle
+  // (dist/paid.js) the first time a paid path needs them; activation keeps
+  // only the loader and this facade, and no paid operation runs at startup.
+  const paidBundle = paidBundleLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PAID_BUNDLE_FILE).fsPath,
     log,
   })
+  let paidInstance: PaidFeatures | undefined
+  const loadPaid = (): PaidFeatures =>
+    (paidInstance ??= paidBundle().createPaid({
+      usageRecording,
+      orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
+      globalState: context.globalState,
+      workspaceState: context.workspaceState,
+      isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
+      isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
+      autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+      isAvailable: (feature) =>
+        feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
+      isDefaultOn: isDefaultPaidOn,
+      dailyBudgetUsd: (feature) =>
+        paidBackend === 'modelApi' || feature === 'legalExplanation'
+          ? dailyPaid.capUsd()
+          : undefined,
+      isKeyStored: () => isKeyStored,
+      // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
+      // and never in Restricted Mode.
+      canRememberPaidUse: () =>
+        vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
+      // Account & usage's Tab row reads the configured budget and the ledger's
+      // cross-window day (RVM94HU 23–24); `tab` is read only when it runs.
+      tabDay: () => ({
+        budgetUsd: currentSettings().tabDailyBudgetUsd,
+        todayUsd: tab.todayTotalUsd(),
+      }),
+      log,
+      l10n: { table: UI_TEXT, locale: uiLocale() },
+    }))
+  const paid: PaidFeatures = {
+    get gate() {
+      return loadPaid().gate
+    },
+    get consent() {
+      return loadPaid().consent
+    },
+    get usage() {
+      return loadPaid().usage
+    },
+    allowsJudgeUse: (modelId) => loadPaid().allowsJudgeUse(modelId),
+    state: () => loadPaid().state(),
+    affects: (event) => loadPaid().affects(event),
+  }
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js
   // (D6), required on the first review; one side session and one queue for
   // the window, in an empty folder of the extension's own.
@@ -1214,8 +1368,10 @@ async function activateWindow(
       try {
         return readFileSync(museSettingsPath(museConfig()), 'utf8')
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return
-        throw error
+        // Only a missing settings file reads absent: anything else is
+        // raised, so a broken settings file never reads as default.
+        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+        return
       }
     },
     startSession: async (options) => {
@@ -1247,28 +1403,81 @@ async function activateWindow(
       judge.dispose()
     },
   })
-  // Both engines' drivers are dist/voice.js (D6), required on the first recording.
-  const voice = voiceLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+  // The remote this extension host runs on, or undefined on the user's own
+  // machine. `env.remoteName` alone is not enough: it is also set in the
+  // local extension host of a remote window, where a user's
+  // `remote.extensionKind` override could run this extension; the
+  // extension's kind says which side it is on.
+  const remoteHostNames = (() => {
+    const kind = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)?.extensionKind
+    return {
+      remoteName: kind === vscode.ExtensionKind.UI ? undefined : vscode.env.remoteName,
+      appName: vscode.env.appName,
+    }
+  })()
+  // Voice dictation's setups (M9, M35) live in dist/dictation.js (D6),
+  // required at their existing construction points, so activation carries
+  // only this loader. A bundle that cannot load leaves both microphones
+  // unavailable (the log has the cause), as a helper that cannot be found
+  // does.
+  const loadDictation = dictationLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', DICTATION_BUNDLE_FILE).fsPath,
     log,
   })
+  let dictationServices: DictationBundle | undefined
+  try {
+    dictationServices = loadDictation()
+    dictationServices.installDictationText(UI_TEXT, uiLocale())
+  } catch {
+    dictationServices = undefined
+  }
+  const unavailableMicrophone = (): DictationSetup => ({
+    isAvailable: false,
+    reason: UI_TEXT.dictationNotLoaded,
+  })
+  // Both engines' drivers are dist/voice.js (D6), required on the first recording.
+  // Linux's offline driver is dist/voiceLinux.js (D6, D140), required on the
+  // first Linux recording, so the download machinery stays out of voice.js.
   // Muse Voice (M35): the paid engine's recorder, used only while it is
   // on, its price accepted, and the window runs on the Model API key.
-  const museVoiceSetup = createMuseVoiceSetup(
-    {
-      platform: process.platform,
-      systemRoot: process.env['SystemRoot'],
-      helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-    },
-    {
-      apiKey: () => credentials.getApiKey(),
-      onSeconds: (seconds) => {
-        paid.usage.add('voice', seconds)
-      },
-      log,
-      voice,
-    },
-  )
+  // M56 (PLAN.md D43): before VS Code 1.112 the socket bypasses a
+  // configured proxy, so the microphone says so instead of failing after
+  // the press. `http.proxy` can change while the window is open, so the
+  // setup is rebuilt when it changes (see the configuration listener
+  // below); a snapshot from activation would keep offering a microphone
+  // that cannot send, or keep refusing after the proxy is gone.
+  let museVoiceSetup: DictationSetup = unavailableMicrophone()
+  const refreshMuseVoiceNetwork = (): void => {
+    if (dictationServices !== undefined) {
+      museVoiceSetup = dictationServices.createMuseVoiceSetup(
+        {
+          platform: process.platform,
+          systemRoot: process.env['SystemRoot'],
+          helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+          workspaceRoot: workspaceRoot ?? process.cwd(),
+          realpath: realpathSync,
+        },
+        {
+          apiKey: () => credentials.getApiKey(),
+          reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd),
+          onSeconds: (seconds) => {
+            paid.usage.add('voice', seconds)
+          },
+          log,
+          voice: dictationServices.voiceLoader({
+            bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+            log,
+          }),
+        },
+        remoteHostNames,
+        readVoiceNetworkPosture(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
+      )
+    }
+    for (const controller of controllers.values()) {
+      controller.refreshDictation()
+    }
+  }
+  refreshMuseVoiceNetwork()
   const broadcastPaidState = () => {
     registry.broadcast({ type: 'paidState', state: paid.state() })
     for (const controller of controllers.values()) {
@@ -1382,13 +1591,10 @@ async function activateWindow(
         .map((folder) => folder.uri.fsPath)
         .filter((root) => isTabWorkspaceRoot(root, absolutePath))
         .toSorted((a, b) => b.length - a.length),
-    ignoreFileExists: (absolutePath) => {
-      try {
-        return statSync(absolutePath).isFile()
-      } catch {
-        return false
-      }
-    },
+    // Fail closed and total: a file that cannot be proven absent reads
+    // present, so a broken check denies (never widens) what Tab reads and
+    // never rejects the completion.
+    ignoreFileExists: hasIgnoreFile,
     runGit: (args, cwd) =>
       runGit(args, cwd, undefined, undefined, () => {
         if (!isProjectTrusted()) {
@@ -1517,17 +1723,74 @@ async function activateWindow(
     context.subscriptions.push(disposable)
   }
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
-  const dictation = createDictationSetup(
-    {
-      platform: process.platform,
-      systemRoot: process.env['SystemRoot'],
-      helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-    },
-    log,
-    voice,
-  )
+  let dictation: DictationSetup = unavailableMicrophone()
+  if (dictationServices !== undefined) {
+    const services = dictationServices
+    dictation = services.createDictationSetup(
+      {
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+      },
+      log,
+      services.voiceLoader({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+        log,
+      }),
+      services.voiceLinuxLoader({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_LINUX_BUNDLE_FILE)
+          .fsPath,
+        log,
+      }),
+      {
+        storageRoot: context.globalStorageUri.fsPath,
+        register: (disposable) => {
+          context.subscriptions.push(disposable)
+        },
+      },
+      {
+        ...remoteHostNames,
+        isLinuxModelEnabled: () => currentSettings().linuxDictationModel,
+        registerConfigListener: (listener) => {
+          const subscription = vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration(`${SETTINGS_SECTION}.linuxDictationModel`)) listener()
+          })
+          context.subscriptions.push(subscription)
+          return subscription
+        },
+        showError: (message) => {
+          void vscode.window.showErrorMessage(message)
+        },
+        askDownloadConsent: async (sizes, directory, signal) => {
+          if (signal.aborted) return false
+          const download = { title: UI_TEXT.browserRuntimeDownload }
+          const decline = { title: UI_TEXT.browserRuntimeNotNow, isCloseAffordance: true }
+          // One card for both downloads (PLAN.md D140): the helper's size is
+          // the measured first-download approximation; the pins enforce the
+          // exact per-file sizes at download.
+          const asked = vscode.window.showInformationMessage(
+            fill(UI_TEXT.linuxDictationDownloadTitle, {
+              helperSize: `~${formatBytes(sizes.helperDownloadBytes)}`,
+              size: formatBytes(sizes.bytes),
+            }),
+            {
+              modal: true,
+              detail: fill(UI_TEXT.linuxDictationDownloadDetail, { location: directory }),
+            },
+            download,
+            decline,
+          )
+          return (
+            (await unlessAborted(Promise.resolve(asked), signal)) === download && !signal.aborted
+          )
+        },
+      },
+    )
+  }
   const backend = new MuseCodeBackendManager({
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MUSE_CODE_BUNDLE_FILE).fsPath,
+    usageRecording,
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
@@ -1591,11 +1854,11 @@ async function activateWindow(
   const workflowTriggerMode = () =>
     readWorkflowTriggerMode({ ...museConfig(), readTextFile: readTextFileSync })
   /**
-   * Stops both hosts (PLAN.md D25), or Muse Code alone for fault recovery.
-   * The affected conversations hear it first: a
-   * running turn is cancelled, and unless they end (sign-out, shutdown) the
-   * next message resumes the same session on the new host.
-   */
+  Stops both hosts (PLAN.md D25), or Muse Code alone for fault recovery.
+  The affected conversations hear it first: a
+  running turn is cancelled, and unless they end (sign-out, shutdown) the
+  next message resumes the same session on the new host.
+  */
   const restartBackend = async (
     reason: string,
     isConversationEnding = false,
@@ -1611,11 +1874,11 @@ async function activateWindow(
     )
   }
   /**
-   * Muse Code alone, afresh (CLI recovery): a notice's Restart (a fault's,
-   * the watchdog's) and "Muse Spark: Restart Muse Code". A running turn is
-   * stopped; the new host starts at once, and each conversation resumes
-   * with its next message.
-   */
+  Muse Code alone, afresh (CLI recovery): a notice's Restart (a fault's,
+  the watchdog's) and "Muse Spark: Restart Muse Code". A running turn is
+  stopped; the new host starts at once, and each conversation resumes
+  with its next message.
+  */
   const restartMuseCode = async (reason: string): Promise<void> => {
     await restartBackend(reason, false, true)
     for (const controller of controllers.values()) {
@@ -1623,10 +1886,10 @@ async function activateWindow(
     }
   }
   /**
-   * The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
-   * Terminal), with `museSpark.environmentVariables` as `muse serve` gets
-   * them, so it reads the same config home (the review of PR #49).
-   */
+  The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
+  Terminal), with `museSpark.environmentVariables` as `muse serve` gets
+  them, so it reads the same config home (the review of PR #49).
+  */
   const runCliInTerminal = async (
     cliPath: string,
     args: readonly string[],
@@ -1643,7 +1906,7 @@ async function activateWindow(
   }
   // Tool outputs open as read-only documents (M15), the tab named through the
   // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
-  // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
+  // every one stays readable after its tab is reopened.
   // An export's preview (M84) and the import preview (M83) open the same way:
   // read-only, never on disk.
   const outputDocuments = new OutputDocumentStore()
@@ -1680,6 +1943,7 @@ async function activateWindow(
     // and count for the session that was live when the import began.
     agentImport: {
       isActive: () => !nativeStarts.signal.aborted,
+      signal: nativeStarts.signal,
       isProjectTrusted,
       isProjectHeld: () => windowHold.isHeld,
       currentRoot: firstFolderPath,
@@ -1781,8 +2045,8 @@ async function activateWindow(
           await runProcess(
             invocation,
             timeoutMs,
-            undefined,
-            undefined,
+            workspaceRoot,
+            backend.childEnvironment(),
             nativeStarts.signal,
             backend.workspaceActionGuard(nativeStarts.signal),
           ),
@@ -1815,109 +2079,152 @@ async function activateWindow(
   /** The CLI's own credential without a question to the CLI on macOS: META_API_KEY or its sign-in. */
   const hasCliSession = async () =>
     backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
-  const auth = new AuthService({
-    getPlanAccount: async () =>
-      subscriptions === undefined &&
-      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
-        ? undefined
-        : await subscriptionFeatures().planAccount(),
-    backend: {
-      resolveCli: () => {
-        // The sign-in gate's check is an explicit re-look: an install is noticed at once.
-        backend.invalidateLaunch()
-        const resolution = backend.resolveLaunch()
-        return resolution.ok
-          ? { ok: true, cliPath: resolution.launch.cliPath }
-          : {
-              ok: false,
-              reason: `${resolution.reason} ${fill(UI_TEXT.cliSearched, { paths: resolution.searched.join(', ') })}`,
-            }
-      },
-      cliSignIn: (isUserAction) => cliAccount.signIn(isUserAction),
-      abandonCliProbe: () => {
-        cliAccount.abandonProbe()
-      },
-      forgetCliAnswers: () => {
-        cliAccount.forgetAnswers()
-      },
-      credentialFilePath: () => backend.credentialFilePath(),
-      credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
-      hasEnvironmentKey: () => backend.hasEnvironmentKey(),
-      getBackendMode: () => currentSettings().backend,
-      restartBackend: (isConversationEnding) =>
-        restartBackend('authentication changed', isConversationEnding),
-      logOutCli: async () => (await accountHosts.logOut()) === 'confirmed',
-    },
-    credentials,
-    logoutHold: {
-      get: () => context.globalState.get<boolean>(GLOBAL_STATE_KEYS.cliLogoutHold) === true,
-      set: (isHeld) => context.globalState.update(GLOBAL_STATE_KEYS.cliLogoutHold, isHeld),
-    },
-    runInTerminal: async (cliPath, args) => {
-      await runCliInTerminal(cliPath, args, {
-        name: UI_TEXT.museLoginTerminalName,
-        cwd: undefined,
-      })
-    },
-    installCommand:
-      process.platform === 'win32' ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix,
-    runInstallerInTerminal: async () => {
-      await backend.startWorkspaceCommand(() => {
-        const isWindows = process.platform === 'win32'
-        const systemRoot = process.env['SystemRoot']
-        let shellPath: string | undefined = POSIX_TERMINAL_SHELL
-        if (isWindows) {
-          shellPath =
-            systemRoot === undefined
-              ? undefined
-              : `${systemRoot}${WINDOWS_POWERSHELL_TERMINAL_PATH}`
-        }
-        const terminal = vscode.window.createTerminal({
-          name: UI_TEXT.installStartAction,
-          ...(shellPath !== undefined && { shellPath }),
-        })
-        terminal.show(true)
-        terminal.sendText(isWindows ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix)
-      }, nativeStarts.signal)
-    },
-    runDeviceSignIn: (signal, onCode) =>
-      runDeviceSignIn({
-        connect: connectAccountHost,
-        credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
-        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-        now: Date.now,
-        signal,
-        onCode,
-        log,
-      }),
-    promptForApiKey,
-    broadcast: (message) => {
-      registry.broadcast(message)
-      if (message.type !== 'authState') {
-        return
-      }
-      paidBackend = message.backend
-      broadcastPaidState()
-      // A key pasted or signed out of changes what the Muse Code backend offers (M44).
-      void refreshKeyPresence()
-      // The backend decides which engine the microphone uses (M35).
-      for (const controller of controllers.values()) {
-        controller.refreshDictation()
-      }
-      // The walkthrough's sign-in step completes on this context key.
-      void vscode.commands.executeCommand(
-        VSCODE_COMMANDS.setContext,
-        CONTEXT_KEYS.signedIn,
-        message.status === 'signedIn',
-      )
-    },
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
-    now: () => Date.now(),
+  const scheduleWorkspace: { value?: ReturnType<typeof scheduleWindowWorkspace> } = {}
+  const refreshScheduleWorkspace = () => {
+    scheduleWorkspace.value?.refresh()
+  }
+  // AuthService and the credential read load with the auth bundle
+  // (dist/auth.js) the first time a credential path needs them; activation
+  // keeps only the loader and this facade, and no credential operation runs
+  // at startup.
+  const authBundle = authBundleLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', AUTH_BUNDLE_FILE).fsPath,
     log,
   })
+  let authInstance: AuthService | undefined
+  const loadAuth = (): AuthService =>
+    (authInstance ??= authBundle().createAuthService({
+      l10n: { table: UI_TEXT, locale: uiLocale() },
+      getPlanAccount: async () =>
+        subscriptions === undefined &&
+        (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+          ? undefined
+          : await subscriptionFeatures().planAccount(),
+      backend: {
+        resolveCli: () => {
+          // The sign-in gate's check is an explicit re-look: an install is noticed at once.
+          backend.invalidateLaunch()
+          const resolution = backend.resolveLaunch()
+          return resolution.ok
+            ? { ok: true, cliPath: resolution.launch.cliPath }
+            : {
+                ok: false,
+                reason: `${resolution.reason} ${fill(UI_TEXT.cliSearched, { paths: resolution.searched.join(', ') })}`,
+              }
+        },
+        cliSignIn: (isUserAction) => cliAccount.signIn(isUserAction),
+        abandonCliProbe: () => {
+          cliAccount.abandonProbe()
+        },
+        forgetCliAnswers: () => {
+          cliAccount.forgetAnswers()
+        },
+        credentialFilePath: () => backend.credentialFilePath(),
+        credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
+        hasEnvironmentKey: () => backend.hasEnvironmentKey(),
+        getBackendMode: () => currentSettings().backend,
+        restartBackend: (isConversationEnding) =>
+          restartBackend('authentication changed', isConversationEnding),
+        logOutCli: async () => (await accountHosts.logOut()) === 'confirmed',
+      },
+      credentials,
+      logoutHold: {
+        get: () => context.globalState.get<boolean>(GLOBAL_STATE_KEYS.cliLogoutHold) === true,
+        set: (isHeld) => context.globalState.update(GLOBAL_STATE_KEYS.cliLogoutHold, isHeld),
+      },
+      runInTerminal: async (cliPath, args) => {
+        await runCliInTerminal(cliPath, args, {
+          name: UI_TEXT.museLoginTerminalName,
+          cwd: undefined,
+        })
+      },
+      installCommand:
+        process.platform === 'win32' ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix,
+      runInstallerInTerminal: async () => {
+        await backend.startWorkspaceCommand(() => {
+          const isWindows = process.platform === 'win32'
+          const windowsShell = isWindows ? windowsTerminalShell({}) : undefined
+          const shellPath = isWindows ? windowsShell?.shellPath : POSIX_TERMINAL_SHELL
+          const terminal = vscode.window.createTerminal({
+            name: UI_TEXT.installStartAction,
+            ...(shellPath !== undefined && { shellPath }),
+            ...(windowsShell !== undefined && { env: windowsShell.env }),
+          })
+          terminal.show(true)
+          terminal.sendText(isWindows ? MUSE_INSTALL_COMMANDS.win32 : MUSE_INSTALL_COMMANDS.posix)
+        }, nativeStarts.signal)
+      },
+      runDeviceSignIn: (signal, onCode) =>
+        runDeviceSignIn({
+          connect: connectAccountHost,
+          credentialFileModifiedAt: () => modifiedAt(backend.credentialFilePath()),
+          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+          now: Date.now,
+          signal,
+          onCode,
+          log,
+        }),
+      promptForApiKey,
+      broadcast: (message) => {
+        registry.broadcast(message)
+        if (message.type !== 'authState') {
+          return
+        }
+        paidBackend = message.backend
+        broadcastPaidState()
+        // A key pasted or signed out of changes what the Muse Code backend offers (M44).
+        refreshScheduleWorkspace()
+        void refreshKeyPresence()
+        // The backend decides which engine the microphone uses (M35).
+        for (const controller of controllers.values()) {
+          controller.refreshDictation()
+          controller.scheduleWorkspaceChanged()
+        }
+        if (message.status === 'signedIn') {
+          // A panel that opened cold (first open during the auth check, a
+          // later sign-in) never warmed: its host starts now, as when the
+          // panel opens, and the pill leaves "Starting Muse Code…".
+          for (const controller of controllers.values()) {
+            controller.warmUpAfterSignIn()
+          }
+        }
+        // The walkthrough's sign-in step completes on this context key.
+        void vscode.commands.executeCommand(
+          VSCODE_COMMANDS.setContext,
+          CONTEXT_KEYS.signedIn,
+          message.status === 'signedIn',
+        )
+      },
+      sleep: (ms) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, ms)
+        }),
+      now: () => Date.now(),
+      log,
+    }))
+  const auth: AuthPort & Pick<AuthService, 'stopSignIn'> = {
+    get current() {
+      return loadAuth().current
+    },
+    get backend() {
+      return loadAuth().backend
+    },
+    get admissionGeneration() {
+      return loadAuth().admissionGeneration
+    },
+    toMessage: () => loadAuth().toMessage(),
+    signIn: (method) => loadAuth().signIn(method),
+    installMuseCode: () => loadAuth().installMuseCode(),
+    cancelSignIn: () => {
+      loadAuth().cancelSignIn()
+    },
+    signOut: (options) => loadAuth().signOut(options),
+    refresh: (isUserAction) => loadAuth().refresh(isUserAction),
+    checkAgain: () => loadAuth().checkAgain(),
+    markAuthRequired: (reason) => loadAuth().markAuthRequired(reason),
+    markBackendError: (detail) => loadAuth().markBackendError(detail),
+    stopSignIn: () => loadAuth().stopSignIn(),
+  }
   // The window closing ends the account hosts, then the browser sign-in
   // (awaited, so its host is closed too), then the backends (the review of
   // PR #49).
@@ -1929,6 +2236,7 @@ async function activateWindow(
       await auth.stopSignIn()
       await restartBackend('the window is closing', true)
     } finally {
+      await Promise.allSettled(controllerDisposals)
       await usageRecording.flush()
     }
   }
@@ -1980,6 +2288,9 @@ async function activateWindow(
     log: (message) => {
       log.warn(message)
     },
+    // The person's own plugin bounds (D121: each 0 is none of ours).
+    maxFailures: () => currentSettings().pluginMaxFailures,
+    maxMemoryMiB: () => currentSettings().pluginChildMaxMemoryMiB,
   })
   const shellEnvironmentOf = (): NodeJS.ProcessEnv =>
     withTerminalOverrides(
@@ -1995,6 +2306,7 @@ async function activateWindow(
   const toolIo = createToolIo({
     platform: process.platform,
     listFiles: listWorkspaceFiles,
+    ...(workspaceRoot !== undefined && { workspaceRoot }),
     systemRoot: process.env['SystemRoot'],
     // The user's terminal environment settings apply to the shell tool as
     // they do to VS Code's terminal (PLAN.md D25).
@@ -2015,6 +2327,7 @@ async function activateWindow(
       vscode.workspace.textDocuments
         .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
         .map((document) => document.uri.fsPath),
+    hookMaxRunningCommands: () => currentSettings().hooksMaxRunningCommands,
   })
   // The window's tool io: no tool writes the checkpoint storage, and every
   // command is workspace activity. It records nothing: each Model API turn
@@ -2048,10 +2361,9 @@ async function activateWindow(
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
-      sleep: (ms) =>
-        new Promise((resolve) => {
-          setTimeout(resolve, ms)
-        }),
+      personCap,
+      // Lane PR225W1: no `sleep` here — the transport waits with
+      // `abortableSleep`, so a Stop clears the wait's own timer.
       now: () => Date.now(),
       random: () => Math.random(),
       log,
@@ -2113,30 +2425,12 @@ async function activateWindow(
   const isIdeBrowserCheckOffered = (): boolean =>
     browserChecks.isOffered() &&
     isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
-  // The credential vault (M109, PLAN.md D89): the commands and the lazy
-  // loader only. The broker-backed service is an open handoff in
-  // docs/certification/m109.md; until it lands both commands refuse closed
-  // with the broker-blocked reason instead of opening an empty vault.
+  // The vault commands register with the Models & Agents panel features
+  // below, once the broker-backed section factory is bound.
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
     }),
-    registerVaultCommands(
-      (id, run) => registerLoggedCommand(log, id, run),
-      () =>
-        loadVaultControls(
-          {
-            bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VAULT_BUNDLE_FILE).fsPath,
-            log,
-            service: undefined,
-          },
-          () => {
-            // Unreachable while the service is missing; the entry's live
-            // host bindings land with the service.
-            throw new Error(UI_TEXT.vault.brokerBlocked)
-          },
-        ),
-    ),
   )
   const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
@@ -2167,6 +2461,10 @@ async function activateWindow(
   })
   const legalScanBundle = legalScanLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_SCAN_BUNDLE_FILE).fsPath,
+    log,
+  })
+  const legalFixBundle = legalFixLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_FIX_BUNDLE_FILE).fsPath,
     log,
   })
   const runLegalScan: LegalScanRunner = async (input, signal) => {
@@ -2212,6 +2510,21 @@ async function activateWindow(
         isOffered: () =>
           workspaceRoot !== undefined && isIdeLegalScanOffered(vscode.workspace.isTrusted),
         runScan: runLegalScan,
+        runUnattendedScan: async (input, signal, run) => {
+          if (!isIdeLegalScanOffered(vscode.workspace.isTrusted))
+            throw new Error(UI_TEXT.legalScanUntrusted)
+          if (workspaceRoot === undefined) throw new Error(UI_TEXT.noWorkspaceReason)
+          const handle = await legalScanBundle().runLegalScan({
+            workspaceRoot,
+            input,
+            signal,
+            canReadFile: (relative) => !signal.aborted && run.canReadFile(relative),
+          })
+          signal.throwIfAborted()
+          if (!vscode.workspace.isTrusted || !run.isActive())
+            throw new Error(UI_TEXT.legalScanUntrusted)
+          return legalScanResultSchema.parse(handle.result)
+        },
         log,
       }),
       // The server is attached in Restricted Mode too, and has no session
@@ -2259,7 +2572,10 @@ async function activateWindow(
       try {
         await ideServer.start()
       } catch (error: unknown) {
-        log.warn(`IDE tool server could not start; diagnostics stay unavailable: ${String(error)}`)
+        // The start failure is named, never its text; a later session retries.
+        log.warn(
+          `IDE tool server could not start; diagnostics stay unavailable: ${failureForLog(error)}`,
+        )
       } finally {
         ideServerStart = undefined
       }
@@ -2342,22 +2658,77 @@ async function activateWindow(
   })
 
   // The capacity estimator (M117, PLAN.md D97): its engine loads the first
-  // time an estimate runs. The snapshot, board, broker and catalog bindings
-  // belong to unmerged milestones (M113, M96, M109, M110) and refuse with
-  // their handoff names until those merge; the fleet is this machine,
-  // measured. History appends arrive with M115's lane-finished trigger.
+  // time an estimate runs. The snapshot reads the first folder's PLAN.md
+  // with its git and `gh` evidence through the shared core adapter; the
+  // board, broker and catalog bindings belong to unmerged milestones (M96,
+  // M109, M110) and refuse with their handoff names until those merge; the
+  // fleet is this machine, measured. History appends arrive with M115's
+  // lane-finished trigger.
+  // The plan snapshot's bundle beside the extension's own (M117 C-M117-1,
+  // PLAN.md D6): required the first time an estimate needs a snapshot, never
+  // at activation.
+  const snapshotBundlePath = vscode.Uri.joinPath(
+    context.extensionUri,
+    'dist',
+    PLAN_SNAPSHOT_BUNDLE_FILE,
+  ).fsPath
+  let estimatorAuthenticationRevision = 0
+  context.subscriptions.push(
+    vscode.authentication.onDidChangeSessions((event) => {
+      if (event.provider.id === GITHUB_AUTH_PROVIDER) estimatorAuthenticationRevision += 1
+    }),
+  )
   const estimator = lazyEstimator({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATOR_BUNDLE_FILE).fsPath,
     log,
     ports: () => {
-      const settings = currentSettings()
-      return estimatorSourcePorts(() => ({
-        // No catalogs are pinned until M113 merges its Reports catalogs.
-        enabled: settings['estimator.priceLookup'],
-        networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
-        maxAgeMs: 0,
-        catalogUrls: [],
-      }))
+      let signedInRevision = -1
+      const snapshot = planSnapshotLoader({
+        bundlePath: snapshotBundlePath,
+        log,
+        root: firstFolderPath() ?? '',
+        networkPolicy: async () => {
+          const revision = estimatorAuthenticationRevision
+          const session =
+            currentSettings()['reports.network'] === 'off'
+              ? undefined
+              : await vscode.authentication.getSession(
+                  GITHUB_AUTH_PROVIDER,
+                  [...GITHUB_AUTH_SCOPES],
+                  { silent: true },
+                )
+          signedInRevision = session === undefined ? -1 : revision
+          return {
+            surface: 'editor',
+            get mode() {
+              return currentSettings()['reports.network']
+            },
+            get githubSignedIn() {
+              return session !== undefined && revision === estimatorAuthenticationRevision
+            },
+            allowEgress: () =>
+              Promise.resolve(
+                vscode.workspace.isTrusted &&
+                  currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+              ),
+          }
+        },
+      })
+      return estimatorSourcePorts(
+        () => ({
+          // No catalogs are pinned until M113 merges its Reports catalogs.
+          enabled: currentSettings()['estimator.priceLookup'],
+          networkAllowed:
+            vscode.workspace.isTrusted &&
+            currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED &&
+            (currentSettings()['reports.network'] === 'always' ||
+              (currentSettings()['reports.network'] === 'whenSignedIn' &&
+                signedInRevision === estimatorAuthenticationRevision)),
+          maxAgeMs: 0,
+          catalogUrls: [],
+        }),
+        snapshot,
+      )
     },
   })
 
@@ -2404,7 +2775,6 @@ async function activateWindow(
     status: () => bundledSkillsBundle().bundledSkillsStatus(bundledSkillsPaths()),
   })
   const bundledSkillsCommand = (): BundledSkillsCommandDeps => ({
-    bundle: bundledSkillsBundle,
     paths: bundledSkillsPaths,
     platform: process.platform,
     now: () => Date.now(),
@@ -2423,6 +2793,25 @@ async function activateWindow(
     restart: () => restartMuseCode('the bundled skills changed'),
     log,
   })
+  // The two commands load with the installer they run (dist/bundledSkills.js,
+  // PLAN.md D6), in this window's language; a missing bundle refuses the run
+  // and the next run tries again.
+  const installBundledSkills = (): Promise<void> =>
+    bundledSkillsBundle().runBundledSkillsInstall(bundledSkillsCommand(), UI_TEXT, uiLocale())
+  const removeBundledSkills = (): Promise<void> =>
+    bundledSkillsBundle().runBundledSkillsRemove(bundledSkillsCommand(), UI_TEXT, uiLocale())
+  // The lazy panels' webview resolution (VSIXWEB A): the activation
+  // bundle parses, verifies and renders the failure document, so the lazy
+  // bundles only read the tiny shared shape and call this back.
+  const resolveWebviewBundle = (): WebviewBundleResolution =>
+    withFailureDocument(
+      tryResolveWebviewBundleDir({
+        extensionPath: context.extensionUri.fsPath,
+        globalStoragePath: context.globalStorageUri.fsPath,
+      }),
+      UI_TEXT.webviewBundleUnavailable,
+      uiLocale(),
+    )
   // What's New after an update (M99, PLAN.md D79): decided at the end of
   // activation, shown once the window is quiet (no turn running, no edit for
   // a moment), its page from its own bundle. The last edit's time tells quiet.
@@ -2438,6 +2827,7 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_BUNDLE_FILE).fsPath,
     pages: {
       extensionUri: context.extensionUri,
+      resolveWebviewBundle,
       contentPath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_CONTENT_FILE).fsPath,
       current: version,
       isShownOnUpdate: () => currentSettings().showWhatsNewOnUpdate,
@@ -2561,7 +2951,104 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
-  const modelApi = new ModelApiBackendManager({
+  const modelApiStore =
+    context.storageUri === undefined
+      ? undefined
+      : lazyFileSessionStore({
+          bundlePath: vscode.Uri.joinPath(
+            context.extensionUri,
+            'dist',
+            MODEL_API_SESSIONS_BUNDLE_FILE,
+          ).fsPath,
+          log,
+          store: {
+            directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+            questions: questionsStore,
+            log,
+            retentionDays: () => currentSettings().cleanupPeriodDays,
+            now: () => Date.now(),
+            sleep: (ms) =>
+              new Promise((resolve) => {
+                setTimeout(resolve, ms)
+              }),
+            // The lazy session store releases provider uploads on deletion/purge.
+            // Production media and its account ledger load only on first use.
+            uploads: (accountId) => loadSessionUploads(accountId),
+          },
+        })
+  // M105 lane V seam 1: the window's attached-media registry. The attach
+  // port registers each approved video or audio file (metadata, digest, a
+  // reopening source); the Model API session's media service resolves the
+  // turn's `media` parts through it. It holds no bytes, and it loads with
+  // dist/mediaHost.js on the first attach (RVMEDIAV 8).
+  let mediaRegistry: AttachedMedia | undefined
+  const attachedMedia = lazyAttachedMedia(() => mediaRegistry)
+  // The account upload ledger (M105 lane F, D85.2): the session store's
+  // ownership binding and the conversation's uploaded-files port share one
+  // loader, so both hosts clean the same rows through the same lock.
+  const loadSessionUploads = async (accountId: string) => {
+    const media = await import('./host/backend/productionMediaEntry.js')
+    media.setUiText(UI_TEXT, uiLocale())
+    return await media.createSessionUploads({
+      uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+      currentAccountId: () => modelApi.accountId(),
+      filesClient: () => keyClient(),
+      expiryDays: () => currentSettings().mediaUploadExpiryDays,
+    })(accountId)
+  }
+  // Removing the key keeps the retained list across a restart and a
+  // reload: the last account's persisted ledger reads read-only.
+  const loadLastSessionUploads = async () => {
+    const media = await import('./host/backend/productionMediaEntry.js')
+    media.setUiText(UI_TEXT, uiLocale())
+    return await media.openLastAccountUploads({
+      uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+      currentAccountId: () => modelApi.accountId(),
+      filesClient: () => keyClient(),
+      expiryDays: () => currentSettings().mediaUploadExpiryDays,
+    })()
+  }
+  // A file another app may still use is deleted only after a modal yes.
+  const isForeignDeletionConfirmed = async (question: string): Promise<boolean> =>
+    (await vscode.window.showWarningMessage(
+      question,
+      { modal: true },
+      UI_TEXT.memoryDeleteAction,
+    )) === UI_TEXT.memoryDeleteAction
+  // One exact daily reservation for the lanes that bill outside a request
+  // (Muse Voice transcription, automatic compaction): the same shared daily
+  // ledger, released when the caller is gone before it is used.
+  const reserveExactDaily = async (amount: UsdAmount, signal: AbortSignal) => {
+    signal.throwIfAborted()
+    const claim = await dailyPaid.reserveExact(amount)
+    // No limit, no claim: the caller decides what dormancy means.
+    if (claim === undefined) return
+    try {
+      signal.throwIfAborted()
+    } catch (error: unknown) {
+      await claim.settle(Usd.from(0).toAmount())
+      throw error
+    }
+    return claim
+  }
+  // The uploaded-files binding ships in the sessions bundle beside the store
+  // (ACTBUD017): activation builds the conversation port and runs the delete
+  // command through this handle instead of carrying the binding. The bundle
+  // loads from disk once, on first use, like the store below.
+  const sessionsApi = fileSessionBundleApi({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_SESSIONS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
+  const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
+    attachedMedia,
+    // Machine scope only (lane V seam 3B): a repository never picks the converter.
+    mediaConverterPath: () => currentSettings().mediaConverterPath,
+    mediaAudioAction: () => currentSettings().mediaAudioAction,
+    // Windows: the converter runs in M50's job under a kernel memory cap (VB).
+    ...(windowsMcpJob !== undefined && { mediaJobExecutable: windowsMcpJob }),
+    // Each conversion's owner-only folder sits in this private root (VB).
+    mediaPrivateRoot: path.join(storageRoot, MEDIA_PRIVATE_ROOT_DIR),
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -2576,7 +3063,7 @@ async function activateWindow(
     createProviderClient: async (meta) =>
       subscriptions === undefined &&
       !existsSync(providerConfigFile) &&
-      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+      (await secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
         ? meta
         : await subscriptionFeatures().createClient(meta),
     getProviderAccountId: () => subscriptionFeatures().accountId(),
@@ -2620,12 +3107,12 @@ async function activateWindow(
     contextIo: fileContextIo,
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
+    // PR #225: the conversation client reads it too, not only the stored-key one.
+    personCap,
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
+    // Lane PR225W1: no `sleep` here — the transport waits with
+    // `abortableSleep`, so a Stop clears the wait's own timer.
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
     bundledSkills: {
@@ -2642,36 +3129,29 @@ async function activateWindow(
     hookHttpAllowedHosts: () => currentSettings().hookHttpAllowedHosts,
     isHookNetworkAllowed: () =>
       isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
-    // Plugin children get the hook environment (M51) and their tree (M91b).
+    // Plugin children get the hook environment (M51), their tree (M91b),
+    // and the person's own plugin bounds (D121: each 0 is none of ours).
     pluginHooks: {
-      env: () => hookEnvironment(shellEnvironmentOf(), process.platform),
+      env: () =>
+        hookEnvironment(
+          shellEnvironmentOf(),
+          process.platform,
+          [],
+          workspaceRoot === undefined
+            ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+            : { workspaceRoot, realpath: realpathSync },
+        ),
       containment: pluginJobs.containment,
+      bounds: () => ({
+        timeoutSeconds: currentSettings().pluginHookTimeoutSeconds,
+        maxMemoryMiB: currentSettings().pluginChildMaxMemoryMiB,
+        maxAnswerBytes: currentSettings().pluginAnswerMaxBytes,
+      }),
     },
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence. The store is
     // dist/modelApiSessions.js, required when the host is first built.
-    store:
-      context.storageUri === undefined
-        ? undefined
-        : lazyFileSessionStore({
-            bundlePath: vscode.Uri.joinPath(
-              context.extensionUri,
-              'dist',
-              MODEL_API_SESSIONS_BUNDLE_FILE,
-            ).fsPath,
-            log,
-            store: {
-              directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
-              questions: questionsStore,
-              log,
-              retentionDays: () => currentSettings().cleanupPeriodDays,
-              now: () => Date.now(),
-              sleep: (ms) =>
-                new Promise((resolve) => {
-                  setTimeout(resolve, ms)
-                }),
-            },
-          }),
+    store: modelApiStore,
     scheduleStore:
       context.storageUri === undefined
         ? undefined
@@ -2680,6 +3160,9 @@ async function activateWindow(
             now: () => Date.now(),
             log,
           }),
+    // Production media ledger and calibration (MONEY017D, D85.2/D85.6).
+    uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+    uploadExpiryDays: () => currentSettings().mediaUploadExpiryDays,
     describeEnvironment: () => {
       const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
       return describeEnvironment({
@@ -2731,7 +3214,9 @@ async function activateWindow(
         return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
       }
       signal?.throwIfAborted()
+      // A person-set daily limit's claim; none when no limit is set (D208).
       const claim = await dailyPaid.reserveExact(reservationUsd)
+      if (claim === undefined) return
       try {
         signal?.throwIfAborted()
         return {
@@ -2746,26 +3231,26 @@ async function activateWindow(
         throw error
       }
     },
+    // D78's exact reservation for Muse Voice's batch transcription (lane V
+    // seam 4): the same shared daily ledger, its Raise/Stop and its owner.
+    reservePaidExtra: async (costUsd, signal) => {
+      const claim = await reserveExactDaily(costUsd, signal)
+      return paidExtraAdmission(claim, costUsd, signal)
+    },
     // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
     // like the reservationUsd branch above; without it the host has no
     // production admission and automatic compaction stays dormant.
     paidDailyBudgetUsd: () => dailyPaid.capUsd(),
     reserveAutoCompaction: async (amount, signal) => {
-      signal.throwIfAborted()
-      const claim = await dailyPaid.reserveExact(amount)
-      try {
-        signal.throwIfAborted()
-      } catch (error: unknown) {
-        await claim.settle(Usd.from(0).toAmount())
-        throw error
-      }
+      const claim = await reserveExactDaily(amount, signal)
+      // No limit, no claim: automatic compaction stays dormant, never held.
+      if (claim === undefined) return
       return {
-        reservedUsd: claim.reservedUsd,
+        ...claim,
         check: () => {
           signal.throwIfAborted()
           claim.check()
         },
-        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
       }
     },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
@@ -2795,12 +3280,16 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    maxToolOutputBytes: () => currentSettings().modelApiMaxToolOutputBytes,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
+    hookMaxStopContinuations: () => currentSettings().hooksMaxStopContinuations,
+    hookMaxRunningCommands: () => currentSettings().hooksMaxRunningCommands,
+    subagentMaxConcurrent: () => currentSettings().subagentMaxConcurrent,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
@@ -2863,6 +3352,8 @@ async function activateWindow(
     hold: windowHold,
     registry: worktreeRegistry,
     workspaceState: context.workspaceState,
+    // Muse Spark's own GitHub sign-in keeps its token here (M123, D104 §2b).
+    secrets: context.secrets,
     fetch: liveFetch,
     userAgent: `${EXTENSION_NAME}/${version}`,
     runGit,
@@ -2870,8 +3361,11 @@ async function activateWindow(
     gitProcess: processGitProcess(),
     env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
-    // M123's native route (a host without `vscode.git`) stops its git with the window.
+    // M123's native route (a host without `vscode.git`) stops its git with the window,
+    // and ships in its own bundle (PLAN.md D6).
     signal: nativeStarts.signal,
+    nativeGitBundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', NATIVE_GIT_BUNDLE_FILE)
+      .fsPath,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
     restartBackends: (reason) => restartBackend(reason),
@@ -2969,7 +3463,22 @@ async function activateWindow(
           hasCli: backend.resolveLaunch().ok,
           hasCliSession,
           // A provider's secret counts as a Model API credential (M95, D74).
-          hasStoredKey: async () => await credentials.hasModelApiCredential(),
+          // Could-not-read counts as present (fail closed) and the person is
+          // told once: host choice never proceeds as if no key existed. The
+          // projection itself loads with the auth bundle (dist/auth.js).
+          hasStoredKey: () =>
+            authBundle().hasStoredKey({
+              owner: credentials,
+              store: credentials,
+              warn: (message) => {
+                log.warn(message)
+              },
+              showWarning: (message) => {
+                void vscode.window.showWarningMessage(message)
+              },
+              table: UI_TEXT,
+              locale: uiLocale(),
+            }),
         }),
       async (kind): Promise<AgentHost> =>
         kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
@@ -2999,6 +3508,12 @@ async function activateWindow(
   // Session history memory (M6): archived ids and the last session, per
   // workspace, in the extension's own `workspaceState`.
   const sessions: SessionMemory = {
+    scheduledTitle: (kind, id) => {
+      const parsed = z
+        .record(z.string(), z.string())
+        .safeParse(context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.scheduledTitles) ?? {})
+      return parsed.success ? parsed.data[`${kind}:${id}`] : undefined
+    },
     // A value an earlier version (or a hand edit) stored that does not
     // validate reads as "none archived" instead of throwing (PLAN.md D25).
     archivedIds: () => {
@@ -3161,7 +3676,7 @@ async function activateWindow(
       // The bundled skills' offer (M89): Install and Update are the same steps.
       case 'installBundledSkills':
       case 'updateBundledSkills': {
-        await runBundledSkillsInstall(bundledSkillsCommand())
+        await installBundledSkills()
         break
       }
       case 'declineBundledSkills': {
@@ -3195,15 +3710,9 @@ async function activateWindow(
   }
 
   // One per window (M82): a notice two surfaces on one session receive is
-  // raised once, and only while the window is unfocused.
-  const backgroundNotifier = new BackgroundNotifier({
-    isEnabled: () => currentSettings().notifyOnBackgroundTurn,
-    isWindowFocused: () => vscode.window.state.focused,
-    show: async (message) =>
-      (await vscode.window.showInformationMessage(message, UI_TEXT.notifyShowConversation)) ===
-      UI_TEXT.notifyShowConversation,
-    log,
-  })
+  // raised once, and only while the window is unfocused. The ports read
+  // the live host (setting, focus, VS Code's own notification).
+  const backgroundNotifier = new BackgroundNotifier(vscodeBackgroundNoticeDeps(log))
 
   // Extension hooks on both backends (M91 lane E, PLAN.md D70): FileChanged,
   // ConfigChange, Setup, Manual and DirectoryAdded fire from the window, so
@@ -3336,14 +3845,50 @@ async function activateWindow(
     surface: ChatSurface | undefined,
     argumentsText = '',
   ): Promise<void> => {
+    if (surface !== undefined && !registry.has(surface))
+      throw new Error(UI_TEXT.reportUi.generationFailed)
     const id = surface?.id ?? 'window'
     let reportingPanel = reportingPanels.get(id)
     if (reportingPanel === undefined) {
+      const reportController = surface === undefined ? undefined : controllerFor(surface)
       reportingPanel = loadReportingPanel().createReportingWindow(
         {
-          context: { extensionUri: context.extensionUri, l10n, log },
+          context: {
+            extensionUri: context.extensionUri,
+            resolveWebviewBundle,
+            l10n,
+            log,
+          },
           generatorVersion: version,
-          ...(surface !== undefined && { questions: controllerFor(surface).reportingQuestions() }),
+          ...(reportController !== undefined && {
+            questions: reportController.reportingQuestions(),
+          }),
+          // M113 C-M113-2: the session report reads this surface's live
+          // conversation (or its stored Model API session by id); usage reads
+          // the shared journal. Only identifiers cross into the lazy bundle.
+          ...(surface !== undefined && {
+            reportSessionHistory: () =>
+              registry.has(surface)
+                ? (reportController?.reportingSessionHistory() ?? Promise.resolve(null))
+                : Promise.resolve(null),
+          }),
+          // M113 C-M113-4: the estimate report runs M117's engine for the
+          // validated request through the lazy estimator bundle, in every
+          // window. The bundle loads on the first estimate report only.
+          reportEstimateRun: (request, signal) => estimator.estimate(request, signal),
+          ...(context.storageUri !== undefined && {
+            reportStoredSessionDir: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+          }),
+          reportBeforeRead: () => usageRecording.flush(),
+          reportReadBudgets: async () => [
+            ...(await dailyPaid.readToday()),
+            ...(await modelApi.readUsageBudgets()),
+          ],
+          reportUsageDataFolder: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
           workspaceRoot,
           storageRoot,
           attachMarkdown: (text) => {
@@ -3365,21 +3910,343 @@ async function activateWindow(
     await reportingPanel.open(argumentsText)
   }
   // M105 W: the lazy media bindings. Activation carries only these loaders;
-  // dist/media.js (attach port) and dist/screenRecord.js (recording command)
-  // load on first use. Recorder-produced files live under recordingTempRoot,
-  // the one directory the media open hook exempts from workspace confinement.
+  // dist/media.js (attach port), dist/mediaHost.js (the registry, the open
+  // hook and contributor consent; RVMEDIAV 8) and dist/screenRecord.js
+  // (recording command) load on first use. Recorder-produced files live under
+  // recordingTempRoot, the one directory the media open hook exempts from
+  // workspace confinement.
   const loadMedia = mediaBundleLoader(path.join(context.extensionPath, 'dist', 'media.js'), log)
+  const loadMediaHost = mediaHostBundleLoader(
+    path.join(context.extensionPath, 'dist', 'mediaHost.js'),
+    log,
+  )
   const recordingTempRoot = path.join(context.globalStorageUri.fsPath, 'muse-screen')
-  const mediaOpen = createMediaSourceOpen({
-    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
-    recordingTempRoot,
-  })
-  const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
-  const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
-    if (process.platform !== 'linux') return undefined
-    const result = await latestLinuxRecording(linuxLatestPort)
-    return result.ok ? result.preview : undefined
+  // PARITYREC: Attach latest reads the running platform's OS recordings
+  // locations (Linux Videos, Windows Screen Recordings and Captures, macOS
+  // Desktop). The discovery modules live in dist/screenRecord.js, required
+  // on the first latest command, so activation never carries the scanner
+  // (budget). On Windows the Videos and Captures known folders resolve first
+  // (redirect-aware) and each preview copy gets its owner-only directory
+  // (icacls, verified). Nothing found keeps discovery's words, which name
+  // the folders it searched.
+  const loadScreenRecord = screenRecordLoader(
+    path.join(context.extensionPath, 'dist', 'screenRecord.js'),
+    log,
+  )
+  const latestScreenRecording = async (): Promise<ScreenRecordingResult> => {
+    const bundle = loadScreenRecord()
+    const folders =
+      process.platform === 'win32' ? await bundle.resolveWindowsRecordingFolders() : {}
+    const latestPort = bundle.createLatestRecordingPort({
+      platform: process.platform,
+      tempRoot: recordingTempRoot,
+      ...folders,
+      ...(process.platform === 'win32' && {
+        createPrivateDirectory: () => bundle.createWindowsPrivateDirectory(recordingTempRoot),
+      }),
+    })
+    return await bundle.findLatestRecording(latestPort)
   }
+  const schedulesLifetime = new AbortController()
+  const backgroundSchedules = new Map<
+    string,
+    {
+      readonly agent: BackendSession
+      readonly backend: BackendKind
+      readonly title: string
+      status: 'idle' | 'running'
+      turnId?: string
+    }
+  >()
+  const scheduleIdeOptions = new WeakMap<
+    StartSessionOptions,
+    { agent?: BackendSession | undefined; readonly dispose: () => void }
+  >()
+  /**
+  The deferred conversation schedule surfaces (dist/scheduleSurfaces.js,
+  D6): the delivery target readout, the scheduled-question settlement and
+  the schedules panel commands. Warmed when the schedule wiring builds so
+  the first delivery finds them; every caller past liveSchedule awaits the
+  load, while liveSchedule reads the cache synchronously and falls back to
+  the unattended path only inside the load window, so a first fire still
+  runs. A bundle that cannot load refuses the run that needed it.
+  */
+  let loadedScheduleSurfaces: typeof ScheduleSurfaces | undefined
+  const loadScheduleSurfaces = async (): Promise<typeof ScheduleSurfaces> => {
+    if (loadedScheduleSurfaces !== undefined) return loadedScheduleSurfaces
+    try {
+      loadedScheduleSurfaces = await import('./host/conversation/scheduleSurfacesEntry.js')
+      return loadedScheduleSurfaces
+    } catch (error: unknown) {
+      throw new Error(
+        'the scheduleSurfaces.js bundle could not be loaded; schedule surfaces are unavailable',
+        { cause: error },
+      )
+    }
+  }
+  const liveSchedule = (schedule: ScheduleV2) => {
+    const surfaces = loadedScheduleSurfaces
+    for (const controller of controllers.values()) {
+      if (surfaces === undefined) break
+      const live = surfaces.scheduleTargetOf(controller.scheduleSnapshot(), schedule)
+      if (live !== undefined) return live
+    }
+    if (schedule.target.kind !== 'conversation') return
+    const background = backgroundSchedules.get(schedule.target.sessionId)
+    return background?.backend === schedule.target.backend
+      ? {
+          agent: background.agent,
+          status: background.status,
+          ...(background.turnId !== undefined && { activeTurnId: background.turnId }),
+        }
+      : undefined
+  }
+  const scheduleModel = (schedule: ScheduleV2) =>
+    schedule.paidConsent?.modelId ??
+    liveSchedule(schedule)?.agent.modelId ??
+    controllers.values().next().value?.scheduleModelId() ??
+    DEFAULT_MODEL_ID
+  const isScheduleActive = () =>
+    SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady &&
+    currentSettings().schedules &&
+    isProjectTrusted() &&
+    !schedulesLifetime.signal.aborted &&
+    auth.current.status === 'signedIn'
+  const scheduleHost: ScheduleEditorDeliveryPorts['host'] = async (kind, key) => {
+    if (
+      workspaceRoot === undefined ||
+      key !== workspaceKey(path.resolve(workspaceRoot)) ||
+      !isScheduleActive()
+    )
+      throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    const host = kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost()
+    if (!isScheduleActive()) throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+    return host
+  }
+  const scheduleDelivery: ScheduleEditorDeliveryPorts | undefined =
+    workspaceRoot === undefined
+      ? undefined
+      : {
+          workspaceRoot,
+          platform: process.platform,
+          dialect: process.platform === 'win32' ? 'powershell' : 'bash',
+          io: toolIo,
+          signal: schedulesLifetime.signal,
+          isActive: isScheduleActive,
+          generation: () => auth.admissionGeneration,
+          host: scheduleHost,
+          findLive: liveSchedule,
+          options: async (schedule) => {
+            const options: StartSessionOptions = {
+              workspaceRoot,
+              modelId: scheduleModel(schedule),
+              approvalMode: 'promptUnmatched',
+            }
+            if ('backend' in schedule.target && schedule.target.backend === 'museCode') {
+              const owner: { agent?: BackendSession | undefined } = {}
+              const caller = await ideServer.bindCaller(() => {
+                const run = owner.agent?.getScheduledRun?.()
+                return { isReady: run !== undefined, ...(run !== undefined && { run }) }
+              })
+              const configured = { ...options, mcpServers: { ide: caller.endpoint } }
+              scheduleIdeOptions.set(configured, {
+                get agent() {
+                  return owner.agent
+                },
+                set agent(agent: BackendSession | undefined) {
+                  owner.agent = agent
+                },
+                dispose: () => {
+                  caller.dispose()
+                },
+              })
+              return configured
+            }
+            return options
+          },
+          bindSession: (session, options) => {
+            const caller = scheduleIdeOptions.get(options)
+            if (caller !== undefined) caller.agent = session
+            // The start learns its session id only now: record the secret it
+            // was loaded with, so a later resume re-presents it (a fresh
+            // secret per resume is rejected when the session is already
+            // loaded in the same serve life).
+            const presented = options.mcpServers?.['ide']
+            if (presented !== undefined && 'headers' in presented) {
+              ideServer.noteSessionSecret(session.sessionId, presented)
+            }
+          },
+          releaseOptions: (options) => {
+            scheduleIdeOptions.get(options)?.dispose()
+            scheduleIdeOptions.delete(options)
+          },
+          publish: async (agent, details) => {
+            const parsed = z
+              .record(z.string(), z.string())
+              .parse(
+                context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.scheduledTitles) ?? {},
+              )
+            await context.workspaceState.update(
+              WORKSPACE_STATE_KEYS.scheduledTitles,
+              Object.fromEntries(
+                Object.entries({
+                  ...parsed,
+                  [`${details.backend}:${agent.sessionId}`]: details.title,
+                }).slice(-SCHEDULE_BACKGROUND_TITLES_KEPT),
+              ),
+            )
+            const entry: {
+              readonly agent: BackendSession
+              readonly backend: BackendKind
+              readonly title: string
+              status: 'idle' | 'running'
+              turnId?: string
+            } = { agent, backend: details.backend, title: details.title, status: 'idle' }
+            backgroundSchedules.set(agent.sessionId, entry)
+            for (const controller of controllers.values())
+              controller.scheduleNotice(undefined, details.notice)
+            const children = new Set<string>()
+            const items = details.history?.items ?? []
+            for (const item of items)
+              if (item.kind === 'subagent' && item.childSessionId !== undefined)
+                children.add(item.childSessionId)
+            const stop = agent.onEvent((event) => {
+              if (
+                'item' in event &&
+                event.item.kind === 'subagent' &&
+                event.item.childSessionId !== undefined
+              )
+                children.add(event.item.childSessionId)
+              if (
+                'turnId' in event &&
+                typeof event.turnId === 'string' &&
+                isChildTurn(event.turnId, children)
+              )
+                return
+              if (event.type === 'turnStarted') {
+                entry.turnId = event.turnId
+                entry.status = 'running'
+              } else if (event.type === 'turnCompleted' && event.turnId === entry.turnId) {
+                delete entry.turnId
+                entry.status = 'idle'
+              }
+            })
+            return () => {
+              stop()
+              if (backgroundSchedules.get(agent.sessionId) === entry)
+                backgroundSchedules.delete(agent.sessionId)
+            }
+          },
+          submitted: (agent, run, text, submission) => {
+            for (const controller of controllers.values())
+              controller.scheduledSubmission(agent, run, text, submission)
+          },
+          row: (agent, text) => {
+            for (const controller of controllers.values()) controller.scheduleNotice(agent, text)
+          },
+          deferQuestions: async (agent, event, run) => {
+            const controller = controllers.values().next().value
+            if (controller === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+            let kind = backgroundSchedules.get(agent.sessionId)?.backend
+            if (kind === undefined)
+              for (const candidate of controllers.values()) {
+                const session = candidate.boardSession()
+                if (session?.sessionId === agent.sessionId) {
+                  kind = session.backend
+                  break
+                }
+              }
+            if (kind === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+            const snapshot = controller.scheduleSnapshot()
+            await snapshot.attach(agent, kind)
+            const surfaces = await loadScheduleSurfaces()
+            await surfaces.settleScheduledQuestion(snapshot, agent, event, run)
+          },
+          safety: (action, requester) => {
+            return !isScheduleActive() ||
+              !requester.startsWith('schedule:') ||
+              (action.class === 'webFetch' &&
+                currentSettings().sandboxNetwork === SANDBOX_NETWORK_DENIED)
+              ? UI_TEXT.scheduleV2.messages.targetUnavailable
+              : undefined
+          },
+          caller: () => ({
+            source: 'interactive',
+            isInteractive: true,
+            scheduledPrompts: isScheduleActive() && paid.gate.isOn('scheduledPrompts'),
+            maxBudgetUsd: dailyPaid.capUsd(),
+          }),
+          billing: {
+            modelId: scheduleModel,
+            host: () => modelApi.ensureHost(),
+            generation: () => auth.admissionGeneration,
+            capUsd: () => dailyPaid.capUsd(),
+            isActive: isScheduleActive,
+            isOn: (feature) => paid.gate.isOn(feature),
+            ask: async ({ request }) => {
+              let entry: { readonly askPaidUse: typeof askPaidUseFn }
+              try {
+                entry = await import('./host/paid/paidEntry.js')
+              } catch (error: unknown) {
+                throw new Error(
+                  'the paid.js bundle could not be loaded; paid consent is unavailable',
+                  { cause: error },
+                )
+              }
+              return await entry.askPaidUse(request, vscode.workspace.isTrusted)
+            },
+            reserve: async (schedule, amount, signal) => {
+              signal.throwIfAborted()
+              // The shared daily cap first: over it the stop sentence refuses.
+              const claim = await dailyPaid.reserveExact(amount)
+              // Then the schedule's own caps against the same day pool (the
+              // consent gates a shared budget, so the pool exists here).
+              await checkScheduleOwnCap(schedule, amount, async () => {
+                const rows = await dailyPaid.readToday()
+                return sumUsd(...rows.map((row) => row.budget.spentUsd))
+              })
+              // Paid consent always carries a shared budget; without one set
+              // the fire is admitted through a claim that enforces nothing.
+              return claim ?? passthroughSpendClaim(amount, signal)
+            },
+          },
+        }
+  // M52's v1 jobs migrate into v2 once delivery is certified: before that
+  // the v1 list (with its manual Run) stays untouched, and after it each
+  // v1 job is verified in v2 before its v1 file is removed.
+  const scheduleMigration =
+    context.storageUri === undefined || !SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+      ? undefined
+      : {
+          source: createFileScheduleMigrationSource(
+            path.join(context.storageUri.fsPath, MODEL_API_SCHEDULES_DIR),
+          ),
+          zone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
+  const schedulesBridge = createSchedulesBridge({
+    distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+    log,
+    isEnabled: () => currentSettings().schedules,
+    isDeliveryReady: () => SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady,
+    defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
+    pauseAfterFailures: () => currentSettings().schedulePauseAfterFailures,
+    ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
+    ...(scheduleMigration !== undefined && { migration: scheduleMigration }),
+  })
+  // Warm the deferred schedule surfaces while the wiring builds, so the
+  // first delivery finds them; liveSchedule still falls back to the
+  // unattended path inside the load window.
+  void loadScheduleSurfaces().catch((error: unknown) => {
+    log.warn(`schedule surfaces preload failed: ${failureForLog(error)}`)
+  })
+  scheduleWorkspace.value = scheduleWindowWorkspace(
+    schedulesBridge,
+    workspaceRoot,
+    isScheduleActive,
+    log,
+  )
+  scheduleWorkspace.value.refresh()
+  context.subscriptions.push(scheduleWorkspace.value)
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -3437,28 +4304,44 @@ async function activateWindow(
           },
           files,
           // M105 W (E1-media-host-binding): the lazy attach port. Settings
-          // supply limits, the selected model its capabilities; the M2 bind
-          // refuses until the upload lifecycle lands (U6c, lead-owned).
-          mediaAttachments: () =>
-            Promise.resolve(
+          // supply limits, the selected model its capabilities; binding
+          // registers with the window's attached-media registry (lane V
+          // seam 1), made on this first attach with dist/mediaHost.js, where
+          // D85.7's contributor question is a modal (RVMEDIAV 8).
+          mediaAttachments: () => {
+            const host = loadMediaHost()
+            mediaRegistry ??= host.createAttachedMedia()
+            return Promise.resolve(
               loadMedia().createMediaAttachments(
-                createMediaAttachDeps(
-                  () => ({
+                host.windowMediaAttachDeps({
+                  settings: () => ({
                     mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
                     screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
+                    mediaAudioAction: currentSettings().mediaAudioAction,
                   }),
-                  mediaOpen,
-                ),
+                  // The open hook confines to the workspace, except the
+                  // recorder's own files under recordingTempRoot.
+                  open: {
+                    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
+                    recordingTempRoot,
+                  },
+                  attached: mediaRegistry,
+                  isVoiceOn: () => paid.gate.isOn('voice'),
+                  table: UI_TEXT,
+                  locale: uiLocale(),
+                }),
                 UI_TEXT,
                 uiLocale(),
               ),
-            ),
+            )
+          },
           // M105 W (E1-recording-host-binding): the recording command's deps.
           // No native driver binds in this round: macOS needs its signed
           // helper, Windows direct capture is unavailable here, and Linux
           // needs a D-Bus portal transport (lead-owned; see m105.md). The
-          // absent driver refuses explicitly; latest-file discovery works
-          // on Linux. The conversation overrides attach with admission.
+          // absent driver refuses explicitly; latest-file discovery reads
+          // the running platform's OS recordings location. The
+          // conversation overrides attach with admission.
           recordingCommandDeps: () =>
             Promise.resolve({
               l10n: { table: UI_TEXT, locale: uiLocale() },
@@ -3511,6 +4394,7 @@ async function activateWindow(
           },
           platform: process.platform,
           shellSandbox: () => backend.shellSandboxPosture(),
+          shellSandboxReadiness: () => backend.shellSandboxReadiness(),
           shouldWarnSandboxOff,
           editorContext: () => editorContext.active,
           isAutosaveEnabled: () => currentSettings().autosave,
@@ -3560,6 +4444,10 @@ async function activateWindow(
             }
             return ideServer.current
           },
+          ideMcpCaller: (resolve, sessionId) => ideServer.bindCaller(resolve, sessionId),
+          noteIdeSessionSecret: (sessionId, endpoint) => {
+            ideServer.noteSessionSecret(sessionId, endpoint)
+          },
           newAttachmentId: () => crypto.randomUUID(),
           sessions,
           // The usage modal's Account section and insights (M14).
@@ -3583,6 +4471,29 @@ async function activateWindow(
             }
           },
           usageInsights: () => insights.read(),
+          readProviderKeyUsage: async () => {
+            // A Meta-only window keeps the optional provider bundles cold.
+            return subscriptions === undefined && !existsSync(providerConfigFile)
+              ? []
+              : await subscriptionFeatures().readKeyUsage()
+          },
+          // M105 lane F: the uploaded-files port over the account ledger.
+          // The report posts to this surface; foreign deletions ask with a modal.
+          // The binding ships in the sessions bundle (ACTBUD017).
+          uploadedFiles: sessionsApi().createUploadedFilesBinding({
+            uploads: (accountId) => loadSessionUploads(accountId),
+            openLastUploads: () => loadLastSessionUploads(),
+            getAccountId: () => modelApi.accountId(),
+            post: (stamped) => {
+              surface.post({
+                type: 'uploadedFilesReport',
+                report: stamped.report,
+                accountId: stamped.accountId,
+                generation: stamped.generation,
+              })
+            },
+            confirmForeign: isForeignDeletionConfirmed,
+          }).port,
           // Only the sidebar reopens on its last session; a tab is a new
           // conversation by construction (M6).
           isRestorable: surface.id === SIDEBAR_SURFACE_ID,
@@ -3594,18 +4505,24 @@ async function activateWindow(
               !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
             )
               return
-            if (auth.current.backend === 'modelApi') {
-              return currentSettings().dictationEngine === 'system'
-                ? undefined
-                : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
-            }
+            if (
+              auth.current.backend === 'modelApi' &&
+              currentSettings().dictationEngine === 'system'
+            )
+              return
             return museVoiceSetup
           },
           modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-          voiceAccountId: () => modelApi.accountId(),
+          // Muse Voice is a Meta service: its account is the stored Meta
+          // key's own digest, never the selected conversation provider's,
+          // and undefined when no Meta key exists (the press then says why).
+          voiceAccountId: async () => {
+            const key = await credentials.getApiKey()
+            return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+          },
           ownedVoiceBudgetScope: async (sessionId) => {
             if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+              throw new SpendLedgerError('integrity', { scope: 'session', file: 'extension' })
             }
             const host = await modelApi.ensureHost()
             return await host.getOwnedBudgetScope(sessionId)
@@ -3628,12 +4545,7 @@ async function activateWindow(
           isWorktreeHeld: () => windowHold.isHeld,
           createGit: conversationGitFactory(conversationGit, gitFeatures),
           onForegroundTasksChanged: refreshTaskContext,
-          schedulesBridge: createSchedulesBridge({
-            distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
-            log,
-            isEnabled: () => currentSettings().schedules,
-            defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
-          }),
+          schedulesBridge,
           isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
           confirmScheduledRun: async (job, modelId) =>
             await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
@@ -3669,6 +4581,15 @@ async function activateWindow(
               const session = active.boardSession()
               if (session !== undefined) sessions.push(session)
             }
+            for (const [sessionId, background] of backgroundSchedules)
+              if (sessions.every((session) => session.sessionId !== sessionId))
+                sessions.push({
+                  sessionId,
+                  backend: background.backend,
+                  status: background.status,
+                  name: background.title,
+                  workspaceRoot,
+                })
             return sessions
           },
           focusBoardSession: (sessionId, backendKind) => {
@@ -3688,7 +4609,6 @@ async function activateWindow(
                 gate: paid.gate,
                 consent: paid.consent,
                 reserve: dailyPaid.reserve,
-                capUsd: dailyPaid.capUsd,
                 keyDigest: () => modelApi.accountId(),
                 usage: paid.usage,
                 stream: (body, active, guard) =>
@@ -3701,6 +4621,11 @@ async function activateWindow(
             const render = legalScanBundle().renderLegalMarkdown
             if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
             return render(report)
+          },
+          createLegalFixPreviews: () => {
+            const Previews = legalFixBundle().LegalFixPreviews
+            if (Previews === undefined) throw new Error(UI_TEXT.legalFixRefusedUnavailable)
+            return new Previews()
           },
           legalFixApplier: createLegalFixApplier({
             prepare: async (findings) => {
@@ -3824,6 +4749,8 @@ async function activateWindow(
 
   const hostContext: WebviewHostContext = {
     extensionUri: context.extensionUri,
+    globalStoragePath: context.globalStorageUri.fsPath,
+    resolveWebviewBundle,
     l10n,
     log,
     getSettings: () => toSettingsSnapshot(currentSettings()),
@@ -3904,7 +4831,9 @@ async function activateWindow(
             },
           })
         })().catch((error: unknown) => {
-          logRejection(log, 'help reference')(error)
+          // A failed reference read answers empty, logging only the named
+          // failure, never its text.
+          log.error(`help reference failed: ${failureForLog(error)}`)
           surface.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
         })
         return
@@ -3926,7 +4855,8 @@ async function activateWindow(
           try {
             await sharing().handle(surface, message)
           } catch (error: unknown) {
-            logRejection(log, 'sharing action')(error)
+            // A failed sharing action logs only the named failure, never its text.
+            log.error(`sharing action failed: ${failureForLog(error)}`)
           }
         })()
         return
@@ -3937,7 +4867,14 @@ async function activateWindow(
 
   registry.onRemoved((surface) => {
     promptHost?.close(surface)
-    controllers.get(surface.id)?.dispose()
+    const controller = controllers.get(surface.id)
+    if (controller !== undefined) {
+      const disposal = controller.disposeAsync()
+      controllerDisposals.add(disposal)
+      void disposal
+        .finally(() => controllerDisposals.delete(disposal))
+        .catch(logRejection(log, 'conversation cleanup'))
+    }
     controllers.delete(surface.id)
     tasksTabs.get(surface.id)?.release()
   })
@@ -4011,7 +4948,8 @@ async function activateWindow(
     try {
       await sharing().run('synchronise')
     } catch (error: unknown) {
-      logRejection(log, 'prompt sync')(error)
+      // A failed prompt sync logs only the named failure, never its text.
+      log.error(`prompt sync failed: ${failureForLog(error)}`)
     }
   }
   if (
@@ -4105,6 +5043,22 @@ async function activateWindow(
       .get('suggestedProvider')
     return typeof raw === 'string' ? raw : ''
   }
+  // The credential vault (M109, PLAN.md D89): dist/vault.js builds its
+  // broker-backed service itself (C-M109-1) on first use; only the loader
+  // (no broker, no client) is built here, and both vault uses share its one
+  // memoization, so dist/vault.js loads only once. The window host publishes
+  // into the mounted panel section; before the first mount its frames have
+  // nowhere to go, and every broker use refuses while the broker is
+  // unavailable instead of opening an empty vault.
+  const vaultDir = vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath
+  // A switched-off vault (README's legacy switch) refuses on every use: the
+  // bundle's factories resolve the switch themselves, so its section stays
+  // hidden and its commands refuse closed, without mounting, binding or
+  // launching.
+  const vault = vaultBundleLoader({
+    bundlePath: path.join(vaultDir, VAULT_BUNDLE_FILE),
+    log,
+  })
   let modelsFeatures: ModelsPanelFeatures | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
     if (modelsFeatures === undefined) {
@@ -4112,23 +5066,42 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
-          connectChatGpt: () => subscriptionFeatures().connectChatGpt(),
+          connectChatGpt: (isNewAccount) => subscriptionFeatures().connectChatGpt(isNewAccount),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
           isConfidential: () => currentSettings().confidentialWorkspace,
-          secrets: context.secrets,
+          secrets: bundle.credentialLeaseSecrets(context.secrets),
           extensionUri: context.extensionUri,
+          resolveWebviewBundle,
+          // The key-store migration's source material: the raw store for
+          // its legacy port (never the shell above — the shell mirrors
+          // through the migration and would deadlock it), the shell to
+          // bind the controller to, and the installed minor ordinal.
+          credentialMigration: {
+            shell: migrationShell,
+            rawSecrets: context.secrets,
+            minorRelease: migrationMinorRelease,
+          },
           l10n,
           log,
           globalState: context.globalState,
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
+          // The vault section (C-M109-1 P1): dist/modelsPanel.js builds
+          // the broker-backed binding around this panel's publisher on
+          // first mount, from the loader and directory below. Without both
+          // the section stays hidden; a factory that throws leaves the
+          // panel without the section too.
+          vault,
+          vaultDir,
           onKeyUsage: (snapshot) => {
             usageRecording.limit({
               backend: 'modelApi',
-              provider: 'openrouter',
+              provider: snapshot.providerId,
               source: 'openRouter',
+              credentialId: snapshot.credentialId,
+              observationId: snapshot.observationId,
               observedAt: Date.now(),
               windows: [],
               // OpenRouter's `/key` numbers become exact decimals here (M121).
@@ -4158,6 +5131,28 @@ async function activateWindow(
     return modelsFeatures
   }
 
+  // The vault window commands: opening reveals the panel's vault section
+  // (which mounts the binding above); locking works without the panel. Both
+  // share the one memoized bundle loader, so dist/vault.js loads only once.
+  context.subscriptions.push(
+    registerVaultCommands(
+      (id, run) => registerLoggedCommand(log, id, run),
+      () =>
+        vault().createWindowVaultControls(
+          {
+            distDir: vaultDir,
+            openPanel: () => {
+              ensureModelsFeatures().openPanel({ section: 'vault' })
+              return Promise.resolve()
+            },
+            log,
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
+    ),
+  )
+
   // Lane E's editor command adapter; lane S supplies the lazy shared service.
   const usageBundle = usagePanelLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'usagePanel.js').fsPath,
@@ -4168,10 +5163,11 @@ async function activateWindow(
     usagePanel ??= (async () => {
       const panel = await usageBundle().createUsagePanel({
         extensionUri: context.extensionUri,
+        resolveWebviewBundle,
         l10n,
         log,
         beforeRead: () => usageRecording.flush(),
-        budgetStorageFolder: context.globalStorageUri.fsPath,
+        budgetStorageFolder: dailyBudgetDataFolder,
         live: {
           readBudgets: async () => [
             ...(await dailyPaid.readToday()),
@@ -4179,6 +5175,13 @@ async function activateWindow(
           ],
           readLiveLimits: () => Promise.resolve(usageRecording.limits?.() ?? []),
           providerConsoles: () => [],
+          // The stored credential's identity selects the budgets the usage
+          // page shows: a rotated or removed key's numbers disappear. The
+          // identity reader loads with the lease's bundle, never here.
+          currentCredentialId: async (providerId: string) => {
+            const { storedCredentialId } = await import('./core/credentialLeaseEntry')
+            return await storedCredentialId(context.secrets, providerId)
+          },
         },
         openModels: (provider, model) => {
           ensureModelsFeatures().openPanel({
@@ -4211,6 +5214,22 @@ async function activateWindow(
     context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
     ensureModelsFeatures,
     log,
+  )
+  // A crashed terminal Connect is found at this start without connecting
+  // again (RVCM952D R5): the journal is compared with the primary and
+  // reported, inside the one credential lease. The lease's bundle loads for
+  // the recovery, never at activation.
+  void import('./core/credentialLeaseEntry').then((lease) =>
+    lease.recoverOpenRouterConnect(
+      context.secrets,
+      (message) => {
+        void vscode.window.showWarningMessage(message)
+      },
+      (message) => {
+        void vscode.window.showInformationMessage(message)
+      },
+      log,
+    ),
   )
 
   editorContext.update(editorSnapshot)
@@ -4264,6 +5283,8 @@ async function activateWindow(
     editorContext,
     {
       dispose: () => {
+        schedulesLifetime.abort()
+        void schedulesBridge.close().catch(logRejection(log, 'Schedules close'))
         ideServer.close()
       },
     },
@@ -4309,17 +5330,31 @@ async function activateWindow(
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
+      // Muse Voice's proxy refusal follows the live `http` settings while
+      // the window is open (M56, PLAN.md D43): the proxy itself and the
+      // two support flags behind the socket decision.
+      if (
+        event.affectsConfiguration(`${HTTP_SETTINGS_SECTION}.${HTTP_PROXY_SETTING}`) ||
+        event.affectsConfiguration(
+          `${HTTP_SETTINGS_SECTION}.${HTTP_POSTURE_SETTINGS.proxySupport}`,
+        ) ||
+        event.affectsConfiguration(
+          `${HTTP_SETTINGS_SECTION}.${HTTP_POSTURE_SETTINGS.webSocketAdditionalSupport}`,
+        )
+      ) {
+        refreshMuseVoiceNetwork()
+      }
       if (event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`))
         void syncPrompts()
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
           logRejection(log, 'ConfigChange hook'),
         )
-      }
-      if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
+        refreshScheduleWorkspace()
         for (const controller of controllers.values()) {
           controller.refreshDictation()
+          controller.scheduleWorkspaceChanged()
           if (event.affectsConfiguration(`${SETTINGS_SECTION}.confidentialWorkspace`)) {
             controller.confidentialWorkspaceChanged()
           }
@@ -4392,6 +5427,7 @@ async function activateWindow(
       // The index was built without git in Restricted Mode (D24).
       mentions.invalidate()
       void restartBackend('the workspace was trusted').catch(logRejection(log, 'backend restart'))
+      refreshScheduleWorkspace()
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
       // "Allow Always in This Workspace" counts only in a trusted one (M58).
       broadcastPaidState()
@@ -4399,6 +5435,7 @@ async function activateWindow(
       void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
       for (const controller of controllers.values()) {
         controller.checkpointsChanged()
+        controller.scheduleWorkspaceChanged()
       }
       // A trusted workspace activates (M91 lane E): its root reads as a
       // DirectoryAdded, on both backends.
@@ -4440,21 +5477,60 @@ async function activateWindow(
           if (deps === undefined) {
             return
           }
-          const load = screenRecordLoader(
-            path.join(context.extensionPath, 'dist', 'screenRecord.js'),
-            log,
-          )
-          await load().runScreenRecordingCommand(deps, kind === 'latest')
+          await loadScreenRecord().runScreenRecordingCommand(deps, kind === 'latest')
         }),
       ),
     ),
-    // M105 W: the uploaded-files deletion. The E3/F ledger binding is
-    // lead-owned; until it lands the controller refuses explicitly.
+    // M105 lane F: Delete Uploaded Files lists the ledger's files and
+    // deletes the chosen ones through the provider. The dialog's own
+    // delete buttons call the controller instead.
     registerLoggedCommand(
       log,
       COMMAND_IDS.deleteUploadedFiles,
       forActiveConversation(async (controller) => {
-        await controller.deleteUploadedFiles()
+        const sessions = sessionsApi()
+        const binding = sessions.createUploadedFilesBinding({
+          uploads: (accountId) => loadSessionUploads(accountId),
+          openLastUploads: () => loadLastSessionUploads(),
+          getAccountId: () => modelApi.accountId(),
+          post: (stamped) => {
+            registry.active?.post({
+              type: 'uploadedFilesReport',
+              report: stamped.report,
+              accountId: stamped.accountId,
+              generation: stamped.generation,
+            })
+          },
+          confirmForeign: isForeignDeletionConfirmed,
+        })
+        await sessions.runDeleteUploadedFilesCommand({
+          list: binding.list,
+          remove: binding.remove,
+          confirmForeign: isForeignDeletionConfirmed,
+          dialogs: {
+            pick: async (files) => {
+              const chosen = await vscode.window.showQuickPick(
+                files.map((file) => ({
+                  label: file.label,
+                  description: file.description,
+                  fileId: file.fileId,
+                })),
+                {
+                  canPickMany: true,
+                  placeHolder: UI_TEXT.media.deleteUploadedFilesPick,
+                },
+              )
+              return chosen === undefined ? undefined : chosen.map((item) => item.fileId)
+            },
+            inform: (message) => {
+              void vscode.window.showInformationMessage(message)
+            },
+            fail: (message) => {
+              void vscode.window.showErrorMessage(message)
+            },
+          },
+        })
+        await controller.readUploadedFiles()
       }),
     ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
@@ -4612,54 +5688,66 @@ async function activateWindow(
               backend.workspaceActionGuard(nativeStarts.signal),
             )
           : undefined
+      // The report's text loads with the report dialog's bundle
+      // (dist/report.js, PLAN.md D6) on the first run, not at activation.
+      const report: typeof ReportBundle = await import('./host/support/reportEntry')
       log.info(
-        renderSupportReport({
-          extensionVersion: version,
-          vscodeVersion: vscode.version,
-          nodeVersion: process.versions.node,
-          platform: process.platform,
-          arch: process.arch,
-          remoteName: vscode.env.remoteName,
-          hasWorkspace: workspaceRoot !== undefined,
-          isWorkspaceTrusted: vscode.workspace.isTrusted,
-          backendSetting: settings.backend,
-          shellSandboxSetting: settings.shellSandbox,
-          shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
-          isShellSandboxed: posture.isSandboxed,
-          sandboxNetworkSetting: settings.sandboxNetwork,
-          isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
-          isBinaryPathConfigured: settings.museBinaryPath !== '',
-          environmentVariableCount: settings.environmentVariables.length,
-          cli: resolution.ok
-            ? {
-                ok: true,
-                installDir: resolution.launch.installDir,
-                version: backend.installedVersion(resolution.launch.installDir),
-              }
-            : { ok: false, reason: resolution.reason },
-          cliCredentialFile: backend.credentialFileVerdict(),
-          cliSignIn: await cliAccount.signIn(true),
-          keychainItem:
-            keychainLookup === undefined
-              ? undefined
-              : keychainItemPresence(keychainLookup.exitCode),
-          delegationMode: delegationMode(),
-          workflowTriggerMode: workflowTriggerMode(),
-          hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
-          hasEnvironmentApiKey: backend.hasEnvironmentKey(),
-          dictation: dictation.isAvailable
-            ? { isAvailable: true }
-            : { isAvailable: false, reason: dictation.reason },
-          network: readNetworkFacts(
-            vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
-            process.env,
-            process.platform,
-            backend,
-            globalThis,
-          ),
-          managedConfiguration: managed,
-          homeDir: homedir(),
-        }),
+        report.renderSupportReport(
+          {
+            extensionVersion: version,
+            vscodeVersion: vscode.version,
+            nodeVersion: process.versions.node,
+            platform: process.platform,
+            arch: process.arch,
+            remoteName: vscode.env.remoteName,
+            hasWorkspace: workspaceRoot !== undefined,
+            isWorkspaceTrusted: vscode.workspace.isTrusted,
+            backendSetting: settings.backend,
+            shellSandboxSetting: settings.shellSandbox,
+            shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
+            // F91: the health line for the sandbox (posture and this check);
+            // a fresh probe when no host has started yet.
+            shellSandboxReadiness: report.sandboxReadinessLine(
+              await backend.readShellSandboxReadiness(),
+            ),
+            isShellSandboxed: posture.isSandboxed,
+            sandboxNetworkSetting: settings.sandboxNetwork,
+            isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
+            isBinaryPathConfigured: settings.museBinaryPath !== '',
+            environmentVariableCount: settings.environmentVariables.length,
+            cli: resolution.ok
+              ? {
+                  ok: true,
+                  installDir: resolution.launch.installDir,
+                  version: backend.installedVersion(resolution.launch.installDir),
+                }
+              : { ok: false, reason: resolution.reason },
+            cliCredentialFile: backend.credentialFileVerdict(),
+            cliSignIn: await cliAccount.signIn(true),
+            keychainItem:
+              keychainLookup === undefined
+                ? undefined
+                : keychainItemPresence(keychainLookup.exitCode),
+            delegationMode: delegationMode(),
+            workflowTriggerMode: workflowTriggerMode(),
+            hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+            hasEnvironmentApiKey: backend.hasEnvironmentKey(),
+            dictation: dictation.isAvailable
+              ? { isAvailable: true }
+              : { isAvailable: false, reason: dictation.reason },
+            network: readNetworkFacts(
+              vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
+              process.env,
+              process.platform,
+              backend,
+              globalThis,
+            ),
+            managedConfiguration: managed,
+            homeDir: homedir(),
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
       )
       channel.show(true)
     }),
@@ -4688,6 +5776,7 @@ async function activateWindow(
               await vscode.window.showTextDocument(target)
               return
             } catch {
+              // A document that will not show leaves no stale target behind.
               lastTextDocumentUri = undefined
             }
           }
@@ -4757,12 +5846,8 @@ async function activateWindow(
       void vscode.window.showInformationMessage(UI_TEXT.museCodeRestarted)
     }),
     // M89 (PLAN.md D68): the bundled skills into Muse Code's folders, and out.
-    registerLoggedCommand(log, COMMAND_IDS.installBundledSkills, () =>
-      runBundledSkillsInstall(bundledSkillsCommand()),
-    ),
-    registerLoggedCommand(log, COMMAND_IDS.removeBundledSkills, () =>
-      runBundledSkillsRemove(bundledSkillsCommand()),
-    ),
+    registerLoggedCommand(log, COMMAND_IDS.installBundledSkills, installBundledSkills),
+    registerLoggedCommand(log, COMMAND_IDS.removeBundledSkills, removeBundledSkills),
     registerLoggedCommand(log, COMMAND_IDS.showWhatsNew, () => {
       whatsNew.show()
     }),

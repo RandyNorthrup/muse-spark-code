@@ -4,20 +4,15 @@
 // it. It holds an actual handle to
 // this extension process; when either it or the server exits, the job closes.
 
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
-import { Buffer } from 'node:buffer'
-import { randomBytes, randomUUID } from 'node:crypto'
-import { once } from 'node:events'
-import { createServer, type Socket } from 'node:net'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { GuardedChildEnv } from '../../core/executables'
 import * as z from 'zod/mini'
-import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
-import { redactSecrets } from '../../core/redact'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   resourceEnvironment,
   type ResourceLease,
   type ResourcePipedProcess,
 } from '../../core/resources/launch'
-import { stopResourceTree } from '../../core/resources/admission'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -28,6 +23,14 @@ import {
   RESOURCE_JOB_RECORD_WAIT_MS,
   RESOURCE_JOB_UINT32_MAX,
 } from '../../shared/constants'
+import { environmentValue, setEnvironmentVariable } from '../../core/execGuard'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import { Buffer } from 'node:buffer'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { once } from 'node:events'
+import { createServer, type Socket } from 'node:net'
+import { redactSecrets } from '../../core/redact'
+import { stopResourceTree } from '../../core/resources/admission'
 import { resourceProcessIdentitySchema, type ResourceProcessIdentity } from '../../shared/resources'
 
 /** SPAWN017C: the limits an attested job enforces itself, in process. */
@@ -91,8 +94,8 @@ function attestedChannel() {
     const [event] = z.tuple([z.object({ detail: z.nullable(jobRecordSchema) })]).parse(events)
     return event.detail ?? undefined
   })()
-  const answer = (name: 'root' | 'record', detail: unknown): void => {
-    answers.dispatchEvent(new CustomEvent(name, { detail: detail ?? null }))
+  const answer = (name: 'root' | 'record', detail: unknown = null): void => {
+    answers.dispatchEvent(new CustomEvent(name, { detail }))
   }
   let socket: Socket | undefined
   let pending = ''
@@ -116,8 +119,12 @@ function attestedChannel() {
       const parsed = jobRecordSchema.safeParse(JSON.parse(text.slice('RESULT '.length)))
       if (parsed.success) answer('record', parsed.data)
       return parsed.success
-    } catch {
-      return false
+    } catch (error: unknown) {
+      // Malformed text is no record; anything else is not this parse's.
+      if (error instanceof SyntaxError) {
+        return false
+      }
+      throw error
     }
   }
   return {
@@ -170,18 +177,22 @@ export interface McpJobLaunch {
   readonly args: readonly string[]
   readonly isVerbatim: boolean
   readonly cwd: string
-  /** Only the allowlisted and explicitly configured variables reach the server. */
-  readonly env: NodeJS.ProcessEnv
+  /**
+  Only the allowlisted and explicitly configured variables reach the
+  server — and the native helper serializes this environment into the
+  payload's own, so only a guarded child environment type-checks here.
+  */
+  readonly env: GuardedChildEnv
   readonly log: (message: string) => void
   /** The whole job's memory in bytes (M91b, plugin children); absent sets no limit. */
   readonly jobMemoryLimit?: number | undefined
   /** SPAWN017C portable launches: an unnamed job that attests its own tree. */
   readonly attestation?: JobAttestationLimits | undefined
   /**
-   * The payload's own last check (M123, RVM123G2 R1): run synchronously
-   * when the helper is READY, before GO lets it create the payload process.
-   * A throw withholds GO and closes the pipe, so the payload never starts.
-   */
+  The payload's own last check (M123, RVM123G2 R1): run synchronously
+  when the helper is READY, before GO lets it create the payload process.
+  A throw withholds GO and closes the pipe, so the payload never starts.
+  */
   readonly authorize?: (() => void) | undefined
 }
 
@@ -240,8 +251,8 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
     try {
       launch.authorize?.()
       return true
-    } catch {
-      launch.log('the payload was not authorized at its launch')
+    } catch (error: unknown) {
+      launch.log(`the payload was not authorized at its launch (${failureForLog(error)})`)
       return false
     }
   }
@@ -303,7 +314,7 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
 export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStreams {
   const prepared = prepareMcpJobLaunch(launch)
   try {
-    const child = spawn(
+    const child = spawnGuarded(
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- this executable is compiled from the packaged native/windows/MuseSparkMcpLauncher.cs and MuseSparkMcpJob.cs into a digest-named file in extension storage; configured MCP input stays in a private environment value (PLAN.md §8).
       launch.executablePath,
       [],
@@ -345,12 +356,12 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
 }
 
 /**
- * SPAWN017C: a portable contained or probe launch. Only the helper's record
- * saying it drained the job (`emptied: true`) proves the tree gone; a killed
- * helper's job is ended by the kernel, but that end is not observed. The record
- * also carries the final usage and any limit the kernel enforced. The caller
- * registers and completes the lease.
- */
+SPAWN017C: a portable contained or probe launch. Only the helper's record
+saying it drained the job (`emptied: true`) proves the tree gone; a killed
+helper's job is ended by the kernel, but that end is not observed. The record
+also carries the final usage and any limit the kernel enforced. The caller
+registers and completes the lease.
+*/
 export function spawnAttestedJob(
   launch: McpJobLaunch & { readonly attestation: JobAttestationLimits },
 ): { child: ResourcePipedProcess['child']; control: AttestedJobControl } {
@@ -358,7 +369,7 @@ export function spawnAttestedJob(
   const attested = prepared.attested
   if (attested === undefined) throw new Error('Attested job channel unavailable')
   try {
-    const child = spawn(
+    const child = spawnGuarded(
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the same digest-named launcher compiled from the packaged native/windows sources; launch input stays in a private environment value (PLAN.md §8, SPAWN017C).
       launch.executablePath,
       [],

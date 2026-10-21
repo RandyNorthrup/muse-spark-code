@@ -9,6 +9,7 @@
 // refused with the reason, the log has the cause, and the next review tries
 // again.
 
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { PlanModeHold, PlanModeHoldDeps } from '../../core/review/planModeHold'
 import type { ReviewTurnInput } from '../../core/review/reviewPrompt'
 import { UI_TEXT } from '../../shared/constants'
@@ -32,10 +33,12 @@ export interface ReviewFeatures {
   readonly newMarker: () => string
   /** The hold that keeps a Muse Code review in Plan mode and puts the user's mode back. */
   readonly createHold: (deps: PlanModeHoldDeps) => PlanModeHold
+  /** The playback turn's text (D203): the report, from memory only, with no tools. */
+  readonly playbackText: () => string
   /**
-   * Edit review (M5) and the review pane's hunks (M70): they share one read,
-   * rebuild and write lane per file, so one instance serves both.
-   */
+  Edit review (M5) and the review pane's hunks (M70): they share one read,
+  rebuild and write lane per file, so one instance serves both.
+  */
   readonly editReview: EditReviewActions & {
     /** The original text of a `muse-edit:` document; undefined before any diff was opened. */
     readonly provide: (uriPath: string) => string | undefined
@@ -46,9 +49,9 @@ export interface ReviewFeatures {
 export type ReviewTurnFeatures = Omit<ReviewFeatures, 'editReview'>
 
 /**
- * What the bundle builds its parts from: values and functions of the
- * activation bundle, nothing compared by identity across the two (M57's audit).
- */
+What the bundle builds its parts from: values and functions of the
+activation bundle, nothing compared by identity across the two (M57's audit).
+*/
 export interface ReviewBundleDeps {
   /** The installed table and its language (PLAN.md D33); installed before the factory builds. */
   readonly uiText: UiText
@@ -63,10 +66,10 @@ interface ReviewBundle {
 }
 
 /**
- * Whether a required module is the bundle: its factory is a function. The
- * factory's signature is taken on trust (PLAN.md §8): both bundles come from
- * one source tree, one `npm run build` and one package.
- */
+Whether a required module is the bundle: its factory is a function. The
+factory's signature is taken on trust (PLAN.md §8): both bundles come from
+one source tree, one `npm run build` and one package.
+*/
 export function isReviewBundle(value: unknown): value is ReviewBundle {
   return (
     typeof value === 'object' &&
@@ -90,40 +93,37 @@ export interface LazyReviewDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 /**
- * The review's parts, the bundle required the first time any is used and
- * kept from then on. A missing or corrupt bundle throws `reviewUnavailable`
- * and is tried again on the next use.
- */
+The review's parts, the bundle required the first time any is used and
+kept from then on. A missing or corrupt bundle throws `reviewUnavailable`
+(`playbackUnavailable` for a playback's text, D203) and is tried again on
+the next use.
+*/
 export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
   let features: ReviewFeatures | undefined
-  const loaded = (): ReviewFeatures => {
+  const loaded = (unavailable = UI_TEXT.reviewUnavailable): ReviewFeatures => {
     if (features !== undefined) {
       return features
     }
-    const { bundlePath, workspaceRoot, loadBundle = requireFile } = deps
+    const { bundlePath, workspaceRoot = '', loadBundle = requireFile } = deps
     let bundle: unknown
     try {
       bundle = loadBundle(bundlePath)
     } catch (error: unknown) {
-      deps.log.error(`The review ${bundlePath} could not be loaded: ${describe(error)}`)
-      throw new Error(UI_TEXT.reviewUnavailable, { cause: error })
+      deps.log.error(`The review bundle could not be loaded: ${failureForLog(error)}`)
+      throw new Error(unavailable, { cause: error })
     }
     if (!isReviewBundle(bundle)) {
-      deps.log.error(`${bundlePath} does not export the review`)
+      deps.log.error('The review bundle does not export the review')
       if (deps.loadBundle === undefined) {
         forgetFile(bundlePath)
       }
-      throw new Error(UI_TEXT.reviewUnavailable)
+      throw new Error(unavailable)
     }
     features = bundle.createReviewFeatures({
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
-      collector: { workspaceRoot: workspaceRoot ?? '', runGit: deps.runGit, pickOne: deps.pickOne },
+      collector: { workspaceRoot, runGit: deps.runGit, pickOne: deps.pickOne },
       editReview: deps.editReview,
     })
     return features
@@ -138,6 +138,7 @@ export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
     turnText: (input) => loaded().turnText(input),
     newMarker: () => loaded().newMarker(),
     createHold: (holdDeps) => loaded().createHold(holdDeps),
+    playbackText: () => loaded(UI_TEXT.playbackUnavailable).playbackText(),
     editReview: {
       openDiff: async (itemId, patchJson) => await loaded().editReview.openDiff(itemId, patchJson),
       revert: async (itemId, patchJson, check) =>

@@ -2,8 +2,8 @@ import type { GovernedTeamSlots } from '../../core/team/scheduler/slots'
 import type { ResourcePermit } from '../../core/resources/queue'
 
 /** Heavy team checks use the same governor queue as workers, under the check kind.
- * @unwired M96 heavy team check slot
- */
+@unwired M96 heavy team check slot
+*/
 export function requestCheckSlot(
   slots: GovernedTeamSlots,
   priority: number,
@@ -20,7 +20,7 @@ import path from 'node:path'
 import type { CheckJob, CheckResult } from '../../core/runners/routing'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
 import { isSamePath } from '../../core/paths'
-import { GIT_METADATA_OPTIONS, GIT_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { GIT_METADATA_OPTIONS, UI_TEXT } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { gitFilterOptions } from '../git'
 
@@ -54,6 +54,9 @@ export async function captureCheckSnapshot(
   scratch: string,
   git: CheckGit,
   admit: () => void,
+  // The dispatching job's own bound (owner 2026-10-16): the snapshot names
+  // no git kill of its own.
+  timeoutMs: number,
 ): Promise<string> {
   admit()
   await mkdir(scratch, { recursive: true })
@@ -69,15 +72,14 @@ export async function captureCheckSnapshot(
     GIT_COMMITTER_EMAIL: 'snapshot@localhost',
   }
   const options = [...GIT_METADATA_OPTIONS, '-c', 'core.hooksPath=/dev/null']
-  const run = async (args: readonly string[], input?: string) => {
+  const run = async (args: readonly string[]) => {
     admit()
     const result = await git.run({
       file: git.file,
       args: [...options, ...args],
       cwd,
       env,
-      timeoutMs: GIT_TIMEOUT_MS,
-      ...(input !== undefined && { input }),
+      timeoutMs,
     })
     if (!result.descendantsEnded) throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
     if (result.exitCode !== 0) throw new Error(UI_TEXT.teamRunners.testFailed)
@@ -185,7 +187,8 @@ export class CheckSlots {
         GIT_TERMINAL_PROMPT: '0',
         GIT_OPTIONAL_LOCKS: '0',
       },
-      timeoutMs: GIT_TIMEOUT_MS,
+      // The job's own bound, not an invented git kill (owner 2026-10-16).
+      timeoutMs: job.timeoutMs,
       signal: job.signal,
     })
     if (!result.descendantsEnded) throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
@@ -256,6 +259,7 @@ export class CheckSlots {
       () => {
         this.admit(job)
       },
+      job.timeoutMs,
     )
     slot.uncertain = false
     try {

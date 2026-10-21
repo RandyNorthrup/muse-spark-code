@@ -44,6 +44,7 @@ async function noticeFixture() {
     'modelApiHooks',
     'modelApiMcp',
     'questionNotes',
+    'approvalModes',
     'mcpPool',
     'modelApiCodeIntel',
     'structuredSchema',

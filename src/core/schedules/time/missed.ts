@@ -13,10 +13,10 @@ export interface ScheduleMissedTimes {
 }
 
 /** Recovery window (afterMs, throughMs], not normal polling admission.
- * Run once selects the most recent due occurrence, with its original id.
- * Skip suppresses past fires; a fire exactly at throughMs is still on time.
- * The caller owns the durable high-water cursor and the permanent claim.
- * Skipped occurrences do not count as runs toward end.afterRuns. */
+Run once selects the most recent due occurrence, with its original id.
+Skip suppresses past fires; a fire exactly at throughMs is still on time.
+The caller owns the durable high-water cursor and the permanent claim.
+Skipped occurrences do not count as runs toward end.afterRuns. */
 export function missedScheduleTimes(
   plan: ScheduleTimePlan & Pick<ScheduleV2, 'catchUp'>,
   afterMs: number,

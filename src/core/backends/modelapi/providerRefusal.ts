@@ -20,10 +20,10 @@ import { fill } from '../../../shared/l10n/text'
 import { classifyRetry, RETRY_TABLES, type RetryTables } from '../../../shared/retryPolicy'
 
 /**
- * What a refusal-carrying `ModelApiError` holds: the provider's status and
- * bounded words with its envelope type/code. Structural on purpose, so this
- * module never imports the transport (which would cycle).
- */
+What a refusal-carrying `ModelApiError` holds: the provider's status and
+bounded words with its envelope type/code. Structural on purpose, so this
+module never imports the transport (which would cycle).
+*/
 export interface RefusalCarrier {
   readonly status: number
   readonly kind: string | undefined
@@ -32,8 +32,8 @@ export interface RefusalCarrier {
   readonly requestId?: string | undefined
   readonly retryAfterMs?: number | undefined
   /** A documented reason or error code the extractor found (Google's
-   * `details[].reason`, Anthropic's `details.error_code`): the classifier
-   * reads it even when a parser did not promote it into `code`. */
+  `details[].reason`, Anthropic's `details.error_code`): the classifier
+  reads it even when a parser did not promote it into `code`. */
   readonly reason?: string | undefined
   readonly errorCode?: string | undefined
 }
@@ -55,9 +55,9 @@ export type ProviderRefusalKind =
   | 'unrecognised'
 
 /** "The provider answered and refused": status, closed kind, the provider's
- * own bounded words, and the request id / retry wait when the provider sent
- * one. `refusalOf` builds it from the `ModelApiError` every parser returns.
- */
+own bounded words, and the request id / retry wait when the provider sent
+one. `refusalOf` builds it from the `ModelApiError` every parser returns.
+*/
 export interface ProviderRefusal {
   readonly status: number
   readonly kind: ProviderRefusalKind
@@ -185,18 +185,18 @@ const INVALID_KINDS = new Set([
 ])
 
 /**
- * The only phrases the classifier reads, each scoped to the status where a
- * recorded answer shows its provider gives nothing else. A phrase is never a
- * substitute for a type, code or reason the provider documents. Sources:
- * - xAI's bad key (400, flat envelope, no type): recorded
- *   `test/fixtures/provider-refusals/xai/bad-key.json`, 2026-10-12.
- * - Anthropic's out-of-credit answer (400, generic type): measured in round 1
- *   (the `CREDIT_BODY` bytes the lead's drill replays).
- * - OpenRouter's unknown model (400, numeric echo code only): recorded
- *   `test/fixtures/provider-refusals/openrouter/unknown-model.json`, 2026-10-12.
- * - DeepSeek's unknown model (400, generic type and code): recorded
- *   `test/fixtures/provider-refusals/deepseek/unknown-model.json`, 2026-10-12.
- */
+The only phrases the classifier reads, each scoped to the status where a
+recorded answer shows its provider gives nothing else. A phrase is never a
+substitute for a type, code or reason the provider documents. Sources:
+- xAI's bad key (400, flat envelope, no type): recorded
+  `test/fixtures/provider-refusals/xai/bad-key.json`, 2026-10-12.
+- Anthropic's out-of-credit answer (400, generic type): measured in round 1
+  (the `CREDIT_BODY` bytes the lead's drill replays).
+- OpenRouter's unknown model (400, numeric echo code only): recorded
+  `test/fixtures/provider-refusals/openrouter/unknown-model.json`, 2026-10-12.
+- DeepSeek's unknown model (400, generic type and code): recorded
+  `test/fixtures/provider-refusals/deepseek/unknown-model.json`, 2026-10-12.
+*/
 const RECORDED_PHRASES: readonly {
   readonly status: number
   readonly phrase: RegExp
@@ -220,11 +220,11 @@ const phraseKind = (status: number, message: string): ProviderRefusalKind | unde
 }
 
 /** The closed kind for an answered refusal. The status and the provider's
- * documented type, code or reason decide; a phrase from `RECORDED_PHRASES`
- * only covers the statuses where a recorded answer shows the provider gives
- * nothing else. Explicit money/identity signals win over the status: a 400
- * about credit is `credit`, not `invalidRequest`.
- */
+documented type, code or reason decide; a phrase from `RECORDED_PHRASES`
+only covers the statuses where a recorded answer shows the provider gives
+nothing else. Explicit money/identity signals win over the status: a 400
+about credit is `credit`, not `invalidRequest`.
+*/
 export function classifyRefusalKind(signals: RefusalSignals): ProviderRefusalKind {
   const { status } = signals
   const type = norm(signals.type)
@@ -298,19 +298,25 @@ export function classifyRefusalKind(signals: RefusalSignals): ProviderRefusalKin
 }
 
 /**
- * TEMPORARY (round 2, finding 4): whether an answered refusal is known to
- * have cost nothing. The spend-ledger branch (`fix/spend-ledger`) owns this
- * fact: its design note A already decides "an initial HTTP rejection before
- * any response/output is a known zero-cost outcome for
- * validation/authentication/authorization/quota refusals (4xx except 408 and
- * 499)". That branch has the decision but no code predicate yet (measured
- * 2026-10-13: no `isDefiniteRefusal` in its tree), so this predicate stays
- * until the ledger takes over these four `ModelApiHost.ts` call sites:
- * `noteRequestRefusal` (:4193), the `paidModelObservers` `isRefused`
- * (:6833), the auto-review observers' `isRefused` (:6953), and the image
- * generation catch (:8088). The ledger must receive the typed refusal
- * (status, kind, whether any output had begun) instead of this boolean.
- */
+Whether an answered refusal is known to have cost nothing: an initial
+HTTP rejection before any response or output for a validation,
+authentication, authorization, quota or rate-limit refusal (PLAN.md D117,
+the rule in force). The eight statuses are the ones the providers
+document as rejections before processing (Anthropic's error page,
+OpenAI's error codes, Gemini's troubleshooting guide; fetched 2026-10-13
+and recorded with the red drills in
+`docs/certification/provider-refusals.md`, "Why these statuses are
+definite nothing billed"). 408 and 499 can describe interrupted
+processing, 409 is ambiguous (Anthropic `conflict_error`), and every 5xx
+and status 0 stay uncertain: the narrower set keeps uncertain liability
+visible instead of releasing it. The `fix/spend-ledger` branch holds no
+such predicate (measured 2026-10-18: still no `isDefiniteRefusal` in its
+tree, last commit 2026-10-12) and owns everything past this decision, so
+this predicate is the final design, not a placeholder. Every consumer
+additionally requires that no response had begun (`noteRequestRefusal`
+checks `hasStarted`; the helper and image settlements bill
+provider-reported usage when it exists).
+*/
 const DEFINITE_NOTHING_BILLED: ReadonlySet<number> = new Set([
   HTTP_STATUS.badRequest,
   HTTP_STATUS.unauthorized,
@@ -347,12 +353,12 @@ export function isNeverRetryRefusal(status: number, kind: ProviderRefusalKind): 
 }
 
 /**
- * Whether a refused provider answer is worth one more try: never for the
- * kinds asking again cannot help, otherwise the retry table that exists.
- * Wired as the codec client's `isRetryableFailure`, so the transport's own
- * decision stands everywhere else unchanged. `table` is the preset's own
- * retry table (OPENAI-G20); it defaults to the Responses table.
- */
+Whether a refused provider answer is worth one more try: never for the
+kinds asking again cannot help, otherwise the retry table that exists.
+Wired as the codec client's `isRetryableFailure`, so the transport's own
+decision stands everywhere else unchanged. `table` is the preset's own
+retry table (OPENAI-G20); it defaults to the Responses table.
+*/
 export function isRefusalRetryable(
   failure: RefusalCarrier,
   table: RetryTables = RETRY_TABLES.responses,
@@ -380,16 +386,16 @@ export function isRefusalRetryable(
 }
 
 /** An HTTP status a provider put in its stream error's `code` (OpenRouter's
- * mid-stream error carries the status there). */
+mid-stream error carries the status there). */
 const STATUS_CODE = /^[1-5]\d\d$/
 
 /**
- * Whether an error the provider ended its stream with is worth sending the
- * request again, judged as its status would be: the code is one the retry
- * table retries (Anthropic's `overloaded_error`), or a status in the code
- * that the table retries (OpenRouter's 429 or 503). A quota code never is.
- * The caller sends again only when no content has arrived yet.
- */
+Whether an error the provider ended its stream with is worth sending the
+request again, judged as its status would be: the code is one the retry
+table retries (Anthropic's `overloaded_error`), or a status in the code
+that the table retries (OpenRouter's 429 or 503). A quota code never is.
+The caller sends again only when no content has arrived yet.
+*/
 export function isRetryableStreamFailure(
   failure: RefusalCarrier,
   table: RetryTables = RETRY_TABLES.responses,
@@ -404,11 +410,11 @@ export function isRetryableStreamFailure(
 }
 
 /** The typed view of a refusal-carrying `ModelApiError`. A `streamError`
- * keeps its kind: the provider ended its answer with an error, and only that
- * context says so. Anything else classifies from status, type, code, reason
- * and the provider's words; `parsed: false` ("the body could not be read")
- * travels beside the kind, never as one.
- */
+keeps its kind: the provider ended its answer with an error, and only that
+context says so. Anything else classifies from status, type, code, reason
+and the provider's words; `parsed: false` ("the body could not be read")
+travels beside the kind, never as one.
+*/
 export function refusalOf(error: RefusalCarrier & { readonly parsed?: boolean }): ProviderRefusal {
   const kind =
     error.kind === 'streamError'
@@ -482,23 +488,23 @@ const anthropicErrorCodeOf = (error: Record<string, unknown>): string | undefine
 }
 
 /** A field of the error's `metadata` object (OpenRouter's `error_type` and
- * `limit_source`; https://openrouter.ai/docs/api-reference/errors, read
- * 2026-10-17). */
+`limit_source`; https://openrouter.ai/docs/api-reference/errors, read
+2026-10-17). */
 const metadataTextOf = (error: Record<string, unknown>, field: string): string | undefined =>
   textOf(recordOf(error['metadata'])?.[field])
 
 /**
- * One extractor that reads an error body by what it IS, used by every wire
- * format and never chosen by a vendor's name (round 2, finding 2):
- * an `error` object with a message; an `error` string (xAI's flat envelope,
- * Ollama); a top-level `message` with `type` and `code` beside it (Mistral's
- * unknown-model answer); a `detail` string (Mistral's bad-key answer);
- * Google's `status` and `details[].reason` ride along when present, as do a
- * `metadata.error_type` (the type, where no other is given) and a
- * `metadata.limit_source` (the reason, where no other is given). A shape
- * none of them matches is `undefined`: unrecognised, with the status and the
- * first bounded line.
- */
+One extractor that reads an error body by what it IS, used by every wire
+format and never chosen by a vendor's name (round 2, finding 2):
+an `error` object with a message; an `error` string (xAI's flat envelope,
+Ollama); a top-level `message` with `type` and `code` beside it (Mistral's
+unknown-model answer); a `detail` string (Mistral's bad-key answer);
+Google's `status` and `details[].reason` ride along when present, as do a
+`metadata.error_type` (the type, where no other is given) and a
+`metadata.limit_source` (the reason, where no other is given). A shape
+none of them matches is `undefined`: unrecognised, with the status and the
+first bounded line.
+*/
 export function extractRefusalEnvelope(body: unknown): RefusalEnvelope | undefined {
   const root = recordOf(body)
   if (root !== undefined) {
@@ -544,12 +550,12 @@ export function extractRefusalEnvelope(body: unknown): RefusalEnvelope | undefin
 }
 
 /**
- * Every wire format's HTTP error through one function: the provider's status
- * and bounded words with its envelope type/code/reason. An unknown shape
- * carries `parsed: false` with the status and the first bounded line of the
- * body, and classifies by that status like any other answer. Never a product
- * sentence. Each format's parser wraps the result in its own `ModelApiError`.
- */
+Every wire format's HTTP error through one function: the provider's status
+and bounded words with its envelope type/code/reason. An unknown shape
+carries `parsed: false` with the status and the first bounded line of the
+body, and classifies by that status like any other answer. Never a product
+sentence. Each format's parser wraps the result in its own `ModelApiError`.
+*/
 export function parseRefusalError(
   status: number,
   body: unknown,
@@ -580,14 +586,14 @@ export function parseRefusalError(
 }
 
 /**
- * A provider's sentence with the pieces that identify the person's account
- * removed (round 2, finding 5): a masked-key remnant (OpenAI repeats the
- * key's first 8 and last 4 characters, DeepSeek its last 4), a team id (xAI
- * names it) or a user id (OpenRouter sends one). Request ids are provider
- * support's handle and are kept. The person still reads their own provider's
- * full sentence on screen; the stored form (report bundles, and any later
- * sink beyond the screen) carries this instead.
- */
+A provider's sentence with the pieces that identify the person's account
+removed (round 2, finding 5): a masked-key remnant (OpenAI repeats the
+key's first 8 and last 4 characters, DeepSeek its last 4), a team id (xAI
+names it) or a user id (OpenRouter sends one). Request ids are provider
+support's handle and are kept. The person still reads their own provider's
+full sentence on screen; the stored form (report bundles, and any later
+sink beyond the screen) carries this instead.
+*/
 export function scrubRefusalLeak(text: string): string {
   return text
     .replaceAll(/[^\s]*\*{2,}[^\s]*/g, '[key]')
@@ -596,11 +602,11 @@ export function scrubRefusalLeak(text: string): string {
 }
 
 /** One sentence built from the kind: the provider named, what to do, then
- * the provider's own words as theirs, and the provider's request id when its
- * answer carried one (lane PROVERRORS, research anthropic.md §4.1: support
- * asks for it; provider-chosen, never a credential). Read when it runs, so
- * the installed language is the one shown.
- */
+the provider's own words as theirs, and the provider's request id when its
+answer carried one (lane PROVERRORS, research anthropic.md §4.1: support
+asks for it; provider-chosen, never a credential). Read when it runs, so
+the installed language is the one shown.
+*/
 export function refusalSentence(refusal: ProviderRefusal, provider: string): string {
   const sentence = kindSentence(refusal, provider)
   return refusal.requestId === undefined

@@ -40,7 +40,9 @@ function isText(file: MergeVersion): boolean {
   try {
     new TextDecoder('utf-8', { fatal: true }).decode(file.bytes)
     return true
-  } catch {
+  } catch (error) {
+    // Only malformed bytes read as non-text; anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }

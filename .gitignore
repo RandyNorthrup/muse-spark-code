@@ -4,6 +4,7 @@ dist/
 # The macOS dictation helper, compiled by CI's macOS job (native/darwin/build.sh)
 native/darwin/muse-dictate
 native/darwin/muse-dictate-*
+native/darwin/muse-vault-peer*
 
 # dependencies
 node_modules/

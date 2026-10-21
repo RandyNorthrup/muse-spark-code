@@ -50,10 +50,13 @@ export function KpiTiles({
   totals,
   previous,
   metric,
+  plan,
 }: {
   readonly totals: UsageTotals
   readonly previous: UsageTotals
   readonly metric: UsageQuery['metric']
+  /** The meter's own plan name for plan-certainty rows; generic label without it. */
+  readonly plan?: string | undefined
 }) {
   const previousValue = metric === 'cost' ? undefined : metricValue(previous, metric)
   const currentValue = metric === 'cost' ? undefined : metricValue(totals, metric)
@@ -85,8 +88,13 @@ export function KpiTiles({
       <ul className="usage-certainties">
         {totals.costs.map((row) => (
           <li key={row.certainty}>
-            <strong>{certaintyLabel(row.certainty)}</strong>:{' '}
-            {plural(USAGE_TEXT.recordCount, row.records)} · {costText({ ...totals, costs: [row] })}
+            <strong>
+              {plan !== undefined && row.certainty === 'plan'
+                ? plan
+                : certaintyLabel(row.certainty)}
+            </strong>
+            : {plural(USAGE_TEXT.recordCount, row.records)} ·{' '}
+            {costText({ ...totals, costs: [row] })}
             {certaintyNote(row.certainty) === undefined ? null : (
               <p>{certaintyNote(row.certainty)}</p>
             )}

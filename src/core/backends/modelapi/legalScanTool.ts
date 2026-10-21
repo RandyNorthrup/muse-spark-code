@@ -52,11 +52,11 @@ function throwIfCancelled(signal: AbortSignal): void {
 }
 
 /**
- * A `legal_scan` call over an injected scanner: strict arguments (a write, a
- * command, a fix or an install arrives only as an unknown key and is
- * refused), trust rechecked, the signal honoured, and the result validated
- * before its JSON leaves. A throw means the turn stopped, as elsewhere.
- */
+A `legal_scan` call over an injected scanner: strict arguments (a write, a
+command, a fix or an install arrives only as an unknown key and is
+refused), trust rechecked, the signal honoured, and the result validated
+before its JSON leaves. A throw means the turn stopped, as elsewhere.
+*/
 export async function runLegalScanCall(
   args: Readonly<Record<string, unknown>>,
   runner: LegalScanRunner | undefined,

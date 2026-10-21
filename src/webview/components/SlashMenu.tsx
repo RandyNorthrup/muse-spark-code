@@ -16,6 +16,22 @@ export interface SlashMenuProps {
   readonly onHover: (index: number) => void
 }
 
+/** A trailing period does not make a description a different sentence (F69). */
+function bareDescription(text: string): string {
+  return text.trim().replace(/\.$/, '')
+}
+
+/**
+A row's hover tip, unless it only repeats the visible detail (F69): the
+same sentence twice, once seen and once through the description.
+*/
+function slashTip(detail: string | undefined, tip: string | undefined): string | undefined {
+  if (tip === undefined) {
+    return undefined
+  }
+  return detail !== undefined && bareDescription(tip) === bareDescription(detail) ? undefined : tip
+}
+
 export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuProps) {
   // A long list scrolls: it is a Tab stop of its own, so it scrolls from the
   // keyboard too (WCAG 2.1.1), and a click on it leaves the focus in the prompt.
@@ -32,7 +48,7 @@ export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuPr
             <MenuOption
               key={item.name}
               id={slashOptionId(index)}
-              tip={item.tip}
+              tip={slashTip(item.detail, item.tip)}
               isActive={index === activeIndex}
               onHover={() => {
                 onHover(index)

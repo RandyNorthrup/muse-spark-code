@@ -1,6 +1,7 @@
 // Lane A ceilings (M96, PLAN.md D75): the computed ceiling is the lowest of
-// the provider's limit, our hard ceiling and the machine's; a 429 halves the
-// entry's running cap, and quiet intervals recover it step by step.
+// the provider's limit, our hard ceiling (kinds other than engines, D121)
+// and the machine's; a 429 halves the entry's running cap, and quiet
+// intervals recover it step by step.
 
 import { describe, expect, it } from 'vitest'
 import { TEAM_THROTTLE_RECOVER_MS } from '../../src/shared/constants'
@@ -14,7 +15,7 @@ import {
 describe('teamCeilings', () => {
   it('computes the Contributor ceiling from the documented limits: about 9 workers', () => {
     const { rpm, tpm } = metaTeamLimits('contributor')
-    expect({ rpm, tpm }).toEqual({ rpm: 100, tpm: 3_000_000 })
+    expect({ rpm, tpm }).toEqual({ rpm: 150, tpm: 3_000_000 })
     expect(
       computeTeamCeiling({
         kind: 'engine',
@@ -53,7 +54,8 @@ describe('teamCeilings', () => {
     expect(computeTeamCeiling(source)).toBe(12)
     // The machine binds first.
     expect(computeTeamCeiling({ ...source, machineLimit: 4 })).toBe(4)
-    // Our hard ceiling binds a huge provider limit.
+    // Engines carry no hard ceiling of ours (D121): a huge provider limit
+    // leaves the machine's.
     expect(
       computeTeamCeiling({
         ...source,
@@ -61,8 +63,8 @@ describe('teamCeilings', () => {
         providerTpm: 1_000_000_000,
         machineLimit: 64,
       }),
-    ).toBe(20)
-    // A provider that documents nothing leaves 429s to decide: hard, then machine.
+    ).toBe(64)
+    // A provider that documents nothing leaves 429s to decide, then the machine.
     expect(
       computeTeamCeiling({
         kind: 'engine',
@@ -103,16 +105,22 @@ describe('teamCeilings', () => {
   })
 
   it('ceilings are per agent kind: Muse Code sessions and external agents', () => {
-    expect(
-      computeTeamCeiling({
-        kind: 'museCode',
-        providerRpm: undefined,
-        providerTpm: undefined,
-        workerRpm: undefined,
-        workerTpm: undefined,
-        machineLimit: 20,
-      }),
-    ).toBe(4)
+    // Muse Code's documented loaded-session bound, read from the served
+    // version (M-CL 1.4.5): 32 through 1.4.4, 256 from 1.4.5.
+    const museCodeSource = {
+      kind: 'museCode' as const,
+      providerRpm: undefined,
+      providerTpm: undefined,
+      workerRpm: undefined,
+      workerTpm: undefined,
+      machineLimit: 300,
+    }
+    expect(computeTeamCeiling({ ...museCodeSource, museCodeVersion: '1.4.4-R5419.1' })).toBe(32)
+    expect(computeTeamCeiling({ ...museCodeSource, museCodeVersion: '1.4.5' })).toBe(256)
+    expect(computeTeamCeiling({ ...museCodeSource, museCodeVersion: '1.4.9-R6297.1' })).toBe(256)
+    expect(computeTeamCeiling(museCodeSource)).toBe(32)
+    // The machine still binds below the kind's ceiling.
+    expect(computeTeamCeiling({ ...museCodeSource, machineLimit: 20 })).toBe(20)
     expect(
       computeTeamCeiling({
         kind: 'external',

@@ -1,3 +1,4 @@
+import { estimateFailureText } from '../shared/estimateDiagnostic'
 import type { UsdAmount } from '../shared/usdSchema'
 import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
@@ -13,8 +14,12 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
+import type { VoiceCompanion, VoiceCompanionContext } from '../runtime/companion/voiceEntry'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
+import { parseWhatsNewContent } from '../core/whatsNew/whatsNewContent'
+import { whatsNewTextForContent } from '../core/whatsNew/whatsNewText'
 import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
@@ -22,6 +27,7 @@ import { compactReference } from '../shared/cliCommands'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
+import { signInLossFailure } from './signInLoss'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
@@ -47,20 +53,29 @@ import {
 import {
   type AgentHost,
   type AgentSession,
+  isModeKeptError,
+  isPermissionReviewerError,
   isPromptSettledError,
   type ModelSummary,
   type SessionMcpServer,
   type SkillSummary,
   type TurnPart,
+  type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
 import { wireWordForLog } from '../core/logging'
 import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
+import {
+  isLinuxSandboxBlocked,
+  type LinuxSandboxReadiness,
+} from '../core/backends/musecode/sandbox'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
+import { parsePlaybackPrompt } from '../shared/playbackCommand'
+import { playbackTurnText } from '../core/playback/playbackPrompt'
 import {
   ACP_AGENT_NAME,
   ACP_AGENT_TITLE,
@@ -70,26 +85,34 @@ import {
   ACP_QUESTIONS_BUNDLE_FILE,
   ACP_SESSION_LIST_LIMIT,
   type AcpBackendKind,
+  AUTH_REQUIRED_ERROR_KIND,
   type ReportEventKind,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
   SCHEDULE_ACP_RELEASE_TIMEOUT_MS,
-  MAX_ATTACHMENTS_PER_MESSAGE,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  SANDBOX_CANNOT_START_MODEL_NOTE,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
+  WHATS_NEW_CONTENT_FILE,
 } from '../shared/constants'
+import { isCredentialStoreDown } from '../host/auth/credentialStore'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
+import { MediaRefusal } from './media'
+import { UserRefusalError } from '../shared/refusal'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
+import { sessionTitle } from '../shared/sessions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
   availablePermissionModes,
+  composerModeForApprovalMode,
+  mspStartPermissionProfile,
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
@@ -108,6 +131,8 @@ import {
   isAccountSwitchRefusedError,
   type AccountsSessionPort,
 } from './accounts'
+import { isInvalidProvidersFileError } from './accountText'
+import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -122,6 +147,7 @@ import {
   permissionOptions,
   permissionResponse,
   planEntries,
+  PART_SEPARATOR,
   promptParts,
   UpdateTranslator,
 } from './translate'
@@ -138,24 +164,43 @@ const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 /** Whether the backend can start a session now, and what the user must do if not. */
 export type BackendReadiness =
   | { readonly state: 'ready' }
-  | { readonly state: 'signedOut'; readonly message: string }
+  | {
+      readonly state: 'signedOut'
+      readonly message: string
+      /**
+      The credential store itself cannot be read, so no stored key could
+      be checked. A session may still open: only a step that needs a
+      stored key refuses, in this message's words.
+      */
+      readonly storeDown?: true
+    }
   | { readonly state: 'unavailable'; readonly message: string }
 
 /** The backend the agent was started on (the runtime builds it, D62). */
 export interface AcpBackend {
   readonly kind: AcpBackendKind
   /** `isRecheck`: the user says they signed in, so nothing said before counts (`authenticate`). */
-  readonly readiness: (isRecheck: boolean) => Promise<BackendReadiness>
+  readonly readiness: (isRecheck: boolean, modelHint?: string) => Promise<BackendReadiness>
   /** The host for a folder, started on first use. */
   readonly hostFor: (cwd: string) => Promise<AgentHost>
+  /**
+  What the Linux capability probe measured (F91); absent where it does
+  not apply, while no host has started, or where the backend predates it.
+  */
+  readonly shellSandboxReadiness?: (cwd: string) => LinuxSandboxReadiness | undefined
 }
 
 export interface AcpAgentOptions {
   /** Bypass permissions is offered (`--allow-dangerously-skip-permissions`). */
   readonly canBypass: boolean
-  /** Contributor-tier models are listed (`--allow-contributor-models`). */
+  /**
+  Contributor-tier models are listed, and a named contributor-tier id is
+  attempted even when the CLI's catalogue omits it
+  (`--allow-contributor-models`).
+  */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
+  readonly initialModelId?: string
   readonly questionsDeferAfterSeconds?: number
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
@@ -191,6 +236,9 @@ export interface AcpAgentDeps {
   readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
+  readonly dictation?: (context: VoiceCompanionContext) => Promise<VoiceCompanion>
+  /** The account upload ledger, required lazily on the local /uploads command. */
+  readonly uploads?: AcpUploadsPort
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly schedules?: AcpSchedulePort
@@ -221,15 +269,15 @@ export interface AcpAgentDeps {
   /** W's lazy runtime binding; absent media entry points refuse before dispatch. */
   readonly media?: AcpMediaFactory
   /**
-   * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
-   * for the standalone report's journal. The runtime wires this to its local
-   * recorder adapter in ACP mode; the report subcommand reads it back. The
-   * observer receives a fixed event kind and a fixed short code per failure
-   * site — never a message, stack, path, prompt or session id — so observing
-   * cannot leak what the scrub would remove. It runs after the log call,
-   * never touches ACP stdout, and a throwing observer never breaks the
-   * session. Absent, the agent behaves exactly as before.
-   */
+  Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
+  for the standalone report's journal. The runtime wires this to its local
+  recorder adapter in ACP mode; the report subcommand reads it back. The
+  observer receives a fixed event kind and a fixed short code per failure
+  site — never a message, stack, path, prompt or session id — so observing
+  cannot leak what the scrub would remove. It runs after the log call,
+  never touches ACP stdout, and a throwing observer never breaks the
+  session. Absent, the agent behaves exactly as before.
+  */
   readonly reportError?: (fact: AcpErrorFact) => void
   /** M113's lazy deterministic engine, scoped to this session's workspace. */
   readonly reports?: AcpReportsPort
@@ -296,6 +344,14 @@ function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
 }
 
+/**
+The bundle loader's refusal: the legal scanner that could not load (its
+cause stays in the log). Only this failure says the scan could not run.
+*/
+export function isLegalScanUnavailable(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.legalScanUnavailable
+}
+
 function accountRequestError(error: unknown): RequestError {
   // A refused switch is user-actionable (the session kept its account), not
   // an internal failure: answer invalidRequest with the stay-put text.
@@ -307,19 +363,118 @@ function accountRequestError(error: unknown): RequestError {
     : RequestError.internalError(undefined, text)
 }
 
-/** The model a new session starts on: the backend's default, else the first listed. */
-function startingModel(models: readonly ModelSummary[]): string {
-  const model = models.find((candidate) => candidate.isDefault) ?? models[0]
+/**
+Configured provider defaults never fall through to another model. The
+default is the backend's, else the first listed — among models that can
+run the coding agent (F83). A limited model starts a session only when
+nothing usable is listed, where its first turn is refused with the
+limit's own sentence.
+*/
+function startingModel(
+  models: readonly ModelSummary[],
+  requested?: string,
+  isStrict = false,
+): string {
+  if (requested !== undefined) {
+    const matches = models.filter(
+      (model) =>
+        model.modelId === requested ||
+        model.modelId.slice(model.modelId.indexOf('/') + 1) === requested,
+    )
+    if (matches.length === 1 && matches[0] !== undefined) return matches[0].modelId
+    // D4: an unknown model names what runs instead of one generic sentence.
+    // The provider-aware sentences live in runExec's pre-session check; the
+    // session backstop names this backend's models for any unmatched ref.
+    throw RequestError.invalidParams(
+      undefined,
+      fill(UI_TEXT.execModelAvailable, {
+        model: requested,
+        available: models.map((model) => model.modelId).join(', '),
+      }),
+    )
+  }
+  const usable = models.filter((candidate) => candidate.agentLimit === undefined)
+  const pool = usable.length > 0 ? usable : models
+  const model =
+    pool.find((candidate) => candidate.isDefault && candidate.modelId.includes('/')) ??
+    pool.find((candidate) => candidate.isDefault) ??
+    (isStrict ? undefined : pool[0])
   if (model === undefined) {
-    throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+    if (pool.length === 0) throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+    throw RequestError.invalidParams(
+      undefined,
+      `${UI_TEXT.execProviderModelRequired}: ${models.map((candidate) => candidate.modelId).join(', ')}`,
+    )
   }
   return model.modelId
 }
 
-/** The default effort where the model serves it, else the nearest tier it has. */
-function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
-  const levels = effortLevelsFor(modelId)
-  return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
+/** The tiers a model serves: its own list where the backend knows it. */
+export function modelEffortLevels(
+  models: readonly ModelSummary[],
+  modelId: string,
+): readonly EffortLevel[] {
+  return effortLevelsFor(modelId, models.find((model) => model.modelId === modelId)?.effortLevels)
+}
+
+/**
+The refusal an editor reads for a level the model does not serve: the
+sentence plus the levels it does serve, the same words headless `exec`
+refuses with, so both surfaces name the choice.
+*/
+export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
+  return `${UI_TEXT.execEffortUnavailable} --effort: ${modelEffortLevels(models, modelId).join(', ')}`
+}
+
+/**
+The level a new session selects: the model's own default where the
+backend knows it and serves it, else the standing default (a chosen
+level still wins: applyEffort keeps every tier the model serves).
+*/
+export function defaultEffortFor(
+  models: readonly ModelSummary[],
+  modelId: string,
+  chosen?: EffortLevel,
+): EffortLevel {
+  const summary = models.find((model) => model.modelId === modelId)
+  const levels = effortLevelsFor(modelId, summary?.effortLevels)
+  if (chosen !== undefined && levels.includes(chosen)) return chosen
+  const fallback = summary?.defaultEffort
+  return fallback !== undefined &&
+    effortLevelsFor(modelId, summary?.effortLevels).includes(fallback)
+    ? fallback
+    : DEFAULT_EFFORT
+}
+
+/**
+One announced command per skill. The CLI lists a plugin's lone skill
+twice (the bare plugin name and the self-qualified `name:name` selector
+with the same text), and may repeat a selector. Keep the first entry
+for each exact selector; collapse a self-qualified alias only when its
+bare form reads the same. Distinct selectors with different text stay.
+*/
+export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly SkillSummary[] {
+  const kept: SkillSummary[] = []
+  const seen = new Set<string>()
+  for (const skill of skills) {
+    if (seen.has(skill.selector)) continue
+    seen.add(skill.selector)
+    kept.push(skill)
+  }
+  return kept.filter((skill) => {
+    const separator = skill.selector.indexOf(':')
+    if (separator === -1) return true
+    const plugin = skill.selector.slice(0, separator)
+    if (skill.selector.slice(separator + 1) !== plugin) return true
+    // A self-qualified pair reads once when its bare form reads the same.
+    return kept.every(
+      (other) =>
+        other === skill ||
+        other.selector !== plugin ||
+        other.description !== skill.description ||
+        (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+    )
+  })
 }
 
 /** One ACP session over one AgentSession. */
@@ -340,25 +495,36 @@ class AcpSession {
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
   /**
-   * A prompt before its turn starts, while the session's skills are first
-   * announced: the session is busy, and a cancel ends the prompt there.
-   */
+  A prompt before its turn starts, while the session's skills are first
+  announced: the session is busy, and a cancel ends the prompt there.
+  */
   private legalStop: AbortController | undefined
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
   private hasShownResourcePause = false
+  /** F91: the editor heard once that Muse Code's Linux sandbox cannot start here. */
+  private hasSaidSandboxCannotStart = false
+  /** F91: the model heard once that Muse Code's Linux sandbox cannot start here. */
+  private hasToldModelSandboxCannotStart = false
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
+  private isEffortChosen = false
+  /** The conversation's Fast switch; off by default, reset on model change. */
+  private fast = false
   private modelChangeRevision = 0
   private effortChangeRevision = 0
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
   private vaultGeneration = 0
   private readonly vaultRequests = new Set<AbortController>()
+  private readonly dictationStop = new AbortController()
+  private readonly dictationPages = new Set<VoiceCompanion>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
+  /** The last backend mode command queued: each one runs after the one before it. */
+  private modeOrder: Promise<unknown> = Promise.resolve()
   public readonly sessionId: string
 
   public constructor(
@@ -390,13 +556,21 @@ class AcpSession {
             clock: questionClock,
             deliver: (message) => this.getQuestions().deliver(message),
           })
-    this.translator = new UpdateTranslator(cwd, false)
+    this.translator = new UpdateTranslator(
+      cwd,
+      false,
+      undefined,
+      'museCode',
+      clientCapabilities.session?.notices != null,
+    )
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
-      const updates = acpResourceUpdates(notice)
+      const updates = acpResourceUpdates(notice, this.areNoticesSupported)
       const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
       for (const update of updates) {
         if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'agent_message_chunk')
           update.content = { type: 'text', text: resourceStatusText(notice.status) }
+        if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'notice')
+          update.title = resourceStatusText(notice.status)
         this.send(update)
       }
       if (isPause) this.hasShownResourcePause = true
@@ -416,11 +590,24 @@ class AcpSession {
               })
             },
             (text, event) => {
-              this.send({
-                sessionUpdate: 'agent_message_chunk',
-                _meta: { accountNotice: event },
-                content: { type: 'text', text },
-              })
+              // An account swap or stop is the app's own status, never the
+              // model's words: its own notice where the client can show
+              // one, the agent-message fallback otherwise (F82's class).
+              // The structured event rides `_meta` either way.
+              this.send(
+                this.areNoticesSupported
+                  ? {
+                      sessionUpdate: 'notice',
+                      severity: event.type === 'stop' ? 'warning' : 'info',
+                      title: text,
+                      _meta: { accountNotice: event },
+                    }
+                  : {
+                      sessionUpdate: 'agent_message_chunk',
+                      _meta: { accountNotice: event },
+                      content: { type: 'text', text },
+                    },
+              )
             },
           )
   }
@@ -471,6 +658,11 @@ class AcpSession {
     return preparing.isCancelled || this.isDisposed
   }
 
+  /** The client advertised `session.notices`: app statuses go out as notices. */
+  private get areNoticesSupported(): boolean {
+    return this.clientCapabilities.session?.notices != null
+  }
+
   /** Queues an update behind the ones before it: the client sees them in order. */
   private send(update: SessionUpdate): void {
     this.outbox = this.deliver(this.outbox, update)
@@ -491,6 +683,64 @@ class AcpSession {
       )
       observeError(this.deps, 'updateNotSent')
     }
+  }
+
+  /**
+  `/playback` answered as usage (D203): with anything after it, or
+  anything beside it — a playback takes no arguments, and nothing it
+  came with may run as an ordinary turn with tools.
+  */
+  private async answerPlaybackUsage(preparing: PreparingPrompt): Promise<'cancelled' | 'end_turn'> {
+    await this.announceCommands()
+    if ('error' in preparing) throw preparing.error
+    if (!preparing.isCancelled)
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.playbackUsage },
+      })
+    await this.outbox
+    return preparing.isCancelled ? 'cancelled' : 'end_turn'
+  }
+
+  /**
+  A `/playback` turn (D203): the backend's own no-tools turn, which
+  refuses every call in code. A backend with none (Muse Code: MSP is
+  select-never-create, and no approval mode denies reads, let alone the
+  file tools' edits) cannot run one, so the playback is refused instead
+  of sent as an ordinary turn a reactive stop might reach too late.
+  */
+  private startPlaybackTurn(): Promise<TurnSubmission> {
+    // Refused while a turn runs (one a resumed session carries, say), as the
+    // panel refuses it.
+    if (this.activeTurnId !== undefined) {
+      return Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackBusy))
+    }
+    const parts: readonly TurnPart[] = [{ type: 'text', text: playbackTurnText() }]
+    const display = `/${SLASH_COMMAND_NAMES.playback}`
+    const playback = this.session.playback
+    return playback === undefined
+      ? Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackNeedsModelApi))
+      : playback.call(this.session, parts, display)
+  }
+
+  /**
+  One backend mode command, run after the ones queued before it: the
+  Plan hold, its restore and the client's `session/set_mode` never
+  overlap, so a restore cannot land after a newer selection, and it reads
+  the mode to put back when it runs. The latest explicit choice stays.
+  */
+  private async inModeOrder<T>(command: () => Promise<T>): Promise<T> {
+    const previous = this.modeOrder
+    const next = (async () => {
+      try {
+        await previous
+      } catch {
+        // The command before this one answered its own caller with its failure.
+      }
+      return await command()
+    })()
+    this.modeOrder = next
+    return await next
   }
 
   /** `/selector arguments` naming one of the session's skills runs that skill, as in the panel. */
@@ -544,6 +794,7 @@ class AcpSession {
         ?.commands()
         .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
       { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+      { name: 'whatsnew', description: UI_TEXT.paletteTips.whatsNew, input: null },
       ...(this.deps.vault === undefined
         ? []
         : [
@@ -557,6 +808,11 @@ class AcpSession {
         ? []
         : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
       { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+      {
+        name: SLASH_COMMAND_NAMES.playback,
+        description: UI_TEXT.playbackDetail,
+        input: null,
+      },
       {
         name: SLASH_COMMAND_NAMES.report,
         description: UI_TEXT.reportSlashDescription,
@@ -572,6 +828,18 @@ class AcpSession {
               name: 'usage',
               description: UI_TEXT.acpUsageDescription,
               input: null,
+            },
+          ]),
+      ...(this.deps.dictation === undefined
+        ? []
+        : [{ name: 'dictate', description: UI_TEXT.companionVoiceOpen, input: null }]),
+      ...(this.deps.uploads === undefined
+        ? []
+        : [
+            {
+              name: 'uploads',
+              description: UI_TEXT.media.uploadsDescription,
+              input: { hint: UI_TEXT.media.uploadsUsage },
             },
           ]),
       ...(this.deps.resources === undefined
@@ -621,11 +889,12 @@ class AcpSession {
               input: { hint: UI_TEXT.estimateUsage },
             },
           ]),
-      ...this.skills
+      ...dedupeSkillSelectors(this.skills)
         .filter(
           (skill) =>
             skill.selector !== SLASH_COMMAND_NAMES.help &&
             skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+            skill.selector !== SLASH_COMMAND_NAMES.playback &&
             skill.selector !== ACP_COMPACT_COMMAND &&
             skill.selector !== 'legal' &&
             ![
@@ -640,6 +909,8 @@ class AcpSession {
               'record',
               'accounts',
               'vault',
+              'whatsnew',
+              'uploads',
             ].includes(skill.selector) &&
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
               skill.selector !== 'usage') &&
@@ -674,6 +945,61 @@ class AcpSession {
     return this.media
   }
 
+  /** The local /uploads command over the account ledger; other text falls through. */
+  private async uploadsCommand(
+    blocks: readonly ContentBlock[],
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const [first] = blocks
+    if (blocks.length !== 1 || first?.type !== 'text') return false
+    signal.throwIfAborted()
+    const outcome = await runUploadsCommand(first.text, {
+      files: this.deps.uploads,
+      send: (text) => {
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      },
+      signal,
+      confirmForeign: (name) => this.confirmUploadForeignDeletion(name, signal),
+    })
+    return outcome === 'handled'
+  }
+
+  /**
+  A foreign file's confirmation (PLAN D85.2): the ACP permission request
+  exactly where VS Code asks with its modal dialog. Refused, failed or
+  cancelled keeps the file.
+  */
+  private async confirmUploadForeignDeletion(name: string, signal: AbortSignal): Promise<boolean> {
+    try {
+      const response = permissionResponse(
+        await unlessAborted(
+          this.client.request('session/request_permission', {
+            sessionId: this.sessionId,
+            toolCall: {
+              toolCallId: `uploads-foreign-${randomUUID()}`,
+              title: fill(UI_TEXT.media.otherAppFileConfirmation, { name }),
+              kind: 'other',
+              status: 'pending',
+              content: [],
+              locations: [],
+            },
+            options: [
+              { optionId: 'uploads-foreign-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+              { optionId: 'uploads-foreign-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+            ],
+          }),
+          signal,
+        ),
+      )
+      return (
+        response.outcome.outcome === 'selected' &&
+        response.outcome.optionId === 'uploads-foreign-allow'
+      )
+    } catch {
+      return false
+    }
+  }
+
   private async mediaCommand(
     blocks: readonly ContentBlock[],
     signal: AbortSignal,
@@ -690,8 +1016,8 @@ class AcpSession {
       if (isRecord) throw RequestError.invalidParams(undefined, UI_TEXT.media.recordingUserOnly)
       throw RequestError.invalidParams(undefined, UI_TEXT.media.attachHeadless)
     }
-    if (this.attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE)
-      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentLimit)
+    // D121: no attach count of ours — any number of attachments is held;
+    // the transports' frame validity and the send path answer for the rest.
     const given = attach?.[1]?.trim()
     if (!isRecord && (given === undefined || given === ''))
       throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
@@ -702,10 +1028,13 @@ class AcpSession {
       attachment = isRecord ? await port.record(signal) : await port.attach(given ?? '', signal)
     } catch (error: unknown) {
       if (signal.aborted) throw error
-      throw RequestError.invalidParams(
-        undefined,
-        error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
-      )
+      // Refusals name themselves in UI sentences (answered as written); a
+      // refusal the user chose names itself too. Anything else answers
+      // unreadable, never in its own words.
+      if (error instanceof MediaRefusal) throw RequestError.invalidParams(undefined, error.message)
+      if (error instanceof UserRefusalError)
+        throw RequestError.invalidParams(undefined, error.message)
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
     }
     if (attachment === undefined) return true
     if (signal.aborted || this.isDisposed) {
@@ -831,6 +1160,14 @@ class AcpSession {
         }
         return
       }
+      case 'itemStarted':
+      case 'itemUpdated':
+      case 'itemCompleted': {
+        for (const update of this.translator.updates(event)) {
+          this.send(update)
+        }
+        return
+      }
       default: {
         for (const update of this.translator.updates(event)) {
           this.send(update)
@@ -862,8 +1199,11 @@ class AcpSession {
       try {
         await this.questionRegistry?.commitQueued(lease.token)
         if (!this.isDisposed) this.getQuestions().sentQueued()
-      } catch {
+      } catch (error: unknown) {
         // The model is still running: retain pending so another prompt is busy.
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: queued commit failed, retaining pending: ${failureForLog(error)}`,
+        )
         pending.reject(RequestError.internalError(undefined, UI_TEXT.questionQueueCommitFailed))
       }
     })()
@@ -928,12 +1268,38 @@ class AcpSession {
       return
     }
     if (event.terminal === FAILED_TERMINAL) {
+      // A restarted backend whose replacement lost the sign-in says so
+      // loudly (F94): an `authRequired` turn names the restart and the way
+      // back, instead of failing as just another turn.
+      const restartCause =
+        event.errorKind === AUTH_REQUIRED_ERROR_KIND ? this.host.peekRestartCause?.() : undefined
+      const loud =
+        restartCause === undefined
+          ? undefined
+          : signInLossFailure({
+              errorKind: event.errorKind,
+              reason: event.reason,
+              restartCause,
+            })
+      if (loud !== undefined && restartCause !== undefined) {
+        // The loud words go to the client, never to the log as sent: they
+        // carry the turn's reason, which is text the CLI chose (AGENTS.md
+        // rule 8, as `markAuthRequired` logs only a protocol word).
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: sign-in lost across a backend restart (${restartCause})`,
+        )
+        pending.reject(loud)
+        return
+      }
       pending.reject(
         RequestError.internalError(undefined, event.reason ?? event.errorKind ?? event.terminal),
       )
       return
     }
-    pending.resolve('end_turn')
+    // A turn that ran to completion proves the host: no later failure blames
+    // the restart this host replaced.
+    this.host.clearRestartCause?.()
+    pending.resolve(event.errorKind === 'max_turn_requests' ? 'max_turn_requests' : 'end_turn')
   }
 
   private async askPermission(event: ApprovalRequest): Promise<void> {
@@ -1015,20 +1381,40 @@ class AcpSession {
         requirementId: settled.requirementId,
       })
     } catch (error: unknown) {
-      const level = isPromptSettledError(error) ? 'info' : 'warn'
-      this.deps.log[level](
-        `ACP session ${this.sessionId}: approval ${settled.approvalId}: ${failureForLog(error)}`,
-      )
+      // A settled approval the session already forgot is routine; anything
+      // else warns. Both log the redacted failure, never its text.
+      const message = `ACP session ${this.sessionId}: approval ${settled.approvalId}: ${failureForLog(error)}`
+      if (isPromptSettledError(error)) this.deps.log.info(message)
+      else this.deps.log.warn(message)
     }
   }
 
   /**
-   * An MCP server's elicitation form (M91 lane M) through the client's own
-   * form path: the client's answer settles the session's form, validated
-   * against the server's schema there. Without forms the turn carries on
-   * and the request is cancelled; a failed form cancels it too, never
-   * answering by a guess.
-   */
+  Cancels a failed form when the turn still owns it; an already-settled
+  form stays settled, never surfacing the client's error text.
+  */
+  private async cancelElicitation(
+    pending: PendingPrompt | undefined,
+    elicitationId: string,
+  ): Promise<void> {
+    if (this.isCurrentPrompt(pending)) {
+      try {
+        await this.session.settleElicitation?.call(this.session, elicitationId, {
+          kind: 'cancelled',
+        })
+      } catch {
+        this.deps.log.info('ACP elicitation was already settled')
+      }
+    }
+  }
+
+  /**
+  An MCP server's elicitation form (M91 lane M) through the client's own
+  form path: the client's answer settles the session's form, validated
+  against the server's schema there. Without forms the turn carries on
+  and the request is cancelled; a failed form cancels it too, never
+  answering by a guess.
+  */
   private async askElicitation(event: ElicitationRequest): Promise<void> {
     const pending = this.pending
     const settle = this.session.settleElicitation
@@ -1059,9 +1445,12 @@ class AcpSession {
               kind: 'accepted',
               values: { ...parsed.content },
             })
-          } catch {
+          } catch (error: unknown) {
             // The session refused the content: cancel instead of hanging
             // on a form nobody else will answer.
+            this.deps.log.warn(
+              `ACP session ${this.sessionId}: elicitation ${event.elicitationId} not accepted: ${failureForLog(error)}`,
+            )
             if (this.isCurrentPrompt(pending)) {
               await settle.call(this.session, event.elicitationId, { kind: 'cancelled' })
             }
@@ -1085,13 +1474,7 @@ class AcpSession {
     } catch {
       this.deps.log.warn(`ACP session ${this.sessionId}: elicitation ${event.elicitationId} failed`)
       // A form that failed is cancelled, so the tool call goes on without the answer.
-      if (this.isCurrentPrompt(pending)) {
-        try {
-          await settle?.call(this.session, event.elicitationId, { kind: 'cancelled' })
-        } catch {
-          this.deps.log.info('ACP elicitation was already settled')
-        }
-      }
+      await this.cancelElicitation(pending, event.elicitationId)
     }
   }
 
@@ -1124,17 +1507,66 @@ class AcpSession {
     this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
 
+  /** Whether the probe measured at host start that Muse Code's Linux sandbox cannot start here. */
+  private sandboxCannotStart(): boolean {
+    return (
+      this.deps.backend.kind === 'museCode' &&
+      isLinuxSandboxBlocked(this.deps.backend.shellSandboxReadiness?.(this.cwd))
+    )
+  }
+
+  /**
+  F91: the model hears it once, at the tail, so a failing read-only
+  command never reads as a dead shell. Earlier request bytes are
+  untouched: this part is appended, never spliced into what came before.
+  The told-flag flips only after an accepted submission at the call site:
+  a send that fails or is cancelled before reaching Muse Code must not
+  silence every later turn.
+  */
+  private sandboxModelNote(): readonly TurnPart[] {
+    return this.hasToldModelSandboxCannotStart || !this.sandboxCannotStart()
+      ? []
+      : [{ type: 'text', text: SANDBOX_CANNOT_START_MODEL_NOTE }]
+  }
+
   private isCurrentReport(preparing: PreparingPrompt): boolean {
     return this.preparing === preparing && !preparing.isCancelled && !this.isDisposed
   }
 
   /**
-   * A session let go changes nothing more on the backend, which a newer
-   * load may now hold, and replays nothing: the request fails instead.
-   */
+  A session let go changes nothing more on the backend, which a newer
+  load may now hold, and replays nothing: the request fails instead.
+  */
   private ensureHeld(): void {
     if (this.isDisposed) {
       throw RequestError.resourceNotFound(this.sessionId)
+    }
+  }
+
+  /**
+  Show the wire mode a refused mode change names (GRV251D): the editor is
+  told the mode the host runs. Nothing is published when no editor mode
+  selects it; the throw still carries the error's own true sentence.
+  */
+  private async showRunningMode(
+    error: { actualMode: string },
+    preferred: PermissionMode,
+  ): Promise<void> {
+    const shown = composerModeForApprovalMode(error.actualMode, preferred, true)
+    if (shown === undefined) return
+    this.mode = shown
+    this.send({ sessionUpdate: 'current_mode_update', currentModeId: shown })
+    await this.outbox
+  }
+
+  /** A load or resume runs on the remembered mode: a refusal names the host's instead. */
+  private async syncRememberedMode(): Promise<void> {
+    try {
+      await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    } catch (error: unknown) {
+      if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
+      await this.showRunningMode(error, this.mode)
+      throw error
     }
   }
 
@@ -1170,25 +1602,30 @@ class AcpSession {
     const preparing: PreparingPrompt = { isCancelled: false, abort: stop }
     this.legalStop = stop
     this.preparing = preparing
+    let text: string
     try {
-      const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
+      text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
         const response = permissionResponse(
           await unlessAborted(
-            this.client.request('session/request_permission', {
-              sessionId: this.sessionId,
-              toolCall: {
-                toolCallId: 'legal-registry-notice',
-                title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
-                kind: 'other',
-                status: 'pending',
-                content: [],
-                locations: [],
+            this.client.request(
+              'session/request_permission',
+              {
+                sessionId: this.sessionId,
+                toolCall: {
+                  toolCallId: 'legal-registry-notice',
+                  title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+                  kind: 'other',
+                  status: 'pending',
+                  content: [],
+                  locations: [],
+                },
+                options: [
+                  { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+                  { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+                ],
               },
-              options: [
-                { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
-                { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-              ],
-            }),
+              { cancellationSignal: stop.signal },
+            ),
             stop.signal,
           ),
         )
@@ -1197,16 +1634,43 @@ class AcpSession {
           response.outcome.optionId === 'legal-registry-allow'
         )
       })
-      if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
-      this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
-      await this.outbox
-      return 'end_turn'
-    } catch {
+    } catch (error: unknown) {
       if (stop.signal.aborted) return 'cancelled'
-      throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      // Only the scanner failing to load says it could not be loaded: the
+      // bundle loader's contract throws exactly `legalScanUnavailable` (the
+      // log has the cause). A failing scan, a refused permission prompt or a
+      // lost update carries its own cause instead.
+      if (isLegalScanUnavailable(error))
+        throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      throw error
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
+    }
+    if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    await this.outbox
+    return 'end_turn'
+  }
+
+  /**
+  What's New in another editor (M99): this version's release notes as
+  text, read from the package's own content file beside the agent bundle
+  and checked before use. A missing or unreadable file is logged with its
+  path and answered with the generic failure, never an empty success.
+  */
+  private whatsNewText(): string {
+    const file = path.join(__dirname, WHATS_NEW_CONTENT_FILE)
+    try {
+      return whatsNewTextForContent(
+        parseWhatsNewContent(readFileSync(file, 'utf8')),
+        this.deps.version,
+      )
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: What's New unavailable: ${failureForLog(error)} (${file})`,
+      )
+      return UI_TEXT.actionFailed
     }
   }
 
@@ -1215,6 +1679,73 @@ class AcpSession {
     preparing: PreparingPrompt,
   ): Promise<boolean> {
     const [block] = blocks
+    if (
+      this.deps.dictation !== undefined &&
+      blocks.length === 1 &&
+      block?.type === 'text' &&
+      block.text.trim() === '/dictate'
+    ) {
+      const page = await this.deps.dictation({
+        cwd: this.cwd,
+        signal: this.dictationStop.signal,
+        isCurrent: () => !this.isDisposed,
+        askPaid: async (title, detail, canRemember, signal) =>
+          await this.askPaidQuestion(title, detail, canRemember, () => !this.isDisposed, signal),
+        send: async (text, signal) => {
+          signal.throwIfAborted()
+          if (
+            this.isDisposed ||
+            this.preparing !== undefined ||
+            this.pending !== undefined ||
+            this.activeTurnId !== undefined
+          )
+            throw new Error('EVOICE_BUSY')
+          let accept!: () => void
+          // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Host type project targets Node 20; the resolver is assigned synchronously (PLAN.md §8).
+          const accepted = new Promise<void>((resolve) => {
+            accept = resolve
+          })
+          const abort = () => {
+            this.cancelPreparing()
+            void this.cancelTurn()
+          }
+          signal.addEventListener('abort', abort, { once: true })
+          const running = this.prompt([{ type: 'text', text }], accept)
+          // A sent ACP turn outlives the companion's HTTP admission request.
+          void running.catch(() => {
+            this.deps.log.warn('Companion ACP prompt failed')
+          })
+          try {
+            const admitted = (async (): Promise<StopReason | 'admitted'> => {
+              await accepted
+              return 'admitted'
+            })()
+            const outcome = await Promise.race([admitted, running])
+            signal.throwIfAborted()
+            // A preparation cancelled before admission starts no backend
+            // turn: report nothing sent, so the browser keeps the reviewed
+            // text for retry. A local outcome counts as sent.
+            if (outcome === 'cancelled') throw new Error('EVOICE_NOT_SENT')
+            this.send({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text } })
+          } finally {
+            signal.removeEventListener('abort', abort)
+          }
+        },
+      })
+      if (!this.canReplyUsage(preparing)) {
+        await page.close()
+        return true
+      }
+      this.dictationPages.add(page)
+      void page.closed.then(() => {
+        this.dictationPages.delete(page)
+      })
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: `[${UI_TEXT.companionVoiceOpen}](${page.launchUrl()})` },
+      })
+      return true
+    }
     const usage = this.deps.usage
     if (
       usage === undefined ||
@@ -1251,10 +1782,10 @@ class AcpSession {
   }
 
   /**
-   * The question before a paid use (M58, PLAN.md D48): a row naming what is
-   * about to be billed and its price, and a permission prompt on it with the
-   * popup's answers. Anything but Allow once or Allow always is Deny.
-   */
+  The question before a paid use (M58, PLAN.md D48): a row naming what is
+  about to be billed and its price, and a permission prompt on it with the
+  popup's answers. Anything but Allow once or Allow always is Deny.
+  */
   private async agentCommand(line: string, preparing: PreparingPrompt): Promise<string> {
     const isCancelled = () => preparing.isCancelled
     const [, action, id, ...extra] = line.split(/\s+/)
@@ -1294,24 +1825,35 @@ class AcpSession {
       return `${UI_TEXT.agentReceipt}\n${agentStateText({ status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence }, Date.now())}\n${JSON.stringify({ ...receipt, attempts: agent.agentEvidence?.attempts ?? [] }, undefined, 2)}`
     }
     const title = action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry
-    const response = permissionResponse(
-      await this.client.request('session/request_permission', {
-        sessionId: this.sessionId,
-        toolCall: {
-          toolCallId: randomUUID(),
-          title: fill(UI_TEXT.agentRecoveryConfirm, {
-            action: title,
-            objective: agent.objective ?? id,
-          }),
-          kind: 'other',
-          status: 'pending',
-        },
-        options: [
-          { optionId: 'recover', name: title, kind: 'allow_once' },
-          { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-        ],
-      }),
-    )
+    let response: RequestPermissionResponse
+    try {
+      response = permissionResponse(
+        await this.client.request(
+          'session/request_permission',
+          {
+            sessionId: this.sessionId,
+            toolCall: {
+              toolCallId: randomUUID(),
+              title: fill(UI_TEXT.agentRecoveryConfirm, {
+                action: title,
+                objective: agent.objective ?? id,
+              }),
+              kind: 'other',
+              status: 'pending',
+            },
+            options: [
+              { optionId: 'recover', name: title, kind: 'allow_once' },
+              { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+            ],
+          },
+          { cancellationSignal: preparing.abort.signal },
+        ),
+      )
+    } catch (error: unknown) {
+      // A cancelled preparation's withdrawn prompt is a denial, not a failure.
+      if (!isCancelled()) throw error
+      response = permissionResponse({ outcome: { outcome: 'cancelled' } })
+    }
     this.ensureHeld()
     if (
       isCancelled() ||
@@ -1326,12 +1868,20 @@ class AcpSession {
     if (isCancelled()) return UI_TEXT.paidDeny
     if (current === undefined || recoveryStamp(current) !== recoveryStamp(agent))
       return UI_TEXT.agentContinueUnavailable
+    // A listed entry with no subagent behind it (a background tool call, a
+    // workflow child) is not a missing backend checkpoint: it has nothing to retry.
     if (agent.subagentId === undefined)
-      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+      return action === 'retry' ? UI_TEXT.agentRetryNoSubagent : UI_TEXT.agentContinueUnavailable
     try {
       await this.session.controlSubagent(id, action === 'continue' ? 'continue' : 'retry')
-    } catch {
-      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+    } catch (error: unknown) {
+      if (action === 'continue') return UI_TEXT.agentContinueUnavailable
+      // Only the backend with no isolated worktree checkpoint says so (Muse
+      // Code refuses every retry). Any other backend's refusal carries its
+      // own cause: an unknown subagent, or this agent's missing checkpoint.
+      return this.host.info.kind !== 'museCode' && error instanceof Error && error.message !== ''
+        ? error.message
+        : UI_TEXT.agentRetryUnavailable
     }
     const latest = await this.host.readSession(this.sessionId)
     return agentListingText(latest.items, Date.now())
@@ -1348,13 +1898,52 @@ class AcpSession {
     return true
   }
 
-  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
-    const pending = this.pending
-    const preparing = this.preparing
+  /**
+  The conversation's Fast switch: the model's priority tier where the
+  catalogue lists one. Off by default; the description says so and names
+  the tier's own words.
+  */
+  private fastOption(): SessionConfigOption[] {
+    const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
+    if (tier === undefined) return []
+    return [
+      {
+        id: ACP_CONFIG_IDS.fast,
+        name: tier.name,
+        description: fill(UI_TEXT.planUi.fastDetail, { description: tier.description }),
+        category: 'thought_level',
+        type: 'boolean',
+        currentValue: this.fast,
+      },
+    ]
+  }
+
+  /**
+  The effort the model runs: the wanted tier where it serves it, else
+  the model's own default, else the highest tier it serves.
+  */
+  private servedEffort(wanted: EffortLevel): EffortLevel {
+    const levels = modelEffortLevels(this.models, this.modelId)
+    if (levels.includes(wanted)) return wanted
+    const fallback = this.models.find((model) => model.modelId === this.modelId)?.defaultEffort
+    return (
+      (fallback !== undefined && levels.includes(fallback) ? fallback : levels.at(-1)) ??
+      DEFAULT_EFFORT
+    )
+  }
+
+  private async askPaidQuestion(
+    title: string,
+    detail: string,
+    canRemember: boolean,
+    isOwnerCurrent: () => boolean,
+    signal?: AbortSignal,
+    request?: PaidUseRequest,
+  ): Promise<PaidUseAnswer> {
+    const isCurrent = () => !this.isDisposed && signal?.aborted !== true && isOwnerCurrent()
+    if (!isCurrent()) return 'deny'
     // Unique for the client's lifetime: a session loaded again starts afresh.
     const toolCallId = `${ACP_PAID_TOOL_CALL_PREFIX}${randomUUID()}`
-    const { title, detail } = await paidUseQuestion(request)
-    if (!this.isCurrentPaidPrompt(pending, preparing)) return 'deny'
     const content = [{ type: 'content' as const, content: { type: 'text' as const, text: detail } }]
     this.send({
       sessionUpdate: 'tool_call',
@@ -1367,19 +1956,33 @@ class AcpSession {
     let answer: PaidUseAnswer = 'deny'
     try {
       await this.outbox
-      if (!this.isCurrentPaidPrompt(pending, preparing)) {
+      if (!isCurrent()) {
         return 'deny'
       }
       const params: RequestPermissionRequest = {
         sessionId: this.sessionId,
         toolCall: { toolCallId, title, status: 'pending', content },
-        options: paidUseOptions(canRemember),
+        options: paidUseOptions(
+          canRemember,
+          request?.feature === 'scheduledPrompts' && request.schedule !== undefined,
+        ),
       }
-      const response = await this.client.request('session/request_permission', params)
+      // The companion's cancellation also cancels the editor's prompt: a
+      // locally abandoned wait must not leave the editor's question open.
+      const pendingPermission = this.client.request(
+        'session/request_permission',
+        params,
+        signal === undefined ? undefined : { cancellationSignal: signal },
+      )
+      const response =
+        signal === undefined
+          ? await pendingPermission
+          : await unlessAborted(pendingPermission, signal)
       // A session let go while the editor was asked is billed for nothing.
-      answer = this.isCurrentPaidPrompt(pending, preparing)
-        ? paidUseAnswer(permissionResponse(response), canRemember)
-        : 'deny'
+      answer =
+        response !== undefined && isCurrent()
+          ? paidUseAnswer(permissionResponse(response), canRemember)
+          : 'deny'
     } catch (error: unknown) {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: the paid-use question failed, denying: ${failureForLog(error)}`,
@@ -1391,6 +1994,28 @@ class AcpSession {
       status: answer === 'deny' ? 'failed' : 'completed',
     })
     return answer
+  }
+
+  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
+    const pending = this.pending
+    const preparing = this.preparing
+    const { title, detail } = await paidUseQuestion(request)
+    return await this.askPaidQuestion(
+      title,
+      detail,
+      canRemember,
+      () => this.isCurrentPaidPrompt(pending, preparing),
+      undefined,
+      request,
+    )
+  }
+
+  /**
+  An "always" the session's answer gave but the store could not keep: said
+  in the session, after the allowed use, so being asked again is expected.
+  */
+  public notePaidNotKept(text: string): void {
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
 
   public async startAccounts(): Promise<void> {
@@ -1420,10 +2045,10 @@ class AcpSession {
       digest: request.digest,
       decision: 'deny',
     }
+    // No expiry of our own (owner 2026-10-16): the editor's answer or its
+    // loss ends the wait, never an invented kill.
     const isCurrent = () =>
-      this.isCurrentPaidPrompt(pending, preparing) &&
-      generation === this.vaultGeneration &&
-      Date.now() < request.expiresAt
+      this.isCurrentPaidPrompt(pending, preparing) && generation === this.vaultGeneration
     if (!isCurrent()) return deny
     const toolCallId = `vault:${request.id}`
     const content = [
@@ -1442,7 +2067,6 @@ class AcpSession {
     })
     const controller = new AbortController()
     this.vaultRequests.add(controller)
-    let timer: ReturnType<typeof setTimeout> | undefined
     let answer = deny
     try {
       await this.outbox
@@ -1454,12 +2078,6 @@ class AcpSession {
               resolve({ outcome: { outcome: 'cancelled' } })
             },
             { once: true },
-          )
-          timer = setTimeout(
-            () => {
-              controller.abort()
-            },
-            Math.max(1, request.expiresAt - Date.now()),
           )
         })
         const response = await Promise.race([
@@ -1476,10 +2094,13 @@ class AcpSession {
         ])
         if (isCurrent()) answer = vaultPermissionAnswer(request, permissionResponse(response))
       }
-    } catch {
-      /* A lost editor or malformed permission response is Deny, with no remote text logged. */
+    } catch (error: unknown) {
+      // A lost editor or malformed permission response is Deny: the kind is
+      // recorded redacted, never remote text.
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: vault permission fell back to deny: ${failureForLog(error)}`,
+      )
     } finally {
-      clearTimeout(timer)
       controller.abort()
       this.vaultRequests.delete(controller)
       this.send({
@@ -1511,7 +2132,11 @@ class AcpSession {
         category: 'model',
         type: 'select',
         currentValue: this.modelId,
-        options: this.models.map((model) => ({ value: model.modelId, name: model.displayLabel })),
+        options: this.models.map((model) => ({
+          value: model.modelId,
+          name: model.displayLabel,
+          ...(model.agentLimit !== undefined && { description: model.agentLimit }),
+        })),
       },
       {
         id: ACP_CONFIG_IDS.effort,
@@ -1519,32 +2144,37 @@ class AcpSession {
         category: 'thought_level',
         type: 'select',
         currentValue: this.effort,
-        options: effortLevelsFor(this.modelId).map((level) => ({
+        options: modelEffortLevels(this.models, this.modelId).map((level) => ({
           value: level,
           name: effortLabel(level),
         })),
       },
+      ...this.fastOption(),
     ]
   }
 
   /**
-   * A loaded or resumed session made to run as the agent advertises it.
-   * Everything shown comes from the backend's answer or an explicit set,
-   * never from what the handle holds: Muse Code's resumed handle holds the
-   * model the agent asked for, while the CLI keeps the one the session last
-   * ran on. The permission mode shown is set; the model is the one the
-   * backend reports active where the agent lists it, else the default, set
-   * (a contributor model the agent hides is left); the effort shown is set.
-   */
+  A loaded or resumed session made to run as the agent advertises it.
+  Everything shown comes from the backend's answer or an explicit set,
+  never from what the handle holds: Muse Code's resumed handle holds the
+  model the agent asked for, while the CLI keeps the one the session last
+  ran on. The permission mode shown is set; the model is the one the
+  backend reports active where the agent lists it, else the default, set
+  (a contributor model the agent hides is left); the effort shown is set.
+  */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.syncRememberedMode())
     const reported = await this.host.listModels(this.sessionId)
     const active = reported.find((model) => model.isActive)
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
       this.modelId = active.modelId
     } else {
-      const listed = startingModel(this.models)
+      const listed = startingModel(
+        this.models,
+        this.deps.backend.kind === 'modelApi' ? this.modelId : undefined,
+        this.deps.backend.kind === 'modelApi',
+      )
       this.ensureHeld()
       await this.session.setModel(listed)
       this.modelId = listed
@@ -1554,31 +2184,45 @@ class AcpSession {
 
   /** The session's standing effort, as the panel sets it on a new session. */
   public async applyEffort(effort: EffortLevel): Promise<void> {
-    const served = servedEffort(this.modelId, effort)
+    const served = this.servedEffort(effort)
     this.ensureHeld()
     const revision = this.effortChangeRevision
-    await this.session.setReasoningEffort(effortForThinking(served, true))
+    if (
+      effortLevelsFor(
+        this.modelId,
+        this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+      ).length > 0
+    )
+      await this.session.setReasoningEffort(effortForThinking(served, true))
     if (this.effortChangeRevision === revision) {
       this.effort = served
     }
   }
 
   /** The model and effort the editor chose for this session, for a later load. */
-  public currentChoice(): { readonly modelId: string; readonly effort: EffortLevel } {
-    return { modelId: this.modelId, effort: this.effort }
+  public currentChoice(): {
+    readonly modelId: string
+    readonly effort: EffortLevel
+    readonly isEffortChosen: boolean
+  } {
+    return { modelId: this.modelId, effort: this.effort, isEffortChosen: this.isEffortChosen }
   }
 
   /**
-   * A loaded session made to run on the remembered choice (restart
-   * recovery): `session/resume` takes no model, so the choice is applied
-   * with `session/setModel` and read back with `model/list` before anything
-   * is replayed or run. What the editor is shown comes from the backend's
-   * answer: on a mismatch the load fails instead, so nothing runs on a
-   * model the editor was not told.
-   */
-  public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
+  A loaded session made to run on the remembered choice (restart
+  recovery): `session/resume` takes no model, so the choice is applied
+  with `session/setModel` and read back with `model/list` before anything
+  is replayed or run. What the editor is shown comes from the backend's
+  answer: on a mismatch the load fails instead, so nothing runs on a
+  model the editor was not told.
+  */
+  public async restoreChoice(
+    modelId: string,
+    effort: EffortLevel,
+    isEffortChosen: boolean,
+  ): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.syncRememberedMode())
     this.ensureHeld()
     // Muse resume needs an explicit selection; Model API's loaded model is
     // authoritative and an unchanged selection must not run switch hooks.
@@ -1600,6 +2244,7 @@ class AcpSession {
       )
     }
     this.modelId = outcome.modelId
+    this.isEffortChosen = isEffortChosen
     await this.applyEffort(effort)
   }
 
@@ -1616,8 +2261,18 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, modeId)
     }
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(mode, true))
-    this.mode = mode
+    await this.inModeOrder(async () => {
+      try {
+        await this.session.setApprovalMode(approvalModeFor(mode, true))
+      } catch (error: unknown) {
+        if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
+        // The host runs another mode: show it so the editor agrees with the
+        // host, then report the failure in the error's own true words.
+        await this.showRunningMode(error, mode)
+        throw error
+      }
+      this.mode = mode
+    })
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
     this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
@@ -1625,6 +2280,17 @@ class AcpSession {
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
+    if (configId === ACP_CONFIG_IDS.fast) {
+      if (typeof value !== 'boolean') throw RequestError.invalidParams(undefined, configId)
+      const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
+      if (value && tier === undefined) throw RequestError.invalidParams(undefined, configId)
+      if (this.session.setServiceTier === undefined)
+        throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
+      this.ensureHeld()
+      await this.session.setServiceTier(value ? tier?.id : undefined)
+      this.fast = value
+      return
+    }
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
     }
@@ -1644,8 +2310,15 @@ class AcpSession {
       return
     }
     if (configId === ACP_CONFIG_IDS.model) {
-      if (this.models.every((model) => model.modelId !== value)) {
+      const chosen = this.models.find((model) => model.modelId === value)
+      if (chosen === undefined) {
         throw RequestError.invalidParams(undefined, value)
+      }
+      // Refused in the protocol's own error with the limit's sentence
+      // (F83): a plain backend error would reach the client as a bare
+      // "Internal error" with the sentence buried in its data.
+      if (chosen.agentLimit !== undefined) {
+        throw RequestError.invalidParams(undefined, chosen.agentLimit)
       }
       this.ensureHeld()
       const revision = this.modelChangeRevision
@@ -1655,16 +2328,30 @@ class AcpSession {
       if (this.modelChangeRevision === revision) {
         this.modelId = value
       }
-      await this.applyEffort(this.effort)
+      // Fast never survives a model change: it is off by default, and the
+      // new model may list no priority tier at all.
+      this.fast = false
+      await this.session.setServiceTier?.(undefined)
+      const model = this.models.find((entry) => entry.modelId === this.modelId)
+      await this.applyEffort(
+        model?.defaultEffort === undefined
+          ? this.effort
+          : defaultEffortFor(
+              this.models,
+              this.modelId,
+              this.isEffortChosen ? this.effort : undefined,
+            ),
+      )
       return
     }
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !effortLevelsFor(this.modelId).includes(value)) {
-      throw RequestError.invalidParams(undefined, value)
+    if (!isEffortLevel(value) || !modelEffortLevels(this.models, this.modelId).includes(value)) {
+      throw RequestError.invalidParams(undefined, effortRefusalData(this.models, this.modelId))
     }
     await this.applyEffort(value)
+    this.isEffortChosen = true
   }
 
   /** A loaded session's history, as the updates a live one would have sent. */
@@ -1685,6 +2372,40 @@ class AcpSession {
     }
   }
 
+  /**
+  F91: the editor hears once per session, in words, that Muse Code's
+  Linux sandbox cannot start on this machine. The host start already said
+  it on stderr; the posture stands until the person turns it off.
+  
+  This is the harness speaking, never the model (that confusion is F82).
+  Where the client advertises its session-notices capability
+  (`ClientSessionCapabilities::notices`), it goes as that branch's
+  separate notice update; otherwise it stays an `agent_message_chunk`
+  carrying a `_meta` marker (the accountNotice precedent) a client can
+  tell apart from model speech, which the schema prescribes when notices
+  are not advertised.
+  */
+  public noteSandboxCannotStart(): void {
+    if (this.hasSaidSandboxCannotStart || !this.sandboxCannotStart()) {
+      return
+    }
+    this.hasSaidSandboxCannotStart = true
+    if (this.clientCapabilities.session?.notices != null) {
+      this.send({
+        sessionUpdate: 'notice',
+        severity: 'warning',
+        title: UI_TEXT.sandboxCannotStartNotice,
+        _meta: { sandboxCannotStartNotice: true },
+      })
+      return
+    }
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      _meta: { sandboxCannotStartNotice: true },
+      content: { type: 'text', text: UI_TEXT.sandboxCannotStartNotice },
+    })
+  }
+
   public async loadQuestions(): Promise<void> {
     await this.questionRegistry?.load()
     this.ensureHeld()
@@ -1693,7 +2414,10 @@ class AcpSession {
     })
   }
 
-  public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
+  public async prompt(
+    blocks: readonly ContentBlock[],
+    onAccepted?: () => void,
+  ): Promise<StopReason> {
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
       const update = await acpResourceCommand(blocks, this.deps.resources)
@@ -1756,7 +2480,10 @@ class AcpSession {
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: vault command failed: ${failureForLog(error)}`,
+        )
         throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
@@ -1788,11 +2515,34 @@ class AcpSession {
     this.preparing = preparing
     let parsed: Awaited<ReturnType<typeof promptParts>>
     let isCompact: boolean
+    let isPlayback: boolean
     let isUsage: boolean
     let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
     let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
       if (await this.mediaCommand(blocks, preparing.abort.signal)) {
+        await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // `/playback` with anything beside it (D203): answered as usage from
+      // the raw text blocks, before `promptParts()` converts any block. The
+      // joined text is exactly what `promptParts()` decides on below, so the
+      // answer matches its refusal — but no attachment is resolved for it:
+      // a memory-only playback must never read a file it arrived with.
+      if (
+        blocks.length !== 1 &&
+        parsePlaybackPrompt(
+          slashCommandText(
+            blocks
+              .flatMap((block) => (block.type === 'text' ? block.text : []))
+              .join(PART_SEPARATOR),
+          ),
+        ) !== undefined
+      ) {
+        return await this.answerPlaybackUsage(preparing)
+      }
+      if (await this.uploadsCommand(blocks, preparing.abort.signal)) {
         await this.announceCommands()
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
@@ -1845,14 +2595,17 @@ class AcpSession {
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
           await this.outbox
           return 'end_turn'
-        } catch {
+        } catch (error: unknown) {
+          this.deps.log.warn(
+            `ACP session ${this.sessionId}: estimate failed: ${failureForLog(error)}`,
+          )
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           if ('error' in preparing) throw preparing.error
           this.send({
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }),
+              text: estimateFailureText(error),
             },
           })
           await this.outbox
@@ -1891,6 +2644,38 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
+      // A reserved command, decided on the one typed text like the others:
+      // anything after the name stays a local answer, never a skill or a
+      // model turn (the reserved-command rule below). Attached files,
+      // images or resources never ride along to the model: they are
+      // refused instead of starting a billed turn (Codex on PR #212).
+      if (/^\/whatsnew(?:\s|$)/.test(typed)) {
+        if (parsed.parts.some((part) => part.type !== 'text'))
+          throw RequestError.invalidParams(undefined, UI_TEXT.whatsNewAttachmentsRefused)
+        await this.announceCommands()
+        if ('error' in preparing) throw preparing.error
+        if (!preparing.isCancelled)
+          this.send({
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: this.whatsNewText() },
+          })
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // `/playback` (D203): a memory-only turn, recognised on the command
+      // text as every local command is. With anything after it, or any
+      // other block or part beside it (an image, a resource, more text),
+      // usage instead: a playback takes no arguments, and nothing it came
+      // with may run as an ordinary turn with tools.
+      const playbackCommand = parsePlaybackPrompt(typed)
+      if (
+        playbackCommand?.kind === 'usage' ||
+        (playbackCommand !== undefined &&
+          (blocks.length !== 1 || parsed.parts.length !== 1 || part?.type !== 'text'))
+      ) {
+        return await this.answerPlaybackUsage(preparing)
+      }
+      isPlayback = playbackCommand?.kind === 'run'
       local = await acpPlaybook(
         blocks,
         () => this.deps.playbookFor?.(this.cwd, this.sessionId),
@@ -1977,7 +2762,7 @@ class AcpSession {
         return 'end_turn'
       }
       isUsage = await this.usageReply(blocks, preparing)
-      if (!isUsage && !isCompact && local === undefined)
+      if (!isUsage && !isCompact && !isPlayback && local === undefined)
         lease = await this.questionRegistry?.peekQueued()
     } catch (error: unknown) {
       // Peeking is the try's last step, so no answer lease is held here.
@@ -2036,17 +2821,25 @@ class AcpSession {
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
-        const mediaQueued = [...this.attachments]
-        const starting = this.session.sendTurn(
-          [
-            ...(pending.answerLease?.parts ?? []),
-            ...this.withSkill([
-              ...parsed.parts,
-              ...mediaQueued.map((attachment) => attachment.part),
-            ]),
-          ],
-          parsed.displayText,
-        )
+        // No answer lease is peeked for a playback: a queued answer stays
+        // queued. No media rides one either: it answers from memory only.
+        // The sandbox note rides an ordinary turn's tail only (F91), as on
+        // the panel: a playback carries its own text alone.
+        const mediaQueued = isPlayback ? [] : [...this.attachments]
+        const sandboxNote = this.sandboxModelNote()
+        const starting = isPlayback
+          ? this.startPlaybackTurn()
+          : this.session.sendTurn(
+              [
+                ...(pending.answerLease?.parts ?? []),
+                ...this.withSkill([
+                  ...parsed.parts,
+                  ...mediaQueued.map((attachment) => attachment.part),
+                ]),
+                ...sandboxNote,
+              ],
+              parsed.displayText,
+            )
         this.starting = starting
         const submission = await starting
         this.attachments.splice(0, mediaQueued.length)
@@ -2058,12 +2851,18 @@ class AcpSession {
               ),
             )
           })
-          .catch((error: unknown) => {
-            this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
+          .catch(() => {
+            this.deps.log.warn('ACP media cleanup: cleanup_failed')
           })
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
         const isAccepted =
           submission.disposition === 'started' || submission.disposition === 'queued'
+        // The turn reached Muse Code, so an appended sandbox note rode with
+        // it: only now is it marked as told to the model.
+        if (isAccepted && sandboxNote.length > 0) {
+          this.hasToldModelSandboxCannotStart = true
+        }
+        if (isAccepted) onAccepted?.()
         // Decide before noting the turn: a turn that already finished settles
         // the prompt there, which must not release the answers it delivered.
         if (
@@ -2078,7 +2877,9 @@ class AcpSession {
           this.commitAnswers(pending)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
-        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        if (!isAccepted) {
+          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        }
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
@@ -2091,6 +2892,12 @@ class AcpSession {
         }
         return outcome.reason
       }
+      // M105 lane V R4 (RVCM1054C P3): no codec branch here. The real
+      // Model API session never rejects sendTurn with a codec refusal:
+      // submitTurn starts the turn detached and resolves, and the refusal
+      // fails the turn as turnCompleted with the sentence as reason
+      // (ModelApiHost.ts: reason = describe(error)), settled above at
+      // settle. A raw error here keeps the SDK's shape unchanged.
       throw error
     } finally {
       this.starting = undefined
@@ -2154,7 +2961,22 @@ class AcpSession {
   public async holdSchedules(): Promise<void> {
     if (this.deps.schedules?.isAvailable === false) return
     try {
-      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd, {
+        agent: this.session,
+        backend: this.deps.backend.kind,
+        ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
+        row: (text) => {
+          this.questionNotice(text)
+        },
+        deferQuestions: async (event, context) => {
+          if (this.questionRegistry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+          await this.questionRegistry.register(event, {
+            askedAt: Date.now(),
+            turnId: this.activeTurnId ?? context.runId,
+          })
+          await this.questionRegistry.defer(event.userInputId)
+        },
+      })
       if (this.isDisposed) await release?.()
       else this.releaseSchedules = release
     } catch {
@@ -2169,19 +2991,22 @@ class AcpSession {
   }
 
   /**
-   * Let go (closed, loaded again, or never set up). At once it stops
-   * following the backend, the editor's late answers decide nothing, and a
-   * prompt it was running ends cancelled. That turn is then stopped on the
-   * backend too, once it has started, as the editor was told; a turn left
-   * running would go on editing and billing with no one watching, and a
-   * session loaded again shares the backend session, so nothing else would
-   * stop it. Then the backend session is let go.
-   */
+  Let go (closed, loaded again, or never set up). At once it stops
+  following the backend, the editor's late answers decide nothing, and a
+  prompt it was running ends cancelled. That turn is then stopped on the
+  backend too, once it has started, as the editor was told; a turn left
+  running would go on editing and billing with no one watching, and a
+  session loaded again shares the backend session, so nothing else would
+  stop it. Then the backend session is let go.
+  */
   public async release(): Promise<void> {
     if (this.isDisposed) {
       return
     }
     this.isDisposed = true
+    this.dictationStop.abort()
+    await Promise.all([...this.dictationPages].map((page) => page.close()))
+    this.dictationPages.clear()
     this.legalStop?.abort()
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
@@ -2237,6 +3062,16 @@ class AcpSession {
         .splice(0)
         .flatMap((attachment) => (attachment.dispose === undefined ? [] : [attachment.dispose()])),
     )
+    // The registry lets go of what this session attached (RVMEDIAV 7).
+    if (this.media === undefined) return
+    let port: AcpMediaPort
+    try {
+      port = await this.media
+    } catch {
+      // A port that never loaded registered nothing.
+      return
+    }
+    port.release()
   }
 }
 
@@ -2244,11 +3079,11 @@ class AcpSession {
 class AgentState {
   private readonly sessions = new Map<string, AcpSession>()
   /**
-   * The model and effort the editor chose per session: a load after the
-   * backend restarted re-applies them and reads them back, so the session
-   * keeps running on the chosen model instead of the CLI's default.
-   */
-  private readonly choices = new Map<string, { modelId: string; effort: EffortLevel }>()
+  The model and effort the editor chose per session: a load after the
+  backend restarted re-applies them and reads them back, so the session
+  keeps running on the chosen model instead of the CLI's default.
+  */
+  private readonly choices = new Map<string, ReturnType<AcpSession['currentChoice']>>()
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
   private readonly claims = new Map<string, SessionClaim>()
@@ -2263,10 +3098,10 @@ class AgentState {
   public constructor(private readonly deps: AcpAgentDeps) {}
 
   /**
-   * The sign-in: run by the client in a terminal where it can (the spec
-   * allows a terminal method only then), otherwise by the user, whose
-   * `authenticate` this checks.
-   */
+  The sign-in: run by the client in a terminal where it can (the spec
+  allows a terminal method only then), otherwise by the user, whose
+  `authenticate` this checks.
+  */
   private authMethod(method: SignInMethod): AuthMethod {
     const { id, name, description, args, command } = method
     // Registry clients may announce terminal support with the older `_meta`
@@ -2280,14 +3115,18 @@ class AgentState {
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }
 
-  private async requireReady(isRecheck = false): Promise<void> {
+  private async requireReady(
+    isRecheck = false,
+    isStoreDownAllowed = false,
+  ): Promise<BackendReadiness> {
     const readiness = await this.deps.backend.readiness(isRecheck)
-    if (readiness.state === 'signedOut') {
+    if (readiness.state === 'signedOut' && !(isStoreDownAllowed && readiness.storeDown === true)) {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
       throw RequestError.internalError(undefined, readiness.message)
     }
+    return readiness
   }
 
   private async openHost(
@@ -2296,10 +3135,27 @@ class AgentState {
     if (!path.isAbsolute(cwd)) {
       throw RequestError.invalidParams(undefined, cwd)
     }
-    await this.requireReady()
+    // A dead credential store does not stop the session from opening: only
+    // a step that needs a stored key refuses, in the store-down words.
+    const readiness = await this.requireReady(false, true)
     const host = await this.deps.backend.hostFor(cwd)
     this.watch(host)
-    const listed = await host.listModels()
+    let listed: readonly ModelSummary[]
+    try {
+      listed = await host.listModels()
+    } catch (error: unknown) {
+      // A providers file that cannot be read is the person's to fix: its own
+      // sentence is the message the editor shows, as the readiness check's
+      // is, never a bare "Internal error" with the sentence only in its data.
+      if (isInvalidProvidersFileError(error))
+        throw RequestError.internalError(undefined, error.message)
+      if (!isCredentialStoreDown(error)) throw error
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
+    }
+    // No models without a readable store or key: the catalogue, the grant
+    // and the key all need the store. Say so instead of offering no model.
+    if (listed.length === 0 && readiness.state === 'signedOut' && readiness.storeDown === true)
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
     const models = this.deps.options.allowsContributorModels
       ? listed
       : listed.filter((model) => !isContributorModel(model.modelId))
@@ -2307,11 +3163,11 @@ class AgentState {
   }
 
   /**
-   * A backend session the agent now owns (new, loaded or resumed), held only
-   * once `prepare` has set what the editor is shown: until then no request
-   * finds it, and if anything fails the backend session is let go and the
-   * request fails, so no session outlives a request that returned no id.
-   */
+  A backend session the agent now owns (new, loaded or resumed), held only
+  once `prepare` has set what the editor is shown: until then no request
+  finds it, and if anything fails the backend session is let go and the
+  request fails, so no session outlives a request that returned no id.
+  */
   private async adopt(
     host: AgentHost,
     session: AgentSession,
@@ -2384,6 +3240,9 @@ class AgentState {
       }
     }
     this.sessions.set(sessionId, acp)
+    // F91: a newly adopted session hears once, in words, when Muse Code's
+    // Linux sandbox cannot start on this machine.
+    acp.noteSandboxCannotStart()
     return acp
   }
 
@@ -2400,10 +3259,10 @@ class AgentState {
   }
 
   /**
-   * Lets go of the session held for `sessionId` and one being set up, so no
-   * request finds either; resolves once each has stopped its turn and let
-   * its backend session go. False when there was neither.
-   */
+  Lets go of the session held for `sessionId` and one being set up, so no
+  request finds either; resolves once each has stopped its turn and let
+  its backend session go. False when there was neither.
+  */
   private async releaseAll(sessionId: string): Promise<boolean> {
     const found = [this.sessions.get(sessionId), this.adopting.get(sessionId)].filter(
       (acp) => acp !== undefined,
@@ -2446,10 +3305,10 @@ class AgentState {
   }
 
   /**
-   * The editor's MCP servers for a session (M63c): passed to Muse Code when
-   * it granted `sessionMcp`; the Model API backend runs none. Only their
-   * names are logged, as headers and environments can hold secrets.
-   */
+  The editor's MCP servers for a session (M63c): passed to Muse Code when
+  it granted `sessionMcp`; the Model API backend runs none. Only their
+  names are logged, as headers and environments can hold secrets.
+  */
   private forwardedMcp(
     host: AgentHost,
     requested: readonly McpServer[] | undefined,
@@ -2489,7 +3348,16 @@ class AgentState {
         promptCapabilities: { image: true, audio: true, embeddedContext: true },
         // Stdio servers every agent takes; HTTP ones Muse Code runs too (M63c).
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
-        sessionCapabilities: { list: {}, resume: {}, close: {} },
+        sessionCapabilities: {
+          list: {},
+          resume: {},
+          close: {},
+          // Deletion from `session/list`: the Model API backend removes the
+          // session from its own store. A Muse Code host deletes only where
+          // its CLI still serves `session/delete` (D26); the request then
+          // refuses with the real cause instead.
+          ...(this.deps.backend.kind === 'modelApi' && { delete: {} }),
+        },
       },
       authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
         this.authMethod(method),
@@ -2517,18 +3385,35 @@ class AgentState {
     client: AgentContext,
   ) {
     const { host, models } = await this.openHost(cwd)
-    const modelId = startingModel(models)
+    const modelId = startingModel(
+      models,
+      this.deps.options.initialModelId,
+      this.deps.backend.kind === 'modelApi',
+    )
     const mcpServers = this.forwardedMcp(host, requestedMcp)
+    // The start carries no account identity: a step that needs a stored key
+    // refuses then, in the one store sentence, never at the open.
+    const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
+    // Manual asks the person because the session reviews with `:ask-me`
+    // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
+    // its words describe. Omitted profiles keep the host default, which is
+    // what every headless session starts with, as before.
+    const permissionProfile = mspStartPermissionProfile(
+      approvalMode,
+      this.deps.options.isHeadless === true,
+    )
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,
-      approvalMode: approvalModeFor(this.deps.options.initialMode, true),
+      approvalMode,
+      ...(permissionProfile !== undefined && { permissionProfile }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
-    // The mode and model went with the start; the effort is set here.
+    // The mode and model went with the start; the effort is set here. A
+    // plan model starts on its catalogue default unless the person chose one.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(DEFAULT_EFFORT),
+      started.applyEffort(defaultEffortFor(models, modelId)),
     )
     // Keep what the editor is shown, including backend events during setup.
     this.choices.set(session.sessionId, acp.currentChoice())
@@ -2550,7 +3435,11 @@ class AgentState {
       this.ensureClaim(claim, host)
       const loaded = await host.resumeSession(
         sessionId,
-        startingModel(models),
+        startingModel(
+          models,
+          this.deps.options.initialModelId,
+          this.deps.backend.kind === 'modelApi',
+        ),
         this.forwardedMcp(host, requestedMcp),
       )
       // A session resumes on the approval mode, model and effort it last had,
@@ -2572,7 +3461,11 @@ class AgentState {
           if (remembered === undefined) {
             await resumed.matchAdvertised()
           } else {
-            await resumed.restoreChoice(remembered.modelId, remembered.effort)
+            await resumed.restoreChoice(
+              remembered.modelId,
+              remembered.effort,
+              remembered.isEffortChosen,
+            )
           }
           if (!isReplayed) {
             return
@@ -2608,7 +3501,9 @@ class AgentState {
       sessions: page.sessions.map((record) => ({
         sessionId: record.sessionId,
         cwd: record.workspaceRoot ?? folder,
-        title: record.name ?? record.title ?? record.firstUserPrompt ?? null,
+        // The panel's own label: the person's words, never the extension's
+        // notes, quoted passages or attached files (sessionRecords.ts).
+        title: sessionTitle(record),
         updatedAt: record.lastActivityAt ?? record.updatedAt,
       })),
       nextCursor: page.nextCursor ?? null,
@@ -2654,6 +3549,40 @@ class AgentState {
     }
   }
 
+  /**
+  The editor deletes a listed session for good: a held copy is released
+  first, so a running turn settles before the store goes, then the
+  backend removes it through `AgentHost.deleteSession`. A host that
+  cannot delete, and any failure, answers with the real cause.
+  */
+  public async deleteSession(sessionId: string): Promise<void> {
+    const held = this.sessions.get(sessionId) ?? this.adopting.get(sessionId)
+    let host: AgentHost | undefined = held?.host
+    if (host === undefined) {
+      const opened = await this.openHost(this.deps.defaultCwd)
+      host = opened.host
+    }
+    // A host that cannot delete refuses before anything is released: the
+    // held session and the editor's remembered choice stay usable.
+    if (!host.info.canDeleteSessions) {
+      throw RequestError.internalError(
+        undefined,
+        fill(UI_TEXT.sessionDeleteUnsupported, { version: host.info.serverVersion }),
+      )
+    }
+    if (held !== undefined) {
+      await this.releaseAll(sessionId)
+      this.choices.delete(sessionId)
+    }
+    try {
+      await host.deleteSession(sessionId)
+    } catch (error: unknown) {
+      // A refused delete answers with the failure's kind, never the raw
+      // failure: names stay fixed-vocabulary on the wire.
+      throw RequestError.internalError(undefined, failureForLog(error))
+    }
+  }
+
   /** A paid use asked in the session it is for; one the agent does not hold is denied (M58). */
   public async askPaidUse(
     sessionId: string,
@@ -2668,6 +3597,18 @@ class AgentState {
       return 'deny'
     }
     return await acp.askPaidUse(request, canRemember)
+  }
+
+  /** An "always" the session's answer gave but the store could not keep. */
+  public notePaidNotKept(sessionId: string, text: string): void {
+    const acp = this.sessions.get(sessionId)
+    if (acp === undefined) {
+      this.deps.log.warn(
+        `ACP session ${sessionId} is gone, so its not-kept paid choice stays only in the log`,
+      )
+      return
+    }
+    acp.notePaidNotKept(text)
   }
 
   public async askVaultUse(
@@ -2688,6 +3629,9 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
   )
+  deps.paid.attachNotify((sessionId, text) => {
+    state.notePaidNotKept(sessionId, text)
+  })
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) => {
       deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
@@ -2710,6 +3654,10 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     )
     .onRequest('session/close', async (context) => {
       await state.closeSession(context.params.sessionId)
+      return {}
+    })
+    .onRequest('session/delete', async (context) => {
+      await state.deleteSession(context.params.sessionId)
       return {}
     })
     .onRequest('session/set_mode', async (context) => {

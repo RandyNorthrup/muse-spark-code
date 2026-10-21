@@ -28,9 +28,9 @@ export interface SharingPortsDeps {
 }
 
 /**
- * The sharing ports' backend options: the documented empty-argv default, never
- * a literal command word (the strict parser treats `serve` as unknown).
- */
+The sharing ports' backend options: the documented empty-argv default, never
+a literal command word (the strict parser treats `serve` as unknown).
+*/
 export function defaultServeOptions(): ServeOptions {
   const parsed = parseCommandLine([])
   if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
@@ -51,9 +51,11 @@ export function sharingPorts(
         return key === undefined || key === ''
           ? deps.credentialValues
           : [...deps.credentialValues, key]
-      } catch {
-        // A key refresh that cannot complete grants no share and discloses no store failure.
-        throw new Error(UI_TEXT.sharePreviewExpired)
+      } catch (error) {
+        // A key refresh that cannot complete grants no share and discloses no
+        // store failure: the person hears the fixed expiry words while the
+        // cause travels with the error for the record.
+        throw new Error(UI_TEXT.sharePreviewExpired, { cause: error })
       }
     },
     read: async (cwd, sessionId, exportedAt) => {

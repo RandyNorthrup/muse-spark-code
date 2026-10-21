@@ -3,6 +3,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 import { browserTextKeys, compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -27,6 +28,18 @@ const fixture = {
 }
 const byText = (left, right) => left.localeCompare(right)
 
+// One damaged table per case below: a missing key, an extra key, a bad
+// slot, a missing nested group, a bad plural form and a wrong value type.
+const brokenTables = [
+  (EN) => ({ ...EN, execBudgetRequired: undefined }),
+  (EN) => ({ ...EN, extra: 'unexpected' }),
+  (EN) => ({ ...EN, execBudgetRequired: '{unknown}' }),
+  (EN) => ({ ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } }),
+  (EN) => ({ ...EN, todoProgress: '{unknown}' }),
+  (EN) => ({ ...EN, stepSummary: { ...EN.stepSummary, other: undefined } }),
+  (EN) => ({ ...EN, composerLabel: 1 }),
+]
+
 beforeAll(async () => {
   mkdirSync(path.resolve('temp'), { recursive: true })
   fixture.folder = mkdtempSync(path.resolve('temp/train15h-english-'))
@@ -44,7 +57,7 @@ export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
 export { installVaultEnglish } from '${vault}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
-export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }
+export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english'), import('browser-chatgpt-english'), import('browser-runners-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
 export async function loadAccounts() { await import('../../src/webview/models/sections/accounts/accountsEntry') }
 export async function loadVault() { await import('../../src/webview/models/sections/vault/VaultSurface') }
@@ -84,6 +97,35 @@ export async function loadDeveloper() { await import('../../src/webview/develope
   })
   fixture.browser = await import(pathToFileURL(path.join(fixture.folder, 'dist/probe.js')).href)
   // Real shared ESM construction and native DEFLATE decoding belong to setup.
+  // The full-table shape walks below are setup too: the canonical-shape
+  // test compares their results, and walking every table twice inside the
+  // test missed its deadline on a slow runner.
+  {
+    const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
+    const { EN_SHAPE } = fixture.browser
+    const broken = [
+      { ...EN, execBudgetRequired: undefined },
+      { ...EN, extra: 'unexpected' },
+      { ...EN, execBudgetRequired: '{unknown}' },
+      { ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } },
+      { ...EN, todoProgress: '{unknown}' },
+      { ...EN, stepSummary: { ...EN.stepSummary, other: undefined } },
+      { ...EN, composerLabel: 1 },
+    ]
+    fixture.brokenProblems = broken.map((table) => ({
+      expected: tableProblems(EN, table, { locale: 'en', isStrict: false }),
+      shaped: tableProblems(EN_SHAPE, table, { locale: 'en', isStrict: false }),
+    }))
+    fixture.localeProblems = TABLE_LOCALES.map((locale) => {
+      const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
+      return {
+        locale,
+        table,
+        expected: tableProblems(EN, table, { locale, isStrict: false }),
+        shaped: tableProblems(EN_SHAPE, table, { locale, isStrict: false }),
+      }
+    })
+  }
 }, 120_000)
 
 afterAll(async () => {
@@ -113,12 +155,13 @@ describe('the production browser English and full-table contract', () => {
       installVaultEnglish,
     } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
-    // C-X-1: Help does not name the vault, and the installed entries mount
-    // neither the vault nor the accounts surface. CM108ACC: Help lists accounts
-    // again, so production carries that group, out of startup and on demand.
+    // C-X-1: Help does not name the vault. CM108ACC: Help lists accounts
+    // again, so production carries that group, out of startup and on demand;
+    // the vault section mount carries the vault group the same way (the
+    // EN.vault throw below pins that its values stay out of startup).
     // The probe mounts both (loadAccounts, loadVault) to keep their loading pinned.
     expect(installed.has('accounts')).toBe(true)
-    expect(installed.has('vault')).toBe(false)
+    expect(installed.has('vault')).toBe(true)
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     // MINOUT: the provider file's English is Node-only. Team settings take
     // their output-minimum message from its own leaf, never providerRouting.ts.
@@ -173,25 +216,14 @@ describe('the production browser English and full-table contract', () => {
     expect(UI_TEXT.referenceCliOptions).toEqual(canonical.referenceCliOptions)
   })
 
-  it('checks every installed language against the same complete canonical shape and slots', () => {
-    const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
-    const { EN_SHAPE, installEmbeddedTable } = fixture.browser
-    const options = { locale: 'en', isStrict: false }
-    const broken = [
-      { ...EN, execBudgetRequired: undefined },
-      { ...EN, extra: 'unexpected' },
-      { ...EN, execBudgetRequired: '{unknown}' },
-      { ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } },
-      { ...EN, todoProgress: '{unknown}' },
-      { ...EN, stepSummary: { ...EN.stepSummary, other: undefined } },
-      { ...EN, composerLabel: 1 },
-    ]
-    for (const table of broken) {
-      const expected = tableProblems(EN, table, options)
-      expect(expected.length).toBeGreaterThan(0)
-      expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
-    }
-    for (const locale of TABLE_LOCALES) {
+  // One case per installed language (and per damaged table below), so a
+  // failure names the table a person would see broken. Each case validates
+  // a single full table (measured 0.1-0.3 s), far inside the default timeout.
+  it.each(TABLE_LOCALES)(
+    'checks %s against the same complete canonical shape and slots',
+    (locale) => {
+      const { EN, tableFileName, tableProblems } = fixture.canonical
+      const { EN_SHAPE, installEmbeddedTable } = fixture.browser
       const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
       expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
         tableProblems(EN, table, { locale, isStrict: false }),
@@ -202,10 +234,26 @@ describe('the production browser English and full-table contract', () => {
         }),
         locale,
       ).toBeUndefined()
-    }
+    },
+  )
+  it.each(brokenTables)('rejects damaged table %# exactly as the canonical shape does', (build) => {
+    const { EN, tableProblems } = fixture.canonical
+    const { EN_SHAPE } = fixture.browser
+    const options = { locale: 'en', isStrict: false }
+    const table = build(EN)
+    const expected = tableProblems(EN, table, options)
+    expect(expected.length).toBeGreaterThan(0)
+    expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
+  })
+
+  it('refuses an embedded table with a missing key', () => {
+    const { EN } = fixture.canonical
+    const { installEmbeddedTable } = fixture.browser
     expect(
       installEmbeddedTable({
-        querySelector: () => ({ textContent: JSON.stringify({ locale: 'en', table: broken[0] }) }),
+        querySelector: () => ({
+          textContent: JSON.stringify({ locale: 'en', table: brokenTables[0](EN) }),
+        }),
       })?.message,
     ).toContain('execBudgetRequired: missing')
   })

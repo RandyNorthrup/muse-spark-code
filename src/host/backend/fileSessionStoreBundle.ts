@@ -15,6 +15,11 @@ import { uiLocale } from '../../shared/l10n/text'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type { FileSessionStoreDeps } from './fileSessionStore'
+import type {
+  DeleteUploadedFilesCommandDeps,
+  UploadedFilesBinding,
+  UploadedFilesBindingDeps,
+} from './uploadedFilesBinding'
 
 interface FileSessionStoreBundle {
   readonly createFileSessionStore: (
@@ -22,6 +27,8 @@ interface FileSessionStoreBundle {
     table: UiText,
     locale: string,
   ) => SessionStore
+  readonly createUploadedFilesBinding: (deps: UploadedFilesBindingDeps) => UploadedFilesBinding
+  readonly runDeleteUploadedFilesCommand: (deps: DeleteUploadedFilesCommandDeps) => Promise<void>
 }
 
 /** Signatures are trusted only for our same-build packaged factory (PLAN.md section 8). */
@@ -30,21 +37,26 @@ export function isFileSessionStoreBundle(value: unknown): value is FileSessionSt
     typeof value === 'object' &&
     value !== null &&
     'createFileSessionStore' in value &&
-    typeof value.createFileSessionStore === 'function'
+    typeof value.createFileSessionStore === 'function' &&
+    'createUploadedFilesBinding' in value &&
+    typeof value.createUploadedFilesBinding === 'function' &&
+    'runDeleteUploadedFilesCommand' in value &&
+    typeof value.runDeleteUploadedFilesCommand === 'function'
   )
 }
 
 /**
- * The window's one session store, made in the bundle the first time it is
- * asked for and kept from then on.
- */
-export function lazyFileSessionStore(deps: {
+The sessions bundle itself, required the first time it is asked for and
+kept from then on. The uploaded-files binding ships beside the store, so
+activation builds the conversation port and runs the delete command
+through this handle instead of carrying the binding.
+*/
+export function fileSessionBundleApi(deps: {
   readonly bundlePath: string
   readonly log: Logger
   readonly loadBundle?: ((file: string) => unknown) | undefined
-  readonly store: FileSessionStoreDeps
-}): () => SessionStore {
-  const bundle = lazyBundleLoader({
+}): () => FileSessionStoreBundle {
+  return lazyBundleLoader({
     bundlePath: deps.bundlePath,
     log: deps.log,
     loadBundle: deps.loadBundle,
@@ -52,6 +64,19 @@ export function lazyFileSessionStore(deps: {
     label: 'Model API session store bundle',
     unavailable: () => UI_TEXT.modelApiBundleUnavailable,
   })
+}
+
+/**
+The window's one session store, made in the bundle the first time it is
+asked for and kept from then on.
+*/
+export function lazyFileSessionStore(deps: {
+  readonly bundlePath: string
+  readonly log: Logger
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+  readonly store: FileSessionStoreDeps
+}): () => SessionStore {
+  const bundle = fileSessionBundleApi(deps)
   let store: SessionStore | undefined
   return () => {
     store ??= bundle().createFileSessionStore(deps.store, UI_TEXT, uiLocale())

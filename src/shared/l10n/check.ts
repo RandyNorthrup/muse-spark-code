@@ -16,10 +16,11 @@ export interface CheckOptions {
   /** The table's language: its plural categories come from `Intl.PluralRules`. */
   readonly locale: string
   /**
-   * The gate's checks on top of the shape: exactly the language's plural
-   * categories, the same code spans and bold markers, and no value left in
-   * English unless its key is in `untranslated`.
-   */
+  The gate's checks on top of the shape: the English key order at every
+  level, exactly the language's plural categories, the same code spans and
+  bold markers, and no value left in English unless its key is in
+  `untranslated`.
+  */
   readonly isStrict: boolean
   /** Dotted keys whose value may equal the English (names, commands, …). */
   readonly untranslated?: ReadonlySet<string>
@@ -130,6 +131,39 @@ function formsProblems(
   return problems
 }
 
+/**
+The first key of `table` that sits out of the English order, at this one
+level. The packaged UI archive stores values in the English layout and the
+reader restores that order, so a locale file in any other order can never
+match what the package ships (`scripts/check-l10n.mjs --packaged-acp`):
+the strict gate requires the English order here, where both modes see it.
+Only keys both tables have take part, so a missing or extra key reports on
+its own. Plural forms are one packed value and keep the file's own order.
+*/
+function orderProblems(
+  prefix: string,
+  english: Readonly<Record<string, unknown>>,
+  table: Readonly<Record<string, unknown>>,
+  deferred: readonly string[] | undefined,
+): readonly string[] {
+  const skipped: ReadonlySet<string> = new Set(deferred)
+  const expected = Object.keys(english).filter(
+    (name) => !skipped.has(name) && Object.hasOwn(table, name),
+  )
+  const found = Object.keys(table).filter(
+    (name) => !skipped.has(name) && Object.hasOwn(english, name),
+  )
+  const position = found.findIndex((name, at) => name !== expected[at])
+  if (position === -1) {
+    return []
+  }
+  const key = found[position]
+  const predecessor = key === undefined ? undefined : expected[expected.indexOf(key) - 1]
+  return key === undefined || predecessor === undefined
+    ? []
+    : [`${prefix}${key}: out of order; it must follow "${predecessor}" in the English table`]
+}
+
 function groupProblems(
   prefix: string,
   english: Readonly<Record<string, unknown>>,
@@ -141,6 +175,11 @@ function groupProblems(
     if (!Object.hasOwn(english, name)) {
       problems.push(`${prefix}${name}: not in the English table`)
     }
+  }
+  if (options.isStrict) {
+    problems.push(
+      ...orderProblems(prefix, english, table, prefix === '' ? options.deferredGroups : undefined),
+    )
   }
   const names = Object.keys(Object.getOwnPropertyDescriptors(english))
   for (const name of names) {

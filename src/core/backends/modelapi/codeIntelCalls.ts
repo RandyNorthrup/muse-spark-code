@@ -44,7 +44,8 @@ function failed(reason: string, visibleReason: string = reason): ToolOutcome {
 function parsedArguments(argsJson: string): { readonly value: unknown } | undefined {
   try {
     return { value: JSON.parse(argsJson) }
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -88,9 +89,9 @@ export function isProtectedRename(plan: RenamePlan): boolean {
 }
 
 /**
- * What the rename's card names: a few of the files, protected ones first so
- * the card never hides the one that makes it ask, and how many more.
- */
+What the rename's card names: a few of the files, protected ones first so
+the card never hides the one that makes it ask, and how many more.
+*/
 export function renameCardPath(plan: RenamePlan): string {
   const ordered = plan.files.toSorted(
     (a, b) => Number(isProtectedPath(b.canonical)) - Number(isProtectedPath(a.canonical)),
@@ -130,10 +131,10 @@ type Recheck =
     }
 
 /**
- * Whether the file is still exactly as the plan read it: confined to the
- * same real path, with no unsaved changes, the same text on disk. The key
- * is the path its fingerprint is kept under (as the file tools resolve it).
- */
+Whether the file is still exactly as the plan read it: confined to the
+same real path, with no unsaved changes, the same text on disk. The key
+is the path its fingerprint is kept under (as the file tools resolve it).
+*/
 async function recheck(file: RenameFile, context: RenameWriteContext): Promise<Recheck> {
   const { io } = context
   const resolved = await confineWorkspacePath(
@@ -211,15 +212,15 @@ function partial(
 }
 
 /**
- * Writes an approved rename. Every file is checked again first: nothing is
- * written if one moved, changed or gained unsaved changes after the plan,
- * or if the turn was stopped meanwhile. Each file is then checked once more
- * right before its own write, so a change made while the others were being
- * written is never overwritten; that, or a write that fails, stops the rest
- * and says which files were written, and the row can revert them. Once the
- * first file is written the rest follow even if Stop comes, so the rename is
- * not left half done by the button.
- */
+Writes an approved rename. Every file is checked again first: nothing is
+written if one moved, changed or gained unsaved changes after the plan,
+or if the turn was stopped meanwhile. Each file is then checked once more
+right before its own write, so a change made while the others were being
+written is never overwritten; that, or a write that fails, stops the rest
+and says which files were written, and the row can revert them. Once the
+first file is written the rest follow even if Stop comes, so the rename is
+not left half done by the button.
+*/
 export async function applyRename(
   plan: RenamePlan,
   context: RenameWriteContext,

@@ -4,7 +4,6 @@ import {
   REPORT_CHECK_RUNS_MAX,
   REPORT_MAX_ID_CHARS,
   REPORT_SOURCE_TIMEOUT_MS,
-  UI_TEXT,
 } from '../../shared/constants'
 import { reportsMethods } from '../../shared/hostApi/reports'
 import { type ReportStorage } from './history'
@@ -32,12 +31,27 @@ function parsedRuns(text: string, scrub: (text: string) => string) {
     const line = text.slice(start + 1, end)
     end = start
     lines += 1
+    let raw: unknown
     try {
-      const entry = checkRunSchema.parse(JSON.parse(line))
-      entries.push(checkRunSchema.parse({ ...entry, check: scrub(entry.check) }))
-    } catch {
+      raw = JSON.parse(line)
+    } catch (error) {
+      // A journal line is text; only malformed JSON skips it here. A scrub
+      // failure is a bug and must not read as a corrupt line.
+      if (!(error instanceof SyntaxError)) throw error
       skipped += 1
+      continue
     }
+    const entry = checkRunSchema.safeParse(raw)
+    if (!entry.success) {
+      skipped += 1
+      continue
+    }
+    const cleaned = checkRunSchema.safeParse({ ...entry.data, check: scrub(entry.data.check) })
+    if (!cleaned.success) {
+      skipped += 1
+      continue
+    }
+    entries.push(cleaned.data)
   }
   if (end > 0) skipped += 1
   return { entries: entries.toReversed(), skipped }
@@ -75,7 +89,7 @@ export class CheckRunJournal {
     return {
       kind: 'checkRuns',
       id: 'checkRuns',
-      read: async ({ asOf, workspaceKey, signal }) => {
+      read: async ({ asOf, workspaceKey, signal, reportText }) => {
         try {
           signal.throwIfAborted()
           reportsMethods['reports/history'].params.parse({ workspaceKey, kind: 'quality' })
@@ -85,7 +99,7 @@ export class CheckRunJournal {
             async (files): Promise<SourceResult<readonly CheckRunRecord[]>> => {
               const text = await files.read(`${workspaceKey}.jsonl`)
               signal.throwIfAborted()
-              if (text === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
+              if (text === undefined) throw new Error(reportText.reportUi.generationFailed)
               const parsed = parsedRuns(text, this.deps.scrub)
               const observedAt = parsed.entries.at(-1)?.at ?? asOf
               const ageMs = Math.max(0, Date.parse(asOf) - Date.parse(observedAt))
@@ -94,7 +108,7 @@ export class CheckRunJournal {
                   id: 'checkRuns',
                   ...(parsed.skipped === 0
                     ? { status: 'ok' as const, reason: null }
-                    : { status: 'partial' as const, reason: UI_TEXT.reportUi.generationFailed }),
+                    : { status: 'partial' as const, reason: reportText.reportUi.generationFailed }),
                   observedAt,
                   freshness: { state: ageMs > REPORT_SOURCE_TIMEOUT_MS ? 'stale' : 'fresh', ageMs },
                 },
@@ -107,7 +121,7 @@ export class CheckRunJournal {
             record: {
               id: 'checkRuns',
               status: 'unavailable',
-              reason: UI_TEXT.reportUi.generationFailed,
+              reason: reportText.reportUi.generationFailed,
               observedAt: null,
               freshness: { state: 'unknown', ageMs: null },
             },

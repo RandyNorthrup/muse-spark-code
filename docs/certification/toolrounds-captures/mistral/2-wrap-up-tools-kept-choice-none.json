@@ -1,0 +1,86 @@
+{
+  "vendor": "mistral",
+  "model": "mistral-small-2603",
+  "variant": "2-wrap-up-tools-kept-choice-none",
+  "url": "https://api.mistral.ai/v1/chat/completions",
+  "requestBody": {
+    "model": "mistral-small-2603",
+    "max_tokens": 300,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read a file.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "none",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "id": "iSmlrCOKQ",
+            "type": "function",
+            "function": {
+              "name": "read_file",
+              "arguments": "{\"path\": \"a.txt\"}"
+            },
+            "index": 0
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "iSmlrCOKQ",
+        "content": "hello from a.txt"
+      },
+      {
+        "role": "user",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "id": "8e49018e0e9d41b89fb865cbe23193c4",
+    "created": 1791834937,
+    "model": "mistral-small-2603",
+    "usage": {
+      "prompt_tokens": 79,
+      "total_tokens": 103,
+      "completion_tokens": 24,
+      "prompt_tokens_details": {
+        "cached_tokens": 48
+      },
+      "service_tier": "standard"
+    },
+    "object": "chat.completion",
+    "choices": [
+      {
+        "index": 0,
+        "finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "tool_calls": null,
+          "content": "I read the file \"a.txt\" which contained the text \"hello from a.txt\". No further actions remain."
+        }
+      }
+    ]
+  }
+}

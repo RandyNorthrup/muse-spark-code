@@ -36,6 +36,7 @@ export function endedOutcome({ status, evidence }: AgentSignals): AgentOutcome {
     return 'failed'
   if (
     evidence?.stopReason === 'budget' ||
+    evidence?.stopReason === 'limit' ||
     evidence?.worktree === 'dirty' ||
     evidence?.reportedComplete === false ||
     (evidence?.unfinished?.length ?? 0) > 0 ||

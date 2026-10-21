@@ -1,3 +1,4 @@
+import { REPORT_KIND_REGISTRY } from '../registry'
 import { REPORT_FORMAT_VERSION } from '../../../shared/constants'
 import {
   reportDocumentSchema,
@@ -9,7 +10,14 @@ import {
   type ReportSourceRecord,
 } from '../../../shared/reportSchema'
 import type { ReportCollector, SourceSnapshot } from '../sources/types'
-import { compare, derivedSourceId, sourcedSection, unavailableRecord } from './common'
+import {
+  admitForwardedSection,
+  compare,
+  dedupeUnknownRowKeys,
+  derivedSourceId,
+  sourcedSection,
+  unavailableRecord,
+} from './common'
 import { needsYou } from './needsYou'
 import { collectMilestone, planFormat } from './plan'
 import {
@@ -18,7 +26,9 @@ import {
   collectRelease,
   type ReportSelectionPorts,
 } from './repository'
+import { collectAccounts } from './accounts'
 import { collectQuality } from './quality'
+import { collectSecurity } from './security'
 import { collectSession } from './session'
 import { cacheSource, otherAgentLimits, otherAgentUsage, usageSections } from './usage'
 
@@ -34,14 +44,12 @@ export interface ReportCollectorDependencies {
 }
 
 const forwardedKinds = {
-  fleet: ['agents', 'workers', 'devices', 'nodes'],
-  security: ['vault', 'breakdown', 'grants', 'usage', 'denials', 'locks', 'developerAudit'],
-  accounts: ['accounts', 'limits', 'usage', 'swaps', 'refusals', 'confirmations'],
-  estimate: ['totals', 'criticalPath', 'limitingResource', 'setups', 'inputs', 'calibration'],
-  playbook: ['totals', 'decisions', 'drills', 'disabledRules', 'refusals'],
-  issues: ['issues', 'limits'],
-  schedules: ['timeline', 'schedules', 'fires', 'refusals', 'cost'],
-  keybindings: ['keybindings', 'conflicts'],
+  fleet: REPORT_KIND_REGISTRY.fleet.sections,
+  estimate: REPORT_KIND_REGISTRY.estimate.sections,
+  playbook: REPORT_KIND_REGISTRY.playbook.sections,
+  issues: REPORT_KIND_REGISTRY.issues.sections,
+  schedules: REPORT_KIND_REGISTRY.schedules.sections,
+  keybindings: REPORT_KIND_REGISTRY.keybindings.sections,
 } as const
 type ForwardedKind = keyof typeof forwardedKinds
 
@@ -56,26 +64,49 @@ function forward(
 ): { sections: ReportSection[]; sources: ReportSourceRecord[] } {
   const source = snapshot.sources[kind]
   const sources: ReportSourceRecord[] = []
-  const sections =
-    source.data?.map((value) => {
-      const parsed = reportSectionSchema.parse(value)
-      // Already omitted rows cannot be recovered; --full requires complete facts.
-      if (options.full && parsed.omittedRows !== 0) throw new Error('report/incompleteFullSource')
-      const collected = sourcedSection(
-        snapshot,
-        options,
-        parsed.id,
-        parsed.label,
-        parsed.columns,
-        parsed.rows,
-        [kind],
+  // Each forwarded section parses on its own: one damaged section is an
+  // unavailable record beside the good sections, never a lost kind
+  // (RVREPORTJOIN P2-1). The collector carries no language table, so the
+  // record names the technical section slot, as missing headings do below.
+  const sections: ReportSection[] = []
+  const values = source.data ?? []
+  for (const [index, value] of values.entries()) {
+    let parsed: ReportSection
+    // Admission before validation: the shared keep-first/count-omitted
+    // step runs on the unvalidated section, so the complete section below
+    // always meets the row limit (RVREPORTJOIN P2-4).
+    const admitted = admitForwardedSection(dedupeUnknownRowKeys(value))
+    try {
+      // A repeated row key in a forwarded section is drift in the source's
+      // own data, never a reason to throw a raw parse error: make keys
+      // unique before the schema validates everything else strictly.
+      parsed = reportSectionSchema.parse(admitted.section)
+    } catch {
+      sources.push(
+        unavailableRecord(
+          derivedSourceId(source.record.id, `records/${String(index)}`),
+          `${kind}/records/${String(index)}: invalid`,
+        ),
       )
-      // Keep arbitrary column keys and any upstream omissions intact.
-      return {
-        ...collected,
-        omittedRows: parsed.omittedRows + collected.omittedRows,
-      }
-    }) ?? []
+      continue
+    }
+    // Omitted source rows remain disclosed even with --full; accepted facets survive.
+    const collected = sourcedSection(
+      snapshot,
+      options,
+      parsed.id,
+      parsed.label,
+      parsed.columns,
+      parsed.rows,
+      [kind],
+    )
+    // Keep arbitrary column keys, the admission gap above and any upstream
+    // omissions intact.
+    sections.push({
+      ...collected,
+      omittedRows: admitted.omittedRows + parsed.omittedRows + collected.omittedRows,
+    })
+  }
   const headings = forwardedKinds[kind]
   for (const heading of headings) {
     if (sections.some((entry) => entry.label === heading)) continue
@@ -151,6 +182,14 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
       }
       case 'quality': {
         sections = collectQuality(snapshot, options)
+        break
+      }
+      case 'security': {
+        sections = collectSecurity(snapshot, options)
+        break
+      }
+      case 'accounts': {
+        sections = collectAccounts(snapshot, options)
         break
       }
       default: {

@@ -98,10 +98,10 @@ export function QuestionSurface({
 }
 
 /**
- * Whether the user is typing where focus is: a field holding text, or one
- * that took a key a moment ago. A card arriving then leaves focus there.
- * An empty composer that merely kept focus after a send is not typing.
- */
+Whether the user is typing where focus is: a field holding text, or one
+that took a key a moment ago. A card arriving then leaves focus there.
+An empty composer that merely kept focus after a send is not typing.
+*/
 function isTyping(element: Element | null, lastKeyAt: number): boolean {
   const isRecentKey = Date.now() - lastKeyAt < DOCK_TYPING_GRACE_MS
   const isTextField = element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement

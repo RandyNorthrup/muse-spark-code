@@ -36,7 +36,9 @@ describe('production model text encoding', () => {
     expect(evaluate(packed)).toEqual(tables)
     expect(JSON.stringify(evaluate(packed))).toBe(JSON.stringify(evaluate(plain)))
     expect(Buffer.byteLength(packed)).toBeLessThan(Buffer.byteLength(plain))
-    for (const key of ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'])
+    // verifyUncheckedCodeLoading left this bundle in the verify-split train
+    // (VERIFY_MODEL_TEXT, commit 0d66936899); continuationPrompt still ships here.
+    for (const key of ['compactionPrompt', 'goalUnfinishedExists', 'continuationPrompt'])
       expect(packed).toMatch(new RegExp(`[{,]${key}:`))
   })
   it('removes the entire unreferenced model block and decoder', async () => {

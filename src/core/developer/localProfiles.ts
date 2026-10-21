@@ -43,8 +43,8 @@ function slot(profile: DeveloperProfile): string {
 }
 
 /** One supervisor per machine owner. Missing runtime/broker/device bindings
- * are mandatory injected ports, never empty successful implementations.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+are mandatory injected ports, never empty successful implementations.
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export class LocalDeveloperProfiles implements DeveloperProfileResources {
   private readonly running = new Map<
     string,

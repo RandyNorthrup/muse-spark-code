@@ -3,6 +3,7 @@ import { pageConverter } from '../web/pageConverter'
 import type { Logger } from '../logger'
 import { uiLocale } from '../../shared/l10n/text'
 import { PromptInsertion } from './promptInsertion'
+import { isPromptStoreDamaged, safePromptFailure } from './promptFailure'
 import { createChatSharing } from './chatSharing'
 import { createChatSharePrivacy } from '../../core/sharing/privacy'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -23,11 +24,11 @@ import * as vscode from 'vscode'
 import { PromptLibrary } from '../../core/prompts/promptLibrary'
 import { PromptStore, readPromptFile } from '../../core/prompts/promptStore'
 import { PromptImporter, PromptSharer } from '../../core/prompts/promptImport'
+import { promptShareFilename } from '../../shared/prompts'
 import { promptPrivacy } from '../../core/prompts/promptPrivacy'
 import { agentDataFolder } from '../../runtime/dataFolder'
 import {
   GLOBAL_STATE_KEYS,
-  PROMPT_LIMITS,
   PROMPT_COMMAND_IDS,
   PAGE_WORKER_FILE,
   PROMPT_FILE_MODE,
@@ -59,7 +60,7 @@ export interface PromptHostDeps {
   readonly isConfidentialWorkspace: () => boolean | undefined
   readonly registeredSecrets: () => Promise<readonly string[]>
   /** M118-P-RAW-FETCH: exact bytes through the existing pinned transport/GitHub client. */
-  readonly readRemote?: (url: string, maxBytes: number) => Promise<string>
+  readonly readRemote?: (url: string) => Promise<string>
 }
 
 const nativePreview: PromptUiPort['preview'] = async (title, text, accept) => {
@@ -111,10 +112,9 @@ function nativeUi(
       const title = await vscode.window.showInputBox({
         title: UI_TEXT.promptTitle,
         value: draft.title,
-        validateInput: (value) =>
-          value.trim() === '' || value.length > PROMPT_LIMITS.title
-            ? UI_TEXT.promptLimits
-            : undefined,
+        // D121: any title length stands — the removed 80-character ceiling
+        // was invented — so only a blank title refuses.
+        validateInput: (value) => (value.trim() === '' ? UI_TEXT.promptTitleRequired : undefined),
       })
       if (title === undefined) return undefined
       const tags = await vscode.window.showInputBox({
@@ -177,7 +177,7 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
   try {
     await library.synchronise()
   } catch (error: unknown) {
-    if (!(error instanceof Error && error.message === UI_TEXT.promptStoreDamaged)) throw error
+    if (!isPromptStoreDamaged(error)) throw error
     await ui.report(fill(UI_TEXT.promptScopeDamaged, { scope: UI_TEXT.promptScopeUser }))
   }
   const insertion = new PromptInsertion(deps.chat)
@@ -214,11 +214,10 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
         return
       }
       const uri = await vscode.window.showSaveDialog({
+        // The title stays unlimited; only the suggested filename is cut to
+        // the platform's component limit (PR229FIX T5).
         defaultUri: vscode.Uri.file(
-          path.join(
-            deps.workspaceRoot ?? home,
-            `${title.replaceAll(/[^\p{L}\p{N}_-]/gu, '-')}.muse-prompt.md`,
-          ),
+          path.join(deps.workspaceRoot ?? home, promptShareFilename(title)),
         ),
         filters: { Markdown: ['muse-prompt.md'] },
       })
@@ -259,7 +258,7 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
     read: async (source) => {
       if (source.kind !== 'file') {
         if (deps.readRemote === undefined) throw new Error(UI_TEXT.promptFileInvalid)
-        return await deps.readRemote(source.location, PROMPT_LIMITS.fileBytes)
+        return await deps.readRemote(source.location)
       }
       const uris = await vscode.window.showOpenDialog({
         canSelectMany: false,
@@ -322,31 +321,6 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
       insert: (text) => insertion.insert(text),
     },
   })
-}
-
-function safePromptFailure(error: unknown): Error {
-  const safeMessages = [
-    UI_TEXT.promptFileInvalid,
-    UI_TEXT.promptLimits,
-    UI_TEXT.promptStoreDamaged,
-    UI_TEXT.promptStoreBusy,
-    UI_TEXT.promptWorkspaceRequired,
-    UI_TEXT.shareRangeInvalid,
-    UI_TEXT.shareTooLarge,
-    UI_TEXT.shareAttachmentUnavailable,
-    UI_TEXT.sharePreviewExpired,
-    UI_TEXT.exportNothing,
-    UI_TEXT.exportHistoryUnavailable,
-    UI_TEXT.exportWaitForTurn,
-    UI_TEXT.shareConfidential,
-    UI_TEXT.shareCancelled,
-  ]
-  // The boundary discards the original cause: it may contain private paths or prompt text.
-  return new Error(
-    error instanceof Error && safeMessages.includes(error.message)
-      ? error.message
-      : UI_TEXT.promptFileInvalid,
-  )
 }
 
 /** The lazy factory installs the caller's language before every command. */
@@ -440,15 +414,13 @@ function nativeDeps(ports: PromptActivationPorts): PromptHostDeps {
       const key = await ports.credentials.getApiKey()
       return key === undefined ? [] : [key]
     },
-    readRemote: (url, maxBytes) =>
-      ports
-        .webFetch()
-        .readRawPromptWith(url, maxBytes, () => !ports.settings().confidentialWorkspace, {
-          log: ports.log,
-          convertHtml,
-          table: UI_TEXT,
-          locale: uiLocale(),
-        }),
+    readRemote: (url) =>
+      ports.webFetch().readRawPromptWith(url, () => !ports.settings().confidentialWorkspace, {
+        log: ports.log,
+        convertHtml,
+        table: UI_TEXT,
+        locale: uiLocale(),
+      }),
     chat: {
       active: () => ports.registry.active,
       open: async () => {

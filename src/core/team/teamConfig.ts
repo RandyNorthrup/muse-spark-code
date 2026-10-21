@@ -24,9 +24,9 @@ export type TeamPoolEntry =
       readonly agent: TeamModelRef | TeamAgentRef
       readonly settings?: TeamModelSettings | undefined
       /**
-       * The entry's own limits by measure (lane A), e.g. concurrent, task
-       * and day token caps. Numbers only; lane A types the measures.
-       */
+      The entry's own limits by measure (lane A), e.g. concurrent, task
+      and day token caps. Numbers only; lane A types the measures.
+      */
       readonly caps?: Readonly<Record<string, number>> | undefined
     }
 
@@ -38,10 +38,10 @@ export function isDefaultEntry(entry: TeamPoolEntry): boolean {
 }
 
 /**
- * What Default resolves to: the orchestrator slot's model and backend right
- * now. Live, not a snapshot: a picker change applies to the next
- * delegation, and a running task keeps what it started on (lane A).
- */
+What Default resolves to: the orchestrator slot's model and backend right
+now. Live, not a snapshot: a picker change applies to the next
+delegation, and a running task keeps what it started on (lane A).
+*/
 export function resolveDefaultEntry(
   slot: TeamModelRef | TeamAgentRef,
   settings?: TeamModelSettings,
@@ -55,10 +55,10 @@ export interface TeamRolePool {
 }
 
 /**
- * The orchestrator slot: the composer's picker, unless the workspace names
- * another model. An absent agent is Default's behaviour; Reset to Default
- * restores it (lane T).
- */
+The orchestrator slot: the composer's picker, unless the workspace names
+another model. An absent agent is Default's behaviour; Reset to Default
+restores it (lane T).
+*/
 export interface TeamOrchestratorSlot {
   readonly agent?: TeamModelRef | TeamAgentRef | undefined
   readonly settings?: TeamModelSettings | undefined
@@ -80,10 +80,10 @@ export function teamRoleIds(): TeamBuiltinRoleId[] {
 }
 
 /**
- * Staff every role without a custom entry with Default as its only entry.
- * Default alone never turns the team on: the team runs once a custom entry
- * is a second, loaded model (acceptance 47; lane T decides from this).
- */
+Staff every role without a custom entry with Default as its only entry.
+Default alone never turns the team on: the team runs once a custom entry
+is a second, loaded model (acceptance 47; lane T decides from this).
+*/
 export function staffWithDefault(team: WorkspaceTeam, roleIds: readonly string[]): WorkspaceTeam {
   const roles: Record<string, TeamRolePool> = { ...team.roles }
   for (const id of roleIds) {
@@ -118,10 +118,10 @@ export interface PartialWorkspaceTeam {
 }
 
 /**
- * The workspace team: the built-in roles staffed by Default, the user's
- * defaults over them, and the workspace's own choices over those. Pools
- * replace whole: a workspace pool lists exactly the entries it runs.
- */
+The workspace team: the built-in roles staffed by Default, the user's
+defaults over them, and the workspace's own choices over those. Pools
+replace whole: a workspace pool lists exactly the entries it runs.
+*/
 export function resolveWorkspaceTeam(args: {
   readonly user?: PartialWorkspaceTeam | undefined
   readonly workspace?: PartialWorkspaceTeam | undefined
@@ -178,16 +178,18 @@ function isLowerableNumber(value: unknown): value is number {
 }
 
 /**
- * `.muse/team.json`, parsed. The file lowers only: a file that adds an
- * agent, a provider, a command, a role or an entry, sets `in-place`, or
- * holds an unknown key, is refused whole. In an untrusted workspace it is
- * not read at all (the host checks first).
- */
+`.muse/team.json`, parsed. The file lowers only: a file that adds an
+agent, a provider, a command, a role or an entry, sets `in-place`, or
+holds an unknown key, is refused whole. In an untrusted workspace it is
+not read at all (the host checks first).
+*/
 export function parseTeamJson(text: string): TeamJsonParse {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error) {
+    // Only malformed text refuses as not JSON; anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: 'team.json is not JSON' }
   }
   if (!isRecord(parsed)) {
@@ -295,10 +297,10 @@ export type TeamLowering =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * The lowering merge: caps and budgets move down, roles turn off, a role
- * can require a different reviewer. Anything that raises, adds or widens
- * refuses the file whole.
- */
+The lowering merge: caps and budgets move down, roles turn off, a role
+can require a different reviewer. Anything that raises, adds or widens
+refuses the file whole.
+*/
 export function lowerTeamWithJson(base: TeamLoweringBase, file: TeamJsonFile): TeamLowering {
   const offRoles: string[] = []
   const reviewers: Record<string, string> = {}

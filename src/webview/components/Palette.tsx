@@ -18,7 +18,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { UI_TEXT, PALETTE_LISTBOX_ID } from '../../shared/constants'
+import { UI_TEXT, PALETTE_LISTBOX_ID, CONTRIBUTOR_MODEL_SUFFIX } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
 import {
@@ -59,9 +59,9 @@ export interface PaletteProps {
   /** The active row's element id, for the prompt's aria-activedescendant. */
   readonly onActiveRowChange?: (elementId: string | undefined) => void
   /**
-   * The document retry for prices that failed to load (STARTUP017): said
-   * inside the palette, since pressing a notice outside it closes it first.
-   */
+  The document retry for prices that failed to load (STARTUP017): said
+  inside the palette, since pressing a notice outside it closes it first.
+  */
   readonly onRetryMoney?: () => void
 }
 
@@ -150,10 +150,10 @@ export function layoutActions(
 }
 
 /**
- * How a price reads in the picker: the pair, `unpriced`, `local` or `plan`.
- * The formatter is the lazy money chunk's (STARTUP017): unknown while it
- * loads, so priced rows read without prices rather than with guessed ones.
- */
+How a price reads in the picker: the pair, `unpriced`, `local` or `plan`.
+The formatter is the lazy money chunk's (STARTUP017): unknown while it
+loads, so priced rows read without prices rather than with guessed ones.
+*/
 function priceText(
   model: ModelOption,
   formatPrice: (amount: number | string) => string | undefined,
@@ -190,14 +190,39 @@ function modelDetail(
 ): string | undefined {
   const { contextLimit } = model
   const price = priceText(model, formatPrice)
+  const tier = modelTier(model)
   if (contextLimit === undefined) {
-    return price
+    return appendTier(price, tier)
   }
   if (price === undefined) {
-    return contextWindowLabel(contextLimit)
+    return appendTier(contextWindowLabel(contextLimit), tier)
   }
   // The template names the unit itself, so the window goes in bare (M95).
-  return fill(UI_TEXT.pickerModelDetail, { window: formatTokenWindow(contextLimit), price })
+  return appendTier(
+    fill(UI_TEXT.pickerModelDetail, { window: formatTokenWindow(contextLimit), price }),
+    tier,
+  )
+}
+
+/**
+A model's tier as the picker names it (F62): contributor-tier models carry
+the `-contributor` suffix, whose price is the lower contributor rate for
+training on what it is sent. Any other model's tier is the CLI's or the
+provider's to report, never guessed here; the contributor switch (F8 lane)
+reads the same suffix.
+*/
+function modelTier(model: ModelOption): string | undefined {
+  return model.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+    ? UI_TEXT.pickerContributorTier
+    : undefined
+}
+
+/** The detail with the tier named after it, either half alone, or nothing to say. */
+function appendTier(detail: string | undefined, tier: string | undefined): string | undefined {
+  if (detail === undefined) {
+    return tier
+  }
+  return tier === undefined ? detail : `${detail} · ${tier}`
 }
 
 /** One provider's models in the picker's models view, in first-seen order. */
@@ -208,10 +233,10 @@ export interface ModelSection {
 }
 
 /**
- * The models view's sections (M95): pinned favourites first, then one group
- * per provider (Meta's own models under their own name). Pure, so the panel
- * and its tests share it.
- */
+The models view's sections (M95): pinned favourites first, then one group
+per provider (Meta's own models under their own name). Pure, so the panel
+and its tests share it.
+*/
 export function modelSections(
   models: readonly ModelOption[],
   currentModelId: string | undefined,
@@ -221,7 +246,9 @@ export function modelSections(
   const rowFor = (model: ModelOption): PaletteRow => ({
     id: `model:${model.modelId}`,
     label: model.displayLabel,
-    detail: modelDetail(model, formatPrice),
+    // A model that cannot run the coding agent names its limit where the
+    // price and window would read (F83); the turn refusal says it again.
+    detail: model.agentLimit ?? modelDetail(model, formatPrice),
     tip: UI_TEXT.paletteTips.switchModel,
     widget: undefined,
     isCurrent: model.modelId === currentModelId,
@@ -331,6 +358,23 @@ function Widget({
   }
 }
 
+/** A trailing period does not make a description a different sentence (F69). */
+function bareDescription(text: string): string {
+  return text.trim().replace(/\.$/, '')
+}
+
+/**
+A row's hover tip, unless it only repeats the visible detail (F69): rows
+whose tip and detail are the same sentence read it twice (once seen, once
+through the description), so the tip stays silent then.
+*/
+function rowTip(detail: string | undefined, tip: string | undefined): string | undefined {
+  if (tip === undefined) {
+    return undefined
+  }
+  return detail !== undefined && bareDescription(tip) === bareDescription(detail) ? undefined : tip
+}
+
 function RowView({
   row,
   index,
@@ -344,13 +388,14 @@ function RowView({
   readonly onActivate: () => void
   readonly onHover: (index: number) => void
 }) {
+  const tip = rowTip(row.detail, row.tip)
   return (
     <li
       id={`${ROW_ID_PREFIX}${row.id}`}
       role="option"
       aria-selected={isActive}
-      title={row.tip}
-      aria-describedby={row.tip === undefined ? undefined : `${ROW_ID_PREFIX}${row.id}-tip`}
+      title={tip}
+      aria-describedby={tip === undefined ? undefined : `${ROW_ID_PREFIX}${row.id}-tip`}
       className={isActive ? 'palette-item palette-item-active' : 'palette-item'}
       onMouseEnter={() => {
         onHover(index)
@@ -369,9 +414,9 @@ function RowView({
       </span>
       {row.isCurrent ? <CheckIcon title={UI_TEXT.menuCurrent} /> : null}
       {row.widget === undefined ? null : <Widget widget={row.widget} onStep={row.step} />}
-      {row.tip === undefined ? null : (
+      {tip === undefined ? null : (
         <span id={`${ROW_ID_PREFIX}${row.id}-tip`} className="sr-only" aria-hidden="true">
-          {row.tip}
+          {tip}
         </span>
       )}
     </li>
@@ -437,7 +482,7 @@ export function Palette(props: PaletteProps) {
   const filterBox = useRef<HTMLInputElement>(null)
   const [storedIndex, setActiveIndex] = useState(0)
 
-  const layout = useMemo(
+  const { entries, rows } = useMemo(
     () =>
       view === 'models'
         ? layoutModels(models, filter, currentModelId, onSelectModel, onAction, (amount) =>
@@ -446,7 +491,6 @@ export function Palette(props: PaletteProps) {
         : layoutActions(filterPalette(groups, filter), onAction),
     [view, filter, models, currentModelId, onSelectModel, groups, onAction, money],
   )
-  const { entries, rows } = layout
 
   // The stored index may point past the end after the filter narrowed the
   // rows; derive the effective one instead of resetting state in an effect.

@@ -1,7 +1,6 @@
 import { open } from 'node:fs/promises'
 import * as z from 'zod/mini'
 import { writeFileAtomically } from '../../host/fsAtomic'
-import { storeErrorCode } from '../../host/backend/storeErrors'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
 import { readResourceSettings } from '../../shared/resources'
 import type { ResourceMachineStore } from './port'
@@ -27,7 +26,9 @@ async function readJson(file: string): Promise<unknown> {
       await handle.close()
     }
   } catch (error) {
-    if (storeErrorCode(error) === 'ENOENT') return undefined
+    // A missing settings file reads as absent. Anything else keeps its
+    // kind under the fixed unavailable words.
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
     throw new Error(UI_TEXT.resourceUnavailable, { cause: error })
   }
 }

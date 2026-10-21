@@ -9,6 +9,7 @@ import {
   type UsageQuery,
 } from '../../shared/usagePage'
 import type { HostBridge } from '../hostBridge'
+import { webviewErrorReport } from '../errorReport'
 import { Header } from './Header'
 import { KpiTiles } from './KpiTiles'
 import { LimitsSection } from './LimitsSection'
@@ -22,6 +23,7 @@ import { EmptyStates } from './EmptyStates'
 import { StackedColumns } from './charts/StackedColumns'
 import { MirroredColumns } from './charts/MirroredColumns'
 import { ShareBar } from './charts/ShareBar'
+import { planDisplayName } from '../../shared/usage'
 import { dayLabel } from './display'
 import { installUsageTable } from './installUsageTable'
 
@@ -70,11 +72,34 @@ export function UsageApp({
       }
       try {
         host.post(message)
-      } catch {
+      } catch (error: unknown) {
+        // An unposted message reads failed. A down bridge refuses with the
+        // platform's own failure (a DOMException, never an Error), thrown
+        // from the host binding's realm, where even `instanceof DOMException`
+        // fails — so read it by shape, as every DOMException carries its
+        // string name and numeric code. Only anything else keeps its kind
+        // past the page. The failure also reaches the host's record; when
+        // the bridge itself is down that post throws to the boundary instead.
+        const isRefusal =
+          error instanceof Error ||
+          error instanceof DOMException ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'name' in error &&
+            typeof error.name === 'string' &&
+            'code' in error &&
+            typeof error.code === 'number')
+        if (!isRefusal) throw error
         if ('requestId' in message) pending.current.delete(message.requestId)
         if (message.type === 'usage/query') wanted.current = undefined
         setBusy(false)
         setError(USAGE_TEXT.readFailed)
+        try {
+          host.post(webviewErrorReport('hostMessage', error))
+        } catch {
+          // The usage bridges carry usage messages only, so a refused
+          // action report must never hide the failure already shown above.
+        }
       }
     },
     [host],
@@ -183,6 +208,7 @@ export function UsageApp({
             totals={state.totals}
             previous={state.previousTotals}
             metric={state.query.metric}
+            plan={planDisplayName(state.limits)}
           />
           {state.buckets.length === 0 ? null : (
             <>
@@ -213,10 +239,14 @@ export function UsageApp({
           )}
           <footer>
             <p>
-              {fill(USAGE_TEXT.retentionNote, {
-                detailDays: state.history.detailDays,
-                historyDays: state.history.historyDays,
-              })}
+              {state.history.historyDays === null
+                ? fill(USAGE_TEXT.retentionNoteKept, {
+                    detailDays: state.history.detailDays,
+                  })
+                : fill(USAGE_TEXT.retentionNote, {
+                    detailDays: state.history.detailDays,
+                    historyDays: state.history.historyDays,
+                  })}
             </p>
             <p>{USAGE_TEXT.privacyNote}</p>
           </footer>

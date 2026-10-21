@@ -251,8 +251,9 @@ export class ModelApiSchedules {
     if (this.scheduleTimer === undefined && !this.port.isDisposed()) {
       this.scheduleTimer = setInterval(() => {
         if (!this.port.isDisposed()) {
-          void this.listSchedules().catch((error: unknown) => {
-            this.port.deps.log.warn(`Scheduled prompts could not be refreshed: ${describe(error)}`)
+          void this.listSchedules().catch(() => {
+            // The record names the stale view, never the refresh failure's text.
+            this.port.deps.log.warn('Scheduled prompts could not be refreshed')
           })
         }
       }, SCHEDULE_POLL_INTERVAL_MS)
@@ -437,9 +438,10 @@ export class ModelApiSchedules {
     this.port.touch()
     try {
       await this.listSchedules()
-    } catch (error: unknown) {
+    } catch {
       // A run already admitted and started must never be reported as rejected.
-      this.port.deps.log.warn(`Scheduled prompts could not be refreshed: ${describe(error)}`)
+      // The record names the stale view, never the refresh failure's text.
+      this.port.deps.log.warn('Scheduled prompts could not be refreshed')
     }
     return submission
   }
@@ -482,7 +484,8 @@ interface VerificationContext {
   readonly emit: (event: AgentEvent) => void
   readonly recordTranscript: (turnId: string, item: ItemSnapshot) => void
   readonly rerecordTranscript: (item: ItemSnapshot) => void
-  readonly appendHookEffects: (turnId: string, effects: HookEffects) => void
+  // TOOLCAP: async so hook context spills finish before the next request.
+  readonly appendHookEffects: (turnId: string, effects: HookEffects) => void | Promise<void>
   readonly abortError: () => Error
   readonly isAbortError: (error: unknown) => boolean
   readonly unlessStopped: <T>(promise: Promise<T>, signal: AbortSignal) => Promise<T>
@@ -496,7 +499,6 @@ const NOTHING_TO_COMMIT = () => {
 export async function verifyRound(
   context: VerificationContext,
   turn: ActiveTurn,
-  isLastRound: boolean,
 ): Promise<string | undefined> {
   const admission = context.verificationAdmission(turn.abort.signal)
   const edited = context.ledger.takeRoundEdits()
@@ -524,7 +526,7 @@ export async function verifyRound(
     appendVerificationNote(context, turn.turnId, recorded.value, recorded.scope)
     return undefined
   }
-  if (isLastRound || edited.length === 0) {
+  if (edited.length === 0) {
     // The round's runs are judged, edits or not (the Codex review of PR #54).
     if (context.ledger.judgeRound()) {
       noteFixLoopStopped(context, turn.turnId, [])
@@ -613,15 +615,24 @@ export async function verifyRound(
       }))
     }
   } catch (error: unknown) {
-    const isStopped = context.isAbortError(error) || isAbortRequested(signal)
-    const ended: ItemSnapshot = {
-      ...started,
-      status: isStopped ? CANCELLED : FAILED,
-      ...(!isStopped && { failureReason: describe(error) }),
+    // A stop cancels the item; any other failure fails it with its reason and
+    // reaches the caller unchanged. isAbortRequested(signal) is signal.aborted.
+    if (context.isAbortError(error)) {
+      const cancelled: ItemSnapshot = { ...started, status: CANCELLED }
+      context.emit({ type: 'itemCompleted', item: cancelled })
+      context.rerecordTranscript(cancelled)
+      throw context.abortError()
     }
+    if (signal.aborted) {
+      const cancelled: ItemSnapshot = { ...started, status: CANCELLED }
+      context.emit({ type: 'itemCompleted', item: cancelled })
+      context.rerecordTranscript(cancelled)
+      throw context.abortError()
+    }
+    const ended: ItemSnapshot = { ...started, status: FAILED, failureReason: describe(error) }
     context.emit({ type: 'itemCompleted', item: ended })
     context.rerecordTranscript(ended)
-    throw isStopped ? context.abortError() : error
+    throw error
   }
   const report = pending?.report
   const sections = [
@@ -654,7 +665,7 @@ export async function verifyRound(
   }
   // The model has the reads now: they become the baseline of the next check.
   pending?.commit()
-  context.appendHookEffects(turn.turnId, effects)
+  await context.appendHookEffects(turn.turnId, effects)
   return effects.stopReason
 }
 
@@ -699,13 +710,13 @@ function appendVerificationNote(
 }
 
 /**
- * The edited files' diagnostics, compared with their previous check (M68).
- * At most VERIFY_SHOWN_FILES_MAX files are shown and read, none once the
- * conversation wrote a file the editor's tools run as code (the M68
- * review); the others are "not checked" with the reason. Diagnostics that
- * cannot be read at all are said so, to the model and the log, rather than
- * reported clean.
- */
+The edited files' diagnostics, compared with their previous check (M68).
+At most VERIFY_SHOWN_FILES_MAX files are shown and read, none once the
+conversation wrote a file the editor's tools run as code (the M68
+review); the others are "not checked" with the reason. Diagnostics that
+cannot be read at all are said so, to the model and the log, rather than
+reported clean.
+*/
 async function editDiagnostics(
   context: VerificationContext,
   verify: VerifyHooks,

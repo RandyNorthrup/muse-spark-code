@@ -14,7 +14,6 @@ import {
   CODE_INTEL_MODEL_TEXT,
   CODE_INTEL_NAME_MAX_CHARS,
   FILE_REFUSAL_MODEL_TEXT,
-  RENAME_MAX_FILES,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { PatchHunk } from '../../shared/patchDocument'
@@ -61,10 +60,10 @@ function staleRefusal(file: PlacedFile): CodeIntelRefusal {
 }
 
 /**
- * The file's text with the edits applied, or why the plan cannot use it.
- * `expected` is the text the rename's position was read from, for the file
- * that holds it: the document must still be that text.
- */
+The file's text with the edits applied, or why the plan cannot use it.
+`expected` is the text the rename's position was read from, for the file
+that holds it: the document must still be that text.
+*/
 async function plannedFile(
   query: CodeIntelQuery,
   planned: { readonly file: PlacedFile; readonly edits: readonly TextEdit[] },
@@ -119,7 +118,17 @@ async function placedFiles(
       fill(CODE_INTEL_MODEL_TEXT.renameOutside, { count: String(outside) }),
     )
   }
-  // One entry per file, however the edit groups its changes.
+  return mergePlacedEdits(placed)
+}
+
+/**
+One entry per file, however the edit groups its changes. D121: a rename
+touches as many files as the language service names — the removed 200-file
+ceiling was invented, so files past it merge like any other.
+*/
+export function mergePlacedEdits(
+  placed: readonly { file: PlacedFile | undefined; edits: readonly TextEdit[] }[],
+): { file: PlacedFile; edits: TextEdit[] }[] {
   const byFile = new Map<string, { file: PlacedFile; edits: TextEdit[] }>()
   const merged: { file: PlacedFile; edits: TextEdit[] }[] = []
   for (const { file, edits } of placed) {
@@ -133,14 +142,6 @@ async function placedFiles(
       merged.push(entry)
     }
     entry.edits.push(...edits)
-  }
-  if (merged.length > RENAME_MAX_FILES) {
-    throw new CodeIntelRefusal(
-      fill(CODE_INTEL_MODEL_TEXT.renameTooMany, {
-        count: String(merged.length),
-        max: String(RENAME_MAX_FILES),
-      }),
-    )
   }
   return merged
 }
@@ -156,9 +157,9 @@ function checkFileOperations(edit: RenameEdits): void {
 }
 
 /**
- * The old name: what the edit at the position replaces, in the text the
- * position was read from. Every other range of the edit must cover it too.
- */
+The old name: what the edit at the position replaces, in the text the
+position was read from. Every other range of the edit must cover it too.
+*/
 function oldName(
   target: Target,
   placed: readonly { file: PlacedFile; edits: readonly TextEdit[] }[],

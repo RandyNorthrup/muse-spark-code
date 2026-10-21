@@ -16,10 +16,10 @@ export interface CachedJudgeOutcome {
 }
 
 /**
- * A bounded, insertion-ordered cache: past the cap the oldest outcome is
- * evicted first. One instance per window; `clear` drops the window's
- * outcomes (a replaced session's entries are gone with it).
- */
+A bounded, insertion-ordered cache: past the cap the oldest outcome is
+evicted first. One instance per window; `clear` drops the window's
+outcomes (a replaced session's entries are gone with it).
+*/
 export class JudgeResultCache {
   private readonly outcomes = new Map<string, CachedJudgeOutcome>()
   private readonly maxEntries: number

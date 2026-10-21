@@ -15,12 +15,12 @@
 //   WEB_FETCH_ATTEMPT_DELAY_MS, the first to connect wins. Through a proxy,
 //   the proxy is asked for that address too (src/host/web/pinnedRequest.ts);
 // - follows a redirect on the same host, checked, resolved and pinned
-//   again, at most WEB_FETCH_MAX_REDIRECTS times; a redirect to another host
-//   is handed back to the model, which asks again (each host is approved on
-//   its own);
-// - reads at most WEB_FETCH_MAX_BYTES of an allowed content type within
-//   WEB_FETCH_TIMEOUT_MS, then turns HTML into Markdown and leaves text as
-//   it is.
+//   again, until the page answers or Stop ends the wait; a redirect to
+//   another host is handed back to the model, which asks again (each host
+//   is approved on its own);
+// - reads the whole body of an allowed content type (a caller may still
+//   name its own smaller ingress cap with `rawTextLimit`), then turns HTML
+//   into Markdown and leaves text as it is.
 //
 // What the model receives marks the page as untrusted data between markers
 // the page cannot know; text the server chose (a redirect's URL, the title)
@@ -42,20 +42,18 @@ import {
   HTTP_SUCCESS_MIN,
   UI_TEXT,
   WEB_FETCH_ATTEMPT_DELAY_MS,
-  WEB_FETCH_CONVERT_MAX_CHARS,
   WEB_FETCH_DETAIL_MAX_CHARS,
   WEB_FETCH_HTML_TYPES,
-  WEB_FETCH_MAX_BYTES,
-  WEB_FETCH_MAX_CONTENT_CHARS,
-  WEB_FETCH_MAX_REDIRECTS,
+  WEB_FETCH_BUFFER_WINDOW_BYTES,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_TEXT_TYPES,
-  WEB_FETCH_TIMEOUT_MS,
   WEB_FETCH_TOKEN_MAX_CHARS,
   WEB_FETCH_XHTML_TYPE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { startStillWaiting, stillWaitingText } from '../timeouts'
+import { isCodedError } from '../workspaceRoot'
 import { describeNetworkFailure, networkFailureCodes } from '../networkFailure'
 import {
   type FailureFacts,
@@ -92,9 +90,9 @@ export interface PinnedResponse {
 }
 
 /**
- * What NAT64 discovery (RFC 7050) learned: the network's prefixes (none where
- * no DNS64 answers), or that it could not tell, and why.
- */
+What NAT64 discovery (RFC 7050) learned: the network's prefixes (none where
+no DNS64 answers), or that it could not tell, and why.
+*/
 export type Nat64Discovery =
   | { readonly isKnown: true; readonly prefixes: readonly Nat64Prefix[] }
   | { readonly isKnown: false; readonly detail: string }
@@ -108,9 +106,9 @@ export interface WebFetchDeps {
   /** The network's NAT64 prefixes (RFC 7050), asked only when an answer is IPv6. */
   readonly nat64: () => Promise<Nat64Discovery>
   /**
-   * One GET to the pinned address; `onConnected` once its TLS connection is
-   * up. Rejects when it cannot be made or `signal` aborts.
-   */
+  One GET to the pinned address; `onConnected` once its TLS connection is
+  up. Rejects when it cannot be made or `signal` aborts.
+  */
   readonly request: (
     target: PinnedTarget,
     signal: AbortSignal,
@@ -120,10 +118,15 @@ export interface WebFetchDeps {
   readonly convertHtml: HtmlConverter
   /** Fresh random hexadecimal for the markers around the page's content. */
   readonly newMarker: () => string
-  /** The whole fetch's deadline; WEB_FETCH_TIMEOUT_MS unless a test shortens it. */
+  /**
+  D121: names how long a fetch has waited, as Model API requests do;
+  absent stays silent. The host wires its log.
+  */
+  readonly notice?: ((text: string) => void) | undefined
+  /** A test's short wait between notices; the production cadence otherwise. */
+  readonly noticeMs?: number | undefined
   /** M118 raw portable files keep exact text and use their smaller ingress cap. */
   readonly rawTextLimit?: number
-  readonly timeoutMs?: number
 }
 
 /** A page that was read. */
@@ -153,9 +156,9 @@ export type WebFetchResult =
   | { readonly kind: 'failed'; readonly failure: WebFetchFailure }
 
 /**
- * The host's fetch: one URL, stopped by the turn's signal; `isStillAllowed`
- * is asked before each request goes out.
- */
+The host's fetch: one URL, stopped by the turn's signal; `isStillAllowed`
+is asked before each request goes out.
+*/
 export type WebFetcher = (
   url: string,
   signal: AbortSignal,
@@ -224,14 +227,17 @@ async function answersFor(
     if (signal.aborted) {
       throw error
     }
+    // Only a failed lookup reads unresolved: the resolver fails shaped,
+    // so anything else keeps its kind past the lookup.
+    if (!isCodedError(error)) throw error
     return refuse('unresolved', { host: checked.host })
   }
 }
 
 /**
- * The addresses a checked URL's request may be pinned to, in the resolver's
- * order, once every answer is checked; the name is never looked up again.
- */
+The addresses a checked URL's request may be pinned to, in the resolver's
+order, once every answer is checked; the name is never looked up again.
+*/
 async function pin(
   checked: CheckedPageUrl,
   deps: WebFetchDeps,
@@ -258,7 +264,7 @@ async function pin(
   }
   const targets = usable.flatMap((address) => {
     const family = addressFamily(address)
-    return family === undefined ? [] : [{ url, host, address, family }]
+    return family === undefined ? [] : { url, host, address, family }
   })
   if (targets.length === 0) {
     refuse('unresolved', { host })
@@ -278,11 +284,11 @@ class ConnectFailed extends Error {
 }
 
 /**
- * The first pinned address to connect, as RFC 8305 races them: an attempt
- * starts when the one before has not connected within the attempt delay, or
- * at once when it failed; the first to connect wins and the others are
- * stopped. An attempt that connected is the answer, whatever it says.
- */
+The first pinned address to connect, as RFC 8305 races them: an attempt
+starts when the one before has not connected within the attempt delay, or
+at once when it failed; the first to connect wins and the others are
+stopped. An attempt that connected is the answer, whatever it says.
+*/
 function requestPinned(
   targets: readonly PinnedTarget[],
   deps: WebFetchDeps,
@@ -329,6 +335,8 @@ function requestPinned(
       try {
         ensureAllowed()
       } catch (error: unknown) {
+        // An allowance check that fails rejects the race with its failure:
+        // the fetch fails as refused, never as a connection error.
         settle(() => {
           reject(error instanceof Error ? error : new Error(String(error)))
         })
@@ -475,11 +483,11 @@ function mediaTypeOf(contentType: string): string {
 }
 
 /**
- * A text body as text: a byte order mark, else the header's charset, else
- * UTF-8 (a label nobody knows counts as none); an encoding this runtime
- * cannot decode refuses the page, never reads it as UTF-8. An HTML page is
- * decoded by its converter, as HTML decodes it (htmlCharset.ts).
- */
+A text body as text: a byte order mark, else the header's charset, else
+UTF-8 (a label nobody knows counts as none); an encoding this runtime
+cannot decode refuses the page, never reads it as UTF-8. An HTML page is
+decoded by its converter, as HTML decodes it (htmlCharset.ts).
+*/
 function decodeText(bytes: Uint8Array, contentType: string): string {
   const label = mimeParameter(contentType, CHARSET)
   const encoding = (label === undefined ? undefined : encodingOf(label)) ?? UTF_8
@@ -500,10 +508,10 @@ interface Decoded {
 }
 
 /**
- * The body through a decompressor. `pipeline` destroys the decompressor with
- * the body's error (an abort, a reset), so reading it fails rather than
- * waiting forever; its callback has nothing left to do.
- */
+The body through a decompressor. `pipeline` destroys the decompressor with
+the body's error (an abort, a reset), so reading it fails rather than
+waiting forever; its callback has nothing left to do.
+*/
 function through(body: AsyncIterable<Uint8Array>, decompressor: Transform): Decoded {
   let hasFailed = false
   const source = Readable.from(body)
@@ -537,57 +545,127 @@ function decoded(body: AsyncIterable<Uint8Array>, coding: string): Decoded {
   }
 }
 
-/** Every chunk, refused as soon as the total passes the cap. */
+/**
+Every chunk, refused as soon as the total passes the caller-named cap.
+Only the M118 raw path names one; the ordinary path streams instead.
+*/
 async function collect(chunks: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
   const parts: Uint8Array[] = []
   let total = 0
   for await (const chunk of chunks) {
     total += chunk.byteLength
     if (total > maxBytes) {
-      refuse('tooLarge')
+      refuse('tooLarge', { maxBytes })
     }
     parts.push(chunk)
   }
   return Buffer.concat(parts)
 }
 
+/** One page's buffered bytes, and whether the stream held more past them. */
+interface BodyRead {
+  readonly bytes: Uint8Array
+  readonly truncated: boolean
+}
+
 /**
- * The whole body within the cap. Damaged compressed data is refused as the
- * coding's, not reported as a network failure.
- */
+The head window of the stream, stopping it past the window: breaking the
+iteration destroys the source, and the fetch still releases the
+connection. Memory never holds more than the window, however far a
+decompressor expands or a stream runs.
+*/
+async function collectHead(chunks: AsyncIterable<Uint8Array>, window: number): Promise<BodyRead> {
+  const parts: Uint8Array[] = []
+  let total = 0
+  for await (const chunk of chunks) {
+    const room = window - total
+    if (room <= 0) {
+      return { bytes: Buffer.concat(parts), truncated: true }
+    }
+    if (chunk.byteLength > room) {
+      parts.push(chunk.subarray(0, room))
+      return { bytes: Buffer.concat(parts), truncated: true }
+    }
+    parts.push(chunk)
+    total += chunk.byteLength
+  }
+  return { bytes: Buffer.concat(parts), truncated: false }
+}
+
+/** A window cut can split a final multi-byte sequence; at most this many trailing bytes go. */
+const HEAD_CUT_MAX_BYTES = 4
+
+/**
+The head whole to a character: when the window cut a final multi-byte
+sequence, the head shortens past it. A genuinely undecodable head comes
+back whole and refuses downstream as today.
+*/
+function wholeHead(bytes: Uint8Array, contentType: string): Uint8Array {
+  const label = mimeParameter(contentType, CHARSET)
+  const encoding = (label === undefined ? undefined : encodingOf(label)) ?? UTF_8
+  for (let cut = 0; cut <= HEAD_CUT_MAX_BYTES; cut += 1) {
+    const head = cut === 0 ? bytes : bytes.subarray(0, bytes.byteLength - cut)
+    try {
+      decodeWithBom(head, encoding)
+      return head
+    } catch (error: unknown) {
+      if (!(error instanceof UndecodableText)) throw error
+    }
+  }
+  return bytes
+}
+
+/**
+The body within the caller-named cap (M118 raw files: refused past it),
+else the head window with the stream stopped past it (truncated, never
+refused). Damaged compressed data is refused as the coding's, not
+reported as a network failure.
+*/
 async function readCapped(
   response: PinnedResponse,
   headers: ReadHeaders,
   signal: AbortSignal,
-  maxBytes = WEB_FETCH_MAX_BYTES,
-): Promise<Uint8Array> {
-  const declared = Number(headers['content-length'] ?? NaN)
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    refuse('tooLarge')
-  }
+  maxBytes: number | undefined,
+): Promise<BodyRead> {
   const coding = (headers['content-encoding'] ?? IDENTITY).trim().toLowerCase()
   const body = decoded(response.body, coding)
+  const read = async (): Promise<BodyRead> => {
+    if (maxBytes !== undefined) {
+      const declared = Number(headers['content-length'] ?? NaN)
+      if (Number.isFinite(declared) && declared > maxBytes) {
+        refuse('tooLarge', { maxBytes })
+      }
+      return { bytes: await collect(body.chunks, maxBytes), truncated: false }
+    }
+    return await collectHead(body.chunks, WEB_FETCH_BUFFER_WINDOW_BYTES)
+  }
   try {
-    return await collect(body.chunks, maxBytes)
+    return await read()
   } catch (error: unknown) {
     if (error instanceof FetchRefused || signal.aborted || body.hasSourceFailed()) {
       throw error
     }
+    // Damaged compressed data is refused as the coding's, not reported as
+    // a network failure: only a shaped transport failure reads that way,
+    // so anything else keeps its kind.
+    if (!isCodedError(error)) throw error
     return refuse('encoding', { encoding: shownToken(coding) })
   }
 }
 
-/** The facts line, the notice and the marked content, as the model receives them. */
+/**
+The facts line, the notice and the marked content, as the model receives
+them. D121: the page reaches the model whole — no char slice of ours.
+The truncation notice names only a genuinely truncated page (past the
+buffer window, or a conversion the worker stopped); past the model's real
+context window the TOOLCAP spill carries the full text instead.
+*/
 function pageText(
   page: WebPage,
   content: string,
   flags: { readonly isHtml: boolean; readonly hasMore: boolean },
   marker: string,
 ): string {
-  const shown =
-    content.length > WEB_FETCH_MAX_CONTENT_CHARS
-      ? content.slice(0, WEB_FETCH_MAX_CONTENT_CHARS)
-      : content
   const facts = [
     fill(WEB_FETCH_MODEL_TEXT.webFetchHeader, {
       url: page.url,
@@ -596,15 +674,15 @@ function pageText(
       bytes: String(page.bytes),
     }),
     flags.isHtml ? WEB_FETCH_MODEL_TEXT.webFetchConverted : WEB_FETCH_MODEL_TEXT.webFetchAsText,
-    ...(flags.hasMore || shown.length < content.length
-      ? [fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(shown.length) })]
+    ...(flags.hasMore
+      ? [fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(content.length) })]
       : []),
   ].join(' ')
   return [
     facts,
     WEB_FETCH_MODEL_TEXT.webFetchUntrusted,
     fill(WEB_FETCH_MODEL_TEXT.webFetchOpen, { marker }),
-    shown,
+    content,
     fill(WEB_FETCH_MODEL_TEXT.webFetchClose, { marker }),
   ].join('\n')
 }
@@ -618,12 +696,17 @@ const CONVERSION_FAILURES: Readonly<Record<HtmlConversionFailure, WebFetchFailur
 }
 
 /**
- * The page's text, HTML as Markdown by the converter (on its worker): the
- * final URL and the title go inside the markers. A page the converter could
- * not convert in time or memory is refused with that reason.
- */
+The page's text, HTML as Markdown by the converter (on its worker): the
+final URL and the title go inside the markers. A page the converter could
+not convert in time or memory is refused with that reason.
+*/
 async function contentOf(
-  body: { readonly bytes: Uint8Array; readonly contentType: string; readonly isHtml: boolean },
+  body: {
+    readonly bytes: Uint8Array
+    readonly contentType: string
+    readonly isHtml: boolean
+    readonly truncated: boolean
+  },
   urls: { readonly requested: URL; readonly final: URL },
   convertHtml: HtmlConverter,
   signal: AbortSignal,
@@ -632,24 +715,27 @@ async function contentOf(
     urls.final.href === urls.requested.href
       ? []
       : [fill(WEB_FETCH_MODEL_TEXT.webFetchRedirected, { url: urls.final.href })]
+  const whole = body.truncated ? wholeHead(body.bytes, body.contentType) : body.bytes
   if (!body.isHtml) {
     return {
-      content: [...redirected, decodeText(body.bytes, body.contentType)].join('\n\n'),
-      hasMore: false,
+      content: [...redirected, decodeText(whole, body.contentType)].join('\n\n'),
+      hasMore: body.truncated,
     }
   }
+  // D121: no char bound — the page converts whole. The worker's own time
+  // and heap limits still stop a hostile page, with that reason.
   const converted = await convertHtml(
     {
-      bytes: body.bytes,
+      bytes: whole,
       charset: mimeParameter(body.contentType, CHARSET),
       url: urls.final.href,
-      maxChars: WEB_FETCH_CONVERT_MAX_CHARS,
     },
     signal,
   )
   if (!converted.ok) {
-    // The page arrived; the fetch's deadline passed while it was converted.
-    // (A stopped turn is rethrown by fetchWebPage, whatever is refused here.)
+    // The page arrived; its HTML conversion ran out of the converter's own
+    // time. (A stopped turn is rethrown by fetchWebPage, whatever is refused
+    // here.)
     return signal.aborted
       ? refuse('conversionTimeout')
       : refuse(CONVERSION_FAILURES[converted.kind], {
@@ -664,7 +750,7 @@ async function contentOf(
       : [fill(WEB_FETCH_MODEL_TEXT.webFetchTitle, { title: page.title })]
   return {
     content: [...redirected, ...title, page.markdown].join('\n\n'),
-    hasMore: page.isTruncated,
+    hasMore: body.truncated || page.isTruncated,
   }
 }
 
@@ -693,7 +779,13 @@ async function readPage(
     refuse('contentType', { type: shownToken(type) })
   }
   if (isHtml && deps.rawTextLimit !== undefined) refuse('contentType', { type })
-  const bytes = await readCapped(response, headers, signal, deps.rawTextLimit)
+  // The trusted policy's post-decompression bound (SECURITY.md) holds on
+  // every product call: without a caller-named ingress cap the stream stops
+  // past WEB_FETCH_BUFFER_WINDOW_BYTES and the page converts
+  // truncated-with-notice, so a gzip/Brotli bomb or a fast text stream
+  // costs no more than the window of host memory, and a valid page past it
+  // still reads instead of refusing.
+  const { bytes, truncated } = await readCapped(response, headers, signal, deps.rawTextLimit)
   if (deps.rawTextLimit !== undefined)
     return {
       kind: 'page',
@@ -707,7 +799,7 @@ async function readPage(
       text: decodeText(bytes, contentType),
     }
   const { content, hasMore } = await contentOf(
-    { bytes, contentType, isHtml },
+    { bytes, contentType, isHtml, truncated },
     urls,
     deps.convertHtml,
     signal,
@@ -726,14 +818,12 @@ async function readPage(
   }
 }
 
-/** Why the request failed: a refusal, the deadline, or the network. */
-function failureOf(error: unknown, deadline: AbortSignal): WebFetchFailure {
+/** Why the request failed: a refusal or the network (no deadline of ours). */
+function failureOf(error: unknown): WebFetchFailure {
   if (error instanceof FetchRefused) {
     return error.failure
   }
-  if (deadline.aborted) {
-    return webFetchFailure('timeout')
-  }
+
   return error instanceof ConnectFailed
     ? connectionFailure(error)
     : webFetchFailure('network', { detail: detailOf(error) })
@@ -752,7 +842,10 @@ function nextHop(
   let target: URL
   try {
     target = new URL(location.trim(), current.url)
-  } catch {
+  } catch (error) {
+    // Only an unparsable redirect target refuses the hop: the constructor
+    // raises TypeError for exactly that, so anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     throw new FetchRefused(redirectRefused(webFetchFailure('invalidUrl')))
   }
   const checked = checkPageUrl(target.href)
@@ -775,7 +868,7 @@ function movedResult(location: string, marker: string): WebFetchResult {
   return { kind: 'moved', location, text, visibleText: fill(UI_TEXT.webFetchMoved, { location }) }
 }
 
-/** Every hop of one fetch, within the deadline and the redirect limit. */
+/** Every hop of one fetch, until the page answers or Stop ends it; same-host loops end there. */
 async function fetchHops(
   first: CheckedPageUrl,
   deps: WebFetchDeps,
@@ -791,7 +884,7 @@ async function fetchHops(
     }
   }
   let current = first
-  for (let redirects = 0; ; redirects += 1) {
+  for (;;) {
     ensureAllowed()
     const targets = await pin(current, deps, signal)
     ensureAllowed()
@@ -800,9 +893,9 @@ async function fetchHops(
       if (!HTTP_REDIRECT_STATUSES.has(response.status)) {
         return await readPage(response, { requested: first.url, final: current.url }, deps, signal)
       }
-      if (redirects >= WEB_FETCH_MAX_REDIRECTS) {
-        refuse('tooManyRedirects')
-      }
+      // No count of its own: a loop of same-host redirects ends at Stop;
+      // another host is handed back, never followed, so no loop can hide
+      // behind a new name.
       const hop = nextHop(response, headersOf(response), current)
       if ('moved' in hop) {
         return movedResult(hop.moved, deps.newMarker())
@@ -820,10 +913,10 @@ function isAlwaysAllowed(): boolean {
 }
 
 /**
- * Fetches one page. Resolves with the page, a redirect to another host, or
- * the reason nothing was read; rejects only when `turn` aborts (Stop).
- * `isStillAllowed` is asked before each hop's lookup and connection.
- */
+Fetches one page. Resolves with the page, a redirect to another host, or
+the reason nothing was read; rejects only when `turn` aborts (Stop).
+`isStillAllowed` is asked before each hop's lookup and connection.
+*/
 export async function fetchWebPage(
   rawUrl: string,
   deps: WebFetchDeps,
@@ -834,14 +927,24 @@ export async function fetchWebPage(
   if (!first.ok) {
     return { kind: 'failed', failure: first.failure }
   }
-  const deadline = AbortSignal.timeout(deps.timeoutMs ?? WEB_FETCH_TIMEOUT_MS)
-  const signal = AbortSignal.any([turn, deadline])
+  // D121: no deadline of ours — the page answers, or Stop ends the wait.
+  // The wait names how long it has waited through the caller's notice, as
+  // Model API requests do.
+  const tell = deps.notice
+  const stopNoticing =
+    tell === undefined
+      ? undefined
+      : startStillWaiting((elapsedMs) => {
+          tell(stillWaitingText({ key: 'webFetch' }, elapsedMs))
+        }, deps.noticeMs)
   try {
-    return await fetchHops(first, deps, signal, isStillAllowed)
+    return await fetchHops(first, deps, turn, isStillAllowed)
   } catch (error: unknown) {
     if (turn.aborted) {
       throw error
     }
-    return { kind: 'failed', failure: failureOf(error, deadline) }
+    return { kind: 'failed', failure: failureOf(error) }
+  } finally {
+    stopNoticing?.()
   }
 }

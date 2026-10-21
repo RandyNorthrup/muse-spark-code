@@ -6,30 +6,37 @@
 // suggestions) arrives as parameters, read from `dist/providers.js`.
 
 import * as vscode from 'vscode'
-import {
-  GLOBAL_STATE_KEYS,
-  PROVIDER_IMPORT_MAX_BYTES,
-  SETTINGS_SECTION,
-  UI_TEXT,
-} from '../../shared/constants'
+import { GLOBAL_STATE_KEYS, SETTINGS_SECTION, UI_TEXT } from '../../shared/constants'
 import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
+import type { MigrationShell } from '../vault/migrationShell'
 import { ProviderCredentialStore as CredentialStore } from '../providers/credentialRecords'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
+import type { VaultBundle } from '../vault/vaultPanelBundle'
 import { showPickOne } from '../quickPick'
+import { openRouterDiscardedKeyNotice } from '../backend/providersEntry'
 import { startOAuthLoopback } from '../providers/oauthLoopback'
-import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
+import { fetchLoopback } from '../providers/loopbackFetch'
+import {
+  createModelsPanel,
+  type ModelsPanel,
+  type ModelsPanelNavigate,
+  type ModelsVaultFactory,
+} from './modelsPanel'
+import { decodeImportFile } from './providerImportText'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
-import { createSessionBudgetConfig } from './sessionBudget'
+import { createSessionBudgetConfig, type SessionBudgetConfigSource } from './sessionBudget'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
 import type { ModelScan, ScanStore } from '../providers/modelScans'
 import type { PendingRemoval, RemovalStore } from '../providers/providerRemoval'
 import type { ModelsPanelSeam, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 export type { ModelsPanelSeam } from '../providers/providerPorts'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
+export { credentialLeaseSecrets } from './credentialLeaseSecrets'
 
 /** VS Code's global state, taken by shape (as `MementoLike` in paidHost). */
 export interface ModelsPanelMemento {
@@ -38,20 +45,23 @@ export interface ModelsPanelMemento {
 }
 
 export interface ModelsPanelHostDeps {
-  readonly connectChatGpt?: () => Promise<void>
+  /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
+  readonly connectChatGpt?: (isNewAccount: boolean) => Promise<void>
   readonly connectCopilot?: () => Promise<void>
   readonly removeSubscription?: (id: string) => Promise<void>
   readonly isConfidential?: () => boolean
   readonly secrets: SecretStore
   readonly credentials?: CredentialStore
   readonly extensionUri: vscode.Uri
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   readonly l10n: UiTable
   readonly log: Logger
   readonly globalState: ModelsPanelMemento
   /**
-   * `museSpark.suggestedProvider` as written (a preset id at most): read
-   * fresh on every call, so a workspace edit applies without a reload.
-   */
+  `museSpark.suggestedProvider` as written (a preset id at most): read
+  fresh on every call, so a workspace edit applies without a reload.
+  */
   readonly suggestedProviderSetting: () => string
   /** True in a remote window: connects paste a code instead of a callback. */
   readonly isRemote: boolean
@@ -63,6 +73,26 @@ export interface ModelsPanelHostDeps {
   readonly readImportFile?: () => Promise<string | undefined>
   readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
   readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
+  /**
+  The vault bundle loader and its dist/ directory (C-M109-1 P1): the entry
+  builds the broker-backed binding factory around this panel's publisher
+  here, in dist/modelsPanel.js, so activation carries no factory body.
+  Without both the section stays hidden.
+  */
+  readonly vault?: (() => VaultBundle) | undefined
+  readonly vaultDir?: string | undefined
+  /**
+  The key-store migration's shell and its raw legacy source (D89.14 lane
+  M). Absent until the window enables the vault path; the binding below
+  builds the controller from it on first mount.
+  */
+  readonly credentialMigration?:
+    | {
+        readonly shell: MigrationShell
+        readonly rawSecrets: SecretStore
+        readonly minorRelease: () => number
+      }
+    | undefined
 }
 
 export interface ModelsPanelFeatures {
@@ -129,7 +159,7 @@ function storedRemovals(value: unknown): PendingRemoval[] {
       !isStoredEntry(removal['entry']) ||
       typeof removal['removedAt'] !== 'number'
       ? []
-      : [{ entry: removal['entry'], removedAt: removal['removedAt'] }]
+      : { entry: removal['entry'], removedAt: removal['removedAt'] }
   })
 }
 
@@ -218,20 +248,82 @@ async function readImportFile(): Promise<string | undefined> {
     return undefined
   }
   const bytes = await vscode.workspace.fs.readFile(target)
-  if (bytes.length > PROVIDER_IMPORT_MAX_BYTES) {
-    throw new Error(UI_TEXT.textFileTooLarge)
-  }
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  } catch {
-    throw new Error(UI_TEXT.textFileInvalid)
-  }
+  return decodeImportFile(bytes)
 }
 
 /**
- * The panel's features, composed from the VS Code host and the lane-P/T
- * seam. One instance serves the window; the panel it opens is one tab.
- */
+The panel's features, composed from the VS Code host and the lane-P/T
+seam. One instance serves the window; the panel it opens is one tab.
+*/
+/**
+The vault binding factory around this panel's publisher, built here in
+dist/modelsPanel.js so activation carries no factory body. A throwing
+loader (a switched-off vault, a missing bundle) leaves the panel without
+the section, refusing exactly as 0.17.0 does.
+*/
+function vaultBindingFactory(
+  host: ModelsPanelHostDeps,
+  seam: ModelsPanelSeam,
+): ModelsVaultFactory | undefined {
+  const bundle = host.vault
+  const distDir = host.vaultDir
+  if (bundle === undefined || distDir === undefined) return undefined
+  const source = host.credentialMigration
+  return (publish) =>
+    bundle().createModelsVaultBinding(
+      {
+        distDir,
+        now: Date.now,
+        publish,
+        log: host.log,
+        ...(source !== undefined && {
+          credentialMigration: {
+            shell: source.shell,
+            rawSecrets: source.rawSecrets,
+            minorRelease: source.minorRelease,
+            listProviderIds: async () => {
+              const entries = await seam.store.list()
+              return entries.map((entry) => entry.id)
+            },
+          },
+        }),
+      },
+      host.l10n.table,
+      host.l10n.locale,
+    )
+}
+
+/**
+The live settings behind the budget config port: the single adapter both
+the panel and the wizard use, also shared with the integration suite so
+the store behaviour is proved against this exact wiring.
+*/
+export function vscodeSessionBudgetSource(): SessionBudgetConfigSource {
+  return {
+    get: (section) => vscode.workspace.getConfiguration(SETTINGS_SECTION).get(section),
+    inspect: (section) => {
+      const inspected = vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(section)
+      return inspected === undefined
+        ? undefined
+        : {
+            workspaceValue: inspected.workspaceValue,
+            workspaceFolderValue: inspected.workspaceFolderValue,
+          }
+    },
+    update: async (section, value, scope): Promise<void> => {
+      await vscode.workspace
+        .getConfiguration(SETTINGS_SECTION)
+        .update(
+          section,
+          value,
+          scope === 'workspace'
+            ? vscode.ConfigurationTarget.Workspace
+            : vscode.ConfigurationTarget.Global,
+        )
+    },
+  }
+}
+
 export function createModelsPanelFeatures(
   host: ModelsPanelHostDeps,
   seam: ModelsPanelSeam,
@@ -279,10 +371,15 @@ export function createModelsPanelFeatures(
         }
       },
     },
-    loopbackFetch: globalThis.fetch,
+    // M95 step 1: the probe never uses VS Code's patched fetch (it honors
+    // the user's proxy, and loopback needs no proxy at all).
+    loopbackFetch: fetchLoopback,
     now: () => Date.now(),
     setComposerModel: host.setComposerModel,
     ui: {
+      onDiscardedKey: () => {
+        void vscode.window.showWarningMessage(openRouterDiscardedKeyNotice())
+      },
       showInputBox: vscode.window.showInputBox,
       confirmPaidTest: async (message) =>
         (await vscode.window.showWarningMessage(
@@ -298,9 +395,17 @@ export function createModelsPanelFeatures(
           UI_TEXT.providerPrivateConfirmLabel,
           UI_TEXT.wizardCancel,
         )) === UI_TEXT.providerPrivateConfirmLabel,
-      openBrowser: (url) => {
-        void vscode.env.openExternal(vscode.Uri.parse(url))
-        return Promise.resolve()
+      confirmKeyUse: async (message) =>
+        (await vscode.window.showWarningMessage(
+          message,
+          { modal: true },
+          UI_TEXT.wizardContinue,
+          UI_TEXT.wizardCancel,
+        )) === UI_TEXT.wizardContinue,
+      openBrowser: async (url) => {
+        if (!(await vscode.env.openExternal(vscode.Uri.parse(url)))) {
+          throw new Error(UI_TEXT.providerConnectFailed)
+        }
       },
     },
   })
@@ -308,40 +413,17 @@ export function createModelsPanelFeatures(
   // The wizard's spending limit IS the conversation spending limit
   // setting: both the panel and the quick pick read and write it through
   // this one configuration, at the scope it is effective from.
-  const sessionBudget = createSessionBudgetConfig(
-    {
-      get: (section) => vscode.workspace.getConfiguration(SETTINGS_SECTION).get(section),
-      inspect: (section) => {
-        const inspected = vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(section)
-        return inspected === undefined
-          ? undefined
-          : {
-              workspaceValue: inspected.workspaceValue,
-              workspaceFolderValue: inspected.workspaceFolderValue,
-            }
-      },
-      update: async (section, value, scope): Promise<void> => {
-        await vscode.workspace
-          .getConfiguration(SETTINGS_SECTION)
-          .update(
-            section,
-            value,
-            scope === 'workspace'
-              ? vscode.ConfigurationTarget.Workspace
-              : vscode.ConfigurationTarget.Global,
-          )
-      },
-    },
-    host.log,
-  )
+  const sessionBudget = createSessionBudgetConfig(vscodeSessionBudgetSource(), host.log)
 
   let panel: ModelsPanel | undefined
   const openPanel = (navigate?: ModelsPanelNavigate): void => {
     if (panel === undefined) {
       const created = createModelsPanel({
         extensionUri: host.extensionUri,
+        resolveWebviewBundle: host.resolveWebviewBundle,
         l10n: host.l10n,
         log: host.log,
+        vault: vaultBindingFactory(host, seam),
         providers,
         sessionBudget,
         connectChatGpt: host.connectChatGpt,

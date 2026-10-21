@@ -50,6 +50,18 @@ const COMMAND_ID = {
   description: 'Optional request id; spawn reuses an existing child when the same id is retried',
 }
 
+/**
+The spawn tool's description for this many concurrent subagents (M127,
+D121): the setting's live value, 0 (the default) for no limit of ours.
+*/
+export function subagentSpawnDescription(capacity: number = SUBAGENT_CAPACITY): string {
+  const pacing =
+    capacity > 0 && Number.isFinite(capacity)
+      ? `Up to ${String(capacity)} work at once; later ones queue.`
+      : 'Subagents start at once with no concurrency limit of their own; Stop ends them.'
+  return `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. To run a custom agent from your instructions' Agents list (or a built-in), pass its id as agent: its prompt, tools, model, effort and permissions then narrow this session's. Spawn follows the current approval mode. ${pacing}`
+}
+
 export const SUBAGENT_TOOL_DEFINITIONS: readonly {
   readonly name: string
   readonly description: string
@@ -58,7 +70,7 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
 }[] = [
   {
     name: MODEL_API_SUBAGENT_TOOLS.spawn,
-    description: `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. To run a custom agent from your instructions' Agents list (or a built-in), pass its id as agent: its prompt, tools, model, effort and permissions then narrow this session's. Spawn follows the current approval mode. Up to ${String(SUBAGENT_CAPACITY)} work at once; later ones queue.`,
+    description: subagentSpawnDescription(),
     properties: {
       role: {
         type: 'string',
@@ -179,18 +191,18 @@ export function isSubagentTool(name: string): boolean {
 }
 
 /**
- * Which delegation family a conversation declares (M96, PLAN.md D75): a team
- * conversation declares the team's five tools and none of M48's six; every
- * other conversation declares exactly what it declares today. Never both.
- */
+Which delegation family a conversation declares (M96, PLAN.md D75): a team
+conversation declares the team's five tools and none of M48's six; every
+other conversation declares exactly what it declares today. Never both.
+*/
 export function delegationFamily(teamMode: 'single-model' | 'team'): 'team' | 'subagents' {
   return teamMode === 'team' ? 'team' : 'subagents'
 }
 
 /** M116: bind immediately before a new child/follow-up actually starts, after paid
- * consent and ordinary tool admission. Idempotent spawn retries start no work.
- * @unwired M116 playbook subagent dispatch
- * Muse Code's native spawn owner binds this same port at its dispatch boundary. */
+consent and ordinary tool admission. Idempotent spawn retries start no work.
+@unwired M116 playbook subagent dispatch
+Muse Code's native spawn owner binds this same port at its dispatch boundary. */
 export async function dispatchPlaybookSubagent<T>(
   playbook: PanelPlaybookPort,
   sessionId: string,

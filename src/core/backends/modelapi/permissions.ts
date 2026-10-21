@@ -161,9 +161,9 @@ function ruleKey(toolName: string, command: string | undefined): string {
 }
 
 /**
- * The choices an approval card offers for a tool call (MSP vocabulary):
- * "Allow for This Session" only where a session rule could answer later.
- */
+The choices an approval card offers for a tool call (MSP vocabulary):
+"Allow for This Session" only where a session rule could answer later.
+*/
 export function choicesFor(
   toolName: string,
   command?: string,
@@ -206,9 +206,9 @@ export interface PermissionQuery {
   readonly toolName: string
   readonly toolClass: ToolClass
   /**
-   * What a session rule matches whole: a shell call's exact command line, a
-   * web fetch's host (M69).
-   */
+  What a session rule matches whole: a shell call's exact command line, a
+  web fetch's host (M69).
+  */
   readonly command?: string | undefined
   /** The shell the command is for (M78); bash when not said. */
   readonly dialect?: ShellDialect | undefined
@@ -345,19 +345,19 @@ export class PermissionEngine {
   }
 
   /**
-   * A card's "always allow in this session" decision: the tool for edits
-   * and questions, the exact command line for a shell call (the CLI keys its
-   * shell rules on the command too).
-   */
+  A card's "always allow in this session" decision: the tool for edits
+  and questions, the exact command line for a shell call (the CLI keys its
+  shell rules on the command too).
+  */
   public allowForSession(toolName: string, command?: string): void {
     this.allowed.add(ruleKey(toolName, command))
   }
 
   /**
-   * Whether the user chose "always allow" for this call on a card in this
-   * session, whatever the mode says: what widens a browser check beyond
-   * loopback when no card is shown (M81), since Bypass alone never does.
-   */
+  Whether the user chose "always allow" for this call on a card in this
+  session, whatever the mode says: what widens a browser check beyond
+  loopback when no card is shown (M81), since Bypass alone never does.
+  */
   public isAllowedForSession(query: PermissionQuery): boolean {
     return this.allowed.has(ruleKey(query.toolName, query.command))
   }

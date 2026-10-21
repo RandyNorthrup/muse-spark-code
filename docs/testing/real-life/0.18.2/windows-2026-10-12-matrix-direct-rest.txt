@@ -1,0 +1,87 @@
+Real-life run of muse-spark-code-acp-0.18.2.tgz (muse-spark-code-acp 0.18.2)
+SHA-256 0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea
+Windows_NT 10.0.26200 x64, Node v24.20.0; 2026-10-13T01:38:06.559Z to 2026-10-13T01:38:39.134Z
+Caps: 118 requests, $0.460000 of reported usage. Made: 9 requests, $0.013473 of usage the providers reported (settled).
+Booked by the product for requests that were sent and came back with no usage report: $0.115892 (may be real money). Its daily ledger holds $0.106292 in 2 claim(s) with no settlement (a whole reservation each). Runs the product turned away before anything was sent, at the run's own asking: 2.
+The product's own usage for this home afterwards: 0 requests, $0.000000.
+Set by the run in settings.json of the data folder in the run's own new home: paidDailyBudgetUsd = 500; the product's daily ledger keeps the reservation of every request that ends with no usage; at its default of $5 a day it stops a matrix after a few of them.
+Scenario runs: 5 passed, 3 failed, 3 not run.
+
+Route mistral (chat completions (Mistral), 4 models): added as rl-mistral; Key works · 55 models.
+Route meta (Meta Model API, muse-spark-1.3-contributor): the key goes to each terminal command on standard input
+
+PASS  add-provider · mistral · 4 models (chat completions (Mistral)) · exec · 0 req · $0.000000 · 2.3 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: mistral Code goes to: https://api.mistral.ai Models: magistral-medium-latest, mistral-small-2603, mistral-small-latest, voxtral-small-latest Default model: suggested Added rl-mistral; code goes to https://api.mistral.ai.
+      saw     providers test says the key works: Key works · 55 models.
+PASS  plain-turn · mistral · magistral-medium-latest (chat completions (Mistral)) · exec · 1 req · $0.004227 · 2.4 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      saw     the command ends with exit code 0: exit 0
+      saw     the answer carries the word that was asked for: RL-15940B0E
+      saw     the result names the model the person chose: rl-mistral/magistral-medium-latest
+      saw     one request was made and it cost more than nothing: 1 request(s), $0.004227 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  tool-write · mistral · magistral-medium-latest (chat completions (Mistral)) · exec · 2 req · $0.008588 · 3.4 s
+      A tool turn writes a file after an approval [ref/cli/exec/exec---permission-mode-value, ref/cli/exec/exec]
+      saw     the command ends with exit code 0: exit 0
+      saw     the file is on disk with the content asked for: RL-34A092BD
+      saw     the result lists the file as changed: ["real-life-note.txt"]
+      saw     it made no more requests than it said it may: 2 of at most 4
+FAIL  plain-turn · mistral · mistral-small-2603 (chat completions (Mistral)) · exec · 1 req · $0.000000 (+$0.053146 booked with no usage) · 2.1 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-mistral/mistral-small-2603
+      MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.053146 booked with no usage
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Session budget: a response ended without its usage; its remaining reservation of 0.02086905 USD counts as spent
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 58fb684b-ffe8-4f37-b939-be5c2fb7cc74 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 1; settled $0.000000; uncertain $0.053146; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+FAIL  plain-turn · mistral · mistral-small-latest (chat completions (Mistral)) · exec · 1 req · $0.000000 (+$0.053146 booked with no usage) · 1.8 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-mistral/mistral-small-latest
+      MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.053146 booked with no usage
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Session budget: a response ended without its usage; its remaining reservation of 0.02086935 USD counts as spent
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 93235f4d-7d3e-48cc-8d11-bbb2625f0328 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 1; settled $0.000000; uncertain $0.053146; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+FAIL  plain-turn · mistral · voxtral-small-latest (chat completions (Mistral)) · exec · 1 req · $0.000000 (+$0.009600 booked with no usage) · 1.6 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 5
+      saw     the answer carries the word that was asked for: I received the message with the reference code RL-77C030B3.
+      saw     the result names the model the person chose: rl-mistral/voxtral-small-latest
+      MISSING one request was made and it cost more than nothing: 1 request(s), $0 of reported usage, $0.0096 booked with no usage
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 1; settled $0.000000; uncertain $0.009600; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+PASS  plain-turn · meta · muse-spark-1.3-contributor (Meta Model API) · exec · 1 req · $0.000299 · 4.2 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      saw     the command ends with exit code 0: exit 0
+      saw     the answer carries the word that was asked for: Received — reference code `RL-6FF20730`.
+      saw     the result names the model the person chose: muse-spark-1.3-contributor
+      saw     one request was made and it cost more than nothing: 1 request(s), $0.000299 of reported usage, $0 booked with no usage
+      saw     before anything is sent the product names the model of the route: muse-spark-1.3-contributor
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  tool-write · meta · muse-spark-1.3-contributor (Meta Model API) · exec · 2 req · $0.000359 · 8.4 s
+      A tool turn writes a file after an approval [ref/cli/exec/exec---permission-mode-value, ref/cli/exec/exec]
+      saw     the command ends with exit code 0: exit 0
+      saw     the file is on disk with the content asked for: RL-B9B01AAC
+      saw     the result lists the file as changed: ["real-life-note.txt"]
+      saw     before anything is sent the product names the model of the route: muse-spark-1.3-contributor
+      saw     it made no more requests than it said it may: 2 of at most 4
+
+Not run:
+      tool-write · mistral · mistral-small-2603 (chat completions (Mistral)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · mistral · mistral-small-latest (chat completions (Mistral)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · mistral · voxtral-small-latest (chat completions (Mistral)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+
+Correction: totals restated after the run: it had written heldUnsentUsd 0.000000 as "turned away before sending", a sum derived from the daily ledger's unsettled claims ($0.106292 in 2 claim(s)). Those claims are whole reservations of requests that were sent and came back with no usage. The run itself asked for 2 refusal(s) before sending (a Meta turn's read-back, which writes no claim).

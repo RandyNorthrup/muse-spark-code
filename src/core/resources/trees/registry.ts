@@ -16,6 +16,10 @@ import {
   type ResourceTreeActionReader,
   type ResourceTreeKillResult,
 } from './actions'
+import { isErrno } from '../../fs/errno'
+
+/** The exact sampler cause the installed receipt whitelists (RVCM109JD P2-2). */
+export const RESOURCE_MEMBERSHIP_UNPROVEN = 'Resource root membership not proven'
 
 /** Local launch authority. OS readers prove membership; tickets never confer it alone. */
 export class ResourceTreeRegistry implements ResourceTreeReader {
@@ -51,7 +55,7 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     this.entries.set(ticket.id, entry)
     try {
       if (!(await this.reader.contains(structuredClone(ticket), structuredClone(ticket.root))))
-        throw new Error('Resource root membership not proven')
+        throw new Error(RESOURCE_MEMBERSHIP_UNPROVEN)
       if (this.entries.get(ticket.id) !== entry) throw new Error('Resource registration cancelled')
       entry.ready = true
       return structuredClone(ticket)
@@ -86,7 +90,10 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     try {
       const isMember = await this.reader.contains(structuredClone(entry.ticket), parsed.data)
       return isMember && this.entry(ticket) === entry
-    } catch {
+    } catch (error) {
+      // Unproven membership is not membership. Only errno failures read that
+      // way; anything else is not a membership answer.
+      if (!isErrno(error)) throw error
       return false
     }
   }
@@ -95,13 +102,17 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     const entry = this.entry(ticket)
     if (entry?.ready !== true) return []
     try {
-      const members = z
+      const parsed = z
         .array(resourceProcessIdentitySchema)
-        .parse(await this.reader.members(structuredClone(entry.ticket)))
+        .safeParse(await this.reader.members(structuredClone(entry.ticket)))
+      if (!parsed.success) return []
       return this.entry(ticket) === entry
-        ? members.filter((member) => member.pid !== process.pid)
+        ? parsed.data.filter((member) => member.pid !== process.pid)
         : []
-    } catch {
+    } catch (error) {
+      // No observed members: an unreadable reader proves nothing. Anything
+      // else is not a membership answer.
+      if (!isErrno(error)) throw error
       return []
     }
   }
@@ -111,10 +122,13 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     if (entry?.ready !== true) return null
     try {
       const usage = await this.reader.usage(structuredClone(entry.ticket))
-      return usage !== null && this.entry(ticket) === entry
-        ? resourceTreeUsageSchema.parse(usage)
-        : null
-    } catch {
+      if (usage === null || this.entry(ticket) !== entry) return null
+      const parsed = resourceTreeUsageSchema.safeParse(usage)
+      return parsed.success ? parsed.data : null
+    } catch (error) {
+      // No usage without a readable answer. Anything else is not a usage
+      // answer.
+      if (!isErrno(error)) throw error
       return null
     }
   }
@@ -137,7 +151,7 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     )
       return 'refused'
     try {
-      return resourceActionResultSchema.parse(
+      const parsed = resourceActionResultSchema.safeParse(
         await this.reader.signal(
           structuredClone(entry.ticket),
           identity.data,
@@ -145,7 +159,11 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
           () => this.entries.get(entry.ticket.id) === entry && entry.ready,
         ),
       )
-    } catch {
+      return parsed.success ? parsed.data : 'refused'
+    } catch (error) {
+      // An unsent signal refuses the action. Anything else is not a signal
+      // answer.
+      if (!isErrno(error)) throw error
       return 'refused'
     }
   }

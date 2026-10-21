@@ -1,9 +1,4 @@
-import {
-  VAULT_APPROVAL_TTL_MS,
-  VAULT_KEY_BYTES,
-  VAULT_LIMITS,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { VAULT_KEY_BYTES, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 import {
   vaultItemMetadataSchema,
   vaultItemSchema,
@@ -330,10 +325,9 @@ function operationReason(state: BrokerState, op: Operation, now: number): Reason
     return 'peer'
   if (op.request) {
     if (!state.key) return 'locked'
-    if (
-      now >= op.request.expiresAt ||
-      (op.request.item.dates.expiresAt !== null && now >= op.request.item.dates.expiresAt)
-    )
+    // Only the item's own lifetime ends a request (owner 2026-10-16):
+    // no approval of ours expires on a clock.
+    if (op.request.item.dates.expiresAt !== null && now >= op.request.item.dates.expiresAt)
       return 'expired'
     if (op.authority?.kind === 'grant') {
       const grant = state.grants.get(op.authority.grantId)
@@ -544,13 +538,10 @@ export function step(
       },
     })
   }
-  const fail = (
-    op: Operation,
-    reason: Reason,
-    outcome: Row['outcome'] = reason === 'expired' || reason === 'locked' ? reason : 'denied',
-  ): void => {
+  const fail = (op: Operation, reason: Reason): void => {
     // A terminal operation settles its recorded liability; it cannot wait on itself.
     if (op.command.kind === 'finish' && op.terminalOutcome !== undefined) return
+    const outcome: Row['outcome'] = reason === 'expired' || reason === 'locked' ? reason : 'denied'
     op.reason = reason
     op.result = denied(reason)
     if (state.unlockOwner === op.id) {
@@ -622,7 +613,6 @@ export function step(
       taint,
       digest: vaultUseDigest(use),
       createdAt: event.now,
-      expiresAt: event.now + VAULT_APPROVAL_TTL_MS,
       lockEpoch: state.epoch,
     }
     if (state.writer)
@@ -665,7 +655,9 @@ export function step(
       digest: request.digest,
       nonce: request.nonce,
       issuedAt: event.now,
-      expiresAt: request.expiresAt,
+      // The item's own lifetime, or never: the grant is single-use and
+      // owner-revoked (owner 2026-10-16).
+      expiresAt: request.item.dates.expiresAt,
       lockEpoch: state.epoch,
       maxUses: 1,
     }
@@ -960,8 +952,13 @@ export function step(
       }
       case 'dispose': {
         state.disposed = true
-        op.command = { kind: 'lock', bump: true }
-        lock(op, true)
+        // The shutdown lock already cleared every live material, so a
+        // dispose then locks nothing new and must not advance the epoch a
+        // second time: the file keeps the lock's own generation, still
+        // monotonic for the next broker. A dispose of a live broker bumps.
+        const shouldBump = state.store !== undefined || state.key !== undefined
+        op.command = { kind: 'lock', bump: shouldBump }
+        lock(op, shouldBump)
         return
       }
       case 'lock': {
@@ -1137,11 +1134,10 @@ export function step(
         }
         for (const collection of [state.pending, state.tickets, state.active])
           for (const [id, admission] of collection) {
-            if (!(
-              event.now >= admission.request.expiresAt ||
-              (admission.request.item.dates.expiresAt !== null &&
-                event.now >= admission.request.item.dates.expiresAt)
-            )) {
+            if (
+              admission.request.item.dates.expiresAt === null ||
+              event.now < admission.request.item.dates.expiresAt
+            ) {
               continue
             }
 
@@ -1546,7 +1542,7 @@ export function step(
                 }
                 case 'list': {
                   const metadata = requireValue(result.value)
-                  if (!Array.isArray(metadata)) throw new Error(UI_TEXT.vault.noAccess)
+                  if (!Array.isArray(metadata)) throw new TypeError(UI_TEXT.vault.noAccess)
                   const items = metadata.map((entry: unknown) =>
                     vaultItemMetadataSchema.parse(entry),
                   )
@@ -1631,7 +1627,7 @@ export function step(
                   break
                 }
                 case 'grants': {
-                  if (!Array.isArray(result.value)) throw new Error(UI_TEXT.vault.noAccess)
+                  if (!Array.isArray(result.value)) throw new TypeError(UI_TEXT.vault.noAccess)
                   state.grants.clear()
                   for (const entry of result.value) {
                     const grant = vaultGrantSchema.parse(entry)

@@ -3,17 +3,17 @@
 # on, the full tier for everything else. The required checks are the same
 # seven names on every event.
 #
-# CI capacity (D122): GitHub runs at most five macOS jobs at a time per
-# account, and a full run has twelve. While the repository variable ORG_CI is
+# CI capacity (D122, CISHARDS2): while the repository variable ORG_CI is
 # `on` and the capacity app's key reaches the run, a same-repository pull
-# request runs part `home`: every job here except the Windows and macOS unit
-# shards, plus build.yml's `org` job, which pushes the pull request's merge
-# commit to the capacity repository scnetsolutions/muse-spark-code-ci as
-# ci/pr-<number>, where this same file runs those shards on the
-# organization's runners (part `org`), and waits for that run. The required
-# names fold in its result. Forks, Dependabot, merge groups, manual runs and
-# every pull request while ORG_CI is not `on` keep every job here (part
-# `all`): none of them gets the key.
+# request runs part `home`: only the Ubuntu legs here, plus build.yml's
+# `org` job, which pushes the pull request's merge commit to the capacity
+# repository scnetsolutions/muse-spark-code-ci as ci/pr-<number>, where this
+# same file runs every Windows and macOS leg on the organization's runners
+# (part `org`: static gates, all forty unit shards, Windows integration and
+# the macOS helper), and waits for that run. The required names fold in its
+# result. Forks, Dependabot, merge groups, manual runs and every pull
+# request while ORG_CI is not `on` keep every job here (part `all`): none of
+# them gets the key.
 name: CI
 
 on:
@@ -71,13 +71,21 @@ jobs:
             why="no capacity app key reaches this run: a fork, Dependabot, or ORG_CI_APP_PRIVATE_KEY unset"
           else
             part=home
-            why="the Windows and macOS unit shards run in scnetsolutions/muse-spark-code-ci"
+            why="the unit shards run in scnetsolutions/muse-spark-code-ci"
           fi
           echo "part=$part" >> "$GITHUB_OUTPUT"
           echo "This run's part: $part ($why)"
 
   build:
+    # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
+    # no other secret is passed (least privilege). `actions: read` is for
+    # build.yml's `first-attempt` job, which reads this run's attempts and the
+    # other workflow runs on the same head (AGENTS.md rule 2); a called
+    # workflow can ask for no more than its caller grants.
     needs: route
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/build.yml
     # The capacity app's key, read only by build.yml's `org` job in a `home`
     # run; empty wherever GitHub withholds secrets. No other secret is passed.

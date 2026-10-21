@@ -10,9 +10,8 @@ import {
   TAB_AUTOMATIC_LATENCY_CEILING_MS,
   TAB_CACHE_ENTRIES,
   TAB_CONTEXT_CHARS,
-  TAB_DAILY_BUDGET_DEFAULT_USD,
-  TAB_DAILY_BUDGET_MAX_USD,
   TAB_DAILY_BUDGET_MIN_USD,
+  TAB_NO_BUDGET_USD,
   TAB_DEBOUNCE_MS,
   TAB_EDIT_HOOK_QUEUE,
   TAB_FAST_MAX_LINES,
@@ -73,10 +72,11 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
     expect(TAB_MAX_REQUESTS_PER_MINUTE).toBe(20)
   })
 
-  it('keeps the budget, file and hook bounds', () => {
-    expect(TAB_DAILY_BUDGET_DEFAULT_USD).toBe(1)
+  it('keeps no default budget and no ceiling, with the dust floor for a set budget', () => {
+    // NOLIMITS5: only a budget the person sets caps the day; 0 is no budget.
+    expect(TAB_NO_BUDGET_USD).toBe(0)
+    expect(SETTING_DEFAULTS.tabDailyBudgetUsd).toBe(0)
     expect(TAB_DAILY_BUDGET_MIN_USD).toBe(0.05)
-    expect(TAB_DAILY_BUDGET_MAX_USD).toBe(50)
     expect(TAB_FILE_MAX_BYTES).toBe(192 * 1024)
     expect(TAB_HOOK_TIMEOUT_MS).toBe(1500)
     expect(TAB_EDIT_HOOK_QUEUE).toBe(8)
@@ -122,7 +122,7 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
   it('keeps the seven Tab settings on their decided defaults', () => {
     expect(SETTING_DEFAULTS.modelApiTab).toBe(true)
     expect(SETTING_DEFAULTS.tabModel).toBe('muse-spark-1.3')
-    expect(SETTING_DEFAULTS.tabDailyBudgetUsd).toBe(1)
+    expect(SETTING_DEFAULTS.tabDailyBudgetUsd).toBe(TAB_NO_BUDGET_USD)
     expect(SETTING_DEFAULTS.tabLanguages).toEqual({
       '*': true,
       plaintext: false,

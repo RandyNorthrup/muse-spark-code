@@ -63,6 +63,8 @@ export class AccountPolicyPrompt {
       try {
         this.port.show(provider, question)
       } catch {
+        // The question never reached the person: settle the asker as
+        // unanswered instead of leaving the admission waiting.
         this.close()
       }
     })

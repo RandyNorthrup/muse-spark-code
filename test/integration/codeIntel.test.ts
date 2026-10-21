@@ -44,7 +44,12 @@ function depsFor(root: string): CodeIntelDeps {
         const found = await vscode.workspace.findFiles(`${FIXTURE}/**`)
         return found.map((uri) => vscode.workspace.asRelativePath(uri, false))
       },
-      unsavedFiles: () => [],
+      // The editors open with unsaved changes, as VS Code names them
+      // (src/extension.ts wires the product's own ToolIo the same way).
+      unsavedFiles: () =>
+        vscode.workspace.textDocuments
+          .filter((document) => document.isDirty && document.uri.scheme === 'file')
+          .map((document) => document.uri.fsPath),
     },
     now: () => Date.now(),
   }

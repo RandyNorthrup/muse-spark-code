@@ -6,10 +6,11 @@
 // cannot be proven — on real files, with a port that pauses or fails one
 // call where an interleaving matters.
 
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { hostname, tmpdir } from 'node:os'
+import { copyFile, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -29,8 +30,15 @@ import {
   systemBootId,
   type ProcessOwner,
 } from '../../src/core/locks/processOwner'
-import { FILE_LEASE_FENCES_KEPT } from '../../src/shared/constants'
+import {
+  ACP_DATA_FOLDER,
+  FILE_LEASE_FENCES_KEPT,
+  FILE_LEASE_RELEASE_RETRY_MS,
+  WINDOWS_BIRTH_READER_FOLDER,
+  WINDOWS_FRAMEWORK_RELATIVE_PATH,
+} from '../../src/shared/constants'
 import { deferred, exitedProcessId, nextTurn, pausingPort } from './helpers/leaseFs'
+import { canReadProcessBirth } from './helpers/processBirth'
 
 /** A lock instance's stats as inode reuse looks: one inode number for all. */
 function reused<T extends { ino: bigint }>(file: string, stats: T): T {
@@ -69,9 +77,9 @@ async function leaseEnv(overrides: Partial<FileLeaseEnv> = {}): Promise<FileLeas
 }
 
 /**
- * Another holder's note, readable by every version: the renewal count this
- * one keeps and the wall-clock lease an earlier one did are both there.
- */
+Another holder's note, readable by every version: the renewal count this
+one keeps and the wall-clock lease an earlier one did are both there.
+*/
 function lockNote(owner: ProcessOwner, leaseMs: number, id = 'someone-else') {
   const now = Date.now()
   return JSON.stringify({
@@ -107,6 +115,156 @@ function liveProcess(): { readonly pid: number; readonly stop: () => Promise<voi
       await exited
     },
   }
+}
+
+/** Windows: `source` built by Windows' own C# compiler into `folder` as `name`.exe. */
+async function windowsProgram(folder: string, name: string, source: string): Promise<string> {
+  const file = path.join(folder, `${name}.cs`)
+  const program = path.join(folder, `${name}.exe`)
+  await writeFile(file, source)
+  const framework = path.win32.join(
+    process.env['SystemRoot'] ?? '',
+    WINDOWS_FRAMEWORK_RELATIVE_PATH,
+  )
+  // csc writes its diagnostics to stdout: a failed build shows them.
+  execFileSync(
+    path.win32.join(framework, 'csc.exe'),
+    [
+      '/nologo',
+      '/noconfig',
+      `/reference:${path.win32.join(framework, 'System.dll')}`,
+      `/out:${program}`,
+      file,
+    ],
+    { encoding: 'utf8', windowsHide: true },
+  )
+  return program
+}
+
+// Starts itself again to end with exit code 259, waits for that child to
+// end, prints its id and exit code, and keeps its own handle to it (the
+// `Process` object) open until it is ended: the ended child's process object
+// stays, held independently of Node and libuv, while the test reads it.
+const HOLDER_OF_ENDED_259 = `using System;
+using System.Diagnostics;
+using System.Threading;
+
+static class Holder
+{
+    static int Main(string[] args)
+    {
+        if (args.Length == 1 && args[0] == "end") return 259;
+        ProcessStartInfo start = new ProcessStartInfo(typeof(Holder).Assembly.Location, "end");
+        start.UseShellExecute = false;
+        start.CreateNoWindow = true;
+        Process child = Process.Start(start);
+        child.WaitForExit();
+        Console.Out.WriteLine(child.Id + " " + child.ExitCode);
+        Console.Out.Flush();
+        Thread.Sleep(30000);
+        GC.KeepAlive(child);
+        return 0;
+    }
+}
+`
+
+/** Windows: a child that ended with exit code 259 while its parent still holds its handle. */
+async function endedWith259(): Promise<{
+  readonly pid: number
+  readonly code: number
+  readonly stop: () => Promise<void>
+}> {
+  const scratch = await mkdtemp(path.join(tmpdir(), 'm123p-holder-'))
+  const holder = spawn(await windowsProgram(scratch, 'Holder', HOLDER_OF_ENDED_259), [], {
+    windowsHide: true,
+  })
+  const exited = new Promise((resolve) => {
+    holder.once('exit', resolve)
+  })
+  const line = await new Promise<string>((resolve, reject) => {
+    let text = ''
+    holder.stdout.on('data', (bytes: Buffer) => {
+      text += bytes.toString('utf8')
+      if (text.includes('\n')) resolve(text.trim())
+    })
+    holder.once('exit', () => {
+      reject(new Error('the holder ended before its child did'))
+    })
+  })
+  const [pid, code] = line.split(' ').map(Number)
+  if (pid === undefined || code === undefined) {
+    throw new Error(`the holder answered ${line}`)
+  }
+  return {
+    pid,
+    code,
+    stop: async () => {
+      holder.kill('SIGKILL')
+      await exited
+      await rm(scratch, { recursive: true, force: true })
+    },
+  }
+}
+
+/** Windows: where this process's birth reader is built. */
+function birthReaderFolder(): string {
+  const localAppData = process.env['LOCALAPPDATA'] ?? path.join(homedir(), 'AppData', 'Local')
+  return path.join(localAppData, ACP_DATA_FOLDER.win32, WINDOWS_BIRTH_READER_FOLDER)
+}
+
+/** Windows: the birth readers in `folder` named with process `pid`'s id. */
+async function readersNamedFor(folder: string, pid: number): Promise<string[]> {
+  const names = await readdir(folder)
+  return names.filter((name) => name.startsWith(`MuseSparkBirth-${String(pid)}-`))
+}
+
+/**
+Windows: this process's own birth reader. Its build swept any reader an
+earlier process with this id left, so the one reader named with this id
+is this process's own.
+*/
+async function ownBirthReader(): Promise<{
+  readonly born: number | undefined
+  readonly reader: string
+}> {
+  const born = await processStartTime(process.pid)
+  expect(born).toBeDefined()
+  const folder = birthReaderFolder()
+  const mine = await readersNamedFor(folder, process.pid)
+  expect(mine).toHaveLength(1)
+  return { born, reader: path.join(folder, mine[0] ?? '') }
+}
+
+/**
+Windows: whether this host runs elevated, so its birth reader is walled
+above a lower-integrity writer. Windows' own well-known SIDs (also named
+in `src/core/locks/processOwner.ts`); the level's name would localise,
+the SID never does.
+*/
+function isElevatedHost(): boolean {
+  const systemRoot = process.env['SystemRoot'] ?? ''
+  try {
+    const groups = execFileSync(
+      path.win32.join(systemRoot, 'System32', 'whoami.exe'),
+      ['/groups'],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+      },
+    )
+    return groups.includes('S-1-16-12288') || groups.includes('S-1-16-16384')
+  } catch {
+    return false
+  }
+}
+
+/** Windows: a program that prints 42 whatever it is asked. */
+async function impostorProgram(folder: string): Promise<string> {
+  return await windowsProgram(
+    folder,
+    'Impostor',
+    'static class Impostor { static void Main() { System.Console.Out.Write("42"); } }',
+  )
 }
 
 async function lockFolder(): Promise<{ readonly folder: string; readonly lockPath: string }> {
@@ -192,9 +350,9 @@ async function movingTaker(lockPath: string, window: ReturnType<typeof pausingPo
 }
 
 /**
- * B resumed: it put A's fresh lock back, so A still holds and B waits; once
- * A releases, B holds. B's lease.
- */
+B resumed: it put A's fresh lock back, so A still holds and B waits; once
+A releases, B holds. B's lease.
+*/
 async function takerWaitsForRelease(
   beforeMove: { readonly resume: () => void },
   a: FileLease,
@@ -240,20 +398,107 @@ async function steppingClock(timeoutMs: number) {
 }
 
 describe('process owners (M123 lane P)', () => {
-  it('reads this process’s birth from the system', async () => {
+  it('reads this process’s birth from the system, or the documented estimate where the table is silent', async () => {
     const started = await processStartTime(process.pid)
-    expect(started).toBeDefined()
     const self = await currentProcessOwner()
-    expect(self.processStart).toBe(started)
+    if (canReadProcessBirth()) {
+      expect(started).toBeDefined()
+      expect(self.processStart).toBe(started)
+    } else {
+      // No process table: no birth to read, and the owner falls back to
+      // the uptime estimate instead of inventing one.
+      expect(started).toBeUndefined()
+      expect(self.pid).toBe(process.pid)
+      expect(Math.abs(self.processStart - (Date.now() - process.uptime() * 1000))).toBeLessThan(
+        2000,
+      )
+    }
     expect(await processStartTime(await exitedProcessId())).toBeUndefined()
   })
 
+  it.runIf(process.platform === 'win32')(
+    'reads no birth for a process that ended with exit code 259 while a handle keeps it',
+    async () => {
+      const ended = await endedWith259()
+      try {
+        // 259 is STILL_ACTIVE's value: only the ended process object tells.
+        expect(ended.code).toBe(259)
+        expect(await processStartTime(ended.pid)).toBeUndefined()
+      } finally {
+        await ended.stop()
+      }
+    },
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'never runs a birth reader whose bytes changed after this process built it',
+    async () => {
+      const { born, reader } = await ownBirthReader()
+      const folder = birthReaderFolder()
+      const scratch = await mkdtemp(path.join(tmpdir(), 'm123p-impostor-'))
+      try {
+        const impostor = await impostorProgram(scratch)
+        // What an earlier process with this id leaves when Windows reuses it.
+        const leftover = path.join(
+          folder,
+          `MuseSparkBirth-${String(process.pid)}-${randomUUID()}.exe`,
+        )
+        await copyFile(impostor, leftover)
+        await copyFile(impostor, reader)
+        // Refused and removed, never run (it would answer 42); the next read
+        // builds a new reader, and its sweep removes the leftover.
+        expect(await processStartTime(process.pid)).toBeUndefined()
+        expect(existsSync(reader)).toBe(false)
+        expect(await processStartTime(process.pid)).toBe(born)
+        expect(existsSync(leftover)).toBe(false)
+        expect(await readersNamedFor(folder, process.pid)).toHaveLength(1)
+      } finally {
+        await rm(scratch, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'keeps its birth reader out of a lower-integrity writer’s reach when elevated',
+    async () => {
+      const { born, reader } = await ownBirthReader()
+      // `icacls` names the label in the installed language, but its access
+      // mask does not localise: a mandatory label shows as `:(NW`, which a
+      // discretionary entry never carries.
+      const systemRoot = process.env['SystemRoot'] ?? ''
+      const listing = execFileSync(
+        path.win32.join(systemRoot, 'System32', 'icacls.exe'),
+        [reader],
+        {
+          encoding: 'utf8',
+          windowsHide: true,
+        },
+      )
+      if (isElevatedHost()) {
+        // Walled: a medium-integrity process of the same person can no
+        // longer write, replace or delete this file.
+        expect(listing).toMatch(/:\(NW/u)
+      } else {
+        // No higher token, no wall; the plain build still reads.
+        expect(listing).not.toMatch(/:\(NW/u)
+      }
+      expect(await processStartTime(process.pid)).toBe(born)
+    },
+  )
+
   it.skipIf(process.platform === 'linux')(
-    'reads a Windows or macOS birth as the epoch time it was recorded at',
+    'reads a Windows or macOS birth as the epoch time it was recorded at, or the estimate where the table is silent',
     async () => {
       const started = await processStartTime(process.pid)
-      expect(Math.abs((started ?? 0) - (Date.now() - process.uptime() * 1000))).toBeLessThan(2000)
       const self = await currentProcessOwner()
+      if (canReadProcessBirth()) {
+        expect(Math.abs((started ?? 0) - (Date.now() - process.uptime() * 1000))).toBeLessThan(2000)
+      } else {
+        expect(started).toBeUndefined()
+        expect(Math.abs(self.processStart - (Date.now() - process.uptime() * 1000))).toBeLessThan(
+          2000,
+        )
+      }
       expect(self.bootId).toBeUndefined()
     },
   )
@@ -265,17 +510,29 @@ describe('process owners (M123 lane P)', () => {
       const bootId = await systemBootId()
       expect(bootId).toMatch(/^[\da-f-]{36}$/u)
       const self = await currentProcessOwner()
-      expect(self.bootId).toBe(bootId)
-      expect(self.processStart).toBe(await processStartTime(process.pid))
-      // Ticks since boot: far below any epoch time.
-      expect(self.processStart).toBeLessThan(Date.now() / 1000)
+      if (canReadProcessBirth()) {
+        expect(self.bootId).toBe(bootId)
+        expect(self.processStart).toBe(await processStartTime(process.pid))
+        // Ticks since boot: far below any epoch time.
+        expect(self.processStart).toBeLessThan(Date.now() / 1000)
+      } else {
+        // Without the table the owner is the estimate form: no boot, no birth.
+        expect(await processStartTime(process.pid)).toBeUndefined()
+        expect(self.bootId).toBeUndefined()
+        expect(Math.abs(self.processStart - (Date.now() - process.uptime() * 1000))).toBeLessThan(
+          2000,
+        )
+      }
     },
   )
 
   it('names a gone owner only when it is provably gone', async () => {
+    const canReadTable = canReadProcessBirth()
     const self = await currentProcessOwner()
     expect(await isProcessOwnerGone(self)).toBe(false)
-    // This process's id with another start time: an earlier process.
+    // This process's id with another start time: our own birth is known
+    // without any table (it is this process's), so the mismatch is
+    // provable everywhere, table or none.
     expect(await isProcessOwnerGone({ ...self, processStart: self.processStart - 60_000 })).toBe(
       true,
     )
@@ -287,14 +544,18 @@ describe('process owners (M123 lane P)', () => {
     const live = liveProcess()
     try {
       const started = await processStartTime(live.pid)
-      expect(started).toBeDefined()
+      // A live id whose birth the table answers carries it; where the
+      // table is silent there is nothing to carry, and doubt keeps it.
+      if (canReadTable) expect(started).toBeDefined()
+      else expect(started).toBeUndefined()
       const owner = { ...self, pid: live.pid, processStart: started ?? 0 }
       expect(await isProcessOwnerGone(owner)).toBe(false)
       // RVM123P4 finding 4: the id now names a process that started at
-      // another time, so the recorded owner is gone, whoever's id it is.
+      // another time, so the recorded owner is gone, whoever's id it is —
+      // provable only where the table answers.
       expect(
         await isProcessOwnerGone({ ...owner, processStart: owner.processStart - 60_000 }),
-      ).toBe(true)
+      ).toBe(canReadTable)
       // A live id whose start time cannot be read proves nothing.
       expect(
         await isProcessOwnerGone(
@@ -372,10 +633,10 @@ describe('file lease: fences (M123 LOCKLIB)', () => {
 })
 
 /**
- * A holder whose renewal passed its own check and then waits, at the
- * open, for the test; and a taker that, meanwhile, watches the holder's
- * instance run out and takes the lock over with a fence of its own.
- */
+A holder whose renewal passed its own check and then waits, at the
+open, for the test; and a taker that, meanwhile, watches the holder's
+instance run out and takes the lock over with a fence of its own.
+*/
 async function renewalOvertaken(port: LeasePort) {
   const { lockPath } = await lockFolder()
   let elapsed = 0
@@ -673,13 +934,15 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
   it('takes over at once a lock whose owner id now names another process', async () => {
     // RVM123P4 finding 4: the owner crashed and the system gave its id to a
     // live, unrelated process; its lease would otherwise hold for a minute.
+    // Reuse is provable at once only where the table answers; where it is
+    // silent the waiter takes over at the lease's own expiry instead.
     const { lockPath } = await lockFolder()
     const live = liveProcess()
     try {
       const self = await currentProcessOwner()
       // Born at another time than the id's live process, in this boot.
       const reused = { ...self, pid: live.pid, processStart: 1 }
-      await writeFile(lockPath, lockNote(reused, 60_000))
+      await writeFile(lockPath, lockNote(reused, canReadProcessBirth() ? 60_000 : 1000))
       const lease = await acquireFileLease(lockPath, await leaseEnv({ timeoutMs: 3000 }))
       expect(await lease.isHeld()).toBe(true)
       await lease.release()
@@ -902,11 +1165,12 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     // is refused): the moved file stays aside, never removed, and the
     // taker does not acquire.
     const lockPath = await expiredLock()
+    const refused = Object.assign(new Error('EPERM: link refused'), { code: 'EPERM' })
     const windowB = pausingPort({
       ...asideUnreadable(nodeLeasePort),
       link: async (existing, target) => {
         if (target === lockPath && isAside(path.basename(existing))) {
-          throw Object.assign(new Error('EPERM: link refused'), { code: 'EPERM' })
+          throw refused
         }
         await nodeLeasePort.link(existing, target)
       },
@@ -922,6 +1186,7 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     beforeMove.resume()
     const outcome = await bOutcome
     expect(outcome).toBeInstanceOf(LeaseBusyError)
+    expect((outcome as LeaseBusyError).cause).toBe(refused)
     // A's instance survives aside, whole: never unlinked unproven.
     const aside = await asideNames(path.dirname(lockPath))
     expect(aside).toHaveLength(1)
@@ -935,5 +1200,62 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     await a.release()
     expect(await b.isHeld()).toBe(true)
     await b.release()
+  })
+})
+
+describe('file lease: publication and release failures (RVAPP-LEASE2)', () => {
+  it('a link refusal for an unsupported filesystem keeps its cause', async () => {
+    // RVAPP-LEASE2 P2-5: FAT/exFAT and some SMB or sync folders refuse the
+    // exclusive link with EPERM; the lease names the cause instead of a
+    // generic failure a caller would map to `io`.
+    const { lockPath } = await lockFolder()
+    const port: LeasePort = {
+      ...nodeLeasePort,
+      link: () =>
+        Promise.reject(
+          Object.assign(new Error('EPERM: hard links unsupported'), { code: 'EPERM' }),
+        ),
+    }
+    await expect(
+      acquireFileLease(
+        lockPath,
+        await leaseEnv({ port, takeover: 'ownerDeathOnly', timeoutMs: 0, pollMs: 0 }),
+      ),
+    ).rejects.toMatchObject({ name: 'LeaseLinkUnsupportedError' })
+  })
+
+  it('release pauses between attempts while a scanner holds the file', async () => {
+    // RVAPP-LEASE2 P3-4: back-to-back retries lose to a transient holder
+    // alike; the release waits between attempts and still retires.
+    const { lockPath } = await lockFolder()
+    const sleeps: number[] = []
+    let isArmed = false
+    let failures = 0
+    const port: LeasePort = {
+      ...nodeLeasePort,
+      lstat: async (file) => {
+        // A throwing observation never reaches its second read: fail the
+        // first two release attempts, then let the third retire.
+        if (isArmed && file === lockPath && failures < 2) {
+          failures += 1
+          throw Object.assign(new Error('a scanner holds the file'), { code: 'EBUSY' })
+        }
+        return await nodeLeasePort.lstat(file)
+      },
+    }
+    const lease = await acquireFileLease(
+      lockPath,
+      await leaseEnv({
+        port,
+        sleep: (ms: number) => {
+          sleeps.push(ms)
+          return Promise.resolve()
+        },
+      }),
+    )
+    isArmed = true
+    await lease.release()
+    expect(sleeps).toEqual([FILE_LEASE_RELEASE_RETRY_MS, FILE_LEASE_RELEASE_RETRY_MS])
+    expect(existsSync(lockPath)).toBe(false)
   })
 })

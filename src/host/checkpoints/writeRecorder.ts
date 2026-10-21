@@ -44,14 +44,12 @@ import { isBelow } from '../../core/workspacePath'
 import { pathModule } from '../../core/workspaceRoot'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
-  CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_MODEL_TEXT,
-  CHECKPOINT_UNIT_BLOB_BYTES_MAX,
-  CHECKPOINT_UNIT_INTENTS_MAX,
   FILE_REFUSAL_MODEL_TEXT,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
 } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isMissingPath } from '../canonicalPath'
 import type { Logger } from '../logger'
 import { type JournalFs, WriteJournal } from './writeJournal'
@@ -68,10 +66,10 @@ const EMPTY = Buffer.alloc(0)
 const EMPTY_OID = gitBlobOid(EMPTY)
 
 /**
- * One instance's order and locks, shared by every owner it records for
- * (turns, child turns, restore batches): a write's place in the order, and
- * one write at a time to a path.
- */
+One instance's order and locks, shared by every owner it records for
+(turns, child turns, restore batches): a write's place in the order, and
+one write at a time to a path.
+*/
 export class WriteLanes {
   private seq = 0
   private readonly tails = new Map<string, Promise<void>>()
@@ -122,10 +120,10 @@ export interface OwnerIo extends ToolIo {
   /** Admits no new write, and resolves once the writes under way have settled. */
   drain(): Promise<void>
   /**
-   * A new file `publish` creates only where there is none (a memory note,
-   * `createFileExclusively`), recorded: its intent journaled before
-   * `publish` runs, its outcome after.
-   */
+  A new file `publish` creates only where there is none (a memory note,
+  `createFileExclusively`), recorded: its intent journaled before
+  `publish` runs, its outcome after.
+  */
   recordNew(
     absolutePath: string,
     content: string,
@@ -141,10 +139,9 @@ interface Target {
   readonly path: string
 }
 
-/** The file as it was before a write. */
+/** The file as it was before a write, bytes and all: every copy is kept. */
 interface Copy {
   readonly state: ContentState
-  /** Its bytes, when at most CHECKPOINT_FILE_MAX_BYTES (the most a restore keeps). */
   readonly bytes: Buffer | undefined
 }
 
@@ -176,11 +173,36 @@ function isNameTaken(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
 }
 
+/**
+Telling whether anything is at the path failed for one of the lookup's
+own reasons. Anything else is not this probe's to answer.
+*/
+const UNTELLABLE_CODES: ReadonlySet<string> = new Set([
+  'EACCES',
+  'EPERM',
+  'ELOOP',
+  'ENAMETOOLONG',
+  'ENOTDIR',
+  'EBUSY',
+])
+
+function isUntellable(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    UNTELLABLE_CODES.has(error.code)
+  )
+}
+
 /** Whether nothing is at the path; false when that cannot be told. */
 async function isGone(target: Target): Promise<boolean> {
   try {
     return (await lstatOrMissing(target.absolute)) === undefined
-  } catch {
+  } catch (error: unknown) {
+    if (!isUntellable(error)) {
+      throw error
+    }
     return false
   }
 }
@@ -198,13 +220,13 @@ function notRecorded(target: Target, cause: unknown): Error {
   return new Error(`${target.path} ${CHECKPOINT_MODEL_TEXT.writeNotRecorded}`, { cause })
 }
 
-/** The copy's blob, and the bytes about to be published. */
-function blobsOf(copy: Copy, published: Uint8Array): readonly KeptBytes[] {
+/** The copy's blob, and the bytes about to be published: every byte is kept. */
+export function blobsOf(copy: Copy, published: Uint8Array): readonly KeptBytes[] {
   return [
     ...(copy.state.oid === undefined ? [] : [{ oid: copy.state.oid, bytes: copy.bytes }]),
     {
       oid: gitBlobOid(published),
-      bytes: published.length <= CHECKPOINT_FILE_MAX_BYTES ? published : undefined,
+      bytes: published,
     },
   ]
 }
@@ -230,9 +252,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   const p = pathModule(deps.platform)
   const inFlight = new Set<Promise<void>>()
   let isDrained = false
-  let intents = 0
-  let incompleteMarked: Promise<void> | undefined
-  let keptBytes = 0
   const keptOids = new Set<string>()
   // Opened for reading without following a final link or waiting on a pipe.
   const readFlags =
@@ -287,23 +306,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
     return stats
   }
 
-  /** Whether the write is recorded: past the unit's intents, its `incomplete` is durable first. */
-  const isRecorded = async (target: Target): Promise<boolean> => {
-    if (intents < CHECKPOINT_UNIT_INTENTS_MAX) {
-      intents += 1
-      return true
-    }
-    incompleteMarked ??= deps.journal.appendIncomplete(deps.owner)
-    try {
-      await incompleteMarked
-    } catch (error: unknown) {
-      // Not durable: the next write past the budget tries again, and none goes unrecorded first.
-      incompleteMarked = undefined
-      throw notRecorded(target, error)
-    }
-    return false
-  }
-
   /** The path still leads, links resolved, where it did, and still names the opened file. */
   const assertStillNamed = async (target: Target, held: BigIntStats): Promise<void> => {
     if (!isSamePath(await deps.canonicalPath(target.absolute), target.absolute, deps.platform)) {
@@ -324,10 +326,10 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /**
-   * The file now, read from the handle it was opened by, and only while the
-   * path names that file inside the folder before and after the read: a
-   * folder swapped for a link meanwhile keeps nothing of where it led.
-   */
+  The file now, read from the handle it was opened by, and only while the
+  path names that file inside the folder before and after the read: a
+  folder swapped for a link meanwhile keeps nothing of where it led.
+  */
   const copyOf = async (target: Target): Promise<Copy> => {
     const seen = await assertWritable(target)
     if (seen === undefined) {
@@ -341,7 +343,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
         throw changedPath()
       }
       await assertStillNamed(target, held)
-      const isKept = size <= CHECKPOINT_FILE_MAX_BYTES
       const hash = gitBlobHash(size)
       const parts: Buffer[] = []
       let total = 0
@@ -356,9 +357,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
           throw changedPath()
         }
         hash.update(part.subarray(0, bytesRead))
-        if (isKept) {
-          parts.push(part.subarray(0, bytesRead))
-        }
+        parts.push(part.subarray(0, bytesRead))
       }
       if (total !== size) {
         throw changedPath()
@@ -366,7 +365,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
       await assertStillNamed(target, held)
       return {
         state: { present: true, oid: hash.digest('hex'), mode: gitMode(Number(held.mode)) },
-        bytes: isKept ? Buffer.concat(parts, total) : undefined,
+        bytes: Buffer.concat(parts, total),
       }
     } finally {
       await handle.close()
@@ -378,16 +377,17 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
     let now: Copy
     try {
       now = await copyOf(target)
-    } catch {
+    } catch (error: unknown) {
+      deps.log.warn(`A file could not be copied to compare: ${failureForLog(error)}`)
       return false
     }
     return isSameContent(now.state, before)
   }
 
   /**
-   * Keeps what a write needs within the unit's budget (spec 9): every blob,
-   * or none, and the write is then recorded with its oids only (not kept).
-   */
+  Keeps what a write needs (spec 9): every blob, or none, and the write is
+  then recorded with its oids only (not kept). Every unit's bytes are kept.
+  */
   const hasKept = async (target: Target, blobs: readonly KeptBytes[]): Promise<boolean> => {
     const fresh = new Map<string, Uint8Array>()
     for (const blob of blobs) {
@@ -398,14 +398,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
         fresh.set(blob.oid, blob.bytes)
       }
     }
-    let size = 0
-    for (const bytes of fresh.values()) {
-      size += bytes.length
-    }
-    if (keptBytes + size > CHECKPOINT_UNIT_BLOB_BYTES_MAX) {
-      return false
-    }
-    keptBytes += size
     try {
       for (const [oid, bytes] of fresh) {
         await deps.journal.writeBlob(bytes)
@@ -435,16 +427,16 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /**
-   * The write's outcome. One that cannot be journaled leaves it unsettled
-   * (the journal keeps no line that may not be durable), which a restore
-   * resolves by the file's bytes or refuses: never a wrong restore.
-   */
+  The write's outcome. One that cannot be journaled leaves it unsettled
+  (the journal keeps no line that may not be durable), which a restore
+  resolves by the file's bytes or refuses: never a wrong restore.
+  */
   const settle = async (target: Target, id: string, outcome: 'done' | 'aborted'): Promise<void> => {
     try {
       await (outcome === 'done' ? deps.journal.appendDone(id) : deps.journal.appendAborted(id))
     } catch (error: unknown) {
       deps.log.warn(
-        `A write to ${target.path} stays unsettled: its outcome could not be journaled (${error instanceof Error ? error.name : 'unknown failure'})`,
+        `A write to ${target.path} stays unsettled: its outcome could not be journaled (${failureForLog(error)})`,
       )
     }
   }
@@ -462,11 +454,11 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /**
-   * `content` published over the file only while it is still as copied (and
-   * as `isExpected` says), its intent journaled once the content is staged
-   * beside it: the staged file's mode and the folders the write made are
-   * known by then, and nothing is replaced yet.
-   */
+  `content` published over the file only while it is still as copied (and
+  as `isExpected` says), its intent journaled once the content is staged
+  beside it: the staged file's mode and the folders the write made are
+  known by then, and nothing is replaced yet.
+  */
   const publishRecorded = async (
     target: Target,
     copy: Copy,
@@ -529,9 +521,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
       run: () => Promise<'done' | 'changed'>,
     ) =>
       await admitted(target, async () => {
-        if (!(await isRecorded(target))) {
-          return await run()
-        }
         const isKept = await hasKept(target, blobs)
         const id = deps.newId()
         await journalIntent(target, id, { ...fields, isKept })
@@ -567,10 +556,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
       }
       await admitted(target, async () => {
         await assertWritable(target)
-        if (!(await isRecorded(target))) {
-          await io.writeFile(target.absolute, content, target.absolute, assertCanWrite)
-          return
-        }
         const copy = await copyOf(target)
         const result = await publishRecorded(
           target,
@@ -591,9 +576,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
       }
       return await admitted(target, async () => {
         await assertWritable(target)
-        if (!(await isRecorded(target))) {
-          return await io.writeFileIfUnchanged(target.absolute, expected, content, options)
-        }
         const copy = await copyOf(target)
         // A fingerprint names text the edit wrote (never more than a kept
         // copy holds): a copy that is not that text would not be replaced.
@@ -616,7 +598,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
       }
       return await admitted(target, async () => {
         // Something there: the exclusive create refuses it and makes nothing.
-        if ((await lstatOrMissing(target.absolute)) !== undefined || !(await isRecorded(target))) {
+        if ((await lstatOrMissing(target.absolute)) !== undefined) {
           return await io.reserveFile(target.absolute, target.absolute)
         }
         const isKept = await hasKept(target, [{ oid: EMPTY_OID, bytes: EMPTY }])
@@ -652,7 +634,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
       }
       await admitted(target, async () => {
         // Something there: the exclusive publication refuses it and makes nothing.
-        if ((await assertWritable(target)) !== undefined || !(await isRecorded(target))) {
+        if ((await assertWritable(target)) !== undefined) {
           await publish()
           return
         }
@@ -694,9 +676,9 @@ export interface TurnRecorderDeps extends Omit<OwnerIoDeps, 'owner'> {
 }
 
 /**
- * The window's turns' own writes (spec 5.1): one owner io for each turn
- * (child turns included) from its start until its end, which drains it.
- */
+The window's turns' own writes (spec 5.1): one owner io for each turn
+(child turns included) from its start until its end, which drains it.
+*/
 export class TurnRecorder {
   private readonly running = new Map<string, OwnerIo>()
 
@@ -730,10 +712,10 @@ export interface TurnRecordingDeps {
 }
 
 /**
- * The window's recording (spec 5.1, 8): one instance, its journal, and the
- * order and locks every owner of it shares, the store's restores and Redos
- * as well as the turns' tools.
- */
+The window's recording (spec 5.1, 8): one instance, its journal, and the
+order and locks every owner of it shares, the store's restores and Redos
+as well as the turns' tools.
+*/
 export interface WindowRecording {
   readonly instance: string
   readonly journal: WriteJournal
@@ -743,11 +725,11 @@ export interface WindowRecording {
 }
 
 /**
- * The window's recording, made once at activation: the store takes its
- * journal and lanes, and the turns' recorder is made from it once the
- * window's tool io exists. Built by the checkpoint bundle, which loads with
- * the store (PLAN.md D6).
- */
+The window's recording, made once at activation: the store takes its
+journal and lanes, and the turns' recorder is made from it once the
+window's tool io exists. Built by the checkpoint bundle, which loads with
+the store (PLAN.md D6).
+*/
 export function createTurnRecording(deps: TurnRecordingDeps): WindowRecording {
   const { instance, platform } = deps
   const journal = new WriteJournal({ storageDir: deps.storageDir, instance, platform, fs: deps.fs })

@@ -231,9 +231,7 @@ export function referenceKeyboardActions() {
           .flatMap((binding) =>
             binding.when === undefined
               ? []
-              : [
-                  `${binding.keys.map((key) => (key.primary === true ? `Ctrl/Cmd+${key.key}` : key.key)).join(' / ')}: ${binding.when.setting}=${String(binding.when.value)}`,
-                ],
+              : `${binding.keys.map((key) => (key.primary === true ? `Ctrl/Cmd+${key.key}` : key.key)).join(' / ')}: ${binding.when.setting}=${String(binding.when.value)}`,
           )
           .join('; ') || context,
       text: bindings[0]?.text,

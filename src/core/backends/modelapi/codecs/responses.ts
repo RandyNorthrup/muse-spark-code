@@ -6,7 +6,11 @@ import { Usd, type UsdAmount } from '../../../../shared/usd'
 
 import type { ModelCapabilities } from '../../../providers/capabilities'
 import * as z from 'zod/mini'
-import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
+import {
+  CHATGPT_PLAN_RETRYABLE_CODES,
+  CODEC_EMPTY_TOOL_OUTPUT,
+  CODEC_IMAGE_WITHOUT_VISION,
+} from '../../../../shared/constants'
 export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
   type CreateResponseBody,
@@ -24,14 +28,16 @@ import {
   responseSchema,
   type StreamEvent,
   streamEventSchema,
-  type Usage,
   usageSchema,
   webSearchCallItemSchema,
   withStrictTools,
+  hasDeclaredTools,
   type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
-import { cleanWireText, isBlankWireText } from './shared'
+import { fixedHarnessText } from '../toolResultBound'
+import { fill, UI_TEXT } from '../../../../shared/l10n/text'
+import { ChatCodecError, cleanWireText, hasHeldVideo, isBlankWireText } from './shared'
 
 export type ResponsesCodecQuirks =
   | {
@@ -47,17 +53,22 @@ export type ResponsesCodecQuirks =
       readonly supportsStrictTools?: boolean | undefined
       /** Stable across turns; supplied by the host, never derived from a token. */
       readonly toolNamespace: string
-      /** The caller's namespace description, preserved as in the M95b capture. */
-      readonly toolNamespaceDescription?: string
+      /**
+      The namespace's own description. Required on this profile: the
+      plan endpoint answers HTTP 400 without it
+      (`missing_required_parameter: tools[0].description`), so the type
+      leaves no way to omit it.
+      */
+      readonly toolNamespaceDescription: string
     }
 /**
- * M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
- * ids resolve only against the model that produced them (Pi
- * `openai-responses-shared.ts`): `replayOrigins` names that model per
- * `call_id`, defaulting to the request's own model. Lane I fills it from
- * each replay entry's provider and model; until it does, every replay reads
- * as same-model.
- */
+M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
+ids resolve only against the model that produced them (Pi
+`openai-responses-shared.ts`): `replayOrigins` names that model per
+`call_id`, defaulting to the request's own model. Lane I fills it from
+each replay entry's provider and model; until it does, every replay reads
+as same-model.
+*/
 export interface ResponsesEncodeOptions {
   /** Fixed session choice; false preserves canonical non-strict declarations. */
   readonly shouldUseStrictTools?: boolean | undefined
@@ -65,11 +76,16 @@ export interface ResponsesEncodeOptions {
   readonly replayOrigins?: Readonly<Record<string, string>> | undefined
 }
 
-/** Technical diagnostics contain no provider-controlled text or schema errors. */
+/**
+Technical diagnostics contain no provider-controlled text or schema errors.
+`isLocal` marks a refusal of this app's own setup (a hosted tool it cannot
+send), not of what the provider streamed.
+*/
 export class ResponsesDecodeError extends Error {
   public constructor(
-    reason: string,
+    public readonly reason: string,
     public readonly frameLength: number,
+    public readonly isLocal = false,
   ) {
     super(`ResponsesDecodeError: ${reason}`)
     this.name = 'ResponsesDecodeError'
@@ -88,46 +104,24 @@ export class ChatgptPlanLimitError extends Error {
   }
 }
 
-/** Cancellation is local; no output-cap parameter is sent to the plan endpoint. */
-export class ResponsesOutputCapError extends Error {
-  public constructor(
-    public readonly maxOutputTokens: number,
-    public readonly outputTokens: number,
-    /** Validated report for canonical failure settlement; never rejected output. */
-    public readonly usage?: Usage,
-  ) {
-    super('ResponsesOutputCapError: client output cap exceeded')
-    this.name = 'ResponsesOutputCapError'
-  }
-}
-
-/** Per-request host dependencies, kept out of the pure request encoder. */
-export interface ResponsesOutputCap {
-  readonly maxOutputTokens: number
-  /**
-   * Cumulative tokens after this validated event, including tool arguments
-   * and whole final items without double-counting earlier deltas. The host
-   * supplies its model's counter; the codec never guesses chars per token.
-   */
-  readonly countOutputTokens: (event: StreamEvent) => number
-  /** Abort only this request's active transport when the cap is crossed. */
-  readonly abort: () => void
-}
-
 /** xAI's reported cost reaches settlement before canonical consumers read usage. */
 export interface ResponsesDecodeSink {
   readonly settledCostUsd?: (costUsd: UsdAmount) => void
-  /** Mandatory for the ChatGPT profile, unused by the API-key profile. */
-  readonly outputCap?: ResponsesOutputCap
 }
 
 // Meta's canonical tools declare strict:false. This wire seam also accepts
 // strict:true declarations (the M95b capture) without changing those schemas.
-type ResponsesRequestBody = Omit<CreateResponseBody, 'tools'> & {
+type ResponsesRequestBody = Omit<CreateResponseBody, 'tools' | 'reasoning'> & {
   readonly tools: readonly (
     | WebSearchToolDefinition
     | (Omit<FunctionToolDefinition, 'strict'> & { readonly strict: boolean })
   )[]
+  /**
+  Absent where the record has no effort levels (lane REASONSHAPESR2):
+  the wire carries no `reasoning` field and the provider default
+  applies, instead of a value the model does not take.
+  */
+  readonly reasoning?: CreateResponseBody['reasoning'] | undefined
 }
 
 export interface ResponsesWireCodec {
@@ -146,11 +140,11 @@ export interface ResponsesWireCodec {
 const RESPONSES_CALL_ID_PREFIX = 'fc_'
 
 /**
- * M101 lane P1 (BYO item 2): whether a replayed `function_call` keeps its
- * `id`. Only a server-minted `fc_…` id from the request's own model replays;
- * a foreign id (another format's, a synthetic one) or another model's id is
- * dropped while `call_id` still pairs the result (Pi #886).
- */
+M101 lane P1 (BYO item 2): whether a replayed `function_call` keeps its
+`id`. Only a server-minted `fc_…` id from the request's own model replays;
+a foreign id (another format's, a synthetic one) or another model's id is
+dropped while `call_id` still pairs the result (Pi #886).
+*/
 function shouldKeepReplayCallId(
   item: FunctionCallItem,
   model: string,
@@ -167,14 +161,15 @@ function replayTextPart(text: string): { readonly text: string } | undefined {
 }
 
 /**
- * One message content part replayed (BYO items 1, 13): blank text drops
- * (as `undefined`), images ride as the image-omitted placeholder where the
- * model takes no images, and files ride with a cleaned name. Inputs
- * without any of these map back byte-identical.
- */
+One message content part replayed (BYO items 1, 13): blank text drops
+(as `undefined`), images ride as the image-omitted placeholder where the
+model takes no images, and files ride with a cleaned name. Inputs
+without any of these map back byte-identical.
+*/
 function replayContentPart(
   part: InputContentPart,
   quirks: ResponsesCodecQuirks,
+  model: string,
 ): InputContentPart | undefined {
   switch (part.type) {
     case 'input_text':
@@ -183,24 +178,36 @@ function replayContentPart(
       return text === undefined ? undefined : { ...part, text: text.text }
     }
     case 'input_image': {
+      // A provider-held image replays by its id while the upload lives.
+      if (!('image_url' in part)) return part
       return quirks.vision === false
         ? { type: 'input_text', text: CODEC_IMAGE_WITHOUT_VISION }
         : part
     }
     case 'input_file': {
-      return { ...part, filename: cleanWireText(part.filename) }
+      // A provider-held file replays by its id; only inline names are cleaned.
+      return 'filename' in part ? { ...part, filename: cleanWireText(part.filename) } : part
+    }
+    case 'input_video': {
+      // M105 lane V R2 (RVCM1054 finding 2): this codec serves only
+      // non-Meta routes (OpenAI, Azure, xAI, ChatGPT, custom Responses
+      // servers); Meta's captured `file_id` shape is never valid here, so
+      // a held video refuses with the model's own reason instead of being
+      // forwarded with a foreign file id. Meta's own path never reaches
+      // this encoder (its delegate client encodes separately).
+      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
     }
   }
 }
 
 /**
- * M101 lane P1 (BYO items 1, 13): the replay-safe input. Blank text is
- * dropped (an item left with no content is dropped with it), empty results
- * ride as an explicit marker, lone surrogates are removed, and images ride
- * as the image-omitted placeholder where the model takes no images. Inputs
- * without any of these map back byte-identical (the copies below keep every
- * key in order).
- */
+M101 lane P1 (BYO items 1, 13): the replay-safe input. Blank text is
+dropped (an item left with no content is dropped with it), empty results
+ride as an explicit marker, lone surrogates are removed, and images ride
+as the image-omitted placeholder where the model takes no images. Inputs
+without any of these map back byte-identical (the copies below keep every
+key in order).
+*/
 function replayInput(
   input: readonly InputItem[],
   quirks: ResponsesCodecQuirks,
@@ -213,7 +220,7 @@ function replayInput(
       case 'message': {
         const content: InputContentPart[] = []
         for (const part of item.content) {
-          const replayed = replayContentPart(part, quirks)
+          const replayed = replayContentPart(part, quirks, model)
           if (replayed !== undefined) {
             content.push(replayed)
           }
@@ -237,7 +244,7 @@ function replayInput(
         if (typeof item.output === 'string') {
           mapped.push(
             isBlankWireText(item.output)
-              ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT }
+              ? { ...item, output: fixedHarnessText(CODEC_EMPTY_TOOL_OUTPUT) }
               : { ...item, output: cleanWireText(item.output) },
           )
           continue
@@ -258,7 +265,9 @@ function replayInput(
           }
         }
         mapped.push(
-          output.length === 0 ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT } : { ...item, output },
+          output.length === 0
+            ? { ...item, output: fixedHarnessText(CODEC_EMPTY_TOOL_OUTPUT) }
+            : { ...item, output },
         )
         continue
       }
@@ -353,6 +362,31 @@ const responseFrameSchema = z.object({
   }),
 })
 const itemFrameSchema = z.object({ item: nativeItemSchema })
+type NativeItem = z.infer<typeof nativeItemSchema>
+type NativeResponse = z.infer<typeof responseFrameSchema>['response']
+
+/**
+A ChatGPT plan response's output: the items its stream delivered, in their
+output order. A terminal frame that lists items itself must list the same
+number, or the stream is refused rather than one of the two trusted.
+*/
+function withStreamedOutput(
+  response: NativeResponse,
+  streamed: readonly { readonly index: number; readonly item: NativeItem }[],
+  frameLength: number,
+): NativeResponse {
+  if (response.output.length > 0 && response.output.length !== streamed.length) {
+    throw new ResponsesDecodeError('terminal output differs from the streamed items', frameLength)
+  }
+  const sorted = streamed.toSorted((a, b) => a.index - b.index)
+  // A gap (items 0 and 2, say) must refuse, never compact: the missing item
+  // may be the call the later ones depend on.
+  if (sorted.some((entry, index) => entry.index !== index)) {
+    throw new ResponsesDecodeError('streamed output indices are not contiguous', frameLength)
+  }
+  const output = sorted.map((entry) => entry.item)
+  return { ...response, output }
+}
 const settledCostSchema = z.object({
   cost_in_usd_ticks: tokenCountSchema,
 })
@@ -367,27 +401,6 @@ function settledCostOf(usage: unknown): UsdAmount | undefined {
     : undefined
 }
 
-function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined): StreamEvent {
-  if (cap === undefined) return event
-  const counted = cap.countOutputTokens(event)
-  if (!Number.isSafeInteger(counted) || counted < 0) {
-    throw new ResponsesDecodeError('invalid output counter', 0)
-  }
-  // Encrypted reasoning is not observable in deltas. Reported output usage
-  // includes it; it can only stop the reply once that usage arrives.
-  const reported = 'response' in event ? (event.response.usage?.output_tokens ?? 0) : 0
-  const outputTokens = Math.max(counted, reported)
-  if (outputTokens > cap.maxOutputTokens) {
-    cap.abort()
-    throw new ResponsesOutputCapError(
-      cap.maxOutputTokens,
-      outputTokens,
-      'response' in event ? (event.response.usage ?? undefined) : undefined,
-    )
-  }
-  return event
-}
-
 export function createResponsesCodec(
   quirks: ResponsesCodecQuirks,
   capabilitiesForModel?: (modelId: string) => ModelCapabilities | undefined,
@@ -400,12 +413,18 @@ export function createResponsesCodec(
     ): Record<string, unknown> {
       const isChatgpt = quirks.profile === 'chatgpt'
       if (isChatgpt && body.tools.some((tool) => tool.type !== 'function')) {
-        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0)
+        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0, true)
       }
       // M101 lane P1 (BYO items 1, 2, 13): the input replays replay-safe.
       // An input left with nothing after the mapping is refused outright
       // instead of sent as a guaranteed 400.
       const model = options?.model ?? body.model
+      // M105 lane V R2 (RVCM1054 finding 2): the ChatGPT route sends its
+      // input without the replay mapping below, so a held video is refused
+      // here with the model's own reason instead of going out uncaptured.
+      if (isChatgpt && hasHeldVideo(body)) {
+        throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
+      }
       const capabilities = capabilitiesForModel?.(body.model)
       const effective =
         capabilitiesForModel === undefined
@@ -421,31 +440,45 @@ export function createResponsesCodec(
       if (mapped.length === 0) {
         throw new Error('responses codec: the request keeps no replayable input')
       }
+      // A request without tools omits tools and tool choice alike (see
+      // `hasDeclaredTools`): the side calls (wrap-up, compaction without
+      // reused tools, git drafts, reviewer and hook-model calls with no
+      // tools) all arrive here with no tools declared.
+      const hasTools = hasDeclaredTools(body.tools)
+      // A choice the model's record does not list never reaches the wire;
+      // unknown means auto only. Measured 2026-10-12
+      // (`docs/certification/toolrounds-captures/`): Sonnet 5.5 refuses a
+      // forced choice, DeepSeek thinking refuses `required`, Meta takes
+      // `auto` only.
+      const toolChoice =
+        capabilities?.toolChoiceModes?.includes(body.tool_choice) === true
+          ? body.tool_choice
+          : 'auto'
       return {
         model: body.model,
         input: isChatgpt ? body.input : mapped,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
-        tools: isChatgpt
-          ? [
-              {
-                type: 'namespace',
-                name: quirks.toolNamespace,
-                ...(quirks.toolNamespaceDescription !== undefined && {
+        ...(hasTools && {
+          tools: isChatgpt
+            ? [
+                {
+                  type: 'namespace',
+                  name: quirks.toolNamespace,
                   description: quirks.toolNamespaceDescription,
-                }),
-                tools: body.tools,
-              },
-            ]
-          : withStrictTools(
-              body.tools,
-              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
-            ),
-
-        tool_choice: body.tool_choice,
-        reasoning: body.reasoning,
+                  tools: body.tools,
+                },
+              ]
+            : withStrictTools(
+                body.tools,
+                options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+              ),
+          tool_choice: toolChoice,
+        }),
+        ...(body.reasoning !== undefined && { reasoning: body.reasoning }),
         stream: body.stream,
         store: body.store,
         include: body.include,
+        ...(isChatgpt && body.service_tier !== undefined && { service_tier: body.service_tier }),
         ...(!isChatgpt && { max_output_tokens: body.max_output_tokens }),
         ...((isChatgpt || quirks.sendPromptCacheKey) && {
           prompt_cache_key: body.prompt_cache_key,
@@ -460,17 +493,14 @@ export function createResponsesCodec(
       chunks: AsyncIterable<Uint8Array>,
       sink?: ResponsesDecodeSink,
     ): AsyncGenerator<StreamEvent> {
-      const outputCap = quirks.profile === 'chatgpt' ? sink?.outputCap : undefined
-      if (outputCap === undefined && quirks.profile === 'chatgpt') {
-        throw new ResponsesDecodeError('missing ChatGPT output cap', 0)
-      }
-      if (
-        outputCap !== undefined &&
-        (!Number.isSafeInteger(outputCap.maxOutputTokens) || outputCap.maxOutputTokens <= 0)
-      ) {
-        throw new ResponsesDecodeError('invalid output cap', 0)
-      }
       let hasReportedCost = false
+      // The ChatGPT plan streams each output item in its own
+      // `response.output_item.done` frame and ends with `output: []` (measured
+      // 2026-10-14, finding F87: a read_file call streamed, the terminal frame
+      // listed nothing, and the turn ended without running it). Codex reads
+      // the items from those frames too, so for this profile they are the
+      // response's output.
+      const streamed: { readonly index: number; readonly item: NativeItem }[] = []
       for await (const frame of parseSse(chunks)) {
         if (frame.data.trim() === '' || frame.data === DONE_SENTINEL) {
           continue
@@ -478,7 +508,8 @@ export function createResponsesCodec(
         let json: unknown
         try {
           json = JSON.parse(frame.data)
-        } catch {
+        } catch (error: unknown) {
+          if (!(error instanceof SyntaxError)) throw error
           throw new ResponsesDecodeError('invalid JSON', frame.data.length)
         }
         const typed = eventTypeSchema.safeParse(json)
@@ -514,6 +545,19 @@ export function createResponsesCodec(
           ) {
             throw new ChatgptPlanLimitError(parsed.data.response.error.message)
           }
+          // "Usage availability could not be checked" can arrive after the
+          // stream began; the documented recovery is the bounded retry, so
+          // it reaches the turn as a retryable error, not a failed reply.
+          const failure = parsed.data.response.error
+          if (
+            quirks.profile === 'chatgpt' &&
+            known.data.type === 'response.failed' &&
+            failure?.code != null &&
+            CHATGPT_PLAN_RETRYABLE_CODES.includes(failure.code)
+          ) {
+            yield { type: 'error', code: failure.code, message: failure.message }
+            continue
+          }
           if (!hasReportedCost && TERMINAL_WITH_USAGE.has(known.data.type)) {
             const costUsd = settledCostOf(parsed.data.response.usage)
             if (costUsd !== undefined) {
@@ -521,13 +565,45 @@ export function createResponsesCodec(
               sink?.settledCostUsd?.(costUsd)
             }
           }
-          yield withinOutputCap({ ...known.data, response: parsed.data.response }, outputCap)
+          // A plan response's output is taken from its streamed items.
+          yield quirks.profile === 'chatgpt' && TERMINAL_WITH_USAGE.has(known.data.type)
+            ? {
+                ...known.data,
+                response: withStreamedOutput(parsed.data.response, streamed, frame.data.length),
+              }
+            : { ...known.data, response: parsed.data.response }
         } else if ('item' in known.data) {
           const parsed = itemFrameSchema.safeParse(json)
           if (!parsed.success) {
             throw new ResponsesDecodeError('invalid item', frame.data.length)
           }
-          yield withinOutputCap({ ...known.data, item: parsed.data.item }, outputCap)
+          if (quirks.profile === 'chatgpt' && known.data.type === 'response.output_item.done') {
+            const index = known.data.output_index
+            if (
+              index === undefined ||
+              !Number.isSafeInteger(index) ||
+              index < 0 ||
+              streamed.some((entry) => entry.index === index)
+            ) {
+              throw new ResponsesDecodeError('invalid or repeated output index', frame.data.length)
+            }
+            const item = parsed.data.item
+            if (
+              streamed.some(
+                (entry) =>
+                  (item.id !== undefined && entry.item.id === item.id) ||
+                  (item.type === 'function_call' &&
+                    'call_id' in item &&
+                    entry.item.type === 'function_call' &&
+                    'call_id' in entry.item &&
+                    entry.item.call_id === item.call_id),
+              )
+            ) {
+              throw new ResponsesDecodeError('repeated output identity', frame.data.length)
+            }
+            streamed.push({ index, item })
+          }
+          yield { ...known.data, item: parsed.data.item }
         } else {
           if (
             quirks.profile === 'chatgpt' &&
@@ -536,7 +612,7 @@ export function createResponsesCodec(
           ) {
             throw new ChatgptPlanLimitError(known.data.message)
           }
-          yield withinOutputCap(known.data, outputCap)
+          yield known.data
         }
       }
     },

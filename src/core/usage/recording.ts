@@ -80,6 +80,8 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
           if (options.isEnabled()) write(journal)
         }
       } catch {
+        // A failed journal write is reported once and dropped: the queue
+        // stays alive for the next note.
         report()
       }
     })()
@@ -105,6 +107,12 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         if (!isForced && lastHeaders.get(context.provider) === encoded) return
         lastHeaders.set(context.provider, encoded)
       }
+      const slot = `${context.provider}/${context.source}/${context.credentialId ?? ''}`
+      if (
+        context.observationId !== undefined &&
+        liveLimits.get(slot)?.observationId === context.observationId
+      )
+        return
       const at = options.now()
       const entry: UsageLimitSnapshot = {
         ...context,
@@ -116,7 +124,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         timezoneOffsetMins: new Date(at).getTimezoneOffset(),
         client: client(),
       }
-      liveLimits.set(`${context.provider}/${context.source}`, entry)
+      // Slots accumulate per credential; the usage service selects the
+      // stored credential's slots when it reads, so a previous key's
+      // numbers are never shown or counted. This recorder keeps history.
+      liveLimits.set(slot, entry)
       queue((journal) => {
         journal.append(entry)
       })
@@ -129,9 +140,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         const { records } = await journal.read()
         const day = localUsageDay(options.now())
         return records.filter((record) => record.day === day)
-      } catch {
+      } catch (error) {
+        // The read failed after the report: fixed words carry the failure.
         report()
-        throw new Error('Usage history unavailable')
+        throw new Error('Usage history unavailable', { cause: error })
       }
     },
     async flush() {
@@ -145,6 +157,8 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
                 const journal = await writer
                 await journal.flush()
               } catch {
+                // A failed flush is reported once and dropped: shutdown
+                // still settles instead of hanging on the journal.
                 report()
               }
             }
@@ -171,6 +185,8 @@ export interface UsageWriterBundle {
     readonly isEnabled: () => boolean
     readonly now: () => number
     readonly onWriteError: () => void
+    /** Reported once when the settings file is invalid and history pauses (EXECPROV E). */
+    readonly onInvalidSettings?: () => void
   }): Promise<UsageWriter>
 }
 export function isUsageWriterBundle(value: unknown): value is UsageWriterBundle {

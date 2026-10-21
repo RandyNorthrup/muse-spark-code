@@ -6,6 +6,7 @@
 
 import * as z from 'zod/mini'
 import { modelRef, providersFile } from '../backend/providersEntry'
+import { pruneModelLimits } from '../../shared/providerRouting'
 import { UI_TEXT } from '../../shared/constants'
 import type { ProviderCredentialStore } from './credentialRecords'
 import type { AddressCheck, AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
@@ -60,17 +61,22 @@ function parseDocumentText(
   let raw: unknown
   try {
     raw = JSON.parse(text)
-  } catch {
-    throw new Error('The providers file is not valid JSON')
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to refuse.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
+    throw new Error('The providers file is not valid JSON', { cause: error })
   }
   return parseProvidersDocument(raw, presetAddress)
 }
 
 /**
- * The non-secret configuration as JSON for a team. Credentials are never
- * in it: only what `ProvidersStore.list` holds (lane P's file holds no
- * secret either, D74).
- */
+The non-secret configuration as JSON for a team. Credentials are never
+in it: only what `ProvidersStore.list` holds (lane P's file holds no
+secret either, D74).
+*/
 export async function exportProviders(store: ProvidersStore): Promise<string> {
   const entries = await store.list()
   const document: ProvidersDocument = {
@@ -105,10 +111,10 @@ function isSameEntry(left: ProviderEntry, right: ProviderEntry): boolean {
 }
 
 /**
- * Previews an import as a diff against the current file. Throws on an
- * unreadable file, an unknown shape, or a refused address: an import never
- * skips the address check (M95 acceptance 6, Tests).
- */
+Previews an import as a diff against the current file. Throws on an
+unreadable file, an unknown shape, or a refused address: an import never
+skips the address check (M95 acceptance 6, Tests).
+*/
 export async function previewProvidersImport(
   current: readonly ProviderEntry[],
   text: string,
@@ -151,17 +157,17 @@ export interface ProvidersImportDeps {
   readonly policy: AddressPolicy
   readonly presetAddress?: (preset: string) => string | undefined
   /**
-   * Shows the preview (every address, every "needs a key") and asks to go
-   * on. False, or a dismissal, imports nothing.
-   */
+  Shows the preview (every address, every "needs a key") and asks to go
+  on. False, or a dismissal, imports nothing.
+  */
   readonly confirm: (preview: ImportPreview) => Promise<boolean>
 }
 
 /**
- * Imports a confirmed file, replacing the whole configuration. Returns the
- * imported providers' count; an unconfirmed, unreadable or refused import
- * writes nothing.
- */
+Imports a confirmed file, replacing the whole configuration. Returns the
+imported providers' count; an unconfirmed, unreadable or refused import
+writes nothing.
+*/
 export async function importProviders(deps: ProvidersImportDeps, text: string): Promise<number> {
   const document = parseDocumentText(text, deps.presetAddress)
   const current = await deps.store.list()
@@ -175,10 +181,15 @@ export async function importProviders(deps: ProvidersImportDeps, text: string): 
   for (const id of ids) {
     await deps.credentials.clearProviderCredential(id)
   }
+  // C-M95-4 R5: limits exist only for ticked models; an imported file
+  // never stores a window for a model it does not list.
   const incoming = document.providers.map((entry) => {
     const checked = preview.rows.find((row) => row.entry.id === entry.id)?.address
     const { privateNetwork: _old, ...rest } = entry
-    return checked?.kind === 'private' ? { ...rest, privateNetwork: true } : rest
+    const modelLimits = pruneModelLimits(rest.models, rest.modelLimits)
+    return checked?.kind === 'private'
+      ? { ...rest, modelLimits, privateNetwork: true }
+      : { ...rest, modelLimits }
   })
   await deps.store.replaceAll(incoming, { defaultModel: document.defaultModel })
   return incoming.length

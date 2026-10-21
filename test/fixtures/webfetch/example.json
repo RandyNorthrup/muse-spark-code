@@ -1,0 +1,18 @@
+{
+  "url": "https://example.com/",
+  "finalUrl": "https://example.com/",
+  "capturedAt": "2026-10-18T09:47:55Z",
+  "command": "curl -sS -H 'Accept-Encoding: gzip' -D headers.example.txt -o example.bin https://example.com/",
+  "status": 200,
+  "requestHeaders": { "Accept-Encoding": "gzip" },
+  "responseHeaders": {
+    "content-type": "text/html; charset=utf-8",
+    "content-encoding": "gzip",
+    "last-modified": "Tue, 13 Oct 2026 22:05:48 GMT"
+  },
+  "wireFile": "example.body.gz",
+  "wireBytes": 400,
+  "wireSha256": "98045c75d902d8de112d0dce14a4408e02f754155c60c2c9ccf4f9adeb358e74",
+  "decompressedBytes": 577,
+  "note": "The example.com landing page. The wire bytes are the server's gzip body byte-for-byte; the test feeds them at the injected-transport seam, which never dials."
+}

@@ -6,6 +6,7 @@ import {
   modelApiPaidTier,
   paidFeatureName,
   paidFeaturePrice,
+  paidStoreReasonText,
   type PaidState,
   type PaidUseRequest,
 } from '../../shared/paid'
@@ -34,7 +35,7 @@ import {
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget } from '../../shared/l10n/exactUsd'
 
 import type { Logger } from '../logger'
 import {
@@ -126,11 +127,11 @@ function confirmationDetail(feature: PaidFeature): string {
     const budget = dailyBudgetSchema.safeParse(
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
     )
-    // The shared D78 setting arrives with FIXDEF. Until then (or for an
-    // invalid hand edit), show zero; no charge is enabled by this formatter.
+    // The person's D78 limit, or that none is set (D208); an invalid hand edit
+    // reads as none, and no charge is enabled by this formatter.
     return fill(details.judge, {
       price: paidFeaturePrice(feature),
-      budget: formatUsd(budget.success ? budget.data : 0, 2),
+      budget: formatDailyBudget(budget.success ? budget.data : 0),
     })
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
@@ -147,10 +148,10 @@ async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
 }
 
 /**
- * The popup before a paid use (M58): Allow once, Allow always in this
- * workspace (only where it can be kept), or Deny, which is also what closing
- * the popup answers.
- */
+The popup before a paid use (M58): Allow once, Allow always in this
+workspace (only where it can be kept), or Deny, which is also what closing
+the popup answers.
+*/
 export async function askPaidUse(
   request: PaidUseRequest,
   canRemember: boolean,
@@ -187,7 +188,12 @@ export async function askPaidUse(
   }
   const { title, detail } = await paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
-  const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
+  const always: vscode.MessageItem = {
+    title:
+      request.feature === 'scheduledPrompts' && request.schedule !== undefined
+        ? UI_TEXT.scheduleV2.messages.allowAlways
+        : UI_TEXT.paidAllowAlways,
+  }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
   const answer = await vscode.window.showWarningMessage(
     title,
@@ -196,7 +202,7 @@ export async function askPaidUse(
       detail:
         dailyBudgetUsd === undefined
           ? detail
-          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) })}`,
+          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(dailyBudgetUsd) })}`,
     },
     ...(canRemember ? [once, always, deny] : [once, deny]),
   )
@@ -381,6 +387,16 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     },
     ask: (request, canRemember) =>
       askPaidUse(request, canRemember, deps.dailyBudgetUsd?.(request.feature)),
+    // A choice that could not be saved is said at once, not only logged: the
+    // use was allowed and charged, and the person will be asked again.
+    onNotKept: (notice) => {
+      void vscode.window.showWarningMessage(
+        fill(UI_TEXT.paidAlwaysNotKept, {
+          feature: paidFeatureName(notice.feature),
+          kind: paidStoreReasonText(notice.kind),
+        }),
+      )
+    },
     log: deps.log,
   })
   const usage = new PaidUsage(deps.log, deps.usageRecording)

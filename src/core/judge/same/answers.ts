@@ -39,10 +39,10 @@ export interface SettleBatchInputs {
 }
 
 /**
- * Decode the reply's JSON value: the whole trimmed text, or its outermost
- * `{...}` span when the model adds words around the object. Undefined when
- * neither parses to an object.
- */
+Decode the reply's JSON value: the whole trimmed text, or its outermost
+`{...}` span when the model adds words around the object. Undefined when
+neither parses to an object.
+*/
 export function decodeJudgeReply(text: string): Record<string, unknown> | undefined {
   const trimmed = text.trim()
   const direct = parseObject(trimmed)
@@ -56,7 +56,10 @@ function parseObject(text: string): Record<string, unknown> | undefined {
   let value: unknown
   try {
     value = JSON.parse(text) as unknown
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: an unparsable
+    // reply decodes to nothing, and anything else is a caller bug.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -69,11 +72,11 @@ function optionCountOf(question: JudgeQuestion): number {
 }
 
 /**
- * Settle one batch: every question reads the one shared stated response. The
- * response carries a single answer shape (lane J's parser), so a batch holds
- * questions of one kind; a question whose kind the response cannot answer
- * fails the batch. The first failure wins; nothing settles partially.
- */
+Settle one batch: every question reads the one shared stated response. The
+response carries a single answer shape (lane J's parser), so a batch holds
+questions of one kind; a question whose kind the response cannot answer
+fails the batch. The first failure wins; nothing settles partially.
+*/
 export function settleBatch(inputs: SettleBatchInputs): BatchSettleResult {
   if (inputs.questions.length === 0 || inputs.questionIds.length !== inputs.questions.length) {
     throw new RangeError('judge batches settle one answer per question')

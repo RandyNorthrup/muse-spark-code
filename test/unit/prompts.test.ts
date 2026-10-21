@@ -6,10 +6,10 @@ import {
   promptExportName,
   promptLoadSchema,
   promptMenuEntries,
+  promptShareFilename,
   promptVariableNames,
   savedPromptSchema,
   serialisePromptFile,
-  type PromptStoragePort,
 } from '../../src/shared/prompts'
 import {
   PROMPT_COMMAND_IDS,
@@ -104,22 +104,34 @@ describe('portable saved prompts', () => {
     }
   })
 
-  it('merges both storage scopes stably, retaining same titles and ids across scopes', async () => {
+  it('merges both storage scopes stably, retaining same titles and ids across scopes', () => {
     const user = { ...savedPromptFixture, id: 'z', title: 'Same' }
     const workspace = { ...user, scope: 'workspace' as const }
-    const store: PromptStoragePort = {
-      list: (scope) =>
-        Promise.resolve(scope === 'user' ? [user, { ...user, id: 'a' }, user] : [workspace]),
-      write: () => Promise.resolve(),
-      remove: () => Promise.resolve(),
-    }
-    const entries = mergePromptScopes(await store.list('user'), await store.list('workspace'))
+    const entries = mergePromptScopes([user, { ...user, id: 'a' }, user], [workspace])
     expect(entries.map((p) => `${p.scope}:${p.id}`)).toEqual(['user:a', 'user:z', 'workspace:z'])
     expect(mergePromptScopes([workspace], [user])).toEqual([])
     expect(PROMPT_USER_FOLDER).toBe('prompts')
     expect(PROMPT_WORKSPACE_FOLDER).toBe('.muse/prompts')
     expect(promptExportName('review-selection')).toBe('review-selection.muse-prompt.md')
     expect(() => promptExportName('../outside')).toThrow()
+  })
+
+  it('PR229FIX T5: keeps short share filenames byte-for-byte, cuts long ones to 255 bytes', () => {
+    expect(promptShareFilename('Hello, world!')).toBe('Hello--world-.muse-prompt.md')
+    for (const title of [
+      'x'.repeat(300),
+      'é'.repeat(200),
+      `${'é'.repeat(119)}€`,
+      'a'.repeat(240),
+    ]) {
+      const name = promptShareFilename(title)
+      expect(new TextEncoder().encode(name).byteLength).toBeLessThanOrEqual(255)
+      // No replacement character: the cut landed on a UTF-8 boundary.
+      expect(name).not.toContain('�')
+      expect(name.endsWith('.muse-prompt.md')).toBe(true)
+    }
+    expect(promptShareFilename('x'.repeat(300))).toBe(`${'x'.repeat(240)}.muse-prompt.md`)
+    expect(promptShareFilename('é'.repeat(200))).toBe(`${'é'.repeat(120)}.muse-prompt.md`)
   })
 
   it('defines own-message, composer and selection Save menus plus composer Use', () => {

@@ -1,0 +1,296 @@
+[
+  {
+    "mutation": "delivery-binding",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "restoredSha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > keeps borrowed parent turn ownership when child turn events arrive",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > normalizes workspace spellings before holding, routing and borrowing ACP targets",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws a queued scheduled message without cancelling its borrowed user turn",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers steer through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers interrupt through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers queue through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers newConversation through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > delivers whenIdle through scheduled backend entry points",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > ends an interrupt waiting for backend idle when the runtime closes",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > borrows ACP ownership and records refused actions without interactive approval",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > honors live grants and audits the matched rule",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > opens a background session in the persisted workspace and settles exactly once across restart",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > holds CLI run-now without enabling a polling lifetime"
+    ]
+  },
+  {
+    "mutation": "paid-admission",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "restoredSha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > records missing paid authority as refused without submitting a Model API request"
+    ]
+  },
+  {
+    "mutation": "root-binding",
+    "file": "src/runtime/schedules/registry.ts",
+    "exitCode": 1,
+    "sha256": "ce06558642013e8ac5bf03fe6e524815de76784c89146b0011d83de5108a4dc1",
+    "restoredSha256": "ce06558642013e8ac5bf03fe6e524815de76784c89146b0011d83de5108a4dc1",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > persisted runtime workspace paths > rejects forged persisted path bindings and preserves legacy keys without guessing a root"
+    ]
+  },
+  {
+    "mutation": "workspace-normalization",
+    "file": "src/runtime/schedules/runtime.ts",
+    "exitCode": 1,
+    "sha256": "7ee4e7a5cabde316a2be7dd9fc4f2db8ba07c3506af6d07ae4b840474ea07318",
+    "restoredSha256": "7ee4e7a5cabde316a2be7dd9fc4f2db8ba07c3506af6d07ae4b840474ea07318",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > normalizes workspace spellings before holding, routing and borrowing ACP targets"
+    ]
+  },
+  {
+    "mutation": "parent-turn",
+    "file": "src/runtime/schedules/delivery.ts",
+    "exitCode": 1,
+    "sha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "restoredSha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > keeps borrowed parent turn ownership when child turn events arrive"
+    ]
+  },
+  {
+    "mutation": "shutdown-idle",
+    "file": "src/runtime/schedules/delivery.ts",
+    "exitCode": 1,
+    "sha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "restoredSha256": "280e79b4369ac16bd0df615cb24822bade7cea55bdc9640beb970dc5a103084e",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > ends an interrupt waiting for backend idle when the runtime closes"
+    ]
+  },
+  {
+    "mutation": "audit-serialization",
+    "file": "src/runtime/schedules/authorityStore.ts",
+    "exitCode": 1,
+    "sha256": "89d76a9e6c88848280265097d443b51687b72b784fa58b122865096ee1a58930",
+    "restoredSha256": "89d76a9e6c88848280265097d443b51687b72b784fa58b122865096ee1a58930",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > persisted runtime workspace paths > keeps every audit entry when schedules use their grants concurrently"
+    ]
+  },
+  {
+    "mutation": "stdio-delivery",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "restoredSha256": "de7ea8513d5db28f00edbf4235bf5891854f8edccaa8ab302e32dfaf8e55a76d",
+    "namedFailures": [
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > schedule CLI process boundary > returns a stable JSON refusal when the real scheduler bundle is absent",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > opens and settles a background backend session in its persisted workspace",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > never dispatches the claimed occurrence again after process restart",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > real ACP runtime route with fake Muse Code CLI > delivers the scheduled prompt and records refused shell actions",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > real ACP runtime route with fake Muse Code CLI > emits refusal rows as session updates without an interactive approval",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > settles the run and records denied actions without a permission card",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > sends the scheduled note with the user input over real HTTP"
+    ]
+  },
+  {
+    "mutation": "stdio-paid-refusal",
+    "file": "test/e2e/scheduleRuntimeWorker.ts",
+    "exitCode": 1,
+    "sha256": "a8138da6c43707eaea2a5c7822354a0edb26891b973f24c49662994774fd7001",
+    "restoredSha256": "a8138da6c43707eaea2a5c7822354a0edb26891b973f24c49662994774fd7001",
+    "namedFailures": [
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > opens and settles a background backend session in its persisted workspace",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > run-due across process restart > never dispatches the claimed occurrence again after process restart",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > settles the run and records denied actions without a permission card",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API over loopback with supplied paid policy > sends the scheduled note with the user input over real HTTP",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API without paid policy > records the fire as refused",
+      "FAIL  test/e2e/schedulesStdio.e2e.test.ts > scheduled prompt delivery across stdio > Model API without paid policy > sends no response request and opens no permission card"
+    ]
+  },
+  {
+    "mutation": "r2-withdrawal",
+    "file": "src/host/schedules/deliveryBinding.ts",
+    "exitCode": 1,
+    "sha256": "48cb507cfc7071f4cf58bae1c5341602986d2e9ca2e4e3bf96d5eb43654b6062",
+    "restoredSha256": "48cb507cfc7071f4cf58bae1c5341602986d2e9ca2e4e3bf96d5eb43654b6062",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on close without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on detach without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on late-admission without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on withdrawing without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles target exit and throw withdrawal failure without leaving an admitted claim",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles target exit and tooLate withdrawal failure without leaving an admitted claim",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > joins a CLI delivery through durable settlement before close returns"
+    ]
+  },
+  {
+    "mutation": "r2-withdrawal-result",
+    "file": "src/host/schedules/deliveryBinding.ts",
+    "exitCode": 1,
+    "sha256": "48cb507cfc7071f4cf58bae1c5341602986d2e9ca2e4e3bf96d5eb43654b6062",
+    "restoredSha256": "48cb507cfc7071f4cf58bae1c5341602986d2e9ca2e4e3bf96d5eb43654b6062",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles target exit and tooLate withdrawal failure without leaving an admitted claim"
+    ]
+  },
+  {
+    "mutation": "r2-abort-settlement",
+    "file": "src/host/schedules/deliveryBinding.ts",
+    "exitCode": 1,
+    "sha256": "48cb507cfc7071f4cf58bae1c5341602986d2e9ca2e4e3bf96d5eb43654b6062",
+    "restoredSha256": "48cb507cfc7071f4cf58bae1c5341602986d2e9ca2e4e3bf96d5eb43654b6062",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles interrupt waiting for backend idle when runtime closes",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on close without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on detach without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on late-admission without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on withdrawing without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > joins a CLI delivery through durable settlement before close returns"
+    ]
+  },
+  {
+    "mutation": "r2-terminal-fence",
+    "file": "src/runtime/schedules/host.ts",
+    "exitCode": 1,
+    "sha256": "82f027e82ded3c15a623d71084eaa2eb553891db11e38f3943e671ad0cf27964",
+    "restoredSha256": "82f027e82ded3c15a623d71084eaa2eb553891db11e38f3943e671ad0cf27964",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles target exit and throw withdrawal failure without leaving an admitted claim",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles target exit and tooLate withdrawal failure without leaving an admitted claim",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > retains liability after paid settlement failure and recovers persistence once"
+    ]
+  },
+  {
+    "mutation": "r2-paid-liability",
+    "file": "src/runtime/schedules/host.ts",
+    "exitCode": 1,
+    "sha256": "82f027e82ded3c15a623d71084eaa2eb553891db11e38f3943e671ad0cf27964",
+    "restoredSha256": "82f027e82ded3c15a623d71084eaa2eb553891db11e38f3943e671ad0cf27964",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > retains liability after paid settlement failure and recovers persistence once"
+    ]
+  },
+  {
+    "mutation": "r2-help-title",
+    "file": "src/shared/featureCatalog.ts",
+    "exitCode": 1,
+    "sha256": "74877abded180a8a522c8e0a64565cd94b951e3b6e0a88ba0634f0d9f71c1148",
+    "restoredSha256": "74877abded180a8a522c8e0a64565cd94b951e3b6e0a88ba0634f0d9f71c1148",
+    "namedFailures": [
+      "FAIL  test/unit/featureCatalogDetails.test.ts > feature catalogue details merge > names runtime schedules separately from Model API loop and scopes disabled delivery to VS Code"
+    ]
+  },
+  {
+    "mutation": "r2-help-scope",
+    "file": "src/shared/l10n/en.ts",
+    "exitCode": 1,
+    "sha256": "729020aad05a8483605895052d69ffb61cd8973a9fe37d2a51ad086a80555f9a",
+    "restoredSha256": "729020aad05a8483605895052d69ffb61cd8973a9fe37d2a51ad086a80555f9a",
+    "namedFailures": [
+      "FAIL  test/unit/featureCatalogDetails.test.ts > feature catalogue details merge > names runtime schedules separately from Model API loop and scopes disabled delivery to VS Code"
+    ]
+  },
+  {
+    "mutation": "r2-abandoned-recovery",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "restoredSha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > recovers an abandoned admitted claim without delivering it again"
+    ]
+  },
+  {
+    "mutation": "r2-fire-receipt",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "restoredSha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles interrupt waiting for backend idle when runtime closes",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles whenIdle waiting for backend idle when runtime closes",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > refuses run-now when another dispatcher still owns a claim without a fire"
+    ]
+  },
+  {
+    "mutation": "r2-close-join",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "restoredSha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > joins a CLI delivery through durable settlement before close returns"
+    ]
+  },
+  {
+    "mutation": "r2-retirement-reason",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "restoredSha256": "afa6cf346ef596aa54140b908a382c9b28b4f6dfef20a892c397b141d25e47b5",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > joins and settles close during lookup await",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > joins and settles close during advance await",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > joins and settles close during load await"
+    ]
+  },
+  {
+    "mutation": "r2-target-detach",
+    "file": "src/runtime/schedules/delivery.ts",
+    "exitCode": 1,
+    "sha256": "c4fa47e6a9bf21ffb97693ef5306aa936b363457971db206cf316473ea4d242a",
+    "restoredSha256": "c4fa47e6a9bf21ffb97693ef5306aa936b363457971db206cf316473ea4d242a",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > withdraws and durably settles borrowed queue on detach without cancelling user work",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > keeps the acquired owner lifetime when its ACP target is replaced during borrow"
+    ]
+  },
+  {
+    "mutation": "r2-output-owner",
+    "file": "src/runtime/schedules/delivery.ts",
+    "exitCode": 1,
+    "sha256": "c4fa47e6a9bf21ffb97693ef5306aa936b363457971db206cf316473ea4d242a",
+    "restoredSha256": "c4fa47e6a9bf21ffb97693ef5306aa936b363457971db206cf316473ea4d242a",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > routes newConversation output only to its owner or stderr with two attached sessions",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > routes background output only to its owner or stderr with two attached sessions",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > routes borrowed output only to its owner or stderr with two attached sessions"
+    ]
+  },
+  {
+    "mutation": "r2-borrowed-lifetime",
+    "file": "src/runtime/schedules/delivery.ts",
+    "exitCode": 1,
+    "sha256": "c4fa47e6a9bf21ffb97693ef5306aa936b363457971db206cf316473ea4d242a",
+    "restoredSha256": "c4fa47e6a9bf21ffb97693ef5306aa936b363457971db206cf316473ea4d242a",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > keeps the acquired owner lifetime when its ACP target is replaced during borrow"
+    ]
+  },
+  {
+    "mutation": "r2-close-persistence",
+    "file": "src/runtime/schedules/engine.ts",
+    "exitCode": 1,
+    "sha256": "01bd6bc639e914fd2ff2487c23d649b0678bc13ad34520ed54eb834e7e32610a",
+    "restoredSha256": "01bd6bc639e914fd2ff2487c23d649b0678bc13ad34520ed54eb834e7e32610a",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles a transient acknowledge failure during close without replaying on restart",
+      "FAIL  test/unit/scheduleRuntimeDelivery.test.ts > runtime schedule session supplier > settles a transient record failure during close without replaying on restart"
+    ]
+  },
+  {
+    "mutation": "r2-concurrent-close",
+    "file": "src/runtime/schedules/runtime.ts",
+    "exitCode": 1,
+    "sha256": "ced16ef27e36174fc9a5ac53580b67582d66d0137e0c187c6975bddec13407b7",
+    "restoredSha256": "ced16ef27e36174fc9a5ac53580b67582d66d0137e0c187c6975bddec13407b7",
+    "namedFailures": [
+      "FAIL  test/unit/scheduleRuntime.test.ts > schedule runtime lifecycle > joins concurrent close calls until resource cleanup and settlement finish"
+    ]
+  }
+]

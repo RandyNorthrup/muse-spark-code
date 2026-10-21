@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 // Read the same pure parser as reports. No generated baseline or ignored drift.
 import { Buffer } from 'node:buffer'
-import { open } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { build } from 'esbuild'
 
 const root = path.resolve(import.meta.dirname, '..')
-// The plan is archived long before it reaches the reader's bound: past this
-// share of REPORT_PLAN_MAX_BYTES the gate fails and names the procedure.
-// Hitting the bound itself stops check:plan, check:roadmap and /report at
-// once, in the middle of whatever branch added the last paragraph.
+// Our own hygiene bound for PLAN.md, in bytes: 85% of the former 4 MiB
+// product reader bound. It stays exactly here so it is never raised, and it
+// no longer depends on a product bound: reports read the whole plan however
+// large unless the person sets their own byte limit (D121). Past it the gate
+// fails and names the procedure below.
+const PLAN_ARCHIVE_AT_BYTES = 3_565_158
 const PLAN_ARCHIVE_AT_PERCENT = 85
 const PLAN_ARCHIVE_PROCEDURE =
   'Move closed history to docs/plan-archive/ before adding more: CONTRIBUTING.md, "Archiving closed history from PLAN.md".'
@@ -22,7 +24,7 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
   const { outputFiles } = await build({
     stdin: {
       contents:
-        "export { readPlan } from './src/core/reporting/plan/reader'; export { findMilestone } from './src/core/reporting/plan/selection'; export { UI_TEXT, REPORT_EXIT_CODES, REPORT_PLAN_MAX_BYTES } from './src/shared/constants'; export { fill } from './src/shared/l10n/text'; export { scrubPlanText } from './src/core/reporting/plan/grammar'",
+        "export { readPlan } from './src/core/reporting/plan/reader'; export { findMilestone } from './src/core/reporting/plan/selection'; export { UI_TEXT, REPORT_EXIT_CODES } from './src/shared/constants'; export { fill } from './src/shared/l10n/text'; export { scrubPlanText } from './src/core/reporting/plan/grammar'",
       resolveDir: root,
       loader: 'ts',
       sourcefile: 'check-plan-entry.ts',
@@ -34,38 +36,13 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
     target: 'node22',
     logLevel: 'silent',
   })
-  const {
-    readPlan,
-    findMilestone,
-    UI_TEXT,
-    REPORT_EXIT_CODES,
-    REPORT_PLAN_MAX_BYTES,
-    fill,
-    scrubPlanText,
-  } = await import(
+  const { readPlan, findMilestone, UI_TEXT, REPORT_EXIT_CODES, fill, scrubPlanText } = await import(
     `data:text/javascript;base64,${Buffer.from(outputFiles[0].contents).toString('base64')}`
   )
   const file = path.resolve(args[0] ?? path.join(root, 'PLAN.md'))
   try {
-    const input = await open(file, 'r')
-    let text
-    let bytesUsed = 0
-    try {
-      const { size } = await input.stat()
-      if (size > REPORT_PLAN_MAX_BYTES) throw new RangeError('input-size')
-      const bytes = Buffer.alloc(REPORT_PLAN_MAX_BYTES + 1)
-      let used = 0
-      for (;;) {
-        const { bytesRead } = await input.read(bytes, used, bytes.length - used, null)
-        used += bytesRead
-        if (used > REPORT_PLAN_MAX_BYTES) throw new RangeError('input-size')
-        if (bytesRead === 0) break
-      }
-      text = bytes.toString('utf8', 0, used)
-      bytesUsed = used
-    } finally {
-      await input.close()
-    }
+    const text = await readFile(file, 'utf8')
+    const bytesUsed = Buffer.byteLength(text)
     const { facts } = readPlan(text)
     for (const drift of facts.drift)
       console.error(
@@ -73,11 +50,10 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
           `${path.basename(file)}:${drift.line}: ${fill(UI_TEXT.reportUi.planDrift, { line: String(drift.line), detail: `${drift.code}: ${drift.detail}` })}`,
         ),
       )
-    const archiveAt = Math.floor((REPORT_PLAN_MAX_BYTES * PLAN_ARCHIVE_AT_PERCENT) / 100)
     if (facts.drift.length > 0) process.exitCode = REPORT_EXIT_CODES.failed
-    else if (bytesUsed > archiveAt) {
+    else if (bytesUsed > PLAN_ARCHIVE_AT_BYTES) {
       console.error(
-        `${path.basename(file)} is ${String(bytesUsed)} bytes, over ${String(PLAN_ARCHIVE_AT_PERCENT)}% (${String(archiveAt)}) of the plan reader's ${String(REPORT_PLAN_MAX_BYTES)}-byte bound. ${PLAN_ARCHIVE_PROCEDURE}`,
+        `${path.basename(file)} is ${String(bytesUsed)} bytes, over ${String(PLAN_ARCHIVE_AT_PERCENT)}% (${String(PLAN_ARCHIVE_AT_BYTES)} bytes) of the archived-plan budget. ${PLAN_ARCHIVE_PROCEDURE}`,
       )
       process.exitCode = REPORT_EXIT_CODES.failed
     } else if (args[1]) {
@@ -94,17 +70,8 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
       console.log(
         `check:plan: ${facts.format}; ${facts.milestones.length} milestones; ${facts.drift.length} drift`,
       )
-  } catch (error) {
-    console.error(
-      scrubPlanText(
-        error instanceof RangeError
-          ? fill(UI_TEXT.reportUi.planDrift, {
-              line: '1',
-              detail: `input-size: maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`,
-            })
-          : UI_TEXT.reportUi.generationFailed,
-      ),
-    )
+  } catch {
+    console.error(scrubPlanText(UI_TEXT.reportUi.generationFailed))
     process.exitCode = REPORT_EXIT_CODES.failed
   }
 }

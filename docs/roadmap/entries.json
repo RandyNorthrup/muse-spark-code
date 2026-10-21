@@ -65,7 +65,8 @@
     {
       "id": "M9",
       "title": "Voice dictation",
-      "summary": "Dictate into the prompt box with a microphone button (tap or hold, or Ctrl+D) on Windows and macOS, using the operating system's own speech recogniser at no cost.",
+      "summary": "Dictate at no cost with tap, hold or Ctrl+D on Windows and macOS, with an offline Linux helper downloading on consent as same-tag release assets (never in the package).",
+
       "area": "voice-media",
       "release": "0.1.0"
     },
@@ -252,7 +253,8 @@
     {
       "id": "M35",
       "title": "Muse Voice dictation",
-      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
+      "summary": "Optional dictation billed to your Meta key on either backend and conversation model, with isolated three-minute recordings admitted before capture, drained on restart or shutdown, and settled from reported duration; free system dictation remains the default.",
+
       "area": "voice-media",
       "release": "0.9.0"
     },
@@ -386,7 +388,7 @@
     {
       "id": "M53",
       "title": "Conversation rewind and side chat",
-      "summary": "Rewind a conversation to an earlier message and branch from it, or open a Plan-mode side chat in its own panel, except with Muse Code on Windows.",
+      "summary": "Rewind a conversation to an earlier message and branch from it, or open a Plan-mode side chat in its own panel, except with Muse Code on Windows, where the fork still fails on version 1.4.4.",
       "area": "chat",
       "release": "0.9.0"
     },
@@ -412,7 +414,7 @@
     {
       "id": "M56",
       "title": "Corporate networks and proxies",
-      "summary": "Model API requests follow VS Code's proxy and certificate settings on every supported version, Muse Voice's connection does so only from VS Code 1.112, Diagnostics shows what your editor routes, and a request that cannot reach Meta says why.",
+      "summary": "Model API requests follow VS Code's proxy and certificate settings, Muse Voice's connection only from 1.112; Diagnostics shows what your editor routes, an unreachable request says why, and a microphone blocked by a proxy says so instead of recording.",
       "area": "platform",
       "release": "0.9.0"
     },
@@ -447,7 +449,7 @@
     {
       "id": "M62",
       "title": "VS Code-based editors and Open VSX",
-      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor, Positron, Eclipse Theia and code-server, and is published on Open VSX.",
+      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor and Positron, and is published on Open VSX; Eclipse Theia and code-server ran it only against a stand-in for Muse Code, so they are not yet tried for real.",
       "area": "editors",
       "release": "0.10.0",
       "labels": ["preview"]
@@ -455,10 +457,8 @@
     {
       "id": "M63",
       "title": "Muse Spark in ACP editors",
-      "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol, so far tried in Zed, Neovim, Emacs and JupyterLab.",
-      "area": "editors",
-      "release": "0.10.0",
-      "labels": ["preview"]
+      "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol; Zed, Neovim, Emacs and JupyterLab have run it only against a stand-in for Muse Code, so none is yet tried for real.",
+      "area": "editors"
     },
     {
       "id": "M67",
@@ -558,21 +558,21 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, each under a hard dollar budget; both can be tried but are not certified or supported yet.",
+      "summary": "Headless runs reserve atomically, show unresolved liability apart from spend, and stop after recorded overages; other-CI support and the GitHub Action stay as qualified in the notes.",
       "area": "platform",
       "release": "0.12.0"
     },
     {
       "id": "M81",
       "title": "Browser check",
-      "summary": "After a web change the model can open your local dev server in an isolated headless browser, click and type through a few steps, and read console errors and failed requests.",
+      "summary": "After a web change the model can open your local dev server in an isolated headless browser, click and type through as many steps as the check needs, and read console errors and failed requests.",
       "area": "agents",
       "release": "0.13.0"
     },
     {
       "id": "M82",
       "title": "Awareness and budgets",
-      "summary": "A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend, though child tasks you approve separately can take it past the cap.",
+      "summary": "Conversation and daily budgets share atomic admission, separate unresolved liability from spend, and recover unsent holds by process identity, alongside completion notifications and token and dollar estimates.",
       "area": "usage-billing",
       "release": "0.12.0"
     },
@@ -678,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Use cloud or local models with keys bound to their provider's address and features matched to each model's capabilities; the panel keeps its section visible while loading, and an output cap below a provider's known minimum is refused before sending.",
+      "summary": "Bring your own cloud or local models with provider-bound keys, captured prices, saved selections, browser connect, usage views, local context windows and reasoning-aware model ids.",
       "area": "models-providers",
       "release": "0.15.0"
     },
@@ -723,7 +723,7 @@
     {
       "id": "M97",
       "title": "Legal and licence scan",
-      "summary": "Run /legal to scan licences, copyright headers and source provenance without a model call, export the report and apply only the header fixes you confirm, without any claim that a project is legally compliant.",
+      "summary": "Run /legal to scan shipped licences, headers and provenance without a model call, recognize benign notices, record reviewed package versions and licence hashes by receipt, export reports and confirm header fixes, without claiming legal compliance.",
       "area": "platform",
       "release": "0.15.0"
     },
@@ -737,27 +737,27 @@
     {
       "id": "M99",
       "title": "What's New after updates",
-      "summary": "After an update, a What's New tab opens once while you are idle with each release's highlights and Try it buttons, and a fixes-only update shows a quiet notification instead.",
+      "summary": "After an update, a What's New tab opens once while you are idle with each release's highlights and Try it buttons, a fixes-only update shows a quiet notification instead, and ACP editors read the same notes with /whatsnew.",
       "area": "platform",
       "release": "0.13.0"
     },
     {
       "id": "M100",
       "title": "Paired devices",
-      "summary": "Link your own devices on the local network so they can take independent agent lanes and checks and hand back reviewable Git branches, without moving credentials.",
+      "summary": "Link your devices on the local network to take independent agent lanes and hand back reviewable branches, without moving credentials; only two unwired halves are written so far, the receiving admission check and the sender-side account pool.",
       "area": "devices"
     },
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors; automatic compaction is in progress.",
+      "summary": "Ships cache-stable prompts, packed-output recall and manual ACP compaction; automatic compaction evaluated and on after the binding run passed, while remaining upstream ports are in progress.",
       "area": "agents",
       "release": "0.15.0"
     },
     {
       "id": "M102",
       "title": "Usage and cost page",
-      "summary": "A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, and the history never leaves your machine.",
+      "summary": "A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, limit cards named for your subscription plan, and the history never leaves your machine.",
       "area": "usage-billing",
       "release": "0.15.0"
     },
@@ -783,7 +783,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, concurrent read-only calls and live tool-argument previews wherever the selected model supports them; Muse Code's native effort and feedback readers are in progress.",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, concurrent calls with live tool-argument previews wherever the selected model supports them, with no round cap; Muse Code's native effort and feedback readers are in progress.",
       "area": "agents",
       "release": "0.16.0"
     },
@@ -803,7 +803,7 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "Credential vault for agents is in progress.",
+      "summary": "A credential vault gives agents approved, logged uses through POSIX brokers: setup, imports and confirmed reset with damaged-document retention, a crash-recoverable writer lease and a mounted panel with window commands; key-store migration is in progress.",
       "area": "security"
     },
     {
@@ -828,7 +828,7 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons and nothing sent to a model, while additional report kinds are in progress.",
+      "summary": "Run /report for project, quality, milestone, release, change, session, usage, keybindings, accounts, security, estimate, playbook, schedules with snapshots, lease release on cancellation and no model call, while additional report kinds are in progress.",
       "area": "platform",
       "release": "0.17.0"
     },
@@ -842,7 +842,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Scheduled prompts v2 is in progress.",
+      "summary": "Automatic delivery stays disabled pending certification, so the running editor neither asks for v2 consent nor reserves paid caps, while scheduled prompts v2 is in progress.",
       "area": "agents"
     },
     {
@@ -855,7 +855,7 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Capacity estimator is in progress.",
+      "summary": "Forecast goal completion with explicit prerequisite grammar; check every plan row with --check-plan and preserve typed refusal diagnostics while the remaining plan bindings are in progress.",
       "area": "agents"
     },
     {
@@ -882,18 +882,13 @@
       "id": "M121",
       "title": "Exact money everywhere",
       "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, with exact period comparisons and historical days or months refused with an explanation when their dollars cannot be preserved.",
-      "area": "usage-billing"
+      "area": "usage-billing",
+      "release": "0.19.0"
     },
     {
       "id": "M122",
       "public": false,
       "note": "this roadmap's generator and gate (project documentation tooling)"
-    },
-    {
-      "id": "M125",
-      "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
-      "area": "agents"
     },
     {
       "id": "M123",
@@ -902,9 +897,26 @@
       "area": "editors"
     },
     {
+      "id": "M124",
+      "title": "MCP connector for other agents",
+      "summary": "Codex, Claude Code and Gemini CLI can read fleet evidence, reports, schedules and prompts and request actions you approve in Muse Spark Code, with approval pages restarting after idle or failed openers and disconnects closing their local server.",
+      "area": "agents"
+    },
+    {
+      "id": "M125",
+      "title": "A faster, more accurate agent through a fast judge",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
+      "area": "agents"
+    },
+    {
       "id": "BADGEFIX",
       "public": false,
       "note": "store badge accuracy"
+    },
+    {
+      "id": "BCSTART",
+      "public": false,
+      "note": "browser check start on Windows (CI repair)"
     },
     {
       "id": "CI0150A",
@@ -1327,6 +1339,18 @@
       "id": "VSIXDIET2",
       "public": false,
       "note": "package size budget"
+    },
+    {
+      "id": "M127",
+      "title": "Muse Code at its latest release",
+      "summary": "The Muse Code backend tracks the latest CLI and SDK: new session-protocol methods, notifications and error kinds, per-model output limits, and Muse Code's own session and hook settings read from Muse Code instead of fixed numbers.",
+      "area": "models-providers"
+    },
+    {
+      "id": "TOOLROUNDS",
+      "title": "Answers survive model-call limits",
+      "summary": "Long Model API turns retain a final summary at their call limit; headless request caps determine the turn allowance.",
+      "area": "chat"
     }
   ]
 }

@@ -1,0 +1,477 @@
+{
+  "listedAt": "2026-10-13T01:47:05.015Z",
+  "zdrEndpoints": 941,
+  "offered": 306,
+  "withNoZdrEndpoint": [
+    {
+      "id": "dots-studio/dots-3-note-preview:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "liquid/lfm-2.5-2.6b:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "nvidia/nemotron-3.5-lightning:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "thinkingmachines/inkling-small:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "poolside/laguna-s-2.1:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "thinkingmachines/inkling:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "poolside/laguna-xs-2.1:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "cohere/north-mini-code:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "google/gemma-4-26b-a4b-it:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "google/gemma-4-31b-it:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b:free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "openrouter/free",
+      "input": 0,
+      "output": 0
+    },
+    {
+      "id": "qwen/qwen3.7-flash",
+      "input": 0.03,
+      "output": 0.13
+    },
+    {
+      "id": "poolside/laguna-xs-2.1",
+      "input": 0.06,
+      "output": 0.12
+    },
+    {
+      "id": "qwen/qwen3.5-flash-02-23",
+      "input": 0.065,
+      "output": 0.26
+    },
+    {
+      "id": "~z-ai/glm-flash-latest",
+      "input": 0.0352,
+      "output": 0.5
+    },
+    {
+      "id": "nex-agi/nex-n2.5-pro",
+      "input": 0.075,
+      "output": 0.25
+    },
+    {
+      "id": "poolside/laguna-s-2.1",
+      "input": 0.09,
+      "output": 0.18
+    },
+    {
+      "id": "prism-ml/ternary-bonsai-2-27b",
+      "input": 0.075,
+      "output": 0.5
+    },
+    {
+      "id": "~openai/gpt-luna-latest",
+      "input": 0.1,
+      "output": 0.5
+    },
+    {
+      "id": "~deepseek/deepseek-v4-flash-latest",
+      "input": 0.0152,
+      "output": 1.28
+    },
+    {
+      "id": "qwen/qwen3.8-omni-flash",
+      "input": 0.15,
+      "output": 0.47
+    },
+    {
+      "id": "qwen/qwen3.8-flash",
+      "input": 0.15,
+      "output": 0.47
+    },
+    {
+      "id": "upstage/solar-pro-3",
+      "input": 0.15,
+      "output": 0.6
+    },
+    {
+      "id": "cohere/command-r-08-2024",
+      "input": 0.15,
+      "output": 0.6
+    },
+    {
+      "id": "openai/gpt-4o-mini-2024-07-18",
+      "input": 0.15,
+      "output": 0.6
+    },
+    {
+      "id": "tencent/hy3-preview",
+      "input": 0.18,
+      "output": 0.6
+    },
+    {
+      "id": "~deepseek/deepseek-flash-latest",
+      "input": 0.003,
+      "output": 2.4
+    },
+    {
+      "id": "qwen/qwen3-coder-flash",
+      "input": 0.195,
+      "output": 0.975
+    },
+    {
+      "id": "qwen/qwen3.6-flash",
+      "input": 0.1875,
+      "output": 1.125
+    },
+    {
+      "id": "arcee-ai/trinity-large-thinking",
+      "input": 0.25,
+      "output": 0.8
+    },
+    {
+      "id": "qwen/qwen-plus",
+      "input": 0.26,
+      "output": 0.78
+    },
+    {
+      "id": "mistralai/mistral-small-3.1-24b-instruct",
+      "input": 0.351,
+      "output": 0.555
+    },
+    {
+      "id": "google/gemini-3.1-flash-lite-preview",
+      "input": 0.25,
+      "output": 1.5
+    },
+    {
+      "id": "meituan/longcat-2.0",
+      "input": 0.3,
+      "output": 1.2
+    },
+    {
+      "id": "qwen/qwen3.5-plus-02-15",
+      "input": 0.26,
+      "output": 1.56
+    },
+    {
+      "id": "qwen/qwen3.7-plus",
+      "input": 0.32,
+      "output": 1.28
+    },
+    {
+      "id": "qwen/qwen3.5-plus-20260420",
+      "input": 0.3,
+      "output": 1.8
+    },
+    {
+      "id": "qwen/qwen3.6-plus",
+      "input": 0.325,
+      "output": 1.95
+    },
+    {
+      "id": "openai/gpt-3.5-turbo",
+      "input": 0.5,
+      "output": 1.5
+    },
+    {
+      "id": "~deepseek/deepseek-pro-latest",
+      "input": 0.1901,
+      "output": 4.2
+    },
+    {
+      "id": "aion-labs/aion-3.5-mini",
+      "input": 0.7,
+      "output": 1.4
+    },
+    {
+      "id": "aion-labs/aion-3.0-mini",
+      "input": 0.7,
+      "output": 1.4
+    },
+    {
+      "id": "openai/gpt-audio-mini",
+      "input": 0.6,
+      "output": 2.4
+    },
+    {
+      "id": "aion-labs/aion-2.0",
+      "input": 0.8,
+      "output": 1.6
+    },
+    {
+      "id": "~google/gemini-flash-latest",
+      "input": 0.75,
+      "output": 3.75
+    },
+    {
+      "id": "~openai/gpt-mini-latest",
+      "input": 0.75,
+      "output": 4.5
+    },
+    {
+      "id": "sakana/sakana-namazu",
+      "input": 0.95,
+      "output": 4
+    },
+    {
+      "id": "~z-ai/glm-latest",
+      "input": 0.03,
+      "output": 12
+    },
+    {
+      "id": "~anthropic/claude-haiku-latest",
+      "input": 1,
+      "output": 5
+    },
+    {
+      "id": "openai/o4-mini-high",
+      "input": 1.1,
+      "output": 4.4
+    },
+    {
+      "id": "openai/o4-mini",
+      "input": 1.1,
+      "output": 4.4
+    },
+    {
+      "id": "openai/o3-mini-high",
+      "input": 1.1,
+      "output": 4.4
+    },
+    {
+      "id": "openai/o3-mini",
+      "input": 1.1,
+      "output": 4.4
+    },
+    {
+      "id": "meta/muse-spark-1.3",
+      "input": 1.25,
+      "output": 4.25
+    },
+    {
+      "id": "meta/muse-spark-1.2",
+      "input": 1.25,
+      "output": 4.25
+    },
+    {
+      "id": "meta/muse-spark-1.1",
+      "input": 1.25,
+      "output": 4.25
+    },
+    {
+      "id": "qwen/qwen3.7-max",
+      "input": 1.475,
+      "output": 4.425
+    },
+    {
+      "id": "sakana/fugu-max",
+      "input": 2,
+      "output": 6
+    },
+    {
+      "id": "qwen/qwen3.8-max-0902",
+      "input": 2,
+      "output": 6
+    },
+    {
+      "id": "~x-ai/grok-latest",
+      "input": 2,
+      "output": 6
+    },
+    {
+      "id": "~moonshotai/kimi-latest",
+      "input": 0.3,
+      "output": 20
+    },
+    {
+      "id": "openai/o3",
+      "input": 2,
+      "output": 8
+    },
+    {
+      "id": "~openai/gpt-sol-latest",
+      "input": 2,
+      "output": 10
+    },
+    {
+      "id": "~anthropic/claude-sonnet-latest",
+      "input": 2,
+      "output": 10
+    },
+    {
+      "id": "unbiased/pareto",
+      "input": 2.5,
+      "output": 7.5
+    },
+    {
+      "id": "~openai/gpt-terra-latest",
+      "input": 2,
+      "output": 12
+    },
+    {
+      "id": "~google/gemini-pro-latest",
+      "input": 2,
+      "output": 12
+    },
+    {
+      "id": "google/gemini-3.1-pro-preview-customtools",
+      "input": 2,
+      "output": 12
+    },
+    {
+      "id": "aion-labs/aion-3.5",
+      "input": 3,
+      "output": 6
+    },
+    {
+      "id": "aion-labs/aion-3.0",
+      "input": 3,
+      "output": 6
+    },
+    {
+      "id": "openai/gpt-audio",
+      "input": 2.5,
+      "output": 10
+    },
+    {
+      "id": "openai/gpt-4o-2024-11-20",
+      "input": 2.5,
+      "output": 10
+    },
+    {
+      "id": "cohere/command-r-plus-08-2024",
+      "input": 2.5,
+      "output": 10
+    },
+    {
+      "id": "z-ai/glm-5.3-prime",
+      "input": 2.8,
+      "output": 8.8
+    },
+    {
+      "id": "xiaomi/mimo-v2.6-pro-ultraspeed",
+      "input": 4.35,
+      "output": 8.7
+    },
+    {
+      "id": "qwen/qwen3.8-max-prime",
+      "input": 4,
+      "output": 12
+    },
+    {
+      "id": "~anthropic/claude-opus-latest",
+      "input": 4,
+      "output": 20
+    },
+    {
+      "id": "sakana/fugu-ultra-v2",
+      "input": 5,
+      "output": 30
+    },
+    {
+      "id": "sakana/fugu-ultra",
+      "input": 5,
+      "output": 30
+    },
+    {
+      "id": "openai/gpt-chat-latest",
+      "input": 5,
+      "output": 30
+    },
+    {
+      "id": "openai/gpt-4-turbo",
+      "input": 10,
+      "output": 30
+    },
+    {
+      "id": "~openai/gpt-astra-latest",
+      "input": 10,
+      "output": 50
+    },
+    {
+      "id": "anthropic/claude-fable-5.1",
+      "input": 10,
+      "output": 50
+    },
+    {
+      "id": "~anthropic/claude-fable-latest",
+      "input": 10,
+      "output": 50
+    },
+    {
+      "id": "anthropic/claude-fable-5",
+      "input": 10,
+      "output": 50
+    },
+    {
+      "id": "openai/o1",
+      "input": 15,
+      "output": 60
+    },
+    {
+      "id": "openai/gpt-5-pro",
+      "input": 15,
+      "output": 120
+    },
+    {
+      "id": "openai/o3-pro",
+      "input": 20,
+      "output": 80
+    },
+    {
+      "id": "openai/gpt-5.2-pro",
+      "input": 21,
+      "output": 168
+    },
+    {
+      "id": "openai/gpt-5.5-pro",
+      "input": 30,
+      "output": 180
+    },
+    {
+      "id": "openrouter/auto",
+      "input": null,
+      "output": null
+    }
+  ]
+}

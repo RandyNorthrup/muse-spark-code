@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../shared/refusal'
 // Portable ACP entry points. Runtime binds approved sources to M2's replay;
 // no provider wire or recorder is guessed here (PLAN.md D85.9).
 import { createHash } from 'node:crypto'
@@ -14,11 +15,8 @@ import { confineWorkspacePath } from '../core/workspacePath'
 import { isProtectedPath } from '../core/protectedPaths'
 import { isPrivateFileName } from '../shared/privateFiles'
 import {
-  BYTES_PER_MIB,
-  MAX_DOCUMENT_BYTES,
-  MAX_IMAGE_BYTES,
-  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MEDIA_NAME_MAX_CHARS,
+  MEDIA_READ_MAX_BYTES,
   UI_TEXT,
   type AcpBackendKind,
 } from '../shared/constants'
@@ -32,6 +30,8 @@ export interface AcpMediaInput {
   readonly sha256: string
   readonly source: UploadSource
   readonly isScreenRecording?: true
+  /** The confined absolute path of an attached workspace file, for the local converter only. */
+  readonly path?: string
 }
 
 export interface AcpAttachment {
@@ -45,6 +45,8 @@ export interface AcpAttachment {
 export interface AcpMediaPort extends PromptMediaPort {
   readonly attach: (given: string, signal: AbortSignal, mime?: string) => Promise<AcpAttachment>
   readonly record: (signal: AbortSignal) => Promise<AcpAttachment | undefined>
+  /** The session is let go: what it attached and no turn holds is released. */
+  readonly release: () => void
 }
 
 export interface AcpMediaContext {
@@ -73,14 +75,30 @@ export interface AcpMediaDeps extends AcpMediaContext {
   ) => Promise<void>
   /** Bind metadata carrier + private source to M2; admission includes C/A's consent and budgets. */
   readonly prepare: (input: AcpMediaInput, signal: AbortSignal) => Promise<TurnPart>
+  /**
+  Lane V seam 5: whether this runtime transcribes attached sound (the
+  agent's Muse Voice flag). Audio the model does not hear is then
+  admitted for transcription; absent, the gate's refusal stands.
+  */
+  readonly transcribesSound?: (info: MediaInfo) => boolean
+  /** Releases this port's registrations when the session is let go (RVMEDIAV 7). */
+  readonly release?: () => void
   /** Native driver + user options + Stop + preview. Returns only after the user chooses Attach. */
   readonly recordAndPreview?: (
     signal: AbortSignal,
   ) => Promise<(AcpMediaInput & { readonly dispose: () => Promise<void> }) | undefined>
 }
 
-function unknown(type: string): Error {
-  return new Error(fill(UI_TEXT.media.attachmentUnknownType, { type }))
+/**
+A refusal the person reads as written: its message is always a UI
+sentence (an unknown type, an unreadable file, a model limit). Anything
+else never reaches the person in its own words. The attach boundary
+answers these as written and unreadable for the rest.
+*/
+export class MediaRefusal extends Error {}
+
+function unknown(type: string): MediaRefusal {
+  return new MediaRefusal(fill(UI_TEXT.media.attachmentUnknownType, { type }))
 }
 
 /** Embedded audio bytes keep the suffix their sniff earned. */
@@ -108,8 +126,7 @@ function bytesInput(name: string, info: MediaInfo, bytes: Uint8Array): AcpMediaI
   }
 }
 
-/** No bytes or provider IDs appear in ACP acknowledgements.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+/** No bytes or provider IDs appear in ACP acknowledgements. */
 export class AcpMedia implements AcpMediaPort {
   public constructor(private readonly deps: AcpMediaDeps) {}
 
@@ -117,17 +134,21 @@ export class AcpMedia implements AcpMediaPort {
     signal.throwIfAborted()
     const info = mediaInfoSchema.parse(input.info)
     if (input.name === '' || input.name.length > MEDIA_NAME_MAX_CHARS) throw unknown(info.mediaType)
-    if (this.deps.backend !== 'modelApi') throw new Error(UI_TEXT.media.museCodeRefusal)
+    if (this.deps.backend !== 'modelApi') throw new MediaRefusal(UI_TEXT.media.museCodeRefusal)
     const model = this.deps.model()
-    if (model.modelId !== this.deps.modelId()) throw new Error(UI_TEXT.execUnknownModel)
+    if (model.modelId !== this.deps.modelId())
+      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     const gate = modalityGate(info, model)
-    if (!gate.ok) throw new Error(gate.reason)
+    // Audio no model hears goes to Muse Voice where the runtime transcribes it.
+    const isTranscribed =
+      !gate.ok && info.kind === 'audio' && this.deps.transcribesSound?.(info) === true
+    if (!isTranscribed && !gate.ok) throw new MediaRefusal(gate.reason)
     if (info.kind === 'video' || info.kind === 'audio') {
       const limits = checkMediaLimits(info, {
-        acceptedMediaTypes: model.modalities[info.kind].formats,
+        acceptedMediaTypes: isTranscribed ? [info.mediaType] : model.modalities[info.kind].formats,
         modelName: model.modelName,
       })
-      if (!limits.ok) throw new Error(limits.reason)
+      if (!limits.ok) throw new MediaRefusal(limits.reason)
     }
     const part = await this.deps.prepare(input, signal)
     signal.throwIfAborted()
@@ -143,54 +164,62 @@ export class AcpMedia implements AcpMediaPort {
       this.deps.platform,
       this.deps.io,
     )
-    if (!confined.ok) throw new Error(UI_TEXT.textFilePrivate)
+    if (!confined.ok) throw new MediaRefusal(UI_TEXT.textFilePrivate)
     if (
       [confined.relative, confined.canonical].some(
         (name) => isProtectedPath(name) || isPrivateFileName(name),
       )
     )
-      throw new Error(UI_TEXT.textFilePrivate)
+      throw new MediaRefusal(UI_TEXT.textFilePrivate)
     await this.deps.assertReadable(confined, signal)
     signal.throwIfAborted()
     const name = path.posix.basename(confined.relative.replaceAll('\\', '/'))
-    let isPdfFile = name.toLowerCase().endsWith('.pdf')
     if (this.deps.io.readMedia !== undefined) {
+      // D121: the lazy sniff reads head and tail only (bounded inside), so
+      // it takes no size cap of ours — the person's mediaMaxUploadMiB
+      // already defaults to no cap. Admission is the gate's and the
+      // record's in `accepted()` below.
       const file = await this.deps.io.readMedia(
         confined.checkedAbsolute,
-        MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+        Number.MAX_SAFE_INTEGER,
         confined.checkedAbsolute,
         signal,
       )
       signal.throwIfAborted()
-      if (file === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+      if (file === undefined) throw new MediaRefusal(UI_TEXT.attachmentUnreadable)
       if (!('kind' in file)) {
         if (mime != null && mime !== file.info.mediaType) throw unknown(mime)
-        return await this.accepted({ ...file, name, source: { ...file.source, name } }, signal)
+        return await this.accepted(
+          { ...file, name, path: confined.checkedAbsolute, source: { ...file.source, name } },
+          signal,
+        )
       }
-      isPdfFile = file.isPdf === true
     } else if (
       /\.(?:mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(name) ||
       /^(?:audio|video)\//u.test(mime ?? '')
     ) {
-      throw new Error(UI_TEXT.media.uploadStorageUnknown)
+      throw new MediaRefusal(UI_TEXT.media.uploadUnavailable)
     }
+    // D121: the file reads whole, bounded only by host memory — no size of
+    // ours. The store admits from the record (or nothing locally without
+    // one), and the provider answers for the rest at send.
     const bytes = await this.deps.io.readBytes(
       confined.checkedAbsolute,
-      isPdfFile ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES,
+      MEDIA_READ_MAX_BYTES,
       confined.checkedAbsolute,
     )
     signal.throwIfAborted()
-    if (bytes === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+    if (bytes === undefined) throw new MediaRefusal(UI_TEXT.attachmentUnreadable)
     const store = new AttachmentStore(() => 'attachment')
     const added = store.add(name, bytes, this.deps.backend === 'modelApi', true)
     if (!added.ok)
-      throw new Error(
+      throw new MediaRefusal(
         added.reason === UI_TEXT.attachmentUnsupported
           ? fill(UI_TEXT.media.attachmentUnknownType, { type: mime ?? 'file' })
           : added.reason,
       )
     const [part] = store.partsFor([added.attachment.id])
-    if (part === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+    if (part === undefined) throw new MediaRefusal(UI_TEXT.attachmentUnreadable)
     let info: MediaInfo
     if (part.type === 'image')
       info = mediaInfoSchema.parse({
@@ -225,8 +254,13 @@ export class AcpMedia implements AcpMediaPort {
         let given: string
         try {
           given = fileURLToPath(block.uri, { windows: this.deps.platform === 'win32' })
-        } catch {
-          throw new Error(UI_TEXT.textFilePrivate)
+        } catch (error: unknown) {
+          // Only an unmappable URI is private (a malformed URL or its
+          // escapes): anything else keeps its kind past the attach. The
+          // refusal answers as written past the unreadable boundary below.
+          if (error instanceof TypeError || error instanceof URIError)
+            throw new MediaRefusal(UI_TEXT.textFilePrivate, { cause: error })
+          throw error
         }
         const attached = await this.attach(given, signal, block.mimeType ?? undefined)
         return attached.part
@@ -236,9 +270,11 @@ export class AcpMedia implements AcpMediaPort {
       const data = block.type === 'audio' ? block.data : resource?.blob
       if (data === undefined) throw unknown(block.type)
       const mime = block.type === 'audio' ? block.mimeType : resource?.mimeType
-      const maximum = MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
+      // D121: an embedded blob decodes whole, bounded only by host memory —
+      // no size of ours. Past it the generic input bound answers.
+      const maximum = MEDIA_READ_MAX_BYTES
       const bytes = decodeAcpBlob(data, maximum, mime ?? 'blob', UI_TEXT.execFileTooLarge)
-      if (typeof bytes === 'string') throw new Error(bytes)
+      if (typeof bytes === 'string') throw new MediaRefusal(bytes)
       const info = sniffMediaBytes(bytes)
       if (info === undefined || (mime != null && mime !== info.mediaType))
         throw unknown(mime ?? 'blob')
@@ -252,7 +288,12 @@ export class AcpMedia implements AcpMediaPort {
       return attachment.part
     } catch (error: unknown) {
       if (signal.aborted) throw error
-      return error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable
+      // Our refusals name themselves in UI sentences; a refusal the user
+      // chose names itself too. Anything else is raised unreadable, never
+      // in its own words.
+      if (error instanceof MediaRefusal) return error.message
+      if (error instanceof UserRefusalError) return error.message
+      throw new Error(UI_TEXT.attachmentUnreadable, { cause: error })
     }
   }
 
@@ -274,5 +315,9 @@ export class AcpMedia implements AcpMediaPort {
       await preview.dispose()
       throw error
     }
+  }
+
+  public release(): void {
+    this.deps.release?.()
   }
 }

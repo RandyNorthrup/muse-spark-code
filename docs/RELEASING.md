@@ -41,7 +41,12 @@ Before the release PR bumps
    (`X.Y.0`) without Highlights fails `test/unit/changelogVersion.test.ts`,
    as does a release with more than 5.
 
-The notes stay English; the page's own words are translated.
+The notes stay English; the page's own words are translated. The newest
+release's notes must fit the What's New decoded bound (`npm run build`
+fails otherwise: trim the notes, never raise the bound). Never repeat an
+entry that already shipped under an older version: a merge that carries
+one in deletes the newer copy, so each claim is recorded once, under the
+version that shipped it.
 
 ## Release notes and the screenshots
 
@@ -74,6 +79,41 @@ under _Shipped_. Without a §10 record a changelog version counts as shipped.
 Every §10 record change, released or not, changes the roadmap's source
 fingerprint, so `check:roadmap` fails until it is regenerated.
 
+## The hosted result a tag needs
+
+After the tag, manifest, `main` ancestry and browser-pin checks, the
+workflow's first job runs `node scripts/rule2-gate.mjs release` (`AGENTS.md`
+rule 2). It reads every workflow run on the tagged commit (the Hosts run a
+merge to `main` starts, and any scheduled or manual run that landed on it)
+and on the head of the pull request that merged as that commit (CI, Hosts),
+and goes on only when each is complete and green on its first attempt. A run still in progress is waited for, up to 60 minutes. A red run,
+a cancelled one or one that was started again stops the release before
+anything is built or published, with the run, the job and the step named; so
+does a commit with no hosted run at all. Only runs of this repository's own
+workflow files count; GitHub's own runs on a commit (Dependabot's updates)
+say nothing about the tree. 0.18.2 would have been stopped
+twice: its pull request's CI run was on its second attempt, and the Hosts run
+on the released commit was red (`docs/certification/rule2-gate.md`).
+
+A tag does not move, so a tag this step refuses is a version number spent:
+the answer is a new commit and the next version. Read the runs before pushing
+the tag; the same reading, changing nothing, is
+
+```sh
+GITHUB_REPOSITORY=RandyNorthrup/muse-spark-code node scripts/rule2-gate.mjs release --sha <the merge commit>
+```
+
+A later merge to `main` does not cancel an earlier commit's Hosts run: each
+push to `main` has a concurrency group of its own commit in `hosts.yml`.
+
+The release workflow's own runs on the tag are not hosted test evidence.
+Its verification step nevertheless refuses a second attempt before reading
+that evidence. After a publication failure, use the `workflow_dispatch`
+artifact-only recovery below: it is a fresh run whose verification executes
+once and which builds and tests nothing. Do not rerun the failed job or the
+whole release. A job of the release's own fallback build is a gate job: the
+aggregate refuses a second attempt of it as CI does.
+
 ## Choosing the release build
 
 Tag/manifest and `main` ancestry checks still run first. The lookup considers
@@ -84,21 +124,24 @@ Branch names and the PR head SHA do not establish source identity: the package
 job records its actual checked-out `HEAD^{tree}` (the merge tree for PR/queue CI) in
 the `source-tree-<tree SHA>` artifact and `release-build.json`.
 
-The release downloads that run's universal VSIX, ACP tarball, SBOMs and receipt
+The release downloads that run's six platform VSIX packages (PLAN.md D209),
+ACP tarball, SBOMs and receipt
 with a pinned cross-run download action. It requires the recorded tree to equal
-the tag's `HEAD^{tree}`, checks all four asset SHA-256 hashes recorded by CI,
-and checks the VSIX and ACP manifests against the tag version. Only then are
+the tag's `HEAD^{tree}`, checks every recorded asset SHA-256 hash, and checks
+each VSIX and the ACP manifests against the tag version. Only then are
 the verified bytes uploaded into the release run under the existing artifact
 names. Publication, attestations, release checksums and channel reporting use
-those same bytes. All four artifacts have explicit 30-day retention (previously
+those same bytes. All artifacts have explicit 30-day retention (previously
 the repository default); this also covers the SBOM/receipt dependency.
 
 No eligible run, expired/missing artifacts, API/download failure, a malformed
 receipt, or a tree/hash/version mismatch produces a named fallback in the job
 summary and runs today's full three-platform build and gates before publication.
 To force that path, the owner sets repository Actions variable
-`RELEASE_FORCE_REBUILD` to `true` before running/rerunning the tag workflow,
-then removes it afterward. Do not rebuild once any channel has published:
+`RELEASE_FORCE_REBUILD` to `true` before the tag is pushed, then removes it
+afterward. It cannot be forced by running the tag workflow again: the build's
+aggregate refuses every attempt after the first (above). Do not rebuild once
+any channel has published:
 follow the recovery instructions below to preserve the original bytes.
 
 The merge queue's temporary branch and head commit are not matching keys.
@@ -109,14 +152,19 @@ This lane admits those successful runs without changing `ci.yml`.
 
 ## Artifacts and channels
 
-CI's full tier produces one universal VSIX, including the macOS helper
-compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The full tier runs in
+CI's full tier produces one VSIX per VS Code target platform (win32-x64,
+win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64), including the macOS helper
+compiled on macOS, plus the untargeted fallback carrying the Linux helpers
+for servers without their own package, and `muse-spark-code-acp-X.Y.Z.tgz`.
+Seven VSIX packages ship (PLAN.md D209): each platform package carries only
+its own platform's native pieces, and the fallback only the Linux helpers,
+each within the unchanged size budget. The full tier runs in
 the merge queue, on manual runs, in the release workflow's own build, and on
 every PR until the merge queue is on; a fast PR run builds no packages
-(CONTRIBUTING.md, "CI tiers"). The same VSIX goes to GitHub,
+(CONTRIBUTING.md, "CI tiers"). The same six packages go to GitHub,
 the VS Code Marketplace, and Open VSX. The same ACP tarball goes to GitHub
-and npm. A package made locally without the macOS helper is not that universal
-release artifact.
+and npm. A package made locally without the macOS helper is not one of those
+release artifacts.
 
 npm history: 0.10.0's npm step failed on a path bug, and 0.10.1's and
 0.11.0's failed with `EOTP` (the stored token could not bypass the account's
@@ -146,8 +194,8 @@ not lists of every file or every dependency's complete source: tree shaking
 can ship only part of a package. Build-only tools and omitted dependency
 references are removed. See [npm's SBOM documentation](https://docs.npmjs.com/cli/commands/npm-sbom/).
 
-The universal VSIX size gate is measured in compressed bytes; its budget is in
-`PLAN.md` D6 and `scripts/check-vsix-size.mjs`. ACP package checks cover every
+Every VSIX size gate is measured in compressed bytes; the unchanged per-package budget is in
+`PLAN.md` D6 (one package per platform: D209) and `scripts/check-vsix-size.mjs`. ACP package checks cover every
 `l10n/ui.*.json` table. The ACP process compiles the shell job sources on
 Windows, but forwards MCP servers to Muse Code; it does not run the extension's
 `MuseSparkMcpLauncher.cs`.
@@ -183,11 +231,17 @@ An already-published version is successful only when it matches this run:
 - npm: compare `npm view muse-spark-code-acp@X.Y.Z dist.integrity` to the
   tarball's locally computed SHA-512 SRI.
 
-After a fresh publish the job polls the same endpoints until the exact
-version is visible with matching integrity (up to 30 minutes, backing off;
-npm took 19 minutes for 0.16.0), then reports `published and visible`. A
-poll timeout reports `published, not yet visible` as a warning in the job
+Every artifact is published before any visibility poll runs; the job
+then polls the same endpoints until each exact version is visible with
+matching integrity (up to 30 minutes in total, shared across all
+artifacts and backing off; npm took 19 minutes for 0.16.0), re-checking
+unfinished targets in the same job, then reports each
+`published and visible`. A target still pending at the deadline reports
+`published, not yet visible` as a warning in the job
 summary without failing the release; re-check the registry before announcing.
+A re-run of the job re-publishes nothing (the already-published path
+verifies at once) and re-polls what is still pending, so a cancelled job
+never leaves only some targets published.
 
 Unavailable metadata or mismatched bytes fail closed. Do not remove a version
 or overwrite an asset to make that check pass.
@@ -221,12 +275,14 @@ token, or a new release version. Do not publish this lane's rebuilt 0.10.1
 package over the older release's version.
 
 Keep the version tag, release commit, original Actions run and its downloaded
-artifacts. Check its summary and retain the VSIX/tarball hashes. Use the run's
-**Re-run failed jobs** after fixing the named cause; this keeps the successful
-build's artifacts. Avoid **Re-run all jobs** once anything has published:
-rebuilt ZIP timestamps or changed build tools can produce different hashes.
-If artifacts have expired or hashes differ, stop for owner review and prepare
-a new version rather than replacing a published version.
+artifacts. Check its summary and retain the VSIX/tarball hashes. After fixing
+the named publication cause, start a fresh `workflow_dispatch` recovery on
+the same version tag with `artifacts_run_id` naming the original run. It
+reuses the original bytes without another build or another execution of a
+failed job. Never use **Re-run failed jobs** or **Re-run all jobs**: rule 2
+refuses repeated verification, and a rebuilt package can have different
+hashes. If artifacts have expired or hashes differ, stop for owner review
+and prepare a new version rather than replacing a published version.
 
 A failed registry step prints one fixed reason and never the tool's own
 output, which can carry a token. The reasons are: network attempts
@@ -235,22 +291,19 @@ exhausted; npm asks for a one-time password (EOTP); the token was refused
 artifact does not match the release; and publication refused, for anything
 else.
 
-| State                                                                       | Recovery                                                                                                                                                                                                                                                                                          |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GitHub job failed before creating the Release                               | Fix permissions, attestation, or network cause; rerun failed jobs. Creation requires a definite not-found response.                                                                                                                                                                               |
-| GitHub Release exists but its job failed after creation                     | Rerun failed jobs with the same artifacts. Existing assets are downloaded and verified before any missing assets are uploaded; no `--clobber`. This also handles a partial asset upload.                                                                                                          |
-| GitHub published; Marketplace failed; other registries published or skipped | Fix Marketplace PAT/transport; rerun failed jobs. An ambiguous prior publish is accepted only after the gallery download matches.                                                                                                                                                                 |
-| GitHub published; Open VSX failed; other registries published or skipped    | Fix `OVSX_PAT`/namespace permissions/transport; rerun failed jobs. Namespace lookup/create and publishing have bounded network retries; an existing version requires the file hash match.                                                                                                         |
-| GitHub published; npm failed; other registries published or skipped         | Check the package's trusted publisher (below) and the job's `id-token: write`; rerun failed jobs. A prior successful upload requires matching `dist.integrity`.                                                                                                                                   |
-| Several registries failed                                                   | Fix each cause and rerun failed jobs together; successful channels remain published and the final summary covers all four.                                                                                                                                                                        |
-| Marketplace or Open VSX says `skipped-no-secret`                            | Add its token in the tag-only `marketplace` environment, then rerun that specific registry job via its job ID in the Actions API (or owner tooling that supports rerunning a job); rerun the summary after the job completes. Rerunning only failed jobs will not rerun a successful skipped job. |
-| Hash/integrity mismatch, or original artifacts expired                      | Stop. Identify which bytes were published. Issue a new version after owner review; never move the version tag or overwrite registry bytes.                                                                                                                                                        |
+Each recovery below means a fresh artifact-only `workflow_dispatch` run,
+not the Actions rerun controls. Its verification executes on attempt 1.
 
-For example, the owner can rerun one successful-but-skipped registry job using
-GitHub's `POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun` endpoint.
-Use the job from the original run, not another release. Verify the new run
-attempt's channel summary; the API reruns the job and its dependents. See
-[GitHub's rerun-job API](https://docs.github.com/en/rest/actions/workflow-runs#re-run-a-job).
+| State                                                   | Recovery                                                                                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub job failed before creating the Release           | Fix permissions, attestation, or network cause; start recovery. Creation requires a definite not-found response.                                                                  |
+| GitHub Release exists but its job failed after creation | Start recovery with the same artifacts. Existing assets are downloaded and verified before missing assets are uploaded; no `--clobber`. This also handles a partial asset upload. |
+| GitHub published; Marketplace failed                    | Fix Marketplace PAT/transport; start recovery. An ambiguous prior publish is accepted only after the gallery download matches.                                                    |
+| GitHub published; Open VSX failed                       | Fix `OVSX_PAT`/namespace permissions/transport; start recovery. An existing version requires the file hash match.                                                                 |
+| GitHub published; npm failed                            | Check the trusted publisher and the job's `id-token: write`; start recovery. A prior successful upload requires matching `dist.integrity`.                                        |
+| Several registries failed                               | Fix each cause and start recovery; successful channels remain published and the final summary covers all four.                                                                    |
+| Marketplace or Open VSX says `skipped-no-secret`        | The owner adds its token in the tag-only `marketplace` environment, then starts recovery with the original artifacts. No successful skipped job is rerun.                         |
+| Hash/integrity mismatch, or original artifacts expired  | Stop. Identify which bytes were published. Issue a new version after owner review; never move the version tag or overwrite registry bytes.                                        |
 
 ## npm trusted publishing
 

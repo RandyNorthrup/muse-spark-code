@@ -52,7 +52,6 @@ function failureText(error: unknown): string {
   const known = [
     UI_TEXT.shareConfidential,
     UI_TEXT.shareRangeInvalid,
-    UI_TEXT.shareTooLarge,
     UI_TEXT.shareAttachmentUnavailable,
     UI_TEXT.sharePreviewExpired,
     UI_TEXT.exportNothing,
@@ -123,7 +122,10 @@ function SessionChatShareDialog({
         throw new Error(UI_TEXT.sharePreviewExpired)
       setPreview(shown)
       port.remember(request.mode, request.format)
-    } catch (error_) {
+    } catch (error_: unknown) {
+      // A failed preview reads failed: only a non-error keeps its kind past
+      // the dialog.
+      if (!(error_ instanceof Error)) throw error_
       if (current === generation.current) setError(failureText(error_))
     } finally {
       if (current === generation.current) setBusy(false)
@@ -141,7 +143,10 @@ function SessionChatShareDialog({
         request: preview.request,
       })
       if (result === 'shared' && current === generation.current) close()
-    } catch (error_) {
+    } catch (error_: unknown) {
+      // A failed share reads failed: only a non-error keeps its kind past
+      // the dialog.
+      if (!(error_ instanceof Error)) throw error_
       if (current === generation.current) setError(failureText(error_))
     } finally {
       if (current === generation.current) {
@@ -300,7 +305,7 @@ function SessionChatShareDialog({
           </fieldset>
         )}
         <fieldset disabled={busy}>
-          <legend>{UI_TEXT.shareConfirm}</legend>
+          <legend>{UI_TEXT.shareDestination}</legend>
           {(['copy', 'file', 'browser'] as const).map((destination) => (
             <label key={destination}>
               <input

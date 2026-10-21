@@ -9,12 +9,12 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
-  PAID_DAILY_BUDGET,
-  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
+  HOOK_RUNNING_COMMANDS_MIN,
+  MEDIA_UPLOAD_EXPIRY_DAY_MIN,
+  USAGE_HISTORY_DAY_MIN,
   type BackendMode,
   VAULT_PROTECTION_MODES,
   type VaultProtectionMode,
-  BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
   type BrowserRuntimeMode,
   type CheckCommandSetting,
@@ -24,28 +24,21 @@ import {
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
-  MEDIA_MAX_UPLOAD_MIB,
-  MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
-  MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
+  MEDIA_CONVERTER_PATH_MAX_CHARS,
   ESTIMATE_OPTIMIZE_MODES,
   type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
-  QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
   SCHEDULE_AGENT_CREATIONS,
   SCHEDULE_DELIVERIES,
-  SCREEN_RECORDING_MAX_SECONDS,
-  SCREEN_RECORDING_MIN_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
-  USAGE_HISTORY_DAYS_MIN,
-  USAGE_HISTORY_DAYS_MAX,
-  TAB_DAILY_BUDGET_MAX_USD,
   TAB_DAILY_BUDGET_MIN_USD,
+  TAB_NO_BUDGET_USD,
   TAB_MODELS,
   TAB_MULTILINE_MODES,
   TAB_TRIGGER_MODES,
@@ -61,8 +54,10 @@ import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
   readonly usageHistory: boolean
-  readonly usageHistoryDays: number
+  /** Null keeps history until the person sets a day count or clears it (D121). */
+  readonly usageHistoryDays: number | null
   readonly paidDailyBudgetUsd: UsdAmount
+  readonly linuxDictationModel: boolean
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
@@ -74,6 +69,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly 'reports.network': 'whenSignedIn' | 'always' | 'off'
   readonly 'reports.keepHistory': boolean
   readonly 'reports.agentSources': readonly ('claudeCode' | 'codex')[]
+  /** Largest plan file reports read, in bytes; 0 reads the whole plan (D121). */
+  readonly 'reports.planMaxBytes': number
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
@@ -97,6 +94,11 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly schedules: boolean
   readonly scheduleDefaultDelivery: (typeof SCHEDULE_DELIVERIES)[number]
   readonly scheduleAgentCreation: (typeof SCHEDULE_AGENT_CREATIONS)[number]
+  /**
+  Consecutive failures that pause a schedule (M115, PLAN.md D95, D121:
+  0 is never — a schedule pauses itself only at a count the person set).
+  */
+  readonly schedulePauseAfterFailures: number
   readonly modelApiSubagents: boolean
   /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
@@ -111,9 +113,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** M91 http hook handlers (D70): allowlisted hosts, empty by default. */
   readonly hookHttpAllowedHosts: readonly string[]
   /**
-   * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
-   * every rule and profile and reports what it refuses (permissionPolicy.ts).
-   */
+  M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
+  every rule and profile and reports what it refuses (permissionPolicy.ts).
+  */
   readonly modelApiCommandRules: readonly unknown[]
   readonly modelApiPermissionProfiles: Readonly<Record<string, unknown>>
   readonly modelApiPermissionProfile: unknown
@@ -149,10 +151,28 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepoMap: boolean
   /** Observation packing on the Model API backend (M73): a conversation reads it when it starts. */
   readonly modelApiObservationPacking: boolean
+  /** TOOLCAP: the per-result byte guard. Validated where used; unusable values fall back. */
+  readonly modelApiMaxToolOutputBytes: number
   readonly modelApiAutoCompaction: boolean
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
   readonly webSearchMaxPerRequest: number
+  /** Lane RETRYLIMITS: the person's retry limit; null leaves the providers' own maxima in force. */
+  readonly modelApiMaxRetries: number | null
+  /** Stop-hook continuations in a row (M127, D121: 0 is no limit of ours). */
+  readonly hooksMaxStopContinuations: number
+  /** Running hook commands at once; 0 starts them all (M127, as Muse Code). */
+  readonly hooksMaxRunningCommands: number
+  /** Concurrent subagents (M127, D121: 0 is no limit of ours). */
+  readonly subagentMaxConcurrent: number
+  /** Seconds a plugin hook waits for its child (D121: 0 waits for the answer or Stop). */
+  readonly pluginHookTimeoutSeconds: number
+  /** A plugin child's memory ceiling in MiB (D121: 0 is the runtime's own default). */
+  readonly pluginChildMaxMemoryMiB: number
+  /** A plugin answer's frame cap in bytes (D121: 0 reads answers whole). */
+  readonly pluginAnswerMaxBytes: number
+  /** Windows job-launcher failures that set plugin hooks aside (D121: 0 keeps trying). */
+  readonly pluginMaxFailures: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
@@ -178,12 +198,16 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly mediaUploadExpiryDays: number
   readonly screenRecordingMaxSeconds: number
   readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
+  /** M105 lane V: an absolute converter path; empty uses documented installs only. */
+  readonly mediaConverterPath: string
   /** M108 (PLAN.md D88.5): swap at the next request boundary; on by default. */
   readonly accountSwap: boolean
   /** M108 (PLAN.md D88.5): spread background work across accounts; on by default. */
   readonly accountParallel: boolean
   /** D88 amendment b2: several accounts of one provider on this PC; off by default. */
   readonly 'accounts.severalOnThisDevice': boolean
+  /** M123 (PLAN.md D104 source c): the user's `gh` login for GitHub; off by default. */
+  readonly 'github.useGhLogin': boolean
   /** The per-user credential vault, shared by every editor (M109, PLAN.md D89). */
   readonly 'vault.enabled': boolean
   /** How the vault key is protected; `auto` is hardware plus the OS store. */
@@ -197,10 +221,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
 }
 
 /**
- * The one method this module needs from `vscode.WorkspaceConfiguration`,
- * which satisfies it structurally. Keeping the dependency this narrow makes
- * the reader trivially fakeable in unit tests.
- */
+The one method this module needs from `vscode.WorkspaceConfiguration`,
+which satisfies it structurally. Keeping the dependency this narrow makes
+the reader trivially fakeable in unit tests.
+*/
 interface StoredSettingValues {
   readonly globalValue?: unknown
   readonly workspaceValue?: unknown
@@ -222,9 +246,12 @@ const settingSchemas = {
   environmentVariables: z.array(environmentVariableSchema),
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
   syncPromptsAndBookmarks: z.boolean(),
-  'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
+  // D121: no bound of ours — any whole number of seconds at or above zero
+  // is taken as set (0 never defers); the host reader refuses the rest.
+  'questions.deferAfterSeconds': z.int().check(z.gte(0)),
   'reports.network': z.enum(['whenSignedIn', 'always', 'off']),
   'reports.keepHistory': z.boolean(),
+  'reports.planMaxBytes': z.int().check(z.gte(0)),
   'reports.agentSources': z
     .array(z.enum(['claudeCode', 'codex']))
     .check(z.refine((values) => new Set(values).size === values.length)),
@@ -242,6 +269,7 @@ const settingSchemas = {
   schedules: z.boolean(),
   scheduleDefaultDelivery: z.enum(SCHEDULE_DELIVERIES),
   scheduleAgentCreation: z.enum(SCHEDULE_AGENT_CREATIONS),
+  schedulePauseAfterFailures: z.number().check(z.int(), z.gte(0)),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiTeamWorkers: z.boolean(),
@@ -256,11 +284,12 @@ const settingSchemas = {
   modelApiAutoReviewer: z.boolean(),
   modelApiTab: z.boolean(),
   tabModel: z.enum(TAB_MODELS),
+  // 0 is no budget; a set budget starts at the dust floor, with no ceiling.
   tabDailyBudgetUsd: legacyUsdSchema.check(
     z.refine(
       (value) =>
-        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MIN_USD)) >= 0 &&
-        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MAX_USD)) <= 0,
+        Usd.from(value).compare(Usd.from(TAB_NO_BUDGET_USD)) === 0 ||
+        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MIN_USD)) >= 0,
     ),
   ),
   tabLanguages: z.record(z.string(), z.boolean()),
@@ -276,51 +305,73 @@ const settingSchemas = {
 
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
+  modelApiMaxToolOutputBytes: z.number().check(z.int(), z.gte(0)),
   modelApiAutoCompaction: z.boolean(),
   modelApiStrictTools: z.boolean(),
   modelApiParallelReads: z.boolean(),
-  webSearchMaxPerRequest: z
-    .number()
-    .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
+  // D121: 0 is no search bound of ours (the default); a set whole count of
+  // at least 1 sends as set (NOLIMITSSET: the removed 20 was ours — no
+  // capability record carries one). Anything else refuses with the setting
+  // named, never clamped silently.
+  webSearchMaxPerRequest: z.number().check(z.int(), z.gte(0)),
+  // Lane RETRYLIMITS: null (unset) is the default; 0 never retries.
+  modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
+  // D121: 0 is no limit of ours (the default); a set whole count governs as
+  // set (NOLIMITSSET: the removed 8 was ours — no provider documents one).
+  // Anything else refuses with the setting named, never clamped silently.
+  hooksMaxStopContinuations: z.number().check(z.int(), z.gte(0)),
+  hooksMaxRunningCommands: z.number().check(z.int(), z.gte(HOOK_RUNNING_COMMANDS_MIN)),
+  // D121: 0 is no limit of ours (the default); a set whole count governs as
+  // set (NOLIMITSSET: the removed 64 was ours — no provider documents one).
+  subagentMaxConcurrent: z.number().check(z.int(), z.gte(0)),
+  pluginHookTimeoutSeconds: z.number().check(z.int(), z.gte(0)),
+  pluginChildMaxMemoryMiB: z.number().check(z.int(), z.gte(0)),
+  pluginAnswerMaxBytes: z.number().check(z.int(), z.gte(0)),
+  pluginMaxFailures: z.number().check(z.int(), z.gte(0)),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
   // widening something else.
-  browserCheckExtraHosts: z
-    .array(z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)))
-    .check(z.maxLength(BROWSER_CHECK_EXTRA_HOSTS_MAX)),
+  // NOLIMITSSET (PLAN.md D121): no host-count ceiling of ours — every host
+  // the person names is kept (the removed 32 was ours). Each entry stays a
+  // plain host name or IP address; one that is not refuses the whole list.
+  browserCheckExtraHosts: z.array(
+    z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)),
+  ),
   browserCheckRuntime: z.enum(BROWSER_RUNTIME_MODES),
   bundledSkills: z.boolean(),
   showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
-  paidDailyBudgetUsd: legacyUsdSchema.check(
-    z.refine(
-      (value) =>
-        Usd.from(value).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
-        Usd.from(value).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
-    ),
-  ),
+  // D121: a limit the person sets; 0 is none (the default), and no upper bound is ours.
+  paidDailyBudgetUsd: legacyUsdSchema,
+  linuxDictationModel: z.boolean(),
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: legacyUsdSchema,
   legalRegistryLookups: z.boolean(),
   legalExplanation: z.boolean(),
   legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
   usageHistory: z.boolean(),
-  usageHistoryDays: z
-    .int()
-    .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
-  mediaMaxUploadMiB: z.int().check(z.gte(1), z.lte(MEDIA_MAX_UPLOAD_MIB)),
-  mediaUploadExpiryDays: z
-    .int()
-    .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
-  screenRecordingMaxSeconds: z
-    .int()
-    .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
+  // NOLIMITSSET (PLAN.md D121): null (the default) keeps history until the
+  // person sets a day count or clears it; a set whole number of days of at
+  // least 1 trims as set. Anything else refuses with the setting named.
+  usageHistoryDays: z.nullable(z.int().check(z.gte(USAGE_HISTORY_DAY_MIN))),
+  // No ceiling of ours: the person sets any MiB, the provider refuses what it cannot take.
+  // D121: 0 is no cap of ours (the default).
+  mediaMaxUploadMiB: z.int().check(z.gte(0)),
+  // NOLIMITSSET (PLAN.md D121): the person's whole days, honoured as set —
+  // 7 by default; no capability record carries a range, so the removed 1–30
+  // was ours. Anything else refuses with the setting named.
+  mediaUploadExpiryDays: z.int().check(z.gte(MEDIA_UPLOAD_EXPIRY_DAY_MIN)),
+  // D121: 0 records until stopped (the default); any other whole number of
+  // seconds is used as set, with no floor or ceiling of ours.
+  screenRecordingMaxSeconds: z.int().check(z.gte(0)),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
+  mediaConverterPath: z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS)),
   accountSwap: z.boolean(),
   accountParallel: z.boolean(),
   'accounts.severalOnThisDevice': z.boolean(),
+  'github.useGhLogin': z.boolean(),
   'vault.enabled': z.boolean(),
   'vault.protection': z.enum(VAULT_PROTECTION_MODES),
   'vault.agentFence': z.boolean(),
@@ -392,6 +443,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
     'reports.network': readSetting(config, 'reports.network', log),
     'reports.keepHistory': readSetting(config, 'reports.keepHistory', log),
+    'reports.planMaxBytes': readSetting(config, 'reports.planMaxBytes', log),
     'reports.agentSources': readSetting(config, 'reports.agentSources', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
@@ -407,6 +459,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     schedules: readSetting(config, 'schedules', log),
     scheduleDefaultDelivery: readSetting(config, 'scheduleDefaultDelivery', log),
     scheduleAgentCreation: SETTING_DEFAULTS.scheduleAgentCreation,
+    schedulePauseAfterFailures: readSetting(config, 'schedulePauseAfterFailures', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiTeamWorkers: SETTING_DEFAULTS.modelApiTeamWorkers,
@@ -419,10 +472,19 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
+    modelApiMaxToolOutputBytes: readSetting(config, 'modelApiMaxToolOutputBytes', log),
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),
     webSearchMaxPerRequest: readSetting(config, 'webSearchMaxPerRequest', log),
+    modelApiMaxRetries: readSetting(config, 'modelApiMaxRetries', log),
+    hooksMaxStopContinuations: readSetting(config, 'hooksMaxStopContinuations', log),
+    hooksMaxRunningCommands: readSetting(config, 'hooksMaxRunningCommands', log),
+    subagentMaxConcurrent: readSetting(config, 'subagentMaxConcurrent', log),
+    pluginHookTimeoutSeconds: readSetting(config, 'pluginHookTimeoutSeconds', log),
+    pluginChildMaxMemoryMiB: readSetting(config, 'pluginChildMaxMemoryMiB', log),
+    pluginAnswerMaxBytes: readSetting(config, 'pluginAnswerMaxBytes', log),
+    pluginMaxFailures: readSetting(config, 'pluginMaxFailures', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),
@@ -433,6 +495,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
     usageHistory: readSetting(config, 'usageHistory', log),
     usageHistoryDays: readSetting(config, 'usageHistoryDays', log),
+    linuxDictationModel: readSetting(config, 'linuxDictationModel', log),
     dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
@@ -458,10 +521,14 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     mediaUploadExpiryDays: readSetting(config, 'mediaUploadExpiryDays', log),
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
+    mediaConverterPath: readSetting(config, 'mediaConverterPath', log),
     accountSwap: SETTING_DEFAULTS.accountSwap,
     accountParallel: SETTING_DEFAULTS.accountParallel,
     'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],
-    'vault.enabled': SETTING_DEFAULTS['vault.enabled'],
+    'github.useGhLogin': readSetting(config, 'github.useGhLogin', log),
+    // The live switch (with its legacy precedence) resolves where the vault
+    // runs; activation carries the configured flag for the round trip only.
+    'vault.enabled': readSetting(config, 'vault.enabled', log),
     'vault.protection': SETTING_DEFAULTS['vault.protection'],
     'vault.agentFence': readSetting(config, 'vault.agentFence', log),
     'vault.lockAfterIdleMinutes': SETTING_DEFAULTS['vault.lockAfterIdleMinutes'],

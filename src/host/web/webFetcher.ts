@@ -27,23 +27,23 @@ import type { Logger } from '../logger'
 import { pinnedHttpsRequest } from './pinnedRequest'
 
 /**
- * Every address the name resolves to, as the operating system's resolver
- * answers a connection's lookup (Node's `net` asks with ADDRCONFIG: no IPv6
- * answers on a machine without an IPv6 address), in its order.
- */
+Every address the name resolves to, as the operating system's resolver
+answers a connection's lookup (Node's `net` asks with ADDRCONFIG: no IPv6
+answers on a machine without an IPv6 address), in its order.
+*/
 async function resolveAll(host: string): Promise<readonly string[]> {
   const answers = await lookup(host, { all: true, order: 'verbatim', hints: ADDRCONFIG })
   return answers.map((answer) => answer.address)
 }
 
 /**
- * The two ways `ipv4only.arpa`'s AAAA answers are asked for (RFC 7050):
- * the operating system's resolver, as the page's name was looked up, which
- * returns what a DNS64 in its path synthesized; and a DNS query of its own
- * (c-ares), whose NXDOMAIN or NODATA is the only proof that no AAAA record
- * exists. getaddrinfo's failure proves nothing: Node documents that its
- * ENOTFOUND may stand for other failures of the lookup.
- */
+The two ways `ipv4only.arpa`'s AAAA answers are asked for (RFC 7050):
+the operating system's resolver, as the page's name was looked up, which
+returns what a DNS64 in its path synthesized; and a DNS query of its own
+(c-ares), whose NXDOMAIN or NODATA is the only proof that no AAAA record
+exists. getaddrinfo's failure proves nothing: Node documents that its
+ENOTFOUND may stand for other failures of the lookup.
+*/
 export interface Nat64Lookups {
   readonly system: () => Promise<readonly string[]>
   readonly dns: () => Promise<readonly string[]>
@@ -79,13 +79,13 @@ function outcomeText(outcome: PromiseSettledResult<readonly string[]>): string {
 }
 
 /**
- * The network's NAT64 prefixes (RFC 7050), from the answers either lookup
- * returned. With none, only the DNS query's NXDOMAIN or NODATA means no
- * DNS64; any other outcome (a timeout, SERVFAIL, a refusal, no servers
- * found), or answers that carry no RFC 6052 prefix, leave NAT64 unknown,
- * and the fetch then uses no IPv6 answer, since any could carry a private
- * address.
- */
+The network's NAT64 prefixes (RFC 7050), from the answers either lookup
+returned. With none, only the DNS query's NXDOMAIN or NODATA means no
+DNS64; any other outcome (a timeout, SERVFAIL, a refusal, no servers
+found), or answers that carry no RFC 6052 prefix, leave NAT64 unknown,
+and the fetch then uses no IPv6 answer, since any could carry a private
+address.
+*/
 export async function discoverNat64(lookups: Nat64Lookups, log: Logger): Promise<Nat64Discovery> {
   const [system, dns] = await Promise.allSettled([lookups.system(), lookups.dns()])
   const answers = [...answersOf(system), ...answersOf(dns)]
@@ -109,11 +109,16 @@ export async function discoverNat64(lookups: Nat64Lookups, log: Logger): Promise
   return { isKnown: false, detail: outcome }
 }
 
-function hostOf(url: string): string {
+/**
+The URL's host for the log. Only the URL parser's own malformed-input
+failure (`TypeError`) reads as "not a URL"; anything else still throws.
+*/
+export function hostOf(url: string): string {
   try {
     return new URL(url).host
-  } catch {
-    return '(not a URL)'
+  } catch (error: unknown) {
+    if (error instanceof TypeError) return '(not a URL)'
+    throw error
   }
 }
 
@@ -133,9 +138,9 @@ function outcomeOf(result: WebFetchResult): string {
 }
 
 /**
- * The window's fetch: `convertHtml` turns an HTML page into Markdown apart
- * from the extension host (pageConverter.ts).
- */
+The window's fetch: `convertHtml` turns an HTML page into Markdown apart
+from the extension host (pageConverter.ts).
+*/
 export function createWebFetcher(
   log: Logger,
   convertHtml: HtmlConverter,
@@ -152,6 +157,10 @@ export function createWebFetcher(
         request: pinnedHttpsRequest,
         convertHtml,
         newMarker: () => randomBytes(WEB_FETCH_MARKER_BYTES).toString('hex'),
+        // D121: a page answers, or Stop ends the wait; the wait says so.
+        notice: (text) => {
+          log.info(text)
+        },
       },
       signal,
       isStillAllowed,

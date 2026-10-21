@@ -1,41 +1,37 @@
+import { isUnsentSideCall } from '../../refusal'
 import { Usd, isPositiveUsd } from '../../../shared/usd'
 // A prompt/agent hook's own model call (M91, PLAN.md D70, lane H): loaded
 // only after the paid-use popup allows it. No transport retry, hooks off,
 // billed to the Model API key on the hookModels tally line, apart from the
 // conversation. `prompt` asks with no tools; `agent` loops over read-only
-// tools (read, grep, list, code intelligence) at most HOOK_AGENT_MAX_STEPS
-// requests per answer attempt. Invalid structured answers get one repair,
+// tools (read, grep, list, code intelligence) until the model stops calling
+// them (D121: no step ceiling of ours). Invalid structured answers get one repair,
 // then the existing text path. Every request is admitted and settled.
 // Session-owned fences and journal observers are passed through unchanged.
 import * as z from 'zod/mini'
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
 import type { reviewPaidCall } from './reviewerEntry'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
+import { streamRepairAttempt } from './repairAttempt'
 import { isFunctionCallItem } from './schemas'
-import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
-import {
-  helperRequestSettlement,
-  estimateInput,
-  requestParts,
-  reserveRequest,
-  type OwnedSessionBudgetScope,
-  type SessionBudgetClaim,
-} from './sessionBudget'
+import type {
+  CreateResponseBody,
+  FunctionCallItem,
+  InputItem,
+  StreamEvent,
+  ToolDefinition,
+  Usage,
+} from './schemas'
+import { fitRequest, helperRequestCost, type OwnedSessionBudgetScope } from './sessionBudget'
 import { estimateCostUsd } from '../../usage/insights'
 import type { SubagentUsage } from '../../../shared/paid'
 import type { ItemSnapshot } from '../../../shared/agentEvents'
-import {
-  HOOK_AGENT_MAX_STEPS,
-  HOOK_MODEL_MAX_OUTPUT_TOKENS,
-  HOOK_MODEL_ROW_TOOL,
-  HOOK_MODEL_TIMEOUT_MS,
-  MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
-} from '../../../shared/constants'
+import { HOOK_MODEL_ROW_TOOL, MODEL_API_EFFORT_OFF } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
 import { minOutputTokensForPolicy, modelPolicyFor } from './modelPolicy'
 import { sideCallBody, structuredSideCall, type SideCallAttempt } from './structuredOutput'
+import { boundToolResultText, callOutputItem } from './toolResultBound'
 
 const IN_PROGRESS = 'inProgress'
 const CANCELLED = 'cancelled'
@@ -77,6 +73,7 @@ export interface HookModelContext extends Pick<
     | 'hookModelDailyBudget'
     | 'sideCallFormats'
     | 'forceSideCallTool'
+    | 'contextModel'
   >
   /** The read-only defs for `agent`; empty for `prompt`. */
   readonly tools: readonly ToolDefinition[]
@@ -119,9 +116,9 @@ function hookPart(event: StreamEvent): {
 }
 
 /**
- * One hook turn's transcript row: the paid run is loud, like a review's.
- * The row is the transcript's, never the model's: it is not replayed.
- */
+One hook turn's transcript row: the paid run is loud, like a review's.
+The row is the transcript's, never the model's: it is not replayed.
+*/
 export async function runHookModelTurn(
   context: HookModelContext,
   input: HookModelTurnInput,
@@ -201,9 +198,12 @@ async function callHookModel(
       const history: InputItem[] = [
         { type: 'message', role: 'user', content: [{ type: 'input_text', text: input.user }] },
       ]
-      const steps = input.kind === 'agent' ? HOOK_AGENT_MAX_STEPS : 1
+      // D121: an agent handler loops over its read-only tools until the
+      // model stops calling them — the removed 5-step ceiling was invented
+      // and no provider documents one. Each step is admitted and settled
+      // against the session and daily budgets, and Stop aborts the loop.
       let text = ''
-      for (let step = 0; step < steps; step += 1) {
+      for (;;) {
         text = ''
         const calls = await requestHookStep(
           context,
@@ -231,7 +231,7 @@ async function callHookModel(
         if (calls.length === 0) {
           break
         }
-        if (input.kind !== 'agent' || step === steps - 1) {
+        if (input.kind !== 'agent') {
           throw new Error('the hook model exceeded its tool allowance')
         }
         for (const call of calls) {
@@ -242,7 +242,24 @@ async function callHookModel(
             throw new Error('the hook model requested an unavailable tool')
           }
           const output = await context.executeReadOnlyTool(call.name, call.arguments, signal)
-          history.push(call, { type: 'function_call_output', call_id: call.call_id, output })
+          // TOOLCAP: a read-only tool's text enters the hook model's request
+          // whole unless it needs more than its share of the hook model's own
+          // window (D121: no trimming of ours). The hook model has no spill
+          // writer, so text over that share fails loudly instead of riding
+          // unbounded into a paid side call; the hook's read-only tools cap
+          // their outputs upstream, so this is the dense-text edge.
+          const hookWindow = context.deps.contextModel?.(confirmed.modelId)?.contextTokens
+          const bounded = boundToolResultText(output, {
+            maxBytes: Infinity,
+            windowTokens:
+              hookWindow !== undefined && Number.isSafeInteger(hookWindow) && hookWindow > 0
+                ? hookWindow
+                : undefined,
+          })
+          if (bounded.cut !== undefined) {
+            throw new Error('the hook tool output exceeded the tool-result bound')
+          }
+          history.push(call, callOutputItem(call.call_id, bounded.text))
         }
       }
       return text
@@ -253,6 +270,15 @@ async function callHookModel(
   }
   const counted = { inputTokens, outputTokens, cachedTokens }
   return { text, usage: counted }
+}
+
+/**
+D121: the hook call sends no output cap of ours. The capability record's
+published maximum rides along; a model the record names none for sends
+none, and the provider's own default applies.
+*/
+export function hookModelOutputCap(modelId: string): number | undefined {
+  return modelPolicyFor(modelId).output.maxTokens
 }
 
 /** One request of the hook turn; returns the model's read-only calls, if any. */
@@ -267,6 +293,8 @@ async function requestHookStep(
   onPart: (text: string, usage: Usage | null | undefined) => void,
 ): Promise<readonly FunctionCallItem[]> {
   const modelId = confirmed.modelId
+  const policy = modelPolicyFor(modelId)
+  const outputCap = hookModelOutputCap(modelId)
   let body = context.keyed(
     sideCallBody(
       context.keyed({
@@ -279,15 +307,16 @@ async function requestHookStep(
         stream: true,
         store: false,
         include: ['reasoning.encrypted_content'],
-        max_output_tokens: HOOK_MODEL_MAX_OUTPUT_TOKENS,
-      }),
+        // No cap of ours: the record's maximum, or no key at all. The
+        // spread is absent exactly when the record is silent, so the key
+        // is missing at runtime (PLAN.md §8).
+        ...(outputCap !== undefined && { max_output_tokens: outputCap }),
+      } as Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>),
       attempt,
       context.deps.forceSideCallTool,
     ),
   )
-  let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   let usage: Usage | null | undefined
   let dailyClaim:
@@ -295,49 +324,51 @@ async function requestHookStep(
     | undefined
   const calls: FunctionCallItem[] = []
   let hasCompleted = false
+  let hasResponseFrame = false
   try {
-    if (budgetScope !== undefined) {
-      const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-      const capUsd = budgetScope.capUsd()
-      const estimated = estimateInput(requestParts(body), undefined).inputTokens
-      if (isPositiveUsd(capUsd)) {
-        const reservation = reserveRequest({
-          capUsd,
-          spentUsd: total.spentUsd,
-          estimatedInputTokens: estimated,
-          modelId,
-          minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
-        })
-        body = {
-          ...body,
-          max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
-        }
-      }
-      reservedUsd = estimateCostUsd(
-        { inputTokens: estimated, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+    // Under the conversation's limit the request is fitted into what is left
+    // (D208); its estimate is compared again before the send, never held.
+    // The estimate below is the number actually sent: the record's maximum
+    // fitted into the person's budget, or the fit alone when the record is
+    // silent. With neither, the provider's own minimum floors the hold and
+    // the daily tally settles the true cost after.
+    const minimum = minOutputTokensForPolicy(policy)
+    let sentMax = outputCap ?? minimum
+    const capUsd = budgetScope?.capUsd() ?? Usd.from(0).toAmount()
+    if (budgetScope !== undefined && isPositiveUsd(capUsd)) {
+      const fit = fitRequest({
+        capUsd,
+        spentUsd: budgetScope.spentUsd(),
+        estimatedInputTokens: Buffer.byteLength(JSON.stringify(body), 'utf8'),
         modelId,
-      )
-      claim = await budgetScope.journal.reserve(
-        budgetScope.sessionId,
-        budgetScope.accountId,
-        reservedUsd,
-        { isUnbounded: !isPositiveUsd(capUsd) },
-      )
+        minOutputTokens: minimum,
+      })
+      sentMax =
+        outputCap === undefined ? fit.maxOutputTokens : Math.min(outputCap, fit.maxOutputTokens)
+      body = {
+        ...body,
+        max_output_tokens: sentMax,
+      }
     }
-    const estimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
-    const reservationUsd = estimateCostUsd(
-      { inputTokens: estimatedInputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-      modelId,
-    )
-    reservedUsd =
-      Usd.from(reservedUsd).compare(Usd.from(reservationUsd)) > 0 ? reservedUsd : reservationUsd
+    const estimatedInputTokens = Buffer.byteLength(JSON.stringify(body), 'utf8')
     dailyClaim = await context.deps.hookModelDailyBudget?.reserve(
       modelId,
       estimatedInputTokens,
-      body.max_output_tokens,
+      sentMax,
       signal,
     )
-    directBudget = { scope: budgetScope, claim, isSent: false }
+    directBudget = {
+      scope: budgetScope,
+      estimateUsd: estimateCostUsd(
+        {
+          inputTokens: estimatedInputTokens,
+          outputTokens: sentMax,
+          cachedTokens: 0,
+        },
+        modelId,
+      ),
+      isSent: false,
+    }
     const required = context.guard(body, directBudget)
     const admission: ResponseAttemptGuard = Object.assign(
       (actualKeyDigest: string | undefined) => {
@@ -352,21 +383,18 @@ async function requestHookStep(
         },
       },
     )
-    const events = context.deps.client.streamResponse(
+    // D121: no default deadline of ours — the hook's own model call runs
+    // until it ends or the person stops it.
+    const events = streamRepairAttempt(
+      context.deps.client,
       body,
-      AbortSignal.any([signal, AbortSignal.timeout(HOOK_MODEL_TIMEOUT_MS)]),
+      signal,
       undefined,
-      // No transport retry; structured repair has its own admission and settlement.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
       admission,
-      {
-        ...confirmed,
-        onRequestStarted: () => {
-          // The combined admission observer above counts this paid use once.
-        },
-      },
+      confirmed,
     )
     for await (const event of events) {
+      hasResponseFrame = true
       if (event.type === 'response.completed') hasCompleted = true
       const part = hookPart(event)
       onPart(part.text, part.usage)
@@ -390,26 +418,29 @@ async function requestHookStep(
     if (!hasCompleted && attempt.mode !== 'text')
       throw new Error('the structured hook has no completed response')
   } catch (error: unknown) {
-    wasRefused = context.isRefused(error)
+    wasRefused = isUnsentSideCall(
+      error,
+      hasResponseFrame,
+      directBudget?.isSent === true,
+      usage != null,
+      (candidate) => context.isRefused(candidate),
+    )
     if (signal.aborted) {
       throw context.abortError()
     }
     context.deps.log.warn('The hook model call failed')
     throw error
   } finally {
-    const settlement = helperRequestSettlement(
+    // After the call, its reported cost (or cost unknown) joins the running totals (D208).
+    const costUsd = helperRequestCost(
       modelId,
       usage,
       context.isCountedUsage,
       directBudget?.isSent === true,
       wasRefused,
-      reservedUsd,
     )
-    try {
-      await claim?.settle(settlement.costUsd, settlement.isUnknown)
-    } finally {
-      await dailyClaim?.settle(settlement.costUsd, settlement.isUnknown)
-    }
+    budgetScope?.charge(costUsd)
+    await dailyClaim?.settle(costUsd)
   }
   return calls
 }

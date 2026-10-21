@@ -11,7 +11,6 @@ import {
   judgeCommand,
 } from '../../src/core/backends/modelapi/commandRules'
 import type { ShellDialect } from '../../src/core/backends/modelapi/shellSyntax'
-import { COMMAND_RULES_MAX } from '../../src/shared/constants'
 
 /** The user's rules of the table, compiled as the backend compiles them. */
 const USER_RULES = compileCommandRules(
@@ -144,21 +143,16 @@ describe('compileCommandRules: each rule checked against its own examples (M78)'
     ])
   })
 
-  it('reads no more than the most rules, and says so', () => {
+  // NOLIMITSSET (PLAN.md D121): the 500-rule ceiling was ours — every rule
+  // the person sets is read, and nothing past it is reported as unread.
+  it('reads every rule the person sets, past the removed 500', () => {
     const rule = { pattern: ['ls'], decision: 'ask', match: ['ls'] }
     const compiled = compileCommandRules(
-      Array.from({ length: COMMAND_RULES_MAX + 2 }, () => rule),
+      Array.from({ length: 1000 }, () => rule),
       'user',
     )
-    expect(compiled.rules).toHaveLength(COMMAND_RULES_MAX)
-    expect(compiled.problems).toEqual([
-      {
-        kind: 'tooMany',
-        index: COMMAND_RULES_MAX + 1,
-        pattern: '',
-        detail: String(COMMAND_RULES_MAX + 2),
-      },
-    ])
+    expect(compiled.rules).toHaveLength(1000)
+    expect(compiled.problems).toEqual([])
   })
 })
 

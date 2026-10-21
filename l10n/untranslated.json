@@ -1,6 +1,7 @@
 {
   "ui": {
     "*": [
+      "effortLevels.ultra",
       "apiKeyPlaceholder",
       "modesHintKeys",
       "exportItem",
@@ -21,6 +22,8 @@
       "memoryNamePlaceholder",
       "scheduleV2.editor.defaultName",
       "scheduleV2.editor.defaultPrompt",
+      "scheduleV2.messages.deliveryFailed",
+      "scheduleV2.editor.paidCapHelp",
       "paletteTips.schedule",
       "paletteTips.schedulePrompt",
       "paletteTips.scheduleTimeline",
@@ -38,6 +41,7 @@
       "paidVoiceName",
       "usageCacheSavingsValue",
       "mcpToolLabel",
+      "stillWaitingSubject.museCodeCommand",
       "goalItem",
       "composerShellMode",
       "onboardingShortcuts.shell",
@@ -52,6 +56,7 @@
       "noticeRepeatBadge",
       "reportEventItem",
       "reviewItem",
+      "playbackItem",
       "execUsage",
       "execScanUsage",
       "hooksSparkProjectFile",
@@ -74,7 +79,43 @@
       "legalUsage",
       "referenceScreenRecording",
       "referenceLatestRecording",
-      "referenceUploadedFiles"
+      "referenceUploadedFiles",
+      "referenceWindowsPaths",
+      "referenceWindowsPathsDetail",
+      "acpConnector.usage",
+      "acpConnector.statusWorkspace",
+      "referenceCliOptions.mode",
+      "referenceCliOptions.destination",
+      "referenceCliOptions.scope",
+      "referenceCliOptions.search",
+      "referenceCliOptions.tag",
+      "referenceCliOptions.title",
+      "referenceCliOptions.var",
+      "referenceCliOptions.chat",
+      "referenceCliOptions.confirm",
+      "referenceCliOptions.diffs",
+      "referenceCliOptions.no-code-blocks",
+      "referenceCliOptions.no-attachment-names",
+      "referenceCliOptions.attachment-content",
+      "referenceCliOptions.exported-at",
+      "referenceCliOptions.share-from",
+      "referenceCliOptions.share-to",
+      "referenceCliOptions.share-out",
+      "referenceCliOptions.sharing-json",
+      "paletteTips.paid:autoCompaction",
+      "whatsNewAttachmentsRefused",
+      "goalObjectiveTooLarge",
+      "vault.windowsTpm",
+      "vault.secureEnclave",
+      "vault.linuxTpm2",
+      "vault.windowsDpapi",
+      "vault.secretService",
+      "vault.rolesHint",
+      "vault.workspacesHint",
+      "vault.daysHint",
+      "vault.startHourHint",
+      "vault.endHourHint",
+      "vault.ceilingHint"
     ],
     "cs": [
       "groupModel",
@@ -193,7 +234,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTokens",
+      "reportLabels.total"
     ],
     "pt-br": [
       "agentTokens",
@@ -208,7 +250,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTokens",
+      "reportLabels.total"
     ],
     "fr": [
       "modesTitle",
@@ -236,7 +279,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamTemplateSolo",
-      "teamIntensityLevels.minimal"
+      "teamIntensityLevels.minimal",
+      "reportLabels.total"
     ],
     "it": [
       "usageAccount",

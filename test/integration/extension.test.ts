@@ -1,7 +1,7 @@
 // Runs inside the Extension Development Host (see .vscode-test.mjs).
 
 import * as assert from 'node:assert/strict'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { loadGitApi, repositoryAt } from '../../src/host/git/gitExtension'
@@ -15,6 +15,7 @@ import {
   PLAN_MARKDOWN_BUNDLE_FILE,
   SETTINGS_SECTION,
 } from '../../src/shared/constants'
+import { removeFolder } from '../unit/helpers/temporaryFolders'
 
 const TAB_WAIT_TIMEOUT_MS = 5000
 // test/fixtures/workspace/.vscode/settings.json sets this window-scoped key
@@ -293,7 +294,7 @@ suite('VS Code git extension API (M71)', () => {
       const log = await repository.log({ range: 'origin/main..HEAD' })
       assert.deepEqual(log, [])
     } finally {
-      await rm(base, { recursive: true, force: true, maxRetries: 5 })
+      await removeFolder(base)
     }
   })
 })

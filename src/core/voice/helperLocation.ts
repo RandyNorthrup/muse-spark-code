@@ -2,26 +2,33 @@
 //
 // Windows: Windows PowerShell 5.1 under %SystemRoot% runs the bundled script
 // on the .NET Framework's System.Speech. macOS: the Swift helper compiled in
-// CI and shipped in the .vsix. Linux: no distribution ships a speech
-// recogniser and the extension adds no third-party engine, so the button
-// explains itself (owner decision 2026-09-22). A remote window: the
-// extension host runs on the other machine, so neither recogniser can hear
-// the user (M26, PLAN.md D29).
+// CI and shipped in the .vsix. Linux: the offline English helper and its
+// weights are release assets acquired after one consent (CM9LNX, PLAN.md
+// D140); nothing is bundled, so the microphone is offered before the first
+// download and the files are verified before every start. A remote
+// workspace host cannot hear the local microphone (M26, PLAN.md D29).
 
 import path from 'node:path'
+import process from 'node:process'
 import {
   DICTATION_DARWIN_APP_NAME_FLAG,
   DICTATION_DARWIN_CAPTURE_FLAG,
-  DICTATION_DARWIN_HELPER_SEGMENTS,
   DICTATION_WINDOWS_CAPTURE_SEGMENTS,
   DICTATION_WINDOWS_SCRIPT_SEGMENTS,
   LINUX_RECORDERS,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
-  WINDOWS_PSMODULEPATH_VARIABLE,
+  darwinDictationApp,
+  darwinDictationHelperSegments,
 } from '../../shared/constants'
-import { setEnvironmentVariable, windowsPowerShellModulePath } from '../backends/musecode/launch'
-import { resolveExecutable } from '../executables'
+import { fill } from '../../shared/l10n/text'
+import { LINUX_DICTATION } from '../../shared/linuxDictationConstants'
+import {
+  deleteEnvironmentVariable,
+  resolveExecutable,
+  setEnvironmentVariable,
+  windowsPowerShellEnvironment,
+} from '../execGuard'
 import type { HelperInvocation } from './dictation'
 
 export interface HelperProbe {
@@ -31,19 +38,22 @@ export interface HelperProbe {
   /** `%ProgramFiles%`; undefined off Windows (then derived from `systemRoot`). */
   readonly programFiles: string | undefined
   /**
-   * The remote this extension host runs on (`vscode.env.remoteName` when the
-   * extension runs as a workspace extension in a remote window); undefined
-   * when the extension host is on the user's own machine.
-   */
+  The remote this extension host runs on (`vscode.env.remoteName` when the
+  extension runs as a workspace extension in a remote window); undefined
+  when the extension host is on the user's own machine.
+  */
   readonly remoteName: string | undefined
   /**
-   * The editor's own name (`vscode.env.appName`, "Visual Studio Code"): the
-   * app macOS would ask for the helper's microphone and speech permissions
-   * where the helper cannot disclaim it and ask under its own name (M28).
-   */
+  The editor's own name (`vscode.env.appName`, "Visual Studio Code"): the
+  app macOS would ask for the helper's microphone and speech permissions
+  where the helper cannot disclaim it and ask under its own name (M28).
+  */
   readonly appName: string
   /** The extension's `native/` folder. */
   readonly helperDir: string
+  /** Installed model path; acquisition happens lazily before the helper starts. */
+  readonly linuxModelPath?: string | undefined
+  readonly arch?: string | undefined
   readonly fileExists: (fsPath: string) => boolean
 }
 
@@ -63,13 +73,13 @@ const WINDOWS_SCRIPT_ARGS = [
 ] as const
 
 /**
- * Windows PowerShell 5.1 running one bundled script, in Windows paths
- * whatever the host (the unit tests run on all three). It gets exactly
- * Windows PowerShell's own module directories: 5.1 loads (or fails to load)
- * pwsh 7's modules when an extension host started from a PowerShell 7
- * terminal hands it pwsh 7's `PSModulePath`, the trap
- * `buildChildEnvironment` closes for `muse serve` (PLAN.md D1a).
- */
+Windows PowerShell 5.1 running one bundled script, in Windows paths
+whatever the host (the unit tests run on all three). It gets exactly
+Windows PowerShell's own module directories: 5.1 loads (or fails to load)
+pwsh 7's modules when an extension host started from a PowerShell 7
+terminal hands it pwsh 7's `PSModulePath`, the trap the guarded layer's
+`windowsPowerShellEnvironment` closes for every 5.1 child (PLAN.md D1a).
+*/
 function windowsScript(
   probe: HelperProbe,
   systemRoot: string,
@@ -78,26 +88,35 @@ function windowsScript(
   return {
     command: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
     args: [...WINDOWS_SCRIPT_ARGS, path.win32.join(probe.helperDir, ...script)],
-    environment: {
-      [WINDOWS_PSMODULEPATH_VARIABLE]: windowsPowerShellModulePath(systemRoot, probe.programFiles),
-    },
+    environment: windowsPowerShellEnvironment({}, systemRoot, probe.programFiles),
   }
 }
 
 /**
- * The bundled macOS helper with these flags and the app it names, or why
- * this build has none. macOS charges the helper's permission requests to the
- * app that started it (the extension host is VS Code's own process), so the
- * helper names that app in its refusals; a helper that dies before "ready"
- * died at a permission step or at Gatekeeper (M26, D29).
- */
+The bundled macOS helper with these flags and the app it names, or why
+this build has none. macOS charges the helper's permission requests to the
+app that started it (the extension host is VS Code's own process), so the
+helper names that app in its refusals; a helper that dies before "ready"
+died at a permission step or at Gatekeeper (M26, D29).
+*/
 function darwinHelper(
   probe: HelperProbe,
   flags: readonly string[],
 ):
   | { readonly isAvailable: true; readonly invocation: HelperInvocation }
   | { readonly isAvailable: false; readonly reason: string } {
-  const command = path.join(probe.helperDir, ...DICTATION_DARWIN_HELPER_SEGMENTS)
+  // One signed .app per Mac architecture (D209): this Mac runs its own.
+  // No helper ships for any other architecture: name the file it would be.
+  const arch = probe.arch ?? process.arch
+  if (arch !== 'arm64' && arch !== 'x64') {
+    return {
+      isAvailable: false,
+      reason: fill(UI_TEXT.dictationUnavailableDarwin, { app: `muse-dictate-screen-${arch}.app` }),
+    }
+  }
+  // Narrowed to this Mac's architecture: the lookup below cannot throw.
+  const app = darwinDictationApp(arch)
+  const command = path.join(probe.helperDir, ...darwinDictationHelperSegments(arch))
   return probe.fileExists(command)
     ? {
         isAvailable: true,
@@ -107,14 +126,17 @@ function darwinHelper(
           earlyExitHint: UI_TEXT.dictationDarwinEarlyExit,
         },
       }
-    : { isAvailable: false, reason: UI_TEXT.dictationUnavailableDarwin }
+    : {
+        isAvailable: false,
+        reason: fill(UI_TEXT.dictationUnavailableDarwin, { app }),
+      }
 }
 
 /**
- * The bundled helper on Windows or macOS, with this script or these flags,
- * or why it cannot run here; undefined on the other platforms, which each
- * locator answers for itself.
- */
+The bundled helper on Windows or macOS, with this script or these flags,
+or why it cannot run here; undefined on the other platforms, which each
+locator answers for itself.
+*/
 function bundledHelper(
   probe: HelperProbe,
   windowsScriptSegments: readonly string[],
@@ -140,26 +162,42 @@ function bundledHelper(
 }
 
 export function locateDictationHelper(probe: HelperProbe): HelperLocation {
-  return (
-    bundledHelper(probe, DICTATION_WINDOWS_SCRIPT_SEGMENTS, []) ?? {
-      isAvailable: false,
-      reason:
-        probe.platform === 'linux'
-          ? UI_TEXT.dictationUnavailableLinux
-          : UI_TEXT.dictationUnavailable,
+  const bundled = bundledHelper(probe, DICTATION_WINDOWS_SCRIPT_SEGMENTS, [])
+  if (bundled !== undefined) return bundled
+  if (
+    probe.platform === 'linux' &&
+    probe.linuxModelPath !== undefined &&
+    (probe.arch === 'x64' || probe.arch === 'arm64')
+  ) {
+    // The helper is downloaded, not bundled: its presence is proven by
+    // digest before every start (LinuxDictationHelper.ensure), never here.
+    const command = path.join(path.dirname(probe.linuxModelPath), LINUX_DICTATION.helperBinary)
+    return {
+      isAvailable: true,
+      invocation: {
+        command,
+        args: ['--model', probe.linuxModelPath],
+        stopGraceMs: LINUX_DICTATION.stopGraceMs,
+        environment: LINUX_DICTATION.environment,
+      },
     }
-  )
+  }
+  return {
+    isAvailable: false,
+    reason:
+      probe.platform === 'linux' ? UI_TEXT.dictationUnavailableLinux : UI_TEXT.dictationUnavailable,
+  }
 }
 
 /**
- * The helper's environment: a copy of the extension host's own with the
- * invocation's variables set. On Windows a name is case-insensitive and
- * Node passes only the first spelling in sort order when a child's
- * environment holds two ("only first (in lexicographic order) entry will be
- * passed to the subprocess", the child_process docs), so an inherited
- * `PSMODULEPATH` would beat our `PSModulePath`; `setEnvironmentVariable`
- * drops the other spellings first.
- */
+The helper's environment: a copy of the extension host's own with the
+invocation's variables set. On Windows a name is case-insensitive and
+Node passes only the first spelling in sort order when a child's
+environment holds two ("only first (in lexicographic order) entry will be
+passed to the subprocess", the child_process docs), so an inherited
+`PSMODULEPATH` would beat our `PSModulePath`; `setEnvironmentVariable`
+drops the other spellings first.
+*/
 export function helperEnvironment(
   base: NodeJS.ProcessEnv,
   invocation: HelperInvocation,
@@ -169,6 +207,18 @@ export function helperEnvironment(
   const variables = Object.entries(invocation.environment ?? {})
   for (const [name, value] of variables) {
     setEnvironmentVariable(env, platform, name, value)
+  }
+  if (platform === 'linux') {
+    // The offline Linux helper must capture from this computer only: drop
+    // every audio-server selector it could inherit (RVCM9LNX P2), so a
+    // `PULSE_SERVER=tcp:…` on the editor cannot move capture to the network.
+    // The helper itself refuses a non-local server as well. Local
+    // authentication (PULSE_COOKIE), the runtime directory (which names the
+    // local socket) and HOME stay: the explicit local server overrides
+    // client.conf, and proxy variables are never read by the audio client.
+    for (const name of LINUX_DICTATION.audioServerVariables) {
+      deleteEnvironmentVariable(env, platform, name)
+    }
   }
   return env
 }
@@ -183,19 +233,31 @@ export type CaptureLocation =
       readonly name: string
       readonly command: string
       readonly args: readonly string[]
+      /** The workspace the lookup excluded: the recorder child runs guarded for it. */
+      readonly workspaceRoot: string
     }
   | { readonly isAvailable: false; readonly reason: string }
 
 export interface CaptureProbe extends HelperProbe {
   /** PATH, for Linux's recorders (absolute entries only, PLAN.md D24). */
   readonly pathVariable: string | undefined
+  /**
+  The workspace a recording runs in: `arecord`/`parec` never resolve to
+  a file inside it (resolved through links). REQUIRED.
+  */
+  readonly workspaceRoot: string
+  /**
+  Resolves links for the workspace comparison. REQUIRED: a lexical-only
+  comparison keeps a symlink into the workspace on PATH.
+  */
+  readonly realpath: (filePath: string) => string
 }
 
 /**
- * The capture helper for Muse Voice (M35): Windows PowerShell running the
- * bundled capture script, the Swift helper in capture mode, or on Linux the
- * system's recorder. A remote window records nothing, as for the free engine.
- */
+The capture helper for Muse Voice (M35): Windows PowerShell running the
+bundled capture script, the Swift helper in capture mode, or on Linux the
+system's recorder. A remote window records nothing, as for the free engine.
+*/
 export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
   const helper = bundledHelper(probe, DICTATION_WINDOWS_CAPTURE_SEGMENTS, [
     DICTATION_DARWIN_CAPTURE_FLAG,
@@ -211,6 +273,7 @@ export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
       platform: probe.platform,
       pathVariable: probe.pathVariable,
       fileExists: probe.fileExists,
+      scope: { workspaceRoot: probe.workspaceRoot, realpath: probe.realpath },
     })
     if (command !== undefined) {
       return {
@@ -219,6 +282,7 @@ export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
         name: recorder.command,
         command,
         args: recorder.args,
+        workspaceRoot: probe.workspaceRoot,
       }
     }
   }

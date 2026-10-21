@@ -31,7 +31,7 @@ import { scrubLegalText } from '../legal/files'
 export interface LegalExplanationDeps {
   readonly gate: Pick<PaidFeatureGate, 'isOn'>
   readonly consent: Pick<PaidUseConsent, 'allows'>
-  readonly capUsd: () => UsdAmount
+  /** A person-set daily limit's claim; `undefined` when none is set (D208). */
   readonly reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']>
   readonly keyDigest: () => Promise<string | undefined>
   readonly usage: Pick<PaidUsage, 'add' | 'addLegalExplanationUsage'>
@@ -94,11 +94,7 @@ export async function explainLegal(
       id: finding.id,
       category: finding.category,
       severity: finding.severity,
-      licenses: license.ok
-        ? license.licenses.flatMap((entry) =>
-            entry.canonicalId === undefined ? [] : [entry.canonicalId],
-          )
-        : [],
+      licenses: license.ok ? license.licenses.flatMap((entry) => entry.canonicalId ?? []) : [],
     }
   })
   const input = JSON.stringify(facts)
@@ -120,7 +116,6 @@ export async function explainLegal(
   }
   const estimated = estimateInput(requestParts(body), undefined).inputTokens
   const claim = await deps.reserve(body, 'legalExplanation', estimated, active)
-  if (claim === undefined) throw new Error(UI_TEXT.legalExplainUnavailable)
   const dispatch = { isSent: false }
   let usage: Usage | undefined
   let text = ''
@@ -130,7 +125,7 @@ export async function explainLegal(
       active.throwIfAborted()
       if (key !== digest || !deps.gate.isOn('legalExplanation'))
         throw new Error(UI_TEXT.legalExplainUnavailable)
-      claim.check(deps.capUsd())
+      claim?.check()
     },
     {
       onRequestStarted: () => {
@@ -163,10 +158,10 @@ export async function explainLegal(
             cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
           }
     if (tokens !== undefined) deps.usage.addLegalExplanationUsage(modelId, tokens)
-    const unreportedCost = dispatch.isSent ? claim.reservedUsd : Usd.from(0).toAmount()
-    await claim.settle(
-      tokens === undefined ? unreportedCost : estimateCostUsd(tokens, modelId),
-      dispatch.isSent && tokens === undefined,
-    )
+    // Sent without usage: its cost is unknown, never its estimate (D208).
+    let costUsd: UsdAmount | undefined = Usd.from(0).toAmount()
+    if (dispatch.isSent)
+      costUsd = tokens === undefined ? undefined : estimateCostUsd(tokens, modelId)
+    await claim?.settle(costUsd)
   }
 }

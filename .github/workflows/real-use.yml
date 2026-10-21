@@ -1,0 +1,243 @@
+# Real-use receipt (lane REALUSECI): drive the real packed product from any
+# ref against the real provider with the repository secret MUSE_MODEL_API_KEY,
+# on the contributor model by its explicit name, under a dollar cap and an
+# expected-calls guard. `package` packs the product agent package from the
+# input ref with the production build and `scripts/package-acp.mjs`, as
+# build.yml's release packages job does. `realuse` installs that package
+# outside the workspace, gives the key to the packed product only (the
+# trusted launcher deletes the variable before any child starts and sends it
+# over private stdin solely to `exec --key-stdin`), runs each steps-file step
+# in an empty workspace, counts calls and dollars from the product's own
+# results, and uploads a transcript artifact (prose, PASS/FAIL, stated vs
+# actual; never the key).
+#
+# Only the repository owner starts it, by hand, on the default branch, and
+# the workflow file itself always runs from there: the input ref supplies
+# only the product package and the steps file's untrusted prompts, never
+# workflow code. The key is one run step's environment variable and nothing
+# else, and GitHub masks it in every log. No other step receives it and
+# nothing here prints it. Every checkout persists no credentials. The startup
+# traps and the token sentinel are planted below; scripts/real-use-check.mjs
+# judges the run.
+name: Real use
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to test (branch, tag or SHA); supplies the product package and the steps file
+        required: true
+        type: string
+      steps-file:
+        description: Steps file path in the repository, under docs/real-use/
+        required: true
+        default: docs/real-use/rc-2026-10-17.json
+        type: string
+      expected-calls:
+        description: Stated number of model calls; the run stops before a step that would pass it
+        required: true
+        type: number
+      max-budget-usd:
+        description: Hard USD cap for the whole run (contributor recipe default)
+        required: true
+        default: '1.00'
+        type: string
+
+permissions:
+  contents: read
+
+# One paid run at a time; a second dispatch waits instead of cancelling it.
+concurrency:
+  group: real-use
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: product agent package
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      commit: ${{ steps.record.outputs.commit }}
+      name: ${{ steps.record.outputs.name }}
+      sha256: ${{ steps.record.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package:acp
+        env:
+          # The packaged-README badge check lists public main (GitHub API).
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: record the product package
+        id: record
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(ls dist/muse-spark-code-acp-*.tgz)
+          test "${#packages[@]}" -eq 1
+          product="${packages[0]}"
+          sha="$(sha256sum "$product" | cut -d' ' -f1)"
+          {
+            echo "commit=$(git rev-parse HEAD)"
+            echo "name=$(basename "$product")"
+            echo "sha256=$sha"
+          } >> "$GITHUB_OUTPUT"
+          echo "- product agent package: $(basename "$product") $sha (commit $(git rev-parse HEAD))" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muse-spark-code-acp-real-use
+          path: dist/muse-spark-code-acp-*.tgz
+          if-no-files-found: error
+          retention-days: 30
+
+  realuse:
+    name: RU (real key, contributor model, stated cap)
+    needs: package
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    # Joined here, not spelled out: the steps file is untrusted prompt data
+    # and a literal in it would ride into the model's input.
+    env:
+      RU_SENTINEL: ${{ format('REALUSE-SENTINEL-{0}', 'fabricated-token') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: workflow-src
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          path: ref-src
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: muse-spark-code-acp-real-use
+          path: ${{ runner.temp }}/candidate
+      - name: the package is the ref's commit, installed outside the workspace, and startup traps are planted
+        id: setup
+        env:
+          RU_PACKAGE_COMMIT: ${{ needs.package.outputs.commit }}
+          RU_PACKAGE_NAME: ${{ needs.package.outputs.name }}
+          RU_PACKAGE_SHA256: ${{ needs.package.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          node workflow-src/scripts/real-use-setup.mjs \
+            --ref-root ref-src \
+            --candidate-dir "$RUNNER_TEMP/candidate" \
+            --package-commit "$RU_PACKAGE_COMMIT" \
+            --package-name "$RU_PACKAGE_NAME" \
+            --package-sha256 "$RU_PACKAGE_SHA256" \
+            --agent-dir "$RUNNER_TEMP/agent" \
+            --traps-dir "$RUNNER_TEMP/ru-traps"
+      # Our own shell and launcher run with startup hooks cleared (the
+      # action.yml discipline): the planted traps are tripwires, so preloading
+      # one into this step's own Node would fire it before the run starts.
+      - name: RU
+        id: ru
+        env:
+          BASH_ENV: ''
+          ENV: ''
+          NODE_OPTIONS: ''
+          GITHUB_TOKEN: ${{ env.RU_SENTINEL }}
+          GH_TOKEN: ${{ env.RU_SENTINEL }}
+          MUSE_SPARK_MODEL_API_KEY: ${{ secrets.MUSE_MODEL_API_KEY }}
+          RU_STEPS_FILE: ${{ inputs.steps-file }}
+          RU_EXPECTED_CALLS: ${{ inputs.expected-calls }}
+          RU_MAX_BUDGET_USD: ${{ inputs.max-budget-usd }}
+          RU_AGENT_JS: ${{ steps.setup.outputs.agent-js }}
+          RU_REF_COMMIT: ${{ needs.package.outputs.commit }}
+          RU_PACKAGE_SHA256: ${{ steps.setup.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          node workflow-src/scripts/real-use-run.mjs \
+            --ref-root ref-src \
+            --steps-file "$RU_STEPS_FILE" \
+            --expected-calls "$RU_EXPECTED_CALLS" \
+            --max-budget-usd "$RU_MAX_BUDGET_USD" \
+            --agent-js "$RU_AGENT_JS" \
+            --work-dir "$RUNNER_TEMP/ru-work" \
+            --out-dir "$RUNNER_TEMP/ru-out" \
+            --ref-commit "$RU_REF_COMMIT" \
+            --package-sha256 "$RU_PACKAGE_SHA256"
+      - name: receipt summary
+        if: always() && steps.setup.outcome == 'success'
+        env:
+          RU_COMMIT: ${{ needs.package.outputs.commit }}
+          RU_PACKAGE_NAME: ${{ needs.package.outputs.name }}
+          RU_PACKAGE_SHA256: ${{ steps.setup.outputs.sha256 }}
+          RU_STEPS_FILE: ${{ inputs.steps-file }}
+          RU_EXPECTED_CALLS: ${{ inputs.expected-calls }}
+          RU_BUDGET: ${{ inputs.max-budget-usd }}
+          RU_OUTCOME: ${{ steps.ru.outcome }}
+        run: |
+          set -u
+          {
+            echo "### Real-use receipt"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| commit | \`$RU_COMMIT\` |"
+            echo "| package | \`$RU_PACKAGE_NAME\` (unsigned candidate) |"
+            echo "| package SHA-256 | \`$RU_PACKAGE_SHA256\` |"
+            echo "| steps file | \`$RU_STEPS_FILE\` |"
+            echo "| model, stated calls, cap | muse-spark-1.3-contributor, $RU_EXPECTED_CALLS, \$$RU_BUDGET |"
+            echo "| step outcome | $RU_OUTCOME |"
+            transcript="$RUNNER_TEMP/ru-out/transcript.json"
+            if [ -f "$transcript" ]; then
+              jq -r '"| actual calls, dollars | \(.actual.calls), \(.actual.costUsd) |",
+                (.steps[] | "| \(.id) | \(.verdict) | status \(.status // "none"), exit \(.exitCode // "none"), \(.requests // 0) requests, $\(.costUsd // "0") \(.reason) |")' "$transcript"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: check RU (every step PASS, within the stated calls and cap, no trap, sentinel or key shape in the outputs)
+        id: check
+        if: always() && steps.setup.outcome == 'success'
+        env:
+          RU_SENTINEL: ${{ env.RU_SENTINEL }}
+          RU_STEPS_FILE: ${{ inputs.steps-file }}
+          RU_EXPECTED_CALLS: ${{ inputs.expected-calls }}
+          RU_MAX_BUDGET_USD: ${{ inputs.max-budget-usd }}
+          RU_REF_COMMIT: ${{ needs.package.outputs.commit }}
+          RU_PACKAGE_SHA256: ${{ steps.setup.outputs.sha256 }}
+          RU_TRAPS: ${{ steps.setup.outputs.traps }}
+        run: |
+          set -euo pipefail
+          node workflow-src/scripts/real-use-check.mjs \
+            --run-dir "$RUNNER_TEMP/ru-out" \
+            --ref-root ref-src \
+            --steps-file "$RU_STEPS_FILE" \
+            --expected-calls "$RU_EXPECTED_CALLS" \
+            --max-budget-usd "$RU_MAX_BUDGET_USD" \
+            --ref-commit "$RU_REF_COMMIT" \
+            --package-sha256 "$RU_PACKAGE_SHA256" \
+            --traps-dir "$RU_TRAPS"
+      # A rejected run publishes nothing: the transcript goes up only after
+      # the check step held it (no trap fired, no key-shaped or sentinel
+      # string in any published file).
+      - name: upload the transcript
+        if: steps.check.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: real-use-transcript
+          path: ${{ runner.temp }}/ru-out
+          if-no-files-found: error
+          retention-days: 30

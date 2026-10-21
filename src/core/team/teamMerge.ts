@@ -35,6 +35,9 @@ import { isTeamGitError, isSameTeamPath, teamProgramFreeGit, type TeamGit } from
 
 import path from 'node:path'
 
+/** A failure that wrote nothing has nothing to undo. */
+const NO_UNDO: TeamMergeUndo = { files: [] }
+
 /** A merge failure: the stable code travels with the error. */
 export class TeamMergeError extends Error {
   public constructor(
@@ -49,13 +52,14 @@ export class TeamMergeError extends Error {
       | 'mergeFailed',
     message: string,
     public readonly files: readonly string[] = [],
-    public readonly undo: TeamMergeUndo = { files: [] },
+    public readonly undo: TeamMergeUndo = NO_UNDO,
     public readonly rollback?: {
       readonly restored: readonly string[]
       readonly refused: readonly string[]
     },
+    options?: { cause?: unknown },
   ) {
-    super(message)
+    super(message, options)
     this.name = 'TeamMergeError'
   }
 }
@@ -178,11 +182,11 @@ function hasNul(bytes: Uint8Array): boolean {
 }
 
 /**
- * Raw `--raw -z` records: `:oldmode newmode oldsha newsha STATUS`, NUL,
- * path, NUL. `--no-renames` is always passed, so every record is one header
- * and one path: anything else (a rename, a copy, a second path) is refused
- * rather than guessed.
- */
+Raw `--raw -z` records: `:oldmode newmode oldsha newsha STATUS`, NUL,
+path, NUL. `--no-renames` is always passed, so every record is one header
+and one path: anything else (a rename, a copy, a second path) is refused
+rather than guessed.
+*/
 function parseRawDiff(output: Uint8Array): readonly RawChange[] {
   const text = LOSSY_DECODER.decode(output)
   const tokens = text.split('\0').filter((token) => token !== '')
@@ -244,8 +248,16 @@ async function confinedRelative(
   let realRoot: string
   try {
     realRoot = await io.realPath(root)
-  } catch {
-    throw new TeamMergeError('linkEscape', `The team merge cannot resolve its root ${file}`, [file])
+  } catch (error) {
+    // The root cannot be resolved; the resolving failure stays as the cause.
+    throw new TeamMergeError(
+      'linkEscape',
+      `The team merge cannot resolve its root ${file}`,
+      [file],
+      undefined,
+      undefined,
+      { cause: error },
+    )
   }
   if (!isSameTeamPath(root, realRoot, platform)) {
     throw new TeamMergeError('linkEscape', `The team merge has a linked root ${file}`, [file])
@@ -349,11 +361,11 @@ function areBytesEqual(left: Uint8Array | undefined, right: Uint8Array | undefin
 }
 
 /**
- * What the merge would do, without writing: the files, which are binary,
- * which need the protected-path approval, and which fall outside
- * `write-paths`. Throws for unsafe paths, link escapes and ref breaches.
- * @unwired M96 team merge planner
- */
+What the merge would do, without writing: the files, which are binary,
+which need the protected-path approval, and which fall outside
+`write-paths`. Throws for unsafe paths, link escapes and ref breaches.
+@unwired M96 team merge planner
+*/
 export async function planTeamMerge(
   io: TeamMergeIo,
   spec: TeamMergeSpec,
@@ -433,13 +445,13 @@ async function prepareTeamMerge(
 }
 
 /**
- * The merge itself. Re-derives the plan (a preview can go stale while the
- * card asks), then: `write-paths` violations refuse the whole merge; a ref
- * breach refuses it; protected paths refuse it unless `allowProtected`;
- * then derives every file through `git merge-file`. Conflicts go to the
- * task copy under rework; no result lands in the user tree until clean.
- * @unwired M96 team merge applier
- */
+The merge itself. Re-derives the plan (a preview can go stale while the
+card asks), then: `write-paths` violations refuse the whole merge; a ref
+breach refuses it; protected paths refuse it unless `allowProtected`;
+then derives every file through `git merge-file`. Conflicts go to the
+task copy under rework; no result lands in the user tree until clean.
+@unwired M96 team merge applier
+*/
 export async function applyTeamMerge(
   io: TeamMergeIo,
   spec: TeamMergeSpec,
@@ -563,12 +575,15 @@ export async function applyTeamMerge(
   } catch (error: unknown) {
     const undo = { files: landed }
     const rollback = await undoTeamMerge(landingRoot, undo)
+    // The merge failure reaches the caller with its code, words and files;
+    // the failure itself stays as the cause.
     throw new TeamMergeError(
       isTeamMergeError(error) ? error.code : 'mergeFailed',
       error instanceof Error ? error.message : 'The team merge failed',
       isTeamMergeError(error) ? error.files : [],
       undo,
       rollback,
+      { cause: error },
     )
   }
   return {
@@ -702,10 +717,17 @@ async function linkOf(absolute: string): Promise<Stats | undefined> {
   try {
     return await lstat(absolute)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
-      return undefined
+    // A missing path is not a link; anything else is not the absence and
+    // reaches the caller.
+    if (!(
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    )) {
+      throw error
     }
-    throw error
+    return undefined
   }
 }
 
@@ -719,18 +741,18 @@ async function readWorktreeFile(root: string, relative: string): Promise<Uint8Ar
   try {
     return await readFile(absolute)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
-      return undefined
+    // A missing file reads absent; anything else is not the absence and
+    // reaches the caller.
+    if (!(
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    )) {
+      throw error
     }
-    throw error
+    return undefined
   }
-}
-
-/** An errno-style code, if the failure carries one. */
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
 }
 
 async function mergeOneFile(
@@ -840,11 +862,11 @@ async function mergeOneFile(
 }
 
 /**
- * Undo merge (M86's rule): restore each touched file to its bytes before
- * the merge, but only while the file still holds exactly what the merge
- * wrote. A file the user has since edited is refused and named; the rest
- * still restore.
- */
+Undo merge (M86's rule): restore each touched file to its bytes before
+the merge, but only while the file still holds exactly what the merge
+wrote. A file the user has since edited is refused and named; the rest
+still restore.
+*/
 export async function undoTeamMerge(
   repositoryRoot: string,
   undo: TeamMergeUndo,

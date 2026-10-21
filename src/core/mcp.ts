@@ -7,6 +7,7 @@
 // socket and the tool implementations.
 
 import * as z from 'zod/mini'
+import type { UnattendedRun } from './schedules/unattended'
 import {
   JSON_RPC_ERRORS,
   MCP_CANCELLED_NOTIFICATION,
@@ -21,11 +22,17 @@ export interface McpTool {
   /** MCP's behaviour hints (`readOnlyHint`, `openWorldHint`, …), listed when present (M69). */
   readonly annotations?: Readonly<Record<string, unknown>>
   /**
-   * The tool's text result; throw to report a tool error. `signal` aborts
-   * when the caller stops waiting for it (M69: its request closed, or
-   * `notifications/cancelled` named it).
-   */
+  The tool's text result; throw to report a tool error. `signal` aborts
+  when the caller stops waiting for it (M69: its request closed, or
+  `notifications/cancelled` named it).
+  */
   readonly call: (args: Readonly<Record<string, unknown>>, signal: AbortSignal) => Promise<string>
+  /** Explicit prompt-free executor with policy at every file read/result. */
+  readonly callUnattended?: (
+    args: Readonly<Record<string, unknown>>,
+    signal: AbortSignal,
+    run: UnattendedRun,
+  ) => Promise<string>
 }
 
 export interface McpServerInfo {
@@ -97,11 +104,11 @@ function keyOf(id: string | number): McpRequestKey {
 }
 
 /**
- * What a body means for requests in flight (M69): the key of the request it
- * makes, if any, and the key of a request `notifications/cancelled` names
- * (the shape Muse Code 1.4.0 sent when a turn was stopped mid-call:
- * `{"method":"notifications/cancelled","params":{"requestId":3,"reason":…}}`).
- */
+What a body means for requests in flight (M69): the key of the request it
+makes, if any, and the key of a request `notifications/cancelled` names
+(the shape Muse Code 1.4.0 sent when a turn was stopped mid-call:
+`{"method":"notifications/cancelled","params":{"requestId":3,"reason":…}}`).
+*/
 export function mcpRequestKeys(raw: string): {
   readonly request: McpRequestKey | undefined
   readonly cancelled: McpRequestKey | undefined
@@ -109,8 +116,12 @@ export function mcpRequestKeys(raw: string): {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
-  } catch {
-    return { request: undefined, cancelled: undefined }
+  } catch (error: unknown) {
+    // Only malformed JSON has no keys: anything else keeps its kind past the parse.
+    if (error instanceof SyntaxError) {
+      return { request: undefined, cancelled: undefined }
+    }
+    throw error
   }
   const message = messageSchema.safeParse(parsed)
   const cancelled = cancelledSchema.safeParse(parsed)
@@ -125,11 +136,11 @@ export function mcpRequestKeys(raw: string): {
 const NEVER_ABORTED = new AbortController().signal
 
 /**
- * Handles one raw request body. A notification (no `id`) is accepted without
- * a body; anything else gets a JSON-RPC response, including parse errors.
- * `signal` reaches a tool the body calls, aborting when its caller stops
- * waiting.
- */
+Handles one raw request body. A notification (no `id`) is accepted without
+a body; anything else gets a JSON-RPC response, including parse errors.
+`signal` reaches a tool the body calls, aborting when its caller stops
+waiting.
+*/
 export async function handleMcpMessage(
   raw: string,
   tools: readonly McpTool[],
@@ -139,8 +150,12 @@ export async function handleMcpMessage(
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
-  } catch {
-    return errorResponse(null, JSON_RPC_ERRORS.parseError, 'Parse error')
+  } catch (error: unknown) {
+    // Only malformed JSON is a parse error: anything else keeps its kind past the parse.
+    if (error instanceof SyntaxError) {
+      return errorResponse(null, JSON_RPC_ERRORS.parseError, 'Parse error')
+    }
+    throw error
   }
   const result = messageSchema.safeParse(parsed)
   if (!result.success) {

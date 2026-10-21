@@ -93,10 +93,6 @@ export const PROHIBITED_UPDATE = /^(?:agent_(?:message|thought)_chunk|tool)/
 export const RAW_TOOL_FIELDS = Object.freeze(['rawInput', 'rawOutput', 'toolCallId'])
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const USD_DECIMALS = 6
-const MAX_BUDGET_USD = '20'
-const MAX_REQUESTS = 500
-const MIN_TIMEOUT_SECONDS = 10
-const MAX_TIMEOUT_SECONDS = 21_600
 const HTTP_MIN = 100
 const HTTP_MAX = 599
 const PRIVATE_FILE = 0o600
@@ -106,6 +102,11 @@ export function exitCodeFor(status, signal) {
   if (status === 'cancelled')
     return signal === 'SIGINT' ? SIGNAL_CODES.SIGINT : SIGNAL_CODES.SIGTERM
   return EXIT_CODES[status]
+}
+
+/** Whether `value` names an exec result status (SPEC §2.1). */
+export function isExecStatus(value) {
+  return typeof value === 'string' && STATUSES.has(value)
 }
 
 function isObject(value, keys, optional = []) {
@@ -122,14 +123,12 @@ const isCounter = (value) => Number.isSafeInteger(value) && value >= 0
 const isNullableCounter = (value) => value === null || isCounter(value)
 const isNullableText = (value) => value === null || typeof value === 'string'
 
-/** Canonical decimal USD; fixed micro-units are bigint throughout validation. */
+/** Canonical decimal USD; a person's amount is honored as given: exact bigint micro-units with no upper bound. */
 export function microUsd(value) {
   if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/.test(value)) return
   const [whole, fraction = ''] = value.split('.', 2)
   if (fraction.length > USD_DECIMALS) return
-  const units =
-    BigInt(whole) * 10n ** BigInt(USD_DECIMALS) + BigInt(fraction.padEnd(USD_DECIMALS, '0'))
-  return units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
+  return BigInt(whole) * 10n ** BigInt(USD_DECIMALS) + BigInt(fraction.padEnd(USD_DECIMALS, '0'))
 }
 const isAmount = (value) => microUsd(value) !== undefined
 function isSumEqual(total, values) {
@@ -217,16 +216,23 @@ function isLastResponse(value) {
     isNullableText(value.transportError) &&
     ['valid', 'missing', 'invalid'].includes(value.usage) &&
     (isPriced || value.settlement === 'full-reservation') &&
+    // A billed response need not have completed: with valid usage a
+    // terminal `incomplete` or `failed` response settles as priced (mirror
+    // of execProtocol's last-response invariant).
+    // A billed response need not have completed: with valid usage a
+    // terminal `incomplete` or `failed` response settles as priced (mirror
+    // of execProtocol's last-response invariant).
     (!isPriced ||
-      (value.terminal === 'completed' &&
-        value.usage === 'valid' &&
+      (value.usage === 'valid' &&
         !value.endedWithoutTerminal &&
-        value.transportError === null))
+        value.transportError === null &&
+        value.terminal !== null &&
+        value.terminal !== 'in_progress' &&
+        value.terminal !== 'queued'))
   )
 }
 
-const isCap = (value) =>
-  isAmount(value) && microUsd(value) > 0n && microUsd(value) <= microUsd(MAX_BUDGET_USD)
+const isCap = (value) => isAmount(value) && microUsd(value) > 0n
 
 function isLedger(value) {
   return (
@@ -243,13 +249,10 @@ function isLimits(value) {
   return (
     isObject(value, ['budgetUsd', 'maxRequests', 'timeoutSeconds']) &&
     (value.budgetUsd === null || isCap(value.budgetUsd)) &&
-    (value.maxRequests === null ||
-      (isCounter(value.maxRequests) &&
-        value.maxRequests >= 1 &&
-        value.maxRequests <= MAX_REQUESTS)) &&
-    isCounter(value.timeoutSeconds) &&
-    value.timeoutSeconds >= MIN_TIMEOUT_SECONDS &&
-    value.timeoutSeconds <= MAX_TIMEOUT_SECONDS
+    (value.maxRequests === null || (isCounter(value.maxRequests) && value.maxRequests >= 1)) &&
+    // Null without --timeout; a set deadline is any positive duration.
+    (value.timeoutSeconds === null ||
+      (isCounter(value.timeoutSeconds) && value.timeoutSeconds >= 1))
   )
 }
 
@@ -331,12 +334,13 @@ function isBackendAccountingValid(value) {
       Object.entries(usage.paid).every(([key, total]) => total === (key.endsWith('Usd') ? '0' : 0))
     )
   }
+  // The request cap is the person's to set: without `max-requests` there is
+  // no limit, so a completed run may carry a null one.
   if (
     ledger === null ||
     usage.costUsd === null ||
     usage.requests === null ||
-    limits.budgetUsd === null ||
-    limits.maxRequests === null
+    limits.budgetUsd === null
   ) {
     return value.status !== 'completed'
   }
@@ -599,11 +603,11 @@ export function isExecResult(value) {
 }
 
 /**
- * The single result in exec's JSONL text, or undefined when any line is not a
- * valid v2 event with the next sequence number, the text is cut mid-line,
- * there is no result, more than one, a line after it, or the result is
- * invalid.
- */
+The single result in exec's JSONL text, or undefined when any line is not a
+valid v2 event with the next sequence number, the text is cut mid-line,
+there is no result, more than one, a line after it, or the result is
+invalid.
+*/
 export function parseEventsText(text) {
   if (text === '' || !text.endsWith('\n')) return
   const lines = text.slice(0, -1).split('\n')
@@ -625,11 +629,11 @@ export function parseEventsText(text) {
 }
 
 /**
- * Extracts and publishes the result under the owner (SPEC §6.5, G21): the
- * valid result whose exit code equals `execCode`, staged privately and
- * renamed into out/result.json with the events beside it. Anything else is
- * null: no result path, and the patch is withheld as no_result.
- */
+Extracts and publishes the result under the owner (SPEC §6.5, G21): the
+valid result whose exit code equals `execCode`, staged privately and
+renamed into out/result.json with the events beside it. Anything else is
+null: no result path, and the patch is withheld as no_result.
+*/
 export async function extractResult({ owner, paths, execCode }) {
   return await owner.phase('extract', ACTION_EXTRACT_MS, async (signal) => {
     let bytes

@@ -144,8 +144,11 @@ export function createReference(table: UiText, locale: string) {
         if (Object.keys(values).length > 0)
           values['museSpark.environmentVariables'] = UI_TEXT.referenceHidden
         host.post({ type: 'referenceValues', model: JSON.stringify(REFERENCE), values, nls })
-      } catch {
-        host.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
+      } catch (error) {
+        // The host already answers a rejected read with the error marker and
+        // its own record, so this boundary carries the cause instead of
+        // posting a second marker.
+        throw error instanceof Error ? error : new Error(UI_TEXT.actionFailed, { cause: error })
       }
     },
   }

@@ -39,8 +39,8 @@ export interface HistoryDialogProps {
   readonly onSavePrompt?: (sessionId: string) => void
   readonly onResume: (sessionId: string) => void
   readonly onSetArchived: (sessionId: string, isArchived: boolean) => void
-  /** Muse Code only. The host confirms deletion and waits for its terminal notification. */
-  readonly onDelete?: (sessionId: string) => void
+  /** Set where the host can delete: the host confirms, naming the conversation, then removes it. */
+  readonly onDelete?: ((sessionId: string) => void) | undefined
   readonly onClose: () => void
 }
 

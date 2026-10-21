@@ -1,7 +1,10 @@
 import { spawnResourceProcess } from '../../resources/launcher'
-import { type Socket } from 'node:net'
+import { Socket } from 'node:net'
+import { type Duplex } from 'node:stream'
+import { probeChildEnvironment } from '../../executables'
 import * as z from 'zod/mini'
-import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
+import { VAULT_TRANSPORT_TIMEOUT_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
+import { windowsVaultPipeClientSchema } from './windowsPipe'
 
 const nativePeerSchema = z.strictObject({
   v: z.literal(1),
@@ -15,7 +18,6 @@ const processSchema = z.strictObject({
   startedAt: z.number().check(z.int(), z.nonnegative()),
   executable: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
 })
-const pipeSchema = z.extend(processSchema, { remote: z.boolean(), ownerOnlyDacl: z.boolean() })
 export interface VaultProcessIdentity {
   processId: number
   userId: string
@@ -24,26 +26,45 @@ export interface VaultProcessIdentity {
 }
 export interface VaultPeerVerifier {
   /** OS credentials and pinned process start/image identity; never a claimed token or pid. */
-  verify(socket: Socket): Promise<VaultProcessIdentity>
+  verify(socket: Duplex): Promise<VaultProcessIdentity>
+}
+/**
+The Windows client's pipe dialer (lane C-M109-1c): a raw pipe socket
+carries no inspectable server end, so the client platform verifies the
+pipe's owner through its files-mode helper before connecting.
+*/
+export interface VaultPipeDialPort {
+  /** The pipe's trusted server identity, or a refusal. Never a raw answer. */
+  verifyPipe(pipe: string): Promise<VaultProcessIdentity>
+  /** Connect this user's pipe; the hello still binds the broker. */
+  connectPipe(pipe: string): Socket
 }
 /** Compile peer.c as a trusted shipped helper in W. fd 3 is the accepted OS socket. */
 export interface VaultSocketDescriptorPort {
   /** Native listener adapter's descriptor of this exact connected socket. Never a frame field. */
   descriptor(socket: Socket): number
 }
-/** @unwired M109 Unix vault peer verifier */
+/** Unix vault peer verifier, built by the POSIX client platform and the broker entry. */
 export class UnixVaultPeerVerifier implements VaultPeerVerifier {
   constructor(
     private readonly executable: string,
     private readonly processIdentity: (pid: number) => Promise<VaultProcessIdentity>,
     private readonly descriptors: VaultSocketDescriptorPort,
   ) {}
-  async verify(socket: Socket): Promise<VaultProcessIdentity> {
+  async verify(stream: Duplex): Promise<VaultProcessIdentity> {
+    // Only a kernel socket has peer credentials; a relayed stream never passes here.
+    if (!(stream instanceof Socket)) throw new TypeError(UI_TEXT.vault.noAccess)
+    const socket = stream
+    // The peer verifier binary runs with an empty environment: absolute
+    // entries only, links followed.
+    // A read-only probe: the helper reads the peer credentials from the
+    // passed descriptor and exits, writing and holding nothing, so it owns
+    // no temp root — admission and containment, like every probe.
     const { child, stop } = await spawnResourceProcess(
-      'contained',
+      'probe',
       this.executable,
       [],
-      { env: {} },
+      { env: probeChildEnvironment({}) },
       [z.number().check(z.int(), z.positive()).parse(this.descriptors.descriptor(socket))],
     )
     child.stdin.end()
@@ -53,14 +74,16 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
       let size = 0
       const timer = setTimeout(() => {
         void stop().catch(() => {
+          // The verify already rejects below; a failing stop keeps no cause.
           reject(new Error(UI_TEXT.vault.noAccess))
         })
         reject(new Error(UI_TEXT.vault.noAccess))
-      }, VAULT_APPROVAL_TTL_MS)
+      }, VAULT_TRANSPORT_TIMEOUT_MS)
       child.stdout.on('data', (bytes: Buffer) => {
         size += bytes.byteLength
         if (size > VAULT_LIMITS.text) {
           void stop().catch(() => {
+            // The verify already rejects below; a failing stop keeps no cause.
             reject(new Error(UI_TEXT.vault.noAccess))
           })
           reject(new Error(UI_TEXT.vault.noAccess))
@@ -72,24 +95,31 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
       })
       let code: number | null | undefined
       let hasEnded = false
-      const finish = (): void => {
-        if (code === undefined || !hasEnded) return
+      const finish = (): Error | undefined => {
+        if (code === undefined || !hasEnded) return undefined
         clearTimeout(timer)
         try {
           if (code !== 0) throw new Error(UI_TEXT.vault.noAccess)
           resolve(nativePeerSchema.parse(JSON.parse(Buffer.concat(chunks).toString('utf8'))))
+          return undefined
         } catch (error: unknown) {
-          reject(error instanceof Error ? error : new Error(UI_TEXT.vault.noAccess))
+          // The verify fails with the fixed denial for a foreign value; a
+          // peer failure keeps itself for the rejection below.
+          return error instanceof Error
+            ? error
+            : new Error(UI_TEXT.vault.noAccess, { cause: error })
         }
       }
       // close also waits for the inherited live socket: wait for exit + stdout end instead.
       child.once('exit', (result) => {
         code = result
-        finish()
+        const failure = finish()
+        if (failure !== undefined) reject(failure)
       })
       child.stdout.once('end', () => {
         hasEnded = true
-        finish()
+        const failure = finish()
+        if (failure !== undefined) reject(failure)
       })
     })
     if (result.uid !== globalThis.process.getuid?.()) throw new Error(UI_TEXT.vault.noAccess)
@@ -99,22 +129,32 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     return identity
   }
 }
-/** P/W bind GetNamedPipeClientProcessId + the client's SID, start time and image. */
+/**
+The Windows pipe helper's relay (docs/design/vault-windows-pipe-helper.md)
+reports GetNamedPipeClientProcessId + the client's SID, start time and image
+with each accepted connection; inspect returns exactly that record.
+*/
 export interface WindowsVaultPipePort {
   inspect(
-    socket: Socket,
+    socket: Duplex,
   ): Promise<VaultProcessIdentity & { remote: boolean; ownerOnlyDacl: boolean }>
 }
-/** @unwired M109 Windows vault peer verifier */
+/** The Windows vault peer: the pipe helper's own client record, owner-only and local. */
 export class WindowsVaultPeerVerifier implements VaultPeerVerifier {
   constructor(
     private readonly port: WindowsVaultPipePort,
     private readonly ownerSid: string,
   ) {}
-  async verify(socket: Socket): Promise<VaultProcessIdentity> {
-    const identity = pipeSchema.parse(await this.port.inspect(socket))
-    if (identity.remote || !identity.ownerOnlyDacl || identity.userId !== this.ownerSid)
+  async verify(socket: Duplex): Promise<VaultProcessIdentity> {
+    // The helper's own client record, versioned as the relay sends it.
+    const client = windowsVaultPipeClientSchema.parse(await this.port.inspect(socket))
+    if (client.remote || !client.ownerOnlyDacl || client.userId !== this.ownerSid)
       throw new Error(UI_TEXT.vault.noAccess)
-    return identity
+    return {
+      processId: client.processId,
+      userId: client.userId,
+      startedAt: client.startedAt,
+      executable: client.executable,
+    }
   }
 }

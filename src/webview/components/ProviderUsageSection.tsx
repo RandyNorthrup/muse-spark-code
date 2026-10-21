@@ -5,9 +5,9 @@ import { formatUsd } from '../../core/usage/insights'
 import { FactRows } from './FactRows'
 
 /**
- * How a provider row's cost reads: settled dollars, `unpriced`, `local`,
- * `plan`, or nothing yet for a priced model the host has not settled (M95).
- */
+How a provider row's cost reads: settled dollars, `unpriced`, `local`,
+`plan`, or nothing yet for a priced model the host has not settled (M95).
+*/
 function providerCost(row: ProviderUsageRow): string | undefined {
   if (row.pricing === 'plan') return UI_TEXT.modelPlan
   if (row.costUsd !== undefined) {
@@ -28,11 +28,11 @@ function providerCost(row: ProviderUsageRow): string | undefined {
 }
 
 /**
- * This window's tallies per BYO provider (M95): tokens with their settled
- * cost, and an account-connected key's own usage, limit and remainder where
- * the provider reports them (today only OpenRouter's `/key`, in USD). Each
- * metric is its own row, so no language's word order is assumed.
- */
+This window's tallies per BYO provider (M95): tokens with their settled
+cost, and an account-connected key's own usage, limit and remainder where
+the provider reports them (today only OpenRouter's `/key`, in USD). Each
+metric is its own row, so no language's word order is assumed.
+*/
 export function ProviderUsageSection({
   providers,
 }: {
@@ -44,11 +44,13 @@ export function ProviderUsageSection({
       <dl className="usage-facts">
         {providers.map((row) => {
           const cost = providerCost(row)
+          const unlimited = row.keyUsage?.unlimited === true ? UI_TEXT.usageUnlimited : undefined
           const tokens = `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
           return (
             <div key={row.providerId}>
               <dt>{row.providerLabel}</dt>
               <dd>{cost === undefined ? tokens : `${tokens} · ${cost}`}</dd>
+              {row.keyUsageError === undefined ? null : <dd role="status">{row.keyUsageError}</dd>}
               {row.keyUsage === undefined ? null : (
                 <>
                   <dt>{UI_TEXT.usageKeyUsage}</dt>
@@ -56,12 +58,24 @@ export function ProviderUsageSection({
                     <dl className="usage-facts">
                       <FactRows
                         rows={[
+                          [
+                            UI_TEXT.usageKeyTotal,
+                            row.keyUsage.totalUsd === undefined
+                              ? undefined
+                              : formatUsd(row.keyUsage.totalUsd),
+                          ],
                           [UI_TEXT.usageToday, formatUsd(row.keyUsage.todayUsd)],
+                          [
+                            UI_TEXT.usageWeekly,
+                            row.keyUsage.weekUsd === undefined
+                              ? undefined
+                              : formatUsd(row.keyUsage.weekUsd),
+                          ],
                           [UI_TEXT.usageThisMonth, formatUsd(row.keyUsage.monthUsd)],
                           [
                             UI_TEXT.usageLimit,
                             row.keyUsage.limitUsd === undefined
-                              ? undefined
+                              ? unlimited
                               : formatUsd(row.keyUsage.limitUsd),
                           ],
                           [

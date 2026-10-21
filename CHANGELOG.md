@@ -5,272 +5,870 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
-## [Unreleased]
+## [0.19.0] - 2026-10-21
+
+### Highlights
+
+- **Provider refusals read as the provider's refusal.** A wrong key reads as
+  a rejected key and an unknown model as no such model at every recorded
+  provider; a quota or spend-cap refusal is never retried while a bare rate
+  limit still is; a session-budget stop ends the turn with its own sentence
+  instead of "Models & Agents is not available in this build"; and
+  `providers add` and `providers test` name a failed connection's network
+  codes and say whether the request arrived is unknown.
+- **The conversation keeps the model you chose.** After a restart the next
+  message goes out on the model shown, the panel shows the model each
+  request really used, and a message that would run on another model is not
+  sent.
+- **The chat no longer takes the keyboard from a file you just opened.**
+  A panel that finishes loading never pulls the focus in, and a question
+  that arrives while you are elsewhere waits with its badge.
+- **Muse Voice stays silent with its reason past an unrouted proxy.** On
+  VS Code 1.101 to 1.111 with `http.proxy` set, the microphone stays
+  unavailable with the reason instead of recording audio that cannot be
+  sent.
+- **The Linux sandbox says why it cannot start.** While sandboxed on Linux,
+  each host start probes whether the bubblewrap sandbox can create a user
+  namespace here and says so once on every surface, naming the two ways
+  out, without ever switching the sandbox off on its own.
+
+### Added
+
+- **GitHub sign-in from three sources, and the GitHub card in the panel.**
+  Every GitHub call takes its sign-in from, in order: your editor's own
+  GitHub sign-in; Muse Spark's own sign-in with GitHub's device flow; and
+  your `gh` login, only after you turn on the new machine-scoped
+  `museSpark.github.useGhLogin` setting (off by default). Where the editor
+  has no GitHub sign-in of its own, **Sign In to GitHub** starts the device
+  flow. A card above the composer shows the code with copy, open and cancel
+  actions, then names the account and the sign-in in use, with sign-out for
+  Muse Spark's own. A token GitHub refuses is dropped, and you sign in
+  again.
+- **In a terminal: `muse-spark-code-acp auth github login | logout |
+status`.** `login` prints the code and GitHub's address and keeps the
+  token in this computer's credential store, renewing it before it expires;
+  `status` says whether one is stored, never the token; `logout` deletes it
+  and prints the app's page on GitHub. Signing out in one window also ends
+  sign-ins still running in others.
+- **Git and pull requests without VS Code's Git extension.** An editor built
+  on VS Code that does not ship it now gets commit, push, pull requests and
+  Write with Muse through your own `git`: the same forms and confirmations,
+  the same refusals (never a force-push), the push confirmation naming every
+  URL Git will push to. Creating a pull request signs in first, pushes the
+  branch after its confirmation, then asks once more with what goes out
+  before opening it.
+- In an ACP editor, `/whatsnew` reads this version's release highlights and
+  full notes as text, answered locally with no model turn.
+- **MCP connector for other agents, local phase (in progress).**
+  `muse-spark-code-acp mcp` serves Muse Spark Code's tools over MCP on
+  stdio to other coding agents on the same machine. Built so far: saved
+  prompt list, read, fill and share preview; schedule list and pause;
+  deterministic reports; operation status and Stop; and saving a new prompt,
+  which waits for your approval on Muse Spark Code's own approval page and
+  cannot be approved by the other agent. Fleet status, agent outcomes,
+  estimates, new or edited schedules and share publishing answer
+  `unavailable`, with their reason. No client has been qualified yet.
+- **Evaluated automatic compaction.** Automatic compaction is on by default
+  on the Model API backend after two passing counted evaluation runs (one
+  setting turns it off), and it is published in Help, the ACP/CLI usage and
+  the generated reference; its first charge still asks once in the paid-use
+  popup naming the price and daily budget. Every automatic attempt reserves
+  its projected cost from the daily ledger before dispatch, rechecks the
+  claim at send, and settles once per attempt at its exact cost; a refused
+  or missing ledger sends nothing. <!-- try: setting museSpark.modelApiAutoCompaction -->
+- Each provider's own retry limit, nothing global. The single default is
+  replaced by the documented values (Anthropic 2, OpenAI 2, Gemini 4, Azure
+  10, xAI 4, Meta 4), and a provider that documents no maximum retries until
+  its own wait or stop answer ends the exchange. The new machine-scoped
+  `museSpark.modelApiMaxRetries` setting caps every provider's retries when
+  set (`0` never retries); unset, the providers' documented maxima govern.
+- JSON headless runs report request starts, token totals and cost on stderr
+  while stdout remains one JSON result.
+- Headless Model API runs accept `--max-output-tokens <n>` as an optional
+  lowering limit: absent is the model's policy cap, present never exceeds it.
+  The limit is carried into the request and its reservation, so a small
+  budget can size a run down.
+- Claude Haiku 5.5 is listed with an unknown price pending a documented
+  receipt.
+- The Muse Code backend tracks the latest CLI and SDK (1.4.10): new
+  session-protocol notifications (model retries, Auto-review holds, plugin
+  changes, declined retracts, branch and view-health moves, foreground
+  completions) now reach the conversation. Three machine settings carry no
+  limit of ours: `museSpark.hooksMaxStopContinuations`,
+  `museSpark.hooksMaxRunningCommands` and `museSpark.subagentMaxConcurrent`
+  are each `0` (unlimited) unless you set one, and a set value stays within
+  Muse Code's own ranges.
+- In Manual (and Edit automatically) on the Muse Code backend, Muse now asks
+  before running each command, as the Modes menu promises, instead of letting
+  an automatic judge allow commands with no approval reaching you. Requires
+  Muse Code 1.4.7 or later; older hosts keep their previous behaviour. A
+  refused mode change keeps the running mode and names it, and a torn change
+  refuses new turns until the mode is set again. The translated settings
+  tables say the same in every language.
+- The Muse Code backend honours your contributor mode: while your own Muse
+  Code settings enable it, `serve` starts with `--contributor-mode` on, and
+  the model picker, `exec --model`, ACP and the panel offer each served
+  model's `-contributor` counterpart by name. Nothing turns it on by
+  default, and someone not entitled hears the provider's own refusal.
+- Local models accept a validated manual context window in the provider
+  wizard, quick pick, Models table, ACP configuration and `providers add
+--context-window`. Manual limits survive rescans and edits, and size both
+  manual and automatic compaction. Custom servers accept validated
+  compatibility overrides.
+- **llama.cpp server and LM Studio presets in the Models panel.** Both are
+  listed once their own live wire captures landed: reply, one and parallel
+  tool calls, streamed reasoning, usage placement, context-overflow and error
+  frames, and which tool-choice and output-cap forms each takes. Errors from
+  both still read as the server's words. The Custom server is listed again
+  alongside them; presets without a capture (vLLM, Ollama) stay out until
+  theirs land, and a saved model with no known window refuses before anything
+  is sent — enter one by hand. Loopback scans no longer go through your
+  proxy.
+- OpenRouter account connection now completes browser authorization without
+  copying a key in local editor windows. Remote windows and ACP terminal
+  authentication accept the single-use code; the returned key stays in the
+  system credential store. New setups retain no-data-retention routing.
+- Models & Agents and Account & usage show OpenRouter's key usage, limit and
+  remaining balance. Terminal connection and usage share those paths, with no
+  credentials in UI state or output.
+- `/playback`: ask the agent to state its own understanding of the goal and
+  instructions, from its working memory only, with no tools for the turn, so
+  you can compare it with what you asked and correct it in the next message.
+  On the Model API backend it runs on the panel, the terminal and ACP
+  editors, in all fourteen languages; on the Muse Code backend it is
+  refused, since Muse Code offers no turn without tools.
+- Linux free dictation recognizes English offline with a prebuilt CPU-only
+  helper. First use asks once before the helper and model downloads; every
+  helper file is verified before it ever runs, refuses loudly on mismatch,
+  and is removed with the model when the setting is off. The helper ships as
+  same-tag release assets instead of inside the package. The feature stays
+  off until review passes and hosted receipts land.
+- History can delete a conversation for good on the Model API backend: a
+  Delete action on each row asks for confirmation naming the conversation,
+  then removes it from the session store and the list. The same deletion is
+  offered to editors through ACP `session/delete`. On the Muse Code backend
+  no Delete is offered: its CLI serves no session delete, so there is nothing
+  that could remove the session.
+- **Reports cover more ground without a model call.** `/report accounts`
+  and `/report security` read the provider registry, thresholds, developer
+  audit and vault aggregates (never a value); `/report estimate` runs the
+  estimator for a goal with deadline and fleet and reports P50 and P90, the
+  critical path and the limiting resource; `/report playbook` and `/report
+schedules` read the orchestrator journal, upcoming and recent fires,
+  outcomes and cost; `/report session` and `/report usage` read the current
+  or a stored conversation with matching Account & usage totals;
+  `/report keybindings` lists every installed editor binding; and the store,
+  workflow, release and npm channels report from captured registry shapes. In
+  VS Code, ACP and the terminal alike.
+- `/estimate` goals now resolve from your workspace plan with its git
+  evidence — lane hours, dependencies, rigs, file affinities, the delivery
+  order and releases — instead of refusing. `estimate --check-plan` lists
+  every plan problem, one per line, printing nothing when the plan is clean.
+  Dependency cells keep a strict grammar and anything else refuses instead of
+  inventing or dropping dependencies; estimates refuse loudly naming the
+  problem instead of accepting or inventing data.
+- **Headless runs on GitLab CI, Azure Pipelines, Jenkins and Bitbucket
+  Pipelines.** One thin template per system runs the GitHub Action's own
+  launcher, which the agent package now carries. Each template checks the
+  pinned tarball before anything of it runs; the key comes from the system's
+  secret store and reaches the agent over standard input only. Nothing
+  comments or pushes. No vendor run has been simulated and no live run has
+  certified them yet.
+- Tool results are bounded before they reach the model: one choke point cuts
+  an oversized result, a cut keeps the full text in spill files for paging
+  and tells the model and you what was cut and how to read more, and a
+  provider "prompt is too long" refusal trims the largest results, compacts
+  once when available, then ends the turn with what to do next. No byte
+  guard of ours applies unless you set one:
+  `museSpark.modelApiMaxToolOutputBytes` is `0` (results stay whole within
+  the model's window) by default; `exec --max-tool-output-bytes` sets it for
+  one headless run. One
+  oversized result can no longer fill the model's window and end the
+  conversation.
+- The terminal agent documents itself per command: `<command> --help`
+  prints that command's own usage, its options with defaults and bounds, and
+  examples that run. A wrong option or value exits 2, names the option and
+  the accepted values, and suggests the nearest valid option when the name is
+  close. All of this reads in the installed language.
+
+### Changed
+
+- Legal scans read shipped vendor licences as written (affiliate and `et
+al.` notice suffixes, terminal periods, paired email/URL contacts) while
+  restrictive holder text still needs human review. A workspace-root
+  `licence-review.json` receipt binds a reviewed text to its package,
+  version, SHA-256 and SPDX id and shows as **Reviewed by receipt**; changed
+  bytes or versions need review again.
+- Tab has no daily budget unless you set one:
+  `museSpark.tabDailyBudgetUsd` is now `0` (no budget, nothing reserved or
+  locked) instead of `$1.00`, and a set budget starts at `$0.05` with no
+  ceiling of ours. Spend is reported without a cap when none is set.
+- Headless `exec` has no default request limit: without `--max-requests` a
+  Model API run is not stopped after 30 requests. A set value is any
+  positive safe integer — no provider publishes a request-count maximum, so
+  the product sets none.
+- A Model API turn no longer stops itself after 50 tool rounds. No provider
+  publishes a round count, so the product sets none: a turn runs until the
+  model answers without a tool call, you press Stop, a hook stops it, or a
+  budget you set is spent. A turn never stops for repeating the same tool
+  call: it says the model is repeating the call and keeps going until
+  stopped. A structured answer repairs until it validates instead of
+  stopping after one repair, saying which repair round it is on.
+- The credential vault's foundation landed underneath: broker protocol v2
+  with management requests and pushed lock, revoke, approval and change
+  events; setup with a one-time recovery code; import of discovered
+  credential files in one encrypted commit (imports stay hidden from agents
+  until you review them); and Reset for a vault that can no longer be opened.
+  The panel section, the Windows channel (pipe, storage and presence check)
+  and the per-OS storage slots sit behind the broker gate, and a stored
+  opt-out keeps working, and an approval waits two minutes for your allow
+  or deny before it ends as expired. The integration has landed on Linux
+  and macOS: the Models & Agents panel mounts its vault section, the Vault
+  command opens it, Lock ends every use, and SSH keys can be generated or
+  imported when adding an item. On Windows the pipe and slot helpers build at first use.
+- Schedules settle durably: the candidate scheduler writes a dispatch fence
+  and owns every terminal record across VS Code, ACP and the terminal;
+  ambiguous dispatch becomes uncertain without replay; failed cost reads
+  preserve delivered output and spend; schedule consent joins both daily
+  caps. Fence and lease ownership settle cleanly on cancel and timeout, and
+  a dispatch lost to another live owner records nothing. Automatic delivery
+  stays disabled until cross-platform qualification.
+- Schedule drafts start with no spending cap and never spend until you set a
+  cap and complete paid consent for it. The shared store has one versioned
+  root that carries older entries across once; closing one panel cannot stop
+  another panel's scheduler; closing the runtime touches only its own
+  delivered fires; and manual runs refuse with their true reason.
+- Attached video and audio work in production on every surface: on the
+  contributor models an mp4 or mov can be attached in the panel, through ACP
+  and with `exec --attach`, uploading once and priced on the one admission
+  path, while other models refuse with the reason. On the model that cannot
+  hear a video's sound the soundtrack is transcribed and the transcript goes
+  beside the video; each transcription asks first with the price and the
+  shared daily budget. The converter runs only from a configured or
+  documented install, never from PATH. An attached file belongs to the turn
+  that sends it and is let go when that turn ends. Where the production
+  media service is not bound, uploads stay unavailable and scheduled reads
+  say so.
+- More loads on first use instead of at activation: the Muse Code backend,
+  dictation setups, Linux voice, the sign-in and paid gates, the credential
+  lease, the first-use command flows (MCP servers and hooks pickers, skills,
+  worktree and memory flows, Plans picker, Diagnostics report text) and the
+  AGENTS.md and bundle commands each load with their first use. Opening the
+  panel for the first time starts Muse Code at once: a sign-in warms every
+  cold panel, and the start never queues behind paused work.
+- The panel uses plainer words: the Getting Started rows can never overlap,
+  the empty composer invites a message and names only this machine's focus
+  key, the Backend row says which engine runs the conversation, and the model
+  picker marks contributor-suffixed models.
+- Web fetch reads a page whole however slow it answers, with no deadline of
+  ours: the wait says how long it has waited, until the page answers or you
+  press Stop.
+- Hook model calls send no output cap of ours: the capability record's
+  published maximum rides along, or nothing is sent when the record names
+  none — your budget fit still caps, and the daily tally settles the true
+  cost after.
+- Plugin children run with no bound of ours: no per-call deadline, heap
+  flag, memory bound, answer-size bound or failure latch — a call waits for
+  the child's answer, an explicit per-hook timeout (which names the bound it
+  waited) or Stop, and every wait says how long it has waited while it
+  waits. You can set your own bounds, each `0` (the default) for none:
+  `museSpark.pluginHookTimeoutSeconds` (how long a call waits),
+  `museSpark.pluginChildMaxMemoryMiB` (how much memory a child may use),
+  `museSpark.pluginAnswerMaxBytes` (how large an answer may be) and, on
+  Windows, `museSpark.pluginMaxFailures` (how many job-launcher failures
+  set plugin hooks aside until **Retry Plugin Hooks**).
+- Schedules never pause themselves on failures:
+  `museSpark.schedulePauseAfterFailures` (`0`, the default) keeps firing
+  with every failure in the run history, and a set count pauses the
+  schedule after that many consecutive failures.
+- `scan-secrets` runs with no deadline of ours: the scan continues until it
+  finishes or a signal stops it, and a caller that wants a deadline (such
+  as CI) sets one per run with `--timeout <seconds>`.
 
 ### Fixed
 
-- On Windows, two requests that reserve session spend at the same moment
-  could end one of them with "The session spend ledger could not be read or
-  saved", although nothing was wrong with the ledger. Windows answers a lock
-  that is just being released differently from one that is held; the product
-  now waits for both the same way, within the same one-second bound.
+- In VS Code on macOS and Linux, started from the Dock, Finder or a desktop
+  launcher, the editor's working folder (`/` or the home folder) no longer
+  reads as a workspace a program could be planted in, so the vault's
+  identity check and other helpers run instead of being refused.
+- A crashed-connect journal recovery that cannot read this computer's
+  credential store says so with exit 1 (`auth status` and its siblings)
+  instead of an internal error.
+- When a window or terminal command crashes while saving or removing a
+  provider key, the windows that recover its lock at the same time can no
+  longer both write the credential store: exactly one takes the crashed
+  lock over, every other is told the lock is busy, and none disturbs a
+  lock another window already holds. The crashed lock stays next to your
+  user-level `providers.json` as a small `providers.json.lock.retired-…`
+  folder, on purpose: it holds only the crashed process's id, start time
+  and a random tag, never a key.
+- A screen recording length you set is used as set, any whole number of
+  seconds: 5 or 3600 now records for 5 or 3600 seconds, with no floor of 10
+  and no ceiling of 600. 0 (the default) still records until you stop.
+- **Attach Latest Screen Recording** takes your newest recording however
+  long ago you made it, instead of only one from the last ten minutes. On
+  Windows it also finds Xbox Game Bar's recordings (Win+Alt+R, saved in
+  `Videos\Captures`) beside Snipping Tool's (`Videos\Screen Recordings`),
+  and the newer one wins. When there is none it says where it looked, for
+  example "No screen recording was found in Videos\Screen Recordings or
+  Videos\Captures.", instead of "No recent screen recording was found."
+- Usage history keeps recording after a write was cut off mid-way (a power
+  loss or a killed process): a usage lock file left holding only empty
+  bytes is taken over once it is stale, instead of stopping every later
+  record for good.
+- After Restart Muse Code, a conversation opened from History keeps going.
+  Continuing it used to fail with "session MCP configuration conflicts with
+  the loaded session runtime" and the message was never sent; the
+  conversation now resumes with the tools it was started with, so the next
+  message gets an answer.
+- A conversation that cannot be opened from History, or brought back after
+  a window reload, says so straight away with the reason ("Could not resume
+  the conversation: …") and offers a new conversation. It used to fail
+  without a word, and a message typed afterwards went nowhere you could
+  see; now that message is refused at once with the same reason, and what
+  you typed stays on its card. A conversation still open in the panel is
+  not affected. A message you send while a conversation is still opening
+  waits for it and then goes into that conversation, or is refused with
+  the reason it could not open; it no longer disappears when the
+  conversation's history appears.
+- "Muse Spark Code stopped unexpectedly last time — report it?" no longer
+  appears after an ordinary close. The window's crash marker is cleared as
+  soon as VS Code asks the extension to stop, instead of after a shutdown
+  VS Code cuts short; and on Windows and macOS a marker whose process id now
+  belongs to a newer process is recognised as left over instead of being
+  kept forever.
+- On Windows the vault starts inside VS Code. VS Code runs extensions from
+  its own install folder, so the editor's own runtime read as a program
+  planted in a workspace and the vault's broker was never launched: the
+  panel only said "The vault operation failed".
+- On Windows a vault you just set up now unlocks. After "I Saved It" the
+  vault read "Locked" and every Unlock Vault said "The vault operation
+  failed. Try again.": the vault's activity log was written the macOS and
+  Linux way, which Windows refuses, could not be created on first use,
+  could not be read while it was open for writing, and needed the system
+  keyring the extension does not ship (it now keeps its checkpoint in a
+  private file beside the vault, as the vault's rollback record already
+  did). The vault's Windows connection also no
+  longer drops a request it receives before the caller is verified, no
+  longer briefly disappears between callers, no longer fails on a request
+  larger than 4 KB (a key bundle, a certificate), and no longer stops
+  serving every window when one window closes while it answers.
+- The Models panel and `auth status` tell apart two providers made from
+  one preset (two Anthropic keys): each adds the provider's id instead of
+  showing the same name twice.
+- `exec` names the options it refuses for the chosen backend (for example
+  "--max-budget-usd, --max-requests" on Muse Code) and how to choose the
+  other backend, instead of a bare "These options require…".
+- In an editor connected over ACP that cannot show notices, a Muse Code
+  notice after the answer (such as "The turn finished its visible work")
+  now starts its own paragraph instead of running on from the answer's
+  last word.
+- Question deferral uses the seconds you set, any whole number, with no
+  floor of 10 and no ceiling of an hour: 0 (the default) never defers, and
+  a wait past one timer's reach still holds until its deadline.
+- On Windows, steps that run in Windows PowerShell work when VS Code, or the
+  terminal agent, was opened from a PowerShell 7 terminal: the
+  screen-recording preview's private folder, the agent's owner-only folders
+  and every other Windows PowerShell step load Windows PowerShell's own
+  modules instead of PowerShell 7's, which it cannot use ("Unprotected
+  preview directory").
+- On Windows, `ssh` runs where the product starts it with a narrow
+  environment: an MCP server started through `ssh`, `ssh` or git over ssh in
+  a hook, and Muse Code under the terminal agent now keep `ProgramData`,
+  without which Windows' own OpenSSH quit without a word.
+- On Windows the vault no longer refuses to write on a machine whose
+  Windows PowerShell starts slowly (a fresh machine, heavy antivirus): the
+  process identity a vault writer records is read by a small native reader
+  instead, and nothing gives up after 10 seconds.
+- On Windows as an elevated administrator (Windows Server's defaults), work
+  the resource governor starts is no longer refused, and the private folder
+  for a screen-recording preview is locked to its owner alone.
+- On Windows the credential vault now starts. Its helpers build in the
+  vault's own folder, the broker launches and serves its private pipe, and
+  the editor's requests reach it. Before, faults in the Windows helper and
+  its relay stopped it at each step: the pipe never served, missing files
+  read as refused, and every vault write was refused while the file was
+  being written.
+- On Windows, a process that stops a child it started through the resource
+  governor now exits as soon as the child has ended, instead of up to
+  10 seconds later.
+- On Windows, a paid-use grants folder replaced by a file is now logged as
+  damage instead of reading as no saved choice, as it already was elsewhere.
+- Web fetch dropped a dead second converter no code called. No behaviour
+  change.
+- The unused paid-consent helpers for scheduled runs and per-account consent
+  stay unwired until their owning milestones land. Meanwhile a paid schedule
+  draft from the panel is refused and every reachable paid use still asks the
+  popup. No behaviour change.
+- On VS Code 1.101 to 1.111 with `http.proxy` set, the microphone now stays
+  unavailable with the reason while a proxy is set there, instead of
+  recording audio that cannot be sent.
+- Behind a proxy on VS Code 1.112 or later, a Muse Voice refusal caused by
+  your own settings now names the setting that is off and what to change;
+  the version text stays only for VS Code before 1.112.
+- The production build no longer starts every bundle at once through one
+  service, which could fail under machine load with an error that named no
+  bundle and then hang. Bundles now run through a bounded pool of 8; a
+  failure names its bundle, in-flight bundles settle, and the process exits
+  with the true error.
+- On Windows, two requests that reserve session spend at the same moment no
+  longer end one of them with a ledger failure when nothing is wrong with
+  the ledger. Both lock answers are now waited on the same way, within the
+  same one-second bound.
+- On macOS the credential vault starts and stops faster. Shutting the broker
+  down advanced its lock generation twice, paying the slow native helper
+  each time, and a client waiting for the broker to listen re-proved the
+  broker's identity after every refused connection instead of only when the
+  broker might be gone. The generation now advances once, and the extra
+  proof runs only when the broker may be gone.
+- Limits of ours are gone from runs and budgets: best-of-N attempts and
+  requests per attempt are your own per-run choice; headless `exec` sets no
+  `--max-requests` or `--max-budget-usd` ceiling of its own; the GitHub
+  Action sets no request limit unless you ask (a set value allows any
+  positive number of billable attempts); and the published headless
+  event/result schemas state no request-count maximum. Your flags and inputs
+  stay with no ceiling of ours.
+- Limits of ours are gone from content and teams: a rename may touch any
+  number of files; a hook agent handler loops over its read-only tools until
+  the model stops; objectives, plans, handoff briefs, saved prompts and
+  titles stand at any size; image generation takes a prompt of any length
+  and any number of edit sources; a provider holds any number of accounts;
+  checks name any positive timeout; conversations spawn subagents and teams
+  delegate without our ceilings, and team review, pipeline, reassignment and
+  playbook patch rounds run until the work converges (paid consent still asks
+  per spawn, pricing each request as it goes); exports,
+  shares and report sources read and write at any size and item count; the plan
+  reader parses the whole plan however large unless you set your own byte bound
+  (`museSpark.reports.planMaxBytes`, `reportsPlanMaxBytes` in the agent's
+  `settings.json`); and a
+  held pull request checks out without our entry and byte ceilings. A saved
+  prompt file reads, imports and shares at any size (only a blank title
+  still refuses); a link import reads under web fetch's own body bound; an
+  import is refused only past the provider's own documented context window;
+  a long check timeout waits its whole length (timers re-arm in slices); and
+  the invented output clipping, dropping and queue limits are gone.
+- Questions, searches, uploads, recordings and background work carry no
+  limit of ours: unanswered questions never defer on their own, hosted
+  searches run with no bound of ours, attachments open at any size, screen
+  recordings run until stopped, and the resource governor measures and shows
+  but holds nothing back. Each has a setting when you want your own bound.
+- Model API requests are no longer ended by the product's own clocks: no
+  30-second request timeout and no 300-second stream idle limit. A request
+  names how long it has been waiting and keeps waiting until Stop or a
+  caller-named deadline. Retries are not counted out at four and a
+  Retry-After is honoured at any length; only a call that names its own
+  ceiling stops early, and quota never retries.
+- Model API pacing follows the provider instead of invented numbers: no
+  starting request shape, no reserved foreground fraction and no long
+  admission wait. A queued request names what it is waiting for and keeps
+  waiting until Stop; only the provider's observed rate-limit headers, 429
+  answers and Retry-After shape the wait.
+- Waits replace timeouts across the product: Git readers name no deadline of
+  their own; `muse serve` starts until the server answers, saying so each
+  minute; the browser check runs until it finishes or is stopped, with any
+  number of click or type steps; MCP servers honour their entry's own startup
+  and tool timeouts, however long, with a still-waiting notice each minute;
+  Muse Code commands are waited on until Muse Code answers; shell commands
+  honour the model's own timeout, unnamed commands run until they end or are
+  stopped; billed image requests wait until Meta answers; and the legal scan
+  and its walk run until done or stopped. A caller-named deadline still
+  applies wherever one exists.
+- Web fetch no longer stops same-host redirects after 5 or refuses pages
+  past 5 MiB; a redirect loop ends at Stop and cross-host redirects are
+  still handed back. The https-only, no-credentials and public-hosts
+  refusals stay, and a caller-set text limit still applies.
+- A spending limit exists only when you set one. The editor and agent daily
+  budgets are none by default, so the ACP agent no longer stops a job on a
+  daily budget it was never given. With no limit there is no spending check
+  on the request path: nothing is reserved, locked or written before a send.
+- Under a limit you set, the session and daily budgets keep running totals
+  from the usage each call reported, saved after the call, so a resume
+  continues from them. A request whose estimate would pass the limit is not
+  sent and the reason says so; one warning comes when what is left no longer
+  fits a request like the last one. A response that ended without its usage
+  counts as cost unknown instead of its whole reservation.
+- Spend admission uses one atomic versioned ledger, and the old journal,
+  lock and admission bound are gone. Refused requests publish no hold; dead
+  locks recover by process identity; concurrent checks inside one process
+  queue instead of refusing each other as busy; and requests the provider
+  refused before answering, unsent requests, dead runs' holds and holds left
+  by older builds all release or age out instead of leaking into the day's
+  ledger. Unresolved liability is shown separately from spend.
+- Headless runs count exact input tokens where the provider documents a
+  same-body count call (OpenAI, Anthropic Messages and Google Gemini join
+  it), instead of reserving every body byte as a token; any failed count
+  falls back to the byte bound with an info line, and wires with no counter
+  keep the byte bound and say so. Token estimates reserve a margin where the
+  shape is unverified, and provider and Meta requests reserve their actual
+  conservative caps instead of a full context window. Budget refusals show
+  the arithmetic.
+- A headless budget refusal names both remedies with numbers: the run cap
+  that admits the request and the largest output-token value that fits what
+  is left. A run refused for a model with no known tariff returns its own
+  `unpriced` status naming the model and where a price is added, instead of
+  a budget stop. A turn stopped by its budget keeps the work produced so far,
+  and a stopped headless run retains its partial answer and cost with an
+  explicit incomplete marker. A paid limit refusal names the limit with its
+  numbers.
+- Help stays in its own command: deep help, per-command help, estimate help
+  and bare help each show their own usage and options, and the report usage
+  lists every working kind with its required argument. `exec --effort none`
+  parses so Thinking off reaches the model's record; `exec
+--max-tool-output-bytes` is listed with its per-run byte-guard
+  description; a `providers accounts` misuse exits 2 with the accounts
+  usage; enum refusals list the accepted values; exit-2 refusals read in the
+  display language; and custom provider model lists are read-only in the
+  terminal — edits take the Models panel.
+- Exec and ACP honour the configured provider default and refuse a missing
+  default instead of silently choosing another model. Provider setup errors
+  name terminal flags and available model IDs; native model IDs containing
+  slashes and repeated `--model` flags are accepted; every model offers its
+  recorded effort levels and lists allowed values when a choice is refused;
+  and ChatGPT sign-in stays a terminal command from ACP. An invalid
+  output-tokens, timeout or request-count value names that flag, and
+  ephemeral runs say they omit durable usage history. Imported provider
+  files reject blank force reasons and control characters, and terminal
+  `providers add` without `--model` lists the key's models and says to pass
+  `--model` instead of the panel's tick wording.
+- Every ChatGPT plan-route failure now names its cause instead of
+  "temporarily unavailable" or "that did not work", and a crashed account
+  check no longer crashes the packed agent. Account errors now say their real
+  cause instead of the generic unavailable sentence while the runtime is
+  connected. Configured providers keep budget, consent, model, codec and
+  stale-confirmation refusals visible, and price cards retain cache-write
+  premiums and long-context rates.
+- In the ACP agent, only a legal scanner that fails to load blames the
+  installation: a failed scan or a lost update carries its own cause.
+  `/agents retry` no longer blames the backend's missing checkpoint for
+  everything; `/playbook` no longer calls the playbook unavailable when a
+  loaded playbook's command fails; and retrying an agent whose row left the
+  conversation says the agent is no longer in the conversation.
+- Terminal sharing answers accept `y`/`yes` in any case; `share` and
+  `prompts` print result JSON only with `--json`, stay readable without it,
+  and explain a cancellation on stderr; `prompts use` asks once, takes
+  scripted variables and confirmation, and only imported prompts run
+  untrusted; `scan-secrets` prints only the count and names its exits; each
+  slash command is announced once; and a dead credential store, a missing
+  pre-session item and an unavailable store all say so in one sentence each.
+- An `exec` with a ChatGPT plan model runs on the shared subscription path
+  with no Meta key needed; a missing grant names the ChatGPT or Copilot
+  sign-in, never a Meta key. With no unlocked credential store the agent
+  still starts and steps that need a stored key refuse in the one store
+  sentence, with nothing written in plain text. Provider account advice
+  follows the runner's providers file, and a keyless session resolves
+  identity and spend at the first step that needs a provider.
+- No provider key is refused for its looks any more, on any surface: any
+  non-blank key is sent to the provider's own free key test, and a refusal
+  shows the provider's reason. Values that look like the wrong thing ask a
+  "use it anyway?" question instead of dead-ending; a piped key that is not
+  text is told so; and the wrong-key questions read in the installed
+  language.
+- Provider refusals carry their detail: an Anthropic reply cut at its output
+  limit continues instead of ending the turn; an Azure content-filter block
+  has its own sentence; a refusal shows the provider's request id; a
+  rejected key, missing permission or unknown model says nothing reached a
+  model; and masked-key remnants and account ids never reach the log file or
+  report bundles.
+- In ACP, closing a session no longer discards its selected permission mode;
+  `session/set_mode` is acknowledged in order; a permission answer is
+  remembered before dispatch so a stage update cannot re-open the same
+  prompt; and consent for one command prefix cannot silently install another
+  stage's rule.
+- Governor and account statuses share the session notice on the editor
+  protocol; a refused model switch keeps the session on its model and
+  carries the refusal sentence; `providers list` states the tool-calling
+  limit; and a key test that read no model list still gets the terminal's own
+  wording. Forced-model annotations and imported-provider reasons read in the
+  installed language.
+- A Muse Code side chat is read-only at the panel: every approval its branch
+  raises is refused with the card's own rejection, labelled Side Chat, so
+  the branch cannot approve a write.
+- A failure is never turned into a different fact. Unreadable credentials,
+  damaged history, quote, consent or upload state, a stopped OAuth flow, a
+  corrupt history choice, an unreadable schedule consent file and a broken
+  account host each say what happened, once, where you see it, with what the
+  product does and the next step. One unreadable provider entry no longer
+  hides a working provider later in the list; a failed panel message still
+  reaches its draft; and a usage bridge that fails settles it so later
+  refreshes and exports are not blocked.
+- Usage and cost say what really happened: cached input, reasoning tokens
+  and cache hit rate come from each request's own reported counters; plan
+  spend carries the equivalent API price at the used tier under the
+  subscription meter's own plan name; the models breakdown shows the model
+  and tier each request was really sent as; and hourly rows keep the timezone
+  they were recorded in. The journal format is version 3 and still reads
+  versions 1 and 2; a completion report delivered twice is journaled once;
+  and usage budgets follow the stored credential, disappearing with a rotated
+  or removed key.
+- A folder whose name only starts with two dots is an ordinary folder now:
+  on Windows a folder literally named `..foo` under a trusted root, and the
+  same mistake in the import preview, file identities, Tab context, ZIP
+  extraction, problem-report paths and the schedule store, no longer refuse
+  as outside the root. A genuine `..` segment still fails closed.
+
+- On macOS, the resource panel no longer reports GPU use, disk busyness and
+  memory headroom as unknown: each comes from its published counters and
+  readings on new enough runtimes.
+- On macOS, OpenCode plugins now run instead of being refused: bun runs
+  directly, as OpenCode itself runs it, under the same per-call
+  timeout, answer-size and process-tree bounds.
+- On Windows, a browser check that ended at once with "unrecognized" now
+  waits for the browser's network service, within the check's own time and
+  Stop, before reading its process list.
+- OpenRouter cancelling now interrupts token exchanges and usage reads,
+  releases the queue and discards late credentials. All six usage amounts
+  retain exact wire decimals, and panel actions read the network only on
+  open, Save and Refresh.
+- Terminal Connect asks before replacing a key and preserves it across every
+  interrupted write. Connection, recovery and rollback run inside one shared
+  lock with a staged journal; a crashed Connect is reported and cleaned on
+  the next start, and a refused rollback says the new key is stored.
+- Local scans settle every probe answer exactly once, and a scanned model
+  carries its server's reported window into the saved limits, so the
+  composer's context limit is set from the save instead of staying empty. A
+  model with no known window refuses with a plain reason before anything is
+  sent.
+- Provider records follow the live catalogue, not a snapshot, and
+  rate-limit headers are read with their real meaning per provider. Fresh
+  attachments on a listed provider model no longer meet the wrong budget
+  before send, and Azure entries persist the deployment while dispatch still
+  refuses until Azure's own capture lands.
+- Muse Voice gives each recording one owner from Start until its end: a
+  queued Start keeps the budget scope, consent and context fence it was
+  pressed under, every end awaits the recorder process exit before
+  reporting, and helper events and the hard cap stay isolated across rapid
+  Stop/Start. Refused budget admission never starts the microphone.
+- Muse Voice now works on Model API with a finite budget, through the
+  existing microphone adapters. Recordings reserve the shared daily budget
+  and any conversation cap before connecting, then settle from the final
+  reported audio duration; the tally shows estimated cost, interrupted audio
+  keeps its reserved liability, and idle streams with no audio settle zero.
+  Allow once covers one recording.
+- Video reaching any request the model cannot take now refuses with the
+  model's own reason before anything is sent, on every route, instead of a
+  generic failure or a silently dropped part.
+- Transcription keeps honest books: the last paid check runs immediately
+  before the request goes out; a request that never left the machine refunds
+  its reservation and adds nothing to the tally; a replaced file refuses
+  before anything is sent; and a re-attached file uploads from the new copy,
+  not the deleted one. A converter that stalls after a clean exit now ends
+  with Stop or its deadline; a cancelled provider cleanup still runs bounded
+  with retry intent; and an attached file is released with its turn instead
+  of staying in memory. The privacy notice says what a contributor-model
+  read of a video does: the bytes go to the Files API, the upload expires
+  after seven days, and session deletion or the retention purge deletes it.
+  "Storage billing has not been verified" is gone from every refusal. A
+  provider delete refusal is recorded with backoff and retried by a later
+  sweep instead of blocking saving.
+- On Windows, a stdio MCP server, a plugin hook's runtime or a team run is
+  now created inside its kill-on-close job, so a launcher ended in between
+  can no longer leave the new process suspended outside the job.
+- An image an MCP tool returns is priced at the calibrated image bound on
+  the contributor models, like every other image, so a capped turn no longer
+  under-reserves it.
+- Hook processes and plugin hooks run with no limit of ours: with nothing
+  set, every matching handler starts at once and a Stop hook keeps a
+  finished turn going until it ends on its own. A set
+  `museSpark.hooksMaxRunningCommands` or
+  `museSpark.hooksMaxStopContinuations` stays within Muse Code's own bounds,
+  and an aborted capped waiter wakes the waiters queued behind it instead
+  of stalling them.
+- A configured `ToolUseStart` hook warns that it is not wired on the Model
+  API backend instead of being silently ignored: no tool-start firing point
+  exists yet.
+- `skill/import` quarantine entries keep their `reasons` and failure entries
+  their required `reason`: a real quarantine's reasons were silently dropped.
+- A session view that reports `unavailable` keeps the host's reason in its
+  notice, and a host that reports its sandbox `unavailable` while the shell
+  sandbox is on now warns with the host's reason.
+- Reports stay useful when individual sources fail: one bad record is a named
+  problem beside the good rows, never a lost source; cancelled reads stop
+  cleanly; duplicated row ids never fail a report; a report keeps its
+  requested language; and estimator, schedule and account sources name their
+  own refusals instead of inventing rows.
+- Closing the schedules runtime no longer touches the native background entry
+  when no background consent was ever recorded, so terminal schedule
+  management exits on its merits even on a machine with no background runner.
+- Native IDE calls can carry a session-bound identity: unattended callers use
+  their own grants, retired callers lose access, colliding request ids cannot
+  cancel another caller's tool, and interactive-only tools refuse unattended
+  calls before showing a popup or making a purchase.
+- A team task waiting on a busy exclusive resource is answered at its
+  deadline instead of waiting forever; concurrent spend checks inside one
+  process queue instead of refusing each other as busy; and an invalid
+  output-tokens, timeout or request-count value names that flag.
+- Ephemeral runs omit durable usage history and say so in their JSON record,
+  and an invalid usage-history settings file pauses recording with a
+  specific repair warning instead of the generic write warning on every run.
+- A window reports recurring file damage again after another window has
+  observed a repair, instead of a stale cache hiding the warning; and a
+  revoked paid-search request no longer claims an unsaved Always choice
+  applied this time.
+- The app's own statuses no longer speak as the model's reply: automatic
+  compaction awaiting evaluation and its kin arrive as their own session
+  notice, panel notice or terminal line. A configured model without
+  confirmed tool calling is listed with its limit stated instead of
+  vanishing silently, and refused for agent turns with the same sentence.
+  Panel notices wrap long unbroken text now.
+- MCP elicitation hooks now run instead of being accepted but never firing:
+  with hooks on, a project hook can decline the request and a user hook can
+  answer it, checked against the server's schema.
+- A fully evidenced legal scan exits 0 (or 1 with a blocker) instead of
+  always exiting 2, and judges what the workspace distributes:
+  development-only dependencies are information, not gaps.
+- Headless run sentences now read in the run language instead of always
+  English: the language reaches the request-cap, budget and error sentences.
+- After Muse Code is restarted, the first turn refused for the lost sign-in
+  names the restart and the way back instead of a bare credential failure.
+- The vault's key migration never loses or reverts a key: a save during
+  unlock or after sign-out, a changed provider key and an interrupted
+  sign-out each keep the newest key in both copies; only apiKey records
+  ever reach the vault (oauth, subscription and account records stay in
+  SecretStorage); and orphaned copies are removed instead of kept hidden.
+- Windows gets a working vault client and broker: pipe and slot helpers
+  built at first use, DPAPI/CNG storage and Windows Hello presence
+  answering where present, and a capability-probed hardware slot beside
+  the OS-store one. Where the OS keyring binding is not installed the
+  vault keeps working from its owner-only file record, sealing a hardware
+  slot where the machine can.
+- The ACP estimate read no longer crashes when an estimate call fails: the
+  shared schema chunk carries the schema error class beside the conversion,
+  so the failure is rethrown as the estimate's own diagnostic. The guarded
+  probe environment the vault transports build moved beside the executable
+  resolver, so the vault chunks no longer carry the resource tree reader.
+- The playbook and schedules report inputs are back within their 59 KiB
+  budget: the git rename evidence the orchestrator reads now lives in its own
+  module beside the playbook registry, so the report chunk no longer carries
+  the git-spawning machinery the report read never calls. No behaviour
+  changed on either side.
+- The panel's deferred English is back within its unchanged 25 KiB budget:
+  the ChatGPT sign-in's English and the team runners' English load in their
+  own lazily fetched chunks beside their deferred surfaces instead of riding
+  the shared surface-English closure. No sentence changed in any language.
+
+- Bundled skills load when the extensions or storage folder is reached
+  through a symlink or a short Windows name. A symlinked or short-named
+  ancestor of the installed package itself is no longer mistaken for a link
+  inside the skill tree, while a link inside the tree that leads outside it
+  is still refused with its warning.
+- The governor's bookkeeping folder no longer grows with every command: each
+  save retires its staged manifest and the displaced copy once the live
+  manifest is proven, and a load sweeps the names earlier runs left behind.
+  A name is removed only once it proves to be this registry's own retained
+  file, by content and identity and never by age; a name exchanged for
+  anything else is left alone and reported.
+- Your values are honoured as set, with no floor, ceiling or default of
+  ours on them. Stop-hook continuations, subagent concurrency, command
+  rules, browser-check hosts, CPU and memory thresholds, disk and memory
+  floors, web searches per response and upload expiry days no longer stop
+  at 8, 64, 500, 32, 30%, 40–98%, 0.5–64 GiB, 2 GiB, 20 or 1–30 days: a
+  number you set governs as set, and only what the quantity itself cannot
+  be (a negative count, a percentage past 100) is refused with its setting
+  named. Usage history no longer trims to a year by default: with nothing
+  set it is kept until you set a number of days or clear it, and a set
+  number of days of 1 or more trims as set.
+- The agent's command line now names the real cause of a bad option value:
+  a known option with a value it cannot take (such as
+  `--questions-defer-after abc` or `--backend foo`) says the value is
+  invalid, names the option and points at the help that lists what it
+  takes, instead of calling the argument unknown. A value that starts with
+  a dash or is missing answers in the same words instead of the parser's
+  English, on every command, and a truly unknown argument keeps its
+  unknown-argument answer.
+- Adding a secret to the vault no longer ends with "The vault operation
+  failed. Try again." when the Target answer is not a JSON list of uses.
+  The flow now asks where the secret may be used — one SSH computer, any
+  SSH computer, Git commit signing, Git over HTTPS, a website, showing it
+  to yourself, or nowhere yet — and everything already typed stays while a
+  mistyped answer (Target, expiry date, name, label or address) asks again
+  with the reason.
+- Opening the vault no longer writes "Vault operation failed" to the
+  extension log when nothing failed: a load overtaken by a newer one (as
+  the first open is, by the vault's own events) is not a failure.
+- The vault's Expires box says what it takes: a date as YYYY-MM-DD (the
+  start of that day, your time) or a date and time as YYYY-MM-DDTHH:MM.
+  Anything else asks again naming both shapes, where it used to be guessed
+  ("1" was stored as 1 January 2001, "12/1" as 1 December 2001, a date alone
+  as midnight UTC instead of your own midnight), and a date that has already
+  passed asks again with its own sentence. An OAuth or session login's
+  expiry reads the same way and cannot be left empty; editing another
+  setting of an already expired item still keeps its date; and a grant
+  whose expiry has already passed is refused with the same sentence
+  instead of being saved.
+
+### Security
+
+- A Muse Code conversation is listed under what you typed. Session History,
+  the session board, the restore pickers and the session list another
+  editor reads over ACP showed everything sent with the first message: the
+  notes Muse Spark Code adds for the model, and also a quoted chat passage,
+  a Git draft prompt with its diff, the code you had selected or the
+  contents of an attached file, which any editor connected over ACP could
+  read in that list. Conversations saved before this release are listed
+  under your words too, and one whose first message was only an attachment
+  is listed as "Untitled".
+- Starting Muse Code no longer lets a program planted in the workspace run
+  from PATH. Every child environment built for `muse serve` drops PATH
+  entries that are relative, empty or inside the workspace, on Windows,
+  macOS and Linux alike; nothing else in PATH changes. Drive-relative,
+  UNC, verbatim and admin-share spellings of the workspace compare as the
+  workspace itself, and guarded Windows children also ignore the working
+  directory when resolving programs. The same exclusion covers `muse login`,
+  the account host, the sandbox check, and every other product lookup
+  (`git`, plugin runtimes, MCP server commands, shells, hooks, openers,
+  voice recorders and team workers). A planted helper never runs either:
+  real use caught a planted `bwrap` running twice at serve start, before any
+  prompt or approval.
+
+### Known issues
+
+- In VS Code on Linux the vault can be set up only when your account can
+  reach the machine's TPM (usually by joining the `tss` group): this build
+  of the extension carries no Secret Service component. The terminal agent
+  (`muse-spark-code-acp`) includes it and uses your desktop keyring. The
+  vault's message now says exactly this instead of sending you to unlock a
+  keyring the extension cannot use.
+
+### Packaging
+
+- The Get Started walkthrough ships smaller, pixel-identical screenshots,
+  and the packaged extension no longer carries the privacy file, which no
+  code read; the file stays in the repository and the packaged readme still
+  links the privacy policy by its URL.
+- One package per platform, plus a fallback: the release ships six platform
+  packages instead of one universal package. Each carries only its own
+  platform's native pieces and is checked against the same unchanged size
+  budget, and the untargeted fallback carries the Linux helpers for servers
+  without their own package (Alpine, 32-bit ARM Linux), so they keep
+  installing the way they always have.
 
 ### Release infrastructure
 
-- Every fake test is gone (the owner's order: "there can be no more fakes at
-  all"). Deleted: the tests that used stand-ins or invented data (`vi.fn`
-  answers, the hand-written `vscode` module and its alias, the fake Muse Code
-  CLI, the fake Model API, Git, GitHub and MCP helpers, the Action's fake
-  agent), the tests that only checked that some text, key or file exists, the
-  editor host checks that drove the fake CLI (code-server, Eclipse Theia,
-  JupyterLab, Emacs, Neovim), the fake-only Action check and its test package
-  (`scripts/package-acp-test.mjs`), and the Model API live sweep built on
-  fakes. No product code was deleted. What each deleted test covered is in
-  `docs/real-life/unproven.md`, the backlog for proof by real use.
-- Pull requests can borrow the organization `scnetsolutions`'s CI runners
-  (D122). Once the owner has installed the organization's GitHub App and set
-  `ORG_CI` to `on` (CONTRIBUTING.md, "The capacity repository (D122)"), a
-  pull request from a branch of this repository runs its Windows and macOS
-  unit shards in `scnetsolutions/muse-spark-code-ci` while every other job
-  runs here, and the same seven required checks wait for that run's result.
-  Pull requests, merges and releases stay in this repository; forks and
-  Dependabot keep every job here.
-- The capacity wait survives the documented queue (D122 review). The `org`
-  job's bound is GitHub's own 6-hour job ceiling instead of 180 minutes, so
-  a healthy capacity run is never cut off while queued pull requests drain.
-  The capacity shards get 25 minutes instead of 20 because a new capacity
-  branch starts with a cold npm cache, and a weekly seed keeps the capacity
-  repository's default-branch cache warm so later pull requests share it
-  (CONTRIBUTING.md, "The capacity repository (D122)").
-
-### Pending
-
-- Provider refusals read as the provider's refusal (lane PROVERR): when a
-  configured provider answers with an error — out of credit, a rejected key,
-  rate-limited, overloaded, an invalid request and the rest — the turn ends
-  with a sentence naming the provider, saying what to do, and quoting the
-  provider's own words, in every host and language. "Models & Agents is not
-  available in this build" is now said only when a part of the build is
-  really missing. A refusal answered before any processing (HTTP 400, 401,
-  402, 403, 404, 413, 422, 429) releases its cost reservation in full, so
-  settled and uncertain stay 0; anything else keeps its uncertain liability.
-  Refusals that asking again cannot fix are never retried. Record:
-  `docs/certification/provider-refusals.md`.
-
-- Provider refusals read by shape and retried by code (lanes PROVERR round
-  2 and PROVERRR2): a wrong key reads as a rejected key and an unknown
-  model as no such model at every recorded provider, whatever the envelope
-  shape; a quota or spend-cap refusal is never retried while a bare rate
-  limit still is; an Anthropic reply cut at its output limit continues
-  instead of ending the turn; an Azure content-filter block has its own
-  sentence. Masked-key remnants and account ids in a provider's words no
-  longer reach the log file or report bundles. Records:
-  `docs/certification/proverr-round2.md`,
-  `docs/certification/proverrr2.md`.
-
-- What stopped a provider request is said as it happened (lane PROVERRORS).
-  A session-budget stop on a configured provider now ends the turn with its
-  own sentence ("Stopped: the next request … would pass the session budget
-  … It was not sent.") and is not retried; it had read "Models & Agents is
-  not available in this build". `providers add` and `providers test` name a
-  failed connection's network codes and say whether the request arrived is
-  unknown, instead of "The provider could not be reached". A refusal shows
-  the provider's request id, and a rejected key, missing permission or
-  unknown model says nothing reached a model, no longer that nothing was
-  sent. Record: `docs/certification/provider-refusals.md`.
-
-- All fourteen translated settings tables now say Muse Code asks before a
-  command unless a permission rule allows it, matching the English modes.
-
-- Closing an ACP session no longer discards its selected permission mode;
-  loading it again on the same connection keeps that mode.
-
-- ACP waits for the selected-mode notice to leave its ordered update queue
-  before acknowledging `session/set_mode`.
-
-- ACP remembers a permission answer before dispatching it, so a stage update
-  arriving before the decision acknowledgement cannot open the same prompt again.
-
-- ACP permission answers retain the selected persistent rule's identity;
-  consent for one command prefix cannot silently install another stage's rule.
-
-- After Muse Code restarted, a conversation could continue on a different
-  model than the one shown (and at that model's price). It now keeps the
-  model you chose: the choice is applied and read back from Muse Code before
-  the next message is sent, the panel shows the model each request really
-  used, and a message that would run on another model is not sent.
-  A restart that finishes verification after you clear or replace the
-  conversation no longer reattaches the conversation you left. Failed model
-  verification releases its resumed handle, including command timeouts.
-  Opening Model API history on its already-selected model no longer runs
-  model-switch hooks or resets switch-related session state. ACP remembers
-  backend-reported model and effort changes too, including changes received
-  before a configuration command finishes.
-
-- Activation budget: the Create AGENTS.md command, its rules template and
-  their redaction load on the command's first run instead of at activation,
-  leaving 830 bytes of room below the 3,072-byte growth allowance. No
-  behaviour change; a missing bundle refuses the run and the next run tries
-  again.
-
-- The chat no longer takes the keyboard from a file you just opened: a chat
-  panel that finishes loading never pulls the focus in, a focus request for
-  a panel that is no longer active is dropped instead of landing on a much
-  later click, and a question that arrives while you are elsewhere waits
-  with its badge instead of taking the keyboard. Acting on the chat
-  yourself — clicking into the panel, Focus Input, sending — focuses the
-  input as before, and Focus Input while the composer is focused hands
-  the keyboard back to the file you were in (it used to focus the editor
-  group, which keeps a chat tab active).
-
-- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
-  request-shape and savings invariants through real modules with real inputs
-  (per-scenario tool/instruction/cache-key reproduction with byte-exact
-  plain and strict golden turns, the recorded packing output, listed-tariff
-  paid quotes with per-claim tallies and a re-ask when the price rises,
-  `then_run` parsing with real-file guard ordering, overflow compaction
-  bypass, and a digest of the complete eval task definitions). The host's
-  scalar request assembly stays with the lead's loopback run pending
-  recorded exchanges.
-
-- Test-overhaul review: paid-popup lazy-load checks now build the real
-  runtime instead of writing a replacement formatter, retaining locale
-  propagation and sub-cent search-price disclosure checks.
-
-- Test-overhaul review: account-command tests now use the real parser and
-  metadata files, not a hand-built provider metadata store or key store.
-  Credential-operation composition remains for the real-life run.
-
-- Test-overhaul review: retain real on-disk session save/load, damaged
-  history, retention-boundary and path-confinement checks without fake
-  upload ledgers, question stores or filesystem replacements.
-
-- Test-overhaul review: retain real question-dock draft, focus and session
-  boundary regressions without the deleted suite's fake-timer case.
-
-- Test-overhaul review: retain stored-zone scheduling regressions through
-  the real calendar engine and Intl, without the deleted suite's fake
-  clock or spy replacements. Covers daylight-saving gaps/folds, skipped
-  dates, sparse cron and preview/admission end bounds.
-
-- Test overhaul (not a user feature): the unit suite now runs real code
-  only — about 800 fake-driven test files deleted, the screenshot
-  comparison system removed (a UI change gets one small local look,
-  `npm run ui:look -- <scene>`), the coverage gate dropped, and the
-  accessibility check moved off the pull-request path. The packed
-  product's real-life run is the product's test.
-  (docs/testing/test-overhaul-2026-10-12.md).
-
-- Test overhaul follow-up (not a user feature): the dead-code gate
-  declares the built-but-unwired in-progress source instead of deleting
-  it — one titled block in `knip.jsonc` grouping 110 files by feature
-  (vault, team workers, schedules, resources, accounts, media,
-  estimator, theme, reporting, devices, hooks, judge) with their PLAN.md
-  milestones; no file is deleted. The unused-export residue those
-  features' API surface leaves in wired files is measured in
-  docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
-
-- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
-  reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
-  this does not certify endpoint quota refusal.
-  One-shot OAuth callbacks retain every parameter and destroy keep-alive
-  connections on settlement. Custom servers accept validated compatibility
-  overrides. Session saves coalesce into one in-flight write plus the latest;
-  parallel save failures are observed immediately while other sessions drain.
-  History listing validates headers without replay/transcript validation.
-
-- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
-  requests. Blank text is dropped, empty tool results ride as
-  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
-  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
-  and images for a model without image input ride as an
-  image-omitted placeholder. Tool-call ids are mapped per target format
-  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
-  provider aliases) with unique
-  per-response Gemini fallback ids. Responses replays send the call `id`
-  only for the same model with an `fc_` prefix. Gemini replays thought
-  signatures on text parts (empty ones included), counts omitted usage as
-  zero, sends vision-gated tool-result images inside `functionResponse.parts`
-  and full tool schemas through `parametersJsonSchema` on Gemini 3.
-  Gemini rejects proxy-null usage and explicitly rejects negative usage
-  counters instead of retaining an earlier tally. Signed blank parts replay;
-  late response ids salt fallback call ids; `$ref` siblings stay constrained
-  through `allOf`. The Anthropic decoder tolerates
-  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
-  requests `display: summarized` so newer models stream thinking text.
-  Lone surrogates are removed from every BYO encoder; parsed JSON retains
-  own `__proto__` keys as data, including Anthropic tool arguments.
-  Fakes only; no live
-  or paid model call.
-
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
-
-- DEVID017B (developer machine id, review round 2): the machine id is a
-  random value created once in the machine-scoped data folder instead of a
-  hostname digest, so renames and `host` vs `host.local` keep the unlock and
-  profiles. Legacy raw-hostname and digest grants migrate on open and the
-  raw hostname leaves stored state at once; a different machine identity is
-  refused with an honest message and `developer reset` recovers.
-
-- DEVID017C (developer machine id, review round 3): the id is published by
-  staging the full value to a private temp file, fsyncing it and claiming
-  the final name with `link`, so a racing reader sees no file or the
-  complete id, never a prefix; only the exact 64-lowercase-hex format
-  loads, anything else refuses honestly. Foreign reset asks first with
-  nothing mutated before the answer, never re-binds the grant, and clears
-  without stopping through this machine's resource port; profile folders
-  stay on disk. Cancel leaves everything unchanged.
-
-- DEVID017D (developer machine id, review round 4): a published id loads
-  before any staging, so storage that refuses new files still returns the
-  existing identity, and failed staging removes its temp file. A failed
-  foreign reset never clears without recording it: the reset audit row
-  comes first, and when it cannot be written the stored state is left
-  unchanged. Foreign reset asks its own confirmation, which says exactly
-  what happens: this machine's developer state is cleared, nothing is
-  stopped, and profile folders and credentials stay as they are.
-
-- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
-  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
-  so only that clear is withheld when its audit append fails. Every other
-  revocation, own-machine Reset included, is still published after an audit
-  failure, and the caller still gets the persistence error.
-
-- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
-  and P are merged and switched off until the milestone is complete, so
-  nothing changes for users yet. No GitHub setting is offered, and an
-  editor built on VS Code without its Git extension (Arduino IDE 2, some
-  forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
-  (lane 0); the runtime's native Git service (status, the commit form,
-  commit, a push confirmed with every URL Git will use and the same
-  refusals as VS Code, never a force-push, commit-message drafts),
-  revalidated after every wait and serialized per repository across
-  windows by one fenced lease (LOCKLIB) that renews every third of its
-  30-second lease, is checked synchronously at each Git dispatch and is
-  never re-created once lost (lane G, with M123G4 and M123G4C); pull
-  requests in the runtime (draft, open and link, status and checks, a
-  fork onto its parent) and checkouts of other people's pull requests
-  held under the runtime data folder, whose records take that lease with
-  fenced compare-and-swap generations, so at most one window gets a
-  checkout and no folder is left without its record (lane P, with
-  M123P9's logged sweep failures and translated uncertain writes). Still
-  to land: the GitHub sign-in (lane A, accepted on its branch), the
-  editors' leases (lane L), the panel and its strings (lane U) and each
-  editor's qualification (lane Q). The pull-request checkout's own git
-  launches are not yet under the resource governor; nothing in this release
-  can start them, and the process inventory fails the day something could.
-
-- Muse Code permissions: on the Muse Code backend one command is asked
-  about once — the first answer is reused for later stages instead of
-  asking again, and an answer given while a newer stage arrives is applied
-  to that stage instead of dropped. A permission mode set in the editor is
-  reported back and kept when the session is loaded again. The Manual and
-  Edit Automatically descriptions now say commands are asked about unless
-  a permission rule allows them.
+- Every fake test is gone. Deleted: the tests that used stand-ins or
+  invented data, the tests that only checked that some text, key or file
+  exists, the editor host checks that drove the fake CLI, the fake-only
+  Action check and its test package, and the Model API live sweep built on
+  fakes. No product code was deleted.
+- The unit suite now runs real code only: the fake-driven suites are deleted,
+  the screenshot comparison system is removed (a UI change gets one small
+  local look), and the coverage gate is dropped. The packed product's
+  real-life run is the product's test.
+- Pull requests can borrow the organization's CI runners. Once the owner has
+  installed the organization's GitHub App and switched the capacity flag on,
+  a pull request runs its Windows and macOS unit shards there while every
+  other job runs here. The capacity wait survives the documented queue, and
+  a weekly seed keeps the capacity cache warm. The Hosts, Forks and
+  browser-check capacity runs follow the pull request's cumulative paths, so
+  a follow-up push touching only an unrelated file no longer passes with no
+  Windows or macOS run anywhere.
+- The real-life run drives the packed product for real: installed into a new
+  empty folder and used against real providers on their cheapest models,
+  spending real money up to a stated request and dollar cap, with its record
+  kept beside the release.
+- The release door reads hosted evidence, not replays: skipped or neutral
+  workflows no longer count as green, a second run ID for the same workflow
+  and unchanged head is refused, hosted evidence is re-read immediately
+  before passing, and publication recovery uses a fresh artifact-only run.
 
 ## [0.18.2] - 2026-10-12
 
@@ -360,6 +958,16 @@ happened, not what was planned; superseded entries are kept.
   of the Marketplace icon replaces the Meta logo silhouette.
 
 ### Added
+
+- **Catch inventory and ratchet (tooling).** `scripts/catch-inventory.mjs`
+  walks every `try/catch` and promise `.catch(` under `src` and classifies
+  each as NARROW, REPORTED, SWALLOW, GENERIC or CLEANUP; `npm run
+  check:catches` (wired into `npm run quality`) fails when any SWALLOW or
+  GENERIC count rises against `scripts/catch-baseline.json`. Every
+  SWALLOW and GENERIC in `src/acp` and `src/webview` is now NARROW or
+  REPORTED with per-handler tests, and `docs/certification/
+  catch-inventory.md` ranks the 40 worst remaining handlers in core, host
+  and runtime for the per-area fix lanes.
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
   CM108ACC). `providers accounts` lists, adds, removes and orders a

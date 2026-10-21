@@ -9,6 +9,7 @@ import {
 } from '../../../shared/scheduleEvents'
 import { compileGlob } from '../../backends/modelapi/globLimits'
 import { noEventHistory } from './ports'
+import { isRejectedDelivery } from './registry'
 
 export interface ScheduleWorkspaceWatchPort {
   capability(): ScheduleSourceCapability
@@ -19,7 +20,8 @@ const pathSchema = z.string().check(
   z.minLength(1),
   z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS),
   z.refine(
-    (value) => !value.startsWith('/') && !value.includes('..') && !/[:\\\p{Cc}]/u.test(value),
+    (value) =>
+      !value.startsWith('/') && !value.split('/').includes('..') && !/[:\\\p{Cc}]/u.test(value),
   ),
 )
 const notificationSchema = z.strictObject({
@@ -65,7 +67,10 @@ export class ScheduleFilesSource implements ScheduleSubscribedEventSource {
           observedAt: change.observedAt,
           fields: { path: change.relativePath },
         })
-      } catch {
+      } catch (error) {
+        // Only a malformed host delivery reads as a rejected event; a
+        // subscriber bug keeps its kind for the caller.
+        if (!isRejectedDelivery(error)) throw error
         this.onRejected(this.id)
         return
       }

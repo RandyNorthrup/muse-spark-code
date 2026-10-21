@@ -3,10 +3,8 @@ import * as z from 'zod/mini'
 import {
   USAGE_DAYS_FOLDER,
   USAGE_DETAIL_DAYS,
-  USAGE_HISTORY_DAYS_DEFAULT,
-  USAGE_HISTORY_DAYS_MIN,
-  USAGE_HISTORY_DAYS_MAX,
   USAGE_FOLDER,
+  USAGE_HISTORY_DAY_MIN,
   USAGE_VERSION_FOLDER,
   USAGE_JOURNAL_VERSION,
   USAGE_RECORD_MAX_BYTES,
@@ -28,6 +26,7 @@ import {
   usageAmountSchema,
   usageCountSchema,
   usageCostSchema,
+  usageUsdSchema,
   usageTokensSchema,
   usageUnitsSchema,
   usageDaySchema,
@@ -40,7 +39,7 @@ import {
 } from '../../shared/usageJournal'
 import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
 import type { Usage } from '../backends/modelapi/schemas'
-import { emptyUsageMeasurements } from './aggregate'
+import { emptyUsageMeasurements, type UsageAggregateRow } from './aggregate'
 import { Usd } from '../../shared/usd'
 
 export interface UsageFileStat {
@@ -60,10 +59,10 @@ export interface UsageFs {
   /** No length: read the complete file through one handle, for atomic rollups. */
   read(file: string, offset: number, length?: number): Promise<Uint8Array>
   /**
-   * `isDurable` flushes the appended bytes to disk before resolving. `commit`,
-   * a fence (here and below), runs at the last step before the change lands and
-   * refuses it by throwing.
-   */
+  `isDurable` flushes the appended bytes to disk before resolving. `commit`,
+  a fence (here and below), runs at the last step before the change lands and
+  refuses it by throwing.
+  */
   append(
     file: string,
     line: string,
@@ -93,9 +92,22 @@ const usageLegacyLimitSnapshotSchema = limitSchemaWith(
   USAGE_LEGACY_JOURNAL_VERSION,
   legacyUsdSchema,
 )
-/** A stored line: a version 2 entry, or a version 1 entry read as version 2. */
+// Version 2 predates the limit snapshot's `plan` field but is otherwise
+// version 3's shape; the field stays optional, so one schema reads lines
+// with and without it and the reader keeps them as the current version.
+const USAGE_PREVIOUS_JOURNAL_VERSION = 2
+const usagePreviousRecordSchema = recordSchemaWith(USAGE_PREVIOUS_JOURNAL_VERSION, usageCostSchema)
+const usagePreviousLimitSnapshotSchema = limitSchemaWith(
+  USAGE_PREVIOUS_JOURNAL_VERSION,
+  usageUsdSchema,
+)
+/** A stored line: a current entry, or a version 1 or 2 entry read as current. */
 const usageJournalReadSchema = z.union([
   usageJournalEntrySchema,
+  z.pipe(
+    z.discriminatedUnion('type', [usagePreviousRecordSchema, usagePreviousLimitSnapshotSchema]),
+    z.transform((entry): UsageJournalEntry => ({ ...entry, v: USAGE_JOURNAL_VERSION })),
+  ),
   z.pipe(
     z.discriminatedUnion('type', [
       recordSchemaWith(USAGE_LEGACY_JOURNAL_VERSION, usageLegacyCostSchema),
@@ -153,7 +165,10 @@ export type UsageRollupRow = z.infer<typeof usageRollupRowSchema>
 function rollupSchemaWith<
   V extends number,
   C extends typeof usageCostSchema | typeof usageLegacyCostSchema,
-  L extends typeof usageLimitSnapshotSchema | typeof usageLegacyLimitSnapshotSchema,
+  L extends
+    | typeof usageLimitSnapshotSchema
+    | typeof usagePreviousLimitSnapshotSchema
+    | typeof usageLegacyLimitSnapshotSchema,
 >(version: V, cost: C, limit: L) {
   return z
     .strictObject({
@@ -179,21 +194,38 @@ const rollupSchema = rollupSchemaWith(
   usageLimitSnapshotSchema,
 )
 type Rollup = z.infer<typeof rollupSchema>
-// A version 1 month reads as version 2 with the same exact decimals (M121);
-// the next retention that changes it writes it back as version 2.
+const previousRollupSchema = rollupSchemaWith(
+  USAGE_PREVIOUS_JOURNAL_VERSION,
+  usageCostSchema,
+  usagePreviousLimitSnapshotSchema,
+)
+const legacyRollupSchema = rollupSchemaWith(
+  USAGE_LEGACY_JOURNAL_VERSION,
+  usageLegacyCostSchema,
+  usageLegacyLimitSnapshotSchema,
+)
+/** An older month reads as current with the same exact decimals (M121, T7);
+the next retention that changes it writes it back as current. */
+function rollupToCurrent(
+  rollup: z.infer<typeof previousRollupSchema> | z.infer<typeof legacyRollupSchema>,
+): Rollup {
+  return {
+    ...rollup,
+    v: USAGE_JOURNAL_VERSION,
+    limits: rollup.limits.map((limit) => ({ ...limit, v: USAGE_JOURNAL_VERSION })),
+  }
+}
+// A version 1 month reads as current with the same exact decimals (M121);
+// the next retention that changes it writes it back as current.
 const rollupReadSchema = z.union([
   rollupSchema,
   z.pipe(
-    rollupSchemaWith(
-      USAGE_LEGACY_JOURNAL_VERSION,
-      usageLegacyCostSchema,
-      usageLegacyLimitSnapshotSchema,
-    ),
-    z.transform((rollup): Rollup => ({
-      ...rollup,
-      v: USAGE_JOURNAL_VERSION,
-      limits: rollup.limits.map((limit) => ({ ...limit, v: USAGE_JOURNAL_VERSION })),
-    })),
+    previousRollupSchema,
+    z.transform((rollup) => rollupToCurrent(rollup)),
+  ),
+  z.pipe(
+    legacyRollupSchema,
+    z.transform((rollup) => rollupToCurrent(rollup)),
   ),
 ])
 // Refusal counts need only metadata, never validation of the unproved money.
@@ -210,14 +242,14 @@ const USAGE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
   'remainingUsd',
 ])
 /**
- * Parse stored JSON. A version 1 dollar is exact only when the number it
- * parses to has the same decimal value as the digits written: 0.17 wrote
- * JSON.stringify's shortest spelling, which always does; digits beyond a
- * double (an edited or foreign file) do not, and `isExact` is false so the
- * reader refuses the record instead of rounding it. The written digits come
- * from `parseJsonWithExactNumbers`, never the reviver's source text, so the
- * refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
- */
+Parse stored JSON. A version 1 dollar is exact only when the number it
+parses to has the same decimal value as the digits written: 0.17 wrote
+JSON.stringify's shortest spelling, which always does; digits beyond a
+double (an edited or foreign file) do not, and `isExact` is false so the
+reader refuses the record instead of rounding it. The written digits come
+from `parseJsonWithExactNumbers`, never the reviver's source text, so the
+refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
+*/
 function parseUsageJson(text: string): { readonly value: unknown; readonly isExact: boolean } {
   return parseJsonWithExactNumbers(text, USAGE_LEGACY_MONEY_KEYS)
 }
@@ -242,9 +274,9 @@ export interface UsageJournalRead {
   readonly tornLines: number
   readonly invalidLines: number
   /**
-   * Version 1 records (lines, or a month's rollup rows) whose written dollars
-   * a number cannot carry: refused and named on the page, never rounded (M121).
-   */
+  Version 1 records (lines, or a month's rollup rows) whose written dollars
+  a number cannot carry: refused and named on the page, never rounded (M121).
+  */
   readonly inexactRecords: number
 }
 export interface UsageJournalOptions {
@@ -267,6 +299,42 @@ function shiftedDay(day: string, days: number): string {
 }
 function sum(a: number | undefined, b: number | undefined): number | undefined {
   return a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0)
+}
+/**
+Adapt a validated stored rollup without inventing unknown paired rates
+(C-M113-2 shares this with the usage service instead of copying it).
+*/
+export function toAggregateRow(row: UsageRollupRow): UsageAggregateRow {
+  return {
+    day: row.day,
+    client: row.client,
+    backend: row.backend,
+    provider: row.provider,
+    model: row.model,
+    kind: row.kind,
+    histogram: row.latencyHistogram,
+    ...(row.measurements !== undefined && { measurements: row.measurements }),
+    totals: {
+      records: row.records,
+      tokens: row.tokens,
+      units: row.units,
+      costs: [
+        {
+          certainty: row.cost.certainty,
+          records: row.records,
+          ...(row.cost.usd !== undefined && { usd: row.cost.usd }),
+          ...(row.cost.apiEquivalentUsd !== undefined && {
+            apiEquivalentUsd: row.cost.apiEquivalentUsd,
+          }),
+        },
+      ],
+      retries: row.retries,
+      rateLimited: row.rateLimited,
+      ...(row.durationMs !== undefined && { durationMs: row.durationMs }),
+      ...(row.firstTokenMs !== undefined && { firstTokenMs: row.firstTokenMs }),
+      ...(row.packedAvoided !== undefined && { packedAvoided: row.packedAvoided }),
+    },
+  }
 }
 /** Optional sums stay absent when no call reported that counter. */
 export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollupRow[] {
@@ -366,6 +434,13 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
   return result
 }
 
+/**
+The lock went away mid-read: the snapshot may mix generations, so the
+read retries once with cold caches instead of returning it. Caught by
+identity in `read` only; it never surfaces to a caller.
+*/
+class UsageLockRacedError extends Error {}
+
 export class UsageJournalStore {
   private readonly cache = new Map<string, FileCache>()
   private readonly rollupCache = new Map<
@@ -393,6 +468,7 @@ export class UsageJournalStore {
       await previous
       if (this.options.isEnabled()) await this.fs.append(file, line)
     } catch {
+      // Diagnostics cannot fail a model call: the once-only write error stands in.
       this.logWriteError()
     }
   }
@@ -433,12 +509,24 @@ export class UsageJournalStore {
     ) {
       const line = bytes.subarray(offset, index)
       offset = index + 1
+      let text: string
+      try {
+        text = decoder.decode(line)
+      } catch (error) {
+        // Bytes that are not UTF-8 are not a line: the line counts invalid
+        // and the scan moves on; anything else keeps its kind past the journal.
+        if (error instanceof TypeError) {
+          invalidLines += 1
+          continue
+        }
+        throw error
+      }
       try {
         if (line.byteLength >= USAGE_RECORD_MAX_BYTES) {
           invalidLines += 1
           continue
         }
-        const { value, isExact } = parseUsageJson(decoder.decode(line))
+        const { value, isExact } = parseUsageJson(text)
         if (isNewer(value)) {
           newerVersionRecords += 1
           continue
@@ -450,8 +538,14 @@ export class UsageJournalStore {
         const result = usageJournalReadSchema.safeParse(value)
         if (result.success) entries.push(result.data)
         else invalidLines += 1
-      } catch {
-        invalidLines += 1
+      } catch (error) {
+        // Malformed JSON counts the line invalid and the scan moves on;
+        // anything else keeps its kind past the journal.
+        if (error instanceof SyntaxError) {
+          invalidLines += 1
+          continue
+        }
+        throw error
       }
     }
     const next = {
@@ -571,6 +665,7 @@ export class UsageJournalStore {
       if (!this.options.isEnabled()) return
       this.append(createUsageRecord(usage, context))
     } catch {
+      // Diagnostics cannot fail a model call: the once-only write error stands in.
       this.logWriteError()
     }
   }
@@ -583,6 +678,7 @@ export class UsageJournalStore {
       const line = `${JSON.stringify(entry)}\n`
       this.queue = this.write(this.queue, file, line)
     } catch {
+      // Diagnostics cannot fail a model call: the once-only write error stands in.
       this.logWriteError()
     }
   }
@@ -594,24 +690,41 @@ export class UsageJournalStore {
     // A stale lease may be reclaimed while a process is paused. Never return
     // bytes gathered across generations; retry once, including a raced parse.
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
-      if (lock === undefined) throw new Error('usageLocked')
       try {
-        const snapshot = await this.readSnapshot()
-        if (await lock.isHeld()) return snapshot
+        const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
+        if (lock === undefined) throw new Error('usageLocked')
+        try {
+          const snapshot = await this.readSnapshot()
+          if (await lock.isHeld()) return snapshot
+        } catch (error) {
+          // The lock went away mid-read: the snapshot may mix generations,
+          // so it never returns. A held lock means the read itself failed,
+          // which keeps its kind.
+          if (await lock.isHeld()) throw error
+          throw new UsageLockRacedError('usageLockRaced', { cause: error })
+        } finally {
+          await lock.release()
+        }
+        this.cache.clear()
+        this.rollupCache.clear()
       } catch (error) {
-        if (await lock.isHeld()) throw error
-      } finally {
-        await lock.release()
+        // A raced lock retries once with cold caches; anything else,
+        // including a second race, keeps its kind.
+        if (!(error instanceof UsageLockRacedError)) throw error
+        this.cache.clear()
+        this.rollupCache.clear()
       }
-      this.cache.clear()
-      this.rollupCache.clear()
     }
     throw new Error('usageLockLost')
   }
-  /** Covers a day atomically before deleting it. Bad/future raw data stays untouched. */
-  public async retain(historyDays = USAGE_HISTORY_DAYS_DEFAULT): Promise<boolean> {
-    z.int().check(z.gte(USAGE_HISTORY_DAYS_MIN), z.lte(USAGE_HISTORY_DAYS_MAX)).parse(historyDays)
+  /**
+  Covers a day atomically before deleting it. Bad/future raw data stays
+  untouched. NOLIMITSSET (PLAN.md D121): null keeps every rolled-up day —
+  history is kept until the person sets a day count or clears it; a set
+  whole number of days of at least 1 trims as set.
+  */
+  public async retain(historyDays: number | null = null): Promise<boolean> {
+    if (historyDays !== null) z.int().check(z.gte(USAGE_HISTORY_DAY_MIN)).parse(historyDays)
     await this.flush()
     const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
     if (lock === undefined) return false
@@ -622,14 +735,14 @@ export class UsageJournalStore {
       if (stored.newer > 0 || stored.inexact > 0) return false
       const today = usageLocalDay(this.options.now())
       const detailCutoff = shiftedDay(today, -(USAGE_DETAIL_DAYS - 1))
-      const historyCutoff = shiftedDay(today, -(historyDays - 1))
+      const historyCutoff = historyDays === null ? null : shiftedDay(today, -(historyDays - 1))
       const months = new Map(stored.rollups.map((rollup) => [rollup.month, rollup]))
       const covered = new Set(stored.rollups.flatMap((rollup) => rollup.days))
       const rawDays = await this.fs.list(DAYS_ROOT)
       for (const day of rawDays) {
         if (!usageDaySchema.safeParse(day).success || day >= detailCutoff) continue
         if (!(await lock.isHeld())) throw new Error('usageLockLost')
-        if (!covered.has(day) && day >= historyCutoff) {
+        if (!covered.has(day) && (historyCutoff === null || day >= historyCutoff)) {
           const files = await this.readDay(day)
           if (
             files.some(
@@ -673,7 +786,8 @@ export class UsageJournalStore {
         this.cache.clear()
       }
       for (const rollup of months.values()) {
-        const days = rollup.days.filter((day) => day >= historyCutoff)
+        const days =
+          historyCutoff === null ? rollup.days : rollup.days.filter((day) => day >= historyCutoff)
         if (days.length === rollup.days.length) continue
         if (!(await lock.isHeld())) throw new Error('usageLockLost')
         const file = `${ROLLUPS_ROOT}/${rollup.month}.json`

@@ -23,14 +23,14 @@ afterEach(() => {
   setUiText(EN, 'en')
 })
 describe('scanner localization', () => {
-  it('uses every installed language at scan time and keeps identifiers stable', () => {
-    const english = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+  it('uses every installed language at scan time and keeps identifiers stable', async () => {
+    const english = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
     for (const locale of TABLE_LOCALES) {
       const table: unknown = JSON.parse(readFileSync(`l10n/ui.${locale}.json`, 'utf8'))
       expect(isTable(table, locale)).toBe(true)
       if (!isTable(table, locale)) throw new Error('missing table')
       setUiText(table, locale)
-      const result = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+      const result = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
       expect(
         result.findings.map(({ id, file, packageName, licenseExpression }) => ({
           id,

@@ -54,9 +54,13 @@ export interface UsageAccessDeps {
   readonly locale: string
   readonly uiText: UiText
   readonly log: CoreLogger
-  readonly historySettings?: () => { readonly enabled: boolean; readonly days: number }
+  // NOLIMITSSET (PLAN.md D121): null days keeps history — no day count of ours.
+  readonly historySettings?: () => { readonly enabled: boolean; readonly days: number | null }
   readonly beforeRead?: () => Promise<void>
-  readonly live?: Pick<UsageServiceDeps, 'readBudgets' | 'readLiveLimits' | 'providerConsoles'> &
+  readonly live?: Pick<
+    UsageServiceDeps,
+    'readBudgets' | 'readLiveLimits' | 'providerConsoles' | 'currentCredentialId'
+  > &
     Partial<Pick<UsageServiceDeps, 'readModelPrice' | 'priceUnpriced' | 'readAttempts'>>
 }
 
@@ -170,17 +174,22 @@ export function lazyUsageAdapter(
         void observeClose(started)
       }
       const current = page
-      try {
-        const server = await current
-        return usageCompanionUrl(server.launchUrl?.() ?? server.url)
-      } catch (error: unknown) {
-        if (page === current) page = undefined
+      // A failed start still closes its companion quietly; the original
+      // start/URL error below stays the refusal.
+      const closeStartedQuietly = async (): Promise<void> => {
         try {
           const server = await current
           await server.close()
         } catch {
           /* The original start/URL error is the refusal. */
         }
+      }
+      try {
+        const server = await current
+        return usageCompanionUrl(server.launchUrl?.() ?? server.url)
+      } catch (error: unknown) {
+        if (page === current) page = undefined
+        await closeStartedQuietly()
         throw error
       }
     },

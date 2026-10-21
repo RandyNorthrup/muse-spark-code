@@ -56,6 +56,16 @@
     "reason": "M75 paired-evaluation verifier: reachable only from the eval runner, which only tests and live drills call (proved by the guard)."
   },
   {
+    "site": "src/core/locks/processOwner.ts#call:execFile:1",
+    "profile": "probe",
+    "reason": "Fixed base-system ps/sysctl on macOS or one Windows PowerShell process/boot query; absolute paths, read-only, hidden and 10-second deadline. This bootstrap identity probe precedes governor ownership, with no payload or credentials; failed evidence is cached for 2 seconds."
+  },
+  {
+    "site": "src/core/locks/processOwner.ts#import:1",
+    "profile": "probe",
+    "reason": "Fixed base-system ps/sysctl on macOS or one Windows PowerShell process/boot query; absolute paths, read-only, hidden and 10-second deadline. This bootstrap identity probe precedes governor ownership, with no payload or credentials; failed evidence is cached for 2 seconds."
+  },
+  {
     "site": "src/core/media/convert.ts#call:spawnResourceProcess:1",
     "profile": "probe",
     "reason": "Media tool version probe (`-version`): bounded, reads stdout only, writes nothing; contained tree, no temp root."
@@ -247,6 +257,11 @@
     "reason": "Injected helper spawn is supplied by admittedVoiceProcess with admission and contained job/group lifetime."
   },
   {
+    "site": "src/runtime/companion/voiceSystem.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Injected file-recognition spawn is supplied by spawnHelper with admission and contained job/group lifetime; no host microphone is opened."
+  },
+  {
     "site": "src/host/backend/jobBuild.ts#call:runBootstrap:1",
     "profile": "bootstrap",
     "reason": "Containment helper compiler selects shared bounded bootstrap admission; it cannot use its unbuilt helper."
@@ -367,6 +382,11 @@
     "reason": "Injected execFile is the host guarded Git command port; this module imports process types only."
   },
   {
+    "site": "src/host/git/githubSession.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "gh auth token --hostname github.com for D104 source (c), only while museSpark.github.useGhLogin is on in user or machine settings: fixed arguments, credential-stripped environment, capped output; contained tree, no temp root."
+  },
+  {
     "site": "src/host/processTree.ts#call:execFile:1",
     "profile": "bootstrap",
     "reason": "runProgram: fixed bounded runner for containment-helper self-tests, OS identity probes and emergency termination; it cannot be admitted through the helpers it verifies."
@@ -469,6 +489,11 @@
     "reason": "Worker thread, not a process: the fixed bundled page converter (dist/pageWorker.js), never eval program text; resourceLimits heap cap and WEB_FETCH_CONVERT_TIMEOUT_MS, terminated by its owner. Listed because its options are not a literal."
   },
   {
+    "site": "src/runtime/github/ghLoginSource.ts#import:1",
+    "profile": "contained",
+    "reason": "Types only (ExecFileOptionsWithStringEncoding): the gh token source launches nothing itself; its caller passes the governed probe runner (src/host/git/githubSession.ts)."
+  },
+  {
     "site": "src/runtime/main.ts#call:handoffResourceFile:1",
     "profile": "handoff",
     "reason": "Usage companion opener (xdg-open, open, rundll32) receives a checked loopback URL; bounded adapter wait, root-only stop; pause is reported as such."
@@ -507,6 +532,21 @@
     "site": "src/runtime/sharing/sharingEntry.ts#call:handoffResourceFile:1",
     "profile": "handoff",
     "reason": "Share copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) adapters; scrubbed stdin, credential-free environment; pause is refused with the governor’s words."
+  },
+  {
+    "site": "src/runtime/vault/posixClientPlatform.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Installed vault broker/native kernel lock uses admission, a credential-free environment and owned whole-tree cleanup."
+  },
+  {
+    "site": "src/runtime/vault/posixNative.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "Bounded read-only vault native process identity probe; no temp root, credential environment or shell."
+  },
+  {
+    "site": "src/runtime/vault/posixNative.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Installed vault broker/native kernel lock uses admission, a credential-free environment and owned whole-tree cleanup."
   },
   {
     "site": "src/runtime/vault/slots/macVaultTransport.ts#call:spawnResourceProcess:1",

@@ -18,16 +18,22 @@ export interface ResourceEntryOptions {
   machineDir: string
   sleep: (ms: number) => Promise<void>
   onError: (error: unknown) => void
+  /**
+  A damaged usage-history choice, once per distinct damage with what the
+  person is told. Absent, the sentence falls back to `onError` (the ACP
+  agent's existing resource-error channel) instead of the generic line.
+  */
+  onDamagedChoice?: (text: string) => void
   machine?: ResourceMachineStore
   running?: ResourceRunningWork
   history?: ResourceHistoryPort
   overrides?: Partial<ResourceSettings>
   hasRelocationTarget?: () => boolean
   /**
-   * Long-lived hosts (the ACP agent) record their governor's samples into the
-   * machine journal with this usage-history consent. One-shot commands and
-   * headless runs leave it unset and only read.
-   */
+  Long-lived hosts (the ACP agent) record their governor's samples into the
+  machine journal with this usage-history consent. One-shot commands and
+  headless runs leave it unset and only read.
+  */
   isRecordingHistory?: () => boolean
 }
 
@@ -53,7 +59,17 @@ export async function createResources(
     isRecordingHistory === undefined
       ? undefined
       : resourceHistoryRecorder(
-          { dataFolder: options.machineDir, isEnabled: isRecordingHistory },
+          {
+            dataFolder: options.machineDir,
+            isEnabled: isRecordingHistory,
+            onDamagedChoice: (notice) => {
+              if (options.onDamagedChoice === undefined) {
+                options.onError(new Error(notice.text))
+              } else {
+                options.onDamagedChoice(notice.text)
+              }
+            },
+          },
           { read: () => Promise.resolve([]) },
           () => {
             options.onError(new Error(UI_TEXT.resourceHistoryInvalid))
@@ -110,8 +126,10 @@ export async function createResources(
       stopEvents()
       host.dispose()
       // Best effort: the open minute is written if the process lives long enough.
-      void recorder.flush().catch(() => {
-        options.onError(new Error(UI_TEXT.resourceHistoryInvalid))
+      void recorder.flush().catch((error: unknown) => {
+        // A failed flush reaches the error port with its cause under fixed
+        // words; disposal itself never throws.
+        options.onError(new Error(UI_TEXT.resourceHistoryInvalid, { cause: error }))
       })
     },
   }

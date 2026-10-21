@@ -43,6 +43,10 @@
     "other": "Export CSV za volání je k dispozici pouze za posledních {count} dnů."
   },
   "exportComplete": "Využití exportováno.",
+  "exportTooLarge": "Tento export je pro prohlížeč příliš velký. Zvolte kratší období nebo exportujte pomocí CLI.",
+  "exportBound": "Exporty v prohlížeči jsou omezeny na {limit} včetně kódování JSON.",
+  "editorActionsUnavailable": "Tato stránka nemůže otevřít nastavení editoru, zobrazit složku historie ani upravit ceny modelů. Použijte nastavení editoru a ovládací prvky Modely a agenti. Čtení, filtry, grafy a exporty zde zůstávají dostupné.",
+  "readOnlyActions": "Toto textové rozhraní je pouze pro čtení. Pro grafy, správu historie a stahování otevřete doprovodnou stránku.",
   "deleteHistory": "Odstranit historii využití…",
   "deleteTitle": "Odstranit historii využití?",
   "deleteConfirm": {
@@ -50,6 +54,12 @@
     "few": "Odstranit {count} záznamy využití na tomto počítači? Výdajové deníky a udělená oprávnění zůstanou zachovány.",
     "many": "Odstranit {count} záznamů využití na tomto počítači? Výdajové deníky a udělená oprávnění zůstanou zachovány.",
     "other": "Odstranit {count} záznamů využití na tomto počítači? Výdajové deníky a udělená oprávnění zůstanou zachovány."
+  },
+  "deleteConfirmResources": {
+    "one": "Odstraní se také {count} záznam historie prostředků.",
+    "few": "Odstraní se také {count} záznamy historie prostředků.",
+    "many": "Odstraní se také {count} záznamu historie prostředků.",
+    "other": "Odstraní se také {count} záznamů historie prostředků."
   },
   "deleteAction": "Odstranit historii",
   "deleteComplete": "Historie využití odstraněna.",
@@ -127,11 +137,18 @@
   "certaintyReported": "Nahlášeno",
   "certaintyComputed": "Vypočteno",
   "certaintyUncertain": "Nejisté",
+  "reservedLabel": "Rezervováno",
   "certaintyPlan": "Plán",
   "certaintyLocal": "Místní",
   "certaintyUnpriced": "Bez ceny",
   "certaintyEstimated": "Odhad",
   "uncertainNote": "Požadavek byl odeslán, ale využití nebylo vráceno. Odpovědnost za náklady trvá.",
+  "unknownCalls": {
+    "one": "{count} požadavek s neznámou cenou",
+    "few": "{count} požadavky s neznámou cenou",
+    "many": "{count} požadavků s neznámou cenou",
+    "other": "{count} požadavků s neznámou cenou"
+  },
   "unpricedNote": "Není k dispozici žádný ceník. Neznámé náklady nejsou nula.",
   "estimatedNote": "Počty tokenů jsou odhady.",
   "localNote": "Místní model: bez poplatků za API.",
@@ -238,15 +255,6 @@
   "sortAscending": "Řadit vzestupně",
   "sortDescending": "Řadit sestupně",
   "retentionNote": "Podrobnosti o voláních se uchovávají {detailDays} dnů, denní souhrny {historyDays} dnů.",
-  "privacyNote": "Historie zůstává na tomto počítači. Neobsahuje výzvy, odpovědi, argumenty nástrojů, cesty ani klíče.",
-  "exportTooLarge": "Tento export je pro prohlížeč příliš velký. Zvolte kratší období nebo exportujte pomocí CLI.",
-  "exportBound": "Exporty v prohlížeči jsou omezeny na {limit} včetně kódování JSON.",
-  "editorActionsUnavailable": "Tato stránka nemůže otevřít nastavení editoru, zobrazit složku historie ani upravit ceny modelů. Použijte nastavení editoru a ovládací prvky Modely a agenti. Čtení, filtry, grafy a exporty zde zůstávají dostupné.",
-  "readOnlyActions": "Toto textové rozhraní je pouze pro čtení. Pro grafy, správu historie a stahování otevřete doprovodnou stránku.",
-  "deleteConfirmResources": {
-    "one": "Odstraní se také {count} záznam historie prostředků.",
-    "few": "Odstraní se také {count} záznamy historie prostředků.",
-    "many": "Odstraní se také {count} záznamu historie prostředků.",
-    "other": "Odstraní se také {count} záznamů historie prostředků."
-  }
+  "retentionNoteKept": "Podrobnosti o voláních se uchovávají {detailDays} dnů, denní souhrny se uchovávají, dokud nenastavíte počet dní nebo je nevymažete.",
+  "privacyNote": "Historie zůstává na tomto počítači. Neobsahuje výzvy, odpovědi, argumenty nástrojů, cesty ani klíče."
 }

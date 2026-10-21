@@ -5,7 +5,9 @@
 import { existsSync } from 'node:fs'
 import * as vscode from 'vscode'
 import { UI_TEXT, VSCODE_COMMANDS } from '../shared/constants'
-import { newWorktree, removeWorktree, type WorktreeDeps } from './commands/worktreeCommands'
+import { uiLocale } from '../shared/l10n/text'
+import type * as CommandsBundle from './commands/commandsEntry'
+import type { WorktreeDeps } from './commands/worktreeCommands'
 import type { WorktreeRegistry } from './git/worktreeRegistry'
 import type { Logger } from './logger'
 import { loggedPopups } from './popups'
@@ -85,7 +87,14 @@ export function createWorktreeFeatures(deps: WorktreeFeatureDeps): WorktreeFeatu
     log: deps.log,
   })
   return {
-    newWorktree: () => newWorktree(flowDeps()),
-    removeWorktree: () => removeWorktree(flowDeps()),
+    // The worktree flows load on first use (PLAN.md D6): dist/commands.js.
+    newWorktree: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.newWorktree(flowDeps(), UI_TEXT, uiLocale())
+    },
+    removeWorktree: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.removeWorktree(flowDeps(), UI_TEXT, uiLocale())
+    },
   }
 }

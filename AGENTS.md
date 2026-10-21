@@ -128,15 +128,32 @@ above.
    code comments.
 2. **Gates are not optional.** Hosted CI is the gate for a release: every job
    green on the commit that merges, and a red job is read and its cause
-   measured, never rerun into green. Local runs are for fast feedback: format,
-   lint, typecheck, the suites you touched and the packed product itself
-   (its commands, its help, its errors, its files on disk). Before a release,
-   real conversations go through the packed product in the real-life run
-   (CONTRIBUTING.md, "Before you open a pull request"). Never weaken a gate
-   (rule levels, ignores) to get green; fix the code or record a justified
-   deferral in `PLAN.md` §7. An exact-size assertion may move with the
-   measured number and a one-line reason in the same change. A limit on what
-   the product does follows the standing rule above (models only).
+   measured, never rerun into green. Nothing is started again on the same
+   commit, whatever the cause: a runner fault is answered like any red, by a
+   new commit that names the run and the job, and its run decides. Two doors
+   hold this (`scripts/rule2-gate.mjs`, `docs/certification/rule2-gate.md`):
+   CI's required names fail on every attempt after the run's first execution
+   (an outside contributor's run executes as attempt 2, after the approval
+   wait) and unless every other workflow run on the head is green on its
+   first, and the release workflow refuses a tag unless every run on the
+   tagged commit and on its pull request's head is. Local runs are for fast
+   feedback: format, lint, typecheck, the suites you touched and the packed
+   product itself (its commands, its help, its errors, its files on disk).
+   The product's test is the real-life run (the owner, 2026-10-12: "test the
+   app in real life thats the tests"; nothing is tested against fake code):
+   `node scripts/real-life/run.mjs` installs the packed candidate into a new
+   empty folder and uses it as a person and an editor do, against real
+   providers on their cheapest models (`docs/testing/real-life.md`). Before a
+   release, real conversations go through it (CONTRIBUTING.md, "Before you
+   open a pull request"); its record is the release's gate and the proof
+   behind every claim. It spends real money on the owner's standing word:
+   state the requests it may make and its dollar cap first, run it in an
+   empty workspace, count afterwards and report; buying credits is the
+   owner's. Never weaken a gate (thresholds, rule levels, ignores) to get
+   green; fix the code or record a justified deferral in `PLAN.md` §7. An
+   exact-size assertion may move with the measured number and a one-line
+   reason in the same change. A limit on what the product does follows the
+   standing rule above (models only).
 3. **Prove new gates and tests fire.** A test or lint rule that has never been
    seen to fail is a decoration. Break the thing on purpose, watch it fail,
    revert, and note it in the milestone's certification record under
@@ -266,7 +283,11 @@ above.
     subscription never pays for one. One exception to the key is planned
     (PLAN.md D50, M85, experimental): the TypeSafe assist is billed to the
     user's own TypeSafe key instead of the Model API key; every other part
-    of this rule applies to it unchanged.
+    of this rule applies to it unchanged. Scheduled prompts carry their own
+    consent (M115): creation asks D48's question once per schedule, naming
+    payer, model, key, tariff and both caps; a changed model, key, tariff,
+    grant or cap refuses before the next fire until renewed through an
+    interactive schedule edit; an unattended fire never opens the popup.
 
 - **Tab (M94, D73):** `museSpark.modelApiTab` is machine-scoped and on by
   default. The first paid request asks D48's question with the model's rates
@@ -331,6 +352,28 @@ above.
     source fingerprint), a milestone without an entry or an entry for a
     milestone PLAN.md does not have (PLAN.md M122; CONTRIBUTING.md has the
     entry format).
+18. **A catch handles a named condition or reports.** Every `try/catch` and
+    promise `.catch(` is one of NARROW (tests for a named, expected
+    condition and rethrows or reports everything else), REPORTED (every
+    path rethrows, throws a typed failure carrying the cause's kind, or
+    records it), SWALLOW, GENERIC or CLEANUP (best-effort teardown with
+    a reason comment on the catch line or as the handler's leading comment,
+    as `scripts/lib/catch-inventory.mjs` implements it). New code is NARROW or REPORTED;
+    error message text, paths and prompts never reach a log or a
+    sentence. Run `npm run check:catches` (in `npm run quality`): it
+    fails when any SWALLOW or GENERIC count rises, and when one fell
+    without regenerating `scripts/catch-baseline.json`.
+19. **Starts cells are strict.** A `Starts` cell in a PLAN.md lane table is
+    `day 0`, `first`, `last`, or `after <ref>[, <ref> | and <ref>]...`
+    (clauses split on `;`), where a ref is a lane of its own milestone
+    (`0`, `lane 0`), a qualified lane (`M100:T`), or a whole milestone
+    (`M100`, expanding to its lanes). Text in parentheses is a note and is
+    ignored; `after lane 0` means lane `0`; an empty cell binds nothing.
+    Anything else refuses with `malformed-starts` naming the cell and its
+    plan line. Strictness applies to the goal's dependency closure (rows
+    outside it never block a forecast); `estimate --check-plan` lists every
+    problem in the whole plan. Write prose as a parenthetical note, never
+    as a ref. One table per milestone is a lane table.
 
 ## Layout
 
@@ -381,16 +424,22 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       with its status item in the activation shim,
                       media attachments (dist/media.js: the attach port, the
                       recording picker and the uploaded-files list, loaded on
-                      the first attach or recording action; M105) and screen
+                      the first attach or recording action; M105), the
+                      window's attached-media registry, the attach open hook
+                      and contributor consent (dist/mediaHost.js, loaded with
+                      the first attach) and screen
                       recording (dist/screenRecord.js: the recorder command,
                       loaded on the first recording; M105),
-                      the vault's window (vault/: the panel host and the
-                      native editor in dist/vault.js, loaded on the first
-                      vault command; only the command shim stays at
-                      activation, and both commands refuse closed until the
-                      broker-backed service lands),
+                      the vault's window (vault/: the panel host, the
+                      native editor and the broker-backed panel service in
+                      dist/vault.js, loaded on the first vault command; only
+                      the command shim stays at activation, and both
+                      commands refuse closed until the broker is installed
+                      and the Models & Agents panel mounts the vault section),
                       the estimator's engine and history honesty
                       (dist/estimator.js, loaded on the first estimate; M117),
+                      the estimator's plan snapshot (dist/planSnapshot.js,
+                      loaded on the first estimate needing one; M117),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
@@ -452,6 +501,14 @@ src/runtime/reporting/** deterministic report engine and portable facade
                       destination contracts (dist/reportingDestinations.js),
                       editor adapter (dist/reportingPanel.js) and shared page
                       (dist/webview/reportingPage.js), loaded on first use
+src/runtime/panel/git/** M123's native Git route (D104): the service, its
+                      allowlisted git and repository lease, the adapter with
+                      its pull request half (dist/nativeGit.js, loaded only in
+                      a host without `vscode.git`); pullRequests/ the runtime's
+                      pull requests and its held checkout
+src/runtime/github/** D104's GitHub sign-in sources (b) device flow and (c)
+                      `gh`, shared by the panel's window sign-in
+                      (core/git/githubSignIn.ts) and `auth github`
 src/runtime/exec/**   headless arguments/protocol/egress (dist/exec.js, loaded
                       only by the exec command), stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
@@ -460,7 +517,9 @@ src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       `report` (M93), `providers accounts` and the runtime
                       account services (dist/runtimeAccounts.js, loaded on the
                       first accounts, developer or keyed headless command; M108),
-                      the journal-backed `playbook` command
+                      the vault's CLI, ACP and headless binding
+                      (dist/vaultRuntime.js, loaded on the first vault need;
+                      C-M109-1), the journal-backed `playbook` command
                       with its ACP `/playbook` surface (M116); the schedule command and settle path
                       (schedules/), and the native background scheduler entry
                       (dist/scheduleBackground.js, run by the OS launcher)
@@ -532,6 +591,13 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       changelog notes, What's New's content (lib/), VS Code
                       versions for CI, the ACP
                       agent's package
+scripts/real-life/    the real-life run: the packed product installed into a
+                      new empty folder and used for real, by the terminal
+                      agent and the editor protocol (run.mjs, lib/, one
+                      small file per scenario in scenarios/)
+docs/testing/         real-life.md (what the run is, how to run it, what it
+                      costs, how to add a scenario); real-life/<version>/
+                      holds a release's records
 docs/certification/   per-milestone gate-fire records and screenshots
 docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
                       (decisions.md, milestones.md, gates.md); each passage
@@ -582,6 +648,7 @@ media/                icons, banner, social preview, README screenshots
 | Production build + size budget | `npm run build`                                      |
 | Package `.vsix`                | `npm run package`                                    |
 | Package the ACP agent (D62)    | `npm run package:acp`                                |
+| The real-life run              | `npm run real-life -- --list` (docs/testing)         |
 | Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)                 |
 | Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`            |
 | Host checks (hosts.yml)        | `sh test/hosts/<script>.sh`                          |

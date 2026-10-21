@@ -2,13 +2,7 @@
 // worktree names, the paid-use shape, and the git shapes around the take.
 
 import { describe, expect, it } from 'vitest'
-import {
-  BEST_OF_N_DIFF_MAX_CHARS,
-  BEST_OF_N_MAX_ATTEMPTS,
-  BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT,
-  BEST_OF_N_MIN_ATTEMPTS,
-  BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT,
-} from '../../src/shared/constants'
+import { BEST_OF_N_DIFF_MAX_CHARS } from '../../src/shared/constants'
 import {
   bestOfNBranch,
   bestOfNChangedLines,
@@ -34,20 +28,25 @@ describe('validateBestOfNRequest', () => {
     ).toEqual(['prompt'])
   })
 
-  it('refuses attempt counts outside the bounds, in field order', () => {
-    for (const attempts of [BEST_OF_N_MIN_ATTEMPTS - 1, BEST_OF_N_MAX_ATTEMPTS + 1, 2.5, NaN]) {
+  it('accepts any whole-number count of 1 or more (D121: no ceiling of ours)', () => {
+    expect(
+      validateBestOfNRequest({ prompt: 'go', attempts: 1, requestCeilingPerAttempt: 1 }),
+    ).toEqual([])
+    expect(
+      validateBestOfNRequest({ prompt: 'go', attempts: 201, requestCeilingPerAttempt: 500 }),
+    ).toEqual([])
+  })
+
+  it('refuses attempt counts below 1 or not whole, in field order', () => {
+    for (const attempts of [0, -2, 2.5, NaN]) {
       expect(
         validateBestOfNRequest({ prompt: 'go', attempts, requestCeilingPerAttempt: 20 }),
       ).toEqual(['attempts'])
     }
   })
 
-  it('refuses ceilings outside the bounds', () => {
-    for (const requestCeilingPerAttempt of [
-      BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT - 1,
-      BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT + 1,
-      7.5,
-    ]) {
+  it('refuses ceilings below 1 or not whole', () => {
+    for (const requestCeilingPerAttempt of [0, -1, 7.5]) {
       expect(
         validateBestOfNRequest({ prompt: 'go', attempts: 3, requestCeilingPerAttempt }),
       ).toEqual(['ceiling'])
@@ -56,7 +55,7 @@ describe('validateBestOfNRequest', () => {
 
   it('reports every bad field at once', () => {
     expect(
-      validateBestOfNRequest({ prompt: '', attempts: 1, requestCeilingPerAttempt: 500 }),
+      validateBestOfNRequest({ prompt: '', attempts: 0, requestCeilingPerAttempt: 0 }),
     ).toEqual(['prompt', 'attempts', 'ceiling'])
   })
 })

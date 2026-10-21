@@ -94,9 +94,9 @@ export interface UsageDialogProps {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /**
-   * The team's tasks, tokens and cost (M96 lane U2); undefined where the
-   * team cannot run: the dialog is today's.
-   */
+  The team's tasks, tokens and cost (M96 lane U2); undefined where the
+  team cannot run: the dialog is today's.
+  */
   readonly team?: TeamUsageSummary | undefined
   readonly modelId: string | undefined
   /** The current model's price kind (M95): unpriced counts tokens only. */
@@ -230,11 +230,11 @@ function contextValueOf(context: ContextSummary | undefined): string | undefined
 }
 
 /**
- * What the prompt cache saved (M82): the uncached price minus the priced
- * one, with its share of the uncached price. Defined only where a cost is
- * priced (the Model API); Muse Code reports no honest cache totals
- * (PLAN.md D26).
- */
+What the prompt cache saved (M82): the uncached price minus the priced
+one, with its share of the uncached price. Defined only where a cost is
+priced (the Model API); Muse Code reports no honest cache totals
+(PLAN.md D26).
+*/
 function cacheSavings(
   usage: UsageSummary,
   costUsd: UsdAmount,
@@ -324,10 +324,10 @@ function TokensSection({
 }
 
 /**
- * One `{percent} of model attempts…` line with the share in its own
- * emphasis, wherever the language puts it; the table's check keeps
- * `{percent}` the template's only slot.
- */
+One `{percent} of model attempts…` line with the share in its own
+emphasis, wherever the language puts it; the table's check keeps
+`{percent}` the template's only slot.
+*/
 function InsightLine({ share, template }: { readonly share: number; readonly template: string }) {
   return (
     <li className="usage-insight">
@@ -754,6 +754,13 @@ export function UsageSurface({
       report={state.usageReport}
       usage={state.usage}
       context={state.context}
+      {...(state.uploadedFiles === undefined ? {} : { uploadedFiles: state.uploadedFiles })}
+      onDeleteUploadedFile={(fileId) => {
+        postMessage({ type: 'deleteUploadedFile', fileId })
+      }}
+      onDeleteAllUploadedFiles={() => {
+        postMessage({ type: 'deleteAllUploadedFiles' })
+      }}
       team={state.usageReport?.team}
       modelId={state.model?.modelId}
       modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}

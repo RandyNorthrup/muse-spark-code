@@ -1,10 +1,6 @@
 import * as vscode from 'vscode'
-import {
-  SETTINGS_SECTION,
-  UI_TEXT,
-  VSCODE_COMMANDS,
-  WEBVIEW_DIST_SEGMENTS,
-} from '../../shared/constants'
+import { SETTINGS_SECTION, UI_TEXT, VSCODE_COMMANDS } from '../../shared/constants'
+import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
 import { usageDeleteDetail } from '../../shared/usageDeleteText'
 import {
@@ -19,6 +15,8 @@ import type { Logger } from '../logger'
 
 export interface UsagePanelDeps {
   readonly extensionUri: vscode.Uri
+  /** The verified webview copy (VSIXWEB A), resolved in the activation bundle. */
+  readonly resolveWebviewBundle: () => WebviewBundleResolution
   readonly l10n: UiTable
   readonly usageTable: UsageTable
   readonly log: Logger
@@ -39,7 +37,6 @@ export class UsagePanel implements vscode.Disposable {
       this.panel.reveal(undefined, false)
       return
     }
-    const root = vscode.Uri.joinPath(this.deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
     const panel = vscode.window.createWebviewPanel(
       'museSpark.usagePanel',
       UI_TEXT.usagePageTitle,
@@ -47,6 +44,25 @@ export class UsagePanel implements vscode.Disposable {
       {},
     )
     this.panel = panel
+    const resolved = this.deps.resolveWebviewBundle()
+    if (!resolved.ok) {
+      this.deps.log.error(`Usage webview bundle failed: ${resolved.detail}`)
+      panel.webview.options = {
+        enableScripts: true,
+        enableCommandUris: false,
+        localResourceRoots: [],
+      }
+      panel.webview.html = resolved.html
+      // No verified bundle behind the panel: it shows the fixed sentence,
+      // and closing it clears the handle as usual.
+      panel.onDidDispose(() => {
+        if (this.panel === panel) {
+          this.panel = undefined
+        }
+      })
+      return
+    }
+    const root = vscode.Uri.file(resolved.dir)
     panel.webview.options = {
       enableScripts: true,
       enableCommandUris: false,

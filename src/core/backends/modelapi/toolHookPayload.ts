@@ -84,10 +84,10 @@ export function toolHookOutput(value: string): string {
 }
 
 /**
- * An extension hook's view of free text (a task subject, a thought, a display
- * message, an expansion): media and credentials scrubbed, then clipped with
- * `[truncated]`. The runtime keeps the original; the hook never sees it whole.
- */
+An extension hook's view of free text (a task subject, a thought, a display
+message, an expansion): media and credentials scrubbed, then clipped with
+`[truncated]`. The runtime keeps the original; the hook never sees it whole.
+*/
 export function boundedHookText(value: string, maxChars: number): string {
   const safe = redactHookText(value)
   return safe.length <= maxChars ? safe : `${safe.slice(0, maxChars)}${TRUNCATED}`

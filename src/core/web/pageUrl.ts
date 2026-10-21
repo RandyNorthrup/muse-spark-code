@@ -54,8 +54,11 @@ export function checkPageUrl(raw: string): PageUrlCheck {
   let url: URL
   try {
     url = new URL(raw)
-  } catch {
-    return refused(webFetchFailure('invalidUrl'))
+  } catch (error) {
+    // Only an unparseable string is an invalid URL: the constructor raises
+    // TypeError for exactly that, so any other failure is raised, never refused.
+    if (error instanceof TypeError) return refused(webFetchFailure('invalidUrl'))
+    throw error
   }
   if (url.protocol !== HTTPS) {
     return refused(webFetchFailure('notHttps'))

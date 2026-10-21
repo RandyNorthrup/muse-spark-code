@@ -10,10 +10,12 @@ import { Usd, sumUsd } from '../../shared/usd'
 // either floor fails the run.
 
 import { ModelApiClient, type ModelApiClientDeps } from '../backends/modelapi/client'
+import plan from './plan.json'
 import type { ToolIo } from '../backends/modelapi/tools'
 import type { ContextIo } from '../context/contextFiles'
 import type { CoreLogger } from '../logging'
 import {
+  EVAL_BUDGET_USD,
   EVAL_FLOOR_ACCEPT_PASS_RATE,
   EVAL_FLOOR_HELDOUT_PASS_RATE,
   EVAL_MODEL_ID,
@@ -24,7 +26,14 @@ import {
   EVAL_ROOT_MASK,
   type EvalSplit,
 } from '../../shared/constants'
-import { runEvalTurn, type EvalHostChange, type EvalTurnOutcome } from './driver'
+import {
+  createEvalCompactionLedger,
+  evalPaidUseFence,
+  runEvalTurn,
+  type EvalCompactionAdmission,
+  type EvalHostChange,
+  type EvalTurnOutcome,
+} from './driver'
 import type {
   EvalArmReport,
   EvalFloorResult,
@@ -32,8 +41,21 @@ import type {
   EvalSplitSummary,
   EvalTaskResult,
 } from './report'
-import type { EvalTask } from './tasks'
-import { createEvalWire, wireTotals, type EvalBudget, type EvalWire } from './wire'
+import { EVAL_TASKS, evalWindowTokens, type EvalTask } from './tasks'
+import {
+  EVAL_ARMS,
+  freezeEvalHarness,
+  type FrozenEvalHarness,
+  frozenBundleChange,
+} from './mechanisms'
+import type { ArmBundle } from './armSources'
+import {
+  createEvalWire,
+  wireTotals,
+  type EvalBudget,
+  type EvalWire,
+  type EvalWireTruncation,
+} from './wire'
 import {
   createEvalWorkspace,
   evalWorkspaceFailureForReport,
@@ -44,12 +66,16 @@ import {
 
 export interface EvalArm {
   readonly name: string
+  /** Frozen program entry; source is bundled, never imported by the parent. */
+  readonly program?: string | undefined
   /** What the arm changes, for the report; absent on the baseline. */
   readonly mechanism?: string | undefined
   readonly change?: EvalHostChange | undefined
 }
 
 export interface EvalRunDeps {
+  /** The live entry's certified immutable snapshots, prepared before credentials. */
+  readonly frozenHarness?: FrozenEvalHarness
   /** The network: the live `fetch`, or the fake Model API's. */
   readonly fetch: typeof fetch
   /** The client's settings but its `fetch`, which is each run's trace. */
@@ -64,6 +90,9 @@ export interface EvalRunDeps {
   readonly now: () => number
   readonly newId: () => string
   readonly generatedAt: string
+  /** Hard ceiling for model calls the run sends; the counted run sets it from its plan. */
+  readonly maxAttempts?: number | undefined
+  readonly maxTaskAttempts?: number | undefined
   readonly turnTimeoutMs?: number | undefined
   /** Looks at a run's folder before it is removed (the live run's key scan). */
   readonly inspect?: ((root: string) => Promise<void>) | undefined
@@ -104,11 +133,15 @@ async function step<T>(
 async function runInFolders(
   task: EvalTask,
   arm: EvalArm,
+  bundle: ArmBundle | undefined,
   deps: EvalRunDeps,
   wire: EvalWire,
   folders: EvalFolders,
   failures: string[],
+  admission: EvalCompactionAdmission,
+  ledger: ReturnType<typeof createEvalCompactionLedger>,
 ): Promise<EvalTurnOutcome | undefined> {
+  const settledBefore = ledger.tally.settled
   const outcome = await step('the turn could not run', failures, () =>
     runEvalTurn({
       deps: {
@@ -121,13 +154,24 @@ async function runInFolders(
         now: deps.now,
         newId: deps.newId,
         turnTimeoutMs: deps.turnTimeoutMs,
+        admission,
       },
       workspace: folders.workspace,
       prompt: task.prompt,
-      change: arm.change,
+      change: bundle === undefined ? arm.change : frozenBundleChange(bundle),
+      // The window is harness condition, shared by both arms of the pair
+      // (M101 R2): the evaluation window on a long-context task, the
+      // shipped window otherwise.
+      windowTokens: evalWindowTokens(task),
     }),
   )
   await wire.settle()
+  const admitted = ledger.tally.settled - settledBefore
+  if (admitted > 0) {
+    deps.log.info(
+      `Evaluation ${arm.name} ${task.id}: ${String(admitted)} admitted compaction ${admitted === 1 ? 'attempt' : 'attempts'} settled against the run budget`,
+    )
+  }
   if (outcome !== undefined) {
     failures.unshift(...turnFailures(outcome))
     const verdict = await step('the verifier could not run', failures, () =>
@@ -147,11 +191,23 @@ async function runInFolders(
 async function runTask(
   task: EvalTask,
   arm: EvalArm,
+  bundle: ArmBundle | undefined,
   deps: EvalRunDeps,
   budget: EvalBudget,
   order: number,
-): Promise<EvalTaskResult> {
-  const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
+  admission: EvalCompactionAdmission,
+  ledger: ReturnType<typeof createEvalCompactionLedger>,
+): Promise<{ result: EvalTaskResult; truncated: readonly EvalWireTruncation[] }> {
+  const callBudget =
+    deps.maxTaskAttempts ?? plan.tasks.find((row) => row.id === task.id)?.callBudget
+  const wire = createEvalWire({
+    fetch: deps.fetch,
+    baseUrl: deps.client.baseUrl,
+    budget,
+    maxAttempts: callBudget,
+  })
+  const ledgerBefore = { ...ledger.tally }
+  const settledBefore = ledgerBefore.settled
   const steps: string[] = []
   const folders = await step(
     'the workspace could not be made',
@@ -160,7 +216,9 @@ async function runTask(
     evalWorkspaceFailureForReport,
   )
   const outcome =
-    folders === undefined ? undefined : await runInFolders(task, arm, deps, wire, folders, steps)
+    folders === undefined
+      ? undefined
+      : await runInFolders(task, arm, bundle, deps, wire, folders, steps, admission, ledger)
   // The report is committed: the temporary path (under the owner's
   // profile) is masked wherever a reason carries it.
   const root = folders?.root
@@ -176,28 +234,54 @@ async function runTask(
   deps.log.info(
     `Evaluation ${arm.name} ${task.id}: ${isPassed ? 'passed' : 'failed'} after ${String(totals.attempts)} attempts`,
   )
+  // Released D78 claims remain attempt evidence; accepted history replacement
+  // and its known settlement are recorded independently below.
+  const compactionsSettled = ledger.tally.settled - settledBefore
   return {
-    taskId: task.id,
-    title: task.title,
-    split: task.split,
-    passed: isPassed,
-    terminal: outcome?.terminal ?? EVAL_TURN_NOT_RUN,
-    failures,
-    attempts: totals.attempts,
-    requests: totals.requests,
-    inputTokens: totals.inputTokens,
-    cachedTokens: totals.cachedTokens,
-    outputTokens: totals.outputTokens,
-    costUsd: totals.costUsd,
-    toolCalls: outcome?.tools.length ?? 0,
-    approvals: outcome?.approvals ?? 0,
-    questions: outcome?.questions ?? 0,
-    paidRefusals: outcome?.paidRefusals ?? 0,
-    order,
-    ...(outcome?.packedTokensAvoided !== undefined && {
-      packedTokensAvoided: outcome.packedTokensAvoided,
-    }),
-    recalls: outcome?.recalledOutputs.length ?? 0,
+    result: {
+      taskId: task.id,
+      title: task.title,
+      split: task.split,
+      passed: isPassed,
+      terminal: outcome?.terminal ?? EVAL_TURN_NOT_RUN,
+      failures,
+      attempts: totals.attempts,
+      requests: totals.requests,
+      inputTokens: totals.inputTokens,
+      cachedTokens: totals.cachedTokens,
+      outputTokens: totals.outputTokens,
+      costUsd: totals.costUsd,
+      toolCalls: outcome?.tools.length ?? 0,
+      approvals: outcome?.approvals ?? 0,
+      questions: outcome?.questions ?? 0,
+      paidRefusals: outcome?.paidRefusals ?? 0,
+      order,
+      ...(outcome?.packedTokensAvoided !== undefined && {
+        packedTokensAvoided: outcome.packedTokensAvoided,
+      }),
+      recalls: outcome?.recalledOutputs.length ?? 0,
+      compactionsSettled,
+      compactionsApplied: outcome?.compactionsApplied ?? 0,
+      ...(callBudget !== undefined && { callBudget }),
+      overBudget: wire.isOverBudget,
+      compactionsAttempted: ledger.tally.started - ledgerBefore.started,
+      compactionLedger: {
+        reservedUsd: Usd.from(ledger.tally.reservedUsd)
+          .subtract(Usd.from(ledgerBefore.reservedUsd))
+          .toAmount(),
+        settledUsd: Usd.from(ledger.tally.settledUsd)
+          .subtract(Usd.from(ledgerBefore.settledUsd))
+          .toAmount(),
+        outstandingUsd: ledger.tally.outstandingUsd,
+        retainedUsd: Usd.from(ledger.tally.retainedUsd)
+          .subtract(Usd.from(ledgerBefore.retainedUsd))
+          .toAmount(),
+      },
+      requestEvidence: wire.calls.flatMap((call) =>
+        call.requestEvidence === undefined ? [] : [call.requestEvidence],
+      ),
+    },
+    truncated: wire.truncated,
   }
 }
 
@@ -236,11 +320,45 @@ function floorFor(split: EvalSplit): number {
   return split === 'accept' ? EVAL_FLOOR_ACCEPT_PASS_RATE : EVAL_FLOOR_HELDOUT_PASS_RATE
 }
 
-function verdictOf(floors: readonly EvalFloorResult[]): EvalReport['verdict'] {
+/**
+The frozen full arm set, by name: a run that covered anything else (a
+missing arm, an extra arm) decided nothing, whatever its floors say.
+*/
+function isFrozenArmSet(arms: readonly EvalArm[]): boolean {
+  return (
+    arms.length === EVAL_ARMS.length &&
+    EVAL_ARMS.every((expected) => arms.some((arm) => arm.name === expected.name))
+  )
+}
+
+function verdictOf(
+  floors: readonly EvalFloorResult[],
+  incompleteReasons: readonly string[],
+): EvalReport['verdict'] {
+  // A truncated run decided nothing: refusals manufacture failures, so the
+  // missing sends are neither a pass nor a fail, whatever the floors say.
+  if (incompleteReasons.length > 0) {
+    return 'incomplete'
+  }
   if (floors.some((floor) => floor.tasks > 0 && !floor.held)) {
     return 'fail'
   }
   return floors.some((floor) => floor.tasks === 0) ? 'incomplete' : 'pass'
+}
+
+/** The receipt's words for why the run stopped before every task could send. */
+function stopReason(code: EvalWireTruncation, budget: EvalBudget): string {
+  switch (code) {
+    case 'call-ceiling': {
+      return `the run stopped at its call ceiling of ${String(budget.maxAttempts)} model calls`
+    }
+    case 'budget-spent': {
+      return `the run stopped after its budget of $${EVAL_BUDGET_USD.toFixed(2)} was spent`
+    }
+    case 'unknown-usage': {
+      return 'the run stopped because a sent model call has unknown usage'
+    }
+  }
 }
 
 /** Runs the tasks on every arm (the first is the baseline) and builds the report. */
@@ -249,18 +367,84 @@ export async function runPairedEval(
   arms: readonly [EvalArm, ...EvalArm[]],
   deps: EvalRunDeps,
 ): Promise<EvalReport> {
-  const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
-  const runs = arms.map((arm) => ({ arm, results: [] as EvalTaskResult[] }))
+  const budget: EvalBudget = {
+    spentUsd: Usd.from(0).toAmount(),
+    ...(deps.maxAttempts !== undefined && { maxAttempts: deps.maxAttempts }),
+  }
+  // Lane E's spend authority for the run: the real shared D78 admission
+  // over a ledger against this budget. Launching the counted run is the
+  // opt-in, so its consent admits; every admitted attempt is trace-counted
+  // and settled here, and the fence revokes once the budget is spent or a
+  // sent call's bill is unknown.
+  const ledger = createEvalCompactionLedger(budget)
+  const admission: EvalCompactionAdmission = {
+    ledger,
+    allowsPaidUse: () => Promise.resolve(true),
+    notePaidUse: () => {
+      ledger.tally.started += 1
+    },
+    paidUseFence: () => evalPaidUseFence(budget),
+    dailyBudgetUsd: () => Usd.from(EVAL_BUDGET_USD).toAmount(),
+  }
+  const frozen = deps.frozenHarness ?? freezeEvalHarness(arms, tasks)
+  if (frozen.selection !== JSON.stringify({ arms: arms.map((arm) => arm.name), tasks }))
+    throw new Error('the frozen evaluation selection does not match the run')
+  const runs = arms.map((arm) => ({
+    arm,
+    bundle: frozen.bundles.get(arm.name),
+    results: [] as EvalTaskResult[],
+  }))
+  const stoppedEarly: string[] = []
   for (const [index, task] of tasks.entries()) {
     for (const [position, run] of runOrder(runs, index).entries()) {
-      run.results.push(await runTask(task, run.arm, deps, budget, position + 1))
+      const finished = await runTask(
+        task,
+        run.arm,
+        run.bundle,
+        deps,
+        budget,
+        position + 1,
+        admission,
+        ledger,
+      )
+      run.results.push(finished.result)
+      for (const code of finished.truncated) {
+        const reason = stopReason(code, budget)
+        if (!stoppedEarly.includes(reason)) {
+          stoppedEarly.push(reason)
+        }
+      }
     }
+  }
+  if (budget.hasUnknownUsage === true) {
+    const reason = stopReason('unknown-usage', budget)
+    if (!stoppedEarly.includes(reason)) stoppedEarly.push(reason)
+  }
+  if (Usd.from(budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) >= 0) {
+    const reason = stopReason('budget-spent', budget)
+    if (!stoppedEarly.includes(reason)) stoppedEarly.push(reason)
   }
   const reports: EvalArmReport[] = runs.map(({ arm, results }) => ({
     name: arm.name,
     ...(arm.mechanism !== undefined && { mechanism: arm.mechanism }),
     results,
     summaries: EVAL_SPLITS.map((split) => summarize(split, results)),
+    compactionLedger: {
+      reservedUsd: sumUsd(
+        ...results.map((result) => result.compactionLedger?.reservedUsd ?? Usd.from(0).toAmount()),
+      ),
+      settledUsd: sumUsd(
+        ...results.map((result) => result.compactionLedger?.settledUsd ?? Usd.from(0).toAmount()),
+      ),
+      outstandingUsd: sumUsd(
+        ...results.map(
+          (result) => result.compactionLedger?.outstandingUsd ?? Usd.from(0).toAmount(),
+        ),
+      ),
+      retainedUsd: sumUsd(
+        ...results.map((result) => result.compactionLedger?.retainedUsd ?? Usd.from(0).toAmount()),
+      ),
+    },
   }))
   const floors: EvalFloorResult[] = reports.flatMap((arm) =>
     arm.summaries.map((summary) => {
@@ -275,12 +459,32 @@ export async function runPairedEval(
       }
     }),
   )
+  const incompleteReasons = [...stoppedEarly]
+  if (
+    tasks.length !== EVAL_TASKS.length ||
+    EVAL_TASKS.some((task) => tasks.every((candidate) => candidate.id !== task.id))
+  ) {
+    incompleteReasons.push('narrowed selection')
+  }
+  if (floors.some((floor) => floor.tasks === 0)) incompleteReasons.push('empty split')
+  if (!isFrozenArmSet(arms)) incompleteReasons.push('arm set differs from the frozen arms')
+  if (frozen.bundles.size !== arms.length)
+    incompleteReasons.push('bundle count differs from the arm count')
   return {
     version: EVAL_REPORT_VERSION,
     model: EVAL_MODEL_ID,
     generatedAt: deps.generatedAt,
+    ...(frozen.bundles.size === arms.length && { harnessDigest: frozen.sha256 }),
     arms: reports,
+    compactionLedger: {
+      reservedUsd: ledger.tally.reservedUsd,
+      settledUsd: ledger.tally.settledUsd,
+      outstandingUsd: ledger.tally.outstandingUsd,
+      retainedUsd: ledger.tally.retainedUsd,
+    },
     floors,
-    verdict: verdictOf(floors),
+    ...(stoppedEarly.length > 0 && { stoppedEarly }),
+    ...(incompleteReasons.length > 0 && { incompleteReasons }),
+    verdict: verdictOf(floors, incompleteReasons),
   }
 }

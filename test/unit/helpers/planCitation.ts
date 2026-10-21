@@ -60,9 +60,9 @@ function headings(lines: readonly string[]): { readonly line: number; readonly l
 }
 
 /**
- * A checker over one PLAN.md text: `undefined` when the citation resolves,
- * otherwise what is wrong with it.
- */
+A checker over one PLAN.md text: `undefined` when the citation resolves,
+otherwise what is wrong with it.
+*/
 export function planCitationChecker(plan: string): (citation: PlanCitation) => string | undefined {
   const lines = plan.split(/\r?\n/)
   const marks = headings(lines)

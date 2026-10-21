@@ -32,3 +32,17 @@ export const SANCTIONED_ESTIMATOR: PlanCitation = {
   phrase:
     "(4) the estimator's demand quantities (RVM121A P3-3, 2026-10-09: `accountUsdPerHour` and the `usd` rate read from it)",
 }
+
+/** (5) The connector's integer micro-USD amounts. */
+export const SANCTIONED_CONNECTOR_MICROS: PlanCitation = {
+  heading: M121,
+  phrase:
+    "(5) the connector's integer micro-USD amounts (grant paid caps, approval prices), exact integer math end to end and never float, shown as micros until the paid-authority UI decides their display (PR #227, 2026-10-18)",
+}
+
+/** (6) The frozen eval plan's recorded budget and measured cost. */
+export const SANCTIONED_EVAL_RECORD: PlanCitation = {
+  heading: M121,
+  phrase:
+    "(6) the frozen eval plan's recorded budget and measured cost (`src/core/eval/plan.json`), the live run's own numbers read back for estimates only, never billed or enforced (PR #227, 2026-10-18)",
+}

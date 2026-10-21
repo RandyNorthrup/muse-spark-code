@@ -5,13 +5,14 @@
 // Extension Development Host (see .vscode-test.mjs).
 
 import * as assert from 'node:assert/strict'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createVerifyEditor, type VerifyEditor } from '../../src/host/editor/verifyEditor'
 import { createLogger } from '../../src/host/logger'
+import { removeFolder } from '../unit/helpers/temporaryFolders'
 
 // A server that is still starting can take seconds to report here; the
 // product waits less (DIAGNOSTICS_SETTLE_*), and the unit tests cover that
@@ -40,7 +41,7 @@ suite('verify loop in VS Code (M68)', () => {
   suiteTeardown(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
     channel.dispose()
-    await rm(folder, { recursive: true, force: true })
+    await removeFolder(folder)
   })
 
   test('shows edited files no editor showed, and reads what their servers report', async () => {

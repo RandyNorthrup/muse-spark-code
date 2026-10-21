@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "id": "one-word",
+      "mode": "plan",
+      "prompt": "Reply with exactly this word: quince",
+      "expect": "quince"
+    },
+    {
+      "id": "write-file",
+      "mode": "acceptEdits",
+      "prompt": "Create a file named hello.txt in the workspace containing exactly the word hello, then reply with exactly: wrote hello.txt",
+      "expect": "wrote hello.txt",
+      "expectFiles": ["hello.txt"]
+    },
+    {
+      "id": "below-minimum",
+      "mode": "plan",
+      "prompt": "say ok",
+      "maxBudgetUsd": "0.01",
+      "expectStatus": "budget_exceeded",
+      "expectNoRequests": true
+    }
+  ]
+}

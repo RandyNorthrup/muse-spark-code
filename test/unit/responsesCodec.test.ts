@@ -12,12 +12,12 @@ import {
   createResponsesCodec,
   ResponsesDecodeError,
   type ResponsesCodecQuirks,
-  type ResponsesWireCodec,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import {
   type CreateResponseBody,
   functionCallItemSchema,
   reasoningItemSchema,
+  restoredToolText,
   type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
 
@@ -65,10 +65,9 @@ function stream(...parts: readonly string[]): ReadableStream<Uint8Array> {
 function collect(
   chunks: AsyncIterable<Uint8Array>,
   costs: UsdAmount[] = [],
-  codec: ResponsesWireCodec = createResponsesCodec(withRetention),
 ): Promise<StreamEvent[]> {
   return Array.fromAsync(
-    codec.decodeStream(chunks, {
+    createResponsesCodec(withRetention).decodeStream(chunks, {
       settledCostUsd: (costUsd) => {
         costs.push(costUsd)
       },
@@ -155,7 +154,7 @@ function scenarioBody(scenario: string, model: string): CreateResponseBody {
     {
       type: 'function_call_output',
       call_id: 'call_1',
-      output: scenario === 'packed-output' ? '[packed:27 words kept]' : 'A typo.',
+      output: restoredToolText(scenario === 'packed-output' ? '[packed:27 words kept]' : 'A typo.'),
     },
   ]
   return { ...body, input, ...(scenario === 'compaction' && { max_output_tokens: 512 }) }
@@ -171,6 +170,25 @@ function golden(name: string): string {
 }
 
 describe('responsesCodec encodeRequest', () => {
+  it('omits the reasoning field where the record has no effort levels, and passes mode and context through', () => {
+    // Lane REASONSHAPESR2: grok-build-0.1 answers 400 to the `reasoning`
+    // parameter itself, so the wire omits it (the xAI-first defect);
+    // OPENAI-G08/G07 byte paths ride `mode` and `context` through
+    // (UNVERIFIED until OPENAI-PRO and OPENAI-CONTEXT answer).
+    const codec = createResponsesCodec(withRetention)
+    const omitted = codec.encodeRequest({ ...firstTurnBody(), reasoning: undefined })
+    expect(omitted).not.toHaveProperty('reasoning')
+    const sent = codec.encodeRequest(firstTurnBody())
+    expect(sent).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    const pro = codec.encodeRequest({
+      ...firstTurnBody(),
+      reasoning: { effort: 'low', summary: 'auto', mode: 'pro', context: 'all_turns' },
+    })
+    expect(pro).toMatchObject({
+      reasoning: { effort: 'low', summary: 'auto', mode: 'pro', context: 'all_turns' },
+    })
+  })
+
   it('emits the captured U9 strict declaration without changing its schema (M106)', () => {
     const captured = z
       .object({
@@ -227,6 +245,26 @@ describe('responsesCodec encodeRequest', () => {
       expect(JSON.stringify(body)).toBe(before)
     }
   })
+
+  it.each([
+    { modes: undefined, want: 'auto' },
+    { modes: ['auto'], want: 'auto' },
+    { modes: ['auto', 'none'], want: 'none' },
+  ] as const)(
+    'sends only a listed tool choice, auto when the record is unknown ($want)',
+    ({ modes, want }) => {
+      // Measured 2026-10-12 (toolrounds-captures/): Sonnet 5.5 refuses a
+      // forced choice, DeepSeek thinking refuses `required`, Meta takes
+      // `auto` only — so unknown means auto only.
+      const body = { ...firstTurnBody(), tool_choice: 'none' as const }
+      const codec = createResponsesCodec(withRetention, () => ({
+        ...CONSERVATIVE_CAPABILITIES,
+        ...(modes !== undefined && { toolChoiceModes: modes }),
+      }))
+      expect(codec.encodeRequest(body)['tool_choice']).toBe(want)
+      expect(JSON.stringify(body)).toContain('"tool_choice":"none"')
+    },
+  )
 
   it('binds strict request schemas only to the injected supportsStrictTools gate (F4)', () => {
     const body = { ...firstTurnBody(), tools: toolDefinitions('linux') }
@@ -345,7 +383,11 @@ describe('responsesCodec encodeRequest', () => {
         ...firstTurnBody().input,
         reasoning,
         tool,
-        { type: 'function_call_output', call_id: tool.call_id, output: '12:00 UTC' },
+        {
+          type: 'function_call_output',
+          call_id: tool.call_id,
+          output: restoredToolText('12:00 UTC'),
+        },
       ],
     }
     expect(JSON.stringify(createResponsesCodec(withRetention).encodeRequest(body)['input'])).toBe(
@@ -370,7 +412,7 @@ function callBody(callId: string, id: string | undefined): CreateResponseBody {
         name: 'get_time',
         arguments: '{"timezone":"UTC"}',
       },
-      { type: 'function_call_output', call_id: callId, output: 'noon' },
+      { type: 'function_call_output', call_id: callId, output: restoredToolText('noon') },
     ],
   }
 }
@@ -411,7 +453,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 2, 13)', () => {
           ],
         },
         { type: 'function_call', call_id: 'call_1', name: 'get_time', arguments: '{}' },
-        { type: 'function_call_output', call_id: 'call_1', output: '' },
+        { type: 'function_call_output', call_id: 'call_1', output: restoredToolText('') },
       ],
     }
     const text = JSON.stringify(codec.encodeRequest(body)['input'])

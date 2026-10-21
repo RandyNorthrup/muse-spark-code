@@ -29,6 +29,25 @@ import { MuseCodeSameJudge } from './museCodeSameJudge'
 import { ModelApiSameJudge } from './modelApiSameJudge'
 import { admittedModelApiJudge } from './judgeTransport'
 import type { JudgeWindowDeps, JudgeWindowPort } from './judgeBundle'
+import type { Logger } from '../logger'
+
+/**
+Whether the standing allow-rules admit a Muse Code judgment. A settings
+text the reader cannot hand over (a refused file, not a missing one:
+missing reads as undefined before this) fails closed: approval is
+unchanged, and the log names only the failure's kind, never its text.
+*/
+export function isStandingAllowed(
+  readSettingsText: () => string | undefined,
+  log: Logger,
+): boolean {
+  try {
+    return checkStandingAllowRules(readSettingsText()).allowed
+  } catch (error: unknown) {
+    log.warn(`Judge standing allow-rules unreadable: ${failureForLog(error)}; approval unchanged`)
+    return false
+  }
+}
 
 /** Window-owned cache; each action gets its own current-policy reader and abort lifetime. */
 export function createWindowJudge(
@@ -45,13 +64,7 @@ export function createWindowJudge(
   const onError = () => {
     deps.log.warn('Judge batch failed; approval unchanged')
   }
-  const readSettings = () => {
-    try {
-      return checkStandingAllowRules(deps.readSettingsText()).allowed
-    } catch {
-      return false
-    }
-  }
+
   const drop = (shouldDrop: (action: JudgeEntryParts) => boolean) => {
     for (const [key, active] of uses) {
       if (!shouldDrop(active.action)) {
@@ -91,7 +104,7 @@ export function createWindowJudge(
           sourceAvailable:
             isCurrent() &&
             (initial.backend === 'museCode'
-              ? readSettings()
+              ? isStandingAllowed(deps.readSettingsText, deps.log)
               : deps.ledger !== undefined &&
                 initial.contextLimit !== undefined &&
                 deps.modelApi(action) !== undefined),
@@ -102,7 +115,7 @@ export function createWindowJudge(
             !signal.aborted &&
             isCurrent() &&
             (initial.backend === 'museCode'
-              ? readSettings()
+              ? isStandingAllowed(deps.readSettingsText, deps.log)
               : deps.paid.gate.isOn('judge') &&
                 (!isRemembered || deps.paid.consent.remembered().includes('judge')))
           return {
@@ -197,7 +210,6 @@ export function createWindowJudge(
               makeTempRoot: () => mkdtemp(path.join(tmpdir(), JUDGE_TEMP_PREFIX)),
               removeTempRoot: (root) => rm(root, { recursive: true, force: true }),
               onSideSession: (id) => sideSessions.add(id),
-              describeFailure: failureForLog,
               logInfo: (text) => {
                 deps.log.info(text)
               },

@@ -64,9 +64,9 @@ function checkResult(result, env, mode) {
 }
 
 /**
- * A review publishes no patch. A text run may propose none or have it
- * withheld; one it publishes is the advertised file and matches its manifest.
- */
+A review publishes no patch. A text run may propose none or have it
+withheld; one it publishes is the advertised file and matches its manifest.
+*/
 function checkPatch(env, out, mode) {
   const patch = path.join(out, 'fix.patch')
   const manifest = path.join(out, 'manifest.json')

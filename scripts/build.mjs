@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
+import { buildVaultPeer } from './build-vault-peer.mjs'
 import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
@@ -16,7 +17,8 @@ import { listIntegrationTests } from './lib/integrationTests.mjs'
 // (M90, loaded on the first review), What's New (M99: the page's renderer,
 // content schema and tab, loaded on the first page or notice), the report
 // dialog (M93: the builder, its second scrub, the export paths and the
-// handler, loaded on the first open; dist/report.js) and its flight recorder
+// handler, loaded on the first dialog open or Diagnostics command;
+// dist/report.js) and its flight recorder
 // (the journal, loaded just after activation; dist/recorder.js), the webview,
 // What's New's page script, and (in dev mode) the integration tests with
 // esbuild. It first writes What's New's content, dist/whatsNew.json, from
@@ -54,6 +56,7 @@ import { listIntegrationTests } from './lib/integrationTests.mjs'
 // backend is built once for both.
 
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { cpSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
@@ -65,12 +68,19 @@ import {
 
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
+import {
+  compiledRecordFor,
+  newBuildRecord,
+  readCompiledSource,
+  withCompiledRecording,
+} from './lib/compiledSources.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
+import { runBuildPool } from './lib/buildPool.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -80,8 +90,12 @@ import {
   sharedResourceAdmission,
   sharedStructuredSchema,
   sharedModelApiBoundaries,
+  sharedExecGuard,
   englishZodLocales,
   sharedRedaction,
+  sharedVaultStore,
+  sharedVaultPosix,
+  sharedVaultWindows,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -94,9 +108,27 @@ mkdirSync('dist/legal-data', { recursive: true })
 // Dataset attribution and provenance accompany both packaged scanner bundles.
 cpSync('src/core/legal/data/NOTICE.md', 'dist/legal-data/NOTICE.md', { force: true })
 cpSync('src/core/legal/data/provenance.json', 'dist/legal-data/provenance.json', { force: true })
+// M97 CM971-R3: the pinned SPDX templates ship beside dist/legalScan.js,
+// byte-identical, and the scanner verifies each SHA-256 before use.
+cpSync('src/core/legal/legal-data', 'dist/legal-data', { recursive: true, force: true })
+{
+  const { datasets } = JSON.parse(readFileSync('src/core/legal/data/provenance.json', 'utf8'))
+  const pinned = datasets.find((dataset) => dataset.name === 'spdx-license-templates')
+  if (pinned === undefined) throw new Error('provenance.json lost the SPDX template dataset')
+  const slots = datasets.find((dataset) => dataset.name === 'holder-slot-words')
+  if (slots === undefined) throw new Error('provenance.json lost the holder-slot dataset')
+  for (const file of [...pinned.files, ...slots.files]) {
+    const digest = createHash('sha256')
+      .update(readFileSync(path.join('dist/legal-data', file.path)))
+      .digest('hex')
+    if (digest !== file.sha256)
+      throw new Error(`dist/legal-data/${file.path} does not match its pinned SHA-256`)
+  }
+}
 
 const args = new Set(process.argv.slice(2))
 buildLinuxHelper()
+buildVaultPeer()
 
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
@@ -104,11 +136,23 @@ const isWatch = args.has('--watch')
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
+// SCHEDULESURFACES: the conversation's schedule surfaces (delivery target
+// readout, scheduled-question settlement, schedules panel commands), loaded
+// on the first schedule delivery, panel command or scheduled question.
+const SCHEDULE_SURFACES_ENTRY = 'src/host/conversation/scheduleSurfacesEntry.ts'
+const SCHEDULE_SURFACES_OUTFILE = 'dist/scheduleSurfaces.js'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
+// CONVBUDGET: the conversation's session-transfer flows (export, import and
+// the share-file preview), required on the first of those flows.
+const CONVERSATION_TRANSFER_ENTRY = 'src/host/conversation/conversationTransferEntry.ts'
+const CONVERSATION_TRANSFER_OUTFILE = 'dist/conversationTransfer.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
 const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
+// M124 (D106): the MCP connector, loaded only by `muse-spark-code-acp mcp`.
+const CONNECTOR_ENTRY = 'src/runtime/connector/entry.ts'
+const CONNECTOR_OUTFILE = 'dist/connector.js'
 const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -119,6 +163,12 @@ const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
+// The Muse Code backend's own bundle (PR206, PLAN.md D6): the host, its
+// notification mapping and the SDK, required the first time that backend
+// starts. Nothing it bundles may import `vscode` (src/core must not), so
+// `vscode` is not external there and a stray import fails this build.
+const MUSE_CODE_ENTRY = 'src/host/backend/museCodeEntry.ts'
+const MUSE_CODE_OUTFILE = 'dist/museCode.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
 // POSTSPAWN: the governed launcher, beside (never inside) the governor.
@@ -146,6 +196,10 @@ const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
+// SCHEDULEDELIVERY: the schedules' editor-delivery binding (workspace
+// targets, run dispatch, grant checks), loaded on the first delivery.
+const SCHEDULE_DELIVERY_ENTRY = 'src/host/schedules/scheduleDeliveryEntry.ts'
+const SCHEDULE_DELIVERY_OUTFILE = 'dist/scheduleDelivery.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -165,6 +219,11 @@ const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const LEGAL_SCAN_ENTRY = 'src/core/legal/entry.ts'
 const LEGAL_SCAN_OUTFILE = 'dist/legalScan.js'
+// The header-fix planner (the fixer, the code-aware text helpers and the
+// patch document), loaded on the first scan with a fixable finding or the
+// first fix request.
+const LEGAL_FIX_ENTRY = 'src/core/legal/legalFixEntry.ts'
+const LEGAL_FIX_OUTFILE = 'dist/legalFix.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
 const REVIEW_OUTFILE = 'dist/review.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
@@ -175,6 +234,12 @@ const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
 const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
 const RULES_FILE_ENTRY = 'src/host/commands/rulesFileEntry.ts'
 const RULES_FILE_OUTFILE = 'dist/rulesFile.js'
+const NATIVE_GIT_ENTRY = 'src/runtime/panel/git/nativeGitEntry.ts'
+const NATIVE_GIT_OUTFILE = 'dist/nativeGit.js'
+// The guarded process-start layer (PLAN.md D24), required beside activation
+// by every Node bundle that starts a program or builds a child environment.
+const EXEC_GUARD_ENTRY = 'src/core/execGuardEntry.ts'
+const EXEC_GUARD_OUTFILE = 'dist/execGuard.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -185,6 +250,10 @@ const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
 const MEDIA_OUTFILE = 'dist/media.js'
 // M105 lane W: the screen-recording command with the R1-R3 platform drivers,
 // loaded the first time a recording command runs.
+// RVMEDIAV 8: the window's attached-media registry, contributor consent and
+// attach binding, required on the first attach beside dist/media.js.
+const MEDIA_HOST_ENTRY = 'src/host/media/mediaHostEntry.ts'
+const MEDIA_HOST_OUTFILE = 'dist/mediaHost.js'
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
 const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
@@ -197,25 +266,51 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const VOICE_LINUX_ENTRY = 'src/host/voice/voiceLinuxEntry.ts'
+const VOICE_LINUX_OUTFILE = 'dist/voiceLinux.js'
+const DICTATION_ENTRY = 'src/host/voice/dictationEntry.ts'
+const DICTATION_OUTFILE = 'dist/dictation.js'
 const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
+// CIFIX161B: the sign-in gate and the three-valued credential read, loaded
+// the first time a credential, money or consent path needs them.
+const AUTH_ENTRY = 'src/host/auth/authEntry.ts'
+const AUTH_OUTFILE = 'dist/auth.js'
+// CIFIX161B: the paid gate, consent, usage and quote authority, loaded the
+// first time a paid path needs them.
+const PAID_ENTRY = 'src/host/paid/paidEntry.ts'
+const PAID_OUTFILE = 'dist/paid.js'
 const MODELS_SUBSCRIPTIONS_ENTRY = 'src/host/models/modelsSubscriptionsEntry.ts'
 const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
+// ACTIVATIONROOM: the CLI-backed and workspace command flows, required on
+// the first of those commands.
+const COMMANDS_ENTRY = 'src/host/commands/commandsEntry.ts'
+const COMMANDS_OUTFILE = 'dist/commands.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
-// M109 lane W: the vault's window (the panel host and the native editor),
+// M109 lane W: the vault's window (the panel host and the broker client),
 // loaded on the first vault command. `vscode` stays external, provided by
 // the host, as for the import. The broker client joins it once the
-// broker-backed service lands (docs/certification/m109.md).
+// broker-backed service lands (docs/certification/m109.md). The native
+// editor, the write-only crypto and the action dialogs load later from
+// dist/vaultActions.js (RVAPP-CM1091D5 BYTES).
 const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
 const VAULT_OUTFILE = 'dist/vault.js'
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (dist/vaultActions.js),
+// loaded on the first action that needs it instead of when the panel opens.
+const VAULT_ACTIONS_ENTRY = 'src/host/vault/vaultActionsEntry.ts'
+const VAULT_ACTIONS_OUTFILE = 'dist/vaultActions.js'
+// The key-store migration's own chunk (D89.14 lane M, dist/vaultMigration.js),
+// loaded on the first unlock edge instead of with the panel or at activation.
+const VAULT_MIGRATION_ENTRY = 'src/host/vault/vaultMigrationEntry.ts'
+const VAULT_MIGRATION_OUTFILE = 'dist/vaultMigration.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -228,8 +323,15 @@ const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
 const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
 const ESTIMATOR_OUTFILE = 'dist/estimator.js'
+// M117 C-M117-1: the shared core adapter over M113's plan reader with the
+// host's git and `gh` reads, loaded the first time an estimate needs a plan
+// snapshot.
+const PLAN_SNAPSHOT_ENTRY = 'src/host/estimator/planSnapshotEntry.ts'
+const PLAN_SNAPSHOT_OUTFILE = 'dist/planSnapshot.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
+const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
+const CREDENTIAL_LEASE_OUTFILE = 'dist/credentialLease.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
@@ -249,10 +351,16 @@ const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
+const APPROVAL_MODES_ENTRY = 'src/core/backends/musecode/approvalModesEntry.ts'
+const APPROVAL_MODES_OUTFILE = 'dist/approvalModes.js'
 const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
+// C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
+// headless runs, loaded on the first vault need; no `vscode` import.
+const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
+const VAULT_RUNTIME_OUTFILE = 'dist/vaultRuntime.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -298,6 +406,13 @@ const conversationOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const scheduleSurfacesOptions = {
+  ...conversationOptions,
+  entryPoints: [SCHEDULE_SURFACES_ENTRY],
+  outfile: SCHEDULE_SURFACES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const sharingRuntimeOptions = {
   ...common,
   plugins: [
@@ -306,12 +421,19 @@ const sharingRuntimeOptions = {
     sharedWire,
     sharedResourceAdmission,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [SHARING_RUNTIME_ENTRY],
   outfile: SHARING_RUNTIME_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: AGENT_NODE_TARGET,
+}
+/** @type {import('esbuild').BuildOptions} */
+const connectorOptions = {
+  ...sharingRuntimeOptions,
+  entryPoints: [CONNECTOR_ENTRY],
+  outfile: CONNECTOR_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -328,6 +450,7 @@ const modelApiOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
     deferredTeamView,
     compressedModelText(isProduction),
   ],
@@ -363,6 +486,22 @@ const reportingDestinationsOptions = {
   ...reportingOptions,
   entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
   outfile: 'dist/reportingDestinations.js',
+}
+// C-M113-2: the session and usage inputs (usage journal machinery) load on
+// the first session or usage report, off the reporting engine's budget.
+const reportInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/reportInputsEntry.ts'],
+  outfile: 'dist/reportInputs.js',
+}
+// C-M113-4: the playbook and schedules inputs (journal replay, schedule
+// store) load on the first playbook or schedules report. They ride their
+// own chunk because the replay and store machinery would overflow the
+// session/usage chunk's budget, which stays unchanged.
+const playbookSchedulesInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/playbookSchedulesInputsEntry.ts'],
+  outfile: 'dist/playbookSchedulesInputs.js',
 }
 const reportingPanelOptions = {
   ...hostOptions,
@@ -427,6 +566,13 @@ const sessionBoardOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const approvalModesOptions = {
+  ...modelApiOptions,
+  entryPoints: [APPROVAL_MODES_ENTRY],
+  outfile: APPROVAL_MODES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const teamOptions = {
   ...modelApiOptions,
   plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedModelApiBoundaries],
@@ -448,11 +594,27 @@ const teamRunnersOptions = {
   outfile: TEAM_RUNNERS_OUTFILE,
 }
 
+// The Muse Code backend's own bundle (PR206, PLAN.md D6): the same plugins
+// as the team bundles, which already carry the host today, so what the entry
+// pulls in splits the same way.
+const museCodeOptions = {
+  ...teamOptions,
+  entryPoints: [MUSE_CODE_ENTRY],
+  outfile: MUSE_CODE_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const schedulesOptions = {
   ...modelApiOptions,
   entryPoints: [SCHEDULES_ENTRY],
   outfile: SCHEDULES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const scheduleDeliveryOptions = {
+  ...schedulesOptions,
+  entryPoints: [SCHEDULE_DELIVERY_ENTRY],
+  outfile: SCHEDULE_DELIVERY_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -495,6 +657,30 @@ const modelApiToolsOptions = {
   outfile: MODEL_API_TOOLS_OUTFILE,
 }
 
+// The verify loop's session side (M68: the loop, its ledger and the
+// diagnostics history), loaded on the first turn that verifies tool edits.
+const MODEL_API_VERIFY_ENTRY = 'src/core/backends/modelapi/modelApiVerifyEntry.ts'
+const MODEL_API_VERIFY_OUTFILE = 'dist/modelApiVerify.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiVerifyOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_VERIFY_ENTRY],
+  outfile: MODEL_API_VERIFY_OUTFILE,
+}
+
+// The image run-path (M34, M44: the call checks, the purchase and the
+// paid-use naming), loaded on the first image call.
+const MODEL_API_IMAGE_ENTRY = 'src/core/backends/modelapi/modelApiImageEntry.ts'
+const MODEL_API_IMAGE_OUTFILE = 'dist/modelApiImage.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiImageOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_IMAGE_ENTRY],
+  outfile: MODEL_API_IMAGE_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
@@ -506,6 +692,7 @@ const reviewOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
@@ -528,6 +715,7 @@ const reportOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
@@ -550,6 +738,20 @@ const estimatorOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
+// first time an estimate needs a plan snapshot; it reads no `vscode`, so a
+// stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const planSnapshotOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [PLAN_SNAPSHOT_ENTRY],
+  outfile: PLAN_SNAPSHOT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 // The flight recorder's journal (M93), loaded just after activation or at
 // the first failure; it reads no `vscode`, so a stray import fails here.
 /** @type {import('esbuild').BuildOptions} */
@@ -563,9 +765,32 @@ const recorderOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The credential lease (M95 D74), required on the first guarded credential
+// write or Connect recovery; it reads no `vscode`, so a stray import fails
+// here.
+/** @type {import('esbuild').BuildOptions} */
+const credentialLeaseOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    sharedModelApiBoundaries,
+  ],
+  entryPoints: [CREDENTIAL_LEASE_ENTRY],
+  outfile: CREDENTIAL_LEASE_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -582,6 +807,7 @@ const planMarkdownOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
@@ -600,6 +826,13 @@ const legalScanOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const legalFixOptions = {
+  ...legalScanOptions,
+  entryPoints: [LEGAL_FIX_ENTRY],
+  outfile: LEGAL_FIX_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const codeIntelOptions = {
   ...planMarkdownOptions,
   entryPoints: [CODE_INTEL_ENTRY],
@@ -611,6 +844,23 @@ const voiceOptions = {
   ...planMarkdownOptions,
   entryPoints: [VOICE_ENTRY],
   outfile: VOICE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const voiceLinuxOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [VOICE_LINUX_ENTRY],
+  outfile: VOICE_LINUX_OUTFILE,
+}
+
+// Voice dictation's setups (M9, M35): the window's dictation and Muse Voice
+// setups with the helper probes, required at their existing construction
+// points. It reads no `vscode`, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const dictationOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [DICTATION_ENTRY],
+  outfile: DICTATION_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -647,6 +897,7 @@ const whatsNewOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
@@ -665,6 +916,20 @@ const usageCompanionOptions = {
   ...modelApiOptions,
   entryPoints: [USAGE_COMPANION_ENTRY],
   outfile: 'dist/usageCompanion.js',
+}
+const voiceCompanionOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/companion/voiceEntry.ts'],
+  outfile: 'dist/voiceCompanion.js',
+}
+const voiceCompanionWebviewOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserUiText] : [],
+  entryPoints: ['src/webview/voice/companion.ts'],
+  outfile: 'dist/webview/voiceCompanion.js',
+  platform: 'browser',
+  format: 'esm',
+  target: BROWSER_TARGET,
 }
 const usagePanelOptions = {
   ...hostOptions,
@@ -698,6 +963,28 @@ const modelsPanelOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const authOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  entryPoints: [AUTH_ENTRY],
+  outfile: AUTH_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const paidOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  entryPoints: [PAID_ENTRY],
+  outfile: PAID_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
 const modelsSubscriptionsOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, deferredCohort],
@@ -720,6 +1007,7 @@ const agentImportOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
@@ -732,9 +1020,47 @@ const agentImportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const vaultOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedModelApiBoundaries,
+    deferredCohort,
+    sharedResourceAdmission,
+    sharedVaultStore,
+    sharedVaultPosix,
+    sharedVaultWindows,
+  ],
   entryPoints: [VAULT_ENTRY],
   outfile: VAULT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code, loaded on the first
+// action that needs it. Same shape as the opening bundle above.
+const vaultActionsOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_ACTIONS_ENTRY],
+  outfile: VAULT_ACTIONS_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+// The key-store migration's own chunk, loaded on the first unlock edge.
+// Same shape as the explicit-action bundle above.
+const vaultMigrationOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_MIGRATION_ENTRY],
+  outfile: VAULT_MIGRATION_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -759,6 +1085,7 @@ const bundledSkillsOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
@@ -797,6 +1124,7 @@ const conversationGitOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [CONVERSATION_GIT_ENTRY],
   outfile: CONVERSATION_GIT_OUTFILE,
@@ -815,6 +1143,16 @@ const modelApiSessionsOptions = {
   outfile: MODEL_API_SESSIONS_OUTFILE,
 }
 
+// CONVBUDGET: the conversation's session-transfer flows, required on the
+// first export, import or share-file preview. They read no `vscode`: the
+// dialogs stay injected by the controller.
+/** @type {import('esbuild').BuildOptions} */
+const conversationTransferOptions = {
+  ...conversationGitOptions,
+  entryPoints: [CONVERSATION_TRANSFER_ENTRY],
+  outfile: CONVERSATION_TRANSFER_OUTFILE,
+}
+
 // The Create AGENTS.md command (D15), required when that command runs: the
 // command, the rules template and their redaction.
 /** @type {import('esbuild').BuildOptions} */
@@ -822,6 +1160,48 @@ const rulesFileOptions = {
   ...conversationGitOptions,
   entryPoints: [RULES_FILE_ENTRY],
   outfile: RULES_FILE_OUTFILE,
+}
+// M123's native Git route (D104), required by the conversation Git bundle the
+// first time a conversation opens in a host without `vscode.git`: the
+// runtime Git adapter, its service, the repository lease and the runtime's
+// pull requests.
+/** @type {import('esbuild').BuildOptions} */
+const nativeGitOptions = {
+  ...conversationGitOptions,
+  entryPoints: [NATIVE_GIT_ENTRY],
+  outfile: NATIVE_GIT_OUTFILE,
+}
+
+// ACTIVATIONROOM: the CLI-backed and workspace command flows, required on
+// the first of those commands. They import no `vscode`, which is not
+// external there, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const commandsOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    sharedModelApiBoundaries,
+  ],
+  entryPoints: [COMMANDS_ENTRY],
+  outfile: COMMANDS_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The guarded process-start layer (PLAN.md D24), required beside activation
+// by every Node bundle that starts a program or builds a child environment:
+// its own build carries it (the shared plugin stands down for this outfile).
+/** @type {import('esbuild').BuildOptions} */
+const execGuardOptions = {
+  ...conversationGitOptions,
+  entryPoints: [EXEC_GUARD_ENTRY],
+  outfile: EXEC_GUARD_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -835,6 +1215,7 @@ const checkpointStoreOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
@@ -850,6 +1231,20 @@ const mediaOptions = {
   entryPoints: [MEDIA_ENTRY],
   outfile: MEDIA_OUTFILE,
   platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const mediaHostOptions = {
+  ...common,
+  // The latest-recording preview starts Windows PowerShell through the
+  // guarded layer, which every Node bundle requires instead of carrying.
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedExecGuard],
+  entryPoints: [MEDIA_HOST_ENTRY],
+  outfile: MEDIA_HOST_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
@@ -877,6 +1272,7 @@ const browserCheckOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
@@ -896,6 +1292,7 @@ const browserRuntimeOptions = {
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
+    sharedExecGuard,
   ],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
@@ -918,6 +1315,7 @@ const acpOptions = {
     sharedStructuredSchema,
     deferredTeamView,
     sharedModelApiBoundaries,
+    sharedExecGuard,
     englishZodLocales,
   ],
   entryPoints: [ACP_ENTRY],
@@ -995,6 +1393,12 @@ const runtimeAccountsOptions = {
   entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
   outfile: RUNTIME_ACCOUNTS_OUTFILE,
 }
+const vaultRuntimeOptions = {
+  ...acpQuestionsOptions,
+  plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix, sharedVaultWindows],
+  entryPoints: [VAULT_RUNTIME_ENTRY],
+  outfile: VAULT_RUNTIME_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -1029,6 +1433,40 @@ const validationOptions = {
   outfile: VALIDATION_OUTFILE,
 }
 
+const vaultBrokerOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/vaultBrokerEntry.ts'],
+  outfile: 'dist/vaultBroker.js',
+  external: ['@napi-rs/keyring'],
+}
+
+const vaultPosixOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/posixEntry.ts'],
+  outfile: 'dist/vaultPosix.js',
+}
+
+const vaultWindowsOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/windowsEntry.ts'],
+  outfile: 'dist/vaultWindows.js',
+}
+
+const vaultStoreOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/vault/storeEntry.ts'],
+  outfile: 'dist/vaultStore.js',
+}
+
+const vaultBrokerBindingsOptions = {
+  ...vaultBrokerOptions,
+  entryPoints: ['src/runtime/vault/brokerBindings.ts'],
+  outfile: 'dist/vaultBrokerBindings.js',
+}
+
 const vaultBoundariesOptions = {
   ...modelApiOptions,
   plugins: [sharedUiText, sharedValidation],
@@ -1038,7 +1476,8 @@ const vaultBoundariesOptions = {
 
 const estimateContractsOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation],
+  // Typed refusals reuse the shipped scrubber instead of copying it into contracts.
+  plugins: [sharedUiText, sharedValidation, sharedRedaction],
   entryPoints: ['src/shared/estimateContractsEntry.ts'],
   outfile: 'dist/estimateContracts.js',
 }
@@ -1077,7 +1516,7 @@ const browserReviewComment = {
       return { contents: declaration, loader: 'ts', watchFiles: ['src/shared/constants.ts'] }
     })
     build.onLoad({ filter: /[/\\]components[/\\]ReviewCommentForm\.tsx$/ }, (args) => ({
-      contents: `import { REVIEW_COMMENT_MODEL_TEXT } from '${name}';\n${readFileSync(args.path, 'utf8').replace('  REVIEW_COMMENT_MODEL_TEXT,\n', '')}`,
+      contents: `import { REVIEW_COMMENT_MODEL_TEXT } from '${name}';\n${readCompiledSource(args.path).replace('  REVIEW_COMMENT_MODEL_TEXT,\n', '')}`,
       loader: 'tsx',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],
@@ -1100,7 +1539,7 @@ const webviewOptions = {
       name: 'reference-caller-react',
       setup(build) {
         build.onLoad({ filter: /[/\\]ReferencePage\.tsx$/ }, async (args) => {
-          const result = await esbuild.transform(readFileSync(args.path, 'utf8'), {
+          const result = await esbuild.transform(readCompiledSource(args.path), {
             loader: 'tsx',
             jsx: 'transform',
             jsxFactory: 'React.createElement',
@@ -1133,7 +1572,39 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
-function writeWebviewMetafiles(metafile) {
+// M97 CM971-R3: SHA-256 hashes beside each bundle metafile (record
+// version 2), so the legal scanner proves artifact freshness from bytes,
+// never from file names. Every hash comes from the build itself: the
+// exact source bytes esbuild or a plugin compiled (raw bytes, text or
+// binary, as the scanner hashes them), and under `generated` the contents
+// a plugin handed esbuild for a generated module or a transformed file.
+// Anything the build could not attribute stays unrecorded and is named by
+// the scanner. Output hashes cover the files esbuild just wrote, and an
+// output whose size disagrees with the metafile stays unrecorded. A
+// separate folder keeps third-party-notices (which reads every file in
+// dist/meta/) untouched; like dist/meta/, it is not packaged.
+const META_HASHES_DIR = 'dist/meta-hashes'
+function writeMetafileHashes(name, metafile, buildRecord) {
+  const { inputs, generated } = compiledRecordFor(Object.keys(metafile.inputs ?? {}), buildRecord)
+  const outputs = {}
+  const listedOutputs = Object.entries(metafile.outputs ?? {})
+  for (const [output, meta] of listedOutputs) {
+    let bytes
+    try {
+      bytes = readFileSync(output)
+    } catch {
+      continue
+    }
+    if (bytes.byteLength !== meta.bytes) continue
+    outputs[output.replaceAll('\\', '/')] = createHash('sha256').update(bytes).digest('hex')
+  }
+  writeFileSync(
+    path.join(META_HASHES_DIR, `${name}.json`),
+    JSON.stringify({ version: 2, inputs, outputs, generated }),
+  )
+}
+
+function writeWebviewMetafiles(metafile, buildRecord) {
   const pages = {
     webview: 'dist/webview/main.js',
     modelsWebview: 'dist/webview/models.js',
@@ -1146,23 +1617,20 @@ function writeWebviewMetafiles(metafile) {
     reportingDestinationsWebview: 'dist/webview/reportingDestinations.js',
   }
   for (const [page, entry] of Object.entries(pages)) {
-    writeFileSync(
-      path.join(METAFILE_DIR, `${page}.json`),
-      JSON.stringify(
-        webviewEntryMetafile(
-          metafile,
-          entry,
-          page === 'webview'
-            ? [
-                'dist/webview/reportingPage.js',
-                'dist/webview/reportingDestinations.js',
-                'dist/webview/resourceSurface.js',
-                'dist/webview/resourceHistory.js',
-              ]
-            : [],
-        ),
-      ),
+    const pageMetafile = webviewEntryMetafile(
+      metafile,
+      entry,
+      page === 'webview'
+        ? [
+            'dist/webview/reportingPage.js',
+            'dist/webview/reportingDestinations.js',
+            'dist/webview/resourceSurface.js',
+            'dist/webview/resourceHistory.js',
+          ]
+        : [],
     )
+    writeFileSync(path.join(METAFILE_DIR, `${page}.json`), JSON.stringify(pageMetafile))
+    writeMetafileHashes(page, pageMetafile, buildRecord)
   }
 }
 
@@ -1198,8 +1666,9 @@ console.log(
 if (process.argv.includes('--webview-only')) {
   if (!isProduction || isWatch) throw new Error('--webview-only requires --production')
   mkdirSync(METAFILE_DIR, { recursive: true })
-  const { metafile } = await esbuild.build(webviewOptions)
-  writeWebviewMetafiles(metafile)
+  const buildRecord = newBuildRecord()
+  const { metafile } = await esbuild.build(withCompiledRecording(webviewOptions, buildRecord))
+  writeWebviewMetafiles(metafile, buildRecord)
   process.exit(0)
 }
 
@@ -1212,12 +1681,17 @@ if (isWatch) {
     esbuild.context(reportingOptions),
     esbuild.context(reportingNetworkOptions),
     esbuild.context(reportingDestinationsOptions),
+    esbuild.context(reportInputsOptions),
+    esbuild.context(playbookSchedulesInputsOptions),
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
+    esbuild.context(conversationTransferOptions),
+    esbuild.context(scheduleSurfacesOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
+    esbuild.context(connectorOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
     esbuild.context(resourceProcessOptions),
@@ -1228,12 +1702,15 @@ if (isWatch) {
     esbuild.context(configuredOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
+    esbuild.context(approvalModesOptions),
     esbuild.context(referenceOptions),
     esbuild.context(schedulesOptions),
+    esbuild.context(scheduleDeliveryOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamSchedulerOptions),
+    esbuild.context(museCodeOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context({
       ...modelApiOptions,
@@ -1247,11 +1724,28 @@ if (isWatch) {
     }),
     esbuild.context({
       ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionMediaEntry.ts'],
+      outfile: 'dist/productionMedia.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionAudioEntry.ts'],
+      outfile: 'dist/productionAudio.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeMediaEntry.ts'],
+      outfile: 'dist/runtimeMedia.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
       entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
       outfile: 'dist/runtimeAccounting.js',
     }),
     esbuild.context(hookRuntimeOptions),
     esbuild.context(modelApiToolsOptions),
+    esbuild.context(modelApiVerifyOptions),
+    esbuild.context(modelApiImageOptions),
     esbuild.context({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
@@ -1266,29 +1760,49 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(mediaOptions),
+    esbuild.context(mediaHostOptions),
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
     esbuild.context(modelApiSessionsOptions),
     esbuild.context(rulesFileOptions),
+    esbuild.context(nativeGitOptions),
+    esbuild.context(execGuardOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
+    esbuild.context(legalFixOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(voiceLinuxOptions),
+    esbuild.context(dictationOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
+    esbuild.context(authOptions),
+    esbuild.context(paidOptions),
     esbuild.context(modelsSubscriptionsOptions),
+    esbuild.context(commandsOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
+    esbuild.context(voiceCompanionOptions),
+    esbuild.context(voiceCompanionWebviewOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
+    esbuild.context(vaultBrokerOptions),
+    esbuild.context(vaultStoreOptions),
+    esbuild.context(vaultPosixOptions),
+    esbuild.context(vaultWindowsOptions),
+    esbuild.context(vaultBrokerBindingsOptions),
+    esbuild.context(vaultActionsOptions),
+    esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
+    esbuild.context(planSnapshotOptions),
     esbuild.context(recorderOptions),
+    esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
     esbuild.context(scheduleBackgroundOptions),
@@ -1317,149 +1831,232 @@ if (isWatch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
-  const shipped = {
-    questionNotes: esbuild.build({
+  // F6 (2026-10-17, msm112 cert): starting every bundle at once (~90
+  // concurrent builds through one esbuild service) failed under machine load
+  // with an error that named no file, then left the service wedged. Hold each
+  // bundle's options as a thunk and start a bounded pool instead; a failure
+  // names its bundle, and the pool's caller stops the service so the process
+  // exits with the true error instead of hanging on in-flight builds.
+  // M97 CM971-R3: production bundles record the exact bytes they compile.
+  const BUILD_POOL_SIZE = 8
+  const buildRecords = new Map()
+  const recorded = (name, options) => () => {
+    const buildRecord = newBuildRecord()
+    buildRecords.set(name, buildRecord)
+    return esbuild.build(isProduction ? withCompiledRecording(options, buildRecord) : options)
+  }
+  const shippedSpecs = {
+    questionNotes: recorded('questionNotes', {
       ...modelApiOptions,
       entryPoints: ['src/core/questions/deferralEntry.ts'],
       outfile: 'dist/questionNotes.js',
     }),
-    mcpPool: esbuild.build(mcpPoolOptions),
-    modelApiCodeIntel: esbuild.build(modelApiCodeIntelOptions),
-    structuredSchema: esbuild.build(structuredSchemaOptions),
-    extension: esbuild.build(hostOptions),
-    conversation: esbuild.build(conversationOptions),
-    tab: esbuild.build(tabOptions),
-    prompts: esbuild.build(promptsOptions),
-    sharingRuntime: esbuild.build(sharingRuntimeOptions),
-    modelApi: esbuild.build(modelApiOptions),
-    resourceGovernor: esbuild.build(resourceGovernorOptions),
-    resourceProcess: esbuild.build(resourceProcessOptions),
-    resourceJournal: esbuild.build(resourceJournalOptions),
-    resourceAdmission: esbuild.build(resourceAdmissionOptions),
-    providers: esbuild.build(providersOptions),
-    subscriptions: esbuild.build(subscriptionsOptions),
-    configuredProviders: esbuild.build(configuredOptions),
-    review: esbuild.build(reviewOptions),
-    sessionBoard: esbuild.build(sessionBoardOptions),
-    reporting: esbuild.build(reportingOptions),
-    reportingNetwork: esbuild.build(reportingNetworkOptions),
-    reportingDestinations: esbuild.build(reportingDestinationsOptions),
-    reportingPanel: esbuild.build(reportingPanelOptions),
-    reference: esbuild.build(referenceOptions),
-    schedules: esbuild.build(schedulesOptions),
-    reviewer: esbuild.build(reviewerOptions),
-    team: esbuild.build(teamOptions),
-    teamRunners: esbuild.build(teamRunnersOptions),
-    teamScheduler: esbuild.build(teamSchedulerOptions),
-    foreignHooks: esbuild.build(foreignHooksOptions),
-    modelApiHooks: esbuild.build({
+    mcpPool: recorded('mcpPool', mcpPoolOptions),
+    modelApiCodeIntel: recorded('modelApiCodeIntel', modelApiCodeIntelOptions),
+    structuredSchema: recorded('structuredSchema', structuredSchemaOptions),
+    extension: recorded('extension', hostOptions),
+    conversation: recorded('conversation', conversationOptions),
+    scheduleSurfaces: recorded('scheduleSurfaces', scheduleSurfacesOptions),
+    tab: recorded('tab', tabOptions),
+    prompts: recorded('prompts', promptsOptions),
+    sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
+    connector: recorded('connector', connectorOptions),
+    modelApi: recorded('modelApi', modelApiOptions),
+    resourceGovernor: recorded('resourceGovernor', resourceGovernorOptions),
+    resourceProcess: recorded('resourceProcess', resourceProcessOptions),
+    resourceJournal: recorded('resourceJournal', resourceJournalOptions),
+    resourceAdmission: recorded('resourceAdmission', resourceAdmissionOptions),
+    providers: recorded('providers', providersOptions),
+    subscriptions: recorded('subscriptions', subscriptionsOptions),
+    configuredProviders: recorded('configuredProviders', configuredOptions),
+    review: recorded('review', reviewOptions),
+    sessionBoard: recorded('sessionBoard', sessionBoardOptions),
+    approvalModes: recorded('approvalModes', approvalModesOptions),
+    reporting: recorded('reporting', reportingOptions),
+    reportingNetwork: recorded('reportingNetwork', reportingNetworkOptions),
+    reportingDestinations: recorded('reportingDestinations', reportingDestinationsOptions),
+    reportingPanel: recorded('reportingPanel', reportingPanelOptions),
+    reportInputs: recorded('reportInputs', reportInputsOptions),
+    playbookSchedulesInputs: recorded('playbookSchedulesInputs', playbookSchedulesInputsOptions),
+    reference: recorded('reference', referenceOptions),
+    schedules: recorded('schedules', schedulesOptions),
+    scheduleDelivery: recorded('scheduleDelivery', scheduleDeliveryOptions),
+    reviewer: recorded('reviewer', reviewerOptions),
+    team: recorded('team', teamOptions),
+    teamRunners: recorded('teamRunners', teamRunnersOptions),
+    teamScheduler: recorded('teamScheduler', teamSchedulerOptions),
+    foreignHooks: recorded('foreignHooks', foreignHooksOptions),
+    modelApiHooks: recorded('modelApiHooks', {
       ...modelApiOptions,
       entryPoints: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
       outfile: 'dist/modelApiHooks.js',
     }),
-    modelApiMcp: esbuild.build({
+    modelApiMcp: recorded('modelApiMcp', {
       ...modelApiOptions,
       entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
       outfile: 'dist/modelApiMcp.js',
     }),
-    runtimeAccounting: esbuild.build({
+    runtimeAccounting: recorded('runtimeAccounting', {
       ...modelApiOptions,
       entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
       outfile: 'dist/runtimeAccounting.js',
     }),
-    providerPolicy: esbuild.build({
+    providerPolicy: recorded('providerPolicy', {
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
       outfile: 'dist/providerPolicy.js',
     }),
-    runtimeEngine: esbuild.build({
+    runtimeEngine: recorded('runtimeEngine', {
       ...acpOptions,
       entryPoints: ['src/runtime/runtimeEngineEntry.ts'],
       outfile: 'dist/runtimeEngine.js',
     }),
-    hookRuntime: esbuild.build(hookRuntimeOptions),
-    pluginHooks: esbuild.build(pluginHooksOptions),
-    modelApiTools: esbuild.build(modelApiToolsOptions),
-    planMarkdown: esbuild.build(planMarkdownOptions),
-    checkpointStore: esbuild.build(checkpointStoreOptions),
-    media: esbuild.build(mediaOptions),
-    screenRecord: esbuild.build(screenRecordOptions),
-    agentImport: esbuild.build(agentImportOptions),
-    conversationGit: esbuild.build(conversationGitOptions),
-    modelApiSessions: esbuild.build(modelApiSessionsOptions),
-    rulesFile: esbuild.build(rulesFileOptions),
-    bundledSkills: esbuild.build(bundledSkillsOptions),
-    legalScan: esbuild.build(legalScanOptions),
-    codeIntel: esbuild.build(codeIntelOptions),
-    voice: esbuild.build(voiceOptions),
-    webFetch: esbuild.build(webFetchOptions),
-    mcpVault: esbuild.build(mcpVaultOptions),
-    museCodeReviewer: esbuild.build(museCodeReviewerOptions),
-    modelsPanel: esbuild.build(modelsPanelOptions),
-    modelsSubscriptions: esbuild.build(modelsSubscriptionsOptions),
-    usageService: esbuild.build(usageServiceOptions),
-    usageCompanion: esbuild.build(usageCompanionOptions),
-    usagePanel: esbuild.build(usagePanelOptions),
-    extensionHooks: esbuild.build(extensionHooksOptions),
-    vault: esbuild.build(vaultOptions),
-    report: esbuild.build(reportOptions),
-    estimator: esbuild.build(estimatorOptions),
-    recorder: esbuild.build(recorderOptions),
-    whatsNew: esbuild.build(whatsNewOptions),
-    judge: esbuild.build(judgeOptions),
-    scheduleBackground: esbuild.build(scheduleBackgroundOptions),
-    uiText: esbuild.build(uiTextOptions),
+    hookRuntime: recorded('hookRuntime', hookRuntimeOptions),
+    pluginHooks: recorded('pluginHooks', pluginHooksOptions),
+    modelApiTools: recorded('modelApiTools', modelApiToolsOptions),
+    modelApiVerify: recorded('modelApiVerify', modelApiVerifyOptions),
+    modelApiImage: recorded('modelApiImage', modelApiImageOptions),
+    planMarkdown: recorded('planMarkdown', planMarkdownOptions),
+    checkpointStore: recorded('checkpointStore', checkpointStoreOptions),
+    media: recorded('media', mediaOptions),
+    screenRecord: recorded('screenRecord', screenRecordOptions),
+    agentImport: recorded('agentImport', agentImportOptions),
+    conversationGit: recorded('conversationGit', conversationGitOptions),
+    conversationTransfer: recorded('conversationTransfer', conversationTransferOptions),
+    modelApiSessions: recorded('modelApiSessions', modelApiSessionsOptions),
+    rulesFile: recorded('rulesFile', rulesFileOptions),
+    nativeGit: recorded('nativeGit', nativeGitOptions),
+    execGuard: recorded('execGuard', execGuardOptions),
+    bundledSkills: recorded('bundledSkills', bundledSkillsOptions),
+    legalScan: recorded('legalScan', legalScanOptions),
+    legalFix: recorded('legalFix', legalFixOptions),
+    codeIntel: recorded('codeIntel', codeIntelOptions),
+    voice: recorded('voice', voiceOptions),
+    webFetch: recorded('webFetch', webFetchOptions),
+    mcpVault: recorded('mcpVault', mcpVaultOptions),
+    museCodeReviewer: recorded('museCodeReviewer', museCodeReviewerOptions),
+    modelsPanel: recorded('modelsPanel', modelsPanelOptions),
+    auth: recorded('auth', authOptions),
+    paid: recorded('paid', paidOptions),
+    modelsSubscriptions: recorded('modelsSubscriptions', modelsSubscriptionsOptions),
+    commands: recorded('commands', commandsOptions),
+    usageService: recorded('usageService', usageServiceOptions),
+    usageCompanion: recorded('usageCompanion', usageCompanionOptions),
+    usagePanel: recorded('usagePanel', usagePanelOptions),
+    extensionHooks: recorded('extensionHooks', extensionHooksOptions),
+    vault: recorded('vault', vaultOptions),
+    vaultBroker: recorded('vaultBroker', vaultBrokerOptions),
+    vaultStore: recorded('vaultStore', vaultStoreOptions),
+    vaultPosix: recorded('vaultPosix', vaultPosixOptions),
+    vaultWindows: recorded('vaultWindows', vaultWindowsOptions),
+    vaultBrokerBindings: recorded('vaultBrokerBindings', vaultBrokerBindingsOptions),
+    vaultActions: recorded('vaultActions', vaultActionsOptions),
+    vaultMigration: recorded('vaultMigration', vaultMigrationOptions),
+    report: recorded('report', reportOptions),
+    estimator: recorded('estimator', estimatorOptions),
+    recorder: recorded('recorder', recorderOptions),
+    whatsNew: recorded('whatsNew', whatsNewOptions),
+    judge: recorded('judge', judgeOptions),
+    scheduleBackground: recorded('scheduleBackground', scheduleBackgroundOptions),
+    uiText: recorded('uiText', uiTextOptions),
+    museCode: recorded('museCode', museCodeOptions),
+    productionMedia: recorded('productionMedia', {
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionMediaEntry.ts'],
+      outfile: 'dist/productionMedia.js',
+    }),
+    productionAudio: recorded('productionAudio', {
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/productionAudioEntry.ts'],
+      outfile: 'dist/productionAudio.js',
+    }),
+    runtimeMedia: recorded('runtimeMedia', {
+      ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeMediaEntry.ts'],
+      outfile: 'dist/runtimeMedia.js',
+    }),
+    mediaHost: recorded('mediaHost', mediaHostOptions),
+    voiceLinux: recorded('voiceLinux', voiceLinuxOptions),
+    dictation: recorded('dictation', dictationOptions),
+    voiceCompanion: recorded('voiceCompanion', voiceCompanionOptions),
+    voiceCompanionWebview: recorded('voiceCompanionWebview', voiceCompanionWebviewOptions),
+    planSnapshot: recorded('planSnapshot', planSnapshotOptions),
+    credentialLease: recorded('credentialLease', credentialLeaseOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
         path.basename(region.output, '.js'),
-        esbuild.build(uiTextRegionOptions[index]),
+        recorded(path.basename(region.output, '.js'), uiTextRegionOptions[index]),
       ]),
     ),
-    validation: esbuild.build(validationOptions),
-    wire: esbuild.build(wireOptions),
-    estimateContracts: esbuild.build(estimateContractsOptions),
-    vaultBoundaries: esbuild.build(vaultBoundariesOptions),
-    modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
-    browserCheck: esbuild.build(browserCheckOptions),
-    browserRuntime: esbuild.build(browserRuntimeOptions),
-    searchWorker: esbuild.build(searchWorkerOptions),
-    pageWorker: esbuild.build(pageWorkerOptions),
-    imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
-    webview: esbuild.build(webviewOptions),
+    validation: recorded('validation', validationOptions),
+    wire: recorded('wire', wireOptions),
+    estimateContracts: recorded('estimateContracts', estimateContractsOptions),
+    vaultBoundaries: recorded('vaultBoundaries', vaultBoundariesOptions),
+    modelApiBoundaries: recorded('modelApiBoundaries', modelApiBoundariesOptions),
+    browserCheck: recorded('browserCheck', browserCheckOptions),
+    browserRuntime: recorded('browserRuntime', browserRuntimeOptions),
+    searchWorker: recorded('searchWorker', searchWorkerOptions),
+    pageWorker: recorded('pageWorker', pageWorkerOptions),
+    imageResizeWorker: recorded('imageResizeWorker', imageResizeWorkerOptions),
+    webview: recorded('webview', webviewOptions),
   }
-  const acp = esbuild.build(acpOptions)
-  const headless = esbuild.build(headlessOptions)
-  const acpQuestions = esbuild.build(acpQuestionsOptions)
-  const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
-  const fontInstall = esbuild.build(fontInstallOptions)
-  const playbook = esbuild.build(playbookOptions)
-  const exec = esbuild.build(execOptions)
-  const runtimeAccounts = esbuild.build(runtimeAccountsOptions)
-  const builds = [
-    ...Object.values(shipped),
-    acp,
-    exec,
-    headless,
-    acpQuestions,
-    runtimeQuestions,
-    fontInstall,
-    playbook,
-    runtimeAccounts,
+  const extraSpecs = [
+    ['acp', () => esbuild.build(acpOptions)],
+    ['exec', () => esbuild.build(execOptions)],
+    ['headless', () => esbuild.build(headlessOptions)],
+    ['acpQuestions', () => esbuild.build(acpQuestionsOptions)],
+    ['runtimeQuestions', () => esbuild.build(runtimeQuestionsOptions)],
+    ['fontInstall', () => esbuild.build(fontInstallOptions)],
+    ['playbook', () => esbuild.build(playbookOptions)],
+    ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
+    ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
   ]
   if (!isProduction) {
-    builds.push(esbuild.build(integrationTestOptions))
+    extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
   }
-  await Promise.all(builds)
+  let shipped
+  let acp
+  let exec
+  let headless
+  let acpQuestions
+  let runtimeQuestions
+  let fontInstall
+  let playbook
+  let runtimeAccounts
+  let vaultRuntime
+  try {
+    shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
+    ;({
+      acp,
+      exec,
+      headless,
+      acpQuestions,
+      runtimeQuestions,
+      fontInstall,
+      playbook,
+      runtimeAccounts,
+      vaultRuntime,
+    } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
+  } catch (error) {
+    await esbuild.stop()
+    throw error
+  }
   if (isProduction) {
     rmSync(METAFILE_DIR, { recursive: true, force: true })
+    rmSync(META_HASHES_DIR, { recursive: true, force: true })
     const ACP_METAFILE_DIR = 'dist/meta-acp'
     rmSync(ACP_METAFILE_DIR, { recursive: true, force: true })
     mkdirSync(METAFILE_DIR, { recursive: true })
+    mkdirSync(META_HASHES_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
       const { metafile } = await build
+      const buildRecord = buildRecords.get(name)
       if (name === 'webview') {
-        writeWebviewMetafiles(metafile)
-      } else writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+        writeWebviewMetafiles(metafile, buildRecord)
+      } else {
+        writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+        writeMetafileHashes(name, metafile, buildRecord)
+      }
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile: fontsMetafile } = await fontInstall
@@ -1472,6 +2069,11 @@ if (isWatch) {
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
+    const { metafile: vaultRuntimeMetafile } = await vaultRuntime
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
+      JSON.stringify(vaultRuntimeMetafile, null, 2),
+    )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),
@@ -1493,9 +2095,11 @@ if (isWatch) {
   reportSize(PLAYBOOK_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
+  reportSize(CONVERSATION_TRANSFER_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)
+  reportSize(CONNECTOR_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(RESOURCE_OUTFILE)
   reportSize(RESOURCE_ADMISSION_OUTFILE)
@@ -1514,27 +2118,40 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(MEDIA_OUTFILE)
+  reportSize(MEDIA_HOST_OUTFILE)
   reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(MODEL_API_SESSIONS_OUTFILE)
   reportSize(RULES_FILE_OUTFILE)
+  reportSize(NATIVE_GIT_OUTFILE)
+  reportSize(EXEC_GUARD_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
+  reportSize(LEGAL_FIX_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(VOICE_LINUX_OUTFILE)
+  reportSize(DICTATION_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
   reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
+  reportSize(COMMANDS_OUTFILE)
+  reportSize(AUTH_OUTFILE)
+  reportSize(PAID_OUTFILE)
   reportSize('dist/usageService.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(VAULT_OUTFILE)
+  reportSize('dist/vaultBroker.js')
+  reportSize('dist/vaultBrokerBindings.js')
+  reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
+  reportSize(CREDENTIAL_LEASE_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(JUDGE_OUTFILE)

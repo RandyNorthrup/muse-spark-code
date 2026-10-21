@@ -49,18 +49,24 @@ export function videoFixture(options: VideoFixtureOptions = {}): Uint8Array {
   )
 }
 
-export function wavFixture(durationSeconds = 1): Uint8Array {
-  const sampleRate = 8000
-  const bytes = Buffer.alloc(44 + durationSeconds * sampleRate * 2)
+/** 16-bit PCM WAV; 8 kHz mono by default, the batch contract at 16 kHz mono. */
+export function wavFixture(
+  durationSeconds = 1,
+  format: { readonly sampleRate?: number; readonly channels?: number } = {},
+): Uint8Array {
+  const sampleRate = format.sampleRate ?? 8000
+  const channels = format.channels ?? 1
+  const blockAlign = channels * 2
+  const bytes = Buffer.alloc(44 + durationSeconds * sampleRate * blockAlign)
   bytes.write('RIFF')
   bytes.writeUInt32LE(bytes.length - 8, 4)
   bytes.write('WAVEfmt ', 8)
   bytes.writeUInt32LE(16, 16)
   bytes.writeUInt16LE(1, 20)
-  bytes.writeUInt16LE(1, 22)
+  bytes.writeUInt16LE(channels, 22)
   bytes.writeUInt32LE(sampleRate, 24)
-  bytes.writeUInt32LE(sampleRate * 2, 28)
-  bytes.writeUInt16LE(2, 32)
+  bytes.writeUInt32LE(sampleRate * blockAlign, 28)
+  bytes.writeUInt16LE(blockAlign, 32)
   bytes.writeUInt16LE(16, 34)
   bytes.write('data', 36)
   bytes.writeUInt32LE(bytes.length - 44, 40)
@@ -82,4 +88,33 @@ export function ebmlFixture(docType: 'webm' | 'matroska' = 'webm'): Uint8Array {
   return Uint8Array.from(
     Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x80 | body.length]), body]),
   )
+}
+
+function dimension(value: number): number[] {
+  return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff]
+}
+
+/** Minimal PNG header with the given dimensions and zero padding: sniffable bytes, never a picture. */
+export function pngFixture(width: number, height: number, padding = 0): Uint8Array {
+  return Uint8Array.from([
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
+    0,
+    0,
+    0,
+    13,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    ...dimension(width),
+    ...dimension(height),
+    ...Array.from({ length: padding }, () => 0),
+  ])
 }

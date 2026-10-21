@@ -1,11 +1,6 @@
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { isConversationShareItem, type ItemSnapshot } from '../../shared/agentEvents'
-import {
-  SESSION_EXPORT_MAX_BYTES,
-  SESSION_EXPORT_MAX_ITEMS,
-  SHARE_SCHEMA_VERSION,
-  UI_TEXT,
-} from '../../shared/constants'
+import { SHARE_SCHEMA_VERSION, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import {
   shareJsonSchema,
@@ -146,7 +141,8 @@ export function buildChatShare(
 ): ChatShareDocument {
   const request = shareRequestSchema.parse(input)
   if (request.target !== 'chat') throw new Error(UI_TEXT.shareRangeInvalid)
-  if (source.items.length > SESSION_EXPORT_MAX_ITEMS) throw new Error(UI_TEXT.shareTooLarge)
+  // NOLIMITS1FIX: the removed 20,000-item bound was invented — a share
+  // renders at any item count (paged 200 at a time in the view).
   const selected = selectedItems(source, request)
   const scrub = (text: string) => scrubShareText(text, privacy)
   const idMap = new Map<string, string>()
@@ -245,27 +241,24 @@ export function buildChatShare(
   return doc
 }
 
-/** JSON remains M118 share v1, separate from M84's resumable session JSON. */
+/**
+JSON remains M118 share v1, separate from M84's resumable session JSON.
+A share renders at any byte size (D121: the removed 16 MiB ceiling was
+invented); the item count above still bounds it.
+*/
 export function renderChatShare(
   doc: ChatShareDocument,
   format: ChatShareRequest['format'],
 ): string {
-  let content: string
   switch (format) {
     case 'json': {
-      content = `${JSON.stringify(doc, undefined, 2)}\n`
-      break
+      return JSON.stringify(doc, undefined, 2) + '\n'
     }
     case 'html': {
-      content = renderChatShareHtml(doc)
-      break
+      return renderChatShareHtml(doc)
     }
     case 'md': {
-      content = renderTranscriptMarkdown(doc)
-      break
+      return renderTranscriptMarkdown(doc)
     }
   }
-  if (new TextEncoder().encode(content).byteLength > SESSION_EXPORT_MAX_BYTES)
-    throw new Error(UI_TEXT.shareTooLarge)
-  return content
 }

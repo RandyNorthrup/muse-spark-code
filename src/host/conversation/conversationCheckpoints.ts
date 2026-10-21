@@ -41,11 +41,11 @@ export interface PendingMark {
 const PENDING_MARKER = 'pending:'
 
 /**
- * A restore's result: whether it ran, whether every file it meant to
- * change was changed (so "Rewind Conversation and Restore Files" may go
- * on), and its notices, posted when the caller says (after a fork, so the
- * new transcript shows them).
- */
+A restore's result: whether it ran, whether every file it meant to
+change was changed (so "Rewind Conversation and Restore Files" may go
+on), and its notices, posted when the caller says (after a fork, so the
+new transcript shows them).
+*/
 export interface RestoreReport {
   readonly isRestored: boolean
   readonly isComplete: boolean
@@ -74,7 +74,6 @@ const REFUSAL_ORDER: readonly PathRefusal[] = [
   'orderUnknown',
   'linked',
   'notKept',
-  'tooLarge',
   'failed',
 ]
 /** Names, the first few spelled out and the rest counted. */
@@ -94,7 +93,6 @@ function refusalTemplate(reason: PathRefusal): string {
     orderUnknown: UI_TEXT.restoreRefusedOrderUnknown,
     linked: UI_TEXT.restoreRefusedLinked,
     notKept: UI_TEXT.restoreRefusedNotKept,
-    tooLarge: UI_TEXT.restoreRefusedTooLarge,
     failed: UI_TEXT.restoreRefusedFailed,
   }
   return templates[reason]
@@ -113,9 +111,9 @@ function availabilityText(availability: CheckpointAvailability): string {
 }
 
 /**
- * What the panel knows of checkpoints, as one comparable value. A
- * conversation with no checkpoint reads the same whichever it is.
- */
+What the panel knows of checkpoints, as one comparable value. A
+conversation with no checkpoint reads the same whichever it is.
+*/
 function stateKey(
   availability: CheckpointAvailability,
   sessionId: string | undefined,
@@ -189,9 +187,9 @@ export class ConversationCheckpoints {
   }
 
   /**
-   * Drops this surface's state. Native turns' marks end here; a Model API
-   * turn's mark belongs to the core lifecycle and can outlive this surface.
-   */
+  Drops this surface's state. Native turns' marks end here; a Model API
+  turn's mark belongs to the core lifecycle and can outlive this surface.
+  */
   private endAll(): void {
     for (const turnId of this.running.keys()) {
       this.markEnded(turnId)
@@ -199,12 +197,6 @@ export class ConversationCheckpoints {
     for (const mark of this.pending.splice(0)) {
       this.release(mark)
     }
-  }
-
-  /** A restore or a Redo that threw: its message in the transcript, its stack in the log. */
-  private sayFailed(error: unknown): void {
-    this.deps.log.warn(`Restore failed: ${failureForLog(error)}`)
-    this.deps.notice('error', UI_TEXT.restoreFailed)
   }
 
   /** The text for a restore or a Redo that did nothing. */
@@ -227,11 +219,11 @@ export class ConversationCheckpoints {
   }
 
   /**
-   * The notices for a restore's or a Redo's outcome: what changed (with its
-   * Redo), what was already as before, each refusal, and, when commands,
-   * hooks or MCP tools ran in the turns, that what they changed was not
-   * undone. That note never stops a rewind; a refusal does.
-   */
+  The notices for a restore's or a Redo's outcome: what changed (with its
+  Redo), what was already as before, each refusal, and, when commands,
+  hooks or MCP tools ran in the turns, that what they changed was not
+  undone. That note never stops a rewind; a refusal does.
+  */
   private notices(outcome: RestoreOutcome, done: PluralForms, isRedo = false): () => void {
     return () => {
       if (!outcome.ok) {
@@ -277,10 +269,10 @@ export class ConversationCheckpoints {
   }
 
   /**
-   * Whether checkpoints run changed, a conversation was archived, a turn
-   * ended, or the panel reloaded: the conversation's turns are read afresh
-   * and the panel told.
-   */
+  Whether checkpoints run changed, a conversation was archived, a turn
+  ended, or the panel reloaded: the conversation's turns are read afresh
+  and the panel told.
+  */
   public async refresh(): Promise<void> {
     const { sessionId, generation } = this
     this.postState()
@@ -316,9 +308,9 @@ export class ConversationCheckpoints {
   }
 
   /**
-   * Tells the panel whether checkpoints run and which turns offer a restore
-   * (none unless they run), when that changed since it was last told.
-   */
+  Tells the panel whether checkpoints run and which turns offer a restore
+  (none unless they run), when that changed since it was last told.
+  */
   public postState(): void {
     const availability = this.deps.port.availability()
     const restoreBlocker = this.restoreBlocker()
@@ -343,10 +335,10 @@ export class ConversationCheckpoints {
   }
 
   /**
-   * Before a message that may start a turn: the message is published as
-   * running, awaited, so no edit of its turn can come first. When the mark
-   * cannot be published, this throws and the message is not sent.
-   */
+  Before a message that may start a turn: the message is published as
+  running, awaited, so no edit of its turn can come first. When the mark
+  cannot be published, this throws and the message is not sent.
+  */
   public async beforeTurn(sessionId: string): Promise<PendingMark | undefined> {
     const marker = `${PENDING_MARKER}${randomUUID()}`
     try {
@@ -378,9 +370,9 @@ export class ConversationCheckpoints {
   }
 
   /**
-   * The message was accepted: a turn it started is running (its own mark
-   * from now on); a queued or steered one is not. The message's mark goes.
-   */
+  The message was accepted: a turn it started is running (its own mark
+  from now on); a queued or steered one is not. The message's mark goes.
+  */
   public accepted(mark: PendingMark | undefined, turnId: string, isNewTurn: boolean): void {
     const index = mark === undefined ? -1 : this.pending.indexOf(mark)
     if (mark === undefined || index === -1) {
@@ -439,10 +431,10 @@ export class ConversationCheckpoints {
   }
 
   /**
-   * Restores the files (confirmed already) from `turnId` on; the transcript's
-   * turn ids from it on, child sessions' included, must each have a record.
-   * Its notices wait for `post`.
-   */
+  Restores the files (confirmed already) from `turnId` on; the transcript's
+  turn ids from it on, child sessions' included, must each have a record.
+  Its notices wait for `post`.
+  */
   public async restore(
     sessionId: string,
     turnId: string,
@@ -464,21 +456,24 @@ export class ConversationCheckpoints {
         post: this.notices(outcome, UI_TEXT.restoreDone),
       }
     } catch (error: unknown) {
+      // The record keeps the failure's kind at once; the transcript learns
+      // it in fixed words when the caller posts the report.
+      this.deps.log.warn(`Restore failed: ${failureForLog(error)}`)
       return {
         isRestored: false,
         isComplete: false,
         post: () => {
-          this.sayFailed(error)
+          this.deps.notice('error', UI_TEXT.restoreFailed)
         },
       }
     }
   }
 
   /**
-   * A restore's Redo, from the conversation it was offered in: what it
-   * replaced goes back, and the panel learns whether its button is spent (a
-   * Redo that left paths it could not do keeps it for another try).
-   */
+  A restore's Redo, from the conversation it was offered in: what it
+  replaced goes back, and the panel learns whether its button is spent (a
+  Redo that left paths it could not do keeps it for another try).
+  */
   public async redo(
     restoreId: string,
     sourceSessionId: string,
@@ -496,7 +491,10 @@ export class ConversationCheckpoints {
       isSpent = outcome.ok ? outcome.isRedoSpent : outcome.reason === 'redoGone'
       this.notices(outcome, UI_TEXT.redoDone, true)()
     } catch (error: unknown) {
-      this.sayFailed(error)
+      // The record keeps the failure's kind; the transcript learns it in
+      // fixed words.
+      this.deps.log.warn(`Restore failed: ${failureForLog(error)}`)
+      this.deps.notice('error', UI_TEXT.restoreFailed)
     }
     this.deps.post({ type: 'restoreRedone', restoreId, isSpent })
   }

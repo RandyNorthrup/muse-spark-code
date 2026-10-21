@@ -18,9 +18,7 @@
 import * as z from 'zod/mini'
 import {
   CHECK_COMMAND_MAX_CHARS,
-  CHECK_COMMANDS_MAX,
   CHECK_DEFAULT_TIMEOUT_SECONDS,
-  CHECK_MAX_TIMEOUT_SECONDS,
   CHECK_NAME_MAX_CHARS,
   CHECK_PATHS_SEPARATOR,
   type CheckCommandSetting,
@@ -28,6 +26,8 @@ import {
   MILLISECONDS_PER_SECOND,
   MODEL_TEXT,
   UNSAFE_ARGUMENT_START,
+  VERIFY_GUIDANCE_CHECKS,
+  VERIFY_GUIDANCE_DIAGNOSTICS,
   WINDOWS_ARGUMENT_SYNTAX,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -37,12 +37,11 @@ export const checkCommandSchema = z.object({
   name: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)),
   command: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)),
   changedFiles: z.optional(z.boolean()),
-  timeoutSeconds: z.optional(z.int().check(z.positive(), z.lte(CHECK_MAX_TIMEOUT_SECONDS))),
+  timeoutSeconds: z.optional(z.int().check(z.positive())),
 })
 
-/** The setting's whole list: at most CHECK_COMMANDS_MAX, each name once. */
+/** The setting's whole list, at any length, each name once. */
 export const checkCommandsSchema = z.array(checkCommandSchema).check(
-  z.maxLength(CHECK_COMMANDS_MAX),
   z.refine((checks) => new Set(checks.map((check) => check.name)).size === checks.length, {
     message: 'each check needs a name of its own',
   }),
@@ -70,10 +69,10 @@ export function isSafeCheckPath(relativePath: string, platform: NodeJS.Platform)
 }
 
 /**
- * The line a check runs: its command as the user wrote it, and for a scoped
- * check with files to check, `--` and each path quoted. A scoped check with
- * no files runs as written (the whole project).
- */
+The line a check runs: its command as the user wrote it, and for a scoped
+check with files to check, `--` and each path quoted. A scoped check with
+no files runs as written (the whole project).
+*/
 export function checkCommandLine(
   check: CheckCommandSetting,
   paths: readonly string[],
@@ -100,21 +99,21 @@ export function checkListText(checks: readonly CheckCommandSetting[]): string {
 }
 
 /**
- * What Muse Code is told with each turn (M68): check the diagnostics of the
- * files it edits through the `ide` server (only when the session has it),
- * and run the user's checks. It reads them itself and runs the checks
- * through its own shell and approvals; undefined when there is nothing to
- * say.
- */
+What Muse Code is told with each turn (M68): check the diagnostics of the
+files it edits through the `ide` server (only when the session has it),
+and run the user's checks. It reads them itself and runs the checks
+through its own shell and approvals; undefined when there is nothing to
+say.
+*/
 export function verifyGuidance(
   isDiagnosticsOn: boolean,
   checks: readonly CheckCommandSetting[],
 ): string | undefined {
   const sentences = [
-    ...(isDiagnosticsOn ? [MODEL_TEXT.verifyGuidanceDiagnostics] : []),
+    ...(isDiagnosticsOn ? [VERIFY_GUIDANCE_DIAGNOSTICS] : []),
     ...(checks.length === 0
       ? []
-      : [fill(MODEL_TEXT.verifyGuidanceChecks, { checks: checkListText(checks) })]),
+      : [fill(VERIFY_GUIDANCE_CHECKS, { checks: checkListText(checks) })]),
   ]
   return sentences.length === 0
     ? undefined

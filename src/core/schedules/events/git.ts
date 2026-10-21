@@ -4,11 +4,7 @@ import { execResourceFile } from '../../resources/launcher'
 import { stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import {
-  GIT_OUTPUT_MAX_BYTES,
-  GIT_TIMEOUT_MS,
-  SCHEDULE_EVENT_FIELD_MAX_CHARS,
-} from '../../../shared/constants'
+import { GIT_OUTPUT_MAX_BYTES, SCHEDULE_EVENT_FIELD_MAX_CHARS } from '../../../shared/constants'
 import {
   scheduleEventSchema,
   type ScheduleEvent,
@@ -16,8 +12,32 @@ import {
   type ScheduleSourceCapability,
 } from '../../../shared/scheduleEvents'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { isStoreErrorCode } from '../../../host/backend/storeErrors'
 import { noEventHistory, unavailableSource, type ScheduleSnapshotPort } from './ports'
 import { retainedPollEvents } from './conditions'
+
+/**
+The revision source for one ref: its loose file, or packed-refs when the
+ref is packed. Metadata detects an unstable read; it never identifies an
+event. Only a missing loose file falls back; any other stat failure
+keeps its kind for the caller.
+*/
+export async function statRefRevision(
+  gitDir: string,
+  refName: string,
+  read: (file: string) => Promise<{ mtimeNs: bigint }> = (file) => stat(file, { bigint: true }),
+): Promise<{ file: string; revision: bigint }> {
+  const loose = path.join(gitDir, refName)
+  try {
+    const metadata = await read(loose)
+    return { file: loose, revision: metadata.mtimeNs }
+  } catch (error) {
+    if (!isStoreErrorCode(error, 'ENOENT')) throw error
+    const packed = path.join(gitDir, 'packed-refs')
+    const metadata = await read(packed)
+    return { file: packed, revision: metadata.mtimeNs }
+  }
+}
 
 const refSchema = z.strictObject({
   repository: z.string().check(z.minLength(1), z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS)),
@@ -50,11 +70,15 @@ export function localGitRefs(
     read: async () => {
       const available = capability()
       if (!available.available) throw new Error(available.reason)
+      // No timeout of our own: the probe waits for git's answer under the
+      // resource launcher's own bound (owner 2026-10-16: no invented kill).
       const options = {
         env: withoutCredentials(process.env),
-        timeout: GIT_TIMEOUT_MS,
         maxBuffer: GIT_OUTPUT_MAX_BYTES,
         windowsHide: true,
+        // The schedule's own workspace: `git` never resolves to a file
+        // inside it, and the child's PATH is guarded for it.
+        workspaceRoot,
       }
       try {
         const common = await exec(
@@ -93,17 +117,9 @@ export function localGitRefs(
             objectId,
             revision: 'pending',
           })
-          // Metadata detects an unstable read; it never identifies an event.
-          let metadata
-          let file = path.join(common.stdout.trim(), ref.name)
-          try {
-            metadata = await stat(file, { bigint: true })
-          } catch {
-            file = path.join(common.stdout.trim(), 'packed-refs')
-            metadata = await stat(file, { bigint: true })
-          }
-          refs.push({ ...ref, revision: String(metadata.mtimeNs) })
-          revisions.push({ file, revision: metadata.mtimeNs })
+          const resolved = await statRefRevision(common.stdout.trim(), ref.name)
+          refs.push({ ...ref, revision: String(resolved.revision) })
+          revisions.push({ file: resolved.file, revision: resolved.revision })
         }
         // A concurrent ref write/pack must not combine an old object with a
         // new revision. Refuse the unstable read; the next poll retries it.

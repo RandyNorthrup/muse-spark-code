@@ -1,0 +1,132 @@
+{
+  "vendor": "openai",
+  "model": "gpt-5.6-luna",
+  "variant": "1-wrap-up-tools-empty-choice-auto",
+  "url": "https://api.openai.com/v1/responses",
+  "requestBody": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 400,
+    "store": false,
+    "tools": [],
+    "tool_choice": "auto",
+    "input": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "id": "fc_07fcbe50db60b77a016acd3b5daae487d09e30b02ef429a131",
+        "type": "function_call",
+        "status": "completed",
+        "arguments": "{\"path\":\"a.txt\"}",
+        "call_id": "call_xYDLx5aDR4khQTElksFKMOYI",
+        "name": "read_file"
+      },
+      {
+        "type": "function_call_output",
+        "call_id": "call_xYDLx5aDR4khQTElksFKMOYI",
+        "output": "hello from a.txt"
+      },
+      {
+        "role": "developer",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "id": "resp_07fcbe50db60b77a016acd3b5e69cc87d0acead45b3378d190",
+    "object": "response",
+    "created_at": 1791834974,
+    "status": "completed",
+    "access_programs": null,
+    "background": false,
+    "billing": {
+      "payer": "openai"
+    },
+    "completed_at": 1791834976,
+    "error": null,
+    "frequency_penalty": 0,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 400,
+    "max_tool_calls": null,
+    "model": "gpt-5.6-luna",
+    "moderation": null,
+    "output": [
+      {
+        "id": "msg_07fcbe50db60b77a016acd3b5fe43087d0b58b1367f62b199f",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "I read `a.txt`, and it says: “hello from a.txt.”"
+          }
+        ],
+        "phase": "final_answer",
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "presence_penalty": 0,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": "24h",
+    "reasoning": {
+      "context": "all_turns",
+      "effort": "medium",
+      "mode": "standard",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": false,
+    "temperature": 1,
+    "text": {
+      "format": {
+        "type": "text"
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tool_usage": {
+      "image_gen": {
+        "input_tokens": 0,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 0
+        },
+        "output_tokens": 0,
+        "output_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 0
+        },
+        "total_tokens": 0
+      },
+      "web_search": {
+        "num_requests": 0
+      }
+    },
+    "tools": [],
+    "top_logprobs": 0,
+    "top_p": 0.98,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 88,
+      "input_tokens_details": {
+        "cache_write_tokens": 0,
+        "cached_tokens": 0
+      },
+      "output_tokens": 20,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 108
+    },
+    "user": null,
+    "metadata": {}
+  }
+}

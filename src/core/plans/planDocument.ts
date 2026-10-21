@@ -19,7 +19,6 @@ import {
   PLAN_SLUG_FALLBACK,
   PLAN_SLUG_MAX_CHARS,
   PLAN_STEP_MAX_CHARS,
-  PLAN_STEPS_MAX,
   PLAN_TITLE_MAX_CHARS,
 } from '../../shared/constants'
 
@@ -32,9 +31,9 @@ export interface PlanDocument {
 }
 
 /**
- * What the panel's Markdown parser says of a plan (planMarkdown.ts), loaded
- * with dist/planMarkdown.js on the first plan action.
- */
+What the panel's Markdown parser says of a plan (planMarkdown.ts), loaded
+with dist/planMarkdown.js on the first plan action.
+*/
 export interface PlanMarkdown {
   /** The text of its first top-level heading as the panel shows it, if any. */
   readonly topHeading: (text: string) => string | undefined
@@ -104,11 +103,11 @@ function cut(text: string, maxChars: number): string {
 }
 
 /**
- * The plan a reply holds. A Muse Code plan reply opens and closes with its
- * `plan` skill's handoff (captured live 2026-09-27, docs/certification/m79.md):
- * the plan is what lies between, the blank lines around it dropped, and
- * nothing else changed. Any other reply is the plan whole.
- */
+The plan a reply holds. A Muse Code plan reply opens and closes with its
+`plan` skill's handoff (captured live 2026-09-27, docs/certification/m79.md):
+the plan is what lies between, the blank lines around it dropped, and
+nothing else changed. Any other reply is the plan whole.
+*/
 export function planBody(reply: string): string {
   if (!reply.startsWith(MUSE_PLAN_HANDOFF_LEAD)) {
     return reply
@@ -122,10 +121,10 @@ export function planBody(reply: string): string {
 }
 
 /**
- * What a plan is named after: its top-level heading, unless that only says
- * "Plan"; else the first line of the prompt that asked for it, its "Plan how
- * to" dropped; else `fallback`.
- */
+What a plan is named after: its top-level heading, unless that only says
+"Plan"; else the first line of the prompt that asked for it, its "Plan how
+to" dropped; else `fallback`.
+*/
 export function planTitle(
   markdown: PlanMarkdown,
   text: string,
@@ -142,9 +141,9 @@ export function planTitle(
 }
 
 /**
- * The file-name form of a title: letters and digits of any script, lower
- * case, accents dropped, everything else one hyphen, cut to a length.
- */
+The file-name form of a title: letters and digits of any script, lower
+case, accents dropped, everything else one hyphen, cut to a length.
+*/
 export function planSlug(title: string): string {
   const slug = title
     .normalize('NFKD')
@@ -168,11 +167,11 @@ function datePrefix(fileName: string): string | undefined {
 }
 
 /**
- * How the log names a plan file: a short hash of its name, after its day
- * when the name verifiably starts with one, and nothing else of it: the rest
- * of a name is drawn from what the user or the model wrote (M39), and a file
- * someone else put in the folder may be named anything.
- */
+How the log names a plan file: a short hash of its name, after its day
+when the name verifiably starts with one, and nothing else of it: the rest
+of a name is drawn from what the user or the model wrote (M39), and a file
+someone else put in the folder may be named anything.
+*/
 export function planLogName(fileName: string): string {
   const hash = createHash('sha256').update(fileName).digest('hex').slice(0, PLAN_LOG_HASH_CHARS)
   const day = datePrefix(fileName)
@@ -208,15 +207,12 @@ export function parsePlanFile(
 }
 
 /**
- * The plan's steps: its top-level numbered items, or, when it numbers none,
- * its top-level bullets, as the panel parses them; at most PLAN_STEPS_MAX,
- * each cut to PLAN_STEP_MAX_CHARS.
- */
+The plan's steps: its top-level numbered items, or, when it numbers none,
+its top-level bullets, as the panel parses them; every step (D121: the
+removed 50-step ceiling was invented), each cut to PLAN_STEP_MAX_CHARS.
+*/
 export function planSteps(markdown: PlanMarkdown, body: string): readonly string[] {
-  return markdown
-    .listItems(body)
-    .slice(0, PLAN_STEPS_MAX)
-    .map((item) => cut(item, PLAN_STEP_MAX_CHARS))
+  return markdown.listItems(body).map((item) => cut(item, PLAN_STEP_MAX_CHARS))
 }
 
 /** The steps as numbered lines, as the model is told its todo list was set. */
@@ -225,10 +221,10 @@ export function numberedSteps(steps: readonly string[]): string {
 }
 
 /**
- * Whether a plan's text holds a character the panel does not show as the
- * model reads it (see UNSHOWN_CHARACTER): such a plan is neither saved nor
- * started, as the rendered view is no longer what the model gets.
- */
+Whether a plan's text holds a character the panel does not show as the
+model reads it (see UNSHOWN_CHARACTER): such a plan is neither saved nor
+started, as the rendered view is no longer what the model gets.
+*/
 export function hasUnshownCharacters(text: string): boolean {
   return UNSHOWN_CHARACTER.test(text)
 }

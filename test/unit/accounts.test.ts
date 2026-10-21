@@ -49,7 +49,7 @@ describe('M108 local accounts contracts', () => {
     },
   )
 
-  it('validates labels, order, groups, uniqueness and the pool bound', () => {
+  it('validates labels, order, groups and uniqueness, with no pool bound', () => {
     for (const update of [
       { label: ' ' },
       { label: '\nWork' },
@@ -61,11 +61,12 @@ describe('M108 local accounts contracts', () => {
       expect(accountSchema.safeParse({ ...account, ...update }).success).toBe(false)
     }
     expect(providersAccountsSchema.safeParse([account, account]).success).toBe(false)
+    // D121: 65 accounts stand — what the removed 64-per-provider ceiling refused.
     expect(
-      providersAccountsSchema.safeParse(
+      providersAccountsSchema.parse(
         Array.from({ length: 65 }, (_, i) => ({ ...account, id: `a${String(i)}` })),
-      ).success,
-    ).toBe(false)
+      ),
+    ).toHaveLength(65)
     expect(
       providersAccountsSchema.parse([account, { ...account, id: 'personal', limitGroup: 'team' }]),
     ).toHaveLength(2)

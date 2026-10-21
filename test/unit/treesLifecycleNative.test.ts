@@ -10,10 +10,12 @@ import { LinuxResourceTreeReader } from '../../src/core/resources/trees/linux'
 import { MacResourceTreeReader } from '../../src/core/resources/trees/mac'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { signalVerifiedPosix } from '../../src/core/resources/trees/actions'
+import { probeChildEnvironment } from '../../src/core/executables'
 import { runTreeProgram, type ResourceTreeRun } from '../../src/core/resources/trees/run'
 import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
 import { removeFolder } from './helpers/temporaryFolders'
 import { darwinProcessHelper } from './helpers/darwinProcessHelper'
+import { canReadProcessBirth } from './helpers/processBirth'
 
 /** True while the pid exists for us, a zombie included (kill(2) signal 0). */
 function isPresent(pid: number): boolean {
@@ -23,6 +25,26 @@ function isPresent(pid: number): boolean {
   } catch {
     return false
   }
+}
+
+/** Polls signal 0 until the pid is gone (reaped by init or launchd). */
+async function waitAbsent(pid: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (!isPresent(pid)) break
+    await setTimeout(1)
+  }
+}
+
+/** Polls the native reader until the pid is reaped, then asserts it is gone. */
+async function waitReaped(
+  reader: { identity(pid: number): Promise<unknown> },
+  pid: number,
+): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if ((await reader.identity(pid)) === null) break
+    await setTimeout(1)
+  }
+  expect(await reader.identity(pid)).toBeNull()
 }
 
 describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
@@ -47,7 +69,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         await runTreeProgram(
           '/usr/bin/cc',
           [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
-          { PATH: '/usr/bin:/bin' },
+          probeChildEnvironment({ PATH: '/usr/bin:/bin' }),
         )
         const parent = spawn(file, ['hold-zombie'], {
           detached: true,
@@ -81,9 +103,13 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             if ((await reader.identity(pid)) === null) break
             await setTimeout(1)
           }
-          expect(await runTreeProgram('/bin/ps', ['-p', String(pid), '-o', 'state='])).toMatch(
-            /^Z/m,
-          )
+          expect(
+            await runTreeProgram(
+              '/bin/ps',
+              ['-p', String(pid), '-o', 'state='],
+              probeChildEnvironment({ LC_ALL: 'C' }),
+            ),
+          ).toMatch(/^Z/m)
           expect(await registry.signal(ticket, root!, 'SIGTERM')).toBe('gone')
           let stopped = await registry.kill(ticket)
           // OS-wide numerical scans can be unknown during concurrent process churn.
@@ -121,7 +147,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         await runTreeProgram(
           '/usr/bin/cc',
           [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
-          { PATH: '/usr/bin:/bin' },
+          probeChildEnvironment({ PATH: '/usr/bin:/bin' }),
         )
         for (let attempt = 0; attempt < 32; attempt++) {
           const child = spawn(file, ['short'], {
@@ -219,7 +245,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         await runTreeProgram(
           '/usr/bin/cc',
           [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
-          { PATH: '/usr/bin:/bin' },
+          probeChildEnvironment({ PATH: '/usr/bin:/bin' }),
         )
         const rootProcess = spawn(file, ['descendants'], {
           detached: true,
@@ -252,40 +278,53 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
           }
           const registry = new ResourceTreeRegistry(reader)
           await registry.register(ticket)
-          expect(await registry.members(ticket)).toContainEqual(detached)
-          rootProcess.stdin.write('f')
-          const grandchild = await nextBirth('grandchild')
-          expect(await registry.members(ticket)).toContainEqual(grandchild)
-          rootProcess.stdin.write('e')
-          for (let attempt = 0; attempt < 100; attempt++) {
-            if ((await reader.identity(detached.pid)) === null) break
-            await setTimeout(1)
+          if (canReadProcessBirth()) {
+            expect(await registry.members(ticket)).toContainEqual(detached)
+            rootProcess.stdin.write('f')
+            const grandchild = await nextBirth('grandchild')
+            expect(await registry.members(ticket)).toContainEqual(grandchild)
+            rootProcess.stdin.write('e')
+            await waitReaped(reader, detached.pid)
+            rootProcess.stdin.write('q')
+            await death
+            // The root never reaps `detached`; launchd or init does once the root
+            // exits. Hosted macOS 26 once read no members here (CIFIX017 round 5,
+            // not reproduced on macOS 15 rigs): wait out that reap, and report the
+            // raw reads if it recurs.
+            await waitAbsent(detached.pid)
+            reads.length = 0
+            expect(
+              await registry.members(ticket),
+              evidence([root.pid, detached.pid, grandchild.pid]),
+            ).toEqual([grandchild])
+            const result = await registry.kill(ticket)
+            expect(result.status).toBe('done')
+            expect(result.members).toContainEqual({ identity: grandchild, result: 'done' })
+            await waitReaped(reader, grandchild.pid)
+            expect(await registry.signal(ticket, grandchild, 'SIGKILL')).toBe('gone')
+          } else {
+            // No process table: nothing is listable, so the registry invents
+            // no members; the fixture's own protocol still drives every birth
+            // and exit, proven birth by birth through the native helper.
+            expect(await registry.members(ticket)).toEqual([])
+            rootProcess.stdin.write('f')
+            const grandchild = await nextBirth('grandchild')
+            expect(await registry.members(ticket)).toEqual([])
+            rootProcess.stdin.write('e')
+            await waitReaped(reader, detached.pid)
+            rootProcess.stdin.write('q')
+            await death
+            await waitAbsent(detached.pid)
+            // Discovery stays refused, and the ticket alone confers no
+            // membership: the never-enrolled grandchild is refused even
+            // named, while the enrolled root stays answerable through the
+            // helper. The unlistable scope itself is never signalled blind
+            // (the finally block below still reaps every birth directly).
+            expect(await registry.members(ticket)).toEqual([])
+            expect(await registry.kill(ticket)).toEqual({ status: 'refused', members: [] })
+            expect(await registry.signal(ticket, grandchild, 'SIGKILL')).toBe('refused')
+            expect(await registry.signal(ticket, root, 'SIGKILL')).toBe('gone')
           }
-          expect(await reader.identity(detached.pid)).toBeNull()
-          rootProcess.stdin.write('q')
-          await death
-          // The root never reaps `detached`; launchd or init does once the root
-          // exits. Hosted macOS 26 once read no members here (CIFIX017 round 5,
-          // not reproduced on macOS 15 rigs): wait out that reap, and report the
-          // raw reads if it recurs.
-          for (let attempt = 0; attempt < 100; attempt++) {
-            if (!isPresent(detached.pid)) break
-            await setTimeout(1)
-          }
-          reads.length = 0
-          expect(
-            await registry.members(ticket),
-            evidence([root.pid, detached.pid, grandchild.pid]),
-          ).toEqual([grandchild])
-          const result = await registry.kill(ticket)
-          expect(result.status).toBe('done')
-          expect(result.members).toContainEqual({ identity: grandchild, result: 'done' })
-          for (let attempt = 0; attempt < 100; attempt++) {
-            if ((await reader.identity(grandchild.pid)) === null) break
-            await setTimeout(1)
-          }
-          expect(await reader.identity(grandchild.pid)).toBeNull()
-          expect(await registry.signal(ticket, grandchild, 'SIGKILL')).toBe('gone')
         } finally {
           // Cleanup is itself birth-verified, including deliberate guard-break failures.
           for (const identity of births.toReversed()) {

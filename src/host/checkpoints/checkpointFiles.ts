@@ -15,7 +15,6 @@ import { type BlobRef, gitBlobOid } from '../../core/checkpoints/gitListings'
 import { isSamePath } from '../../core/paths'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import {
-  CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_REMOVE_RETRIES,
   CHECKPOINT_REMOVE_RETRY_MS,
   GIT_MODE_EXECUTABLE,
@@ -63,22 +62,25 @@ export interface FileStep {
 }
 
 /**
- * What became of one step: done; the file was not as the step expected
- * (changed while it ran, or an unsaved editor); a link or the workspace's
- * edge was on the way; the file is too large to compare; or the change
- * itself failed.
- */
-export type StepResult = 'done' | 'changed' | 'linked' | 'failed' | 'unsaved' | 'tooLarge'
+What became of one step: done; the file was not as the step expected
+(changed while it ran, or an unsaved editor); a link or the workspace's
+edge was on the way; or the change itself failed.
+*/
+export type StepResult = 'done' | 'changed' | 'linked' | 'failed' | 'unsaved'
 
 /** Fresh reads after awaits: TypeScript's readonly narrowing is not a live abort check. */
 function isDisallowed(target: RestoreTarget): boolean {
   return target.signal?.aborted === true || target.isAllowed?.() === false
 }
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
+/** Whether the failure names one of the given errno codes. */
+function isErrno(error: unknown, codes: ReadonlySet<string>): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    codes.has(error.code)
+  )
 }
 
 function pause(ms: number): Promise<void> {
@@ -88,11 +90,11 @@ function pause(ms: number): Promise<void> {
 }
 
 /**
- * Whether a folder or the file on the requested spelling of a path is a link or
- * a junction. Letter case alone does not tell: a case-folding volume resolves
- * `readme.md` to `README.md` with no link, while on a case-sensitive one (macOS
- * offers both) `foo` may be a link to `Foo`.
- */
+Whether a folder or the file on the requested spelling of a path is a link or
+a junction. Letter case alone does not tell: a case-folding volume resolves
+`readme.md` to `README.md` with no link, while on a case-sensitive one (macOS
+offers both) `foo` may be a link to `Foo`.
+*/
 async function hasLinkOnTheWay(root: string, relative: string): Promise<boolean> {
   let current = root
   for (const segment of relative.split(/[\\/]/u)) {
@@ -126,9 +128,9 @@ async function hasGit(folder: string): Promise<boolean> {
 }
 
 /**
- * The nearest folder at or above the workspace holding `.git`; the workspace
- * when none does. An M72 record names its place by it.
- */
+The nearest folder at or above the workspace holding `.git`; the workspace
+when none does. An M72 record names its place by it.
+*/
 export async function repositoryTop(workspaceRoot: string): Promise<string> {
   for (let folder = workspaceRoot; ; folder = path.dirname(folder)) {
     if (await hasGit(folder)) {
@@ -141,10 +143,10 @@ export async function repositoryTop(workspaceRoot: string): Promise<string> {
 }
 
 /**
- * The path inside the workspace with no link or junction on the way (its
- * canonical form is the canonical root plus the path), or undefined with a
- * log line.
- */
+The path inside the workspace with no link or junction on the way (its
+canonical form is the canonical root plus the path), or undefined with a
+log line.
+*/
 async function unlinked(
   target: RestoreTarget,
   relative: string,
@@ -176,10 +178,10 @@ async function unlinked(
 }
 
 /**
- * A recorded path as it names a file now (spec 2: re-resolved at a restore,
- * so two keys that now name one file are one path), or undefined when a link
- * or junction is on the way or it leads outside the workspace.
- */
+A recorded path as it names a file now (spec 2: re-resolved at a restore,
+so two keys that now name one file are one path), or undefined when a link
+or junction is on the way or it leads outside the workspace.
+*/
 export async function resolvedPath(
   target: RestoreTarget,
   relative: string,
@@ -189,22 +191,16 @@ export async function resolvedPath(
 }
 
 /**
- * Whether the file is still what the step expects it to be, by bytes and
- * presence, never mode; or too large to tell.
- */
-async function matchOf(
-  absolute: string,
-  expect: Expectation,
-): Promise<'same' | 'changed' | 'tooLarge'> {
+Whether the file is still what the step expects it to be, by bytes and
+presence, never mode: every file is compared, whatever its size.
+*/
+export async function matchOf(absolute: string, expect: Expectation): Promise<'same' | 'changed'> {
   const stats = await lstatOrUndefined(absolute)
   if (expect.kind === 'absent') {
     return stats === undefined ? 'same' : 'changed'
   }
   if (stats?.isFile() !== true) {
     return 'changed'
-  }
-  if (stats.size > CHECKPOINT_FILE_MAX_BYTES) {
-    return 'tooLarge'
   }
   return gitBlobOid(await readFile(absolute)) === expect.oid ? 'same' : 'changed'
 }
@@ -225,7 +221,10 @@ async function removeEmptiedFolders(
       }
       await rmdir(destination.checkedAbsolute)
     } catch (error: unknown) {
-      if (FOLDER_NOT_EMPTY.has(errorCode(error) ?? '')) {
+      // A folder that filled meanwhile is left for the next pass; a
+      // folder that vanished is done. Anything else is not this sweep's
+      // to hide.
+      if (isErrno(error, FOLDER_NOT_EMPTY)) {
         return
       }
       if (!isMissingPath(error)) {
@@ -236,9 +235,9 @@ async function removeEmptiedFolders(
 }
 
 /**
- * Deletes the file, again while Windows says another program holds it, each
- * attempt only while the file is still as expected. True when it is gone.
- */
+Deletes the file, again while Windows says another program holds it, each
+attempt only while the file is still as expected. True when it is gone.
+*/
 async function didRemoveHeld(
   target: RestoreTarget,
   absolute: string,
@@ -255,7 +254,10 @@ async function didRemoveHeld(
       await remove(absolute)
       return true
     } catch (error: unknown) {
-      if (!FILE_HELD.has(errorCode(error) ?? '') || attempt >= CHECKPOINT_REMOVE_RETRIES) {
+      // Windows holds the file briefly: each attempt retries while it
+      // does, only while the file is still as expected. Anything else,
+      // or the last attempt, keeps failing.
+      if (!isErrno(error, FILE_HELD) || attempt >= CHECKPOINT_REMOVE_RETRIES) {
         throw error
       }
     }
@@ -264,11 +266,11 @@ async function didRemoveHeld(
 }
 
 /**
- * One step of a restore or a Redo: the file changed only when it is inside
- * the workspace with no link on the way and still as expected. A deletion
- * also removes the folders the step names, innermost first, while they are
- * empty.
- */
+One step of a restore or a Redo: the file changed only when it is inside
+the workspace with no link on the way and still as expected. A deletion
+also removes the folders the step names, innermost first, while they are
+empty.
+*/
 export async function applyFileStep(
   target: RestoreTarget,
   step: FileStep,

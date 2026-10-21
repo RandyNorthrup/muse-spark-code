@@ -1,0 +1,22 @@
+[
+  {
+    "blockingAgents": ["goal-reminder"],
+    "sessionId": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+    "sourceRange": {
+      "first": {
+        "id": "01a14b18-a76c-7513-93d3-90508346d150",
+        "sequence": 50
+      },
+      "last": {
+        "id": "01a14b18-a76c-7513-93d3-90508346d150",
+        "sequence": 50
+      },
+      "stream": {
+        "id": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+        "kind": "session"
+      }
+    },
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23",
+    "viewCursor": "v4:01a14b18-a6b1-70b1-98d7-305e708aac00:8"
+  }
+]

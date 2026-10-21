@@ -47,8 +47,8 @@ export function baseRisks(
 }
 
 /** Read at render time so changing the installed language changes the label.
- * @unwired M117 stale-baseline label
- */
+@unwired M117 stale-baseline label
+*/
 export function staleBaseText(lanes: readonly { laneId: string }[]): string {
   return fill(UI_TEXT.estimateStaleBase, {
     lanes: lanes.map((lane) => lane.laneId).join(', '),
@@ -56,10 +56,10 @@ export function staleBaseText(lanes: readonly { laneId: string }[]): string {
 }
 
 /**
- * First-pass finding rate for one engine (playbook §4): among that engine's
- * lanes with known review state, the fraction needing at least one review
- * round. Unknown review state is excluded, never counted as clean.
- */
+First-pass finding rate for one engine (playbook §4): among that engine's
+lanes with known review state, the fraction needing at least one review
+round. Unknown review state is excluded, never counted as clean.
+*/
 export function engineFindingRate(
   values: readonly HistoryRecord[],
   engine: HistoryRecord['engine'],

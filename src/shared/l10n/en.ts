@@ -16,6 +16,17 @@
 import { forms } from './forms'
 
 export const EN = {
+  companionVoiceCancel: 'Cancel',
+  companionVoiceFailed:
+    'Dictation failed or was refused. Check microphone permission, the selected engine and the daily budget, then record again. A paid request already sent may still be charged.',
+  companionVoiceFree: 'Operating system (free)',
+  companionVoiceLimit: '{seconds} seconds maximum. Audio is removed after transcription.',
+  companionVoiceOpen: 'Open dictation companion',
+  companionVoicePaidSummary: 'Paid audio: {duration}.',
+  companionVoiceReference:
+    'Dictate in the browser and review before sending to your owning ACP session or terminal. System recognition is free on Windows and macOS; paid Muse Voice asks for consent and shares the daily budget.',
+  companionVoiceReview: 'Review transcript before sending',
+  companionVoiceTitle: 'Dictate',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:
@@ -50,15 +61,24 @@ export const EN = {
   resourceGpu: 'GPU Use',
   resourceDisk: 'Disk Busy',
   resourceDiskFree: 'Free Disk Space',
-  resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
+  resourceDiskWriteRefused:
+    'Cannot write to {volume}: free space is below the disk floor set in settings.',
   resourceDiskMinFreeGiBDescription:
-    'Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.',
+    'Free disk space floor in GiB. Unset means no floor; a set floor of zero or more is honoured as set.',
   resourceHistory: 'Resource History',
   resourceHarness: 'Harness Work',
   resourceCpuTime: 'CPU Time',
   resourcePeakMemory: 'Peak Memory',
   resourceHistoryEmpty: 'No resource history recorded yet.',
   resourceHistoryInvalid: 'Resource history could not be read.',
+  // A damaged usage-history choice (CATCHMONEY R3): one sentence per damaged
+  // thing, saying what is damaged, what the product does because of it, and
+  // what to do. Shown as a notice in the editor, on stderr once in the
+  // terminal, and as a session notification on the editor protocol.
+  resourceHistoryChoiceUnreadable:
+    'Usage-history recording is off: usage-settings.json could not be read. Check its permissions, or delete it and set your choice again.',
+  resourceHistoryChoiceInvalid:
+    'Usage-history recording is off: usage-settings.json is not valid. Delete it and set your choice again.',
   resourceHistoryObserved:
     'Minute averages and observed harness work. Missing readings stay unknown; unobserved work is not estimated.',
   resourceHistoryThreshold: 'Limit',
@@ -93,11 +113,11 @@ export const EN = {
   resourceGovernorDescription:
     'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
   resourceCpuMaxPercentDescription:
-    'Throttle when machine CPU use stays above this percentage for 30 seconds.',
+    'Throttle when machine CPU use stays above this percentage for 30 seconds. Unset means no CPU limit.',
   resourceMemoryMaxPercentDescription:
-    'Throttle when memory in use stays above this percentage for two samples.',
+    'Throttle when memory in use stays above this percentage for two samples. Unset means no memory-use limit.',
   resourceMemoryMinFreeGiBDescription:
-    'Minimum available memory in GiB, capped at 15% of this machine’s RAM.',
+    'Minimum available memory in GiB, capped at 15% of this machine’s RAM. Unset means no memory floor.',
   resourceGpuMaxPercentDescription: 'Optional GPU use limit in percent. Unset means no GPU probe.',
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',
@@ -113,11 +133,12 @@ export const EN = {
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
-  modelApiContinuing: 'The output limit was reached. Continuing once…',
-  modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
-  modelApiToolStuck:
-    'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
-  structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
+  modelApiContinuing: 'The output limit was reached. Continuing (part {count})…',
+  modelApiToolRepeating:
+    'The model is repeating the same {tool} call with an unchanged result ({count} in a row). The call runs again — Stop ends the turn.',
+  structuredOutputRepair:
+    'The structured answer was not valid. Repairing it again (repair {count})…',
+  structuredOutputRetry: 'The structured request failed. Trying again (attempt {count})…',
   structuredOutputFallback:
     'The structured answer could not be validated. Using the text fallback.',
   outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
@@ -131,11 +152,7 @@ export const EN = {
   outputSchemaLocalValidation:
     'Output schema validation: local (the selected model has no structured-output format).',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
-  modelApiPacingTokenLimit:
-    'Fan-out request exceeds the token budget reserved for background work.',
   modelApiPacingWaiting: 'Waiting for rate limit headroom…',
-  modelApiPacingExpired:
-    'The wait for rate limit headroom expired. Send the message again to retry.',
   modelApiStatusLabel: 'Meta API Status',
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
@@ -143,6 +160,7 @@ export const EN = {
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
+  uploadsName: 'Uploaded Files',
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
   openUsagePage: 'Open Usage Page',
   acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
@@ -174,6 +192,9 @@ export const EN = {
     'Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.',
   promptCopyToUser: 'Copy to My Prompts',
   promptTitle: 'Title',
+  // NOLIMITS1FIX: the only prompt refusal left — a blank title. The removed
+  // size/count bounds were invented.
+  promptTitleRequired: 'A title is required.',
   promptBody: 'Prompt Text',
   promptTags: 'Tags',
   promptVariables: 'Variables',
@@ -183,6 +204,7 @@ export const EN = {
   promptUntrusted:
     'Imported prompt: untrusted text. Review the text and variables before inserting.',
   promptInsert: 'Insert Into Chat',
+  promptPrintConfirm: 'Print prepared text',
   promptFileInvalid: 'The prompt file is invalid or unsupported.',
   shareChat: 'Share Chat…',
   sharePrompt: 'Share Prompt…',
@@ -193,6 +215,9 @@ export const EN = {
   shareDiffs: 'Include Diffs',
   sharePreview: 'Preview',
   shareConfirm: 'Confirm Sharing',
+  // The Share Chat dialog's destination group (F71): what the choice picks,
+  // not the button's own words.
+  shareDestination: 'Share as',
   shareCopy: 'Copy',
   shareFile: 'Save File…',
   shareBrowser: 'Open in Browser',
@@ -272,6 +297,9 @@ export const EN = {
   estimateWaiting: 'Waiting for {dependency}.',
   estimateRunning: 'Estimating…',
   estimateFailed: 'Estimate failed: {detail}',
+  // A refused estimate's omitted lanes: {count} is the lanes the estimator
+  // did not name, rendered in the report's language from that number.
+  estimateMissingMore: forms({ one: 'and {count} more', other: 'and {count} more' }),
   estimateSchedule: 'Lane Schedule',
   estimateGantt: 'Schedule for {goal}, with the critical path and P50 and P90 finish marks.',
   estimateOptimizeDescription:
@@ -320,6 +348,11 @@ export const EN = {
   // The estimator's own module (dist/estimator.js) could not be loaded.
   estimateUnavailable:
     'The estimator could not be loaded, so no estimate can run; reinstall the extension and reload the window. The log has the details.',
+  // The webview's solid archive (dist/webview.json.br, VSIXWEB A) is
+  // missing, damaged or unwritable: the panel shows this instead of
+  // unverified files, and the cause goes to the log.
+  webviewBundleUnavailable:
+    'The panel could not be loaded, so it cannot be shown; reinstall the extension and reload the window. The log has the details.',
   // M117 W (PLAN.md D100, gotcha G4): {lanes} is the stale-base lane list.
   estimateStaleBase: 'Stale base ({lanes}): rebase before starting.',
   // M117 W: {lanes} is the submitted first wave.
@@ -331,6 +364,9 @@ export const EN = {
     'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',
   referenceWindowsSessions:
     'Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).',
+  referenceWindowsPaths: 'Safer Windows paths',
+  referenceWindowsPathsDetail:
+    'On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.',
   referencePaletteKeys:
     'Navigate items, choose or complete a selection, or close the list. Choose how much effort Muse puts into each reply.',
   referenceServe:
@@ -348,6 +384,8 @@ export const EN = {
   referenceProviders:
     'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
+    'context-window':
+      '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -385,11 +423,13 @@ export const EN = {
       '--web-search                     Offer paid web search (Model API backend; its price is asked first)',
     'image-generation':
       '--image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    'muse-voice':
+      '--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     'scheduled-prompts':
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
     'questions-defer-after':
-      '--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
+      '--questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers)',
     help: 'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
     version: 'Print the installed agent version.',
     cwd: 'Use this directory as the workspace.',
@@ -399,6 +439,11 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    add: '--add <model>: Offer this model on the entry; repeat the option for more models.',
+    remove:
+      '--remove <model>: Stop offering this model on the entry; repeat the option for more models.',
+    force:
+      '--force <reason>: Add a model the provider does not list; the reason is stored on the entry.',
     provider:
       '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
     account: '--account <id>                    The account to use (auth set, exec).',
@@ -406,9 +451,14 @@ export const EN = {
       '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
-    'max-budget-usd': 'Set the hard spending limit in USD for this run.',
-    'max-requests': 'Set the maximum number of model requests.',
-    timeout: 'Set the run deadline in seconds.',
+    'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
+    'max-requests':
+      'Set the maximum number of model requests; without it, there is no request limit.',
+    'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
+    'max-output-tokens':
+      'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
+    timeout:
+      'Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
     'key-stdin':
@@ -420,7 +470,7 @@ export const EN = {
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
     'auto-compaction':
-      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.',
+      'Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.',
     'no-auto-compaction': 'Disable automatic compaction',
     'output-schema':
       'Validate the final answer against a bounded JSON schema file (Model API only).',
@@ -428,16 +478,43 @@ export const EN = {
     'estimate-by': '--by <date>: Deadline',
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
+    'estimate-check-plan': '--check-plan: List every plan problem instead of estimating',
     seed: '--seed <seed>: Simulation seed',
+    mode: '--mode full|conversation: Share the full session or the conversation only.',
+    destination:
+      '--destination copy|file|browser: Copy to the clipboard, write a file, or open a browser.',
+    scope: '--scope user|workspace: Save the prompt for this user or this workspace.',
+    search: '--search <text>: List only prompts matching this text.',
+    tag: '--tag <tag>: Filter by tag, or tag the saved prompt.',
+    title: '--title <title>: Title for the saved prompt.',
+    var: '--var <name=value>: Set a prompt variable; repeat for more.',
+    chat: '--chat active|new: Use the prompt in the active chat or a new one.',
+    confirm: '--confirm: Confirm without asking.',
+    diffs: '--diffs: Include the session diff in the shared text.',
+    'no-code-blocks': '--no-code-blocks: Omit code blocks from the shared text.',
+    'no-attachment-names': '--no-attachment-names: Omit attachment names from the shared text.',
+    'attachment-content':
+      '--attachment-content <kind>: Include attachment contents; repeat for more.',
+    'exported-at': '--exported-at <time>: Timestamp of the confirmed export.',
+    'share-from': '--from <message>: First message to include.',
+    'share-to': '--to <message>: Last message to include.',
+    'share-out': '--out <file>: Write the shared text to a file instead of stdout.',
+    'sharing-json': '--json: Print the machine-readable result instead of the human preview.',
+    fast: '--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
-  referenceVault: 'In progress.',
-  referenceVaultHelp: 'In progress.',
-  referenceVaultPanel: 'In progress.',
-  referenceVaultLock: 'In progress.',
+  referenceVault:
+    'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them. Reset can also replace unknown writer ownership after explicit confirmation.',
+  referenceVaultHelp: 'Show the per-user credential vault command usage.',
+  referenceVaultPanel:
+    'Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.',
+  referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
-  referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAuthStatus:
+    'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
+  referenceAuthGitHub:
+    'Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
   referenceAccounts:
     'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
@@ -456,9 +533,9 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
-    'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
+    'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -480,9 +557,9 @@ export const EN = {
   referenceSetup: 'Run Setup hooks for init from spark-hooks.json in a trusted workspace.',
   referenceSkills: "SKILL.md. museCode: Turn Muse Code's skills on or off. modelApi: SKILL.md.",
   referenceDictation:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.',
+    'Free dictation uses the OS engine on Windows and macOS. Local Linux x64/arm64 uses offline English Whisper tiny.en after consent to download its model; linuxDictationModel=false removes it. Remote workspace hosts cannot hear the local microphone.',
   referenceVoice:
-    'Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.',
+    'Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget before connecting. A set conversation cap refuses microphone recordings; attached audio is transcribed only when its bounded cost still fits the cap. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.',
   referenceBestOfN:
     'Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.',
   referenceNativeAgentsConditions:
@@ -496,13 +573,13 @@ export const EN = {
   referenceLatestRecording:
     'Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.',
   referenceUploadedFiles:
-    'List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.',
+    'List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.',
   referenceConversationActions:
     'Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.',
   referenceQuestions:
     'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
   referenceQuestionsDeferral:
-    'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
+    'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (no limit unless you set one; 0, the default, waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
   referencePermissionLimits:
     'museCode:manual: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP Elicitation',
@@ -525,7 +602,7 @@ export const EN = {
   referenceBrowser:
     'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.',
   referenceBudget:
-    'Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.',
+    'Shared daily budget: museSpark.paidDailyBudgetUsd, a limit you set (none by default); a session limit you set also applies. Tab has its own separate budget. Nothing is held for a request in flight: a request without reported usage counts as cost unknown, never as its estimate. A response can cost more than its estimate; the next request is then stopped.',
   referenceCache: 'Settings (modelApiPromptCacheRetention).',
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
@@ -538,9 +615,12 @@ export const EN = {
   referenceCodeOutput:
     'Copy copies code; Insert writes at the editor cursor; Apply replaces the editor selection. Open tool output to read the full result; clipped output can be paged. Select transcript text to quote it in the composer, ask about it, add a comment or copy it.',
   referencePaidContexts:
-    'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
+    'Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+  referenceCiOtherTitle: 'Other CI systems',
+  referenceCiOther:
+    'Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; every template uploads those files. GitLab/Bitbucket external-temp copies and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.',
   referenceWebFetchTitle: 'Web Fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -577,7 +657,10 @@ export const EN = {
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
   referenceInProgress: 'In progress.',
-  referenceEstimate: 'In progress.',
+  estimateDiagnosticHelp:
+    'Plan and engine refusals show the same named diagnostic in the panel, CLI and ACP; external errors hide private details. A refused estimate, refresh or start replaces the previous forecast with that diagnostic.',
+  referenceEstimate:
+    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
@@ -591,7 +674,7 @@ export const EN = {
     'Muse Code exited before deletion was confirmed. The session remains in History.',
   sessionDeleteHostClosed:
     'The host closed before deletion was confirmed. The session remains in History.',
-  sessionDeleteTimedOut: 'Deletion confirmation timed out. The session remains in History.',
+  sessionDeleteUnsupported: 'Muse Code {version} cannot delete conversations.',
   // M116 / D96: shared panel, Agent map, ACP, CLI and report wording.
   playbookTitle: 'Orchestrator Playbook',
   playbookStatus: 'Status',
@@ -606,8 +689,8 @@ export const EN = {
   playbookSafetyAlwaysOn: 'Safety checks always apply. This rule cannot be turned off.',
   playbookPatchRoundsLabel: 'Fix Rounds Before Redesign',
   playbookPatchRoundsHelp:
-    'The limit can be lowered. After it is reached, write a design decision and dispatch a redesign lane.',
-  playbookPatchRoundsInvalid: 'Choose one or two fix rounds; the ceiling cannot be raised.',
+    '0 means fix rounds continue until the work converges or you stop it. Set a number to require a design decision and a redesign lane after that many fix rounds.',
+  playbookPatchRoundsInvalid: 'Enter 0 for unlimited fix rounds, or a whole number of 1 or more.',
   playbookFallbackReviewer: 'Fallback reviewer for classifier-blocked reviews: {reviewer}',
   playbookFallbackNone: 'No fallback reviewer named',
   playbookResidualAccepted: 'Residual Accepted',
@@ -627,6 +710,7 @@ export const EN = {
   playbookClassLabel: 'Finding Class',
   playbookOutcomeLabel: 'Redesign Outcome',
   playbookUnavailable: 'The playbook is unavailable in this session.',
+  playbookCommandFailed: 'The playbook command could not be completed.',
   playbookHelpDescription:
     'Show review strikes, design decisions, safety refusals and rule settings.',
   playbookCommandUsage: 'Use `playbook status|record|settings`.',
@@ -634,7 +718,7 @@ export const EN = {
   playbookSaved: 'Playbook settings saved.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
-    threeStrikes: 'Redesign After Three Strikes',
+    threeStrikes: 'Redesign After Fix Rounds',
     onePassReview: 'Review Every Class in One Pass',
     contractsFirst: 'Contracts and Prerequisites First',
     smallFirst: 'Small Work First, After Dependencies',
@@ -724,6 +808,7 @@ export const EN = {
       missed: 'Missed',
       skipped: 'Skipped',
       failed: 'Failed',
+      uncertain: 'Uncertain',
     },
   },
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
@@ -759,6 +844,8 @@ export const EN = {
       cost: 'Cost',
       grantHelp:
         'One entry per line. Paths stay inside this workspace; protected paths and tools that require a person are always refused.',
+      paidCapHelp:
+        'A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.',
       auditKinds: {
         created: 'Created',
         changed: 'Changed',
@@ -914,8 +1001,19 @@ export const EN = {
       manual: 'Manual Trigger',
     },
     messages: {
+      dispatchUncertain:
+        'Dispatch started, but its final result is unknown. This fire will not be sent again; its reserved amount remains counted.',
+      costUnknown:
+        'The prompt was delivered, but its actual cost could not be read. Its reserved amount remains counted.',
       targetUnavailable: 'This schedule’s target is unavailable in this host.',
-      targetClosed: 'The target closed or this held fire was skipped.',
+      targetClosed: 'The target closed.',
+      deliveryFailed: 'Delivery failed: {reason}',
+      schedulePaused: 'The schedule was paused before delivery.',
+      scheduleDeleted: 'The schedule was deleted before delivery.',
+      scheduleEdited: 'The schedule’s timing, target or delivery mode changed.',
+      scheduleEnded: 'The schedule reached its end before delivery.',
+      admissionLost: 'This fire no longer has an admission.',
+      workspaceNotHeld: 'This process no longer holds the workspace.',
       catchUpSkipped: 'Missed fire skipped by this schedule’s catch-up policy.',
       backgroundNotice: 'Schedule {name} opened a conversation in the background.',
       conversationTitle: 'Schedule {name} · {date}',
@@ -923,10 +1021,24 @@ export const EN = {
       unattendedRefusal:
         'Refused on schedule: {action} needs approval and is not in this schedule’s grant.',
       deferredQuestions: 'Questions defer immediately and remain open for your answer.',
+      allowAlways: 'Allow always for this schedule',
       paidConsent:
-        'Schedule {prompt} on {model}: {price}. Cadence: {cadence}. Schedule cap: {cap} per local day; shared daily budget: {budget}. Consent covers only the selected paid extras.',
+        'Schedule {prompt} on {model}: {price}. Cadence: {cadence}. Schedule cap: {cap} per local day; shared daily budget: {budget}. Consent covers only the selected paid extras. Charges are billed to your Model API key; your subscription does not pay for them.',
+      changedPayer: 'The payer kind changed. Renew this schedule’s paid consent.',
+      changedModel: 'The selected model changed. Renew this schedule’s paid consent.',
+      changedKey: 'The paying account or key changed. Renew this schedule’s paid consent.',
+      changedTariff: 'The verified tariff changed. Renew this schedule’s paid consent.',
+      changedSharedCap: 'The shared daily budget changed. Renew this schedule’s paid consent.',
+      pausedPaid: 'This schedule is paused. Resume it before another paid fire.',
+      changedGrant: 'This schedule’s permission grant changed. Review its grant and renew consent.',
+      changedRevision:
+        'The schedule or its running session changed. Reload it before another paid fire.',
+      lostOnceClaim:
+        'This fire no longer owns the once-only consent. Renew consent for another fire.',
+      capReached: 'The schedule or shared daily cap does not admit this paid fire.',
+      paidUnavailable: 'This paid operation is unavailable or was not approved for this schedule.',
       changedConsent:
-        'The model, key or price tier changed. Renew this schedule’s consent before its next paid fire.',
+        'This schedule’s paid consent is missing or changed. Renew it before another paid fire.',
       setBy: 'Set by {agent} in {session}',
       migrationConsent:
         'Migrated schedule paused. Review its mode, grant and paid consent before resuming.',
@@ -964,6 +1076,20 @@ export const EN = {
   // scheduled turns support instead of what billing verified.
   scheduledMediaSupport:
     'Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.',
+  referenceSchedulesCertified:
+    'Certified scheduled prompts deliver in VS Code, ACP and the terminal. /loop remains manual.',
+  referenceRuntimeSchedulesCertified:
+    'Scheduled prompts use session-owned output, durable fire records and background targets in ACP and the terminal.',
+  referenceSchedulePaidConsentCertified:
+    'Each paid schedule needs its own current consent and shares one schedule cap and daily budget across hosts.',
+  referenceSchedules:
+    'The v2 schedule editor, list and timeline manage durable records. Automatic VS Code v2 prompt delivery is disabled. Model API /loop jobs run when you choose Run now.',
+  runtimeSchedulesItem: 'Runtime schedules',
+  runtimeSchedulesItemDetail: 'Schedule unattended Muse Code prompts in ACP or the terminal',
+  referenceRuntimeSchedules:
+    'Automatic v2 delivery in VS Code, ACP and the terminal is disabled pending certification. The candidate runs unattended Muse Code prompts with standing grants, persistent fire records and background conversation targets.',
+  referenceSchedulePaidConsent:
+    'Automatic delivery is disabled; the running editor neither asks for v2 schedule consent nor reserves its paid caps. The candidate billing port binds consent to payer kind, model, key, verified tariff and shared daily budget; changing any requires renewal. Allow once covers one fire; Allow always covers this schedule.',
   media: {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',
@@ -995,6 +1121,9 @@ export const EN = {
     sizeExceeded: 'This file exceeds {size}.',
     convertToMp4: 'Convert to mp4',
     converterUnavailable: 'No converter is available. Choose an mp4 file.',
+    converterConfiguredRefused: 'The configured converter was refused: {reason}',
+    converterSharedFolder:
+      'A converter was found, but a folder above it can be changed by other users ({reason}). Set the converter path to one in a folder only you or the system can change.',
     transcribeSound: 'Transcribe the Sound',
     transcribe: 'Transcribe',
     useSoundtrackModel: 'Use {model} for This Message',
@@ -1006,6 +1135,12 @@ export const EN = {
     cappedRateUnknown: 'This capped session needs a calibrated media rate for {model}.',
     contributorWarning: 'Contributor models may use this media for training.',
     contributorQuestion: 'Send {name} to a Contributor model? It may be used for training.',
+    contributorDeclined: '{name} was not attached.',
+    audioWillTranscribe:
+      '{model} does not hear audio, so Muse Voice will transcribe it before sending. Transcription is a paid extra and asks first.',
+    useStandardThenAttach: 'Switch to {model}, then attach {name} again.',
+    uploadUnavailable:
+      'This session has no file upload service, so video and audio cannot be sent. Use the Model API backend with a Meta key.',
     recordingWarning: 'This recording includes whatever was on your screen.',
     send: 'Send',
     useStandard: 'Use the Standard Model',
@@ -1023,6 +1158,8 @@ export const EN = {
     fileNoExpiry: 'No expiry set',
     fileSessions: 'Sessions: {sessions}',
     filesInUse: 'Remove this file from its sessions before deleting it.',
+    filesInUseRequest:
+      'This file is in use by a running request. Try again when the reply finishes.',
     deleteUploadedFiles: 'Delete Uploaded Files…',
     deleteAllOurs: 'Delete All Ours',
     otherAppFileConfirmation: 'Another app may still use {name}. Delete it anyway?',
@@ -1033,6 +1170,7 @@ export const EN = {
     attachRecording: 'Attach Screen Recording…',
     attachLatestRecording: 'Attach Latest Screen Recording',
     recordingCountdown: 'Recording: {remaining} remaining',
+    recordingElapsed: 'Recording: {elapsed} elapsed',
     recordingMicrophone: 'Microphone',
     recordingSystemAudio: 'System Audio',
     recordingPreview: 'Preview Screen Recording',
@@ -1050,7 +1188,7 @@ export const EN = {
       'This window runs on a remote host with no local screen. Use the companion page or choose a recording file.',
     recordingBrowserUnsupported: '{browser} cannot record mp4. Choose an mp4 recording file.',
     recordingUserOnly: 'Only an interactive user can start a screen recording.',
-    recordingNoRecent: 'No recent screen recording was found.',
+    recordingNotFound: 'No screen recording was found in {folders}.',
     recorderUnavailable: 'No screen recorder is available on this host.',
     attachHeadless: 'Refused for headless runs: pass the file with --attach instead.',
     // D85.6 records the not-billed decision, so this names what is still
@@ -1061,22 +1199,35 @@ export const EN = {
     recordingStart: 'Start Recording',
     recordingStop: 'Stop Recording',
     uploadDeleteFailed: 'Could not delete {name}: {reason}',
+    deleteUploadedFilesPick: 'Checked files are deleted from the provider',
+    uploadsDescription: 'List uploaded files and delete them early',
+    uploadsUsage: '/uploads [delete <file> | delete-all]',
+    uploadNotFound: 'No uploaded file {id} is listed.',
+    uploadForeignKept: 'Kept {name}: another app may still use it.',
+    uploadDeleteProviderRefused: 'the provider refused the deletion',
+    uploadDeleteBacklog: forms({
+      one: '{count} uploaded file could not be deleted from {provider}. Deletion will be retried.',
+      other:
+        '{count} uploaded files could not be deleted from {provider}. Deletion will be retried.',
+    }),
     conversionFailed: 'Conversion failed: {reason}',
     replayMetadata: 'Media: {name} ({duration}, {size})',
     replayMetadataNoDuration: 'Media: {name} ({size})',
   },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
+  // D208: a daily budget shown where none is set; the person sets one, none by default.
+  paidDailyBudgetNone: 'none set',
   paidDailyLedgerUnavailable:
-    'Daily paid budget reached: its ledger is unreadable, incomplete, or cannot admit this request. No paid request was sent.',
+    'The daily paid spend ledger is unavailable. Repair it before another paid request.',
   paidDailyStopped: 'Paid extras are stopped until tomorrow.',
   paidDailyReached: 'Daily paid budget reached',
   paidDailyReachedDetail:
-    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+    'Today’s limit is {budget}. What is spent today plus this request’s estimate comes to {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
   paidDailyRaise: 'Raise for Today',
   paidDailyStop: 'Stop Until Tomorrow',
   paidDailyRaisePrompt:
-    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+    'Enter today’s limit in USD, at least what is spent today plus this request’s estimate.',
   planUi: {
     copilotConnect: 'Use My Copilot Models',
     copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
@@ -1085,6 +1236,13 @@ export const EN = {
     copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
     // Said when a confidential workspace refuses Copilot sign-in.
     copilotConfidential: 'Copilot is unavailable while this workspace is confidential.',
+    // Said where the Copilot dispatch adapter cannot be reached (the
+    // terminal): the grant lives in VS Code, so no terminal can use it.
+    copilotTerminalGrant:
+      'Copilot models run only in VS Code, through the Copilot extension; this terminal cannot reach that grant.',
+    // Said where the adapter is absent on a non-terminal host: same source.
+    copilotHostGrant:
+      'Copilot models run only in VS Code, through the Copilot extension, which this host cannot reach.',
     // What Copilot uses and who bills it: VS Code's granted models, the Copilot plan.
     copilotNotice: 'Copilot models granted to VS Code, billed to your Copilot plan or AI credits.',
     expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
@@ -1115,6 +1273,19 @@ export const EN = {
     aiContent:
       'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
     reportContent: 'Report Harmful Content',
+    // {description}: the catalogue's own words for the priority tier.
+    fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
+    // {message}: OpenAI's own error message for the failed plan request,
+    // or the HTTP status where it sent none.
+    requestFailed: 'The ChatGPT plan request failed: {message}',
+    // OpenAI's 403 subscription_sharing_user_not_eligible: retrying or signing in again cannot fix it.
+    notEligible:
+      'OpenAI does not allow ChatGPT plan use for this account, workspace or policy. Choose an API-key model.',
+    // OpenAI answered with no body at all.
+    noReply: 'OpenAI answered the ChatGPT plan request without a reply. Try again.',
+    // {reason}: this app's own word for what it could not build or read.
+    requestNotBuilt:
+      'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
@@ -1128,10 +1299,13 @@ export const EN = {
     'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
   linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
-  // macOS binds Cmd+Esc; Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start
-  // there; M26, D29).
-  composerPlaceholder:
-    'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
+  // The empty composer's invitation (F67): a message first, then only this
+  // machine's shortcut, in one line. The host fills `shortcut` for its own
+  // platform (webviewSetup); the all-platform tip stays in Getting Started
+  // (M26, D29).
+  composerPlaceholder: 'Ask Muse…',
+  // {shortcut}: this machine's focus key (Ctrl+Esc, Cmd+Esc or Ctrl+Alt+Esc).
+  composerPlaceholderWithShortcut: 'Ask Muse… ({shortcut} to focus)',
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
@@ -1183,6 +1357,18 @@ export const EN = {
     'Could not clear the stored Model API key. The extension host stopped; check VS Code secret storage and sign out again.',
   signOutStopFailed:
     'Backend shutdown failed. This window is gated; close VS Code and check credentials before reopening.',
+  // A credential store that cannot be read (CATCHMONEY R3): the sentence says
+  // what happened, what the product does because of it, and the next step.
+  // `{reason}` is one of the credentialStoreReason* kind words below, never
+  // an errno or an internal name.
+  credentialStoreUnreadable:
+    'Saved credentials could not be read: {reason}. The safe state is kept: nothing was signed out or released. Check keychain access and try again.',
+  credentialStoreReasonCrypto: 'a stored entry cannot be decoded',
+  credentialStoreReasonLocked: 'the keychain is locked',
+  credentialStoreReasonNoService: 'no keychain answered',
+  credentialStoreReasonDenied: 'access to the keychain was refused',
+  credentialStoreReasonTimeout: 'reading the keychain timed out',
+  credentialStoreReasonOther: 'the cause is unknown',
   retryAction: 'Check Again',
   apiKeyPrompt: 'Meta Model API Key',
   apiKeyPlaceholder: 'LLM_…',
@@ -1203,6 +1389,9 @@ export const EN = {
     'Muse Code cannot start: its sign-in file {path} is in the macOS format, which Muse Code cannot read on this system. Move or rename that file, then sign in again.',
   hostExited: 'Muse Code stopped unexpectedly',
   hostStarting: 'Starting Muse Code…',
+  // The pill while the sign-in facts are still being read (F60): what the
+  // panel waits for, not the backend starting.
+  checkingSignIn: 'Checking sign-in…',
   // PLAN.md D25: restarts, crashes and closed sessions continue the conversation.
   hostRestartsOnSend: 'The next message restarts it and continues this conversation.',
   turnStoppedByRestart: 'Stopped: the backend restarted',
@@ -1316,6 +1505,7 @@ export const EN = {
     'paid:webSearch': 'Turn paid web search on or off.',
     'paid:subagents': 'Turn paid subagents on or off.',
     'paid:scheduledPrompts': 'Turn paid scheduled prompts on or off.',
+    'paid:autoCompaction': 'Turn paid automatic compaction on or off.',
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
     'paid:tab': 'Turn paid Tab completions on or off.',
@@ -1333,6 +1523,7 @@ export const EN = {
     reviewCommit: 'Muse reviews one recent commit you pick.',
     reviewSecurity: 'Muse checks your uncommitted changes for security problems.',
     reviewChanges: 'Accept or revert each edit this conversation made.',
+    playback: 'Muse states its own understanding of the goal, from memory only, with no tools.',
     // Scheduled prompts v2 (M115): the reference reuses these; the palette
     // rows keep their translated editor tips until these are translated.
     schedule: 'Review schedules and their standing grants in this workspace.',
@@ -1531,7 +1722,6 @@ export const EN = {
   }),
   exportPreviewKnownCredentials:
     'Known credential shapes (API keys, tokens, passwords, private keys) and the key digest are always removed. A secret in another shape stays: read the file before you share it.',
-  exportTooLarge: 'This conversation is too long for a session export file.',
   importPreviewTitle: 'Import Session',
   // {source}: the backend label; {messages}: a message-count line; {model}:
   // the model id; {mode}: Manual or Plan in the display language.
@@ -1560,8 +1750,6 @@ export const EN = {
   // After "could not be imported: ". {size}, {limit}: sizes such as 2.4 MB.
   importReplayTooLarge:
     'It holds {size} of text for the model, and a resumed conversation can start with at most {limit}. Open it as a share file to read it.',
-  // Why a picked file was refused, after "could not be imported/opened: ".
-  transferTooLarge: 'The file is larger than a session export can be.',
   transferFileMissing: 'The picked file no longer exists.',
   transferEmpty: 'The file holds no conversation.',
   transferNotAnExport: 'The file is not a Muse Spark session export.',
@@ -1602,6 +1790,7 @@ export const EN = {
     'A reply that is running stops; the conversation continues on your next message',
   mcpInvalidUrl: 'an invalid URL',
   mcpNoCommand: 'no command',
+  mcpInvalidJson: 'the file is not valid JSON',
   mcpRestarted: 'Muse Code restarted; your next message loads the settings as they are now.',
   mcpDocs: 'MCP Servers in Muse Code (Documentation)',
   mcpSignIn: 'Sign In',
@@ -1722,6 +1911,7 @@ export const EN = {
   }),
   hooksSparkAbout:
     'Muse Code never reads this file. It holds the events only this extension runs, and hooks imported from other agents.',
+  hooksFileUnreadable: 'This file could not be read:',
   // Which backend runs a file's hooks, under its row.
   hooksBackendMuseCode: 'Run by Muse Code',
   hooksBackendBoth: 'Run by Muse Code, and by this window on the Model API backend',
@@ -1915,6 +2105,12 @@ export const EN = {
   gitPullRequestItemDetail: 'On GitHub, as a draft or ready, linked to this conversation',
   gitCheckoutItem: 'Open a Pull Request in a Conversation…',
   gitCheckoutItemDetail: 'Check a pull request out in its own worktree and window',
+  gitHubSignInWithCodeItem: 'Sign In to GitHub With a Code',
+  gitHubSignInWithCodeDetail:
+    'Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store',
+  gitHubSignOutItem: 'Sign Out of GitHub',
+  gitHubSignOutItemDetail:
+    'Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it',
   gitRestricted:
     'Git and pull requests are unavailable in Restricted Mode: git can run programs a repository’s configuration names. Trust the workspace to use them.',
   gitHeld: 'Git and pull requests wait until you trust this worktree in the card above.',
@@ -2020,10 +2216,28 @@ export const EN = {
   gitChecksRunning: forms({ one: '{count} running', other: '{count} running' }),
   gitChecksSkipped: forms({ one: '{count} skipped', other: '{count} skipped' }),
   gitChecksCancelled: forms({ one: '{count} cancelled', other: '{count} cancelled' }),
-  gitChecksNotRead: forms({ one: '{count} more not read', other: '{count} more not read' }),
+
   gitStatusNeedsSignIn: 'Sign in to GitHub to see its status.',
   gitCheckedAt: 'as of {time}',
   gitSignInGitHub: 'Sign In to GitHub',
+  // M123 (PLAN.md D104 §2): the panel's GitHub card.
+  gitHubCardLabel: 'GitHub sign-in',
+  // {url}: GitHub's https://github.com/login/device.
+  gitHubCardCode: 'Open {url} and enter this code:',
+  // {time}: when the code expires, in the user's locale.
+  gitHubCardExpires: 'The code expires at {time}.',
+  gitHubCopyCode: 'Copy Code',
+  gitHubOpenPage: 'Open GitHub',
+  // {login}: the GitHub account; {source}: one of gitHubSources.
+  gitHubAccount: 'GitHub: {login}, through {source}',
+  gitHubAccountNoLogin: 'GitHub: signed in through {source}',
+  gitHubSources: {
+    editorLease: 'the editor’s GitHub sign-in',
+    deviceFlow: 'Muse Spark’s GitHub sign-in',
+    ghLogin: 'the GitHub CLI (gh)',
+  },
+  gitHubSignOut: 'Sign Out',
+  gitHubSignOutFailed: 'GitHub sign-out could not finish. Try again.',
   gitRefresh: 'Refresh',
   gitOpenOnGitHub: 'Open on GitHub',
   gitWorktreeBranch: 'Worktree on {branch}, of {repository}',
@@ -2070,8 +2284,6 @@ export const EN = {
     'The pull request has a path a held checkout does not write: {path}. Nothing was checked out.',
   openPullRequestPathCollision:
     '{first} and {second} would be the same file or folder here. Nothing was checked out.',
-  openPullRequestTooLarge:
-    'The pull request is larger than a held checkout writes (at most {files} files and folders, {size} in all). Nothing was checked out.',
   openPullRequestUnreadable:
     'Git did not give back the pull request’s files as its tree lists them.',
   openPullRequestAction: 'Open',
@@ -2158,6 +2370,8 @@ export const EN = {
     fires: 'Fires',
     keybindings: 'Key Bindings',
     conflicts: 'Conflicts',
+    shortcut: 'Shortcut',
+    command: 'Command',
     diff: 'Difference',
     sources: 'Sources',
     planFormat: 'Plan Format',
@@ -2197,6 +2411,7 @@ export const EN = {
     merged: 'Merged',
     released: 'Released',
     complete: 'Complete',
+    ended: 'Ended',
     superseded: 'Superseded',
     waiting: 'Waiting',
     blocked: 'Blocked',
@@ -2214,6 +2429,20 @@ export const EN = {
     removed: 'Removed',
     changed: 'Changed',
     unchanged: 'Unchanged',
+    paused: 'Paused',
+    active: 'Active',
+    all: 'All',
+    total: 'Total',
+    once: 'Once',
+    user: 'User',
+    hookVerification: 'Hook verification',
+  },
+  reportScheduleCells: {
+    triggerInterval: 'every {everyMs} ms',
+    triggerDaily: 'every {everyDays}d {times}x daily',
+    triggerWeekdays: '{times}x on weekdays',
+    triggerWeekly: '{days}d weekly',
+    scheduleGrant: '{rules} rules, {destinations} destinations, cap {cap}',
   },
   reportKinds: {
     project: 'Project',
@@ -2256,6 +2485,8 @@ export const EN = {
     footer: 'Renderer {version}; ICU {icu}; locale {locale}',
     notFound: 'Not found: {id}. Nearest matches: {nearest}',
     generationFailed: 'The report could not be generated.',
+    gitXcodeStub:
+      'Git cannot run on this Mac: it resolves to Apple’s Xcode stub, whose developer tools cannot start. Install the Command Line Tools (xcode-select --install), or switch to the installed tools (sudo xcode-select --switch /Library/Developer/CommandLineTools), then try again.',
     noHistory: 'No report history yet.',
     networkOff: 'Report network sources are off.',
     signInRequired: 'Sign in to GitHub to read this source.',
@@ -2306,9 +2537,32 @@ export const EN = {
     unbound: 'This source integration is unavailable.',
     history: 'History for the selected session is unavailable.',
   },
+  reportDetailReasons: {
+    journalIncomplete:
+      'The usage journal contains damaged, incomplete or newer-version entries; totals exclude them.',
+    sessionUsageUnavailable:
+      'Usage for this session is not attributable in the retained journal; token and cost totals are unavailable.',
+    budgetsUnavailable: 'Budget snapshots for the selected period are unavailable.',
+    sessionModelUnavailable:
+      'The session catalogue names no active model, so the model is reported as unknown.',
+
+    sessionTurnsUnavailable:
+      'The session history records no turn identifiers, so turns cannot be counted.',
+    sessionApprovalsUnavailable: 'The session history records no approval decisions.',
+    toolBreakdownUnavailable: 'Per-tool usage is not recorded in the usage journal.',
+    rolledUpBreakdownExcluded: 'Rolled-up history is included in totals but not in this breakdown.',
+    rolledUpSessionExcluded:
+      'Rolled-up history is excluded from this session’s totals and breakdown.',
+    accountsFacetsUnavailable: 'Unavailable account details: {facets}.',
+    securityVaultUnavailable: 'The vault is locked or unavailable.',
+    securityDeveloperAuditUnavailable: 'The developer audit is unavailable.',
+  },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
+  reportProblemsMore: forms({ one: '{count} more problem', other: '{count} more problems' }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
+  reportCliKinds:
+    'Kinds: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n',
   reportIssue: 'Report an Issue…',
   // Report a problem (M93, PLAN.md D72): the crash offer, the report
   // dialog's labels and actions, and the export outcomes. The preview shows
@@ -2364,16 +2618,12 @@ export const EN = {
   slashNoMatches: 'No matching commands; Enter sends the text as it is',
   attachmentsLabel: 'Attachments',
   removeAttachment: 'Remove',
-  attachmentTooLarge: 'Images must be 10 MB or smaller.',
   modelAttachmentUnsupported: 'This model does not support this attachment.',
   providerCapabilityUnsupported: 'Selected model does not support these request settings.',
   modelAttachmentOverLimit: "This attachment exceeds the model's limits.",
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
-  attachmentLimit: 'At most 20 files per message.',
   attachmentUnreadable: 'The file could not be read.',
-  documentTooLarge: 'PDFs must be 32 MB or smaller.',
   documentsOverBudget: 'Files must total at most 50 images and PDF pages per message.',
-  mediaTotalTooLarge: 'Attached images and PDFs exceed the combined media size limit.',
   olderMediaOmitted:
     'Older images or PDFs were left out of this request to stay within media limits. They remain in local history.',
   pdfNeedsModelApi: 'PDF attachments require the Model API backend.',
@@ -2417,7 +2667,6 @@ export const EN = {
     'Web fetch is no longer allowed here (the workspace lost its trust, the permission mode changed, or the sandbox network setting became restricted), so the fetch stopped before its next request.',
   webFetchNat64Unknown:
     '{host} has only IPv6 addresses here, and whether this network translates them to IPv4 addresses (NAT64) could not be learned ({detail}), so they could not be checked for a private address. Nothing was fetched.',
-  webFetchTooManyRedirects: 'The page redirected more than {max} times.',
   webFetchRedirectWithoutLocation: 'The server answered {status} without saying where to go.',
   webFetchRedirectRefused: 'The page redirected to an address that is refused: {reason}',
   webFetchHttpStatus: 'The server answered {status}.',
@@ -2427,7 +2676,6 @@ export const EN = {
   webFetchContentTypeUnnamed: 'The page is not HTML or text.',
   webFetchEncoding: 'The page’s compression ({encoding}) could not be read.',
   webFetchEncodingUnnamed: 'The page’s compression could not be read.',
-  webFetchTimeout: 'The page did not arrive within {duration}.',
   webFetchConversionTimeout:
     'The page arrived, but its HTML could not be converted in the time allowed (at most {duration}), so none of it was read.',
   webFetchConversionMemory:
@@ -2596,10 +2844,10 @@ export const EN = {
   /** A web fetch on the Model API backend (M69): {action} is the URL, shown as code. */
   approvalFetch: 'Muse wants to fetch {action}',
   /**
-   * A browser check on the Model API backend (M81): {action} is the URL. The
-   * second when its host is beyond loopback and the setting: allowing it
-   * widens the check to that host.
-   */
+  A browser check on the Model API backend (M81): {action} is the URL. The
+  second when its host is beyond loopback and the setting: allowing it
+  widens the check to that host.
+  */
   approvalBrowserCheck: 'Muse wants to open {action} in a headless browser',
   approvalBrowserCheckWiden:
     'Muse wants to open {action} in a headless browser, beyond this computer',
@@ -2817,6 +3065,11 @@ export const EN = {
   historyShowArchived: 'Show Archived',
   historyArchive: 'Archive',
   historyUnarchive: 'Unarchive',
+  historyDeleteConfirm: 'Delete the conversation {name}?',
+  historyDeleteConfirmDetail: 'It leaves History for good. This cannot be undone.',
+  historyDeleted: 'Deleted {name}',
+  historyDeleteFailed: 'Could not delete the conversation',
+  historyDeleteCleanupFailed: 'Deleted {name}, but finishing the cleanup failed: {reason}',
   historyCurrent: 'Current',
   historyForkMark: 'Fork',
   historyTurns: forms({ one: '{count} turn', other: '{count} turns' }),
@@ -2893,7 +3146,6 @@ export const EN = {
     'Left as they are, edited from more than one window in an order that cannot be told: {files}',
   restoreRefusedLinked: 'Left as they are, reached through a link or junction: {files}',
   restoreRefusedNotKept: 'Not restorable, the earlier version was not kept: {files}',
-  restoreRefusedTooLarge: 'Not restorable, too large to keep a copy of: {files}',
   restoreRefusedFailed: 'Could not be changed: {files}',
   restoreUnchanged: forms({
     one: 'Already as before: {count} file.',
@@ -2978,6 +3230,25 @@ export const EN = {
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
   // Voice dictation (M9).
+  linuxDictationDownloadTitle:
+    'Download the offline English dictation helper ({helperSize}) and model ({size})?',
+  linuxDictationDownloadDetail:
+    'Whisper tiny.en is free and recognizes English on this computer, using only the CPU. Download the helper from the extension release assets and the model from huggingface.co into {location}. Audio stays in memory. Turn linuxDictationModel off to stop dictation and remove the helper and model.',
+  linuxDictationIntegrity:
+    'The dictation helper or model failed its size or SHA-256 check. No recognition started.',
+  linuxDictationBusy:
+    'Another window is using the dictation helper or model. Stop its recording or download and try again.',
+  linuxDictationRemoved:
+    'Linux dictation is off and its helper and model are removed. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemovalPending:
+    'Linux dictation is off and its helper and model are being removed. Reload the window to retry removal, or turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationDisabled:
+    'Linux dictation is off. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemoveFailed:
+    'The offline dictation helper or model could not be removed. Check storage permissions and stop downloads in other windows, then reload this window to retry.',
+  linuxDictationFailed: 'Linux dictation failed',
+  linuxDictationDownloadFailed:
+    'The dictation helper or model could not be downloaded. Press the microphone to retry; an interrupted download can resume.',
   dictationTitle: 'Tap or hold to record (Ctrl+D)',
   dictationStopTitle: 'Stop recording (Ctrl+D)',
   dictationLabel: 'Record Voice',
@@ -2986,11 +3257,11 @@ export const EN = {
   dictationFailed: 'Voice dictation failed',
   dictationUnavailable: 'Voice dictation is not available on this platform.',
   dictationUnavailableLinux:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine.',
+    'Linux dictation needs an x64 or arm64 computer with PulseAudio or PipeWire running.',
   dictationUnavailableWindows:
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:
-    'Voice dictation needs the macOS helper (native/darwin/muse-dictate), which this build does not include.',
+    'Voice dictation needs the macOS helper (native/darwin/{app}/Contents/MacOS/muse-dictate), which this build does not include.',
   // After `dictationFailed`, when voice's own code did not load (a damaged install).
   dictationNotLoaded:
     'the dictation code could not be loaded; reinstall the extension and reload the window. The log has the details.',
@@ -3002,6 +3273,10 @@ export const EN = {
   reject: 'Reject',
   modelApiStalled:
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
+  // Lane PR225W1: the person's own retry cap stopped the turn, not the
+  // provider. The orchestrator reads this notice off its feed.
+  modelApiRetryCapReached:
+    'Retry limit reached (museSpark.modelApiMaxRetries: {count}): the request was not sent again. Raise the limit to allow more retries.',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
   compactionEmpty: 'The summary was empty; the conversation is unchanged.',
@@ -3037,6 +3312,12 @@ export const EN = {
   // A session whose Muse Code event log failed (a CLI fault) takes no new message.
   sessionLogDamaged:
     'This conversation’s Muse Code log is damaged (a fault in Muse Code), so it cannot take new messages. Start a new conversation; this one stays in History.',
+  // A restarted backend whose replacement lost the sign-in (F94): the
+  // first turn that fails for it names the restart and the way back,
+  // instead of failing as just another turn. {exit} is the previous
+  // run's end in the log's words; {detail} the turn's reason.
+  museSignInLostOnRestart:
+    '{exit}, and it is no longer signed in, so this turn could not run ({detail}). Sign in again with “muse login” in a terminal, or set META_API_KEY for the CLI, then send again.',
   // The vault scrubber is locked (or its build refused): the turn reason and
   // the export notice name the outage instead of failing silently (RVM109T 7).
   vaultScrubUnavailable: 'Vault scrub service is unavailable',
@@ -3044,6 +3325,13 @@ export const EN = {
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
+  turnRetractDeclined:
+    'Withdrawing the message was declined, so the turn continues with it still in place.',
+  approvalReviewing: 'The Safety Check is reviewing this approval.',
+  sessionBranchChanged: "The session's version-control branch changed.",
+  sessionViewHealthChanged: 'The session view health changed.',
+  turnForegroundCompleted:
+    'The turn finished its visible work; background checks are still running.',
   modelRouteUnserved:
     'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
   viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',
@@ -3068,7 +3356,7 @@ export const EN = {
   trainingBlocked:
     'Models that may train on workspace content are blocked in this workspace (museSpark.confidentialWorkspace).',
   backendItem: 'Backend',
-  backendDetail: 'museSpark.backend: auto / museCode / modelApi',
+  backendDetail: 'Which engine runs this conversation: automatic, Muse Code, or the Model API.',
   backendMuseCode: 'Muse Code (Your Muse Subscription)',
   backendModelApi: 'Meta Model API (Your Key, Pay as You Go)',
   modelApiBackendNotice:
@@ -3083,23 +3371,71 @@ export const EN = {
     'Automatic compaction uses the selected model at {price}. The subscription does not pay for it.',
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
+  autoCompactionBudgetRefused:
+    'Automatic compaction did not run: the daily paid budget refused it. Raise the budget or try again tomorrow; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
-  // The Model API session budget (M82): a request that cannot fit is not
-  // sent, and the turn's cost is shown against the cap afterwards.
+  contextWindowFullAcp:
+    'Context window full: automatic compaction needs your one-time approval in the editor; approve its paid-use request, or run /compact. A client that cannot show the approval leaves it off.',
+  contextWindowFullExec:
+    'Context window full: rerun with --auto-compaction --max-budget-usd <amount> so the run can compact itself, or shorten the task.',
+  // TOOLCAP: the person's preview of a cut tool result says the same as the
+  // model's one-line notice, in plain words, with the spill file to open.
+  toolResultCutPreview:
+    'Tool result cut: {total} characters, kept the start and end ({head} whole lines at the start, {tail} at the end; {omitted} left out). The full result is in {spill}. It is removed with the session.',
+  // TOOLCAP: the turn's last word when trimming and compaction could not fit
+  // the conversation into the model's window. True by construction: the
+  // numbers come from the provider's own refusal, and nothing was deleted.
+  contextWindowTooLong:
+    'The conversation ({tokens} tokens) is larger than this model’s window ({maximum} tokens) by {over} tokens. /compact the conversation, switch to a model with a larger window, or start a new conversation; nothing was deleted.',
+  // TOOLCAP: a configured tool-output cap that cannot be honoured is refused
+  // here, with the reason, and the default is used instead.
+  toolResultCapRefused:
+    'The {source} tool-output cap of {value} is refused ({reason}); the result enters whole unless the model’s window share cuts it.',
+  // TOOLCAP: the two reasons a configured tool-output cap is refused, each
+  // its own translated sentence for the person reading the refusal above.
+  toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',
+  toolResultCapAboveWindow: 'larger than the model’s window of about {window} tokens',
+  // TOOLCAP: the spill file for a cut tool result could not be written (for
+  // example a read-only workspace); the cut text still went to the model.
+  toolResultSpillFailed:
+    'The full tool result could not be kept in {spill}; only the cut text remains.',
+  toolResultCutPreviewUnkept:
+    'Tool result cut: {total} characters, kept the start and end ({omitted} left out). The full result could not be kept.',
+  // The Model API session budget (M82, D208): a limit the person set. A
+  // request whose estimate would pass it is not sent, and the turn's cost is
+  // shown against it afterwards.
   sessionBudgetStopped:
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+  // D208: said once when what is left no longer fits a request like the last one.
+  sessionBudgetNearLimit:
+    'Session budget: {spent} of {cap} used. What is left may not fit the next request.',
+  // D208: a response that ended without its usage adds nothing; {spent} is what the conversation counts.
+  sessionBudgetCostUnknown:
+    'A response ended without reporting its usage, so its cost is unknown. It was not added to what this conversation spent ({spent} so far).',
+  spendLedgerDamaged:
+    'The {scope} spend ledger is damaged ({file}). No new request can be sent; restore or repair this ledger.',
+  spendLedgerUnreadable:
+    'The {scope} spend ledger cannot be read or saved ({file}: {errno}). No new request can be sent; correct the file access or storage problem.',
+  spendLedgerIntegrity:
+    'The {scope} spend ledger has conflicting ownership or amounts ({file}). No new request can be sent; repair this ledger.',
+  spendLedgerMidnight:
+    'Local midnight passed. Nothing was sent; restart with today’s daily budget.',
+  execContextLimit:
+    'The request exceeds this model’s context limit. Nothing was sent; reduce the input or output allowance.',
+  execBudgetImpossible:
+    'This request is too large for any spend cap this run accepts. Reduce its input or output allowance.',
+  execEstimateBound:
+    'Input reservation: provider estimate + {margin}, capped by the upper bound from size.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
-  sessionBudgetLegacyFeesUnknown:
-    'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
-    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+    'The previous request may have been billed, so it is not sent again. Send a new prompt to retry.',
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
-    'Muse Voice is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
+    'Muse Voice file transcription is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
   sessionBudgetVoiceContextChanged:
     'Muse Voice stopped because the conversation or its permissions changed. Start a new recording in the current conversation.',
   sessionBudgetUnpriced:
@@ -3112,6 +3448,8 @@ export const EN = {
   rewindConversationFailed: 'Could not rewind the conversation',
   sideChatFailed: 'Could not open a side chat',
   sideChatPlanOnly: 'Side chats stay in Plan mode.',
+  sideChatWriteRefused: 'Side chats are read-only, so this request was refused.',
+  sideChatResolver: 'Side Chat',
   // M79 (PLAN.md D49): plans as files. {path} is the plan's workspace path.
   planActionsLabel: 'Plan Actions',
   savePlan: 'Save Plan',
@@ -3135,8 +3473,6 @@ export const EN = {
     'Muse Code does not let the extension set its todo list, so the brief asks Muse to list the plan’s steps there.',
   planNamesTaken: 'Every file name for this plan is taken in .agents/plans.',
   planFileMissing: 'That plan file no longer exists.',
-  // {size}: the limit in KB.
-  planTooLarge: 'This plan is larger than {size} KB, the most a plan may be.',
   planSessionGone:
     'That conversation is no longer open in this panel, so this reply can no longer be saved or implemented as a plan.',
   planNotFromPlanTurn:
@@ -3185,7 +3521,6 @@ export const EN = {
   handoffFailed: 'Could not prepare the handoff',
   // After handoffFailed: the distillation turn ended with no reply text.
   handoffNoBrief: 'The model returned no brief.',
-  handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
   handoffChangedNotStarted:
     'The handoff was not started: the conversation changed in the meantime.',
   // {mode}: the permission mode's name. The model wrote the brief, so it
@@ -3201,6 +3536,11 @@ export const EN = {
     'museSpark.shellSandbox is off, so Muse Code runs without its OS sandbox in this window. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents.',
   sandboxPreparingNotice:
     "Muse Code's Windows sandbox is still being prepared, so this command did not run. After its setup, Muse Code gives the sandbox read access to your files once, in the background, and that can take a while on a large user profile. Try again in a few minutes. Setting: museSpark.shellSandbox.",
+  // F91: at host start on Linux, while sandboxed, the bwrap probe measured
+  // that Muse Code's sandbox cannot start here. Said once on every surface;
+  // the sandbox stays on until the person turns it off.
+  sandboxCannotStartNotice:
+    "Muse Code's shell sandbox cannot start on this machine: its bubblewrap sandbox cannot create a user namespace here, so commands it runs without asking (such as git status) will fail. Set museSpark.shellSandbox to off, or allow unprivileged user namespaces on this machine (sysctl kernel.unprivileged_userns_clone=1; where AppArmor restricts them, kernel.apparmor_restrict_unprivileged_userns=0). The sandbox stays on until you choose.",
   rulesFileNoWorkspace: 'Open a folder first; AGENTS.md lives in the workspace root.',
   rulesFileExists: 'AGENTS.md already exists in this workspace; opening it.',
   rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',
@@ -3230,6 +3570,7 @@ export const EN = {
   agentStopReasons: {
     normal: 'Normal End',
     budget: 'Budget Exhausted',
+    limit: 'Call Limit Reached',
     error: 'Error',
     cancelled: 'Stopped by User',
     unknown: 'Unavailable',
@@ -3247,7 +3588,11 @@ export const EN = {
   agentRecoveryConfirm: '{action}: {objective}? The current permissions and budgets apply.',
   agentRetryUnavailable:
     'Retry is unavailable: this backend provides no isolated worktree checkpoint. Shared workspace changes are kept.',
+  agentRetryNoSubagent: 'Retry is unavailable for this agent: it has no subagent to retry.',
+  agentRetryNoCheckpoint:
+    'Retry is unavailable for this agent: it has no isolated checkpoint. Shared workspace changes are kept.',
   agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
+  agentGone: 'That agent is no longer in this conversation.',
   referenceAgentOutcomes:
     'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',
   agentMapHint: 'click an agent for details',
@@ -3730,6 +4075,7 @@ export const EN = {
     high: 'High',
     xhigh: 'Extra High',
     max: 'Max',
+    ultra: 'Ultra',
   },
   // Tool names seen on the wire (Muse Code 1.3.0, live captures 2026-09-21/22)
   // and the label the row shows; unknown tools show their raw name. The IDE
@@ -3883,8 +4229,8 @@ export const EN = {
   goalCannotEdit:
     'Only an active or paused goal can be changed; set a new one with /goal <objective>.',
   goalObjectiveMissing: 'Type the objective after /goal.',
-  // {limit} is the maximum objective length, formatted in the user's locale.
-  goalObjectiveTooLong: 'Keep the goal objective within {limit} characters.',
+  goalObjectiveTooLarge:
+    'That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.',
   goalCommandFailed: 'The goal command failed',
   // A goal command the backend already had when a key activation or a
   // backend restart came: whether it took is not known.
@@ -3898,6 +4244,14 @@ export const EN = {
   scheduleNextRun: 'Next run {date}',
   scheduleFired: forms({ one: 'Ran {count} time', other: 'Ran {count} times' }),
   scheduleNone: 'No scheduled prompts',
+  // A schedule consent file that cannot be read (CATCHMONEY R3, P3-4): the
+  // errno reaches the person through a closed kind word, never raw. `{reason}`
+  // is one of the scheduleStoreReason* words below.
+  scheduleConsentUnreadable:
+    'Scheduled prompts are off: their saved consent {reason}. Fix its permissions or delete it, then set up schedules again.',
+  scheduleStoreReasonDenied: 'could not be read; permission was refused',
+  scheduleStoreReasonDiskFull: 'could not be read; the disk is full or read-only',
+  scheduleStoreReasonUnknown: 'could not be read',
   // M52: extension-owned schedules on the Model API backend. Muse Code's cron
   // jobs stay model-mediated until its MSP exposes scheduler verbs.
   loopItem: '/loop',
@@ -3939,6 +4293,8 @@ export const EN = {
     'Other enabled paid tools may add their own charges. Bypass does not skip this confirmation.',
   scheduleConfirmationExpired:
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
+  // P3-2: a rotated key is not a changed mind: the refusal says the key moved.
+  execKeyRotated: 'The key was rotated during the run; the request was not sent.',
   requestStaleTurn: 'The model or conversation changed while sending. Send your message again.',
   requestStaleCompaction: 'The model or conversation changed while compacting. Compact again.',
   requestStaleRetry: 'The model or conversation changed before the request was sent. Try again.',
@@ -3960,6 +4316,24 @@ export const EN = {
   stopAllTasksTitle: 'Stop every background task of this conversation',
   stopTaskFailed: 'The background task could not be stopped',
   taskNotRunning: 'That task is not running any more',
+  stillWaitingNotice: 'Still waiting: {what} ({duration}). Stop ends it.',
+  // The subjects the still-waiting notices name (PR #214 review): each one
+  // is translated, so a notice never interpolates English prose. The
+  // request and command names ({name}, {method}) stay as the other side
+  // spelled them.
+  stillWaitingSubject: {
+    imageRequest: 'the image request',
+    providerAnswer: 'the provider answer',
+    modelReply: 'the model reply',
+    mcpServerStartup: 'MCP server "{name}" startup',
+    mcpServerRequest: 'MCP server "{name}" {method}',
+    museCodeCommand: 'Muse Code {method}',
+    sessionDeletion: 'session deletion',
+    shellCommand: 'the shell command',
+    museServeStarting: 'muse serve starting',
+    webFetch: 'the web page',
+    pluginHook: 'the plugin hook',
+  },
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
   userShellExitSignal: 'Ended by signal {signal}',
@@ -4055,6 +4429,7 @@ export const EN = {
   whatsNewDontShowAgain: 'Don’t Show Again',
   whatsNewUnavailable:
     'What’s New could not be loaded; reinstall the extension and reload the window. The log has the details.',
+  whatsNewAttachmentsRefused: '/whatsnew takes no attachments: send it alone.',
   // The conversation's notices (they were English literals in the controller).
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',
@@ -4079,6 +4454,43 @@ export const EN = {
   effortNotApplied: 'Reasoning effort could not be applied',
   permissionModeNotApplied: 'Could not apply the permission mode',
   permissionModeChangeFailed: 'Could not change the permission mode',
+  // {reason}: the reviewer's own refusal, such as a managed exclusion.
+  permissionReviewerNotInstalled:
+    'The permission mode was applied, but its reviewer could not be installed ({reason}). New turns are refused until the mode is set again.',
+  // The tear that kept a forward mode change's reviewer from being confirmed,
+  // as {reason} for the sentence above: the acknowledgement named the mode,
+  // so the mode is known and only the reviewer is missing.
+  permissionReviewerTornReason: 'the mode change tore while applying',
+  permissionReviewerMissing:
+    'New turns are refused: the permission reviewer could not be installed. Set the permission mode again to recover.',
+  // {mode}: the wire mode a later mode notice named while turns were
+  // refused. The notice installs and removes no reviewer (Plan and Bypass
+  // install none), so the sentence names that mode and says turns stay
+  // refused until the mode is set again, with no reviewer or tear words.
+  permissionModeChangedWhileQuarantined:
+    'The permission mode changed to {mode} while new turns were refused. New turns stay refused until the mode is set again.',
+  // {mode}: the previous wire mode the torn rollback restored. The profile
+  // never changed, so that mode's reviewer is still installed; the adoption
+  // itself could not be confirmed, so turns stay refused until a reset.
+  permissionReviewerRollbackTorn:
+    'The permission mode change tore while applying; the previous mode ({mode}) is restored and its reviewer is still installed, but the adoption could not be confirmed. New turns are refused until the mode is set again.',
+  // {mode}: the wire mode the host runs after a torn change (the
+  // acknowledged mode on a forward tear, the restored previous mode on a
+  // rollback's). The mode installs no reviewer (Plan, Bypass), so the tear
+  // must not claim one failed: the mode is in effect, only the adoption is
+  // unconfirmed, and turns stay refused until a reset.
+  permissionModeTornUnconfirmed:
+    'The permission mode change tore while applying; the host runs {mode} but the adoption could not be confirmed. New turns are refused until the mode is set again.',
+  permissionReviewerUnknown:
+    'The permission mode could not be changed and the mode the host runs is unknown. New turns are refused until the mode is set again.',
+  // {reason}: the refusal that stopped the change, in its own words.
+  permissionModeKept:
+    'The permission mode change did not take ({reason}); the host keeps running its mode.',
+  // {reason}: the refusal that stopped the restore, in its own words;
+  // {mode}: the wire mode the host still runs (the admission's, with its
+  // reviewer), because the conversation's mode never came back.
+  permissionRestoreRefused:
+    "The conversation's permission mode could not be put back ({reason}); the host still runs {mode}. New turns are refused until the mode is set again.",
   // {action}: the panel's id for a host command, such as `openSettings`.
   hostActionFailed: '{action} failed',
   backendListenerFailed:
@@ -4094,6 +4506,10 @@ export const EN = {
   // The same in the ACP agent (D62), whose package ships the bundle.
   acpModelApiBundleUnavailable:
     'The Model API backend could not be loaded; reinstall muse-spark-code-acp and restart the agent. The agent’s log has the details.',
+  // The Muse Code backend's own bundle (PR206, PLAN.md D6), loaded when that
+  // backend first starts.
+  museCodeBundleUnavailable:
+    'The Muse Code backend could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // Why the Muse Code CLI was not found, on the sign-in page and in warnings.
   cliNotFound: 'Muse Code is not installed in any known location.',
   cliPathNotAbsolute: 'museSpark.museBinaryPath must be an absolute path.',
@@ -4116,6 +4532,9 @@ export const EN = {
   acpKeyNotStored: 'No key was entered, so nothing was stored.',
   acpKeyPresent: 'A Meta Model API key is stored in {store}.',
   acpKeyAbsent: 'No Meta Model API key is stored.',
+  // An unavailable store cannot prove whether it contains a key (F43/F47).
+  acpStoreDown:
+    'This computer’s credential store is unavailable, so stored keys cannot be checked.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
   acpStoreUnavailable:
@@ -4148,9 +4567,9 @@ export const EN = {
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
-    '  {command} providers list|add|test|remove  Manage model providers',
+    '  {command} providers list|add|test|remove|connect|usage  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
-    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number; exits 0 when clean, 10 when a secret is found, 2 for misuse)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
     '  {command} fonts install [--from <directory>]  Install the optional fonts for standalone surfaces',
@@ -4160,11 +4579,12 @@ export const EN = {
     '  --trust-workspace                Load the folder’s rules, skills and memory',
     '  --muse-binary <path>             The Muse Code CLI to run',
     '  --shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
-    '  --questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
+    '  --questions-defer-after <seconds>  Defer questions after this many seconds; no limit unless you set one (0, the default, never defers)',
     '  --allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
@@ -4183,15 +4603,101 @@ export const EN = {
     '  --no-facts           Leave the support facts out',
     '  --no-events          Leave the recent events out',
   ].join('\n'),
+  // The terminal agent's own help (PLAN.md D120): one topic per command,
+  // generated from the parser's option table, so help cannot drift from
+  // what the parser accepts. {command}: the executable's name; {cmd} and
+  // {topic}: the command as typed. Option names and values stay as typed.
+  cliHelp: {
+    usage: 'Usage:',
+    options: 'Options:',
+    examples: 'Examples:',
+    exits: 'Exits:',
+    commands: 'Commands:',
+    // {command}: the executable's name.
+    topHint: "Run '{command} help <command>' for one command's own options and examples.",
+    // {command}: the executable's name.
+    allHint: "'{command} help --all' prints the full Help & Reference.",
+    // {value}: the default, as typed.
+    defaultIs: 'default {value}',
+    // {value}: the bound with its unit, as typed.
+    atMost: 'at most {value}',
+    // {values}: the accepted values, as typed.
+    accepts: 'accepts {values}',
+    repeatable: 'repeatable',
+    // {option}: the option as typed; {cmd}: the command; {accepted}: its options.
+    unknownOption: "Unknown option {option} for '{cmd}': {cmd} accepts {accepted}.",
+    // {cmd}: the command; {accepted}: its options. A secret-looking name is
+    // never repeated: the refusal says only what the command accepts.
+    unknownOptionHidden: "Unknown option for '{cmd}': {cmd} accepts {accepted}.",
+    // {nearest}: the closest valid option, as typed.
+    suggestOption: "Did you mean '{nearest}'?",
+    // {command}: the executable's name; {topic}: the command.
+    seeHelp: "See '{command} {topic} --help'.",
+    // {topic}: the unknown command; {command}: the executable's name.
+    unknownTopic: "Unknown command '{topic}': run '{command} help' for the command list.",
+    purposeServe: 'Serve the Agent Client Protocol on stdin and stdout.',
+    purposeLogin: 'Sign in to Muse Code in this terminal.',
+    purposeAuth: 'Store, check or remove keys in this computer’s credential store.',
+    authSetNote:
+      'auth set reads the key from standard input (your terminal, or a pipe); auth status prints whether a key is stored, never the key itself.',
+    purposeProviders: 'Manage model providers and their model lists.',
+    purposeExec: 'Run one headless turn.',
+    purposeScanSecrets: 'Count likely secrets in one file (prints only the number).',
+    purposeReport: 'Print a scrubbed problem report.',
+    purposeLegal: 'Run the read-only legal scan.',
+    purposeFonts: 'Install the optional fonts for standalone surfaces.',
+    purposePlaybook: 'Show or change the orchestrator playbook.',
+    purposeSetup: 'Run the Setup hooks and exit.',
+    purposeUsage: 'Show usage and cost across models.',
+    purposeResources: 'Show machine pressure and recent history.',
+    purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
+    purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    // {entry}: the provider entry id.
+    modelsList: 'Models for {entry}:',
+    // {reason}: the user's one-line reason for forcing the model.
+    modelsForced: 'forced: {reason}',
+    modelsExtra: 'On the provider but not in the entry:',
+    modelsUnreadable: 'The provider list could not be read; showing the entry only.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsAdded: 'Added {models} to {entry}.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsRemoved: 'Removed {models} from {entry}.',
+    // {model}: the unknown id; {entry}: the entry; {closest}: the closest ids.
+    modelsUnknown: "Unknown model '{model}' for {entry}; the closest matches are: {closest}.",
+    // {entry}: the unknown id; {closest}: the configured entry ids.
+    modelsUnknownEntry: "Unknown provider entry '{entry}'; configured entries are: {closest}.",
+    modelsNeedsForce: "Use --force '<reason>' to add a model the provider does not list.",
+    modelsForceNeedsAdd: '--force needs --add: only added models can carry a reason.',
+    modelsCustomReadOnly:
+      'Custom provider model lists are read-only here; use the Models panel to set each model’s context window and output cap.',
+    // {command}: the executable's name.
+    modelsUsage:
+      'Usage: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
+  },
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
+  execProgressStarted: 'Request {request} started; {reserved} reserved.',
+  execProgressSettled:
+    'Request {request} ended; run input {input}, output {output}; {settled} spent, {uncertain} uncertain.',
+  execProgressTokens: forms({ one: '{count} token in total', other: '{count} tokens in total' }),
+  execTokenCount: forms({ one: 'at most {count} token', other: 'at most {count} tokens' }),
+  execBudgetQuote:
+    'Input {inputTokens} ({inputCost}) + output cap {outputTokens} ({outputCost}) = {estimate}; run cap {cap}, {spent} used. Request not sent.',
+  execBudgetMinimum: 'This run requires at least {minimum}.',
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  // {option}: the option as typed; {help}: the help that lists its accepted
+  // values, as typed (`serve --help`).
+  cliValueInvalid: 'Invalid value for {option}; run {help} for the accepted values and bounds.',
+  execLimitInvalid: 'Invalid number or limit for {flag}.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
   execPaidNeedsEdits: 'Image generation requires acceptEdits.',
-  execModelApiOnly: 'These options require the Model API backend.',
-  execMuseCodeOnly: 'These options require the Muse Code backend.',
+  // {options}: the refused command-line options as typed, joined by commas.
+  execModelApiOnly: 'These options require the Model API backend (--backend modelApi): {options}.',
+  // {options}: the refused command-line options as typed, joined by commas.
+  execMuseCodeOnly:
+    'These options require the Muse Code backend, the default without --backend modelApi: {options}.',
   execModelUnpriced: 'This model has no known tariff.',
   execPromptMissing: 'Provide one nonempty prompt.',
   execPromptTwice: 'Choose exactly one prompt source.',
@@ -4205,9 +4711,66 @@ export const EN = {
   execTooManyChunks: 'The input exceeds the chunk limit.',
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',
+  execFastUnavailable: 'Fast is not available for this model.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
-  execBudgetMinimum: 'This run requires at least {minimum}.',
+  // EXECPROV round 5: a budget refusal names both remedies with numbers. The
+  // cap remedy is a complete clause on its own, so ACP and the editor show
+  // the same reason through the shared scope without the terminal-only flag
+  // half. {admitCap} is the cap that admits the request, rounded up to the
+  // cent; {maxTokens} is the largest --max-output-tokens value that fits the
+  // remaining cap; {inputCost} and {remaining} feed the input-alone note.
+  execBudgetRemedyCap: 'Raise --max-budget-usd to at least {admitCap} to admit it.',
+  execBudgetRemedyOutput: 'Or retry with --max-output-tokens {maxTokens}.',
+  execBudgetRemedyInput: 'The input alone costs {inputCost}, above the {remaining} left.',
+  // EXECPROV round 6: the provider variant states the rule, since its
+  // first body is not built yet ({output} is the output cap every request
+  // reserves).
+  execBudgetStartRule:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its counted input plus up to {output} output tokens.',
+  // EXECPROV round 7 (R2): a wire with no counter reserves the byte
+  // bound, and the start line says so — never "counted input".
+  execBudgetStartBytes:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its byte-bound input plus up to {output} output tokens.',
+  // A budget stop with nothing produced yet: the run was still reading, so
+  // no answer exists. The remedies follow as their own sentences.
+  execBudgetStillReading:
+    'The budget stopped the run while it was still reading, so no answer exists yet.',
+  // An exact provider count was tried and failed: the fixed reason the byte
+  // bound is used instead. The provider's own error never reaches this line.
+  execCountBytesFallback:
+    'The provider input count failed, so the byte bound reserves this request instead.',
+  // A --max-output-tokens value above the policy cap is refused at parsing.
+  // {cap} is the absolute ceiling every policy cap sits at or below.
+  execOutputCapExceeded: '--max-output-tokens exceeds the output cap of {cap} tokens.',
+  // EXECPROV round 5 (5a): a missing price is not a budget stop. {model} is
+  // the requested ref; {file} is the runner's own providers file, where a
+  // price for the model is added. The second sentence is the backend without
+  // a providers file.
+  execUnpricedProvider:
+    'This model has no known tariff, so a capped run cannot reserve for {model}. Add a price for this model in {file}, or choose a priced model.',
+  execUnpricedModel:
+    'This model has no known tariff, so a capped run cannot reserve for it. Choose a priced model.',
+  // D1, D208: a daily stop names its numbers: the request's estimate, the
+  // limit the person set, what is spent today, when the day resets, and the
+  // setting that raises it. Nothing is held, so nothing else is counted.
+  execPaidDailyStopped:
+    'Stopped: the next request (about {estimate}) would pass the daily budget of {cap} ({spent} used today). It was not sent. The budget resets {reset}; raise {setting} to continue.',
+  // D3: a budget-stopped turn keeps its work; the final message says what was
+  // reached ({count} is the completed request count).
+  execBudgetProgress: forms({
+    one: 'The budget stopped the run after {count} request; work so far is kept.',
+    other: 'The budget stopped the run after {count} requests; work so far is kept.',
+  }),
+  // D4: three causes, three sentences. {available} names what can run.
+  execModelNeedsProvider:
+    'Model {model} belongs to provider {provider}; run again with --provider {provider}. Available models: {available}.',
+  execModelNotOnProvider:
+    'Model {model} is not on provider {provider}. Available models: {available}.',
+  execModelAvailable:
+    'Model {model} is not available on this backend. Available models: {available}.',
+  execBudgetOverage:
+    'The last request exceeded its reservation by {overage} ({cost} charged, {reserved} reserved). The run stopped before another request.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
   execIncomplete: 'The response did not complete.',
   execDeniedStop: 'An approval denial stopped this run.',
@@ -4224,6 +4787,7 @@ export const EN = {
     cancelled: 'Cancelled',
     timeout: 'Timed Out',
     budget_exceeded: 'Budget Exceeded',
+    unpriced: 'Unpriced',
     request_cap: 'Request Cap Reached',
     denied: 'Denied',
     auth_required: 'Authentication Required',
@@ -4235,25 +4799,53 @@ export const EN = {
     one: 'At most {count} input file is allowed.',
     other: 'At most {count} input files are allowed.',
   }),
+  referenceTurnLimit:
+    'No round count of ours ends a Model API turn: it runs until the model answers without a tool call, you press Stop, a hook stops it, the provider refuses it, or a limit you set is spent. A caller allowance still bounds its run: exec --max-requests, or a best-of-N attempt ceiling. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a capped turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
+  modelApiWrapUpReserved:
+    'The remaining request is reserved for the final answer. The image was not generated.',
+  modelApiTurnLimit: forms({
+    one: 'The turn stopped after {count} model call. Send a message to continue.',
+    other: 'The turn stopped after {count} model calls. Send a message to continue.',
+  }),
+  modelApiWrapUpTruncated: forms({
+    one: 'The turn stopped after {count} model call with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+    other:
+      'The turn stopped after {count} model calls with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+  }),
+  modelApiWrapUpHookBlocked:
+    'A stop hook asked for more work, but the turn reached its model-call limit, so the final answer stands.',
+  modelApiWrapUpFailed: forms({
+    one: 'The turn stopped after {count} model call, but the final summary could not be produced ({reason}).',
+    other:
+      'The turn stopped after {count} model calls, but the final summary could not be produced ({reason}).',
+  }),
+  modelApiWrapUpFailedReason: {
+    rateLimited: 'rate limited',
+    modelError: 'model error',
+    budget: 'budget stop',
+    stopped: 'stopped',
+  },
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',
-  }),
-  execScanMatches: forms({
-    one: '{count} secret match',
-    other: '{count} secret matches',
   }),
   // M95 lane X (PLAN.md D74): the ACP agent's provider commands. Every key
   // below also lives in all 14 `l10n/ui.*.json` tables.
   // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
   providerKeyStored: 'The {provider} key is stored in {store}.',
   providerKeyNotStored: 'No key was entered, so nothing was stored.',
-  providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
+  providerKeyNotText: 'That input is not text (it is not valid UTF-8), so it was not used.',
+  providerKeyPresent: 'The {provider} key is stored in {store}, bound to {origin}.',
   providerKeyAbsent: 'No {provider} key is stored.',
   providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
-  // {provider}: the id as typed; {hint}: the key's shape as a hint.
+  // {provider}: the id as typed.
   providerUnknown: 'Unknown provider: {provider}.',
-  providerKeyShape: 'That key is not shaped like {provider} keys ({hint}).',
+  // A pasted provider key is never refused for its looks; each notice is
+  // a question the person answers ("use it anyway?"), never a dead end.
+  providerKeyNoticeWhitespace: 'This key contains a space or line break. Use it anyway?',
+  providerKeyNoticeUrl: 'This looks like a web address, not a key. Use it anyway?',
+  providerKeyNoticePath: 'This looks like a file path, not a key. Use it anyway?',
+  providerKeyNoticePlaceholder: 'This looks like placeholder text, not a key. Use it anyway?',
   providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
   providerNotConfigured: '{provider} is not configured; add it with providers add first.',
   providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
@@ -4271,6 +4863,11 @@ export const EN = {
     one: 'Key works · {count} model.',
     other: 'Key works · {count} models.',
   }),
+  // {model}: the `<provider>/<model>` ref whose tool calling is unconfirmed.
+  providerModelNoToolCalling:
+    '{model} cannot run the coding agent because tool calling is not confirmed for it.',
+  providerAddPickModel: 'Add one or more of these models with --model <id> (repeatable):',
+  providerAddNeedsModel: 'Pass at least one model with --model <id> (repeatable).',
   providerProbeUnreachable: 'The provider could not be reached.',
   providerProbeUnparseable: 'The model list could not be read.',
   providerProbeNoKey: 'No key was supplied.',
@@ -4386,13 +4983,27 @@ export const EN = {
   // {reason}: the endpoint policy's refusal.
   providerEndpointRefused: 'That address cannot be used ({reason}).',
   providerNoRequestPath: '{provider} cannot run here yet; its wire capture is still pending.',
+  // D4: a listed model without a price card cannot run; add/test/list say why.
+  providerModelNoPrice: '{ref} cannot run: it has no price card, so no run can reserve for it.',
   execProviderNeedsModelApi: '--provider needs --backend modelApi.',
   execProviderModelRequired: 'This provider run needs --model provider/model.',
   // {provider}: the provider id the run asked for.
   execProviderNotReady:
     'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
-  execScanUsage: 'scan-secrets <file> [--key-stdin]',
+  execScanUsage: 'scan-secrets <file> [--key-stdin] [--timeout <seconds>]',
+  scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',
+  execExits:
+    'Exits 0 completed, 1 internal, 2 usage, 3 sign-in or backend unavailable, 4 failed, 5 budget or request limit, 6 timeout, 7 denied, 8 incomplete, 9 accounting unverified, 10 output schema mismatch, 130 on SIGINT, 143 on SIGTERM.',
+  reportExits: 'Exits 0 when the report is written, 1 on failure, 2 for misuse.',
+  // From LEGAL_EXIT (D76): 0 a complete scan with no blockers, 1 a complete
+  // scan with blockers, 2 incomplete coverage, bad input or failure.
+  legalExits:
+    'Exits 0 when the scan completes with no blockers, 1 when blockers are found, 2 for incomplete coverage or misuse.',
+  // The CLI-wide convention (CLI_EXIT) for commands with no exit table.
+  genericExits: 'Exits 0 on success, 1 on failure, 2 for misuse.',
+  // share/prompts: a cancelled or refused share is EXEC_EXIT.denied (7).
+  sharingExits: 'Exits 0 on success, 7 when cancelled or refused, 2 for misuse, 1 on failure.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:
@@ -4445,6 +5056,14 @@ export const EN = {
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
   turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
+  // A retry notice with no retry limit (lane RETRYLIMITS): neither the
+  // provider nor the person sets one, so the provider governs.
+  turnRetryingUncapped:
+    'Attempt {attempt} failed ({reason}); retrying in {seconds} s (no retry limit set).',
+  // A 429 retry names the provider's own wait and when it ends, so a long
+  // provider wait never reads as a silent stall; Stop ends it at any time.
+  modelApiProviderRetryWait:
+    '{reason}; the provider asked to wait until {time}. You can stop the turn at any time.',
   // The subscription window's length (English writes the unit singular here).
   usageWindowHours: forms({ one: '{count}-hour window', other: '{count}-hour window' }),
   usageWindowMinutes: forms({ one: '{count}-minute window', other: '{count}-minute window' }),
@@ -4511,7 +5130,7 @@ export const EN = {
   paidScheduledName: 'Scheduled Prompts',
   paidSubagentsName: 'Subagents',
   paidSubagentRates:
-    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {limit} requests per task, including retries.',
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; billed per request until the task ends or is stopped.',
   paidSubagentTaskTitle: 'Approve paid task for {role}?',
   paidSubagentTaskDetail:
     '{objective}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Other enabled paid tools are charged separately. Allow once covers this task only.',
@@ -4521,11 +5140,20 @@ export const EN = {
   paidDeny: 'Deny',
   paidUseWebSearchTitle: 'Let Muse search the web for this prompt?',
   paidSearchQuote: 'Provider: {provider} · Model: {model}.',
+  paidQuoteChoicesUnreadable:
+    'Saved "always" choices could not be read ({kind}), so this use asks again.',
+  paidAlwaysNotKept:
+    '"Always" for {feature} applied this time, but it could not be saved ({kind}): you will be asked again.',
+  // `{kind}` above and in `paidQuoteChoicesUnreadable` is one of these
+  // closed words, never an errno or an error name.
+  paidStoreReasonDenied: 'permission was refused',
+  paidStoreReasonDiskFull: 'the disk is full or read-only',
+  paidStoreReasonUnknown: 'the cause is unknown',
   paidUseWebSearchDetail:
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',
   paidUseVoiceDetail:
-    'Muse Voice transcribes this recording, billed to your Model API key at {price}. Deny leaves the microphone off.',
+    'Muse Voice is a Meta service and bills your Meta Model API key at {price}, regardless of the conversation model. Recordings stop at three minutes. Allow once covers one recording; Always covers this workspace until revoked. Duration and estimated cost are shown; the provider’s bill cannot be read back. Deny leaves the microphone off.',
   paidWebSearchPrice: '{price} per 1,000 searches',
   paidImagePrice: '{price} per image',
   paidVoicePrice: '{price} per hour of audio',
@@ -4537,7 +5165,7 @@ export const EN = {
   paidConfirmImage:
     'The model may create image files in the workspace, or edit workspace images into new ones. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode, unless you allow images always in this workspace. Used on the Model API backend, and on the Muse Code backend while a key is stored (never billed to the subscription).',
   paidConfirmVoice:
-    'The microphone will send what you record to Meta’s Muse Voice Transcribe instead of your computer’s own recogniser, billed to your Model API key at {price}. Each recording asks first, unless you allow Muse Voice always in this workspace. Used on the Model API backend, and on the Muse Code backend while a key is stored.',
+    'Muse Voice sends recordings to Meta, billed to your Model API key at {price}, on either backend. Recordings stop at three minutes and reserve the daily budget before connecting. A set conversation cap refuses microphone recordings; attached audio is transcribed only when its bounded cost still fits the cap. Allow once covers one recording; Always covers this workspace until revoked. The provider’s bill cannot be read back.',
   paidConfirmScheduled:
     'A due scheduled prompt waits for you to run it. Each run asks before any Model API call, unless you allow scheduled runs always in this workspace. {price}. Billed to your Model API key; total varies with tokens used.',
   paidConfirmSubagents:
@@ -4587,16 +5215,20 @@ export const EN = {
   // language's money format.
   paidTabName: 'Tab Completions',
   paidConfirmTab:
-    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model, capped by a daily budget you can change in settings. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
+    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model. You can set a daily budget in settings; with none set, Tab spending is uncapped. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
   paidUseTabTitle: 'Let Tab suggest in this window?',
   paidUseTabDetail:
     'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. Today’s budget is {budget}; Tab stops for the day if it is reached. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  paidUseTabDetailNoBudget:
+    'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. No daily budget is set, so Tab keeps suggesting until you turn it off or snooze it. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
   tabTrainingContributor:
     'The contributor model is cheaper, and Meta trains on the code it is sent.',
   // The status bar item while the feature is on; {spend} is today's spend.
   tabStatusSpend: 'Tab {spend}',
   tabStatusTooltip:
     'Tab completions ({model}). {requests} today, {spend} of the {budget} daily budget.',
+  tabStatusTooltipNoBudget:
+    'Tab completions ({model}). {requests} today, {spend} spent, with no daily budget set.',
   // Each state D73 names; {left} is the snooze's remaining time.
   tabStatusSnoozed: 'Tab snoozed ({left} left)',
   tabStatusBudget: 'Tab daily budget reached',
@@ -4636,6 +5268,8 @@ export const EN = {
   usagePaidTabCostToday: 'Today: {cost}',
   usagePaidTabCostWindow: 'This window: {cost}',
   usagePaidTabBudget: 'Daily budget: {budget}',
+  usagePaidTabBudgetNone: 'No daily budget',
+  usagePaidTabBudgetUnknown: 'Daily budget: not known yet',
   // The prompt and agent hook handlers on the Model API (M91, PLAN.md D70):
   // a paid use under D30 and D48, tallied on their own line.
   paidHookModelName: 'Model Hooks',
@@ -4703,9 +5337,9 @@ export const EN = {
   bestOfNTakenMark: 'Took {branch}',
   bestOfNDiffClipped: 'Diff clipped.',
   bestOfNInvalidPrompt: 'Describe what the attempts should do.',
-  bestOfNInvalidRequest: 'That best-of-N run is outside the attempt or ceiling bounds.',
-  bestOfNInvalidAttempts: 'Attempts must be between {min} and {max}.',
-  bestOfNInvalidCeiling: 'Requests per attempt must be between {min} and {max}.',
+  bestOfNInvalidRequest: 'That best-of-N run needs at least 1 attempt and 1 request per attempt.',
+  bestOfNInvalidAttempts: 'Attempts must be 1 or more.',
+  bestOfNInvalidCeiling: 'Requests per attempt must be 1 or more.',
   bestOfNNeedsTrust:
     'Best-of-N needs a trusted workspace: worktrees run git, which Restricted Mode forbids.',
   bestOfNModelApiOnly:
@@ -4772,8 +5406,6 @@ export const EN = {
   subagentConsentDeclined: 'The paid child task was not approved.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. Approve a new child task to continue.',
   subagentModelChanged: 'The model changed after approval. Approve a new child task to continue.',
@@ -4799,8 +5431,19 @@ export const EN = {
   dictationPaidTitle:
     'Muse Voice, paid: {price}, billed to your Model API key. Tap or hold to record (Ctrl+D)',
   // Why Muse Voice cannot record or transcribe.
-  museVoiceNoKey: 'Muse Voice needs a Model API key; sign in with one first.',
+  museVoiceNoKey:
+    'Muse Voice needs a Meta Model API key; add one even when your conversation uses another provider or a local model.',
   museVoiceNoAnswer: 'Muse Voice did not answer; check the connection and try again.',
+  museVoiceIdle:
+    'Muse Voice closed the recording because audio stopped arriving at real-time pace.',
+  museVoiceTransportFailed: 'The Muse Voice connection failed; the recording stopped.',
+  museVoiceInvalidDuration: 'Muse Voice reported an invalid audio duration; the recording stopped.',
+  museVoiceUsageReported:
+    'Muse Voice: {duration}, estimated {cost} from the reported duration. The provider’s bill cannot be read back.',
+  museVoiceUsageEstimated:
+    'Muse Voice: {duration}, estimated {cost} from audio sent. No final duration arrived; the full reservation remains uncertain. The provider’s bill cannot be read back.',
+  museVoiceUsageEmpty:
+    'Muse Voice: {duration}, estimated {cost}. No audio was sent; no audio charge is expected. The provider’s bill cannot be read back.',
   museVoiceNoFinal: 'Muse Voice did not send the transcript in time; try again.',
   museVoiceMalformed: 'Muse Voice sent something that is not JSON, so the recording was dropped.',
   museVoiceRefused: 'Muse Voice refused the recording',
@@ -4809,6 +5452,20 @@ export const EN = {
   museVoiceClosed: 'Muse Voice closed the connection (code {code})',
   museVoiceNoWebSocket:
     'Muse Voice needs WebSocket support in VS Code’s extension host, which this version does not have.',
+  // M56 (PLAN.md D43): a proxy is set, but this editor's version does
+  // not route the voice connection through it (before VS Code 1.112).
+  // On 1.112 and later the refusal names the setting left off instead
+  // (the two keys below).
+  museVoiceNoProxy:
+    'Muse Voice cannot use the configured proxy on this version of VS Code; behind a proxy it needs VS Code 1.112 or later.',
+  // A proxy is set and the editor could route the voice connection, but
+  // the person's http.proxySupport setting is "off".
+  museVoiceProxySupportOff:
+    'Muse Voice cannot use the configured proxy while the http.proxySupport setting is "off". Set http.proxySupport to "on" so the voice connection goes through the proxy.',
+  // A proxy is set and http.proxySupport allows it, but the person's
+  // http.webSocketAdditionalSupport setting is off.
+  museVoiceProxyWebSocketOff:
+    'Muse Voice cannot use the configured proxy while the http.webSocketAdditionalSupport setting is off. Turn http.webSocketAdditionalSupport on so the voice connection goes through the proxy.',
   museVoiceNoRecorder:
     'Muse Voice on Linux records with arecord (ALSA) or parec (PulseAudio); neither was found on PATH.',
   // M56 (PLAN.md D43): why a Model API request never reached Meta; the
@@ -4937,6 +5594,22 @@ export const EN = {
   },
   // {location}: a file and line, such as src/a.ts:12.
   reviewOpenFinding: 'Open {location}',
+  // D203: /playback. The agent states its own understanding of the goal and
+  // instructions from its working memory, with no tools for the turn.
+  playbackItem: '/playback',
+  playbackDetail: 'Muse states its own understanding of the goal, from memory only, with no tools',
+  playbackUsage: '/playback takes no arguments: send it bare.',
+  // Why a playback did not start, on its card.
+  playbackBusy: 'A playback starts once the current turn has ended.',
+  playbackOutputSchemaRefused:
+    'A playback cannot use structured output: its reply must open with the marker line, which a JSON schema cannot hold.',
+  // No backend no-tools turn (Muse Code): refused instead of sent as an
+  // ordinary turn a reactive stop might reach too late.
+  playbackNeedsModelApi:
+    'A playback needs the Model API backend: Muse Code offers no turn without tools, so no playback can start there.',
+  // The playback's turn text loads with the review's module (dist/review.js), which could not be loaded.
+  playbackUnavailable:
+    'The playback could not be loaded, so no playback can start; reinstall the extension and reload the window. The log has the details.',
   // M78 (PLAN.md D49): command rules, permission profiles and the Auto
   // reviewer on the Model API backend. Why a card asks beyond the mode:
   approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',
@@ -5009,8 +5682,6 @@ export const EN = {
     '{setting}: rule {index} ({pattern}) is an allow rule, and a repository’s rules can only tighten, so it is not applied.',
   commandRuleAllowsEvaluator:
     '{setting}: allow rule {index} ({pattern}) would allow a command that runs text as code, so it is not applied.',
-  commandRulesTooMany:
-    '{setting}: {detail} rules is more than are read; rule {index} and those after it are not applied.',
   permissionProfileUnknown:
     '{setting}: no permission profile is named “{name}”. Until one is, every shell command asks and file tools refuse every file.',
   permissionProfileInvalid:
@@ -5090,6 +5761,10 @@ export const EN = {
   modelsPanelUnavailable: 'Models & Agents is not available in this build.',
   providersSectionTitle: 'Providers',
   modelsSectionTitle: 'Models',
+  // The Models & Agents section nav paints before the vault surface loads,
+  // so its title is startup English like the other section titles; the
+  // vault group's own title stays with the deferred surface.
+  vaultSectionTitle: 'Vault',
   providerSearchPlaceholder: 'Search providers…',
   modelsSearchPlaceholder: 'Search models…',
   // The provider dropdown's filter chips.
@@ -5118,6 +5793,18 @@ export const EN = {
   // {detail}: what the provider answered, in its words.
   providerTestFailed: 'Test failed: {detail}',
   scanFailed: 'Scan failed: {detail}',
+  localContextWindow: 'Context window (tokens)',
+  localContextWindowHint:
+    'Enter the context window loaded on the local server. Manual values override scanned limits.',
+  localContextWindowInvalid: 'Enter a positive whole number of tokens.',
+  // {build}: the server build the llama.cpp quirks were captured against.
+  llamacppScanMissingWindow:
+    'The llama.cpp model list reports no live context window (captured build {build}).',
+  // {model}: a local model saved without its server's reported window.
+  localModelWindowUnknown:
+    'Model {model} has no known context window. Enter its loaded window in the provider wizard, Models panel or providers add --context-window.',
+  // {id}: the provider saved without its key.
+  providerNeedsKey: 'Provider {id} needs a key.',
   // The wizard's first step; the quick pick runs the same flow.
   wizardPickProvider: 'Pick a Provider',
   providerFields: {
@@ -5157,8 +5844,6 @@ export const EN = {
   // The OAuth loopback's callback page, shown in the browser.
   oauthCallbackDone: 'You can close this window and return to VS Code.',
   providerKeyPrompt: '{provider} API Key',
-  // {provider}: the preset's name. Said under the password box while typing.
-  providerKeyInvalid: 'This does not look like a {provider} key.',
   // {origin}: the address the credential is sent to, and no other.
   keyStoredNote: 'Stored in your system keychain; sent only to {origin}.',
   changeKey: 'Change Key',
@@ -5181,8 +5866,22 @@ export const EN = {
   providerImportPreviewTitle: 'Import Preview',
   importNeedsKey: 'needs a key',
   importNeedsKeyLabel: 'Needs a Key',
+  providerConnectReplaceKey:
+    'An OpenRouter key is already stored. Replace it? Type yes to continue.',
+  providerCreatedKeyDiscarded:
+    'OpenRouter created a key labelled {label}. It was not kept here. Remove it at {url}.',
+  providerConnectFailed: 'OpenRouter connection failed. Try connecting again.',
+  providerConnectBusy: 'Another provider change is in progress. Try again when it finishes.',
+  providerConnectRecoveredStored:
+    'A previous OpenRouter connection already stored its key. It is kept.',
+  providerConnectStoredNewKey:
+    'The new OpenRouter key is stored. The previous key could not be restored.',
+  providerUsageFailed: 'OpenRouter key usage could not be read. Try again.',
+  providerPasteCode: 'Paste the authorization code shown by OpenRouter.',
+  usageKeyTotal: 'Total Usage',
+  usageUnlimited: 'No Limit',
   providerOpenRouterServices:
-    'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
+    'Connect your OpenRouter account and view the key’s usage, limit and remaining balance.',
   refreshModels: 'Refresh Models',
   scanNewModels: forms({
     one: '{count} new model since the last scan',
@@ -5212,6 +5911,9 @@ export const EN = {
   modelUnpriced: 'Unpriced',
   modelLocal: 'Local',
   modelPlan: 'Plan',
+  // A contributor-tier model's mark in the picker (F62): Meta may train on
+  // what it is sent, for the lower price.
+  pickerContributorTier: 'Contributor',
   modelFree: 'Free',
   modelColumns: {
     name: 'Model',
@@ -5247,8 +5949,6 @@ export const EN = {
   sessionBudgetScopeGlobal: 'this computer',
   wizardSessionBudgetInvalid:
     'Enter a non-negative amount in dollars, for example 2 (0 means no limit).',
-  // {detail}: why the setting write failed, in the settings' own words.
-  sessionBudgetWriteFailed: 'The spending limit was not saved: {detail}',
   // {detail}: why the limit could not change after provider persistence succeeded.
   sessionBudgetPartialSave: 'Provider saved; the spending limit was not changed: {detail}',
   // {amount}: the concurrent current limit; {requested}: the user's retained edit.
@@ -5294,15 +5994,23 @@ export const EN = {
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
   acpChatGpt: {
-    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]',
     actions: {
       add: 'Continue With ChatGPT',
+      // A new registration for another ChatGPT account (`providers add chatgpt --new-account`).
+      'add-new-account': 'Use a Different ChatGPT Account',
       remove: 'Remove ChatGPT Sign-In',
       status: 'Check ChatGPT Sign-In',
     },
     notice:
       'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
     alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    // The browser signed in to another account than the saved registration's.
+    accountMismatch:
+      'This is not the ChatGPT account this app registered here. Sign in with that account, or choose “Use a Different ChatGPT Account”.',
+    // OpenAI answered invalid_client for the saved registration.
+    clientRefused:
+      'OpenAI no longer accepts this app’s saved ChatGPT registration. Remove ChatGPT if it is added, then choose “Use a Different ChatGPT Account”.',
     states: {
       'signed-in': 'ChatGPT is signed in.',
       expired:
@@ -5311,9 +6019,104 @@ export const EN = {
     },
     callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
     failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    // Each sign-in, refresh or catalogue failure says its own cause; none is general.
+    discoveryInvalid:
+      'OpenAI’s sign-in configuration at auth.openai.com was not in the documented form. Try again later.',
+    callbackInvalid: 'The browser’s answer did not match this ChatGPT sign-in. Try again.',
+    callbackTimeout:
+      'No answer from the browser reached this app in time, so the ChatGPT sign-in stopped. Try again.',
+    stateMismatch:
+      'The browser’s answer belonged to a different ChatGPT sign-in attempt. Try again.',
+    tokenAnswerInvalid:
+      'OpenAI’s token answer for this ChatGPT sign-in was not in the documented form. Try again.',
+    idTokenInvalid:
+      'OpenAI’s identity token for this ChatGPT sign-in could not be verified. Try again.',
+    missingPlanScope:
+      'This ChatGPT sign-in does not allow plan use: OpenAI did not grant chatgpt.tokens.use.direct. Remove ChatGPT, sign in again and allow plan use.',
+    originMismatch:
+      'This app refused to send the ChatGPT sign-in anywhere but https://api.openai.com.',
+    // {reason}: OpenAI's own refresh error code, such as invalid_grant.
+    signInRefused:
+      'OpenAI no longer accepts this ChatGPT sign-in ({reason}). Remove ChatGPT and sign in again.',
+    grantUnreadable:
+      'The ChatGPT sign-in stored on this computer could not be read. Remove ChatGPT and sign in again.',
+    registrationUnreadable:
+      'This app’s saved ChatGPT registration could not be read. Choose “Use a Different ChatGPT Account” to register again.',
+    // {reason}: where the host identifier is kept (a credential-store entry or a file name).
+    hostIdUnreadable:
+      'The ChatGPT host identifier stored on this computer ({reason}) could not be read, so no ChatGPT sign-in can start. Delete it to start over.',
+    // {reason}: the HTTP status and OpenAI's own error code.
+    catalogueRefused: 'OpenAI refused the ChatGPT plan’s model list ({reason}).',
+    catalogueUnreadable:
+      'OpenAI’s model list for this ChatGPT plan was not in the documented form.',
+    catalogueEmpty: 'OpenAI lists no model this ChatGPT plan can use in this app.',
+    addedModelsUnlisted:
+      'None of the ChatGPT models added here is in the plan’s current model list. Remove ChatGPT and add it again to choose from the current list.',
+    // {model}: the model reference asked for, as written.
+    modelNotAdded:
+      '{model} is not among the plan models added here. Choose one from the plan’s list.',
+    // {reason}: the HTTP status, or Node's own network codes.
+    requestFailed: 'A request to OpenAI failed ({reason}). Try again.',
     storeUnavailable:
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+    // {reason}: the operating system's own code for the failure.
+    lockUnavailable: 'The local sign-in lock could not be opened ({reason}). Try again.',
+    // {reason}: OpenAI's own error code for refusing the authorize request.
+    authorizeRefused:
+      'OpenAI refused the ChatGPT sign-in request ({reason}). Try again or remove it and sign in again.',
+    // Another window or process kept the sign-in lock past the wait.
+    lockBusy:
+      'Another window or process is signing in to ChatGPT or refreshing the sign-in. Wait for it to finish and try again.',
+    // The person or the editor ended the wait.
+    cancelled: 'The ChatGPT sign-in was cancelled before it finished.',
+    // Said when the editor or terminal could not show the sign-in address.
+    browserUnavailable:
+      'The sign-in address could not be opened in a browser. Open it yourself, or try again from a desktop session.',
+    // {reason}: the operating system's code, or this app's own word, for the local failure.
+    localFailed: 'A local step of the ChatGPT sign-in failed ({reason}). Try again.',
+    // {reason}: why the providers file could not be read: unparseable or invalid.
+    providersFileUnreadable:
+      'The providers file could not be read ({reason}). Fix or remove it, then try again.',
+    // {reason}: why the providers file could not be saved: invalid or io-error.
+    providersFileUnwritable:
+      'The providers file could not be saved ({reason}). Check that its folder is writable, then try again.',
   },
+  // D207: each sign-in failure below says its own cause; the general line
+  // stays for the callers the merges kept.
+  // GitHub sign-in outside VS Code (M123 lane A, PLAN.md D104): the device
+  // flow's code, shown by the CLI, the ACP notice and the panel alike.
+  githubSignIn: {
+    usage: 'Usage: muse-spark-code-acp auth github login|logout|status',
+    // {url}: GitHub's https://github.com/login/device; {code}: the user code.
+    code: 'To sign in to GitHub, open {url} and enter the code {code}. Waiting for GitHub; press Ctrl+C to cancel.',
+    // {store}: where the token is kept (the credential store's name).
+    signedIn: 'Signed in to GitHub. The token is kept in {store}.',
+    notSignedIn:
+      'Not signed in to GitHub. Run muse-spark-code-acp auth github login to sign in with GitHub’s device flow.',
+    // {url}: the app's page on github.com, where the grant is revoked.
+    signedOut:
+      'Signed out of GitHub: the token was deleted from this computer. To revoke the app’s access as well, open {url} and choose Revoke.',
+    cancelled: 'GitHub sign-in was cancelled.',
+    failures: {
+      clientIdUnset: 'This build has no GitHub app client id, so GitHub sign-in is unavailable.',
+      verificationAddress:
+        'GitHub’s reply named a sign-in address other than github.com/login/device, so it was refused.',
+      userCode: 'GitHub’s reply held a code that cannot be shown safely, so it was refused.',
+      expired: 'The code expired before it was entered. Sign in again.',
+      denied: 'The sign-in was denied on GitHub.',
+      disabled: 'GitHub has the device flow turned off for this app.',
+      incorrectClient: 'GitHub did not recognize this app’s client id.',
+      incorrectDeviceCode: 'GitHub did not recognize the sign-in code. Sign in again.',
+      unsupportedGrant: 'GitHub refused the sign-in request.',
+      refreshRefused: 'GitHub refused to renew the sign-in. Sign in again.',
+      network: 'GitHub could not be reached. Check the connection and try again.',
+      reply: 'GitHub’s reply could not be read.',
+    },
+  },
+  execProviderNotCatalogue: 'This model is not in this build’s catalogue: {model}.',
+  providerCliModelsRequired: 'Use --model <id> (repeat for more models). Available: {models}.',
+  providerCliConfigure:
+    'Check these flags: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.',
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {
@@ -5322,7 +6125,6 @@ export const EN = {
       pick: 'Pick a provider first.',
       address: 'Enter the server address.',
       credential: 'Enter the key or connect the account first.',
-      keyShape: 'The key is not shaped like this provider’s keys.',
       test: 'Test the connection first.',
       models: 'Tick at least one model.',
       validate: 'Validate the server address first.',
@@ -5330,7 +6132,6 @@ export const EN = {
       private: 'Confirm access to this private network first.',
       pickStep: 'Pick a provider from its own step.',
       keyStep: 'Enter the key at its own step.',
-      badKey: 'That key is not shaped like this provider’s keys.',
       oauthStep: 'Connect the account at its own step.',
       costStep: 'Accept the test cost at its own step.',
       testStep: 'Run the test at its own step.',
@@ -5377,10 +6178,9 @@ export const EN = {
       custom: 'Any Chat Completions, Responses or Messages server',
     },
     hints: {
-      prefix: 'Key beginning with {prefix}… ({site})',
       site: 'The key from {site}',
       azure: 'The resource key from the Azure portal',
-      router: 'Key beginning with {prefix}… ({site}) or Connect OpenRouter account',
+      router: 'The key from {site} or Connect OpenRouter account',
       custom: 'The key the server expects',
     },
     privacy: {
@@ -5806,6 +6606,8 @@ export const EN = {
   legalConfidenceLabel: 'Confidence: {confidence}',
   legalScanItem: '/legal',
   legalCommandUsage: 'Usage: /legal [workspace-relative path …]. Options are not supported.',
+  legalScanReceiptHelp:
+    'Local licence scan; optional licence-review.json receipts bind a reviewed SPDX licence to its package, exact version and SHA-256, with a reason. Changed bytes or versions require review again.',
   legalScanItemDetail: 'Scan the workspace for licensing, attribution and header findings',
   legalScanBusy: 'A legal scan starts once the current turn has ended.',
   legalScanUntrusted:
@@ -5977,10 +6779,6 @@ export const EN = {
     m112: 'scan stopped at limit: elapsed time',
     m113: 'not checked: {v0} cannot be read as text',
     m114: 'scan stopped at limit: {v0} exceeds the bounded text read budget',
-    m115: forms({
-      one: 'not checked: the scan stopped after reading {count} file; {v1} more not read',
-      other: 'not checked: the scan stopped after reading {count} files; {v1} more not read',
-    }),
     m116: forms({
       one: 'not checked: dependency evidence bound reached; {count} entry omitted',
       other: 'not checked: dependency evidence bound reached; {count} entries omitted',
@@ -5994,11 +6792,7 @@ export const EN = {
     }),
     m120: 'Supply bundle inputs or package inventory evidence so shipped obligations are exact.',
     m121: 'scan stopped at limit: report truncated for {v0}',
-    m122: forms({
-      one: 'report truncated: {count} finding omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-      other:
-        'report truncated: {count} findings omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-    }),
+
     m123: forms({
       one: 'report truncated: {count} generated exclusions omitted past the bound',
       other: 'report truncated: {count} generated exclusions omitted past the bound',
@@ -6020,7 +6814,6 @@ export const EN = {
     m138: 'not checked: {v0} is a link or escaped directory',
     m139: 'scan stopped at limit: directory-entry budget reached; remaining tree not enumerated',
     m140: 'not checked: {v0} changed during enumeration',
-    m141: 'not checked: {v0} is repository internals',
     m142: 'not checked: {v0} is a link',
     m143: 'not checked: {v0} is a special file',
     m144: 'not checked: {v0} could not be admitted',
@@ -6091,11 +6884,6 @@ export const EN = {
     m171: 'not checked: {v0} has unreadable npm lock metadata',
     m172: 'not checked: {v0} uses an unsupported npm lock version',
     m173: 'not checked: {v0} exceeds the npm nested lock depth bound',
-    m174: forms({
-      one: 'not checked: {count} npm lock entry in {v1} carry no license metadata and no installed package data covers them',
-      other:
-        'not checked: {count} npm lock entries in {v1} carry no license metadata and no installed package data covers them',
-    }),
     m175: 'not checked: {v0} has no readable Yarn package entries',
     m176: forms({
       one: 'not checked: {v0} records versions but no license metadata for {count} packages; installed package data would close the gap',
@@ -6148,6 +6936,29 @@ export const EN = {
         'not checked: {count} Python requirements have no resolved version; their transitive licenses are unknown',
     }),
     m196: 'not checked: no Python manifests, locks or distribution metadata found',
+    m198: 'not checked: {v0} declares a malformed license expression ({v1}); its terms need human review',
+    m199: 'not checked: license text for {v0} at {v1} differs from its canonical wording',
+    m200: '{v0} differs from the SPDX {v1} template at “{v2}”, where the template continues “{v3}”; its modified terms need human review',
+    m201: '{v0} differs from the SPDX {v1} template: “{v2}” is not part of it; its modified terms need human review',
+    m202: 'not checked: bundle {v0} lists {v1}, which lies outside the workspace and cannot be verified',
+    m203: 'not checked: build records disagree about the content of {v0}',
+    m204: 'not checked: bundle {v0} output {v1} is missing or differs from its build record',
+    m205: 'not checked: pinned SPDX template data failed verification ({v0}); exact license-text matching is off for it',
+    m206: 'not checked: bundle {v0} input {v1} has no build-captured hash or no longer matches it',
+    m207: forms({
+      one: '{count} dependency that does not ship has a licence text that differs from its SPDX template or is unrecognized ({v0}); it is not distributed, so it does not limit this scan',
+      other:
+        '{count} dependencies that do not ship have licence texts that differ from their SPDX templates or are unrecognized ({v0}); they are not distributed, so they do not limit this scan',
+    }),
+    m208: 'If one of these dependencies starts to ship, review its licence text.',
+    m209: forms({
+      one: '{count} more advice finding for {v0} is not listed; nothing else was left out',
+      other: '{count} more advice findings for {v0} are not listed; nothing else was left out',
+    }),
+    m210: 'Scan a smaller set of paths to list them.',
+    reviewedReceipt: 'Reviewed by receipt: {reason}',
+    receiptRenew: 'A new version or changed licence bytes need a new review and receipt.',
+    invalidReceipt: 'not checked: {file} is not a valid licence-review receipt file',
     unknown: 'unknown',
     unresolved: 'unresolved',
     noLicense: 'no license',
@@ -6182,6 +6993,12 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    unavailableReason: 'Accounts are unavailable ({reason}).',
+    changed: 'Accounts changed while updating. Try again.',
+    notReady: 'Accounts are not ready yet. Try again.',
+    invalidReply: 'The account service answered with an unexpected reply.',
+    noticeFailed: 'The account notice could not be shown ({reason}).',
+    revokeUnsupported: 'Removing this sign-in is not supported in this runtime.',
     providersInvalid:
       'The providers file is invalid, so its entries were refused and the file was left unchanged.',
     poolUnavailable:
@@ -6312,11 +7129,67 @@ export const EN = {
     commandUsage:
       'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
   },
+  // M124 (D106): the connector's Help & Reference rows.
+  mcpConnectorTitle: 'MCP connector for other agents',
+  referenceMcpCommand:
+    'Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.',
+  // M124 (D106): the MCP connector’s approval page and its `mcp` terminal commands
+  // (the runtime region, dist/uiTextRuntime.js: activation never reads them).
+  acpConnector: {
+    title: 'Approve connector requests',
+    intro:
+      'Another agent asked Muse Spark Code to do the following. Nothing happens until you approve it here; that agent’s own Allow, Auto or Bypass settings cannot approve it.',
+    loading: 'Loading requests…',
+    empty: 'No requests are waiting.',
+    failed: 'The request list could not be loaded.',
+    retry: 'Retry',
+    approve: 'Approve once',
+    deny: 'Deny',
+    approved: 'Approved.',
+    denied: 'Denied.',
+    decisionFailed: 'That request changed or expired. Nothing was done.',
+    client: 'Client (as it names itself)',
+    connection: 'Connection',
+    workspace: 'Workspace',
+    operation: 'Operation',
+    generation: 'Target generation',
+    price: 'Price',
+    free: 'Free',
+    expires: 'Expires',
+    fieldTitle: 'Title',
+    fieldScope: 'Scope',
+    fieldTags: 'Tags',
+    fieldBody: 'Text',
+    grantConfirm: 'Grant connection {connection}: {summary}? (y/N)',
+    grantSaved: 'Connection {connection} is granted. Its workspaces: {workspaces}',
+    grantNeedsTerminal:
+      'Run this in your own terminal: a grant needs you to type the confirmation.',
+    grantInvalid: 'The grant could not be made: {reason}',
+    notConfirmed: 'Nothing was changed.',
+    revoked: 'Connection {connection} is revoked.',
+    killOn: 'The connector is switched off. New effects are refused; Stop still works.',
+    killOff: 'The connector is switched on again.',
+    statusOn: 'Connector: on',
+    statusOff: 'Connector: switched off',
+    statusGrant: 'Connection {connection}{revoked}: {scopes}',
+    statusRevoked: ' (revoked)',
+    statusWorkspace: '  {id}: {root}{content}',
+    statusContent: ' (content)',
+    noGrants: 'No connection grants yet.',
+    unavailable: 'The connector could not start.',
+    usage:
+      'muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status',
+  },
   // M109: read each key through UI_TEXT.vault at use time.
   vault: {
     title: 'Vault',
     locked: 'Locked',
     unlocked: 'Unlocked',
+    // RVCM1091D P2: every vault state has its own true heading, so no state
+    // falls through to 'Locked'.
+    stateUncreated: 'Not set up',
+    stateSetupPending: 'Setup pending',
+    stateUnavailable: 'Unavailable',
     empty: 'No vault items yet.',
     add: 'Add to Vault',
     edit: 'Edit Item',
@@ -6330,6 +7203,7 @@ export const EN = {
     manage: 'Manage in Vault',
     requirePresence: 'Require Presence for Each Use',
     unattended: 'Unattended Allowed',
+    silentUnlock: 'Silent Unlock',
     hidden: 'Hidden From Agents',
     firstParty: 'First-Party Only',
     askEveryTime: 'Ask Every Time',
@@ -6344,8 +7218,57 @@ export const EN = {
     password: 'Password',
     seed: 'One-Time Code Seed',
     roles: 'Roles',
+    // RVCM1091D P3: grant-form hints are code vocabularies (field names and
+    // keywords the form parses back), so they stay English in every table via
+    // l10n/untranslated.json; the label words beside them stay translated.
+    rolesHint: 'any / orchestrator / subagent / headless / role:name / hook:name / mcp:name',
     workspaces: 'Workspaces',
+    workspacesHint: 'any',
     target: 'Target',
+    // The Add/Edit flow asks where a secret may be used through a picker
+    // first; the JSON box stays for the uses the picker cannot express.
+    // Retry reasons name the field in fixed words and never repeat an answer.
+    targetNone: 'Nowhere yet — the vault holds it and nothing may use it',
+    targetSsh: 'One SSH computer — its name, user and host key',
+    targetSshAny: 'Any SSH computer — the user name',
+    targetSshSign: 'Git commit signing — the key fingerprint',
+    targetGit: 'Git over HTTPS — the host and repository path',
+    targetOrigin: 'A website — its address',
+    targetCustom: 'Something else — type it as JSON',
+    targetKeep: 'Keep the current targets',
+    targetAddAnother: 'Add another use',
+    targetDone: 'Done',
+    targetHostName: 'Host name',
+    targetPath: 'Repository path',
+    targetKeyFingerprint: 'Key fingerprint, starting with SHA256:',
+    targetHelp:
+      'Where this secret may be used. Empty, as [ ], means nowhere yet: the vault holds it and nothing may use it. Type a JSON list with one entry per use. One SSH computer: {"kind":"ssh","host":"ssh.example.com","remoteUser":"deploy","hostKeyFingerprint":"SHA256:Ex4mpleHostKeyFingerprintOnlyNotARealKey012","forwarding":false}. Any SSH computer: {"kind":"sshAnyHost","remoteUser":"deploy","forwarding":false}. Git commit signing: {"kind":"sshSign","keyFingerprint":"SHA256:Ex4mpleHostKeyFingerprintOnlyNotARealKey012","namespace":"git"}. Git over HTTPS: {"kind":"git","protocol":"https","host":"git.example.com","path":"team/repo"}. A website: {"kind":"origin","origin":"https://app.example.com"}. An app login: {"kind":"oauth","origin":"https://app.example.com","issuer":"https://login.example.com","resource":"https://app.example.com/api"}. Show it to yourself: {"kind":"disclosure","recipient":"person"}.',
+    targetNotJson: 'That did not parse as JSON. Type a JSON list.',
+    targetFieldIssue: 'The {field} entry is missing or not valid.',
+    targetListInvalid: 'That is not a list of uses. Type a JSON list.',
+    fieldMissing: 'That answer is empty. Try again.',
+    fieldInvalid: 'That answer is not valid. Try again.',
+    // An expiry takes two shapes only (src/shared/vaultExpiry.ts): a day, the
+    // start of that day in the person's time, or a day and a time. The shapes
+    // are formats, not words: every table keeps YYYY-MM-DD and
+    // YYYY-MM-DDTHH:MM as they are.
+    expiresPrompt:
+      'Expires: a date as YYYY-MM-DD (the start of that day, your time), or a date and time as YYYY-MM-DDTHH:MM.',
+    expiresNone: 'Leave it empty for no expiry.',
+    expiresInvalid: 'That date is not valid. Type it as YYYY-MM-DD or YYYY-MM-DDTHH:MM.',
+    expiresPassed: 'That date has already passed.',
+    nameInvalid:
+      'Names start with a lowercase letter and use only lowercase letters, numbers and dashes.',
+    labelInvalid: 'Type a label using its own words on one line.',
+    originInvalid:
+      'That address is not valid. Type the full address starting with http:// or https://.',
+    originHttpsInvalid:
+      'That address is not valid. Type the full website address starting with https://.',
+    originsInvalid:
+      'One address is not valid. Type website addresses separated by commas, each starting with https://.',
+    issuerInvalid:
+      'That issuer is not valid. Type the https:// address of the service that issued this login.',
+    resourceInvalid: 'That resource is not valid. Type the https:// address this login is for.',
     command: 'Command',
     cwd: 'Working Folder',
     environmentNames: 'Environment Variable Names',
@@ -6353,7 +7276,10 @@ export const EN = {
     expires: 'Expires',
     timeWindow: 'Time Window',
     days: 'Days',
+    daysHint: '0–6',
     hours: 'Hours',
+    startHourHint: 'startHour',
+    endHourHint: 'endHour',
     remoteUser: 'Remote User',
     hostKey: 'Host Key',
     origin: 'Origin',
@@ -6361,6 +7287,7 @@ export const EN = {
     requester: 'Requester',
     outcome: 'Outcome',
     tier: 'Protection Tier',
+    provider: 'Provider',
     publicKey: 'Public Key',
     fingerprint: 'Fingerprint',
     signInYourself: 'Sign In Yourself',
@@ -6374,6 +7301,9 @@ export const EN = {
     apiKey: 'API Key',
     oauth: 'OAuth Tokens',
     sshKey: 'SSH Key',
+    generateSshKey: 'Generate New Key',
+    importSshKeyFile: 'Import Key File',
+    sshKeyPassphrase: 'Key file passphrase (empty for none)',
     webLogin: 'Web Login',
     totp: 'One-Time Code',
     session: 'Session Cookies',
@@ -6392,8 +7322,14 @@ export const EN = {
     rollback: 'This vault is older than its recorded generation. Restore a current backup.',
     basicText:
       'The basic_text backend provides no secure encryption and cannot protect a vault slot.',
+    brokerDisabled:
+      'The credential vault is switched off in this build pending integration checks. First-party keys still work; agent uses are refused.',
     brokerBlocked:
       'The broker cannot start. First-party keys still work; agent uses are refused. Repair the broker installation.',
+    // The person switched the vault off in settings (museSpark.vault.enabled,
+    // or the legacy museSpark.vault boolean): commands refuse with this.
+    switchedOff:
+      'The credential vault is switched off in settings. Turn museSpark.vault.enabled on to use it.',
     noUnattended:
       '{item} needs an unattended grant for {use}. Add one in the vault or run interactively.',
     nopasswd:
@@ -6408,6 +7344,56 @@ export const EN = {
       'Passkeys stay with your authenticator. Sign in yourself; the vault stores session cookies only.',
     recoveryWarning:
       'Keep the recovery code somewhere safe. It is shown only once and unlocks the vault.',
+    // C-M109-1: the setup flow and the CLI (lead decision 8).
+    setUp: 'Set Up Vault',
+    savedIt: 'I Saved It',
+    copyCode: 'Copy',
+    cancelSetup: 'Cancel Setup',
+    setupNeeded: 'Set up the vault before you store a secret in it.',
+    setupExists: 'A vault already exists for this user.',
+    // RVCM1091D P2: an item or path collision is not a setup failure.
+    itemConflict:
+      'An item with the same name is already in the vault, or the source changed during the import. Nothing was added.',
+    // RVCM1091E P2: a Delete refused because the source changed after a
+    // successful import is not told that nothing was added.
+    deleteConflict:
+      'The original file changed after its credentials were imported. Nothing was deleted; the imported items stay in the vault.',
+    setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
+    setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
+    setupHeadless:
+      'Vault setup and recovery need an interactive terminal; headless runs cannot do them.',
+    recoveryShownOnce: 'Recovery code (shown only now): {code}',
+    savedItPrompt: 'Have you saved the recovery code somewhere safe?',
+    writerRecoveryWarning:
+      '{holder} If another program is still writing this vault, resetting or restoring it will lose that program’s changes. Continue only with explicit confirmation.',
+    busy: 'The vault is busy in another window. Try again.',
+    busyHolder:
+      'The vault is held by process {pid} since {since}. Try again after that process exits.',
+    busyOtherMachine:
+      'The vault is held on another machine by process {pid} since {since}. Its death cannot be established here.',
+    ownerUnknown:
+      'The vault cannot acquire a writer because this process’s exact operating-system birth could not be established. Try again.',
+    unreadable: 'The writer lock is unreadable and will not clear. Reset the vault to start again.',
+    filesystemUnsupported:
+      'This folder’s filesystem cannot publish vault updates: hard links are not supported here. Move the vault to a filesystem that supports them and try again.',
+    // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
+    importedLabel: 'Imported {source} credential {number}',
+    importedSummary: 'Imported into the vault: {names}',
+    importKeepOrDelete:
+      'Keep the original file, or delete it now that its credentials are in the vault?',
+    resetVault: 'Reset Vault',
+    resetHeadless:
+      'Resetting the vault needs an interactive terminal; headless runs cannot reset it.',
+    resetContinue: 'Continue',
+    resetWarning:
+      'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again.',
+    resetTypeWord: 'Type {word} to reset the vault.',
+    resetDone: 'The vault was reset. Set it up again to store secrets.',
+    vaultLost:
+      'The vault cannot be opened because files are missing or damaged, or writer ownership cannot be established. Review Reset to start again.',
+    // RVCM1091B 4: the OS store's fixed repair, never native text.
+    storeUnavailable:
+      'The operating system’s credential store is not available. On macOS, unlock the login Keychain; on Windows, sign in interactively; for the terminal agent on Linux, sign in to a desktop session with an unlocked keyring (the Secret Service). In VS Code on Linux, this build has no Secret Service component, so the vault there can use only a TPM your account can reach (usually by joining the tss group). Then try again.',
     remoteWarning:
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',
@@ -6416,6 +7402,9 @@ export const EN = {
       'Protected by your operating system’s credential store. Programs running as you may unlock it too.',
     unknownTierWarning:
       'The protection tier is unknown because the vault is locked. Unlock to see how it is protected.',
+    // RVCM1091D P2: an open vault with no observed slot names no protection
+    // and never asks for an unlock.
+    tierUnknown: 'The protection tier is unknown.',
     hardwareWarning:
       'Protected by this device’s hardware. It unlocks silently, so programs running as you can unlock it too.',
     presenceTierWarning:
@@ -6442,6 +7431,12 @@ export const EN = {
     presence: 'User Presence',
     osStore: 'OS Credential Store',
     secretStorage: 'Editor Secret Storage',
+    windowsTpm: 'Windows TPM',
+    secureEnclave: 'Secure Enclave',
+    linuxTpm2: 'Linux TPM',
+    windowsDpapi: 'Windows DPAPI',
+    loginKeychain: 'Login Keychain',
+    secretService: 'Secret Service',
     passphrase: 'Passphrase Protection',
     recovery: 'Recovery Protection',
     autoProtection: 'Automatic Protection',
@@ -6451,7 +7446,34 @@ export const EN = {
     seUnavailable: 'Secure Enclave protection is unavailable. Use a passphrase for presence.',
     passphraseWarning:
       'A passphrase is required to unlock. It protects a copied disk and prevents silent unlock by programs running as you.',
-    operationFailed: 'The vault operation failed. Unlock the vault and try again.',
+    // RVCM1091E P3: never names an unlock; the section showing Unlocked
+    // after a failed operation would otherwise be told to unlock it.
+    operationFailed: 'The vault operation failed. Try again.',
+    // RVCM1091F REDESIGN: the person's own Retry after a transient failure
+    // spent the bounded auto-retries.
+    retry: 'Retry',
+    // RVCM1091G P3: true whether the leftover record was cleared or is
+    // still stuck — the file is gone either way, there is nothing to retry,
+    // and the imported credentials stay in the vault.
+    sourceGone:
+      'The original file is already gone; there is nothing to retry. The imported credentials stay in the vault.',
+    // RVCM1091G P2: a Delete whose source cannot be read (permissions). The
+    // import record is kept and nothing is deleted.
+    sourceUnreadable:
+      'The original file could not be read. Check its permissions and try again; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P3-1: the source's location is not available (a drive
+    // down or away). Never "gone": the import record is kept and nothing
+    // is deleted.
+    sourceUnavailable:
+      'The original file’s location is not available. Try again later; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P2-2: imports whose receipt was kept or orphaned,
+    // finishable here with Keep or Delete.
+    pendingImports: 'Unfinished imports',
+    // RVAPP-CM1091D5 P2-2: the terminal lists the same finishable receipts.
+    noPendingImports: 'No unfinished imports.',
+    // RVCM1091G P3: the kept view shown while a bounded auto-retry is
+    // scheduled or in flight.
+    retrying: 'Retrying the last request. The view shown may be stale.',
     invalidFields: 'Check the grant fields and its target.',
     grantHelp:
       'Every scope below limits this grant. Empty count, expiry or time window means no limit.',
@@ -6472,6 +7494,7 @@ export const EN = {
     sessionScope: 'Session',
     taskScope: 'Task',
     ceiling: 'Access Ceiling',
+    ceilingHint: 'none / ask / secret://',
     enabledDescription: 'Enable the per-user credential vault shared by editors.',
     protectionDescription:
       'Choose vault key protection. Automatic uses available hardware plus the operating system store.',

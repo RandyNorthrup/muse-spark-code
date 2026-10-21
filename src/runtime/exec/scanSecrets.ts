@@ -5,9 +5,7 @@ import {
   EXEC_SCAN_EXIT_FOUND,
   EXEC_SCAN_MAX_BYTES,
   EXEC_STOP_GRACE_MS,
-  UI_TEXT,
 } from '../../shared/constants'
-import { plural } from '../../shared/l10n/text'
 import type { FdWriter } from './fdWriter'
 import { readKeyLine } from './keyInput'
 
@@ -33,7 +31,8 @@ export async function runSecretScan(input: {
     if (input.out.isClosed) return EXEC_EXIT.usage
     const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
     const count = countSecretMatches(text, held.key === undefined ? [] : [held.key])
-    input.out.write(`${plural(UI_TEXT.execScanMatches, count)}\n`)
+    // The usage line promises only the number on stdout: scripts read it.
+    input.out.write(`${String(count)}\n`)
     if (!(await input.out.flush(EXEC_STOP_GRACE_MS)) || input.signal.aborted) return EXEC_EXIT.usage
     return count === 0 ? EXEC_EXIT.ok : EXEC_SCAN_EXIT_FOUND
   } catch {

@@ -25,19 +25,21 @@ import {
 import {
   AGENT_SOURCES,
   EFFORT_LEVELS,
+  MILLISECONDS_PER_DAY,
   PERMISSION_MODES,
   STORED_SESSION_VERSION,
+  TOOL_RESULT_SPILL_MAX_AGE_DAYS,
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
 import type { TeamCommandRecord } from '../../team/teamTools'
-import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
   reasoningItemSchema,
+  restoredToolText,
   webSearchActionSchema,
 } from './schemas'
 
@@ -92,10 +94,10 @@ export interface StoredChild {
 }
 
 /**
- * A completed child's result not yet in a request, with the file policy's
- * revision its child ran under (M78). Plain text is a result saved before
- * revisions were: it is withheld.
- */
+A completed child's result not yet in a request, with the file policy's
+revision its child ran under (M78). Plain text is a result saved before
+revisions were: it is withheld.
+*/
 export type StoredPendingChildResult =
   string | { readonly childId: string; readonly text: string; readonly policyRevision?: string }
 
@@ -109,20 +111,20 @@ export interface StoredSession {
   readonly fileRefs?: readonly UploadedMediaRef[]
   readonly sideChat?: boolean
   /**
-   * Built from an imported session-export file (M84, PLAN.md D49), or forked
-   * from one: its history is untrusted, so it starts asking whenever it is
-   * opened.
-   */
+  Built from an imported session-export file (M84, PLAN.md D49), or forked
+  from one: its history is untrusted, so it starts asking whenever it is
+  opened.
+  */
   readonly imported?: true
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: ApprovalMode
   readonly effort: string
   /**
-   * A custom agent's narrowed run (M76): present on a child spawned with an
-   * agent, so a resume or fork keeps its prompt, tools and ceiling. Absent
-   * on parents, plain children, and sessions saved before M76's review.
-   */
+  A custom agent's narrowed run (M76): present on a child spawned with an
+  agent, so a resume or fork keeps its prompt, tools and ceiling. Absent
+  on parents, plain children, and sessions saved before M76's review.
+  */
   readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
@@ -142,15 +144,25 @@ export interface StoredSession {
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
-  /** Dollars the session's own requests spent (M82); absent when none. */
+  /** The conversation's running total (M82, D208): what its calls reported, saved after each; absent when none. */
   readonly budgetSpentUsd?: UsdAmount
-  /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
-  readonly budgetIsFreshFork?: true
   /**
-   * Observation packing's ledger (M73): the estimated tokens packed sends
-   * left out. Absent where the session never packed, and in a file saved
-   * before the ledger was kept, which resumes at zero.
-   */
+  The spend total counts settled spend only (D208): the file was written
+  reservation-free, so a resume adopts its total whole. Absent on files
+  saved before the legacy migration, whose totals may hold an open
+  reservation the store rebuilds from settled claims on load.
+  */
+  readonly spendSettledOnly?: true
+  /**
+  Calls that went out and reported no usage: their cost is unknown and
+  not in `budgetSpentUsd`. Absent where the session had none.
+  */
+  readonly unknownChargeCalls?: number
+  /**
+  Observation packing's ledger (M73): the estimated tokens packed sends
+  left out. Absent where the session never packed, and in a file saved
+  before the ledger was kept, which resumes at zero.
+  */
   readonly packedTokensAvoided?: number
   readonly hookTokensAdded?: number
   /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
@@ -161,10 +173,10 @@ export interface StoredSession {
   readonly pendingChildResults?: readonly StoredPendingChildResult[]
   readonly spawnCommands?: Readonly<Record<string, string>>
   /**
-   * M96 lane T: the conversation's declared delegation family, decided at
-   * its first request and kept on resume. Absent on conversations saved
-   * before teams, which keep their single-model declared set.
-   */
+  M96 lane T: the conversation's declared delegation family, decided at
+  its first request and kept on resume. Absent on conversations saved
+  before teams, which keep their single-model declared set.
+  */
   readonly teamMode?: 'single-model' | 'team'
   /** M96 lane T: the roster's stable part as the first request sent it, never rewritten. */
   readonly teamRoster?: string
@@ -173,10 +185,10 @@ export interface StoredSession {
 }
 
 /**
- * What the history list needs of a stored session, without its conversation
- * (PLAN.md D26): a window keeps these in memory and loads a session whole
- * only when it is resumed, forked or read.
- */
+What the history list needs of a stored session, without its conversation
+(PLAN.md D26): a window keeps these in memory and loads a session whole
+only when it is resumed, forked or read.
+*/
 export interface StoredSessionHeader {
   readonly sessionId: string
   readonly accountId?: string
@@ -192,8 +204,6 @@ export interface StoredSessionHeader {
 
 /** Where sessions live between windows; the host supplies the files. */
 export interface SessionStore {
-  /** Shared request liabilities and spend; required for a finite cap. */
-  readonly budget?: SessionBudgetJournal
   /** Every readable session's header; a corrupt file is skipped (and logged), never fatal. */
   list(): Promise<readonly StoredSessionHeader[]>
   /** One session in full; undefined when it is gone or no longer reads. */
@@ -353,7 +363,12 @@ const storedSessionFields = {
   // Optional, so a session saved before M82 still reads; never below zero,
   // which would give the cap room it does not have.
   budgetSpentUsd: z.optional(legacyUsdSchema),
-  budgetIsFreshFork: z.optional(z.literal(true)),
+  // Optional, so a file saved before the D208 legacy migration still
+  // reads; only new snapshots carry it.
+  spendSettledOnly: z.optional(z.literal(true)),
+  // Optional, so a file saved before unknown calls were counted still
+  // reads; absent means none.
+  unknownChargeCalls: z.optional(z.int().check(z.nonnegative())),
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
@@ -421,10 +436,10 @@ export type StoredSessionParse =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * A missing or corrupt packed-token estimate restarts at zero without losing
- * the conversation (M73). zod's `catch` would do this too, but it keeps
- * zod's `navigator` probe in the host bundles (scripts/check-host-globals.mjs).
- */
+A missing or corrupt packed-token estimate restarts at zero without losing
+the conversation (M73). zod's `catch` would do this too, but it keeps
+zod's `navigator` probe in the host bundles (scripts/check-host-globals.mjs).
+*/
 function withoutCorruptEstimate(raw: unknown): unknown {
   if (typeof raw !== 'object' || raw === null || !('packedTokensAvoided' in raw)) {
     return raw
@@ -435,6 +450,71 @@ function withoutCorruptEstimate(raw: unknown): unknown {
   }
   const { packedTokensAvoided: _dropped, ...rest } = raw
   return rest
+}
+
+/** One spill path segment: safe on every platform, bounded in length. */
+const SPILL_NAME_MAX = 80
+
+function spillSafePart(part: string): string {
+  return part.replaceAll(/[^A-Za-z0-9_-]/g, '_').slice(0, SPILL_NAME_MAX) || 'output'
+}
+
+/** `TOOL_RESULT_SPILL_DIR`-relative spill path; safe on every platform. */
+export function spillName(sessionId: string, callId: string): string {
+  return `${spillSafePart(sessionId)}-${spillSafePart(callId)}.txt`
+}
+
+/**
+TOOLCAP: one session's spill file-name prefix. A session's spills are
+exactly the `.txt` files under this prefix in `TOOL_RESULT_SPILL_DIR`, so
+deleting the session can remove them.
+*/
+export function spillPrefix(sessionId: string): string {
+  return `${spillSafePart(sessionId)}-`
+}
+
+/**
+TOOLCAP: whether a directory entry is shaped like a spill file
+(`<safe>-<safe>.txt`). The age sweep removes only these; anything else a
+person put in the spill directory is left alone.
+*/
+const SPILL_FILE_PATTERN = /^[A-Za-z0-9_-]{1,80}-[A-Za-z0-9_-]{1,80}\.txt$/
+
+export function isSpillFile(name: string): boolean {
+  return SPILL_FILE_PATTERN.test(name)
+}
+
+/**
+TOOLCAP: a spill file's age rule. Past TOOL_RESULT_SPILL_MAX_AGE_DAYS it is
+pruned, whatever session it belonged to. An unreadable clock is kept: only
+a known age deletes anything.
+*/
+export function isSpillStale(mtimeMs: number, nowMs: number): boolean {
+  return (
+    Number.isFinite(mtimeMs) &&
+    Number.isFinite(nowMs) &&
+    nowMs - mtimeMs >= TOOL_RESULT_SPILL_MAX_AGE_DAYS * MILLISECONDS_PER_DAY
+  )
+}
+
+/**
+TOOLCAP: one parsed replay item re-entering the live session. Stored tool
+text takes the restore brand (see the call site for why); every other item
+already matches the live shape.
+*/
+function restoreReplayItem(item: z.infer<typeof storedInputItemSchema>): InputItem {
+  switch (item.type) {
+    case 'function_call_output': {
+      if (typeof item.output === 'string') {
+        const output = restoredToolText(item.output)
+        return { type: 'function_call_output', call_id: item.call_id, output }
+      }
+      return { type: 'function_call_output', call_id: item.call_id, output: [...item.output] }
+    }
+    default: {
+      return item
+    }
+  }
 }
 
 /** Validates one parsed JSON document. */
@@ -461,7 +541,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     teamRoster,
     teamCommands,
     budgetSpentUsd,
-    budgetIsFreshFork,
+    spendSettledOnly,
+    unknownChargeCalls,
     agent,
     packedTokensAvoided,
     hookTokensAdded,
@@ -469,8 +550,13 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     promptDate,
     ...rest
   } = result.data
+  // TOOLCAP: stored tool text re-enters the live session through the
+  // restore brand, which keeps the stored bytes byte-identical; text stored
+  // before the bound still meets it through send-time recovery (PLAN.md §8:
+  // TOOLCAP brand).
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, media, ...entry }) => ({
     ...entry,
+    item: restoreReplayItem(entry.item),
     ...(userMessageId !== undefined && { userMessageId }),
     ...(backgroundTaskId !== undefined && { backgroundTaskId }),
     ...(media !== undefined && { media }),
@@ -510,7 +596,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(compactedThroughTurnId !== undefined && { compactedThroughTurnId }),
       ...(goal !== undefined && { goal }),
       ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
-      ...(budgetIsFreshFork === true && { budgetIsFreshFork }),
+      ...(spendSettledOnly === true && { spendSettledOnly: true }),
+      ...(unknownChargeCalls !== undefined && { unknownChargeCalls }),
       ...(sideChat === true && { sideChat: true }),
       ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),

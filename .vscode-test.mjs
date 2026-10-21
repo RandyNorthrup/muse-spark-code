@@ -33,4 +33,6 @@ function run(label, version) {
   return { ...shared, label, version, launchArgs }
 }
 
-export default defineConfig([run('stable', 'stable'), run('minimum', minimumVsCodeVersion())])
+const config = defineConfig([run('stable', 'stable'), run('minimum', minimumVsCodeVersion())])
+
+export default config

@@ -10,6 +10,7 @@
 
 import * as z from 'zod/mini'
 import type { McpTool } from '../../core/mcp'
+import type { UnattendedRun } from '../../core/schedules/unattended'
 import {
   UI_TEXT,
   IDE_LEGAL_SCAN_TOOL,
@@ -28,6 +29,11 @@ export interface IdeLegalScanDeps {
   readonly isOffered: () => boolean
   /** The scan; a throw reaches the model as a tool error. */
   readonly runScan: LegalScanRunner
+  readonly runUnattendedScan?: (
+    input: Parameters<LegalScanRunner>[0],
+    signal: AbortSignal,
+    run: UnattendedRun,
+  ) => ReturnType<LegalScanRunner>
   readonly log: Logger
 }
 
@@ -104,6 +110,17 @@ export function ideLegalScanTools(deps: IdeLegalScanDeps): readonly McpTool[] {
       },
       annotations: MCP_ANNOTATIONS_READ_ONLY,
       call: async (args, signal) => await callLegalScan(args, signal, deps),
+      ...(deps.runUnattendedScan !== undefined && {
+        callUnattended: async (args, signal, run) =>
+          await callLegalScan(args, signal, {
+            ...deps,
+            runScan: (input, active) => {
+              if (deps.runUnattendedScan === undefined)
+                throw new Error(run.modelText.requiresAskingRefused)
+              return deps.runUnattendedScan(input, active, run)
+            },
+          }),
+      }),
     },
   ]
 }

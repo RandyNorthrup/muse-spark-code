@@ -1,4 +1,9 @@
 // Slow the verified program's exec only in this fixture, after grants and descriptor closure.
+// nanosleep and struct timespec need feature exposure under strict C11 (gcc 15
+// promotes the implicit declaration to an error under -Werror), the same
+// _GNU_SOURCE the confined program itself defines.
+#define _GNU_SOURCE
+#include <time.h>
 #define main confine_main
 #define execve delayed_execve
 #include "../../../native/confine/MuseSparkConfine.c"

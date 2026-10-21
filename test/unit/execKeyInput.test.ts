@@ -1,7 +1,15 @@
 import { PassThrough, Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { memorySecretStore, readKeyLine, readPromptStdin } from '../../src/runtime/exec/keyInput'
+import {
+  memorySecretStore,
+  providerKeyFailureText,
+  readKeyLine,
+  readPromptStdin,
+  readProviderKeyLine,
+} from '../../src/runtime/exec/keyInput'
+import { isNonTextStdin, readSecretLine } from '../../src/runtime/hiddenInput'
 import { SECRET_KEYS } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 
 const KEY = `LLM_${'k'.repeat(20)}`
 const signal = () => new AbortController().signal
@@ -82,6 +90,19 @@ describe('M80 key/stdin (A11)', () => {
     input.destroy(new Error('broken'))
     await expect(pending).rejects.toThrow('broken')
   })
+  it('refuses malformed bytes inside a key-shaped line', async () => {
+    // A replacement character is non-whitespace, so the LLM|<id>|<secret>
+    // shape would accept it: malformed input must fail before validation.
+    const shaped = Buffer.concat([
+      Buffer.from('LLM|123|abc'),
+      Buffer.from([0xff]),
+      Buffer.from('\n'),
+    ])
+    expect(await readKeyLine(Readable.from([shaped]), signal())).toEqual({
+      ok: false,
+      reason: 'invalid',
+    })
+  })
   it('reads complete bounded UTF-8 prompts and rejects empty, oversize or malformed input', async () => {
     const bytes = Buffer.from('é\nhi')
     expect(
@@ -102,5 +123,63 @@ describe('M80 key/stdin (A11)', () => {
     const second = memorySecretStore(KEY)
     await second.delete(SECRET_KEYS.modelApiKey)
     expect(await second.get(SECRET_KEYS.modelApiKey)).toBeUndefined()
+  })
+})
+
+describe('provider key stdin failure sentences (KEYTEXT)', () => {
+  it('answers each failed read with a sentence that is true for its cause', () => {
+    expect(providerKeyFailureText('empty')).toBe(EN.providerKeyNotStored)
+    expect(providerKeyFailureText('tooLong')).toBe(EN.execKeyTooLong)
+    expect(providerKeyFailureText('tty')).toBe(EN.execKeyStdinTerminal)
+    expect(providerKeyFailureText('invalid')).toBe(EN.providerKeyNotText)
+  })
+
+  it('never answers non-text input with "no key was entered"', async () => {
+    const read = await readProviderKeyLine(Readable.from([Buffer.from([0xff, 0xfe])]), signal())
+    expect(read).toEqual({ ok: false, reason: 'invalid' })
+    if (read.ok) throw new Error('expected the non-text read to fail')
+    expect(providerKeyFailureText(read.reason)).toBe(EN.providerKeyNotText)
+    expect(providerKeyFailureText(read.reason)).not.toBe(EN.providerKeyNotStored)
+  })
+
+  it('pins the not-text sentence', () => {
+    expect(EN.providerKeyNotText).toBe(
+      'That input is not text (it is not valid UTF-8), so it was not used.',
+    )
+  })
+
+  it('refuses piped bytes that are not text, naming them as not text', async () => {
+    const input = new PassThrough()
+    const refused = readSecretLine('Key: ', input, new PassThrough())
+    input.end(Buffer.from([0xff, 0xfe]))
+    let failure: unknown
+    try {
+      await refused
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(isNonTextStdin(failure)).toBe(true)
+    expect(failure instanceof Error && failure.message).toBe(EN.providerKeyNotText)
+  })
+
+  it('still takes the first line of a text pipe', async () => {
+    const input = new PassThrough()
+    const line = readSecretLine('Key: ', input, new PassThrough())
+    input.end('pipe-key\nignored\n')
+    await expect(line).resolves.toBe('pipe-key')
+  })
+
+  it('reads a valid first line even when later bytes are not text', async () => {
+    const input = new PassThrough()
+    const line = readSecretLine('Key: ', input, new PassThrough())
+    input.end(Buffer.concat([Buffer.from('pipe-key\n', 'utf8'), Buffer.from([0xff, 0xfe])]))
+    await expect(line).resolves.toBe('pipe-key')
+  })
+
+  it('still refuses a first line that is not text', async () => {
+    const input = new PassThrough()
+    const refused = readSecretLine('Key: ', input, new PassThrough())
+    input.end(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('\npipe-key', 'utf8')]))
+    await expect(refused).rejects.toSatisfy(isNonTextStdin)
   })
 })

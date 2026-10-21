@@ -71,10 +71,10 @@ function gitScopeOf(
 }
 
 /**
- * The review a prompt asks for, or undefined for any other text. Text too
- * long for custom instructions is still a review request; the host is never
- * sent more than the schema allows, so the caller checks it.
- */
+The review a prompt asks for, or undefined for any other text. Text too
+long for custom instructions is still a review request; the host is never
+sent more than the schema allows, so the caller checks it.
+*/
 export function parseReviewPrompt(text: string): ReviewRequest | undefined {
   const match = PROMPT.exec(text.trim())
   if (match === null) {

@@ -1,7 +1,17 @@
 import path from 'node:path'
 import { build } from 'esbuild'
 import { compactBrowserEnglish } from '../../../scripts/lib/uiTextRegions.mjs'
-import { sharedUiText, sharedValidation } from '../../../scripts/lib/deferredBundles.mjs'
+import {
+  sharedModelApiBoundaries,
+  sharedUiText,
+  sharedValidation,
+  sharedWire,
+  deferredCohort,
+  sharedResourceAdmission,
+  sharedVaultStore,
+  sharedVaultPosix,
+  sharedVaultWindows,
+} from '../../../scripts/lib/deferredBundles.mjs'
 
 /** W uses these same entries/options in the joined build; existing entry budgets are unchanged. */
 export async function buildVaultSurfaces(outdir, hasHarness = false) {
@@ -9,7 +19,12 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
     entryPoints: {
       main: 'src/webview/main.tsx',
       models: 'src/webview/models/sections/vault/VaultSurface.tsx',
-      ...(hasHarness && { vaultHarness: 'test/harness/vault/main.tsx' }),
+      ...(hasHarness && {
+        vaultHarness: 'test/harness/vault/main.tsx',
+        // C-M109-1 P1's mounted scenes ride their own entry, so the U
+        // guard build (without the harness) stays byte-identical.
+        mounted: 'test/harness/vault/mounted.tsx',
+      }),
     },
     outdir,
     bundle: true,
@@ -36,8 +51,53 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
     format: 'cjs',
     target: 'node20.18',
     external: ['vscode'],
-    plugins: [sharedUiText, sharedValidation],
+    plugins: [
+      sharedUiText,
+      sharedValidation,
+      sharedWire,
+      sharedModelApiBoundaries,
+      deferredCohort,
+      sharedResourceAdmission,
+      sharedVaultStore,
+      sharedVaultPosix,
+      sharedVaultWindows,
+    ],
     logLevel: 'silent',
   })
-  return { browser: browser.metafile, host: host.metafile }
+  // RVAPP-CM1091D5 BYTES: the explicit-action code loads on the first action
+  // that needs it, never when the panel opens.
+  const actions = await build({
+    entryPoints: ['src/host/vault/vaultActionsEntry.ts'],
+    outfile: path.join(outdir, 'vaultActions.js'),
+    bundle: true,
+    minify: true,
+    metafile: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    external: ['vscode'],
+    plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+    logLevel: 'silent',
+  })
+  // The key-store migration's own chunk loads on the first unlock edge,
+  // never with the panel or at activation.
+  const migration = await build({
+    entryPoints: ['src/host/vault/vaultMigrationEntry.ts'],
+    outfile: path.join(outdir, 'vaultMigration.js'),
+    bundle: true,
+    minify: true,
+    metafile: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    external: ['vscode'],
+    plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+    logLevel: 'silent',
+  })
+  return {
+    browser: browser.metafile,
+    host: host.metafile,
+    actions: actions.metafile,
+    migration: migration.metafile,
+  }
 }

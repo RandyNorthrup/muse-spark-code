@@ -15,7 +15,6 @@
 
 import { Buffer } from 'node:buffer'
 import {
-  MAX_ENCODED_MEDIA_CHARS,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_TEXT,
   MODEL_API_PDF_PAGE_IMAGES,
@@ -49,6 +48,37 @@ function pdfWeight(part: InputFilePart): number {
 
 type OmissionReason = 'support' | 'mime' | 'limit' | 'budget'
 
+/**
+Fresh media must fit whole: required parts above the resolved record's
+image count or PDF page cap are refused here, before the protection in
+`fit` exempts them from the record-driven replay checks. Only the caps
+the record states are enforced; support, MIME and byte caps stay the
+attach path's job, and a record without caps (or no record) refuses
+nothing.
+*/
+function assertRequiredFitsRecord(
+  required: readonly InputContentPart[],
+  record: ModelCapabilityRecord,
+): void {
+  const image = record.modalities.image
+  if (image.state === 'yes' && image.value.maxCount !== undefined) {
+    let count = 0
+    for (const part of required) if (part.type === 'input_image') count += 1
+    if (count > image.value.maxCount) throw new Error(UI_TEXT.modelAttachmentOverLimit)
+  }
+  const pdf = record.modalities.pdf
+  if (pdf.state === 'yes' && pdf.value.maxPages !== undefined) {
+    for (const part of required) {
+      // A provider-held file replays by id with no bytes to weigh.
+      if (part.type !== 'input_file' || !('file_data' in part)) continue
+      const payload = part.file_data.slice(part.file_data.indexOf(DATA_URL_SEPARATOR) + 1)
+      const pages = pdfPageCount(Buffer.from(payload, 'base64'))
+      if (pages === undefined || pages > pdf.value.maxPages)
+        throw new Error(UI_TEXT.modelAttachmentOverLimit)
+    }
+  }
+}
+
 function leftOut(part: InputContentPart, reason: OmissionReason) {
   const reasons = {
     support: MODEL_API_MODEL_TEXT.mediaSupportRefused,
@@ -57,10 +87,15 @@ function leftOut(part: InputContentPart, reason: OmissionReason) {
   }
   let text: string
   if (reason === 'budget') {
-    text =
-      part.type === 'input_file'
-        ? fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
-        : MODEL_API_MODEL_TEXT.imageLeftOut
+    // A provider-held reference names no bytes: the current request's own
+    // projected parts are protected from elision, so this is defensive.
+    if (part.type === 'input_file' && 'filename' in part) {
+      text = fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
+    } else if (part.type === 'input_image') {
+      text = MODEL_API_MODEL_TEXT.imageLeftOut
+    } else {
+      text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons.limit })
+    }
   } else {
     text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
   }
@@ -70,27 +105,8 @@ function leftOut(part: InputContentPart, reason: OmissionReason) {
 export class MediaBudget {
   /** Each PDF part's weight, learned once (from the attachment, or its bytes). */
   private readonly weights = new WeakMap<InputContentPart, number>()
-  private readonly mediaChars = new WeakMap<InputContentPart, number>()
   private readonly mediaOmissions = new WeakMap<InputContentPart, string>()
   private wasOmitted = false
-
-  public constructor(private readonly maxEncodedMediaChars: number = MAX_ENCODED_MEDIA_CHARS) {}
-
-  private encodedChars(part: InputContentPart): number {
-    const known = this.mediaChars.get(part)
-    if (known !== undefined) return known
-    switch (part.type) {
-      case 'input_image': {
-        return part.image_url.length
-      }
-      case 'input_file': {
-        return part.file_data.length
-      }
-      default: {
-        return 0
-      }
-    }
-  }
 
   private weightOf(part: InputContentPart): number {
     const known = this.weights.get(part)
@@ -101,6 +117,9 @@ export class MediaBudget {
     if (part.type !== 'input_file') {
       return 0
     }
+    // A provider-held file still fills a media slot; its page weight arrives
+    // with the replay's note. Unnoted, one slot errs toward leaving it out.
+    if (!('file_data' in part)) return 1
     const weight = pdfWeight(part)
     this.weights.set(part, weight)
     return weight
@@ -120,73 +139,82 @@ export class MediaBudget {
   }
 
   /** Uploaded media has zero inline characters; video consumes one media slot (U3). */
-  public noteMedia(
-    part: InputContentPart,
-    info: MediaInfo,
-    encodedChars?: number,
-    omission?: string,
-  ): void {
+  public noteMedia(part: InputContentPart, info: MediaInfo, omission?: string): void {
     let weight = info.kind === 'text' ? 0 : 1
     if (info.kind === 'document')
       weight = Math.min(info.pageCount ?? MODEL_API_PDF_PAGE_IMAGES, MODEL_API_PDF_PAGE_IMAGES)
     this.weights.set(part, weight)
-    if (encodedChars !== undefined) this.mediaChars.set(part, encodedChars)
     if (omission !== undefined) this.mediaOmissions.set(part, omission)
   }
 
-  /** Fresh media must fit whole; only older replay can be elided. */
+  /**
+  Fresh media must fit whole in the provider's per-request image budget;
+  only older replay can be elided. The 50-slot budget is Meta's own
+  (MODEL_API_MEDIA_PER_REQUEST): a configured provider answers for its
+  own counts, so its fresh media never meets Meta's number here
+  (RVPROVM95). No aggregate character budget: the record carries none,
+  so the platform refuses what it cannot take.
+  */
   public assertMessageFits(
     content: readonly InputContentPart[],
-    queued?: { readonly chars: number; readonly slots: number },
+    queued?: number | { readonly slots: number },
+    provider?: string,
   ): void {
-    const usage = this.usage(content)
-    if (usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST)
+    const slots =
+      this.slotsUsed(content) + (typeof queued === 'number' ? queued : (queued?.slots ?? 0))
+    if ((provider === undefined || provider === 'meta') && slots > MODEL_API_MEDIA_PER_REQUEST)
       throw new Error(UI_TEXT.documentsOverBudget)
-    if (usage.chars + (queued?.chars ?? 0) > this.maxEncodedMediaChars)
-      throw new Error(UI_TEXT.mediaTotalTooLarge)
   }
 
-  public usage(content: readonly InputContentPart[]): {
-    readonly chars: number
-    readonly slots: number
-  } {
-    return {
-      chars: content.reduce((total, part) => total + this.encodedChars(part), 0),
-      slots: content.reduce((total, part) => total + this.weightOf(part), 0),
-    }
+  /** The provider's per-request image budget the content consumes. */
+  public slotsUsed(content: readonly InputContentPart[]): number {
+    return content.reduce((total, part) => total + this.weightOf(part), 0)
   }
 
   /**
-   * The input with its images and PDFs, newest first, kept while they fit
-   * the budget and named in a line past it. The same array when all fit.
-   * A changed item keeps retained content-part identities so the caller can
-   * tell which pending tool-read media actually reached that request.
-   */
+  The input with its images and PDFs, newest first, kept while they fit
+  the budget and named in a line past it. The same array when all fit.
+  A changed item keeps retained content-part identities so the caller can
+  tell which pending tool-read media actually reached that request.
+  */
   public fit(
     input: readonly InputItem[],
     record?: ModelCapabilityRecord,
     required: readonly InputContentPart[] = [],
+    provider?: string,
   ): readonly InputItem[] {
-    this.assertMessageFits(required)
-    const reserved = this.usage(required)
+    // The send path holds the resolved model's provider identity even
+    // where it holds no capability record: Meta's slot budget must not
+    // meet a configured provider's media on the strength of the missing
+    // record alone (RVPROVM95).
+    const providerId = record?.identity.provider ?? provider
+    this.assertMessageFits(required, undefined, providerId)
+    if (record !== undefined && record.identity.provider !== 'meta')
+      assertRequiredFitsRecord(required, record)
+    const reserved = this.slotsUsed(required)
     const protectedParts = new Set(required)
-    let left = MODEL_API_MEDIA_PER_REQUEST - reserved.slots
+    let left = MODEL_API_MEDIA_PER_REQUEST - reserved
+    // Required parts passed the record's caps above and still consume them:
+    // replay fits into what the protected fresh media leaves.
     let imageCount = 0
-    let encodedLeft = this.maxEncodedMediaChars - reserved.chars
+    if (record !== undefined && record.identity.provider !== 'meta')
+      for (const part of required) if (part.type === 'input_image') imageCount += 1
     const refusal = (part: InputContentPart): OmissionReason | undefined => {
       if (protectedParts.has(part)) return undefined
       const weight = this.weightOf(part)
       if (weight === 0) {
         return undefined
       }
-      const encodedChars = this.encodedChars(part)
       if (record !== undefined && record.identity.provider !== 'meta') {
         const isImage = part.type === 'input_image'
         const policy = isImage ? record.modalities.image : record.modalities.pdf
         if (policy.state !== 'yes') return 'support'
+        // A provider-held reference has no bytes to check: with no readable
+        // payload the limit refusal below stands, as it does for undecodable
+        // data URLs.
         let dataUrl = ''
-        if (part.type === 'input_image') dataUrl = part.image_url
-        else if (part.type === 'input_file') dataUrl = part.file_data
+        if (part.type === 'input_image' && 'image_url' in part) dataUrl = part.image_url
+        else if (part.type === 'input_file' && 'file_data' in part) dataUrl = part.file_data
         const comma = dataUrl.indexOf(DATA_URL_SEPARATOR)
         const bytes = comma === -1 ? undefined : Buffer.from(dataUrl.slice(comma + 1), 'base64')
         if (
@@ -213,16 +241,21 @@ export class MediaBudget {
           )
             return 'limit'
         }
-        if (encodedChars > encodedLeft) return 'budget'
         if (isImage) imageCount++
-        encodedLeft -= encodedChars
         return undefined
       }
-      if (weight > left || encodedChars > encodedLeft) {
+      if (providerId !== undefined && providerId !== 'meta') {
+        // No record, but a configured provider: it answers for its own
+        // counts and sizes, so nothing here elides its replay.
+        return undefined
+      }
+      // The provider's per-request image budget, newest first: older media is
+      // named in a line past it. No aggregate character budget exists in any
+      // record, so none is enforced here.
+      if (weight > left) {
         return 'budget'
       }
       left -= weight
-      encodedLeft -= encodedChars
       return undefined
     }
     const reversedInput = input.toReversed()

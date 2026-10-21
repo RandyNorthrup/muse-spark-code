@@ -45,10 +45,10 @@ function pathApi(platform: NodeJS.Platform): path.PlatformPath {
 }
 
 /**
- * Windows forms whose meaning depends on hidden per-drive state or leaves the
- * filesystem namespace: drive-relative `D:x` / `D:`, drive-less rooted `\x`,
- * UNC `\\server\share` and device `\\?\` / `\\.\` paths. Refused everywhere.
- */
+Windows forms whose meaning depends on hidden per-drive state or leaves the
+filesystem namespace: drive-relative `D:x` / `D:`, drive-less rooted `\x`,
+UNC `\\server\share` and device `\\?\` / `\\.\` paths. Refused everywhere.
+*/
 export function isAmbiguousWindowsPath(candidate: string, platform: NodeJS.Platform): boolean {
   return (
     platform === 'win32' &&
@@ -101,10 +101,10 @@ function isInside(root: string, target: string, p: path.PlatformPath): boolean {
 }
 
 /**
- * The agent's working directory: absolute and inside the workspace root
- * (`options.workspaceRoot`, else the payload's own cwd). Lexical only; lane W
- * realpath-confines links and junctions before spawning anything there.
- */
+The agent's working directory: absolute and inside the workspace root
+(`options.workspaceRoot`, else the payload's own cwd). Lexical only; lane W
+realpath-confines links and junctions before spawning anything there.
+*/
 function containedCwd(candidate: unknown, ctx: TransformContext): TransformResult {
   const checked = checkedPath(candidate, ctx, 'cwd')
   if (!checked.ok) return checked.result
@@ -116,10 +116,10 @@ function containedCwd(candidate: unknown, ctx: TransformContext): TransformResul
 }
 
 /**
- * The hook DEFINITION's working directory (vsc/hooks-reference.md:61 "relative
- * to the repository root"; lane-common round 2 P): relative and confined, as
- * round 2 established. Lane W uses it before spawning; it is not stdin.
- */
+The hook DEFINITION's working directory (vsc/hooks-reference.md:61 "relative
+to the repository root"; lane-common round 2 P): relative and confined, as
+round 2 established. Lane W uses it before spawning; it is not stdin.
+*/
 export function confineHookCwd(
   cwd: string,
   workspaceRoot: string | undefined,

@@ -11,11 +11,7 @@ import {
   withTokensUsed,
 } from '../../src/core/backends/modelapi/goals'
 import type { GoalRecord } from '../../src/core/backends/modelapi/goalRecord'
-import {
-  GOAL_OBJECTIVE_MAX_CHARS,
-  GOAL_PROGRESS_REMINDER_STEPS,
-  MODEL_API_MODEL_TEXT,
-} from '../../src/shared/constants'
+import { GOAL_PROGRESS_REMINDER_STEPS, MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { goalDetails } from '../../src/webview/toolDetails'
 
 const NOW = 1_790_358_439_700
@@ -93,10 +89,12 @@ describe('the goal tools on the Model API backend (M45)', () => {
     expect(run('create_goal', {}, undefined).outcome.failureReason).toBe(
       MODEL_API_MODEL_TEXT.goalEmptyObjective,
     )
-    const long = 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1)
-    expect(run('create_goal', { objective: long }, undefined).outcome.failureReason).toBe(
-      `${MODEL_API_MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`,
-    )
+    // D121: an objective past the removed 4000-character ceiling stands.
+    const long = 'x'.repeat(5000)
+    expect(run('create_goal', { objective: long }, undefined).outcome.failureReason).toBeUndefined()
+    expect(run('create_goal', { objective: long }, undefined).goal).toMatchObject({
+      objective: long,
+    })
     for (const budget of [0, -5, 1.5]) {
       expect(
         run('create_goal', { objective: 'x', token_budget: budget }, undefined).outcome
@@ -221,16 +219,47 @@ describe('the user goal verbs on the Model API backend (M45)', () => {
 
   it('checks a set or edit objective before anything changes', () => {
     expect(goalObjectiveProblem({ verb: 'set', objective: ' ' })).toBe('empty')
-    expect(
-      goalObjectiveProblem({ verb: 'edit', objective: 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
-    ).toBe('tooLong')
+    // D121: objectives of any length stand — only blank refuses.
+    expect(goalObjectiveProblem({ verb: 'edit', objective: 'x'.repeat(5000) })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(2001) })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'set', objective: '👨‍👩‍👧‍👦'.repeat(2001) })).toBeUndefined()
-    expect(
-      goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
-    ).toBe('tooLong')
+    expect(goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(5000) })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'edit', objective: 'fine' })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'pause' })).toBeUndefined()
+  })
+
+  it('refuses an objective the selected model cannot pin, in verbs and tools', () => {
+    // The pinned section (objective plus the rules prose around it) past a
+    // 100-token window refuses; without a recorded window anything stands.
+    const big = 'x'.repeat(5000)
+    expect(goalObjectiveProblem({ verb: 'set', objective: big }, 100)).toBe('tooLarge')
+    expect(goalObjectiveProblem({ verb: 'edit', objective: big }, 100)).toBe('tooLarge')
+    expect(goalObjectiveProblem({ verb: 'set', objective: big })).toBeUndefined()
+    expect(goalObjectiveProblem({ verb: 'set', objective: ' ' }, 100)).toBe('empty')
+    const windowed: GoalContext = { ...context, contextTokens: 100 }
+    const refused = runGoalTool(
+      'create_goal',
+      JSON.stringify({ objective: big }),
+      undefined,
+      windowed,
+    )
+    expect(refused.outcome.failureReason).toBe(MODEL_API_MODEL_TEXT.goalObjectiveTooLarge)
+    expect(refused.goal).toBeUndefined()
+    // A short objective fits a larger window (its pinned section is about
+    // two hundred tokens), and the long one stands where the window is
+    // unknown.
+    const roomy: GoalContext = { ...context, contextTokens: 1000 }
+    const ok = runGoalTool(
+      'create_goal',
+      JSON.stringify({ objective: 'Say hello' }),
+      undefined,
+      roomy,
+    )
+    expect(ok.outcome.failureReason).toBeUndefined()
+    expect(ok.goal).toMatchObject({ objective: 'Say hello' })
+    expect(
+      runGoalTool('create_goal', JSON.stringify({ objective: big }), undefined, context).goal,
+    ).toMatchObject({ objective: big })
   })
 })
 
@@ -284,4 +313,8 @@ describe('the goal loop on the Model API backend (M45)', () => {
       `Progress has not been reported in the last ${String(GOAL_PROGRESS_REMINDER_STEPS)} model calls.`,
     )
   })
+})
+
+it('shows no goal for unparseable details', () => {
+  expect(goalDetails('not json')).toBeUndefined()
 })
