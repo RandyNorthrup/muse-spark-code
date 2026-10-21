@@ -798,6 +798,15 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Security
 
+- A Muse Code conversation is listed under what you typed. Session History,
+  the session board, the restore pickers and the session list another
+  editor reads over ACP showed everything sent with the first message: the
+  notes Muse Spark Code adds for the model, and also a quoted chat passage,
+  a Git draft prompt with its diff, the code you had selected or the
+  contents of an attached file, which any editor connected over ACP could
+  read in that list. Conversations saved before this release are listed
+  under your words too, and one whose first message was only an attachment
+  is listed as "Untitled".
 - Starting Muse Code no longer lets a program planted in the workspace run
   from PATH. Every child environment built for `muse serve` drops PATH
   entries that are relative, empty or inside the workspace, on Windows,
