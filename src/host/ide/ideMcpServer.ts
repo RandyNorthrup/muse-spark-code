@@ -48,6 +48,11 @@ interface IdeCaller {
   readonly lifetime: AbortController
 }
 
+/** One requester binding under a session secret: its own resolve, lifetime and identity. */
+interface SessionCaller extends IdeCaller {
+  readonly secret: string
+}
+
 export class IdeMcpServer {
   private readonly token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
   private server: Server | undefined
@@ -58,7 +63,14 @@ export class IdeMcpServer {
   private starting: Promise<IdeMcpEndpoint> | undefined
   /** The calls being answered, by request id, so a cancellation can stop them (M69). */
   private readonly inFlight = new Map<McpRequestKey, Set<AbortController>>()
-  private readonly callers = new Map<string, IdeCaller>()
+  private readonly callers = new Map<string, Set<SessionCaller>>()
+  /**
+  The secret each session was loaded with in this window: every resume of a
+  session re-presents it, so a re-resume in one `muse serve` life never trips
+  the CLI's MCP conflict check (a fresh secret per resume did, deterministically).
+  Cleared with the callers on close.
+  */
+  private readonly sessionSecrets = new Map<string, string>()
 
   public constructor(
     /** The tools offered now, asked on every request. */
@@ -181,14 +193,71 @@ export class IdeMcpServer {
     }))
   }
 
-  private authenticatedCaller(request: IncomingMessage): IdeCaller | true | undefined {
+  private authenticatedCaller(request: IncomingMessage): SessionCaller | true | undefined {
     const header = request.headers[AUTHORIZATION_HEADER]
     if (typeof header !== 'string' || !header.startsWith(BEARER_PREFIX)) return undefined
     const token = header.slice(BEARER_PREFIX.length)
     if (isSameLoopbackSecret(token, this.token)) return true
-    for (const [secret, caller] of this.callers)
-      if (isSameLoopbackSecret(token, secret)) return caller
+    for (const [secret, entries] of this.callers) {
+      if (!isSameLoopbackSecret(token, secret)) continue
+      // One secret can back several attachers (two surfaces, one session):
+      // the wire names only the secret, so the latest attacher scopes the call.
+      let latest: SessionCaller | undefined
+      for (const entry of entries) latest = entry
+      return latest
+    }
     return undefined
+  }
+
+  /**
+  The same credential, even across a rebind: a session re-attached mid-request
+  registers a new entry under its recorded secret, which must not fail the call
+  the earlier entry authenticated.
+  */
+  private sameCredential(
+    current: SessionCaller | true | undefined,
+    expected: SessionCaller | true,
+  ): boolean {
+    return (
+      current === expected ||
+      (current !== undefined &&
+        current !== true &&
+        expected !== true &&
+        isSameLoopbackSecret(current.secret, expected.secret))
+    )
+  }
+
+  /** Registers one attacher under an existing secret; the caller disposes it. */
+  private bindUnderSecret(
+    secret: string,
+    url: string,
+    resolve: IdeCaller['resolve'],
+  ): {
+    readonly endpoint: IdeMcpEndpoint
+    dispose(): void
+  } {
+    const identity = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
+    const lifetime = new AbortController()
+    const entry: SessionCaller = { identity, resolve, lifetime, secret }
+    const entries = this.callers.get(secret) ?? new Set<SessionCaller>()
+    entries.add(entry)
+    this.callers.set(secret, entries)
+    let isDisposed = false
+    return {
+      endpoint: { url, headers: { Authorization: `${BEARER_PREFIX}${secret}` } },
+      dispose: () => {
+        if (isDisposed) return
+        isDisposed = true
+        lifetime.abort()
+        for (const [key, calls] of this.inFlight)
+          if (typeof key === 'string' && key.startsWith(JSON.stringify([identity]).slice(0, -1)))
+            for (const call of calls) call.abort()
+        const live = this.callers.get(secret)
+        if (live === undefined) return
+        live.delete(entry)
+        if (live.size === 0) this.callers.delete(secret)
+      },
+    }
   }
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -214,7 +283,7 @@ export class IdeMcpServer {
     )
     if (
       lifetime.signal.aborted ||
-      this.authenticatedCaller(request) !== caller ||
+      !this.sameCredential(this.authenticatedCaller(request), caller) ||
       (caller !== true && caller.lifetime.signal.aborted)
     ) {
       response.writeHead(HTTP_STATUS.unauthorized).end()
@@ -298,26 +367,47 @@ export class IdeMcpServer {
     return this.endpoint
   }
 
-  /** Host-minted identity uses captured MSP HTTP headers; no vendor field is guessed. */
-  public async bindCaller(resolve: IdeCaller['resolve']): Promise<{
+  /**
+  Binds a requester. With a session id the endpoint is stable for the session's
+  life in this window: a first bind mints and records the secret, later binds
+  re-present it (re-registered when its entry is gone) so every resume sends
+  the config the serve runtime was loaded with. Without one every bind is fresh,
+  as a session start needs. Host-minted identity uses captured MSP HTTP headers;
+  no vendor field is guessed.
+  */
+  public async bindCaller(
+    resolve: IdeCaller['resolve'],
+    sessionId?: string,
+  ): Promise<{
     readonly endpoint: IdeMcpEndpoint
     dispose(): void
   }> {
     const endpoint = await this.start()
+    const recorded = sessionId === undefined ? undefined : this.sessionSecrets.get(sessionId)
+    if (recorded !== undefined) return this.bindUnderSecret(recorded, endpoint.url, resolve)
     const secret = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
-    const identity = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
-    const lifetime = new AbortController()
-    this.callers.set(secret, { identity, resolve, lifetime })
-    return {
-      endpoint: { url: endpoint.url, headers: { Authorization: `${BEARER_PREFIX}${secret}` } },
-      dispose: () => {
-        this.callers.delete(secret)
-        lifetime.abort()
-        for (const [key, calls] of this.inFlight)
-          if (typeof key === 'string' && key.startsWith(JSON.stringify([identity]).slice(0, -1)))
-            for (const call of calls) call.abort()
-      },
+    if (sessionId !== undefined) this.sessionSecrets.set(sessionId, secret)
+    return this.bindUnderSecret(secret, endpoint.url, resolve)
+  }
+
+  /**
+  Records the secret a session was started with (the start knows its session id
+  only after the bind): a later resume re-presents it instead of minting fresh.
+  Unknown or server-token endpoints are ignored.
+  */
+  public noteSessionSecret(sessionId: string, endpoint: IdeMcpEndpoint): void {
+    const header = endpoint.headers['Authorization'] ?? endpoint.headers['authorization']
+    if (typeof header !== 'string' || !header.startsWith(BEARER_PREFIX)) return
+    const secret = header.slice(BEARER_PREFIX.length)
+    if (
+      secret.length === 0 ||
+      isSameLoopbackSecret(secret, this.token) ||
+      !this.callers.has(secret) ||
+      this.sessionSecrets.has(sessionId)
+    ) {
+      return
     }
+    this.sessionSecrets.set(sessionId, secret)
   }
 
   /**
@@ -340,8 +430,10 @@ export class IdeMcpServer {
     this.server?.close()
     this.server = undefined
     this.endpoint = undefined
-    for (const caller of this.callers.values()) caller.lifetime.abort()
+    for (const entries of this.callers.values())
+      for (const caller of entries) caller.lifetime.abort()
     this.callers.clear()
+    this.sessionSecrets.clear()
     for (const calls of this.inFlight.values()) for (const call of calls) call.abort()
   }
 }

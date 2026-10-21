@@ -4067,6 +4067,14 @@ async function activateWindow(
           bindSession: (session, options) => {
             const caller = scheduleIdeOptions.get(options)
             if (caller !== undefined) caller.agent = session
+            // The start learns its session id only now: record the secret it
+            // was loaded with, so a later resume re-presents it (a fresh
+            // secret per resume is rejected when the session is already
+            // loaded in the same serve life).
+            const presented = options.mcpServers?.['ide']
+            if (presented !== undefined && 'headers' in presented) {
+              ideServer.noteSessionSecret(session.sessionId, presented)
+            }
           },
           releaseOptions: (options) => {
             scheduleIdeOptions.get(options)?.dispose()
@@ -4436,7 +4444,10 @@ async function activateWindow(
             }
             return ideServer.current
           },
-          ideMcpCaller: (resolve) => ideServer.bindCaller(resolve),
+          ideMcpCaller: (resolve, sessionId) => ideServer.bindCaller(resolve, sessionId),
+          noteIdeSessionSecret: (sessionId, endpoint) => {
+            ideServer.noteSessionSecret(sessionId, endpoint)
+          },
           newAttachmentId: () => crypto.randomUUID(),
           sessions,
           // The usage modal's Account section and insights (M14).
