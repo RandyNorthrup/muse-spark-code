@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
-## [0.19.0] - 2026-10-18
+## [0.19.0] - 2026-10-20
 
 ### Highlights
 
