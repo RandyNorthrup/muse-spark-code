@@ -772,6 +772,9 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   to yourself, or nowhere yet — and everything already typed stays while a
   mistyped answer (Target, expiry date, name, label or address) asks again
   with the reason.
+- Opening the vault no longer writes "Vault operation failed" to the
+  extension log when nothing failed: a load overtaken by a newer one (as
+  the first open is, by the vault's own events) is not a failure.
 
 ### Security
 

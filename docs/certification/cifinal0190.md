@@ -102,3 +102,27 @@ table entries removed).
   `run muse-spark-code-acp <topic> --help for`; on the old helper it failed
   (1 failed | 10 passed, exit 1), green after the fix (11/11; with
   cliHelp, cliHelpConsistency and execArgs 151/151).
+
+## 8. The vault logged a failure each time its panel opened
+
+Real use on Windows (separate VS Code, packed win32-x64 build): every first
+open of Models & Agents → Vault wrote `Vault operation failed: Error` to the
+extension log, with no toast and a correct panel. Traced through the
+extension host's inspector: the panel's first load is overtaken by the
+broker's own events, so its generation check throws "The use changed after
+approval"; the failure path already kept that retirement off the screen
+(the newer operation owns the view), but the queue logged it as a failure
+first. One predicate (`isRetiredByBarrier`) now decides it for the
+screen and the log alike.
+
+- `test/unit/vault/windowsVaultPanelFlow.test.ts` gains a reload
+  overtaken by Lock and requires a log with no failure: red on the old host
+  (5 × `Vault operation failed: Error`, exit 1), green after (exit 0).
+- The same suite still typed `[]` into the Target step that VAULTTARGET
+  made a picker (the suite runs on Windows only, so the Linux lane did not
+  see it); its scripted answers now pick "Nowhere yet".
+- This PC's `%TEMP%` grants Modify to `CodexSandboxUsers` and an unknown
+  SID (added by other software), so the vault guard rightly refuses to
+  build helpers under it, and every Windows vault suite stops at its
+  fixture with `code=23` here. Local runs use `TEMP`/`TMP` pointed at an
+  owner-only folder; hosted CI is unaffected.
