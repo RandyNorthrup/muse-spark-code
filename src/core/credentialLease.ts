@@ -19,7 +19,7 @@
 // record. Recovery compares staged with primary and decides; it never
 // deletes another live attempt's record, because recovery itself runs
 // inside the same lease.
-import { mkdir, readFile, rmdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rmdir, rm, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import { MILLISECONDS_PER_SECOND, PROVIDER_SECRET_PREFIX } from '../shared/constants'
@@ -126,9 +126,9 @@ export class CredentialLockBusyError extends Error {
 Creates the directory and writes the owner's record when nobody owns it
 now. Returns undefined when a fellow contender owns it instead, so the
 caller re-observes rather than failing: a contender's in-flight takeover
-remove verifies against a stale read and may wipe a directory this mkdir
-just won, so a missing (or already present) owner file means someone else
-owns the directory now, never a wedged lock.
+move may move aside a directory this mkdir just won (or just filled), so
+a missing (or already present) owner file means someone else owns the
+directory now, never a wedged lock.
 */
 async function claimFreshLock(
   lockDir: string,
@@ -217,20 +217,41 @@ export async function acquireCredentialLock(
       throw new CredentialLockBusyError(lockDir)
     }
     // The owner is proven gone, but a fellow contender may have taken
-    // over since the read above. Re-verify the exact record
-    // (pid, start and nonce) immediately before deleting; anything else
-    // means someone else owns the directory now.
-    const current = await readOwner(lockDir)
+    // over since the read above. Move the directory aside with one atomic
+    // rename — exactly one contender wins it — then prove the moved record
+    // is still the dead one observed before removing it. A loser (whose
+    // rename finds nothing to move) re-observes below and reports busy
+    // once the winner's live record lands, never removing it. A winner
+    // whose quarantine holds anything but the observed dead record puts
+    // it back while the name is free: someone replaced the lock between
+    // the read and the move, and that replacement owns it now.
+    const quarantine = `${lockDir}.retired-${nonce}`
+    try {
+      await rename(lockDir, quarantine)
+    } catch {
+      // Lost the move to a fellow contender; re-observe below.
+      continue
+    }
+    const moved = await readOwner(quarantine)
     const isDeadTakeover =
-      current?.pid === observed.pid &&
-      current.startTime === observed.startTime &&
-      current.nonce === observed.nonce &&
+      moved?.pid === observed.pid &&
+      moved.startTime === observed.startTime &&
+      moved.nonce === observed.nonce &&
       !isProcessAlive(observed.pid)
     if (!isDeadTakeover) {
+      try {
+        await rename(quarantine, lockDir)
+      } catch {
+        // A fellow contender claimed the freed name meanwhile: the moved
+        // record stays aside under its quarantine name and this attempt
+        // reports busy. The ownerless branch reclaims nothing that holds
+        // a record, so the stranded holder's own release still frees the
+        // lock it owns, and nothing here removed the winner's lock.
+      }
       continue
     }
     try {
-      await rm(lockDir, { recursive: true, force: true })
+      await rm(quarantine, { recursive: true, force: true })
     } catch {
       // Lost a takeover race; re-read below.
     }

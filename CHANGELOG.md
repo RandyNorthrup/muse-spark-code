@@ -295,6 +295,10 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Fixed
 
+- Two windows recovering a crashed lock at once can no longer both write
+  the credential store: taking over a crashed credential lock moves it
+  aside first and removes it only while it is still the same stale lock,
+  so exactly one contender wins and the loser is told the lock is busy.
 - A screen recording length you set is used as set, any whole number of
   seconds: 5 or 3600 now records for 5 or 3600 seconds, with no floor of 10
   and no ceiling of 600. 0 (the default) still records until you stop.
