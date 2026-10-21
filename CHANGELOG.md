@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
-## [0.19.2] - 2026-10-21
+## [0.19.0] - 2026-10-21
 
 ### Highlights
 
@@ -852,14 +852,13 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Release infrastructure
 
-- 0.19.2 is the first published 0.19 release. Its first two tags were
-  never published; each release stopped at its own checks, before building
-  anything. `v0.19.0`: the browser check's pinned Chrome for Testing
-  runtime had fallen more than 14 days behind Chrome's Stable channel.
-  `v0.19.1`: the pin check, which had just begun reading Google's version
-  lists through a schema, could not load that schema's library, because the
-  release's first job installed nothing. A tag never moves, so the renewed
-  pin and the fixed job ship as 0.19.2.
+- Two earlier release tags for this version stopped at the release's own
+  checks, before anything was built or published: first because the browser
+  check's pinned Chrome for Testing runtime had fallen more than 14 days
+  behind Chrome's Stable channel, then because the pin check, which had just
+  begun reading Google's version lists through a schema, could not load that
+  schema's library in a job that installed nothing. Both are fixed; the
+  unpublished tags were deleted and 0.19.0 was tagged again.
 - A new gate, `npm run check:workflow-scripts`, fails any workflow step
   that runs one of the repository's scripts before its job installs the
   dependencies that script imports.

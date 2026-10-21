@@ -3,7 +3,7 @@
 // job installed. A job that has run no `npm ci` or `npm install` before the
 // step has no node_modules, so the script, and every file it reaches
 // through relative imports, may import Node's built-in modules only.
-// v0.19.1's tag was refused this way: the browser check's pin check gained a
+// A 0.19.0 release tag was refused this way: the browser check's pin check gained a
 // zod import, and the release's tag-checks job never installed anything
 // (docs/certification/cifinal0190.md section 16).
 //
