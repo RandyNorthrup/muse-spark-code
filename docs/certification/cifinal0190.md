@@ -695,3 +695,28 @@ refused tags, `v0.19.0` (`e48e8c6bce`) and `v0.19.1` (`ff7c78d7a3`),
 published nothing on any channel (no GitHub Release, no npm version, no
 Marketplace or Open VSX version), and are deleted before `v0.19.0` is
 created on PR #257's merge.
+
+## 19. PR #257's review findings
+
+- The manifest test's added count of `if: steps.check.outputs.reused ==
+'true'` lines, and the line checking the receipt step's name, only
+  checked workflow text (AGENTS.md: such checks are not tests). Both are
+  removed; the recovery fix's proof is the real-API run in section 17.
+- `check-workflow-scripts.mjs` read only `node <file>`, so a helper loaded
+  from inline code before an install (`node --input-type=module -e "import
+{ buildLinuxHelper } from './scripts/build-linux-helper.mjs'..."` in
+  build.yml, forks.yml and hosts.yml) went unchecked. The gate now also
+  reads inline `-e`, `--eval`, `-p` and `--print` code: each relative import
+  is followed like a file `node` runs, and a package import fails on its
+  own. It now sees 43 files, 8 of them loaded before their job's install.
+
+Drills, on this PC:
+
+- Red: `import 'zod'` added to `scripts/build-vault-peer.mjs`: exit 1, three
+  errors (build.yml `compile native helpers`, forks.yml and hosts.yml
+  `package helper`), each "node loads scripts/build-vault-peer.mjs, which
+  imports 'zod'". Restored: exit 0.
+- Red: `import { z } from 'zod';` added to build.yml's pre-install inline
+  helper build: exit 1, "inline node code imports 'zod', and the job installs
+  nothing before this step". Restored: exit 0. (The same edit to a hosts.yml
+  step that runs after its job's `npm ci` stayed green, as it should.)
