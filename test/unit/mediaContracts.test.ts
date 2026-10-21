@@ -18,8 +18,6 @@ import {
   MEDIA_AUDIO_ACTION_SETTING,
   MEDIA_CONTRIBUTOR_CHOICES,
   MEDIA_FILE_EXPIRY_DEFAULT_S,
-  MEDIA_FILE_EXPIRY_MAX_S,
-  MEDIA_FILE_EXPIRY_MIN_S,
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_KINDS,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
@@ -244,8 +242,6 @@ describe('M105 recorder contract', () => {
   it('publishes the plan defaults without changing existing backend or paid defaults', () => {
     expect(MEDIA_FILE_ID_MIN_BYTES).toBe(1024 * 1024)
     expect(MEDIA_FILE_EXPIRY_DEFAULT_S).toBe(7 * 24 * 60 * 60)
-    expect(MEDIA_FILE_EXPIRY_MIN_S).toBe(3600)
-    expect(MEDIA_FILE_EXPIRY_MAX_S).toBe(30 * 24 * 60 * 60)
     expect(MEDIA_MAX_UPLOAD_DEFAULT_MIB).toBe(200)
     expect([
       MEDIA_UPLOAD_EXPIRY_SETTING,

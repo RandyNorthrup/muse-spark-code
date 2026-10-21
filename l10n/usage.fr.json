@@ -242,5 +242,6 @@
   "sortAscending": "Tri croissant",
   "sortDescending": "Tri décroissant",
   "retentionNote": "Le détail par appel est conservé {detailDays} jours ; les récapitulatifs quotidiens, {historyDays} jours.",
+  "retentionNoteKept": "Le détail par appel est conservé {detailDays} jours ; les récapitulatifs quotidiens sont conservés jusqu'à ce que vous régliez un nombre de jours ou les effaciez.",
   "privacyNote": "L’historique reste sur cette machine. Il ne contient ni invites, ni réponses, ni arguments d’outils, ni chemins, ni clés."
 }

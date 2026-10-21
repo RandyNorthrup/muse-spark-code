@@ -8,10 +8,9 @@ import { runtimeReportsPlanMaxBytes } from '../../src/runtime/runtimeReportsPlan
 import type { Logger } from '../../src/host/logger'
 import { readSettings, type SettingsSource } from '../../src/host/settings'
 import {
-  HOOK_MAX_STOP_CONTINUATIONS,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  SECONDS_PER_DAY,
   SETTING_DEFAULTS,
-  SUBAGENT_CONCURRENT_MAX,
   stopContinuationLimitFor,
   subagentConcurrencyFor,
 } from '../../src/shared/constants'
@@ -22,11 +21,19 @@ import {
   limitsForByteGuard,
   validateToolResultCap,
 } from '../../src/core/backends/modelapi/toolResultBound'
-import { WEB_SEARCH_MAX_PER_REQUEST_LIMIT, webSearchMaxCallsFor } from '../../src/shared/constants'
+import { webSearchMaxCallsFor } from '../../src/shared/constants'
+import { uploadExpirySeconds } from '../../src/core/backends/modelapi/files'
+import { readUsageHistorySettings } from '../../src/runtime/usage/usageSettingsFile'
+import { usageLocalDay } from '../../src/core/usage/aggregate'
+import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { createUsageRecord, type UsageRecordContext } from '../../src/core/usage/journalRecord'
+import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { resourceSettingsSchema } from '../../src/shared/resources'
 import { checkMediaLimits } from '../../src/core/media/limits'
 import { mediaLimitsFromSettings } from '../../src/host/media/mediaProviders'
 import { screenRecordingOptionsSchema } from '../../src/shared/media'
 import { pluginCallBounds } from '../../src/core/backends/modelapi/pluginHost'
+import { fileRoots } from './helpers/tempDirs'
 
 const properties = manifest.contributes.configuration.properties as Record<
   string,
@@ -54,6 +61,21 @@ function silentLog(warnings: string[]): Logger {
     },
     error: () => undefined,
   }
+}
+
+function recordAt(at: number): unknown {
+  const context: UsageRecordContext = {
+    id: `call-${String(at)}`,
+    at,
+    startedAt: at - 1000,
+    client: 'Zed',
+    backend: 'modelApi',
+    provider: 'custom',
+    model: 'test-model',
+    kind: 'turn',
+    outcome: 'completed',
+  }
+  return createUsageRecord(undefined, context)
 }
 
 // NOLIMITSALL (PLAN.md D121): every limit setting defaults to no limit; the
@@ -97,7 +119,7 @@ describe('no default limits: hook continuations and subagent concurrency', () =>
     expect(subagentSpawnDescription(0)).not.toContain('Up to')
   })
 
-  it('still applies a person-set value within the provider range', () => {
+  it('still applies a person-set value within the old range', () => {
     const warnings: string[] = []
     const read = readSettings(
       settingSource({ hooksMaxStopContinuations: 3, subagentMaxConcurrent: 3 }),
@@ -111,17 +133,38 @@ describe('no default limits: hook continuations and subagent concurrency', () =>
     expect(subagentSpawnDescription(3)).toContain('Up to 3 work at once')
   })
 
-  it('still refuses a person-set value past the provider range', () => {
+  // NOLIMITSSET (PLAN.md D121): the 8/64 ceilings were ours, never a
+  // provider's — a set count past them governs as set.
+  it('honours a person-set value past the removed ceiling', () => {
     const warnings: string[] = []
     const read = readSettings(
-      settingSource({ hooksMaxStopContinuations: 1000, subagentMaxConcurrent: 1000 }),
+      settingSource({ hooksMaxStopContinuations: 12, subagentMaxConcurrent: 100 }),
+      silentLog(warnings),
+    )
+    expect(read.hooksMaxStopContinuations).toBe(12)
+    expect(read.subagentMaxConcurrent).toBe(100)
+    expect(warnings).toHaveLength(0)
+    expect(stopContinuationLimitFor(12)).toBe(12)
+    expect(subagentConcurrencyFor(100)).toBe(100)
+    expect(subagentSpawnDescription(100)).toContain('Up to 100 work at once')
+  })
+
+  it('still refuses what is not a count instead of clamping it', () => {
+    const warnings: string[] = []
+    const read = readSettings(
+      settingSource({ hooksMaxStopContinuations: -1, subagentMaxConcurrent: 1.5 }),
       silentLog(warnings),
     )
     expect(read.hooksMaxStopContinuations).toBe(0)
     expect(read.subagentMaxConcurrent).toBe(0)
     expect(warnings).toHaveLength(2)
-    expect(stopContinuationLimitFor(1000)).toBe(HOOK_MAX_STOP_CONTINUATIONS)
-    expect(subagentConcurrencyFor(1000)).toBe(SUBAGENT_CONCURRENT_MAX)
+  })
+
+  // A bound of ours on these settings cannot return: the manifest states no
+  // ceiling of ours, only the quantity's own floor.
+  it('declares no ceiling of ours in the manifest', () => {
+    expect(properties['museSpark.hooksMaxStopContinuations']).not.toHaveProperty('maximum')
+    expect(properties['museSpark.subagentMaxConcurrent']).not.toHaveProperty('maximum')
   })
 })
 
@@ -227,7 +270,7 @@ describe('no default limits: hosted searches per response', () => {
     expect(webSearchMaxCallsFor(0)).toBeUndefined()
   })
 
-  it('still applies a person-set bound within the provider range', () => {
+  it('still applies a person-set bound within the old range', () => {
     const warnings: string[] = []
     expect(
       readSettings(settingSource({ webSearchMaxPerRequest: 5 }), silentLog(warnings))
@@ -235,10 +278,34 @@ describe('no default limits: hosted searches per response', () => {
     ).toBe(5)
     expect(warnings).toHaveLength(0)
     expect(webSearchMaxCallsFor(5)).toBe(5)
-    expect(webSearchMaxCallsFor(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)).toBe(
-      WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
-    )
-    expect(webSearchMaxCallsFor(21)).toBeUndefined()
+  })
+
+  // NOLIMITSSET (PLAN.md D121): no capability record carries a per-request
+  // search maximum, so the 20 was ours — a set value past it sends as set.
+  it('sends a person-set value past the removed 20 as set', () => {
+    const warnings: string[] = []
+    expect(
+      readSettings(settingSource({ webSearchMaxPerRequest: 21 }), silentLog(warnings))
+        .webSearchMaxPerRequest,
+    ).toBe(21)
+    expect(warnings).toHaveLength(0)
+    expect(webSearchMaxCallsFor(21)).toBe(21)
+    expect(webSearchMaxCallsFor(1000)).toBe(1000)
+  })
+
+  it('still refuses what is not a count instead of clamping it', () => {
+    const warnings: string[] = []
+    expect(
+      readSettings(settingSource({ webSearchMaxPerRequest: -1 }), silentLog(warnings))
+        .webSearchMaxPerRequest,
+    ).toBe(0)
+    expect(warnings).toHaveLength(1)
+    expect(webSearchMaxCallsFor(-1)).toBeUndefined()
+    expect(webSearchMaxCallsFor(1.5)).toBeUndefined()
+  })
+
+  it('declares no ceiling of ours in the manifest', () => {
+    expect(properties['museSpark.webSearchMaxPerRequest']).not.toHaveProperty('maximum')
   })
 })
 
@@ -370,5 +437,186 @@ describe('no default limits: report plan bytes', () => {
     } finally {
       await rm(folder, { recursive: true, force: true })
     }
+  })
+})
+
+// NOLIMITSSET (PLAN.md D121): the 30/40/98/0.5/64/2 floors and ceilings were
+// ours — a percentage's own 0–100 and a GiB floor's own zero are the quantity
+// itself. A set value past an old bound reaches the governor's settings as set.
+describe('no default limits: resource thresholds', () => {
+  it('governs a person-set value past the removed bounds as set', () => {
+    const parsed = resourceSettingsSchema.parse({
+      cpuMaxPercent: 20,
+      memoryMaxPercent: 20,
+      memoryMinFreeGiB: 128,
+      diskMinFreeGiB: 128,
+    })
+    expect(parsed.cpuMaxPercent).toBe(20)
+    expect(parsed.memoryMaxPercent).toBe(20)
+    expect(parsed.memoryMinFreeGiB).toBe(128)
+    expect(parsed.diskMinFreeGiB).toBe(128)
+  })
+
+  it('still refuses what the quantity itself cannot be', () => {
+    for (const value of [-1, 101]) {
+      expect(resourceSettingsSchema.safeParse({ cpuMaxPercent: value }).success).toBe(false)
+      expect(resourceSettingsSchema.safeParse({ memoryMaxPercent: value }).success).toBe(false)
+    }
+    expect(resourceSettingsSchema.safeParse({ memoryMinFreeGiB: -1 }).success).toBe(false)
+    expect(resourceSettingsSchema.safeParse({ diskMinFreeGiB: -1 }).success).toBe(false)
+  })
+
+  it('declares no bound of ours in the manifest', () => {
+    expect(properties['museSpark.resourceCpuMaxPercent']).not.toHaveProperty('minimum')
+    expect(properties['museSpark.resourceCpuMaxPercent']).not.toHaveProperty('maximum')
+    expect(properties['museSpark.resourceMemoryMaxPercent']).not.toHaveProperty('minimum')
+    expect(properties['museSpark.resourceMemoryMaxPercent']).not.toHaveProperty('maximum')
+    expect(properties['museSpark.resourceMemoryMinFreeGiB']).not.toHaveProperty('minimum')
+    expect(properties['museSpark.resourceMemoryMinFreeGiB']).not.toHaveProperty('maximum')
+    expect(properties['museSpark.resourceDiskMinFreeGiB']).not.toHaveProperty('minimum')
+    expect(properties['museSpark.resourceDiskMinFreeGiB']).not.toHaveProperty('maximum')
+  })
+})
+
+// NOLIMITSSET (PLAN.md D121): the 500-rule ceiling was ours. The governing
+// behaviour (a 1000-rule list read whole) is proven in
+// test/unit/commandRules.test.ts; here the manifest proves the ceiling
+// cannot return.
+describe('no default limits: command rules', () => {
+  it('declares no ceiling of ours in the manifest', () => {
+    expect(properties['museSpark.modelApiCommandRules']).not.toHaveProperty('maxItems')
+  })
+})
+
+// NOLIMITSSET (PLAN.md D121): the 32-host ceiling was ours — every host the
+// person names is kept.
+describe('no default limits: browser check extra hosts', () => {
+  it('keeps a person-set list past the removed 32 whole', () => {
+    const warnings: string[] = []
+    const hosts = Array.from({ length: 40 }, (_entry, index) => `host${String(index)}.example.com`)
+    const read = readSettings(settingSource({ browserCheckExtraHosts: hosts }), silentLog(warnings))
+    expect(read.browserCheckExtraHosts).toEqual(hosts)
+    expect(warnings).toHaveLength(0)
+  })
+
+  it('declares no ceiling of ours in the manifest', () => {
+    expect(properties['museSpark.browserCheckExtraHosts']).not.toHaveProperty('maxItems')
+  })
+})
+
+// NOLIMITSSET (PLAN.md D121): no capability record carries an upload-expiry
+// range, so the 1–30 days were ours — a set number of days converts as set.
+describe('no default limits: media upload expiry', () => {
+  it('converts a person-set value past the removed 30 as set', () => {
+    const warnings: string[] = []
+    const read = readSettings(settingSource({ mediaUploadExpiryDays: 60 }), silentLog(warnings))
+    expect(read.mediaUploadExpiryDays).toBe(60)
+    expect(warnings).toHaveLength(0)
+    expect(uploadExpirySeconds(60)).toBe(60 * SECONDS_PER_DAY)
+    expect(uploadExpirySeconds(1)).toBe(1 * SECONDS_PER_DAY)
+  })
+
+  it('still refuses what is not a whole day instead of clamping it', () => {
+    const warnings: string[] = []
+    const read = readSettings(settingSource({ mediaUploadExpiryDays: 0 }), silentLog(warnings))
+    expect(read.mediaUploadExpiryDays).toBe(7)
+    expect(warnings).toHaveLength(1)
+  })
+
+  // The manifest keeps only the quantity's own floor (whole days from 1);
+  // the 30-day ceiling of ours is gone.
+  it('declares no ceiling of ours in the manifest', () => {
+    expect(properties['museSpark.mediaUploadExpiryDays']).toHaveProperty('minimum', 1)
+    expect(properties['museSpark.mediaUploadExpiryDays']).not.toHaveProperty('maximum')
+  })
+})
+
+// NOLIMITSSET (PLAN.md D121): the 365-day default with its 30–1825 range was
+// a retention limit of ours as a default. With nothing set history is kept
+// until the person sets a number of days or clears it; a set number of days
+// (any whole number of at least 1) trims as set.
+describe('no default limits: usage history days', () => {
+  const { fresh: freshRoot } = fileRoots()
+
+  it('defaults to keeping history, with no day count of ours', () => {
+    expect(SETTING_DEFAULTS.usageHistoryDays).toBeNull()
+    expect(manifestDefault('museSpark.usageHistoryDays')).toBeNull()
+    const warnings: string[] = []
+    expect(readSettings(settingSource({}), silentLog(warnings)).usageHistoryDays).toBeNull()
+    expect(warnings).toHaveLength(0)
+  })
+
+  it('uses a set number of days as set, past the old default and maximum', () => {
+    const warnings: string[] = []
+    expect(
+      readSettings(settingSource({ usageHistoryDays: 10 }), silentLog(warnings)).usageHistoryDays,
+    ).toBe(10)
+    expect(
+      readSettings(settingSource({ usageHistoryDays: 400 }), silentLog(warnings)).usageHistoryDays,
+    ).toBe(400)
+    expect(
+      readSettings(settingSource({ usageHistoryDays: 2000 }), silentLog(warnings)).usageHistoryDays,
+    ).toBe(2000)
+    expect(warnings).toHaveLength(0)
+  })
+
+  it('still refuses what is not a whole day of at least 1', () => {
+    const warnings: string[] = []
+    for (const days of [0, -3, 1.5]) {
+      expect(
+        readSettings(settingSource({ usageHistoryDays: days }), silentLog(warnings))
+          .usageHistoryDays,
+      ).toBeNull()
+    }
+    expect(warnings).toHaveLength(3)
+  })
+
+  it('declares no default or range of ours in the manifest', () => {
+    expect(properties['museSpark.usageHistoryDays']).not.toHaveProperty('minimum')
+    expect(properties['museSpark.usageHistoryDays']).not.toHaveProperty('maximum')
+  })
+
+  it('reads the runtime choice the same way: absent keeps, a set 10 trims', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'nolimits-history-'))
+    try {
+      expect(readUsageHistorySettings(folder)).toEqual({ enabled: true, days: null })
+      await writeFile(
+        path.join(folder, 'usage-settings.json'),
+        '{"enabled":true,"days":10}',
+        'utf8',
+      )
+      expect(readUsageHistorySettings(folder)).toEqual({ enabled: true, days: 10 })
+      await writeFile(
+        path.join(folder, 'usage-settings.json'),
+        '{"enabled":true,"days":400}',
+        'utf8',
+      )
+      expect(readUsageHistorySettings(folder)).toEqual({ enabled: true, days: 400 })
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps a 400-day-old day with nothing set and trims it at a set 10 days', async () => {
+    const root = await freshRoot('nolimits-history-')
+    let now = Date.now()
+    const store = new UsageJournalStore(new NodeUsageFs(root), {
+      writerId: 'test-writer',
+      isEnabled: () => true,
+      now: () => now,
+      onWriteError: () => undefined,
+    })
+    const dayMs = 24 * 60 * 60 * 1000
+    const oldDay = usageLocalDay(now - 400 * dayMs)
+    now -= 400 * dayMs
+    store.append(recordAt(now))
+    await store.flush()
+    now += 400 * dayMs
+    expect(await store.retain(null)).toBe(true)
+    const kept = await store.read()
+    expect(kept.rollups.map((row) => row.day)).toContain(oldDay)
+    expect(await store.retain(10)).toBe(true)
+    const trimmed = await store.read()
+    expect(trimmed.rollups.map((row) => row.day)).not.toContain(oldDay)
   })
 })

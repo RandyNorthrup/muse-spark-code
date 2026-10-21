@@ -239,10 +239,14 @@ export function UsageApp({
           )}
           <footer>
             <p>
-              {fill(USAGE_TEXT.retentionNote, {
-                detailDays: state.history.detailDays,
-                historyDays: state.history.historyDays,
-              })}
+              {state.history.historyDays === null
+                ? fill(USAGE_TEXT.retentionNoteKept, {
+                    detailDays: state.history.detailDays,
+                  })
+                : fill(USAGE_TEXT.retentionNote, {
+                    detailDays: state.history.detailDays,
+                    historyDays: state.history.historyDays,
+                  })}
             </p>
             <p>{USAGE_TEXT.privacyNote}</p>
           </footer>

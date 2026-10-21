@@ -19,7 +19,6 @@
 import {
   type CommandRuleDecision,
   COMMAND_RULE_SHELLS,
-  COMMAND_RULES_MAX,
   EVALUATOR_COMMANDS,
   POWERSHELL_ENCODED_ALIASES,
   POWERSHELL_ENCODED_COMMAND,
@@ -55,8 +54,6 @@ export type RuleProblemKind =
   | 'allowInRepository'
   /** An allow rule for a command that runs text as code. */
   | 'allowsEvaluator'
-  /** Past the most rules read; the rest are not read. */
-  | 'tooMany'
 
 export interface RuleProblem {
   readonly kind: RuleProblemKind
@@ -311,7 +308,9 @@ repository's allow rules are always left out.
 export function compileCommandRules(raw: readonly unknown[], source: RuleSource): CompiledRules {
   const rules: CommandRule[] = []
   const problems: RuleProblem[] = []
-  for (const [position, entry] of raw.slice(0, COMMAND_RULES_MAX).entries()) {
+  // NOLIMITSSET (PLAN.md D121): no rule-count ceiling of ours — every rule
+  // the person sets is read (the removed 500 was ours).
+  for (const [position, entry] of raw.entries()) {
     const { rule, problem } = compileOne(entry, position + 1, source)
     if (rule !== undefined) {
       rules.push(rule)
@@ -319,14 +318,6 @@ export function compileCommandRules(raw: readonly unknown[], source: RuleSource)
     if (problem !== undefined) {
       problems.push(problem)
     }
-  }
-  if (raw.length > COMMAND_RULES_MAX) {
-    problems.push({
-      kind: 'tooMany',
-      index: COMMAND_RULES_MAX + 1,
-      pattern: '',
-      detail: String(raw.length),
-    })
   }
   return { rules, problems }
 }

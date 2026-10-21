@@ -3,12 +3,7 @@
 import * as z from 'zod/mini'
 import { isUsageText } from './l10n/usageTable'
 import type { UsageText } from './l10n/usageEn'
-import {
-  USAGE_DETAIL_DAYS,
-  USAGE_HISTORY_DAYS_MAX,
-  USAGE_HISTORY_DAYS_MIN,
-  USAGE_JOURNAL_VERSION,
-} from './constants'
+import { USAGE_DETAIL_DAYS, USAGE_HISTORY_DAY_MIN, USAGE_JOURNAL_VERSION } from './constants'
 import {
   usageAmountSchema,
   usageCertaintySchema,
@@ -135,7 +130,8 @@ export const usagePageStateSchema = /* @__PURE__ */ z.strictObject({
     enabled: z.boolean(),
     host: usageLabelSchema,
     detailDays: z.literal(USAGE_DETAIL_DAYS),
-    historyDays: z.int().check(z.gte(USAGE_HISTORY_DAYS_MIN), z.lte(USAGE_HISTORY_DAYS_MAX)),
+    // NOLIMITSSET (PLAN.md D121): null keeps every day — no day count of ours.
+    historyDays: z.nullable(z.int().check(z.gte(USAGE_HISTORY_DAY_MIN))),
     recordCount: usageCountSchema,
     newerVersionRecords: usageCountSchema,
     tornLines: usageCountSchema,

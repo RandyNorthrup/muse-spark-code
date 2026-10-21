@@ -815,7 +815,7 @@ The terminal also accepts `usage`, `usage --json`,
 `usage --csv`, `usage open`, `usage serve --stdio` and root `--usage` JSON.
 Use `--usage-history=off` when serving ACP to stop new records. The history and
 exports stay on this machine; raw calls roll up after 30 days and daily history
-defaults to 365 days. Deleting it leaves spend ledgers and grants intact. The
+is kept until you set a number of days or clear it. Deleting it leaves spend ledgers and grants intact. The
 companion uses a one-use fragment code, an in-memory bearer per window and
 fetch-streamed events, with no cookies. See the README Usage and cost section
 for storage folders and the M102 certification for editor/rig receipts.

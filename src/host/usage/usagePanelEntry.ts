@@ -7,12 +7,7 @@ import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import { agentDataFolder } from '../../runtime/dataFolder'
 import { lazyUsageAdapter, type UsageAccessDeps } from '../../runtime/usage/usageAdapter'
-import {
-  SETTINGS_SECTION,
-  USAGE_FOLDER,
-  USAGE_HISTORY_DAYS_DEFAULT,
-  TAB_NO_BUDGET_USD,
-} from '../../shared/constants'
+import { SETTINGS_SECTION, USAGE_FOLDER, TAB_NO_BUDGET_USD } from '../../shared/constants'
 import { createPaidDailyBudget } from '../paid/paidDailyBudget'
 import { readHostUsageTableText } from './usageTableText'
 
@@ -110,11 +105,12 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
           },
         },
       }),
+      // NOLIMITSSET (PLAN.md D121): null keeps history — no day count of ours.
       historySettings: () => {
         const config = vscode.workspace.getConfiguration(SETTINGS_SECTION)
         return {
           enabled: config.get<boolean>('usageHistory', true),
-          days: config.get<number>('usageHistoryDays', USAGE_HISTORY_DAYS_DEFAULT),
+          days: config.get<number | null>('usageHistoryDays', null),
         }
       },
     }).access(),

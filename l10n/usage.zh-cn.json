@@ -216,5 +216,6 @@
   "sortAscending": "升序排列",
   "sortDescending": "降序排列",
   "retentionNote": "单次调用详情保留{detailDays}天；每日汇总保留{historyDays}天。",
+  "retentionNoteKept": "单次调用详情保留{detailDays}天；每日汇总一直保留，直到您设置天数或将其清除。",
   "privacyNote": "历史记录保留在此机器上，不包含提示、回复、工具参数、路径或密钥。"
 }

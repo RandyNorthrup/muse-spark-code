@@ -789,9 +789,9 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   */
   readonly hookMaxRunningCommands?: () => number
   /**
-  Concurrent subagents (M127, D121: 0 is no limit of ours, a set value in
-  Muse Code's 1–64 range): `museSpark.subagentMaxConcurrent`, captured
-  once for the session.
+  Concurrent subagents (M127, D121: 0 is no limit of ours, a set whole
+  count governs as set — NOLIMITSSET: the removed 1–64 range was ours):
+  `museSpark.subagentMaxConcurrent`, captured once for the session.
   */
   readonly subagentMaxConcurrent?: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
@@ -3165,12 +3165,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     // first load (ensureVerify), never here: the chunk is not loaded yet.
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
-    // Muse Code's own hook and subagent defaults as settings (M127),
-    // captured once for the session like the search bound above. D121: 0
-    // is no limit of ours; a set value never passes what Muse Code itself
-    // spends (a programmatic getter is never validated by the settings
-    // schema, and machine settings are writable by a dev-container
-    // definition).
+    // The hook and subagent counts as settings (M127), captured once for
+    // the session like the search count above. D121: 0 is no limit of ours;
+    // a set whole count governs as set (NOLIMITSSET: the removed 8/64 ranges
+    // were ours — no provider documents them).
     this.stopContinuationLimit = stopContinuationLimitFor(
       deps.hookMaxStopContinuations?.() ?? SETTING_DEFAULTS.hooksMaxStopContinuations,
     )
@@ -5522,7 +5520,8 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /**
   The request's max of ours (D121): 0 sends none and the provider decides
-  how many hosted searches run; a set value stays within 1–20.
+  how many hosted searches run; a set whole count sends as set
+  (NOLIMITSSET: the removed 1–20 range was ours).
   */
   private webSearchBound(): number | undefined {
     return this.webSearchCapable() ? webSearchMaxCallsFor(this.searchMaxPerRequest) : undefined

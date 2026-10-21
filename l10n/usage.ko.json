@@ -216,5 +216,6 @@
   "sortAscending": "오름차순 정렬",
   "sortDescending": "내림차순 정렬",
   "retentionNote": "호출별 세부 정보는 {detailDays}일, 일별 요약은 {historyDays}일 동안 보관됩니다.",
+  "retentionNoteKept": "호출별 세부 정보는 {detailDays}일 동안 보관되며, 일별 요약은 일수를 설정하거나 지울 때까지 보관됩니다.",
   "privacyNote": "기록은 이 컴퓨터에 보관됩니다. 프롬프트, 응답, 도구 인수, 경로 또는 키를 포함하지 않습니다."
 }

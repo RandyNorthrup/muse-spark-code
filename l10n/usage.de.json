@@ -229,5 +229,6 @@
   "sortAscending": "Aufsteigend sortieren",
   "sortDescending": "Absteigend sortieren",
   "retentionNote": "Aufrufdetails werden {detailDays} Tage aufbewahrt, Tageszusammenfassungen {historyDays} Tage.",
+  "retentionNoteKept": "Aufrufdetails werden {detailDays} Tage aufbewahrt, Tageszusammenfassungen bleiben erhalten, bis Sie eine Tagesanzahl festlegen oder sie löschen.",
   "privacyNote": "Der Verlauf bleibt auf diesem Rechner. Er enthält keine Prompts, Antworten, Tool-Argumente, Pfade oder Schlüssel."
 }

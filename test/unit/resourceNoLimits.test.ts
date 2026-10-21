@@ -97,13 +97,15 @@ describe('resource governor without person-set limits', () => {
       'diskMinFreeGiB',
     ] as const)
       expect(resourceSettingsSchema.parse({ [key]: null })[key]).toBeNull()
-    expect(resourceSettingsSchema.parse({ cpuMaxPercent: 30 }).cpuMaxPercent).toBe(30)
-    expect(resourceSettingsSchema.parse({ memoryMaxPercent: 98 }).memoryMaxPercent).toBe(98)
-    expect(resourceSettingsSchema.parse({ memoryMinFreeGiB: 0.5 }).memoryMinFreeGiB).toBe(0.5)
-    expect(resourceSettingsSchema.safeParse({ cpuMaxPercent: 29 }).success).toBe(false)
-    expect(resourceSettingsSchema.safeParse({ memoryMaxPercent: 99 }).success).toBe(false)
-    expect(resourceSettingsSchema.safeParse({ memoryMinFreeGiB: 0.4 }).success).toBe(false)
-    expect(resourceSettingsSchema.safeParse({ diskMinFreeGiB: 1.9 }).success).toBe(false)
+    expect(resourceSettingsSchema.parse({ cpuMaxPercent: 20 }).cpuMaxPercent).toBe(20)
+    expect(resourceSettingsSchema.parse({ memoryMaxPercent: 20 }).memoryMaxPercent).toBe(20)
+    expect(resourceSettingsSchema.parse({ memoryMinFreeGiB: 128 }).memoryMinFreeGiB).toBe(128)
+    expect(resourceSettingsSchema.parse({ diskMinFreeGiB: 128 }).diskMinFreeGiB).toBe(128)
+    expect(resourceSettingsSchema.safeParse({ cpuMaxPercent: -1 }).success).toBe(false)
+    expect(resourceSettingsSchema.safeParse({ cpuMaxPercent: 101 }).success).toBe(false)
+    expect(resourceSettingsSchema.safeParse({ memoryMaxPercent: 101 }).success).toBe(false)
+    expect(resourceSettingsSchema.safeParse({ memoryMinFreeGiB: -1 }).success).toBe(false)
+    expect(resourceSettingsSchema.safeParse({ diskMinFreeGiB: -1 }).success).toBe(false)
   })
 
   it('computes no memory or disk floor without a person’s floor, on this machine’s real totals', () => {
