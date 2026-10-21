@@ -756,6 +756,13 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   a dash or is missing answers in the same words instead of the parser's
   English, on every command, and a truly unknown argument keeps its
   unknown-argument answer.
+- Adding a secret to the vault no longer ends with "The vault operation
+  failed. Try again." when the Target answer is not a JSON list of uses.
+  The flow now asks where the secret may be used — one SSH computer, any
+  SSH computer, Git commit signing, Git over HTTPS, a website, showing it
+  to yourself, or nowhere yet — and everything already typed stays while a
+  mistyped answer (Target, expiry date, name, label or address) asks again
+  with the reason.
 
 ### Security
 
