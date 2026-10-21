@@ -73,10 +73,39 @@ fixture's own data dir.
    identity); zero product diffs and no import edge from this lane's files,
    so environmental, not a regression.
 
-## What is left
+## Outside the sandbox (the lead, same rig, 2026-10-20)
 
-Run the suite and the packed drive where process enumeration works (outside
-this sandbox, or hosted CI's macOS job): then record setup → unlock →
-`tier`, the keychain behaviour (CI runners need an unlocked login keychain
-or the osStore wrap fails there too — untested), and the `/` variant. No
-product change is proposed: the fail-closed identity behaviour is correct.
+Run by the lead over SSH on the same Mac mini, outside the agent sandbox
+(process listing works there), on the merged final tree (`c33636ea36`, then
+`9bd09504d4` and `5a1031c497`), default `TMPDIR`. No model calls; nothing
+touched the person's vault folder, keychain items or VS Code.
+
+1. **Source-built layout. FAIL, then PASS.** First run: set up → unlocked,
+   Lock → locked, Unlock → unlocked in both variants, then the shared
+   driver's Windows-only check failed: `expected 'hardware' to be 'osStore'`.
+   This Mac has a Secure Enclave, so setup chose the **hardware** tier
+   (stronger than the keychain, and correct). The driver now requires
+   Unlock to return to the tier setup chose, never a tier that needs the
+   person's input (Windows still requires `osStore`; 9bd09504d4). Rerun:
+   `posixVaultPanelFlow` 2/2 (full flow 8.2 s; working folder at `/`
+   6.5 s) and `brokerSession` 4/4, exit 0. Setup, unlock, Add through the
+   native editor, the 9.6 KB first-party row written and read back, Lock,
+   Unlock and the second read all settled with no failure toast and no
+   failure in the log, and no prompt of any kind.
+2. **Packed darwin bits. PASS.** `npm run build` exit 0;
+   `package-vsix.mjs --target darwin-x64` wrote
+   `muse-spark-code-darwin-x64-0.19.0.vsix` (3,752,816 bytes, before
+   recompression; the zopfli recompress step exits 1 here because the rig
+   lacks the pinned `zopfli` package, the same files either way). Unpacked
+   to `~/lead-mv-packed` and driven with `MUSE_VAULT_PACKED_ROOT` (the
+   fixture then runs the package's own `dist/vaultBroker.js`, its sibling
+   bundles, `dist/native/darwin/muse-vault-x64`, the peer helper and the
+   created-directory helper, unchanged): 2/2, exit 0, both variants.
+   A first attempt unpacked the package under the test's working folder:
+   every helper launch was refused ("Governed command unavailable"), which
+   is the governor refusing programs inside the workspace as designed; a
+   real install lives under `~/.vscode/extensions`, never in a workspace.
+
+What remains unproven on macOS: the keychain (`osStore`) tier on a Mac
+without a Secure Enclave, which hosted CI's macOS runner exercises with
+this suite.
