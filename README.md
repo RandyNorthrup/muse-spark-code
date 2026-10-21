@@ -5906,7 +5906,7 @@ runtime effect: the vault always uses the operating system's credential store,
 the same one every editor and the ACP agent use, plus a one-time recovery code
 shown at setup. The internal POSIX broker uses Linux Secret Service and the macOS login
 Keychain. Linux requires an available Secret Service and an unlocked keyring;
-a signed-in desktop session normally supplies them. Known issue in 0.19.0: the
+a signed-in desktop session normally supplies them. Known issue in 0.19.1: the
 VS Code extension's Linux build carries no Secret Service component, so in VS
 Code on Linux the vault can be set up only with a TPM your account can reach
 (usually by joining the `tss` group); the terminal agent

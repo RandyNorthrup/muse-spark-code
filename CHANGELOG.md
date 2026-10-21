@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
-## [0.19.0] - 2026-10-21
+## [0.19.1] - 2026-10-21
 
 ### Highlights
 
@@ -844,6 +844,11 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Release infrastructure
 
+- 0.19.1 is the first published 0.19 release. Its first tag, `v0.19.0`,
+  was never published: the release stopped at its own checks, before
+  building anything, because the browser check's pinned Chrome for Testing
+  runtime had fallen more than 14 days behind Chrome's Stable channel. A
+  tag never moves, so the renewed pin ships as 0.19.1.
 - Every fake test is gone. Deleted: the tests that used stand-ins or
   invented data, the tests that only checked that some text, key or file
   exists, the editor host checks that drove the fake CLI, the fake-only
