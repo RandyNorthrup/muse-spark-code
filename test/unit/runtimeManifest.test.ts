@@ -13,7 +13,7 @@ import {
 import shipped from '../../src/host/browser/runtime/browserRuntime.json'
 
 const DAY = 86_400_000
-const PUBLISHED = 1_790_706_629_983
+const PUBLISHED = 1_792_526_214_652
 
 /** A copy of the shipped pin a test may change. */
 function copy(): typeof shipped {
@@ -21,23 +21,23 @@ function copy(): typeof shipped {
 }
 
 describe('the shipped runtime pin (M81 A1)', () => {
-  it('validates, pins Chrome for Testing 154.0.8037.92 and keeps its immutable publication record', () => {
+  it('validates, pins Chrome for Testing 156.0.8078.47 and keeps its immutable publication record', () => {
     const manifest = parseRuntimeManifest(shipped)
-    expect(manifest?.version).toBe('154.0.8037.92')
-    expect(manifest?.revision).toBe('1689415')
+    expect(manifest?.version).toBe('156.0.8078.47')
+    expect(manifest?.revision).toBe('1706539')
     // The ChromiumDash Stable records for this exact version (spec §4.2):
     // the earliest desktop one is the pin's date; a republish never moves it.
     expect(manifest?.publication).toEqual({
-      version: '154.0.8037.92',
+      version: '156.0.8078.47',
       channel: 'Stable',
       sources: [
         'https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Windows&num=200',
         'https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Linux&num=200',
         'https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=200',
       ],
-      platformTimes: { Windows: 1_790_706_643_713, Linux: PUBLISHED, Mac: 1_790_706_647_592 },
+      platformTimes: { Windows: PUBLISHED, Linux: 1_792_526_230_889, Mac: 1_792_526_229_680 },
       publishedAtMs: PUBLISHED,
-      publishedAt: '2026-09-29T18:30:29.983Z',
+      publishedAt: '2026-10-20T19:56:54.652Z',
     })
   })
 
@@ -52,7 +52,7 @@ describe('the shipped runtime pin (M81 A1)', () => {
     const records = Object.entries(manifest?.platforms ?? {})
     for (const [platform, record] of records) {
       expect(record.url, platform).toBe(
-        `https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/${platform}/chrome-headless-shell-${platform}.zip`,
+        `https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/${platform}/chrome-headless-shell-${platform}.zip`,
       )
       expect(record.executable.startsWith(`chrome-headless-shell-${platform}/`), platform).toBe(
         true,
@@ -61,26 +61,26 @@ describe('the shipped runtime pin (M81 A1)', () => {
       expect(record.extractedBytes, platform).toBeLessThan(400 * 1024 * 1024)
     }
     expect(manifest?.platforms.linux64.archiveSha256).toBe(
-      '636aa5c79f2693632e9921b8bbb050038ba11672e02346c06c20f991aed096f9',
+      '0d5acc62c3e213f8c87d3c298d66ffcf9a236d12ea4b9f85318bf85dbc279daa',
     )
   })
 
   it('refuses a manifest that is not one, or whose records disagree', () => {
     expect(parseRuntimeManifest({})).toBeUndefined()
     const later = copy()
-    later.publication.publishedAtMs = 1_790_706_643_713
+    later.publication.publishedAtMs = 1_792_526_230_889
     expect(parseRuntimeManifest(later)).toBeUndefined()
     const rendering = copy()
-    rendering.publication.publishedAt = '2026-09-30T00:00:00.000Z'
+    rendering.publication.publishedAt = '2026-10-21T00:00:00.000Z'
     expect(parseRuntimeManifest(rendering)).toBeUndefined()
     const elsewhere = copy()
     elsewhere.platforms.linux64.url =
-      'https://example.com/chrome-for-testing-public/154.0.8037.92/x.zip'
+      'https://example.com/chrome-for-testing-public/156.0.8078.47/x.zip'
     expect(parseRuntimeManifest(elsewhere)).toBeUndefined()
     const otherVersion = copy()
     otherVersion.platforms.win64.url = otherVersion.platforms.win64.url.replace(
-      '154.0.8037.92',
-      '155.0.1.1',
+      '156.0.8078.47',
+      '157.0.1.1',
     )
     expect(parseRuntimeManifest(otherVersion)).toBeUndefined()
     const notExecutable = copy()
@@ -110,7 +110,7 @@ describe('the shipped runtime pin (M81 A1)', () => {
 describe('the pin’s freshness (M81 A1)', () => {
   it('refuses checks from exactly 45 days after the publication, never a millisecond before', () => {
     const expiry = PUBLISHED + 45 * DAY
-    expect(new Date(expiry).toISOString()).toBe('2026-11-13T18:30:29.983Z')
+    expect(new Date(expiry).toISOString()).toBe('2026-12-04T19:56:54.652Z')
     expect(isPinFresh(PUBLISHED, expiry - 1)).toBe(true)
     expect(isPinFresh(PUBLISHED, expiry)).toBe(false)
     expect(isPinFresh(PUBLISHED, expiry + 1)).toBe(false)

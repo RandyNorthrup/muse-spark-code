@@ -39923,7 +39923,7 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 **0.19.1 preparation (2026-10-21).** `release/0.19.1` cut from `main` at
 `e48e8c6bce` (PR #237's merge): `package.json` and `package-lock.json` at
-0.19.1, the browser check's runtime pin renewed (PINPLACEHOLDER), CHANGELOG's
+0.19.1, the browser check's runtime pin renewed (Chrome for Testing 156.0.8078.47, r1706539, published 2026-10-20, from the new `scripts/pin-browser-runtime.mjs`), CHANGELOG's
 `[0.19.0]` section renamed `[0.19.1]` with the reason under Release
 infrastructure, the roadmap regenerated.
 
