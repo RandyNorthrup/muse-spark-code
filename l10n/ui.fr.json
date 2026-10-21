@@ -3844,7 +3844,6 @@
   "execBudgetMinimum": "Cette exécution exige au moins {minimum}.",
   "execBudgetRequired": "La Model API exige --max-budget-usd.",
   "execNumberInvalid": "Nombre ou limite incorrect ; le budget en USD accepte au plus six décimales.",
-  "execValueInvalid": "Valeur incorrecte pour {option} ; exec --help indique les valeurs et les limites acceptées.",
   "cliValueInvalid": "Valeur incorrecte pour {option} ; {help} indique les valeurs et les limites acceptées.",
   "execLimitInvalid": "Nombre ou limite non valide pour {flag}.",
   "execTrustRefused": "Les exécutions sans interface refusent la confiance dans l’espace de travail et le contournement des autorisations.",

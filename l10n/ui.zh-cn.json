@@ -3690,7 +3690,6 @@
   "execBudgetMinimum": "本次运行至少需要 {minimum}。",
   "execBudgetRequired": "Model API 需要 --max-budget-usd。",
   "execNumberInvalid": "数字或限制无效；美元预算最多支持六位小数。",
-  "execValueInvalid": "{option} 的值无效；请运行 exec --help 查看允许的值和范围。",
   "cliValueInvalid": "{option} 的值无效；请运行 {help} 查看允许的值和范围。",
   "execLimitInvalid": "{flag} 的数字或限额无效。",
   "execTrustRefused": "无界面运行不允许信任工作区或绕过权限。",

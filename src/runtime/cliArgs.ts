@@ -334,13 +334,12 @@ function parserOptionName(error: unknown): string | undefined {
 
 /**
 A known option's bad value names the option and the help that lists its
-accepted values, never the supplied value (D120 secret rule). Exec keeps
-its released sentence; every other topic follows its shape.
+accepted values, never the supplied value (D120 secret rule). The help is
+named as a command a person can run as typed, as the unknown-option
+answer names it.
 */
 function valueInvalidReason(topic: string, option: string): string {
-  return topic === 'exec'
-    ? fill(UI_TEXT.execValueInvalid, { option })
-    : fill(UI_TEXT.cliValueInvalid, { option, help: `${topic} --help` })
+  return fill(UI_TEXT.cliValueInvalid, { option, help: `${ACP_AGENT_NAME} ${topic} --help` })
 }
 
 /**
