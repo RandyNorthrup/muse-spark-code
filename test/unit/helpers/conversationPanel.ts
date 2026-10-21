@@ -31,6 +31,7 @@ import {
   type ModelApiHostDeps,
 } from '../../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
+import { resolveShellSandbox } from '../../../src/core/backends/musecode/sandbox'
 import { fileContextIo } from '../../../src/host/backend/contextIo'
 import { createFileSessionStore } from '../../../src/host/backend/fileSessionStore'
 import { createToolIo } from '../../../src/host/backend/toolIo'
@@ -181,11 +182,17 @@ export interface PanelOptions {
 export interface PanelRig {
   readonly controller: ConversationController
   readonly posted: HostToWebviewMessage[]
+  /** What the controller wrote to the window's log, as the output channel shows it. */
+  readonly logged: string[]
 }
 
 /** The real controller on `rig`'s host, as the editor builds it for one panel. */
 export function conversationPanel(options: PanelOptions): PanelRig {
   const posted: HostToWebviewMessage[] = []
+  const logged: string[] = []
+  const record = (message: string) => {
+    logged.push(message)
+  }
   const surface: ChatSurface = {
     id: 'conversation-panel-test-surface',
     documentId: 'conversation-panel-test-doc',
@@ -287,7 +294,15 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     insertCode: unused('insertCode'),
     onSandboxUnavailable: () => undefined,
     platform: process.platform,
-    shellSandbox: unused('shellSandbox'),
+    // Every opened conversation reads it: the product's own resolution of
+    // the setting's default for this folder, as the backend manager makes it.
+    shellSandbox: () =>
+      resolveShellSandbox({
+        mode: SETTING_DEFAULTS.shellSandbox,
+        platform: process.platform,
+        workspaceRoot: options.directory,
+        userProfileDir: process.env['USERPROFILE'],
+      }),
     editorContext: () => undefined,
     isAutosaveEnabled: () => true,
     saveAll: unused('saveAll'),
@@ -341,14 +356,9 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     realPath: unused('realPath'),
     notifyAttention: () => undefined,
     now: () => Date.now(),
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-    },
+    log: { trace: record, info: record, warn: record, error: record },
   }
-  return { controller: new ConversationController(deps), posted }
+  return { controller: new ConversationController(deps), posted, logged }
 }
 
 export function panelNotices(

@@ -166,3 +166,67 @@ starting.").
   resume's cause).
 - Restored: `npx vitest run test/unit/resumeFailureSend.test.ts
 test/unit/sessionDelete.test.ts` 14/14, exit 0.
+
+### The race: Send while a History open is still loading
+
+Cause: a message sent while an opening ran went on at once. With no live
+session it started a conversation of its own, which the opening's `adopt`
+then dropped; `sessionForAction` returned `undefined` with nothing posted
+when the epoch or session had moved under it (its barrier check, and the
+check after `ensureSession`), and `send` gave up without a word. The
+webview's `historyLoaded` for another session keeps none of the old
+transcript, so the message's pending card vanished with it.
+
+Fix:
+
+- Openings (History, a restore, the session board, a fork, an import, a
+  rewind) are counted while they run. A message sent meanwhile waits for
+  them to settle, with no clock of ours, then goes to the conversation
+  that opened, or is refused with the opening's own cause through the
+  refusal above. A New Conversation or account boundary during the wait
+  refuses it in fixed words (`requestStaleTurn`). No opening awaits a
+  send, so the wait cannot close on itself.
+- `sessionForAction` no longer drops a message silently: a message the
+  conversation changed under is refused with `requestStaleTurn` ("The
+  model or conversation changed while sending. Send your message again.")
+  or, signed out, `notSignedInReason`. Other actions stay quiet as before.
+- The webview carries the cards the host has not answered yet (status
+  `pending`) after another conversation's history, numbered on from it,
+  with their pending drafts. A message answered before the history arrives
+  stays with the conversation it was answered in, as before.
+
+The rig now resolves the shell sandbox posture with the product's
+`resolveShellSandbox` over the setting's default instead of failing
+closed, since every opened conversation reads it, and it records the
+controller's log, the test operator's view of the output channel, so a
+test can name the session a message went to (`Session <id> resumed on
+the … backend`).
+
+Test: three cases in `test/unit/resumeFailureSend.test.ts`, each posting
+the History row and Send as the webview does, the second before the host
+answered the first:
+
+- open first, the conversation opens: only that session is ever attached
+  (no `started` line), and the message's one answer is the turn mark
+  refusal (`sendMarkFailed`: the rig's window has no checkpoint folder),
+  the last step before the session takes a turn, reached only by a message
+  bound for the conversation now open; the answer lands on the card, which
+  came through the opened conversation's history;
+- open first, the opening fails (the removed provider model): the message
+  is refused with the opening's cause, the card keeps the text, and no
+  conversation was started for it;
+- Send first, the opening right behind it: exactly one answer, and it
+  lands on a card on screen, in the old transcript or carried into the
+  opened one, whichever came first.
+
+Five repeated runs of the suite: 7/7 each.
+
+- Break C, the hold removed from `send` (its condition made never true):
+  `npx vitest run test/unit/resumeFailureSend.test.ts` 2 failed | 5 passed,
+  exit 1 (the message started a conversation of its own,
+  `test-session-1 started`).
+- Break D, the webview carrying no unanswered card: same command, 1 failed
+  | 6 passed, exit 1 (`expected undefined to match object`: the answer
+  found no card on screen).
+- Restored: `npx vitest run test/unit/resumeFailureSend.test.ts
+test/unit/sessionDelete.test.ts` 17/17, exit 0.

@@ -327,7 +327,10 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   without a word, and a message typed afterwards went nowhere you could
   see; now that message is refused at once with the same reason, and what
   you typed stays on its card. A conversation still open in the panel is
-  not affected.
+  not affected. A message you send while a conversation is still opening
+  waits for it and then goes into that conversation, or is refused with
+  the reason it could not open; it no longer disappears when the
+  conversation's history appears.
 - "Muse Spark Code stopped unexpectedly last time — report it?" no longer
   appears after an ordinary close. The window's crash marker is cleared as
   soon as VS Code asks the extension to stop, instead of after a shutdown

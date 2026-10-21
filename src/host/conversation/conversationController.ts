@@ -1409,6 +1409,12 @@ export class ConversationController {
   the send epoch meanwhile.
   */
   private conversationChoice = 0
+  /** The choice a New Conversation or an account boundary made last: a held message stops there. */
+  private clearedChoice = 0
+  /** Openings in flight (History, a restore, a fork, an import, a rewind). */
+  private openingsInFlight = 0
+  /** Messages sent meanwhile, released once no opening is in flight. */
+  private readonly openingWaiters: (() => void)[] = []
   /**
   Why the conversation this panel was asked to show could not be opened,
   when that left it with neither a session nor one to resume: every message
@@ -1907,6 +1913,57 @@ export class ConversationController {
   private chooseConversation(): number {
     this.conversationChoice += 1
     return this.conversationChoice
+  }
+
+  /** New Conversation or an account boundary: the panel's conversation is gone. */
+  private chooseNoConversation(): void {
+    this.clearedChoice = this.chooseConversation()
+    this.unopenedReason = undefined
+  }
+
+  /**
+  An opening (History, a restore, a fork, an import, a rewind) starts as
+  this panel's latest choice; a message sent while it runs waits for it
+  (`openingsSettled`). Each one ends with `endOpening`, however it ends.
+  */
+  private beginOpening(): number {
+    this.openingsInFlight += 1
+    return this.chooseConversation()
+  }
+
+  private endOpening(): void {
+    this.openingsInFlight -= 1
+    if (this.openingsInFlight === 0) {
+      for (const release of this.openingWaiters.splice(0)) {
+        release()
+      }
+    }
+  }
+
+  /** Resolves once no opening is in flight: it waits on the openings only, never on a clock. */
+  private openingsSettled(): Promise<void> {
+    if (this.openingsInFlight === 0) {
+      return Promise.resolve()
+    }
+    return new Promise((resolve) => {
+      this.openingWaiters.push(resolve)
+    })
+  }
+
+  /**
+  A message the conversation changed under before it went out (an opening,
+  a restart, a sign-out): refused in fixed words, its card keeping the
+  typed text, never dropped without a word. Other actions stay quiet.
+  */
+  private refuseOvertaken(localId: string | undefined, isComposerMessage: boolean): void {
+    if (localId !== undefined && !this.isDisposed) {
+      this.post({
+        type: 'sendFailed',
+        localId,
+        reason: this.isAuthAdmitted() ? UI_TEXT.requestStaleTurn : UI_TEXT.notSignedInReason,
+        attachmentsKept: isComposerMessage,
+      })
+    }
   }
 
   /**
@@ -4796,6 +4853,7 @@ export class ConversationController {
       await scanning
       await held?.hold.waitForModeChange()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        this.refuseOvertaken(localId, isComposerMessage)
         return undefined
       }
       if (
@@ -4817,6 +4875,7 @@ export class ConversationController {
     const session = await this.ensureSession(this.deps.workspaceRoot)
     this.requireNonConfidentialModel(session.modelId)
     if (!this.isCurrentSessionAction(session, generation)) {
+      this.refuseOvertaken(localId, isComposerMessage)
       return undefined
     }
     // A goal command's unknown outcome (M45): the strip gets the backend's
@@ -5394,7 +5453,7 @@ export class ConversationController {
     if (this.refuseAction() !== undefined || this.session?.sessionId === sessionId) {
       return
     }
-    const choice = this.chooseConversation()
+    const choice = this.beginOpening()
     const generation = this.sendInvalidationEpoch
     const requireCurrent = (): void => {
       if (this.isDisposed || generation !== this.sendInvalidationEpoch) {
@@ -5430,6 +5489,8 @@ export class ConversationController {
     } catch (error: unknown) {
       this.deps.log.warn(`A session could not be resumed: ${failureForLog(error)}`)
       this.openingFailed(choice, `${UI_TEXT.resumeFailed}: ${describe(error)}`, error)
+    } finally {
+      this.endOpening()
     }
   }
 
@@ -5453,7 +5514,7 @@ export class ConversationController {
       this.notice('info', UI_TEXT.sessionRequired)
       return
     }
-    const choice = this.chooseConversation()
+    const choice = this.beginOpening()
     const generation = this.sendInvalidationEpoch
     const session = this.session
     try {
@@ -5471,6 +5532,8 @@ export class ConversationController {
       this.deps.log.warn(`A session could not be forked: ${failureForLog(error)}`)
       // Said even after `adopt` let go of the source (its epoch moved).
       this.openingFailed(choice, `${UI_TEXT.forkFailed}: ${describe(error)}`, error)
+    } finally {
+      this.endOpening()
     }
   }
 
@@ -5602,7 +5665,7 @@ export class ConversationController {
     if (!this.isCurrentSessionAction(source, generation)) {
       return false
     }
-    const choice = this.chooseConversation()
+    const choice = this.beginOpening()
     try {
       if (message.lastTurnId === undefined) {
         this.clear()
@@ -5626,6 +5689,8 @@ export class ConversationController {
       // Said even after `adopt` let go of the source (its epoch moved).
       this.openingFailed(choice, `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`, error)
       return false
+    } finally {
+      this.endOpening()
     }
   }
 
@@ -7151,6 +7216,20 @@ export class ConversationController {
         }
       }
       requireNoDistillation()
+      if (this.openingsInFlight > 0) {
+        // Sent while a conversation opens here (History, a restore, a fork,
+        // an import, a rewind): it waits for the opening, its card staying
+        // on screen, then goes to the conversation that opened, or is
+        // refused with the opening's own cause (`openSession`). Never sent
+        // to the conversation being replaced, never lost to the epoch the
+        // opening moves. A New Conversation meanwhile ends it in words.
+        const choice = this.conversationChoice
+        await this.openingsSettled()
+        if (this.clearedChoice > choice) {
+          throw new Error(UI_TEXT.requestStaleTurn)
+        }
+        requireNoDistillation()
+      }
       const sendEpoch = this.sendInvalidationEpoch
       const session = await this.sessionForAction(localId, isComposerMessage)
       if (session === undefined) {
@@ -9300,11 +9379,10 @@ export class ConversationController {
     this.isSideChat = this.deps.surface.isSideChat === true
     // A new conversation is new: the session a restart or crash left to
     // resume is not picked up by its first message (D25), an opening still
-    // in flight no longer speaks for this panel, and one that failed no
-    // longer refuses.
+    // in flight no longer speaks for this panel, one that failed no longer
+    // refuses, and a message held for an opening is not carried into it.
     this.resumeTarget = undefined
-    this.chooseConversation()
-    this.unopenedReason = undefined
+    this.chooseNoConversation()
     this.planTurnIds.clear()
     this.pendingPlanTurnIds.clear()
     // The webview drops its transcript too, whoever asked: the panel's own
@@ -10498,7 +10576,7 @@ export class ConversationController {
       if (!isConfirmed || generation !== this.sendInvalidationEpoch) {
         return
       }
-      choice = this.chooseConversation()
+      choice = this.beginOpening()
       this.watchList(host)
       const loaded = await host.importSession(doc, {
         approvalMode: approvalModeFor(mode, this.deps.hasApprovalUi),
@@ -10517,6 +10595,10 @@ export class ConversationController {
         this.openingFailed(choice, text, error)
       } else if (generation === this.sendInvalidationEpoch) {
         this.notice('error', text, undefined, error)
+      }
+    } finally {
+      if (choice !== undefined) {
+        this.endOpening()
       }
     }
   }
@@ -12137,8 +12219,7 @@ export class ConversationController {
       this.accountStopsInFlight += 1
       // The account boundary clears every conversation: an opening's failure
       // is no longer this panel's to say or to refuse with.
-      this.chooseConversation()
-      this.unopenedReason = undefined
+      this.chooseNoConversation()
     }
     try {
       // Invalidate a pending send before a running turn's cancel can await.
