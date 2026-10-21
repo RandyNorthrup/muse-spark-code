@@ -64,17 +64,15 @@ export interface PosixPanelFixture {
   dispose(): Promise<void>
 }
 
+/** Set to an unpacked .vsix's `extension/` folder to drive the packed broker and helpers. */
+const PACKED_ROOT_ENV = 'MUSE_VAULT_PACKED_ROOT'
+
 /**
-Stage the package layout: the peer and created helpers the real product
-ships, the installed broker entries the real client platform launches, and
-the macOS slot helper `native/darwin/build.sh` produces (the Secure Enclave
-probe runs it; the install root carries it under dist like the package).
+Builds the install layout from source into `root`: the peer and created
+helpers, the broker entries bundled as the package bundles them, and the
+macOS slot helper `native/darwin/build.sh` produced.
 */
-export async function startPosixPanelFixture(prefix: string): Promise<PosixPanelFixture> {
-  // Canonical spelling: macOS spells its temporary root through /var or
-  // /tmp, both symlinks, and the store refuses symlink-spelled ancestors, so
-  // the generated root resolves to its real path first (same directory).
-  const root = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
+async function stageFromSource(root: string): Promise<void> {
   // The peer helper and the created helper beside the bundled governor,
   // exactly where the installed product resolves them.
   await buildBrokerChildren(root, [])
@@ -104,20 +102,38 @@ export async function startPosixPanelFixture(prefix: string): Promise<PosixPanel
       }),
     ),
   )
-  if (process.platform === 'darwin') {
-    const staged = path.join(root, 'dist', 'native', 'darwin')
-    await mkdir(staged, { recursive: true })
-    for (const arch of ['arm64', 'x64'] as const) {
-      const name = darwinVaultSlotFile(arch)
-      await copyFile(path.resolve('dist', 'native', 'darwin', name), path.join(staged, name))
-      await chmod(path.join(staged, name), 0o755)
-    }
+  if (process.platform !== 'darwin') return
+  const staged = path.join(root, 'dist', 'native', 'darwin')
+  await mkdir(staged, { recursive: true })
+  for (const arch of ['arm64', 'x64'] as const) {
+    const name = darwinVaultSlotFile(arch)
+    await copyFile(path.resolve('dist', 'native', 'darwin', name), path.join(staged, name))
+    await chmod(path.join(staged, name), 0o755)
   }
+}
+
+/**
+Stage the package layout: the peer and created helpers the real product
+ships, the installed broker entries the real client platform launches, and
+the macOS slot helper `native/darwin/build.sh` produces (the Secure Enclave
+probe runs it; the install root carries it under dist like the package).
+*/
+export async function startPosixPanelFixture(prefix: string): Promise<PosixPanelFixture> {
+  // Canonical spelling: macOS spells its temporary root through /var or
+  // /tmp, both symlinks, and the store refuses symlink-spelled ancestors, so
+  // the generated root resolves to its real path first (same directory).
+  const scratch = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
+  // An unpacked package's `extension/` folder, when given, is the install
+  // root instead: its own broker bundles and helpers run, never rebuilt and
+  // never written to; every client's data stays in the scratch folder.
+  const packed = process.env[PACKED_ROOT_ENV]
+  const root = packed === undefined || packed === '' ? scratch : await realpath(packed)
+  if (root === scratch) await stageFromSource(root)
   const clients: (() => Promise<void>)[] = []
   return {
     root,
     startClient: async (dataName: string): Promise<PosixPanelClient> => {
-      const dataDir = path.join(root, dataName)
+      const dataDir = path.join(scratch, dataName)
       // The installed host configures admission before any client launch;
       // this is that wiring (extension.ts), with only the created helper
       // rooted at the staged install layout: the bundled default spells
@@ -178,7 +194,7 @@ export async function startPosixPanelFixture(prefix: string): Promise<PosixPanel
     },
     dispose: async () => {
       for (const dispose of clients.splice(0)) await dispose()
-      await removeFolder(root)
+      await removeFolder(scratch)
     },
   }
 }
