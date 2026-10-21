@@ -31,7 +31,7 @@ import {
   type ModelApiRig,
   type PanelRig,
 } from './helpers/conversationPanel'
-import { removeFolder } from './helpers/temporaryFolders'
+import { removeFolder, usingTempDir } from './helpers/temporaryFolders'
 
 // A provider model the person once picked whose provider is no longer set
 // up on this computer: the host refuses to switch a conversation onto it.
@@ -73,8 +73,8 @@ async function sendTyped(panel: PanelRig, localId: string): Promise<void> {
   await panel.controller.handle({ type: 'sendMessage', localId, text: TYPED, attachmentIds: [] })
 }
 
-/** The panel as the person sees it after the posted messages, with the typed card first. */
-function shownCard(posted: readonly HostToWebviewMessage[], localId: string) {
+/** The transcript as the person sees it after the posted messages, with the typed card first. */
+function shownTranscript(posted: readonly HostToWebviewMessage[], localId: string) {
   let state = uiReducer(initialUiState, {
     type: 'submitted',
     localId,
@@ -85,7 +85,68 @@ function shownCard(posted: readonly HostToWebviewMessage[], localId: string) {
   for (const message of posted) {
     state = uiReducer(state, { type: 'hostMessage', message, at: 0 })
   }
-  return state.transcript.find((entry) => entry.id === localId)
+  return state.transcript
+}
+
+function shownCard(posted: readonly HostToWebviewMessage[], localId: string) {
+  return shownTranscript(posted, localId).find((entry) => entry.id === localId)
+}
+
+/**
+The message's card as the person sees it the moment the host answers it,
+replaying the posted messages in order from its Send: undefined when the
+answer finds no card on screen, or never comes.
+*/
+function cardAtAnswer(posted: readonly HostToWebviewMessage[], localId: string) {
+  const answer = posted.findIndex(
+    (message) => message.type === 'sendFailed' && message.localId === localId,
+  )
+  return answer === -1 ? undefined : shownCard(posted.slice(0, answer + 1), localId)
+}
+
+/** A panel in this window beside a conversation an earlier window saved in `directory`. */
+async function panelBesideSaved(directory: string, modelId?: string) {
+  const sessionId = await savedConversation(await loadedModelApiRig(directory), directory)
+  const rig = await loadedModelApiRig(directory)
+  const panel = conversationPanel({ rig, directory, ...(modelId !== undefined && { modelId }) })
+  return { rig, panel, sessionId }
+}
+
+/** The host's own refusal to move a revived conversation onto the removed provider's model. */
+function removedModelRefusal(directory: string, sessionId: string): Promise<string> {
+  return hostRefusal(async () => {
+    const window = await loadedModelApiRig(directory)
+    const probe = await window.host.resumeSession(sessionId, DEFAULT_MODEL_ID)
+    try {
+      await probe.session.setModel(REMOVED_PROVIDER_MODEL)
+    } finally {
+      probe.session.dispose()
+    }
+  })
+}
+
+/**
+The History row and Send as the webview posts them, `first` first and the
+other before the host answered it; settles once both are answered.
+*/
+async function openAndSend(
+  panel: PanelRig,
+  sessionId: string,
+  localId: string,
+  first: 'open' | 'send',
+): Promise<void> {
+  const open = () =>
+    panel.controller.handle({ type: 'resumeSession', sessionId, attachmentEpoch: 0 })
+  const send = () => sendTyped(panel, localId)
+  await Promise.all(first === 'open' ? [open(), send()] : [send(), open()])
+}
+
+/** The sessions that became this panel's, as its log line names them ("<id> resumed"). */
+function attachedSessions(panel: PanelRig): string[] {
+  return panel.logged
+    .map((line) => /^Session (\S+) (\S+) on the \w+ backend, model /.exec(line))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => `${match[1] ?? ''} ${match[2] ?? ''}`)
 }
 
 function sendFailures(posted: readonly HostToWebviewMessage[]) {
@@ -167,19 +228,8 @@ describe('a conversation that could not be opened refuses messages with its caus
     try {
       // The conversation was saved in an earlier window; this window's host
       // revives it from the same folder.
-      const sessionId = await savedConversation(await loadedModelApiRig(directory), directory)
-      const rig = await loadedModelApiRig(directory)
-      const panel = conversationPanel({ rig, directory, modelId: REMOVED_PROVIDER_MODEL })
-      const cause = await hostRefusal(async () => {
-        const window = await loadedModelApiRig(directory)
-        const probe = await window.host.resumeSession(sessionId, DEFAULT_MODEL_ID)
-        try {
-          await probe.session.setModel(REMOVED_PROVIDER_MODEL)
-        } finally {
-          probe.session.dispose()
-        }
-      })
-      const said = `${UI_TEXT.resumeFailed}: ${cause}`
+      const { rig, panel, sessionId } = await panelBesideSaved(directory, REMOVED_PROVIDER_MODEL)
+      const said = `${UI_TEXT.resumeFailed}: ${await removedModelRefusal(directory, sessionId)}`
 
       await panel.controller.handle({ type: 'resumeSession', sessionId, attachmentEpoch: 0 })
 
@@ -225,9 +275,7 @@ describe('a conversation that could not be opened refuses messages with its caus
   it('an open that works lifts the refusal; one that fails then leaves that conversation open', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'muse-resume-live-'))
     try {
-      const sessionId = await savedConversation(await loadedModelApiRig(directory), directory)
-      const rig = await loadedModelApiRig(directory)
-      const panel = conversationPanel({ rig, directory })
+      const { rig, panel, sessionId } = await panelBesideSaved(directory)
       const missing = 'test-session-never-saved'
       const said = `${UI_TEXT.resumeFailed}: ${await hostRefusal(() =>
         rig.host.resumeSession(missing, DEFAULT_MODEL_ID),
@@ -264,5 +312,91 @@ describe('a conversation that could not be opened refuses messages with its caus
     } finally {
       await removeFolder(directory)
     }
+  })
+})
+
+// The race (0.19.0): Send pressed while a History open is still loading.
+// The message waits for the opening, then goes to the conversation that
+// opened or is refused with the opening's cause; its card stays on screen
+// through the history that replaces the transcript, and it is never dropped.
+describe('a message sent while a conversation is opening is never dropped', () => {
+  it('goes to the conversation that opened, its card kept through that history', async () => {
+    await usingTempDir('muse-open-race-', async (directory) => {
+      const { panel, sessionId } = await panelBesideSaved(directory)
+      const localId = 'local-race-opened'
+
+      await openAndSend(panel, sessionId, localId, 'open')
+
+      // Only the conversation that opened was ever this panel's: the
+      // message did not start a conversation of its own.
+      expect(panel.controller.shareSessionId()).toBe(sessionId)
+      expect(attachedSessions(panel)).toEqual([`${sessionId} resumed`])
+      // It went out there as far as this window lets a turn go: the window
+      // has no checkpoint folder, so the product refuses the turn at its
+      // mark, the last step before the session takes it. The opening's own
+      // words or the overtaken refusal would mean it never got there.
+      expect(sendFailures(panel.posted)).toEqual([
+        { type: 'sendFailed', localId, reason: UI_TEXT.sendMarkFailed, attachmentsKept: true },
+      ])
+      // Its card came through the opened conversation's history and shows
+      // the answer beside the typed text.
+      expect(cardAtAnswer(panel.posted, localId)).toMatchObject({
+        kind: 'user',
+        text: TYPED,
+        status: 'failed',
+        reason: UI_TEXT.sendMarkFailed,
+      })
+      expect(panel.posted.findIndex((message) => message.type === 'historyLoaded')).toBeLessThan(
+        panel.posted.findIndex((message) => message.type === 'sendFailed'),
+      )
+    })
+  })
+
+  it("is refused with the opening's cause when the opening fails", async () => {
+    await usingTempDir('muse-open-race-refused-', async (directory) => {
+      const { panel, sessionId } = await panelBesideSaved(directory, REMOVED_PROVIDER_MODEL)
+      const said = `${UI_TEXT.resumeFailed}: ${await removedModelRefusal(directory, sessionId)}`
+      const localId = 'local-race-refused'
+
+      await openAndSend(panel, sessionId, localId, 'open')
+
+      expect(noticeWays(panel.posted)).toEqual([
+        { level: 'error', text: said, actions: ['newConversation'] },
+      ])
+      expect(sendFailures(panel.posted)).toEqual([
+        { type: 'sendFailed', localId, reason: said, attachmentsKept: true },
+      ])
+      expect(attachedSessions(panel)).toEqual([])
+      expect(cardAtAnswer(panel.posted, localId)).toMatchObject({
+        kind: 'user',
+        text: TYPED,
+        status: 'failed',
+        reason: said,
+      })
+    })
+  })
+
+  it('a message the opening overtakes after it set out is answered and stays on screen', async () => {
+    await usingTempDir('muse-open-race-overtaken-', async (directory) => {
+      const { panel, sessionId } = await panelBesideSaved(directory)
+      const localId = 'local-race-overtaken'
+
+      // Send first, the History row right behind it: the opening replaces
+      // the conversation while the message is still on its way. Whichever
+      // step it reached, it gets one answer, and the answer lands on its
+      // card: in the old transcript if it came first, carried into the
+      // opened conversation if the history came first.
+      await openAndSend(panel, sessionId, localId, 'send')
+
+      expect(panel.controller.shareSessionId()).toBe(sessionId)
+      const answers = sendFailures(panel.posted).filter((message) => message.localId === localId)
+      expect(answers).toHaveLength(1)
+      expect(cardAtAnswer(panel.posted, localId)).toMatchObject({
+        kind: 'user',
+        text: TYPED,
+        status: 'failed',
+        reason: answers[0]?.reason,
+      })
+    })
   })
 })

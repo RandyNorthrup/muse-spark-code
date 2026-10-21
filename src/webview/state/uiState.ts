@@ -2610,6 +2610,19 @@ function loadedGoal(
   return message.sessionId === state.sessionId ? state.goal : undefined
 }
 
+/**
+The messages this panel sent that the host has not answered yet, carried
+after another conversation's history, numbered on from it. The host holds
+a message sent while a conversation opens and answers it in the one that
+opened, sent or refused, so its card and typed text never vanish with the
+transcript it was typed under (0.19.0).
+*/
+function unansweredCards(state: UiState, after: number): readonly UserEntry[] {
+  return state.transcript
+    .filter((entry): entry is UserEntry => entry.kind === 'user' && entry.status === 'pending')
+    .map((entry, index) => ({ ...entry, seq: after + index + 1 }))
+}
+
 /** Keep an own edit's newer typing; reset a stale editor on an external goal. */
 function goalEditorFor(
   state: UiState,
@@ -3245,6 +3258,11 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
               goalEdit: isSameSession ? state.goalEdit : undefined,
               goalEditRevision: state.goalEditRevision,
             }
+      // Another conversation's history: a message still waiting for the
+      // host's answer comes along, with the draft its refusal may give back.
+      const carried = isSameSession ? [] : unansweredCards(state, replayed.sequence)
+      const carriedIds = new Set(carried.map((entry) => entry.id))
+      const carriedDraft = state.pendingSendDraft
       return announce(
         withPendingResolutions(
           {
@@ -3259,15 +3277,24 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             questionNavigation: isSameSession ? state.questionNavigation : undefined,
             restoredSessionId: undefined,
             title: message.name,
-            transcript: replayed.entries,
-            sequence: replayed.sequence,
+            transcript: [...replayed.entries, ...carried],
+            sequence: replayed.sequence + carried.length,
             todos: message.todos,
             goal,
             ...editor,
             pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
             pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
-            pendingSendDraft: isSameSession ? state.pendingSendDraft : undefined,
-            pendingSendDrafts: isSameSession ? state.pendingSendDrafts : {},
+            pendingSendDraft:
+              isSameSession || (carriedDraft !== undefined && carriedIds.has(carriedDraft.localId))
+                ? carriedDraft
+                : undefined,
+            pendingSendDrafts: isSameSession
+              ? state.pendingSendDrafts
+              : Object.fromEntries(
+                  Object.entries(state.pendingSendDrafts).filter(([localId]) =>
+                    carriedIds.has(localId),
+                  ),
+                ),
             secretPrompt: isSameSession ? state.secretPrompt : undefined,
             secretPromptQueue: isSameSession ? state.secretPromptQueue : [],
             schedules: isSameSession ? state.schedules : [],
