@@ -1971,7 +1971,7 @@ export class ConversationController {
   `text`. It is said at once unless the panel has moved on to another
   conversation since: a backend restart or exit meanwhile, or the opening
   having already let go of the conversation it was replacing, does not
-  hush it (0.19.2: the failure appeared only on the next History open, and
+  hush it (0.19.0: the failure appeared only on the next History open, and
   the message typed meanwhile was never sent). Left with neither a session
   nor one to resume, the panel keeps the words for every later message,
   and the notice offers a new conversation as the way on (D26).

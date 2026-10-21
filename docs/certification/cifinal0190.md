@@ -605,7 +605,8 @@ Proof, on this PC against the live sources:
   release's tag-checks job checks out the repository and runs the check
   with no `npm ci`, and no pull-request run executes that job, so every
   check on PR #255 was green. The weekly `browser-runtime-pin.yml` job had
-  the same gap. The version is spent; the release ships as 0.19.2.
+  the same gap. (The release was first moved to 0.19.2; by the owner's order
+  it stays 0.19.0: section 18.)
 - The fix: the tag-checks job sets up Node 22 and runs
   `npm ci --ignore-scripts --no-audit` before the pin check (after the
   cheap tag, version and ancestry checks); the weekly pin job installs too.
@@ -629,7 +630,7 @@ the runtime pin is current`): `imports 'zod'
 - Red on purpose: the new `npm ci` step removed from `release.yml`: exit 1,
   the two tag-checks errors; restored: exit 0.
 
-## 17. The release jobs after the tag checks, reviewed before 0.19.2
+## 17. The release jobs after the tag checks, reviewed before tagging again
 
 Both refused tags stopped in the first job, so no release job after it has
 run since 0.18.2. A read-only review of that path against PR #255's real CI
@@ -661,7 +662,7 @@ extension/dist/voiceLinux.js`; with seven VSIX files `unzip` read the
   no target and 137,877,667 with `?targetPlatform=linux-x64`. These are the
   URLs `verifyPublished` reads for each artifact.
 - The full-build fallback has never run on a tag; it runs only when no CI
-  run matches the tag tree, so nothing merges into `main` between 0.19.2's
+  run matches the tag tree, so nothing merges into `main` between PR #257's
   pull-request CI and its tag, and the tree match is confirmed before
   tagging.
 
@@ -684,3 +685,13 @@ files and both helper builds:
   package artifacts). It still refuses v0.19.1's failed run 39667463849
   ("recovery build did not pass") and a run of another tag ("ineligible
   recovery run").
+
+## 18. The release stays 0.19.0
+
+By the owner's order (2026-10-21), a failed check never moves the version:
+the release ships as 0.19.0. PR #257 had moved it to 0.19.2; its version,
+CHANGELOG section, PLAN record and roadmap are back at 0.19.0. The two
+refused tags, `v0.19.0` (`e48e8c6bce`) and `v0.19.1` (`ff7c78d7a3`),
+published nothing on any channel (no GitHub Release, no npm version, no
+Marketplace or Open VSX version), and are deleted before `v0.19.0` is
+created on PR #257's merge.

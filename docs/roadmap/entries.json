@@ -883,7 +883,7 @@
       "title": "Exact money everywhere",
       "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, with exact period comparisons and historical days or months refused with an explanation when their dollars cannot be preserved.",
       "area": "usage-billing",
-      "release": "0.19.2"
+      "release": "0.19.0"
     },
     {
       "id": "M122",
