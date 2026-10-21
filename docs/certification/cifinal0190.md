@@ -628,3 +628,59 @@ the runtime pin is current`): `imports 'zod'
   their job's install import Node's built-in modules only".
 - Red on purpose: the new `npm ci` step removed from `release.yml`: exit 1,
   the two tag-checks errors; restored: exit 0.
+
+## 17. The release jobs after the tag checks, reviewed before 0.19.2
+
+Both refused tags stopped in the first job, so no release job after it has
+run since 0.18.2. A read-only review of that path against PR #255's real CI
+artifacts (run 39663073396) found:
+
+- **The helper step could not pass (fixed).** `release.yml`'s "stage the
+  Linux helper release assets when present" ran `unzip -p release/*.vsix
+extension/dist/voiceLinux.js`; with seven VSIX files `unzip` read the
+  other six as entry names and exited 11, before the GitHub Release. Behind
+  it, `dist/voiceLinux.js` in a VSIX is a loader: the code is the
+  `voiceLinux.js` member of `dist/runtime.bundles.json.br`. The step now
+  reads that member from every VSIX with the new
+  `scripts/runtime-archive-member.mjs` and checks each against the staged
+  helpers.
+- **Recovery from a reused release could not work (fixed).** A release that
+  reuses verified CI artifacts skips its build and uploaded no source-tree
+  receipt, so `findRecovery` refused it ("recovery build did not pass"). The
+  reuse job now uploads the receipt with the packages, and `findRecovery`
+  accepts a run whose reuse job passed and whose build was skipped; the
+  artifact and receipt checks are unchanged.
+- **Universal plus six targeted packages on the registries (checked, no
+  change).** The Marketplace documents a package published without a target
+  as the fallback for platforms with no package of their own. Both
+  registries carry exactly this shape today for redhat.java 1.59.2026102108
+  (Marketplace: six targets and one with none; Open VSX: `universal` and six
+  targets). Open VSX `/api/redhat/java/1.59.2026102108` returns the
+  universal download and `/api/redhat/java/linux-x64/1.59.2026102108` the
+  linux-x64 one; the Marketplace `vspackage` returned 54,062,181 bytes with
+  no target and 137,877,667 with `?targetPlatform=linux-x64`. These are the
+  URLs `verifyPublished` reads for each artifact.
+- The full-build fallback has never run on a tag; it runs only when no CI
+  run matches the tag tree, so nothing merges into `main` between 0.19.2's
+  pull-request CI and its tag, and the tree match is confirmed before
+  tagging.
+
+Drills, on this PC, with the step's `run` text taken from the workflow and
+run under `bash --noprofile --norc -eo pipefail` on PR #255's seven VSIX
+files and both helper builds:
+
+- Red: the previous step text exited 11 ("caution: filename not matched:
+  release/muse-spark-code-darwin-arm64-0.19.1.vsix", one per extra VSIX).
+- Green: the new step exited 0, "Helper pins accepted" for all seven VSIX
+  files, 24 helper assets staged.
+- Red on purpose: one byte appended to the x64 `libggml.so`: exit 1, "Helper
+  pins rejected: x64/libggml.so: digest missing from the bundle"; restored:
+  exit 0, seven accepted.
+- No helpers staged with these VSIX files: exit 1, "muse-spark-code-0.19.1.vsix
+  pins helper assets but none were staged".
+- Recovery, against the real GitHub API: the previous `findRecovery`
+  refused the reused v0.18.2 release run 38329786779 ("recovery build did
+  not pass"); the new one accepted it (commit `898a26c5e3`, its three
+  package artifacts). It still refuses v0.19.1's failed run 39667463849
+  ("recovery build did not pass") and a run of another tag ("ineligible
+  recovery run").

@@ -6407,8 +6407,13 @@ the packages, inventories and source-tree receipt for 30 days;
 The owner can force a rebuild with Actions variable `RELEASE_FORCE_REBUILD=true`.
 Successful pull-request, merge-queue (`merge_group`) and main-push CI runs qualify
 by their recorded checkout tree. Manual recovery on a version tag keeps
-`artifacts_run_id`: the earlier Release build is validated, and its original
-bytes pass through the same verification/staging job. Invalid recovery stops;
+`artifacts_run_id`: the earlier Release run, one that built its packages or
+one that reused verified CI artifacts (it keeps their receipt), is validated,
+and its original bytes pass through the same verification/staging job. Before
+publishing, the release checks every VSIX's Linux helper pins against the
+staged helper files, reading each package's voice bundle from its runtime
+archive with `node scripts/runtime-archive-member.mjs
+<runtime.bundles.json.br> voiceLinux.js`. Invalid recovery stops;
 cancelled runs cannot publish. Older builds without a receipt retain inventory,
 manifest and download-integrity checks; see the recovery guide for that limit.
 An M80 `v0` tag update blocked by the release-tags ruleset is reported separately
