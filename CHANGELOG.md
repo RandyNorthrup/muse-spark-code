@@ -748,6 +748,14 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   named. Usage history no longer trims to a year by default: with nothing
   set it is kept until you set a number of days or clear it, and a set
   number of days of 1 or more trims as set.
+- The agent's command line now names the real cause of a bad option value:
+  a known option with a value it cannot take (such as
+  `--questions-defer-after abc` or `--backend foo`) says the value is
+  invalid, names the option and points at the help that lists what it
+  takes, instead of calling the argument unknown. A value that starts with
+  a dash or is missing answers in the same words instead of the parser's
+  English, on every command, and a truly unknown argument keeps its
+  unknown-argument answer.
 
 ### Security
 

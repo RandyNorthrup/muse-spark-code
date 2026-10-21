@@ -18,6 +18,52 @@ describe('parseCommandLine failure rules', () => {
     expect(command.reason).not.toContain('positional')
   })
 
+  it('keeps a truly unknown argument as unknown', () => {
+    const option = parseCommandLine(['--frobnicate'])
+    invalid(option)
+    expect(option.exitCode).toBe(2)
+    expect(option.reason).toContain('Unknown option')
+    expect(option.reason).toContain('--frobnicate')
+    const positional = parseCommandLine(['frobnicate'])
+    invalid(positional)
+    expect(positional.exitCode).toBe(2)
+    expect(positional.reason).toContain('Unknown argument')
+  })
+
+  it('names a bad value of a known option and never the parser', () => {
+    // A mistyped value names the option and its help; a dash-led or
+    // missing one answers in the same words, never the parser's English.
+    for (const [argv, option, untrusted] of [
+      [['--questions-defer-after', 'abc'], '--questions-defer-after', 'abc'],
+      [['--questions-defer-after', '-5'], '--questions-defer-after', '-5'],
+      [['--backend', 'foo'], '--backend', 'foo'],
+      [['--shell-sandbox', 'foo'], '--shell-sandbox', 'foo'],
+      [['--usage-history', 'foo'], '--usage-history', 'foo'],
+      [['login', '--backend', 'foo'], '--backend', 'foo'],
+      [['--trust-workspace=foo'], '--trust-workspace', 'foo'],
+      [['--backend'], '--backend', ''],
+      [['usage', '--range', 'foo'], '--range', 'foo'],
+      [['usage', '--json=foo'], '--json', 'foo'],
+      [['resources', '--json=foo'], '--json', 'foo'],
+      [['scan-secrets', 'patch.diff', '--timeout'], '--timeout', ''],
+      [['scan-secrets', 'patch.diff', '--key-stdin=foo'], '--key-stdin', 'foo'],
+      [['exec', '--verbose=foo', 'hi'], '--verbose', 'foo'],
+      [['legal', '--json=foo'], '--json', 'foo'],
+    ] as const) {
+      const command = parseCommandLine([...argv])
+      invalid(command)
+      expect(command.exitCode).toBe(2)
+      expect(command.reason, argv.join(' ')).toContain(`Invalid value for ${option}`)
+      expect(command.reason, argv.join(' ')).toContain('--help')
+      expect(command.reason, argv.join(' ')).not.toContain('Unknown argument')
+      expect(command.reason, argv.join(' ')).not.toContain('ambiguous')
+      expect(command.reason, argv.join(' ')).not.toContain('Did you forget')
+      expect(command.reason, argv.join(' ')).not.toContain('does not take an argument')
+      expect(command.reason, argv.join(' ')).not.toContain('argument missing')
+      if (untrusted !== '') expect(command.reason, argv.join(' ')).not.toContain(untrusted)
+    }
+  })
+
   it('points auth parse failures at the accounts help', () => {
     const command = parseCommandLine(['auth', '--nope'])
     invalid(command)

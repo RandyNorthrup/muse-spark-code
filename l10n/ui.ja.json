@@ -3691,6 +3691,7 @@
   "execBudgetRequired": "Model API には --max-budget-usd が必要です。",
   "execNumberInvalid": "数値または上限が無効です。USD 予算の小数部は6桁までです。",
   "execValueInvalid": "{option} の値が無効です。受け付ける値と上限は exec --help を参照してください。",
+  "cliValueInvalid": "{option} の値が無効です。受け付ける値と上限は {help} を参照してください。",
   "execLimitInvalid": "{flag} の数値または上限が無効です。",
   "execTrustRefused": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。",
   "execModeRefused": "ヘッドレス実行で許可されるのは plan または acceptEdits のみです。",

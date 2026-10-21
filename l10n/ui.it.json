@@ -3845,6 +3845,7 @@
   "execBudgetRequired": "La Model API richiede --max-budget-usd.",
   "execNumberInvalid": "Numero o limite non valido; il budget in USD accetta al massimo sei cifre decimali.",
   "execValueInvalid": "Valore non valido per {option}; exec --help mostra i valori e i limiti accettati.",
+  "cliValueInvalid": "Valore non valido per {option}; {help} mostra i valori e i limiti accettati.",
   "execLimitInvalid": "Numero o limite non valido per {flag}.",
   "execTrustRefused": "Le esecuzioni senza interfaccia rifiutano la fiducia nell’area di lavoro e l’aggiramento dei permessi.",
   "execModeRefused": "Senza interfaccia sono consentiti solo plan o acceptEdits.",
