@@ -294,10 +294,14 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 - A crashed-connect journal recovery that cannot read this computer's
   credential store says so with exit 1 (`auth status` and its siblings)
   instead of an internal error.
-- Two windows recovering a crashed lock at once can no longer both write
-  the credential store: taking over a crashed credential lock moves it
-  aside first and removes it only while it is still the same stale lock,
-  so exactly one contender wins and the loser is told the lock is busy.
+- When a window or terminal command crashes while saving or removing a
+  provider key, the windows that recover its lock at the same time can no
+  longer both write the credential store: exactly one takes the crashed
+  lock over, every other is told the lock is busy, and none disturbs a
+  lock another window already holds. The crashed lock stays next to your
+  user-level `providers.json` as a small `providers.json.lock.retired-…`
+  folder, on purpose: it holds only the crashed process's id, start time
+  and a random tag, never a key.
 - A screen recording length you set is used as set, any whole number of
   seconds: 5 or 3600 now records for 5 or 3600 seconds, with no floor of 10
   and no ceiling of 600. 0 (the default) still records until you stop.
