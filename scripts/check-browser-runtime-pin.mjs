@@ -17,20 +17,27 @@
 //
 // The pin's own date is its immutable release record, never fetched again
 // (spec §4.2: a republish keeps it, even when ChromiumDash's window has moved
-// on). A fresh pin needs an extension release; this job only says so.
+// on). A fresh pin needs an extension release; this job only says so, and
+// scripts/pin-browser-runtime.mjs writes one from the same sources
+// (scripts/lib/browserRuntimeSources.mjs).
 //
 //   node scripts/check-browser-runtime-pin.mjs
 
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
+import { z } from 'zod'
+import {
+  CFT_LAST_KNOWN_GOOD,
+  DASH_RELEASES,
+  dashUrl,
+  DESKTOP,
+  LAST_KNOWN_GOOD,
+  stableRecordTime,
+} from './lib/browserRuntimeSources.mjs'
 
 const { AbortSignal } = globalThis
 
 const PIN = 'src/host/browser/runtime/browserRuntime.json'
-const VERSIONS =
-  'https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json'
-const DASH = 'https://chromiumdash.appspot.com/fetch_releases?channel=Stable&num=200&platform='
-const DESKTOP = ['Windows', 'Linux', 'Mac']
 const DAY_MS = 86_400_000
 const EXPIRY_DAYS = 45
 const LAG_DAYS = 14
@@ -41,12 +48,17 @@ function fail(message) {
   process.exit(1)
 }
 
-async function getJson(url) {
+/** The answer at `url`, parsed with `schema` before any of it is used. */
+async function getJson(url, schema) {
   const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
   if (!response.ok) {
     fail(`${url} answered ${String(response.status)}`)
   }
-  return await response.json()
+  const parsed = schema.safeParse(await response.json())
+  if (!parsed.success) {
+    fail(`${url} answered in an unexpected shape: ${z.prettifyError(parsed.error)}`)
+  }
+  return parsed.data
 }
 
 /** Compares dotted version numbers: negative, zero or positive. */
@@ -66,17 +78,12 @@ function compareVersions(left, right) {
 async function publishedAt(version) {
   const times = []
   for (const platform of DESKTOP) {
-    const releases = await getJson(`${DASH}${platform}`)
-    if (!Array.isArray(releases)) {
-      fail(`ChromiumDash's ${platform} answer is not a list`)
-    }
-    const matches = releases.filter(
-      (release) => release?.version === version && release?.channel === 'Stable',
-    )
-    if (matches.length !== 1 || !Number.isSafeInteger(matches[0].time) || matches[0].time <= 0) {
+    const releases = await getJson(dashUrl(platform), DASH_RELEASES)
+    const time = stableRecordTime(releases, version)
+    if (time === undefined) {
       fail(`no single dated ${platform} Stable record for ${version}`)
     }
-    times.push(matches[0].time)
+    times.push(time)
   }
   return Math.min(...times)
 }
@@ -93,11 +100,8 @@ if (pinned > now) {
 if (now >= pinned + EXPIRY_DAYS * DAY_MS) {
   fail(`${pin.version} expired on ${new Date(pinned + EXPIRY_DAYS * DAY_MS).toISOString()}`)
 }
-const known = await getJson(VERSIONS)
-const newest = known?.channels?.Stable?.version
-if (typeof newest !== 'string' || !/^\d+\.\d+\.\d+\.\d+$/.test(newest)) {
-  fail('the newest Stable Chrome for Testing version is unknown')
-}
+const known = await getJson(CFT_LAST_KNOWN_GOOD, LAST_KNOWN_GOOD)
+const newest = known.channels.Stable.version
 if (compareVersions(newest, pin.version) <= 0) {
   console.log(
     `ok   ${pin.version} is the newest Stable (${newest}); expires ${new Date(pinned + EXPIRY_DAYS * DAY_MS).toISOString()}`,

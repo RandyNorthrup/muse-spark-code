@@ -74,11 +74,19 @@ const roots: string[] = []
 const seenFetch: SeenFetch[] = []
 const state: {
   storeStatus: string | undefined
+  storeReason: string | null | undefined
   storeRows: { channel: string; version: string | null; status: string }[]
   githubStatus: string | undefined
   releases: { version: string; commit: string }[]
   runs: { name: string; conclusion: string | null }[]
-} = { storeStatus: undefined, storeRows: [], githubStatus: undefined, releases: [], runs: [] }
+} = {
+  storeStatus: undefined,
+  storeReason: undefined,
+  storeRows: [],
+  githubStatus: undefined,
+  releases: [],
+  runs: [],
+}
 
 async function scratch(): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'report-production-transport-'))
@@ -139,6 +147,7 @@ beforeAll(async () => {
   )
   const storeResult = await stores.stores.read(networkContext())
   state.storeStatus = storeResult.record.status
+  state.storeReason = storeResult.record.reason
   state.storeRows = (storeResult.data ?? []).map((row) => ({
     channel: row.channel,
     version: row.version,
@@ -208,7 +217,8 @@ describe('production report transport (RVCM1136B P1)', () => {
     ['Open VSX', '0.17.0'],
     ['npm', '0.17.0'],
   ])('%s parses its captured row through the production transport', (channel, version) => {
-    expect(state.storeStatus).toBe('ok')
+    // A refusal names its cause: a bare status says nothing about why.
+    expect(state.storeStatus, `stores: ${String(state.storeReason)}`).toBe('ok')
     expect(state.storeRows.find((row) => row.channel === channel)).toEqual({
       channel,
       version,

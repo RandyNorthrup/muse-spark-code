@@ -3121,7 +3121,7 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   naming a CSS selector. A check runs until it finishes or is stopped; a
   page still loading after 15 seconds is read as it stands.
 - **The browser.** Google's Chrome for Testing headless shell, one exact
-  version pinned by each extension release (now 154.0.8037.92), on Windows
+  version pinned by each extension release (now 156.0.8078.47), on Windows
   x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
   has not yet been run by this project's own checks). The first check asks
   before downloading it, about 100 to 120 MB from Google's
@@ -3164,16 +3164,16 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   `museSpark.browserCheckExtraHosts` (machine-scoped: plain host names or IP
   addresses, no ports, paths or wildcards). The model can never widen it.
 - **The download.** What comes from Google is one archive per platform,
-  the version this release pins (154.0.8037.92), checked before use against
+  the version this release pins (156.0.8078.47), checked before use against
   the length and SHA-256 recorded in the extension
   (`src/host/browser/runtime/browserRuntime.json`):
 
   | Platform    | Archive bytes | Archive SHA-256                                                    |
   | ----------- | ------------- | ------------------------------------------------------------------ |
-  | Linux x64   | 120,477,194   | `636aa5c79f2693632e9921b8bbb050038ba11672e02346c06c20f991aed096f9` |
-  | macOS arm64 | 99,221,129    | `77da14e75d7f2568e6f7898d3df7cdc6faac74b15e903b2c9d486ebb6ca9b929` |
-  | macOS x64   | 104,748,425   | `a54292aaacbb77f76f6ef47558e7c51ab884044e0adacca315567f83c060bcc4` |
-  | Windows x64 | 120,822,223   | `3ac2561f02d9d87aadc0399d00b9002d718a4c365624fa67db9e7bfaf6b1a568` |
+  | Linux x64   | 125,799,226   | `0d5acc62c3e213f8c87d3c298d66ffcf9a236d12ea4b9f85318bf85dbc279daa` |
+  | macOS arm64 | 103,927,850   | `2fd1c09a3e1ebde9e69e6aba92f1dd3f21ad247b55d9bf66e39213ff4205436d` |
+  | macOS x64   | 109,256,749   | `5e230044c6ac989597f4a4e301a0a710d257e07d6f7754754da2bf62ea3d272c` |
+  | Windows x64 | 126,051,683   | `e0af9b23f8051cca4f37ca49cd425e8055701bfc0383c198d67f8d5cc5884249` |
 
   Unpacked it takes about 205 to 285 MB. The consent dialog names the
   version, the size, `storage.googleapis.com` and the folder; Download
@@ -3190,6 +3190,18 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   `museSpark.browserCheckRuntime` to `off` and delete that
   `browser-runtime` folder; nothing else is installed or registered on the
   machine. With the setting back on `ask`, the next check asks again.
+
+- **A new pin (contributors).** `node scripts/check-browser-runtime-pin.mjs`
+  (run weekly and before each release) says whether the pin is still within
+  45 days of its publication and at most 14 days behind the newest Stable.
+  When it asks for a new one, `node scripts/pin-browser-runtime.mjs` writes
+  `browserRuntime.json` for the newest Stable Chrome for Testing version, or
+  for the one named (`node scripts/pin-browser-runtime.mjs 156.0.8078.47`):
+  it downloads each pinned platform's archive (about 465 MB in all) to a
+  temporary folder, measures it, reads and extracts it with the extension's
+  own ZIP reader, checks the whole pin with the extension's own schema, and
+  removes the folder. Update the version and the table above to match, and
+  ship the new pin in an extension release ([docs/RELEASING.md](docs/RELEASING.md)).
 
 - **What the check cannot promise.** `https` and WebSocket traffic to a
   host you widened goes through the proxy as an opaque tunnel: the proxy
@@ -5906,7 +5918,7 @@ runtime effect: the vault always uses the operating system's credential store,
 the same one every editor and the ACP agent use, plus a one-time recovery code
 shown at setup. The internal POSIX broker uses Linux Secret Service and the macOS login
 Keychain. Linux requires an available Secret Service and an unlocked keyring;
-a signed-in desktop session normally supplies them. Known issue in 0.19.0: the
+a signed-in desktop session normally supplies them. Known issue in 0.19.1: the
 VS Code extension's Linux build carries no Secret Service component, so in VS
 Code on Linux the vault can be set up only with a TPM your account can reach
 (usually by joining the `tss` group); the terminal agent

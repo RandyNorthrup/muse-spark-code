@@ -79,6 +79,19 @@ under _Shipped_. Without a §10 record a changelog version counts as shipped.
 Every §10 record change, released or not, changes the roadmap's source
 fingerprint, so `check:roadmap` fails until it is regenerated.
 
+## Renewing the browser check's runtime pin
+
+When the browser-pin check (`node scripts/check-browser-runtime-pin.mjs`,
+also weekly) says the pin expired or lags the newest Stable Chrome for
+Testing by more than 14 days,
+`node scripts/pin-browser-runtime.mjs [<version>]` writes
+`src/host/browser/runtime/browserRuntime.json` for the newest Stable (or the
+version named) from the records the check reads and the four archives, each
+read and extracted by the runtime's own ZIP reader. Run for the version
+already pinned, it leaves the file unchanged. Update the README's version
+and archive table and `test/unit/runtimeManifest.test.ts` with it, and run
+`browser-check.yml`'s captures on the new runtime.
+
 ## The hosted result a tag needs
 
 After the tag, manifest, `main` ancestry and browser-pin checks, the

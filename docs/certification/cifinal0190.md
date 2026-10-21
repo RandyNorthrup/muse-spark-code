@@ -528,3 +528,68 @@ runs on the final tree, each a first attempt:
   lockfile is byte-identical to `4ec0618c14`'s, and the same gate exits 0
   locally minutes later. A rerun on the same commit is refused (AGENTS.md
   rule 2), so this record is the new commit.
+
+## 13. 0.19.0's tag refused; 0.19.1's first run met a GitHub incident
+
+- `v0.19.0` on `e48e8c6bce` (release run 39569020330): the tag checks
+  stopped the release before any build or publication: the browser check's
+  runtime pin (154.0.8037.92) was 21.060 days behind Stable 156.0.8078.47
+  (at most 14). The version is spent; the pin renewal ships as 0.19.1
+  (PR #255, `scripts/pin-browser-runtime.mjs`, validated byte for byte
+  against the 154 pin on all four platforms, the 156 runtime downloaded,
+  verified, extracted and launched by the real store on Windows).
+- PR #255 head `23f15583ca` (runs 39622440581, 39622440331, 39622440364):
+  red in every capacity hand-off only. The route pushed the merge commit
+  `bf3029fbd8` to the capacity repository, which created no run within ten
+  minutes, during GitHub's incident "Delays for Pull Requests and Webhook
+  deliveries" (Actions and Webhooks degraded, 2026-10-21 15:15 UTC); the
+  same pull request's Forks run was never created either. No job of ours
+  failed. A rerun on the same commit is refused (AGENTS.md rule 2), so this
+  record is the new commit, pushed once GitHub reported the incident
+  resolved.
+
+## 14. PR #255's second run: two Windows-only reds on a slow runner
+
+PR #255 head `6cc8f2a34d` (CI run 39653536793, capacity run 39653641953),
+hosted Windows only:
+
+- `reportProductionTransport.test.ts` (shard 1): the store read came back
+  `unavailable` for Marketplace, Open VSX and npm. The same 53-file shard
+  passes here (`npx vitest run --shard=1/16`: 5,672 passed), and nothing in
+  0.19.1 touches the reporting network; the test said only the status. It
+  now names the read's reason when it fails, so a repeat shows its cause.
+- Integration `schedule background entry in the real host: reconcile
+retires a stale entry…` on VS Code 1.99: over its 20 s timeout, where the
+  last green runs took 6.9 s and 10.9 s; the same case passed on current
+  VS Code in the same job. Both reds fell in the hour after GitHub's
+  Actions incident. No timeout was raised and nothing was re-run on the
+  same commit (AGENTS.md rule 2): this record and the test's reason are the
+  new commit.
+
+## 15. The pin's upstream answers parsed with zod; the pin commands in the README
+
+PR #255 head `3e199993dc` passed every check, and the merge stayed blocked
+on two unresolved review findings (AGENTS.md rules on HTTP answers and on
+docs moving with code):
+
+- `scripts/pin-browser-runtime.mjs` and `scripts/check-browser-runtime-pin.mjs`
+  used Chrome for Testing's and ChromiumDash's JSON before any schema read
+  it. Both now parse each answer with a zod schema shared in
+  `scripts/lib/browserRuntimeSources.mjs` (`LAST_KNOWN_GOOD`, `KNOWN_GOOD`,
+  `DASH_RELEASES`) before using a field of it, and a wrong shape fails with
+  the URL and the field.
+- The README's Browser check section now gives both commands, the optional
+  version, the download size and what to update after a new pin.
+
+Proof, on this PC against the live sources:
+
+- All three schemas parse the live answers (last known good, 2,580 known
+  versions, 200 records on each of Windows, Linux and Mac): exit 0.
+- `node scripts/pin-browser-runtime.mjs`: exit 0, all four archives
+  downloaded, measured and extracted; `browserRuntime.json` unchanged byte
+  for byte. `node scripts/check-browser-runtime-pin.mjs`: exit 0.
+- Red: the shared revision pattern changed to `/^x$/`; the check exited 1
+  ("last-known-good-versions.json answered in an unexpected shape: Invalid
+  string: must match pattern /^x$/ at channels.Stable.revision") and the
+  generator exited 1 with the same message before any download. Restored:
+  the check exits 0 and the schemas parse the live answers again.
