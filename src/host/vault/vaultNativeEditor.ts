@@ -19,6 +19,7 @@ import {
   vaultIssuerSchema,
   vaultResourceSchema,
 } from '../../shared/vault'
+import { readVaultExpiry } from '../../shared/vaultExpiry'
 import * as z from 'zod/mini'
 
 export interface VaultNativeInput {
@@ -206,14 +207,20 @@ export async function editVaultItem(
       keeping = answer
     }
   }
-  /** Reads a date the person types; empty stays empty only where allowed. */
+  /**
+  Reads an expiry the person types, in the two shapes its prompt names; empty
+  stays empty only where allowed. `stored` is the item's own expiry an edit
+  pre-fills, or null: keeping it unchanged is never refused as passed.
+  */
   async function readExpiry(
-    prompt: string,
-    value: string | undefined,
+    stored: number | null,
     isEmptyAllowed: boolean,
   ): Promise<number | null> {
+    const prompt = isEmptyAllowed
+      ? `${UI_TEXT.vault.expiresPrompt} ${UI_TEXT.vault.expiresNone}`
+      : UI_TEXT.vault.expiresPrompt
     let asking = prompt
-    let keeping = value
+    let keeping = stored === null ? undefined : new Date(stored).toISOString()
     for (;;) {
       const answer = await input(asking, false, keeping)
       if (answer === '') {
@@ -222,9 +229,9 @@ export async function editVaultItem(
         keeping = answer
         continue
       }
-      const at = new Date(answer).getTime()
-      if (!Number.isNaN(at)) return at
-      asking = `${UI_TEXT.vault.expiresInvalid} ${prompt}`
+      const reading = readVaultExpiry(answer, native.now(), stored)
+      if (reading.refusal === null) return reading.at
+      asking = `${reading.refusal} ${prompt}`
       keeping = answer
     }
   }
@@ -365,12 +372,7 @@ export async function editVaultItem(
       `${UI_TEXT.vault.requirePresence}: ${UI_TEXT.vault.presenceAdvice}`,
       current?.requirePresence ?? false,
     )
-    const expiresAt = current?.dates.expiresAt
-    const expiry = await readExpiry(
-      UI_TEXT.vault.expires,
-      expiresAt == null ? '' : new Date(expiresAt).toISOString(),
-      true,
-    )
+    const expiry = await readExpiry(current?.dates.expiresAt ?? null, true)
     const metadata = vaultItemMetadataSchema.parse({
       id: current?.id ?? randomBytes(VAULT_ID_BYTES).toString('hex'),
       name,
@@ -485,7 +487,7 @@ export async function editVaultItem(
               ? null
               : UI_TEXT.vault.resourceInvalid
           }),
-          expiresAt: await readExpiry(UI_TEXT.vault.expires, undefined, false),
+          expiresAt: await readExpiry(null, false),
         }
         break
       }
@@ -499,7 +501,7 @@ export async function editVaultItem(
               ? UI_TEXT.vault.originHttpsInvalid
               : null
           }),
-          expiresAt: await readExpiry(UI_TEXT.vault.expires, undefined, false),
+          expiresAt: await readExpiry(null, false),
         }
         break
       }

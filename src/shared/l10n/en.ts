@@ -7248,7 +7248,15 @@ export const EN = {
     targetListInvalid: 'That is not a list of uses. Type a JSON list.',
     fieldMissing: 'That answer is empty. Try again.',
     fieldInvalid: 'That answer is not valid. Try again.',
-    expiresInvalid: 'That date is not valid. Leave it empty for no expiry, or type a date.',
+    // An expiry takes two shapes only (src/shared/vaultExpiry.ts): a day, the
+    // start of that day in the person's time, or a day and a time. The shapes
+    // are formats, not words: every table keeps YYYY-MM-DD and
+    // YYYY-MM-DDTHH:MM as they are.
+    expiresPrompt:
+      'Expires: a date as YYYY-MM-DD (the start of that day, your time), or a date and time as YYYY-MM-DDTHH:MM.',
+    expiresNone: 'Leave it empty for no expiry.',
+    expiresInvalid: 'That date is not valid. Type it as YYYY-MM-DD or YYYY-MM-DDTHH:MM.',
+    expiresPassed: 'That date has already passed.',
     nameInvalid:
       'Names start with a lowercase letter and use only lowercase letters, numbers and dashes.',
     labelInvalid: 'Type a label using its own words on one line.',
