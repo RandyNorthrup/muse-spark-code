@@ -5831,7 +5831,7 @@
     "resetTypeWord": "Kasayı sıfırlamak için {word} yazın.",
     "resetDone": "Kasa sıfırlandı. Sır saklamak için yeniden kurun.",
     "vaultLost": "Kasa açılamıyor: dosyalar eksik veya bozuk ya da yazma kilidinin sahibi belirlenemiyor. Yeniden başlamak için sıfırlamayı gözden geçirin.",
-    "storeUnavailable": "İşletim sisteminin kimlik bilgisi deposu kullanılamıyor: ya bu derleme kimlik bilgisi deposu bileşenini içermiyor ya da depo kilitli. Bileşenin eksik olduğu durumlarda kasa, yalnızca makinenin mühürlediği bir donanım yuvasını kullanabilir; aksi takdirde Linux’ta kilidi açık bir anahtarlıkla (Secret Service) masaüstü oturumu açın; macOS’ta oturum açma anahtar zincirinin kilidini açın; Windows’ta etkileşimli olarak oturum açın. Ardından yeniden deneyin.",
+    "storeUnavailable": "İşletim sisteminin kimlik bilgisi deposu kullanılamıyor. macOS’ta oturum açma anahtar zincirinin kilidini açın; Windows’ta etkileşimli olarak oturum açın; Linux’taki terminal aracısı için anahtarlığı kilitsiz (Secret Service) bir masaüstü oturumu açın. Linux’taki VS Code’da bu derleme Secret Service bileşenini içermez; bu yüzden kasa orada yalnızca hesabınızın erişebildiği bir TPM kullanabilir (genellikle tss grubuna katılarak). Ardından yeniden deneyin.",
     "remoteWarning": "Başka bir cihazdan yalnızca imza veya tek kullanımlık kod istenebilir. Kullanıcı her kullanımı o cihazda onaylamalıdır.",
     "approvalExpired": "Bu onayın süresi doldu. Kullanımı yeniden isteyin.",
     "useChanged": "Onaydan sonra kullanım değişti. Yeni kullanım için onay isteyin.",

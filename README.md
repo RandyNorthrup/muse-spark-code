@@ -5906,14 +5906,18 @@ runtime effect: the vault always uses the operating system's credential store,
 the same one every editor and the ACP agent use, plus a one-time recovery code
 shown at setup. The internal POSIX broker uses Linux Secret Service and the macOS login
 Keychain. Linux requires an available Secret Service and an unlocked keyring;
-a signed-in desktop session normally supplies them. macOS needs an unlocked
+a signed-in desktop session normally supplies them. Known issue in 0.19.0: the
+VS Code extension's Linux build carries no Secret Service component, so in VS
+Code on Linux the vault can be set up only with a TPM your account can reach
+(usually by joining the `tss` group); the terminal agent
+(`muse-spark-code-acp`) includes the component. macOS needs an unlocked
 login Keychain. Touch ID / Keychain biometry is not
 offered: the required Apple Developer ID is unavailable (M109 decision 10).
 Linux hardware unlock and screen-lock integration remain in C-M109-2.
 
 The terminal/ACP/headless handlers run against the same broker-backed vault
-on Linux and macOS. Windows follows through lane C-M109-1c's pipe helper; until
-then the vault reports itself switched off there. The companion page has no
+on Linux and macOS, and on Windows through the broker's pipe helper, where
+the vault is protected by Windows DPAPI. The companion page has no
 vault surface yet, and existing extension keys still live in SecretStorage
 until the key-store migration moves them.
 No activation read or broker start is added. The VSIX package check follows production build and lazy-loader dependencies and refuses every omitted sibling bundle. On POSIX, the session owns a broker

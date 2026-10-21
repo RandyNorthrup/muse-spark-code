@@ -15261,6 +15261,21 @@ they hold on Muse Code 1.4.7 and later. Record:
 
 ## 3. Open questions (need the owner)
 
+<a id="q-0191-linux-vault"></a>
+
+- **Q-0191-LINUX-VAULT — the vault in VS Code on Linux (2026-10-20).**
+  **Resolved by the owner for 0.19.0: ship with the limitation documented,
+  fix in 0.19.1.** The .vsix carries no `@napi-rs/keyring` binding (about
+  3.4 MB unpacked against ~200 KB of package budget headroom), so the
+  extension's Linux build has no Secret Service slot, and the TPM2 slot
+  probes `/dev/tpmrm0` directly, which a user outside the `tss` group cannot
+  open; on a stock Linux desktop the vault therefore cannot be set up in VS
+  Code (the terminal agent installs the binding and works). 0.19.0 makes the
+  `storeUnavailable` sentence say this, and the CHANGELOG and README record
+  it. Options for 0.19.1: seal through `systemd-creds`' user scope (systemd
+  256+, no device access), the Secret Service over D-Bus without a native
+  binding, or a package budget the owner raises to ship the binding.
+
 <a id="q-m124"></a>
 
 - **Q-M124 — MCP connector defaults (2026-10-07; reviewed 2026-10-09).**
