@@ -44,6 +44,12 @@ async function coordinator(nextWake: number | undefined) {
   return { ...realBackgroundHarness(folder, nextWake), folder }
 }
 
+// The entry's real OS calls (the Windows Task Scheduler through PowerShell)
+// take as long as the machine needs: a slow hosted Windows runner ran past
+// the integration runs' 20 s budget twice (PR #255, PR #257) where a warm run
+// takes 7 to 11 s. No limit of ours here (owner 2026-10-16): each test below
+// is `.timeout(0)` (mocha copies a suite's timeout into a test when the test
+// is added); the other suites keep the repository's budget.
 suite('schedule background entry in the real host', () => {
   let disposeGovernor: (() => void) | undefined
   let governorChannel: vscode.LogOutputChannel | undefined
@@ -139,7 +145,7 @@ suite('schedule background entry in the real host', () => {
     } finally {
       await removeFolder(folder)
     }
-  })
+  }).timeout(0)
 
   const registerTest = process.platform === 'win32' ? test.skip : test
   registerTest(
@@ -163,7 +169,7 @@ suite('schedule background entry in the real host', () => {
         await removeFolder(folder)
       }
     },
-  )
+  ).timeout(0)
 
   test('an explicit removal retires the entry with no consent record', async () => {
     const { background, entry, folder } = await coordinator(undefined)
@@ -174,5 +180,5 @@ suite('schedule background entry in the real host', () => {
     } finally {
       await removeFolder(folder)
     }
-  })
+  }).timeout(0)
 })
