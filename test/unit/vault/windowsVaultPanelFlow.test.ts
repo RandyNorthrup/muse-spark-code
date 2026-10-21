@@ -52,10 +52,11 @@ describe.skipIf(process.platform !== 'win32')('Windows vault through the panel',
     const codes: string[] = []
     const lockItem: boolean[] = []
     // The person's answers in the native Add dialog, in the order it asks:
-    // kind, name, label, targets, policy, presence, expiry, hidden,
-    // unattended, disclosure, then the key, its use and its origin.
-    const typed = ['service-key', 'Service key', '[]', '', 'sk-panel-value', ORIGIN]
-    const picked = ['apiKey', 'askEveryTime', 'keep', 'keep', 'keep', 'keep', 'bearer']
+    // kind, name, label, where it may be used (nowhere yet), policy,
+    // presence, expiry (none), hidden, unattended, disclosure, then the key,
+    // its use and its origin.
+    const typed = ['service-key', 'Service key', '', 'sk-panel-value', ORIGIN]
+    const picked = ['apiKey', 'none', 'askEveryTime', 'keep', 'keep', 'keep', 'keep', 'bearer']
     const person: VaultNativeInput = {
       input: () => Promise.resolve(typed.shift()),
       pick: () => Promise.resolve(picked.shift()),

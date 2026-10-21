@@ -102,3 +102,85 @@ table entries removed).
   `run muse-spark-code-acp <topic> --help for`; on the old helper it failed
   (1 failed | 10 passed, exit 1), green after the fix (11/11; with
   cliHelp, cliHelpConsistency and execArgs 151/151).
+
+## 8. The vault's Expires box took any date the engine could guess
+
+Real use of the packed product on Windows (Models & Agents → Vault → Add
+to Vault → Named Secret): the box said only "Expires", and a wrong answer
+was asked again with "That date is not valid. Leave it empty for no
+expiry, or type a date.", which never said what a date looks like.
+`readExpiry` stored whatever `new Date(answer)` parsed: "1" as 2001-01-01,
+"12/1" as 2001-12-01, 2026-02-30 as 2026-03-02, a date alone as UTC
+midnight and a date and time without a zone as local time, so an item
+could be stored already expired, or off by the person's time zone. The
+OAuth and session login expiry and the grant form's Expires parsed the same
+way.
+
+Fix: one reading, `readVaultExpiry` (`src/shared/vaultExpiry.ts`), for the
+item's own expiry, the required login expiry and the grant form. Two shapes
+only: YYYY-MM-DD, the start of that day in the person's time
+(`new Date(y, m - 1, d)`, refused unless the day round-trips), or
+YYYY-MM-DDTHH:MM with optional `:SS`, `.fff` and `Z` or `±HH:MM` (local
+without a zone; the edit pre-fill's `toISOString()` form unchanged).
+Anything else asks again with the typed text kept; a moment at or before
+now asks again with "That date has already passed.", except an edit that
+keeps the item's stored date. The prompts name both shapes, the item's own
+adds "Leave it empty for no expiry."; English and all 14 tables.
+
+Tests: the real `editVaultItem` through `VaultNativeInput`
+(`vaultNativeEditor.test.ts`: "1", "12/1", "next tuesday" and 2026-02-30
+asked again with the shape sentence and the text kept; a past date and the
+seam clock's own moment asked again with the passed sentence; local
+midnight, local time, a `Z` and a `+05:30` instant stored; an expired
+item's pre-filled date kept on edit while another passed date is refused;
+OAuth and session refuse empty); the helper in UTC, America/New_York,
+Asia/Kolkata, Pacific/Kiritimati and Pacific/Pago_Pago with `TZ` set for
+the suite as `l10n.test.ts` does (`vaultExpiry.test.ts`); the real grant
+form in jsdom (`vaultGrantExpiry.test.tsx`).
+
+Break on purpose, one exact replacement each, suites `vaultNativeEditor`,
+`vaultExpiry` and `vaultGrantExpiry` (43 cases), the file restored byte for
+byte (sha256 checked) after each:
+
+| Break                                                          | Exit | Failed |
+| -------------------------------------------------------------- | ---- | ------ |
+| The engine's guess back in `expiryInstant` (`new Date(typed)`) | 1    | 21     |
+| The kept-date exception removed                                | 1    | 6      |
+| The passed check removed                                       | 1    | 8      |
+| The zone dropped before `Date.parse`                           | 1    | 10     |
+| The OAuth/session expiry accepts empty                         | 1    | 2      |
+| The grant form skips the refusal                               | 1    | 1      |
+| The grant form reads the picker's value as UTC                 | 1    | 1      |
+| The grant form sends an empty box to the reading               | 1    | 1      |
+
+Every new case failed in at least one row. Restored: 43/43, exit 0; with
+`vaultGrantHints` 45/45.
+
+`windowsVaultPanelFlow.test.ts` still scripted the Add dialog in its order
+from before VAULTTARGET's Target picker: its second pick
+(`askEveryTime`) went to the picker and `keep` to the mode, so the flow
+ended in "The vault operation failed. Try again." and `service-key` was
+never added. Its script now follows the current order (Target: nowhere
+yet, then no expiry); the old and new scripts were run against the real
+`editVaultItem` (old: that failure; new: the `apiKey` item with every
+answer used). The suite itself, the other Windows broker and pipe suites
+and `writerCrashPosix` cannot build their helper on this PC: its Temp and
+profile folders grant Modify to `CodexSandboxUsers` and another SID, so the
+guard refuses both (`Bootstrap command failed (code=23)`) before any case
+runs. `brokerSocketDirectory`'s two symlink cases need Developer Mode
+(`EPERM … symlink`). Hosted Windows CI decides all of them.
+
+Gates on this tree (Windows): `prettier --check` and
+`eslint --max-warnings 0` on the touched files 0 and 0; `npm run typecheck`
+0; `npm run check:catches` 0 (no count moved); `npm run duplication` 0 (0
+clones); `npm run cycles` 0; `npm run deadcode` 0;
+`node scripts/check-l10n.mjs` 0; `node scripts/gen-reference.mjs --check`
+0; `npm run check:roadmap` 0. `npx vitest run test/unit/vault` 1: 268
+passed, 59 skipped, and the six files above refused in their setup.
+`npx vitest related src/host/vault/vaultNativeEditor.ts --run` 1:
+`vaultNativeEditor` 15/15, `windowsVaultPanelFlow` refused at its helper
+build. `npm run build` 1, at `check-bundle-split` only: its eight "no
+longer carries node_modules/…" lines come from `node_modules` being a
+junction (the metafiles read `../mx-final/node_modules/…`); the build and
+all 199 budgets passed, `dist/vaultActions.js` at 25,504 of its 25,600
+bytes.
