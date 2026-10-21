@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// Every `node scripts/...` step in a workflow job runs with only what that
-// job installed. A job that has run no `npm ci` or `npm install` before the
-// step has no node_modules, so the script, and every file it reaches
-// through relative imports, may import Node's built-in modules only.
+// Every workflow step that runs the repository's code with `node` runs with
+// only what its job installed. A job that has run no `npm ci` or
+// `npm install` before the step has no node_modules, so the file it runs
+// (`node <file>`), every file inline code imports (`node -e "import ...
+// from './scripts/...'"`), and every file those reach through relative
+// imports may import Node's built-in modules only, and inline code may
+// import no package itself.
 // A 0.19.0 release tag was refused this way: the browser check's pin check gained a
 // zod import, and the release's tag-checks job never installed anything
 // (docs/certification/cifinal0190.md section 16).
@@ -11,8 +14,8 @@
 // with every package left external and reports, in its metafile, each file
 // reached and each import that stays outside the bundle. A step that runs
 // before its job's install and imports a package fails the check, naming
-// the workflow, the job, the step, the script, the package and the file
-// that imports it.
+// the workflow, the job, the step, the file it loads, the package and the
+// file that imports it.
 //
 //   node scripts/check-workflow-scripts.mjs
 
@@ -26,7 +29,11 @@ import { parse } from 'yaml'
 const root = path.resolve(import.meta.dirname, '..')
 const WORKFLOWS = path.join(root, '.github', 'workflows')
 const INSTALL = /\bnpm\s+(?:ci|install|i)\b/
-const NODE_SCRIPT = /\bnode\s+(?:\.\/)?([\w./-]+\.[cm]?js)\b/g
+const NODE_FILE = /\bnode\s+(?:\.\/)?([\w./-]+\.[cm]?js)\b/g
+// Inline code handed to node with -e, --eval, -p or --print, and the module
+// specifiers it imports.
+const NODE_INLINE = /\bnode\b[^\n]*?\s(?:-e|--eval|-p|--print)\s+(["'])([\s\S]*?)\1/g
+const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"]([^'"]+)['"]/g
 const builtins = new Set(builtinModules)
 
 /** Whether `specifier` names one of Node's built-in modules. */
@@ -57,19 +64,32 @@ async function packageImports(script) {
   return found
 }
 
-/** The repository's scripts each `run` text starts with `node`, resolved from `directory`. */
-function scriptsRunBy(run, directory) {
-  const scripts = []
-  for (const match of run.matchAll(NODE_SCRIPT)) {
-    const script = path.resolve(directory, match[1])
-    if (existsSync(script) && script.startsWith(path.join(root, 'scripts'))) {
-      scripts.push(script)
+/** What a `run` text has node load: repository files, and packages inline code imports. */
+function nodeEntriesOf(run, directory) {
+  const entries = []
+  const addFile = (relative) => {
+    const file = path.resolve(directory, relative)
+    if (existsSync(file) && file.startsWith(root + path.sep)) {
+      entries.push({ file })
     }
   }
-  return scripts
+  for (const match of run.matchAll(NODE_FILE)) {
+    addFile(match[1])
+  }
+  for (const inline of run.matchAll(NODE_INLINE)) {
+    const specifiers = inline[2].matchAll(SPECIFIER)
+    for (const [, specifier] of specifiers) {
+      if (specifier.startsWith('.')) {
+        addFile(specifier)
+      } else if (!isBuiltin(specifier)) {
+        entries.push({ specifier })
+      }
+    }
+  }
+  return entries
 }
 
-/** One job's steps in order: each script it runs and whether the job has installed by then. */
+/** One job's steps in order: what each has node load, and whether the job has installed by then. */
 function scriptSteps(job, jobId) {
   const found = []
   let hasInstalled = false
@@ -81,8 +101,8 @@ function scriptSteps(job, jobId) {
     }
     const directory = path.resolve(root, step['working-directory'] ?? jobDirectory)
     const where = `${job?.name ?? jobId} › ${step.name ?? `step ${String(index + 1)}`}`
-    for (const script of scriptsRunBy(step.run, directory)) {
-      found.push({ where, script, hasInstalled })
+    for (const entry of nodeEntriesOf(step.run, directory)) {
+      found.push({ where, entry, hasInstalled })
     }
     hasInstalled ||= INSTALL.test(step.run)
   }
@@ -99,17 +119,23 @@ for (const name of workflowFiles) {
   const workflow = parse(readFileSync(path.join(WORKFLOWS, name), 'utf8'))
   const jobs = Object.entries(workflow?.jobs ?? {})
   for (const [jobId, job] of jobs) {
-    for (const { where, script, hasInstalled } of scriptSteps(job, jobId)) {
+    for (const { where, entry, hasInstalled } of scriptSteps(job, jobId)) {
       stepCount += 1
       if (hasInstalled) {
         continue
       }
       beforeInstall += 1
-      const shown = path.relative(root, script).split(path.sep).join('/')
-      const imports = await packageImports(script)
+      if (entry.specifier !== undefined) {
+        problems.push(
+          `${name} › ${where}: inline node code imports '${entry.specifier}', and the job installs nothing before this step`,
+        )
+        continue
+      }
+      const shown = path.relative(root, entry.file).split(path.sep).join('/')
+      const imports = await packageImports(entry.file)
       for (const { specifier, file } of imports) {
         problems.push(
-          `${name} › ${where}: node ${shown} imports '${specifier}' (${file}), and the job installs nothing before this step`,
+          `${name} › ${where}: node loads ${shown}, which imports '${specifier}' (${file}), and the job installs nothing before this step`,
         )
       }
     }
@@ -123,5 +149,5 @@ if (problems.length > 0) {
   process.exit(1)
 }
 console.log(
-  `ok   ${String(stepCount)} workflow steps run scripts/; the ${String(beforeInstall)} before their job's install import Node's built-in modules only`,
+  `ok   ${String(stepCount)} files node loads in workflow steps; the ${String(beforeInstall)} loaded before their job's install import Node's built-in modules only`,
 )
