@@ -277,15 +277,16 @@ try {
     .trim()
     .split('\n')
     .at(-1)
+  // The release SBOM runs after the stage is gone: the receipt names every
+  // staged file for its membership check, for the universal package the
+  // release ships as well as for a targeted one.
+  writeStageReceipt(STAGE, path.join('dist', 'acp-stage-files.json'))
   // A targeted package says its target in its filename, as the targeted
   // .vsix does, so two platforms' artifacts never share a name.
   let packedName = String(packed)
   if (target !== undefined) {
     const targeted = `${packedName.slice(0, packedName.length - '.tgz'.length)}-${target}.tgz`
     renameSync(path.join('dist', packedName), path.join('dist', targeted))
-    // The release SBOM runs after the stage is gone: the receipt names every
-    // staged file for its membership check.
-    writeStageReceipt(STAGE, path.join('dist', 'acp-stage-files.json'))
     packedName = targeted
   }
   execFileSync(
