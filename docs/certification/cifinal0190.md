@@ -501,3 +501,30 @@ Found beside this, not changed: a turn the extension writes whole, with no
 words of the person's in it (a review on Muse Code, `/playback`), titles its
 conversation when it is the first message; a review's title is its prompt
 with the reviewed material.
+
+## 12. PR #237's hosted runs before the release
+
+The capacity mirror runs only the unit shards and a subset of jobs; the
+release pull request's own CI also runs jobs the mirror never does. Its
+runs on the final tree, each a first attempt:
+
+- `5bab951798` (run 39551158884): red. The capacity relay brought back one
+  darwin slot helper named `muse-vault` after VSIXDARWIN made one per
+  architecture, and never relayed the darwin peer helpers; the Linux native
+  helpers job ran the dictation build (pins read through esbuild) without
+  `npm ci`; semgrep's community Telegram-token rule matched the vault
+  Target help's example fingerprint (`SHA256:AAAA…`) in all 15 tables. All
+  three fixed in `a5464af20a` (actionlint and zizmor clean; semgrep's exact
+  command 0 findings; the rule itself finds 2 in the old table, 0 now).
+- `a5464af20a` (run 39554120250): red. The release SBOM found no
+  `dist/acp-stage-files.json`: `package-acp.mjs` wrote it only for a
+  targeted pack, and CI packs the universal agent. Fixed in `4ec0618c14`;
+  the SBOM step exits 1 without the receipt and 0 after a pack.
+- `4ec0618c14` (run 39558051964): green, with Hosts, Forks and Browser
+  check, all first attempts.
+- `09459516de` (run 39562044632, the release date moved to 2026-10-21
+  after midnight Pacific): red at `security:audit`, where the npm
+  registry's audit endpoint answered `400 Bad Request` (07:32 UTC); the
+  lockfile is byte-identical to `4ec0618c14`'s, and the same gate exits 0
+  locally minutes later. A rerun on the same commit is refused (AGENTS.md
+  rule 2), so this record is the new commit.
