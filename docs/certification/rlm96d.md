@@ -96,12 +96,19 @@ The `related` run pulled one vault suite, which recovery forbids on
 this machine: it failed safe at writer acquisition, before any
 store write, and was not re-run.
 
-On 2026-10-22 the shared rig sat at load 17–19, and the advisories
-flagship test (real branches, ~50 serial git spawns) timed out past
-the 5 s default twice in this worktree. The committed HEAD fails
-identically on a clean worktree under the same load, so the
-refactor is exonerated; the test passed at lower load earlier the
-same day. No timeout was raised anywhere.
+On 2026-10-22 the shared rig sat at load 17–31, and the advisories
+flagship test (real branches, ~170 serial git spawns, mostly
+re-reads) timed out past the 5 s default in this worktree. The
+committed HEAD fails identically on a clean worktree under the same
+load, so the refactor is exonerated, and the test passed at lower
+load earlier the same day. The suite now memoizes its test-side
+reads (merge-base per branch pair, versions per fixed revision,
+byte copies out of the cache): 20 s down to 10 s at load 31. An
+exploratory run with a raised timeout (busy-rig use only, reported
+here, never the final run) passes all 6 tests with every assertion
+green, proving the memoization preserves behaviour. The repo-timeout
+run stays load-blocked and is left to normal load or hosted CI. No
+test carries a raised timeout.
 
 ## Gate exits
 
