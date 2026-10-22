@@ -5992,6 +5992,7 @@
     "remoteWarning": "Somente uma assinatura ou um código de uso único pode ser solicitado de outro dispositivo. O usuário deve aprovar cada uso naquele dispositivo.",
     "approvalExpired": "Esta aprovação expirou. Solicite o uso novamente.",
     "useChanged": "O uso mudou após a aprovação. Solicite aprovação para o novo uso.",
+    "editConflict": "O cofre mudou enquanto o editor estava aberto. Revise o estado mais recente e tente novamente.",
     "osStoreWarning": "Protegido pelo armazenamento de credenciais do sistema operacional. Programas executados com sua conta também podem desbloqueá-lo.",
     "unknownTierWarning": "O nível de proteção é desconhecido porque o cofre está bloqueado. Desbloqueie-o para ver como ele está protegido.",
     "tierUnknown": "O nível de proteção é desconhecido.",
