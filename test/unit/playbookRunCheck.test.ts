@@ -2,10 +2,8 @@
 // journal and spawn. Unknown capacity admits (the owner rule); a paused
 // reading refuses with its why-note and never spawns. Shell lines are
 // the shells' own (`exit`, `sleep`), quiet on both interpreters.
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { onTestFinished, describe, expect, it } from 'vitest'
+import { existsSync, realpathSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
 import {
   FilePlaybookJournal,
   validatedRecords,
@@ -14,17 +12,7 @@ import { parsePlaybookCommand } from '../../src/runtime/playbook/command'
 import { resourceStatusSchema } from '../../src/shared/resources'
 import { runPlaybookCheckCli, type PlaybookCheckCliDeps } from '../../src/runtime/playbook/runCheck'
 import { spawnCheckLine } from '../../src/runtime/playbook/spawnCheck'
-
-/** A scratch workspace/data pair, removed when the test finishes. */
-function scratchFolders(prefix: string) {
-  const directory = mkdtempSync(path.join(tmpdir(), prefix))
-  onTestFinished(() => {
-    rmSync(directory, { recursive: true, force: true })
-  })
-  const workspaceFolder = path.join(directory, 'workspace')
-  mkdirSync(workspaceFolder, { recursive: true })
-  return { workspaceFolder, agentDataFolder: path.join(directory, 'data') }
-}
+import { scratchFolders } from './helpers/playbook/scratchFolders'
 
 function deps(
   folders: { workspaceFolder: string; agentDataFolder: string },
@@ -82,6 +70,16 @@ function journalOf(folders: { workspaceFolder: string; agentDataFolder: string }
   )
 }
 
+/** The run journals exactly its decision note. */
+function expectJournaledNote(
+  folders: { workspaceFolder: string; agentDataFolder: string },
+  value: { readonly rule: string; readonly code: string; readonly missing?: readonly string[] },
+) {
+  const records = journalOf(folders)
+  expect(records).toHaveLength(1)
+  expect(records[0]).toMatchObject({ kind: 'note', value })
+}
+
 const SETTINGS = JSON.stringify({
   'museSpark.checkCommands': [
     { name: 'quiet', command: 'exit 0' },
@@ -99,12 +97,7 @@ describe('playbook run', () => {
     expect(errors).toEqual([])
     expect(lines[0]).toBe('quiet passed')
     expect(lines).toHaveLength(2)
-    const records = journalOf(folders)
-    expect(records).toHaveLength(1)
-    expect(records[0]).toMatchObject({
-      kind: 'note',
-      value: { rule: 'offload', code: 'localCheck' },
-    })
+    expectJournaledNote(folders, { rule: 'offload', code: 'localCheck' })
     expect(lines[1]).toContain(
       'Playbook: no worker is offered; run locally under the resource governor.',
     )
@@ -123,12 +116,7 @@ describe('playbook run', () => {
     const { deps: run, lines } = deps(folders, SETTINGS)
     await expect(runPlaybookCheckCli(['quiet', '--heavy', '--full-gate'], run)).resolves.toBe(0)
     expect(lines[0]).toBe('quiet passed')
-    const records = journalOf(folders)
-    expect(records).toHaveLength(1)
-    expect(records[0]).toMatchObject({
-      kind: 'note',
-      value: { rule: 'offload', code: 'localCheck' },
-    })
+    expectJournaledNote(folders, { rule: 'offload', code: 'localCheck' })
   })
 
   it('refuses at the paused level without spawning, with the why-note', async () => {
@@ -153,11 +141,10 @@ describe('playbook run', () => {
     expect(spawned.count).toBe(0)
     expect(errors).toEqual([])
     expect(lines[0]).toBe('quiet not run')
-    const records = journalOf(folders)
-    expect(records).toHaveLength(1)
-    expect(records[0]).toMatchObject({
-      kind: 'note',
-      value: { rule: 'offload', code: 'prerequisiteMissing', missing: ['resourceGovernor'] },
+    expectJournaledNote(folders, {
+      rule: 'offload',
+      code: 'prerequisiteMissing',
+      missing: ['resourceGovernor'],
     })
     expect(lines[1]).toContain('Playbook: lane quiet waits for resourceGovernor.')
   })
@@ -170,32 +157,29 @@ describe('playbook run', () => {
     const { deps: run, lines } = deps(folders, settings)
     await expect(runPlaybookCheckCli(['slow'], run)).resolves.toBe(1)
     expect(lines[0]).toBe('slow timed out')
-    const records = journalOf(folders)
-    expect(records).toHaveLength(1)
-    expect(records[0]).toMatchObject({
-      kind: 'note',
-      value: { rule: 'offload', code: 'localCheck' },
-    })
+    expectJournaledNote(folders, { rule: 'offload', code: 'localCheck' })
   })
 
-  it('reads a commented settings file like the panel does', async () => {
-    const folders = scratchFolders('m116w-run-jsonc-')
-    const settings = `{
+  it.each([
+    [
+      'a commented settings file, like the panel',
+      `{
       // The workspace's checks.
       "museSpark.checkCommands": [
         { "name": "quiet", "command": "exit 0", },
       ],
-    }`
-    const { deps: run, lines } = deps(folders, settings)
-    await expect(runPlaybookCheckCli(['quiet'], run)).resolves.toBe(0)
-    expect(lines[0]).toBe('quiet passed')
-  })
-
-  it('reads the nested settings object behind the flat key', async () => {
-    const folders = scratchFolders('m116w-run-nested-')
-    const settings = JSON.stringify({
-      museSpark: { checkCommands: [{ name: 'quiet', command: 'exit 0' }] },
-    })
+    }`,
+      'm116w-run-jsonc-',
+    ],
+    [
+      'the nested settings object behind the flat key',
+      JSON.stringify({
+        museSpark: { checkCommands: [{ name: 'quiet', command: 'exit 0' }] },
+      }),
+      'm116w-run-nested-',
+    ],
+  ])('reads %s', async (_label, settings, prefix) => {
+    const folders = scratchFolders(prefix)
     const { deps: run, lines } = deps(folders, settings)
     await expect(runPlaybookCheckCli(['quiet'], run)).resolves.toBe(0)
     expect(lines[0]).toBe('quiet passed')

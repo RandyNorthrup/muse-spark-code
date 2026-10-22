@@ -12,9 +12,8 @@
 // spawn synchronously in-process and complete in milliseconds with no kill
 // path, so they take no Windows job (spawnSync reaps; the job exists for
 // the worker's killable calls).
-import { FilePlaybookJournal } from '../../core/orchestration/playbook/journal'
 import {
-  OrchestratorPlaybook,
+  createFileJournalPolicy,
   type PlaybookCheckAdmission,
 } from '../../core/orchestration/playbook/policy'
 import {
@@ -51,12 +50,7 @@ export interface TeamPlaybookIntegrationDeps {
 export function createTeamPlaybookIntegration(
   deps: TeamPlaybookIntegrationDeps,
 ): PlaybookIntegration {
-  const policy = new OrchestratorPlaybook({
-    journal: new FilePlaybookJournal(deps.agentDataFolder, deps.workspaceFolder),
-    teamId: deps.teamId,
-    laneId: deps.laneId,
-    workspaceFolder: deps.workspaceFolder,
-    now: deps.now ?? Date.now,
+  const policy = createFileJournalPolicy(deps, {
     // A model-driven delegate call never carries a user's override decision.
     authorizeOverride: () => false,
     // No lane merges run through this integration; the planner binding

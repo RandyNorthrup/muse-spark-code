@@ -8,26 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { readDispatchHead } from '../../src/core/team/teamWorkspaces'
-import { TeamGitError, type TeamGit } from '../../src/core/team/teamGit'
-
-/** The real git binary behind the `TeamGit` contract. */
-const realGitImpl: TeamGit = (args, cwd) => {
-  try {
-    const out = execFileSync('git', [...args], { cwd, encoding: 'buffer' })
-    return Promise.resolve(new Uint8Array(out))
-  } catch (error) {
-    const status =
-      typeof error === 'object' &&
-      error !== null &&
-      'status' in error &&
-      typeof error.status === 'number'
-        ? error.status
-        : 128
-    const stderr =
-      typeof error === 'object' && error !== null && 'stderr' in error ? String(error.stderr) : ''
-    return Promise.reject(new TeamGitError(status, stderr, args.join(' ')))
-  }
-}
+import { realTeamGit as realGitImpl } from './helpers/teamGit'
 
 const commitAs = (root: string, ...args: readonly string[]): void => {
   execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args], {

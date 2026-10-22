@@ -45,7 +45,12 @@ import {
 } from '../../../shared/reviewFindings'
 import { UI_TEXT } from '../../../shared/l10n/text'
 import { actionIdentity, commandBlock } from './guard'
-import { retainRecords, validatedRecords, type PlaybookJournal } from './journal'
+import {
+  FilePlaybookJournal,
+  retainRecords,
+  validatedRecords,
+  type PlaybookJournal,
+} from './journal'
 import { renamedFiles } from './renamedFiles'
 import {
   hasOverlappingFiles,
@@ -1232,4 +1237,41 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       : this.passed('loudFailures')
     return { items: structuredClone(ordered), note: decision.note }
   }
+}
+
+/** The trusted wiring a file-journal policy is bound to. */
+export interface FileJournalWiring {
+  /** Trusted agent data folder; the journal file lives under it. */
+  readonly agentDataFolder: string
+  /** Trusted canonical workspace; never a model-supplied path. */
+  readonly workspaceFolder: string
+  readonly teamId: string
+  readonly laneId: string
+  readonly now?: () => number
+}
+
+/** The policy's ports, bound by the integration that owns the effect. */
+export type FileJournalPorts = Pick<
+  PlaybookPolicyOptions,
+  'authorizeOverride' | 'drillRequirements' | 'checkAdmission' | 'hookAdmission'
+>
+
+// One policy over the workspace's file journal: the integrations' shared
+// wiring, so the team runner, the surface and the headless run cannot
+// drift apart on folders, identity or clock.
+export function createFileJournalPolicy(
+  wiring: FileJournalWiring,
+  ports: FileJournalPorts,
+): OrchestratorPlaybook {
+  return new OrchestratorPlaybook({
+    journal: new FilePlaybookJournal(wiring.agentDataFolder, wiring.workspaceFolder),
+    teamId: wiring.teamId,
+    laneId: wiring.laneId,
+    workspaceFolder: wiring.workspaceFolder,
+    now: wiring.now ?? Date.now,
+    authorizeOverride: ports.authorizeOverride,
+    drillRequirements: ports.drillRequirements,
+    checkAdmission: ports.checkAdmission,
+    hookAdmission: ports.hookAdmission,
+  })
 }
