@@ -1,3 +1,4 @@
+import type { ModelsPanelDeps } from './modelsPanel'
 // The Models & Agents panel's bundle (M95 lane K, PLAN.md D6): esbuild
 // builds this file into dist/modelsPanel.js, which the activation bundle
 // requires on the first Models & Agents action, so the panel's host side
@@ -45,6 +46,7 @@ export interface ModelsPanelMemento {
 }
 
 export interface ModelsPanelHostDeps {
+  readonly accounts?: ModelsPanelDeps['accounts']
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: (isNewAccount: boolean) => Promise<void>
   readonly connectCopilot?: () => Promise<void>
@@ -98,6 +100,7 @@ export interface ModelsPanelHostDeps {
 
 export interface ModelsPanelFeatures {
   /** Opens (or reveals) the Models & Agents panel. */
+  readonly accountsChanged: () => void
   readonly openPanel: (navigate?: ModelsPanelNavigate) => void
   /** The quick-pick fast path (`museSpark.addModelProvider`). */
   readonly runQuickPick: () => Promise<ProviderQuickPickOutcome | undefined>
@@ -421,6 +424,7 @@ export function createModelsPanelFeatures(
   const openPanel = (navigate?: ModelsPanelNavigate): void => {
     if (panel === undefined) {
       const created = createModelsPanel({
+        accounts: host.accounts,
         extensionUri: host.extensionUri,
         resolveWebviewBundle: host.resolveWebviewBundle,
         l10n: host.l10n,
@@ -546,6 +550,7 @@ export function createModelsPanelFeatures(
       }
       return outcome
     },
+    accountsChanged: () => panel?.accountsChanged(),
     completePendingRemovals: () => providers.completePendingRemovals(),
     suggestedPreset: () => providers.suggestedPreset(host.suggestedProviderSetting()),
   }

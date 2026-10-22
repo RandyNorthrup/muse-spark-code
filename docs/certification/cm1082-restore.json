@@ -1,0 +1,111 @@
+{
+  "source": "cm1082-restore.md",
+  "items": [
+    {
+      "id": "WB-153",
+      "kind": "setting",
+      "setting": "accountSwap",
+      "descriptions": {
+        "package.nls.cs.json": "Při dosažení prahové hodnoty přejde na další účet s volnou kapacitou, a to na hranici dalšího požadavku. Každý účet si zachovává své vlastní limity. Ve výchozím stavu zapnuto; používá se pouze nastavení tohoto počítače.",
+        "package.nls.de.json": "Bei Erreichen eines Schwellenwerts vor der nächsten Anfrage zum nächsten Konto mit freier Kapazität wechseln. Jedes Konto behält seine eigenen Limits. Standardmäßig ein; nur die Einstellung dieses Computers wird verwendet.",
+        "package.nls.es.json": "Cambiar a la siguiente cuenta con capacidad cuando una alcance un umbral, en el límite de la siguiente solicitud. Cada cuenta conserva sus propios límites. Activado por defecto; solo se usa el ajuste de esta máquina.",
+        "package.nls.fr.json": "Passer au compte suivant avec de la capacité quand un compte atteint un seuil, à la limite de la requête suivante. Chaque compte garde ses propres limites. Activé par défaut ; seul le réglage de cette machine est utilisé.",
+        "package.nls.hu.json": "Küszöbérték elérésekor a következő, szabad kapacitású fiókra vált a következő kérés határán. Minden fiók megtartja saját limitjeit. Alapértelmezés szerint bekapcsolva; csak ennek a gépnek a beállítása érvényes.",
+        "package.nls.it.json": "Passa all’account successivo con capacità quando uno raggiunge una soglia, al limite della richiesta successiva. Ogni account mantiene i propri limiti. Attivo per impostazione predefinita; viene usata solo l’impostazione di questa macchina.",
+        "package.nls.ja.json": "しきい値に達したら次のリクエスト境界で空きのある次のアカウントに切り替えます。各アカウントは独自の制限を保持します。既定でオン。このコンピューターの設定のみを使用します。",
+        "package.nls.json": "Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.",
+        "package.nls.ko.json": "임계값에 도달하면 다음 요청 경계에서 여유가 있는 다음 계정으로 전환합니다. 각 계정은 자체 한도를 유지합니다. 기본적으로 켜짐. 이 컴퓨터의 설정만 사용됩니다.",
+        "package.nls.pl.json": "Po osiągnięciu progu przełącza na następne konto z wolną pojemnością, na granicy kolejnego żądania. Każde konto zachowuje własne limity. Domyślnie włączone; używane jest tylko ustawienie tego komputera.",
+        "package.nls.pt-br.json": "Troca para a próxima conta com capacidade quando uma atinge um limite, no limite da próxima solicitação. Cada conta mantém seus próprios limites. Ativado por padrão; somente a configuração desta máquina é usada.",
+        "package.nls.ru.json": "При достижении порога переключается на следующую учётную запись со свободной ёмкостью на границе следующего запроса. Каждая учётная запись сохраняет собственные лимиты. Включено по умолчанию; используется только настройка этого компьютера.",
+        "package.nls.tr.json": "Bir eşik aşıldığında sonraki istek sınırında boş kapasiteli sonraki hesaba geçer. Her hesap kendi limitlerini korur. Varsayılan olarak açıktır; yalnızca bu bilgisayarın ayarı kullanılır.",
+        "package.nls.zh-cn.json": "达到阈值时在下一个请求边界切换到有余量的下一个账号。每个账号保留各自的限额。默认开启；仅使用本机的设置。",
+        "package.nls.zh-tw.json": "達到閾值時在下一個請求邊界切換到有餘量的下一個帳號。每個帳號保留各自的限額。預設開啟；僅使用本機的設定。"
+      }
+    },
+    {
+      "id": "WB-154",
+      "kind": "setting",
+      "setting": "accountParallel",
+      "descriptions": {
+        "package.nls.cs.json": "Rozloží práci na pozadí mezi účty podle volné kapacity; každý pracovník zůstává na svém účtu. Ve výchozím stavu zapnuto; používá se pouze nastavení tohoto počítače.",
+        "package.nls.de.json": "Hintergrundaufgaben nach freier Kapazität auf Konten verteilen; jeder Worker bleibt auf seinem Konto. Standardmäßig ein; nur die Einstellung dieses Computers wird verwendet.",
+        "package.nls.es.json": "Distribuir el trabajo en segundo plano entre las cuentas según la capacidad disponible; cada trabajador permanece en su cuenta. Activado por defecto; solo se usa el ajuste de esta máquina.",
+        "package.nls.fr.json": "Répartir le travail en arrière-plan entre les comptes selon la capacité ; chaque worker reste sur son compte. Activé par défaut ; seul le réglage de cette machine est utilisé.",
+        "package.nls.hu.json": "A háttérmunkát szabad kapacitás szerint osztja el a fiókok között; minden worker a saját fiókján marad. Alapértelmezés szerint bekapcsolva; csak ennek a gépnek a beállítása érvényes.",
+        "package.nls.it.json": "Distribuisce il lavoro in background tra gli account in base alla capacità; ogni worker resta sul proprio account. Attivo per impostazione predefinita; viene usata solo l’impostazione di questa macchina.",
+        "package.nls.ja.json": "空き容量に応じてバックグラウンド作業をアカウント間で分散します。各ワーカーは割り当てられたアカウントに留まります。既定でオン。このコンピューターの設定のみを使用します。",
+        "package.nls.json": "Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.",
+        "package.nls.ko.json": "백그라운드 작업을 여유 용량에 따라 계정에 분산합니다. 각 워커는 할당된 계정에 유지됩니다. 기본적으로 켜짐. 이 컴퓨터의 설정만 사용됩니다.",
+        "package.nls.pl.json": "Rozdziela pracę w tle między konta według wolnej pojemności; każdy proces roboczy pozostaje na swoim koncie. Domyślnie włączone; używane jest tylko ustawienie tego komputera.",
+        "package.nls.pt-br.json": "Distribui o trabalho em segundo plano entre as contas pela capacidade disponível; cada worker permanece em sua conta. Ativado por padrão; somente a configuração desta máquina é usada.",
+        "package.nls.ru.json": "Распределяет фоновую работу между учётными записями по свободной ёмкости; каждый воркер остаётся на своей записи. Включено по умолчанию; используется только настройка этого компьютера.",
+        "package.nls.tr.json": "Arka plan işlerini boş kapasiteye göre hesaplara dağıtır; her çalışan kendi hesabında kalır. Varsayılan olarak açıktır; yalnızca bu bilgisayarın ayarı kullanılır.",
+        "package.nls.zh-cn.json": "按余量将后台工作分散到各账号；每个工作器固定在其账号上。默认开启；仅使用本机的设置。",
+        "package.nls.zh-tw.json": "按餘量將背景工作分散到各帳號；每個工作器固定在其帳號上。預設開啟；僅使用本機的設定。"
+      }
+    },
+    {
+      "id": "WB-159",
+      "kind": "help",
+      "name": "exec: --account-pool"
+    },
+    {
+      "id": "WB-165",
+      "kind": "text",
+      "file": "README.md",
+      "held": "Accounts keep separate credentials, labels, order, limit groups and thresholds.\nNative Meta request pooling and mid-chat selection are wired behind a closed\ncertification switch. They remain unavailable in this build: dependent-suite,\ngraphical and independent-review receipts remain open. The Models body now\npasses its unchanged size budget. [The completion record](docs/certification/cm1082.md)\nlists the exact enablement and release-branch restore steps.\n\nThe terminal can manage their metadata and choose a fixed account for a\nheadless run. Automatic swapping, parallel admission, device placement and\nthe editor panel/usage mounts await the provider, journal and shared-owner\nintegration listed in [M108's certification](docs/certification/m108.md).\n",
+      "restored": "Accounts keep separate credentials, labels, order, limit groups and thresholds.\nNative Meta Model API requests in VS Code and ACP choose accounts at request\nboundaries. A choice made mid-request queues for the next request; the current\nrequest keeps its original payer. Automatic swaps and background admission\nrespect each account's thresholds, provider terms and the shared budgets.\n`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped\nand on by default. Device placement, isolated local profiles, foreign-provider\nbilling joins and account usage mounts retain their separate pending owners."
+    },
+    {
+      "id": "WB-165",
+      "kind": "text",
+      "file": "README.md",
+      "held": "ACP's `/accounts` (list, current, thresholds) and the `account` picker read\nthe same live metadata on the Model API backend; the Muse Code backend runs\non its subscription with no account picker. Choosing another account stays\nrefused: moving a session credential needs the pooled owner, so the session\nkeeps its current account and says so. A vendor limit stops only its own account,\nand the stop names the blocked account and its reset even with no usage\npage bundled.\n",
+      "restored": "ACP's `/accounts` and the `account` picker read the same live metadata on\nthe Model API backend. Choosing another native Meta account queues it at the\nnext request boundary. `exec --account-pool` explicitly opts a stored-key\nheadless run into that pool; CI's `--key-stdin` never pools. The Muse Code\nbackend stays on its subscription without a Meta account picker. A vendor\nlimit stops its account or shared limit group, and the stop names the blocked\naccount and reset even without a usage page."
+    },
+    {
+      "id": "WB-165",
+      "kind": "text",
+      "file": "README.md",
+      "held": "Only headless `exec\n--account` bills another account today, and it keeps its explicit paid flags\nand hard budget.",
+      "restored": "Native Meta VS Code and ACP requests can bill another account after that\naccount's own first-charge consent. Headless `exec --account` retains its\nexplicit paid flags and hard budget."
+    },
+    {
+      "id": "WB-171",
+      "kind": "text",
+      "file": "docs/ci.md",
+      "held": "| --account-pool                      | off                    | Requires the profile-owned account pool, currently unavailable; refused with --key-stdin in CI.                             |",
+      "restored": "| --account-pool                      | off                    | Opt into native Meta stored-key pooling at request boundaries; account caps and shared budgets bind. Refused with --key-stdin.                             |"
+    },
+    {
+      "id": "WB-175",
+      "kind": "text",
+      "file": "CHANGELOG.md",
+      "held": "- Native Meta account request ownership is composed with the VS Code Models\n  panel, CLI and ACP. In-flight selections queue for the next request, while\n  the original account keeps its reservation and cost. Account UI and request\n  bindings remain behind the default-off certification switch pending the\n  named graphical, dependent-suite and independent-review receipts.",
+      "restored": "- **Native Meta accounts at request boundaries.** Manage labelled accounts with\n  `providers accounts`, pin headless runs with `exec --account`, or explicitly\n  opt into `--account-pool`. VS Code and ACP selections made mid-request queue\n  for the next request; the original payer keeps its reservation and cost.\n  `accountSwap` and `accountParallel` default on; `accounts.severalOnThisDevice`\n  stays off and awaits its isolated-profile owner. Paid uses ask per account\n  before its first charge and keep the shared budget. Muse Code and foreign\n  provider joins remain held. <!-- try: command museSpark.modelsAndAgents -->"
+    },
+    {
+      "id": "WB-167",
+      "kind": "present",
+      "file": "README.md",
+      "text": "The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,\nlists every provider's pooling decision with its clause, source and date.\n“Confirmation required” quotes the restriction and offers Confirm, Only at\nmy own caps, or Cancel; one-account-per-person rules also apply at user caps.\nAccounts sharing a vendor limit group add no capacity against that limit.\nThese rules hold on every device and in developer mode. Nothing creates\naccounts, changes request identity or moves a credential to another device."
+    },
+    {
+      "id": "WB-251",
+      "kind": "registry",
+      "settings": ["accountSwap", "accountParallel"],
+      "heldSettings": ["accounts.severalOnThisDevice"],
+      "owner": "C-M108-7 / C-M126-INT; registry absent from this branch",
+      "file": "src/shared/settingsAvailability.ts",
+      "optional": true
+    },
+    {
+      "id": "WB-175",
+      "kind": "text",
+      "file": "CHANGELOG.md",
+      "held": "No editor bills another\n  account interactively yet (headless `exec --account` keeps its explicit\n  paid flags and hard budget), so nothing changes until per-request account\n  selection lands. Help says so in all fourteen languages.",
+      "restored": "Native Meta VS Code and ACP bind this consent at request boundaries;\n  headless keeps its explicit paid flags and hard budget. Other-provider billing\n  joins remain pending. Help states the native Meta scope in all fourteen languages."
+    }
+  ]
+}

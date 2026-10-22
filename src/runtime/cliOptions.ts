@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_REQUEST_CERTIFICATION,
   isAutoCompactionEvaluated,
   SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
 } from '../shared/constants'
@@ -45,6 +46,9 @@ export function formatAcpUsage(table: UiText, command: string): string {
     // line (`accounts.execHelp`) offers pooling, which is still refused, and
     // stays out until its owner is bound.
     fill(table.accounts.cliUsage, { command }),
+    ACCOUNT_REQUEST_CERTIFICATION.isComplete
+      ? fill(table.accounts.execHelp, { command })
+      : fill(table.accounts.execHelp, { command }).replace(' [--account-pool]', ''),
     ...Object.entries(options)
       .filter(
         ([option]) =>

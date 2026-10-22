@@ -6,6 +6,7 @@ import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import * as esbuild from 'esbuild'
 import ts from 'typescript'
+import { generateAccountRelease, accountReleaseReference } from './accountRestore.mjs'
 import { format, resolveConfig } from 'prettier'
 
 const MODULE = 'src/shared/reference/reference.generated.ts'
@@ -1524,9 +1525,15 @@ export function publishedReference(model, source) {
 }
 
 export async function generateReference(root, isCheck = false) {
+  const source = await referenceSources(root)
+  await generateAccountRelease(
+    root,
+    source.ACCOUNT_REQUEST_CERTIFICATION.isComplete,
+    source.EN,
+    isCheck,
+  )
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   const nls = JSON.parse(readFileSync(path.join(root, 'package.nls.json'), 'utf8'))
-  const source = await referenceSources(root)
   const inventory = buildReference(
     manifest,
     nls,
@@ -1534,7 +1541,10 @@ export async function generateReference(root, isCheck = false) {
     readFileSync(path.join(root, 'src/runtime/cliArgs.ts'), 'utf8'),
     readFileSync(path.join(root, 'README.md'), 'utf8'),
   )
-  const model = publishedReference(inventory, source)
+  const model = publishedReference(
+    accountReleaseReference(inventory, source.ACCOUNT_REQUEST_CERTIFICATION.isComplete),
+    source,
+  )
   const texts = [
     ...model.features.flatMap((f) => [f.name, f.summary, f.description, ...f.details]),
     ...model.commands.map((c) => c.text),

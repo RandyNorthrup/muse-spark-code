@@ -2,6 +2,7 @@ import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
 import {
+  ACCOUNT_REQUEST_CERTIFICATION,
   COMMAND_IDS,
   type SETTING_DEFAULTS,
   PROMPT_COMMAND_IDS,
@@ -944,13 +945,20 @@ export function featureCatalog(): readonly Feature[] {
         { ui: 'referenceAccountsTitle' },
         { ui: 'referenceAccounts' },
         [],
+        // Published bare while uncertified: the three controls stay
+        // compatibility-only and the shared daily budget is not an
+        // accounts setting in Help.
         ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice'],
         'several-accounts-per-provider',
-        undefined,
+        ['modelApi'],
         false,
-        ['vscode', 'acp'],
+        // CM108ACC: the terminal and ACP sessions serve accounts; the
+        // editor's Accounts page mounts only once C-M108-2 certifies.
+        ACCOUNT_REQUEST_CERTIFICATION.isComplete ? ['vscode', 'acp'] : ['acp'],
       ),
-      details: [{ ui: 'referenceDeveloper' }] as const,
+      details: (ACCOUNT_REQUEST_CERTIFICATION.isComplete
+        ? [{ ui: 'referenceDeveloper' }, { ui: 'referenceAccountRequests' }]
+        : [{ ui: 'referenceDeveloper' }]) satisfies readonly ReferenceText[],
     },
     feature(
       'permissions',
@@ -1435,9 +1443,8 @@ export function featureCatalog(): readonly Feature[] {
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
   'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
-  // CM108ACC: the terminal and ACP sessions on the Model API backend; the
-  // editor's Accounts page is not mounted.
-  accounts: ['acp:modelApi'],
+  // Accounts ride the certification switch in the catalog entry above, not a
+  // static override here, so the open switch publishes the editor's page.
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

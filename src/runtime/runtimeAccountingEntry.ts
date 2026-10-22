@@ -813,6 +813,12 @@ export function withRuntimeAccounting(
     return wrap(model)
   }
   return {
+    ...(client.withAccountKey !== undefined && {
+      withAccountKey: (apiKey: () => Promise<string>, isCurrent?: () => boolean) => {
+        if (client.withAccountKey === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        return withRuntimeAccounting(client.withAccountKey(apiKey, isCurrent), daily, accounting)
+      },
+    }),
     currentKeyDigest: client.currentKeyDigest.bind(client),
     ...(client.withScheduleAuthority !== undefined && {
       withScheduleAuthority: client.withScheduleAuthority.bind(client),

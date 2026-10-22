@@ -418,6 +418,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the vendored workflows, including the M116
                       orchestrator-playbook reviewer charter),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
+                      account-bound paid consent and its file store
+                      (paid/accountPaidEntry.ts, dist/accountPaid.js, shared
+                      with the ACP agent and loaded on the first use billed
+                      to another account; M108 lane P),
                       shared schema conversion (dist/structuredSchema.js),
                       Model API code intelligence and MCP pools
                       (dist/modelApiCodeIntel.js and dist/mcpPool.js),

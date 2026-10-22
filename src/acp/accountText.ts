@@ -1,9 +1,8 @@
 // The account event words a headless run and the ACP agent both show. A leaf
 // apart from accounts.ts, so dist/headless.js does not carry the panel's
 // request and reply schemas for three sentences (CAPS017, PLAN.md D6).
-import type { AccountEvent } from '../shared/accounts'
 import { UI_TEXT } from '../shared/constants'
-import { fill, formatDateTime } from '../shared/l10n/text'
+import { fill } from '../shared/l10n/text'
 
 /** A port refused adoption: the switch did not happen and the session keeps its
 current account. Carries the user-facing text, already filled, so later
@@ -148,15 +147,28 @@ export function accountUsageUrl(port: AccountUsagePort, provider: string): strin
   throw new Error(UI_TEXT.accounts.unavailable)
 }
 
-export function accountStopText(
-  event: Extract<AccountEvent, { type: 'stop' }>,
-  account = event.account,
+export { accountStopText } from '../core/usage/accountUsageText'
+
+/** One translated notice for native editor and ACP account boundaries. */
+export function accountEventText(
+  event: AccountEvent,
+  accounts: readonly Pick<Account, 'id' | 'label'>[],
 ): string {
-  return event.trigger.resetAt === null
-    ? fill(UI_TEXT.accounts.resetUnknown, { provider: event.provider, account })
-    : fill(UI_TEXT.accounts.stopped, {
-        provider: event.provider,
-        account,
-        reset: formatDateTime(Date.parse(event.trigger.resetAt)),
-      })
+  const label = (id: string) => accounts.find((row) => row.id === id)?.label ?? id
+  if (event.type === 'swap') {
+    const trigger = event.trigger
+    const threshold =
+      trigger.kind === 'vendorLimit'
+        ? UI_TEXT.accounts.vendorLimit
+        : `${trigger.metric}: ${trigger.metric === 'spendUsd' ? formatUsd(parseUsd(trigger.threshold)) : formatNumber(trigger.threshold)} (${trigger.period})`
+    return `${fill(UI_TEXT.accounts.swapNotice, { provider: event.provider, account: label(event.account), previous: label(event.previousAccount), threshold })} ${fill(UI_TEXT.accounts.coldCache, { cost: formatUsd(parseUsd(event.coldCacheUsd)) })}`
+  }
+  return event.type === 'spread'
+    ? `${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${label(event.account)}`
+    : accountStopText(event, label(event.account))
 }
+
+import type { Account, AccountEvent } from '../shared/accounts'
+import { formatNumber } from '../shared/l10n/text'
+import { formatUsd, parseUsd } from '../shared/accountUsd'
+import { accountStopText } from '../core/usage/accountUsageText'

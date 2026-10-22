@@ -48,6 +48,13 @@ The v3 ledger imports old history once without modifying it. Simultaneous spendi
 from an old build is outside the new shared-cap guarantee; upgrade both hosts
 before relying on one cap across versions.
 
+Account-bound interactive consent is revoked when another agent starts
+without the feature's flag: an open question's older answer cannot restore
+Always, and a previous Once cannot survive the changed generation. The
+agent's data-folder budget is user-owned; changing it keeps account Always
+while the hard daily cap still binds. Interactive non-default account
+selection remains unavailable until its account owner is connected.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);

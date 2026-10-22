@@ -53,7 +53,7 @@ The VS Code adapter: 50 files. Everything else reaches VS Code only through them
 | `src/host/models/modelsPanel.ts`                   | 21                |
 | `src/host/models/modelsPanelEntry.ts`              | 36                |
 | `src/host/paid/paidDailyBudget.ts`                 | 10                |
-| `src/host/paid/paidHost.ts`                        | 12                |
+| `src/host/paid/paidHost.ts`                        | 13                |
 | `src/host/popups.ts`                               | 2                 |
 | `src/host/prompts/chatSharing.ts`                  | 7                 |
 | `src/host/prompts/promptEntry.ts`                  | 57                |
@@ -416,7 +416,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `WebviewViewProvider.resolveWebviewView`                                             | `src/extension.ts`, `src/host/views/ChatViewProvider.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `WindowState.focused`                                                                | `src/extension.ts`, `src/host/conversation/vscodeBackgroundNotices.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `WorkspaceConfiguration.get`                                                         | `src/extension.ts`, `src/host/conversation/vscodeBackgroundNotices.ts`, `src/host/editor/verifyEditor.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidHost.ts`, `src/host/reporting/reportPanelEntry.ts`, `src/host/usage/usagePanelEntry.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                                   |
-| `WorkspaceConfiguration.inspect`                                                     | `src/extension.ts`, `src/host/conversation/vscodeBackgroundNotices.ts`, `src/host/git/githubSession.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/prompts/promptEntry.ts`, `src/host/questions/questionStore.ts`, `src/host/reporting/reportPanelEntry.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                                             |
+| `WorkspaceConfiguration.inspect`                                                     | `src/extension.ts`, `src/host/conversation/vscodeBackgroundNotices.ts`, `src/host/git/githubSession.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidHost.ts`, `src/host/prompts/promptEntry.ts`, `src/host/questions/questionStore.ts`, `src/host/reporting/reportPanelEntry.ts`, `src/host/vault/vaultPanelEntry.ts`                                                                                                                                                                                                                                                                                |
 | `WorkspaceConfiguration.inspect(globalValue)`                                        | `src/extension.ts`, `src/host/prompts/promptEntry.ts`, `src/host/questions/questionStore.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `WorkspaceConfiguration.inspect(workspaceFolderValue)`                               | `src/host/models/modelsPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `WorkspaceConfiguration.inspect(workspaceValue)`                                     | `src/host/models/modelsPanelEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -497,22 +497,22 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                   | Files |
 | ------------------------ | ----- |
-| `node:async_hooks`       | 5     |
+| `node:async_hooks`       | 6     |
 | `node:buffer`            | 73    |
 | `node:child_process`     | 31    |
-| `node:crypto`            | 216   |
+| `node:crypto`            | 221   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 4     |
-| `node:fs`                | 135   |
-| `node:fs/promises`       | 144   |
+| `node:fs`                | 138   |
+| `node:fs/promises`       | 147   |
 | `node:http`              | 17    |
 | `node:https`             | 3     |
 | `node:module`            | 4     |
 | `node:net`               | 26    |
 | `node:os`                | 46    |
-| `node:path`              | 265   |
+| `node:path`              | 271   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 28    |
 | `node:readline`          | 1     |
@@ -520,7 +520,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:stream`            | 27    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
-| `node:timers/promises`   | 37    |
+| `node:timers/promises`   | 38    |
 | `node:tls`               | 1     |
 | `node:url`               | 9     |
 | `node:util`              | 11    |
