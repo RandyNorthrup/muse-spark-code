@@ -1351,6 +1351,12 @@
       "title": "Answers survive model-call limits",
       "summary": "Long Model API turns retain a final summary at their call limit; headless request caps determine the turn allowance.",
       "area": "chat"
+    },
+    {
+      "id": "RLVAULTANCHOR",
+      "title": "Vault rollback record isolated per vault",
+      "summary": "Each vault keeps its own rollback record in the system credential store, so a vault can never report itself lost because of another vault.",
+      "area": "security"
     }
   ]
 }
