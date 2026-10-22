@@ -72,6 +72,22 @@ happened, not what was planned; superseded entries are kept.
   `plan`. The agent runs its own scheduler with its own journal,
   process-lifetime container and paid ledger, and shares the editor's
   single-model behaviour when no second model is configured.
+- M120's shared team selector uses ordered candidates, live availability and
+  capability checks with skip reasons, and excludes authors and their engines
+  through handoff and borrow chains. Scheduler ticks apply timed secondary-role
+  borrowing and emit journalled recall decisions. Frontend, backend and
+  engineering tasks route by area hints with split or cross-review, handoff
+  capture/resume/chain and preference writers with Move to… run on the real
+  board, and pool wiring reads live host facts with M95 provider order and
+  M116 dispatch records. Installed host/panel bindings and the panel editor
+  UI remain pending; existing unconfigured selection and requests stay
+  unchanged.
+- M120 outcome stats (D103): per-role, per-candidate records of reviewed
+  tasks (first-review acceptance, findings by severity, rounds, time,
+  redesigns), reorder suggestions with their figures once both candidates
+  have five tasks and the acceptance-rate gap is clear, and opt-in
+  per-role auto-order that applies the suggestion. Panel display arrives with
+  the editor UI; nothing reorders unless the role opts in.
 
 ### Changed
 
@@ -108,6 +124,18 @@ happened, not what was planned; superseded entries are kept.
   per-model limits plus the person's own budget apply. A repository
   `team.json` lowers caps, concurrency and aggregate worker spending with
   exact `Usd` arithmetic and refuses malformed amounts translated.
+- Share the team scheduler's stateless tool factory with the existing team
+  bundle, removing duplicated declarations and model text. The scheduler
+  fits its original 75 KiB cap; no new chunk, activation work or behavior change.
+  The bundle split gate derives scheduler, team and runner ownership from
+  their module graphs and rejects implementation leaks in every direction,
+  including renamed helpers behind re-export shims. Shared source modules
+  belong under `src/shared/`; all three bundles keep their original caps.
+  Namespace IDs cannot impersonate shared source or installed dependencies.
+  File ownership checks real repository paths and rejects outside files and
+  symlink aliases into shared source; non-file modules need one entry owner
+  or an exact plugin ID exception (none is needed by the production build),
+  including tree-shaken inputs and virtual modules behind real dependencies.
 
 ### Fixed
 
@@ -206,6 +234,32 @@ happened, not what was planned; superseded entries are kept.
   cases skip with "PowerShell unavailable" where the parser is missing, and
   the admitted-run case requires Windows PowerShell itself; all three run
   on Windows.
+- M120 team launches hold one reservation from selection to worker start. A
+  borrowed agent whose start fills the role's last task of the turn, or its
+  own last lifetime task, now starts instead of refusing itself. A launch
+  refused at the last moment returns its counted task, slot and lease. A
+  readiness wake arriving as a drain finishes is no longer lost (RVM120S4C).
+  That last-moment check reads the same facts selection did, so a lender that
+  became unavailable, took other work, or whose Default model changed is
+  refused rather than started (RVM120S5C).
+- M120 borrowed launches recheck authorization, native recovery and main-role
+  demand synchronously after the launch journal write. Revoked unstarted loans
+  return to their queue with the journal closed. Readiness wakes received
+  during the final journal write are drained before their promises resolve
+  (RVM120S3C).
+- M120 loans live on the task board with their authorization and are rechecked
+  against current assignments, candidates, workers and main-role demand.
+  Work arriving or a native candidate recovering during authorization cancels
+  the loan. Legacy main-role tasks protect lenders and trigger recall; removed
+  assignments retain active recall ownership. Pool and reviewer queue policies
+  now share recovery rules, including cooldowns and temporary admission waits
+  (RVM120S2C).
+- M120 scheduler borrowing runs once per wake and delivers stable recall events
+  once after the drain, allowing consumers to wake or retire without deadlock.
+  Recall uses the agent's own task identity and each review's captured engine
+  exclusions. Legacy tasks remain outside borrowing. Exhausted reviewer
+  preferences block merge with skip reasons and queue or ask for an eligible
+  reviewer instead of allowing an unreviewed merge (RVM120SG).
 
 ### Release infrastructure
 

@@ -1,0 +1,61 @@
+{
+  "source": "6c8d14348",
+  "results": [
+    {
+      "name": "preferred",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"first\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"first-model\",\"label\":\"preferred\",\"key\":\"preferred\"},\"concurrent\":1,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"first-model\",\"label\":\"preferred\",\"key\":\"preferred\"}}"
+    },
+    {
+      "name": "default",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"default\",\"agent\":{\"defaultEntry\":true},\"concurrent\":4,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"muse-spark-1.3\",\"label\":\"Default (muse-spark-1.3)\",\"key\":\"default\"}}"
+    },
+    {
+      "name": "busy-entry",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"second\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"},\"concurrent\":1,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"}}"
+    },
+    {
+      "name": "busy-agent",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"second\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"},\"concurrent\":1,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"}}"
+    },
+    {
+      "name": "rate-limit",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"second\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"},\"concurrent\":1,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"}}"
+    },
+    {
+      "name": "usage-limit",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"second\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"},\"concurrent\":1,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"}}"
+    },
+    {
+      "name": "expired-mark",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"first\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"first-model\",\"label\":\"preferred\",\"key\":\"preferred\"},\"concurrent\":1,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"first-model\",\"label\":\"preferred\",\"key\":\"preferred\"}}"
+    },
+    {
+      "name": "unavailable",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"second\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"},\"concurrent\":1,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"}}"
+    },
+    {
+      "name": "all-capped",
+      "selectedJson": "{\"kind\":\"exhausted\",\"roleId\":\"engineering\",\"policy\":\"ask\",\"reasons\":[{\"entryId\":\"first\",\"reason\":\"cap\",\"cap\":{\"measure\":\"tokens\",\"window\":\"day\",\"amount\":1},\"used\":0},{\"entryId\":\"second\",\"reason\":\"cap\",\"cap\":{\"measure\":\"tokens\",\"window\":\"day\",\"amount\":1},\"used\":0}]}"
+    },
+    {
+      "name": "not-staffed",
+      "selectedJson": "{\"kind\":\"notStaffed\",\"roleId\":\"engineering\"}"
+    },
+    {
+      "name": "turn-limit",
+      "selectedJson": "{\"kind\":\"exhausted\",\"roleId\":\"engineering\",\"policy\":\"ask\",\"reasons\":[{\"entryId\":\"first\",\"reason\":\"turn\"},{\"entryId\":\"second\",\"reason\":\"turn\"}]}"
+    },
+    {
+      "name": "global-limit",
+      "selectedJson": "{\"kind\":\"exhausted\",\"roleId\":\"engineering\",\"policy\":\"ask\",\"reasons\":[{\"entryId\":\"first\",\"reason\":\"global\"},{\"entryId\":\"second\",\"reason\":\"global\"}]}"
+    },
+    {
+      "name": "process-limit",
+      "selectedJson": "{\"kind\":\"selected\",\"entry\":{\"id\":\"second\",\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"},\"concurrent\":4,\"caps\":[]},\"agent\":{\"kind\":\"engine\",\"billing\":\"key\",\"modelId\":\"second-model\",\"label\":\"fallback\",\"key\":\"fallback\"}}"
+    },
+    {
+      "name": "team-budget",
+      "selectedJson": "{\"kind\":\"exhausted\",\"roleId\":\"engineering\",\"policy\":\"ask\",\"reasons\":[{\"entryId\":\"first\",\"reason\":\"budget\"},{\"entryId\":\"second\",\"reason\":\"budget\"}]}"
+    }
+  ]
+}

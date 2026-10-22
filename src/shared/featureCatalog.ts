@@ -488,7 +488,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'referenceTeamFiles' },
       [],
       ['modelApiTeamWorkers'],
-      'the-panel',
+      'team-selection-m120',
       ['modelApi'],
       true,
     ),
