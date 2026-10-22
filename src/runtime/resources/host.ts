@@ -95,6 +95,9 @@ export async function createRuntimeResourceHost(
         await sync()
         return await options.sampler.sample()
       },
+      dispose() {
+        options.sampler.dispose?.()
+      },
     },
     settings,
     events,

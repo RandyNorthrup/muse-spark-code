@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Margine ridotto",
   "resourceMemoryAmple": "Margine ampio",
   "referenceResources": "La pressione su risorse, servizi e trasporto riduce le ammissioni. Ogni attività limita i processi e le creazioni osservati; la pulizia rimuove solo le radici temporanee registrate.",
+  "referenceResourceMemory": "Su macOS, la memoria disponibile comprende le pagine libere, inattive ed eliminabili. Gli ambienti di esecuzione meno recenti usano il programma ausiliario firmato; una lettura non riuscita resta sconosciuta.",
   "resourceGovernorDescription": "Mantiene reattiva questa macchina rallentando o rinviando il lavoro avviato dall’ambiente agente. Attivo per impostazione predefinita.",
   "resourceCpuMaxPercentDescription": "Limita quando l’utilizzo della CPU resta sopra questa percentuale per 30 secondi. Senza un valore, nessun limite per la CPU.",
   "resourceMemoryMaxPercentDescription": "Limita quando la memoria in uso resta sopra questa percentuale per due campioni. Senza un valore, nessun limite per la memoria in uso.",

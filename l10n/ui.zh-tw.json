@@ -74,6 +74,7 @@
   "resourceMemoryLow": "餘裕較低",
   "resourceMemoryAmple": "餘裕充足",
   "referenceResources": "資源、服務及傳輸壓力會減少工作准入。每個工作都限制觀測到的程序數及建立次數；清理僅刪除已記錄的暫存根目錄。",
+  "referenceResourceMemory": "在 macOS 上，可用記憶體包括閒置、非活躍和可清除的頁面。較舊的執行階段使用已簽署的輔助程式；讀取失敗時仍顯示未知。",
   "resourceGovernorDescription": "透過減慢或延後代理程式執行環境啟動的工作，保持此電腦回應順暢。預設開啟。",
   "resourceCpuMaxPercentDescription": "當電腦的 CPU 使用率持續30秒超過此百分比時降速。 未設定時不限制 CPU。",
   "resourceMemoryMaxPercentDescription": "當已用記憶體連續兩次取樣超過此百分比時降速。 未設定時不限制已用記憶體。",

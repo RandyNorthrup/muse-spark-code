@@ -74,6 +74,7 @@
   "resourceMemoryLow": "여유가 적음",
   "resourceMemoryAmple": "여유가 충분함",
   "referenceResources": "리소스, 서비스 및 전송 부하가 작업 수락을 줄입니다. 각 작업에는 관측된 프로세스 수와 생성 수의 제한이 있으며, 정리는 기록된 임시 루트만 제거합니다.",
+  "referenceResourceMemory": "macOS에서 사용 가능한 메모리에는 빈 페이지, 비활성 페이지, 해제 가능한 페이지가 포함됩니다. 이전 런타임은 서명된 도우미를 사용하며, 측정에 실패하면 알 수 없음으로 유지됩니다.",
   "resourceGovernorDescription": "에이전트 실행 환경이 시작한 작업을 늦추거나 연기하여 컴퓨터의 응답성을 유지합니다. 기본적으로 켜져 있습니다.",
   "resourceCpuMaxPercentDescription": "컴퓨터의 CPU 사용량이 30초 동안 이 비율을 넘으면 처리를 제한합니다. 설정하지 않으면 CPU를 제한하지 않습니다.",
   "resourceMemoryMaxPercentDescription": "사용 중인 메모리가 연속 두 번의 측정에서 이 비율을 넘으면 처리를 제한합니다. 설정하지 않으면 사용 중인 메모리를 제한하지 않습니다.",

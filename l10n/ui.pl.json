@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Mały zapas",
   "resourceMemoryAmple": "Duży zapas",
   "referenceResources": "Obciążenie zasobów, usług i transportu ogranicza przyjmowanie pracy. Każde zadanie ma limity obserwowanych procesów i ich tworzenia; czyszczenie usuwa tylko zarejestrowane katalogi tymczasowe.",
+  "referenceResourceMemory": "W macOS dostępna pamięć obejmuje strony wolne, nieaktywne i możliwe do zwolnienia. Starsze środowiska uruchomieniowe używają podpisanego programu pomocniczego; nieudany odczyt pozostaje nieznany.",
   "resourceGovernorDescription": "Utrzymuje responsywność komputera przez spowalnianie lub odkładanie pracy uruchomionej przez środowisko agenta. Domyślnie włączone.",
   "resourceCpuMaxPercentDescription": "Ogranicza pracę, gdy użycie procesora przekracza ten procent przez 30 sekund. Bez wartości brak limitu CPU.",
   "resourceMemoryMaxPercentDescription": "Ogranicza pracę, gdy pamięć w użyciu przekracza ten procent w dwóch kolejnych próbkach. Bez wartości brak limitu używanej pamięci.",

@@ -1,0 +1,223 @@
+{
+  "lane": "C-M107-2",
+  "machine": "macmini",
+  "runtime": {
+    "node": "v24.21.0",
+    "libuv": "1.52.1",
+    "architecture": "x64",
+    "system": "24.6.0",
+    "cores": 12,
+    "totalBytes": 34359738368
+  },
+  "selectedLibuv": "1.51.0 (selection simulated; native API oracle is actual 1.52.1)",
+  "nativeHelperSha256": "5ad672608250f92985443578b123d5f40a89a0e07894891cfa63f8453955db5e",
+  "sourceSha256": "888d39872afec2290fec9ab1de8de48936c1252eec3931a2d4e82afcdd8f1aec",
+  "helperStarts": 1,
+  "durationMs": 120039.167674,
+  "parentCpuMs": 65.716,
+  "helperCpuMs": 10,
+  "helperCpuResolutionMs": 10,
+  "upperCorePercent": 0.07140669304937686,
+  "samples": [
+    {
+      "index": 0,
+      "beforeBytes": 15108554752,
+      "nativeBytes": 15107432448,
+      "afterBytes": 15107432448,
+      "memoryUsedPercent": 56.03158473968506,
+      "durationMs": 10.166290000000004
+    },
+    {
+      "index": 1,
+      "beforeBytes": 15127212032,
+      "nativeBytes": 15127232512,
+      "afterBytes": 15127232512,
+      "memoryUsedPercent": 55.97395896911621,
+      "durationMs": 0.914944999999534
+    },
+    {
+      "index": 2,
+      "beforeBytes": 14916202496,
+      "nativeBytes": 14916210688,
+      "afterBytes": 14916210688,
+      "memoryUsedPercent": 56.58811330795288,
+      "durationMs": 0.8808540000009089
+    },
+    {
+      "index": 3,
+      "beforeBytes": 14905921536,
+      "nativeBytes": 14905929728,
+      "afterBytes": 14905929728,
+      "memoryUsedPercent": 56.61803483963013,
+      "durationMs": 0.8362180000003718
+    },
+    {
+      "index": 4,
+      "beforeBytes": 14926741504,
+      "nativeBytes": 14926753792,
+      "afterBytes": 14926753792,
+      "memoryUsedPercent": 56.55742883682251,
+      "durationMs": 0.8022849999979371
+    },
+    {
+      "index": 5,
+      "beforeBytes": 14988419072,
+      "nativeBytes": 14988427264,
+      "afterBytes": 14988427264,
+      "memoryUsedPercent": 56.3779354095459,
+      "durationMs": 0.49079600000186474
+    },
+    {
+      "index": 6,
+      "beforeBytes": 14944153600,
+      "nativeBytes": 14944161792,
+      "afterBytes": 14944161792,
+      "memoryUsedPercent": 56.50676488876343,
+      "durationMs": 0.7446969999982684
+    },
+    {
+      "index": 7,
+      "beforeBytes": 14881398784,
+      "nativeBytes": 14881431552,
+      "afterBytes": 14881460224,
+      "memoryUsedPercent": 56.68933391571045,
+      "durationMs": 1.0853599999973085
+    },
+    {
+      "index": 8,
+      "beforeBytes": 14854832128,
+      "nativeBytes": 14854840320,
+      "afterBytes": 14854840320,
+      "memoryUsedPercent": 56.766724586486816,
+      "durationMs": 0.8556570000000647
+    },
+    {
+      "index": 9,
+      "beforeBytes": 14898925568,
+      "nativeBytes": 14898933760,
+      "afterBytes": 14898933760,
+      "memoryUsedPercent": 56.6383957862854,
+      "durationMs": 0.8016750000024331
+    },
+    {
+      "index": 10,
+      "beforeBytes": 14931582976,
+      "nativeBytes": 14931595264,
+      "afterBytes": 14931619840,
+      "memoryUsedPercent": 56.54333829879761,
+      "durationMs": 0.60563700000057
+    },
+    {
+      "index": 11,
+      "beforeBytes": 15155019776,
+      "nativeBytes": 15155027968,
+      "afterBytes": 15155027968,
+      "memoryUsedPercent": 55.89306354522705,
+      "durationMs": 0.6593050000010408
+    },
+    {
+      "index": 12,
+      "beforeBytes": 15044022272,
+      "nativeBytes": 15044034560,
+      "afterBytes": 15044059136,
+      "memoryUsedPercent": 56.21609687805176,
+      "durationMs": 0.627318999999261
+    },
+    {
+      "index": 13,
+      "beforeBytes": 15042412544,
+      "nativeBytes": 15041662976,
+      "afterBytes": 15041671168,
+      "memoryUsedPercent": 56.22299909591675,
+      "durationMs": 0.38363699999899836
+    },
+    {
+      "index": 14,
+      "beforeBytes": 14767054848,
+      "nativeBytes": 14767075328,
+      "afterBytes": 14766551040,
+      "memoryUsedPercent": 57.022154331207275,
+      "durationMs": 0.4621649999899091
+    },
+    {
+      "index": 15,
+      "beforeBytes": 14509846528,
+      "nativeBytes": 14509969408,
+      "afterBytes": 14509977600,
+      "memoryUsedPercent": 57.77043104171753,
+      "durationMs": 0.4129910000046948
+    },
+    {
+      "index": 16,
+      "beforeBytes": 13980913664,
+      "nativeBytes": 13980934144,
+      "afterBytes": 13980934144,
+      "memoryUsedPercent": 59.310126304626465,
+      "durationMs": 0.4440620000095805
+    },
+    {
+      "index": 17,
+      "beforeBytes": 15042408448,
+      "nativeBytes": 15042416640,
+      "afterBytes": 15042424832,
+      "memoryUsedPercent": 56.220805644989014,
+      "durationMs": 0.6535349999903701
+    },
+    {
+      "index": 18,
+      "beforeBytes": 14966796288,
+      "nativeBytes": 14965768192,
+      "afterBytes": 14965768192,
+      "memoryUsedPercent": 56.44388198852539,
+      "durationMs": 0.7376150000054622
+    },
+    {
+      "index": 19,
+      "beforeBytes": 14820065280,
+      "nativeBytes": 14820085760,
+      "afterBytes": 14820085760,
+      "memoryUsedPercent": 56.867873668670654,
+      "durationMs": 0.44794399999955203
+    },
+    {
+      "index": 20,
+      "beforeBytes": 14280462336,
+      "nativeBytes": 14280482816,
+      "afterBytes": 14280482816,
+      "memoryUsedPercent": 58.43832492828369,
+      "durationMs": 0.44167700000980403
+    },
+    {
+      "index": 21,
+      "beforeBytes": 13942157312,
+      "nativeBytes": 13942177792,
+      "afterBytes": 13942177792,
+      "memoryUsedPercent": 59.422922134399414,
+      "durationMs": 0.4790099999954691
+    },
+    {
+      "index": 22,
+      "beforeBytes": 14696665088,
+      "nativeBytes": 14697193472,
+      "afterBytes": 14697193472,
+      "memoryUsedPercent": 57.22553730010986,
+      "durationMs": 0.46684100000129547
+    },
+    {
+      "index": 23,
+      "beforeBytes": 14599548928,
+      "nativeBytes": 14599569408,
+      "afterBytes": 14599569408,
+      "memoryUsedPercent": 57.509660720825195,
+      "durationMs": 0.4526440000045113
+    },
+    {
+      "index": 24,
+      "beforeBytes": 15077167104,
+      "nativeBytes": 15076126720,
+      "afterBytes": 15075602432,
+      "memoryUsedPercent": 56.12269639968872,
+      "durationMs": 0.43638600000122096
+    }
+  ]
+}

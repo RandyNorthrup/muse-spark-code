@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Az boş kapasite",
   "resourceMemoryAmple": "Yeterli boş kapasite",
   "referenceResources": "Kaynak, hizmet ve aktarım baskısı iş kabulünü azaltır. Her işin gözlenen süreç sayısı ve oluşumu için sınırları vardır; temizleme yalnızca kaydedilmiş geçici kökleri kaldırır.",
+  "referenceResourceMemory": "macOS üzerinde kullanılabilir bellek boş, etkin olmayan ve temizlenebilir sayfaları içerir. Eski çalışma ortamları imzalı yardımcı programı kullanır; başarısız ölçüm bilinmiyor olarak kalır.",
   "resourceGovernorDescription": "Ajan ortamının başlattığı işi yavaşlatarak veya erteleyerek makinenin yanıt verebilirliğini korur. Varsayılan olarak açık.",
   "resourceCpuMaxPercentDescription": "Makinenin CPU kullanımı 30 saniye boyunca bu yüzdenin üzerinde kaldığında yavaşlatır. Ayarlanmamışsa CPU sınırı yoktur.",
   "resourceMemoryMaxPercentDescription": "Kullanılan bellek art arda iki örnekte bu yüzdenin üzerinde kaldığında yavaşlatır. Ayarlanmamışsa kullanılan bellek sınırı yoktur.",

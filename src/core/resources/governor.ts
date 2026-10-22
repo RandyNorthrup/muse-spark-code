@@ -447,6 +447,7 @@ export class ResourceGovernor {
     this.sampleListeners.clear()
     this.cancelSample?.()
     this.cancelOverride?.()
+    this.options.sampler.dispose?.()
     this.overrideUntil = null
     this.expiredOverrideAt = null
   }

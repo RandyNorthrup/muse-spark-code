@@ -74,6 +74,7 @@
   "resourceMemoryLow": "余裕が少ない",
   "resourceMemoryAmple": "十分な余裕",
   "referenceResources": "リソース、サービス、通信の負荷に応じて新しい作業の受け入れを減らします。各ジョブでは観測されたプロセス数と生成数を制限し、記録済みの一時ルートだけを削除します。",
+  "referenceResourceMemory": "macOSでは、利用可能なメモリに空きページ、非アクティブなページ、解放可能なページが含まれます。古いランタイムでは署名済みヘルパーを使用し、測定に失敗した場合は不明のままです。",
   "resourceGovernorDescription": "エージェント実行環境が開始した処理を遅くするか延期して、このマシンの応答性を保ちます。既定で有効です。",
   "resourceCpuMaxPercentDescription": "マシンの CPU 使用率がこの割合を30秒間超えた場合、処理を抑制します。 未設定の場合はCPUに上限を設けません。",
   "resourceMemoryMaxPercentDescription": "使用中のメモリが2回連続の測定でこの割合を超えた場合、処理を抑制します。 未設定の場合は使用中のメモリに上限を設けません。",
