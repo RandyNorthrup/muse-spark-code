@@ -4279,8 +4279,9 @@ recoverable shortages queue under the role's queue policy; otherwise it asks
 for an eligible reviewer. Pool and reviewer selection share that classification:
 busy, cooldown, rate-limit and temporary admission waits recover, as do usage
 limits with a reset time. The self policy cannot waive review or select an author.
-The preference editor, installed host bindings
-and execution of handoffs remain pending in the other M120 lanes. With no
+Routing, handoff execution, preference writers with Move to… and live pool
+wiring run at the core; the preference editor UI, installed host bindings
+and panel display remain pending. With no
 preference list or secondary roles, the existing selection and requests stay
 unchanged.
 **Every paid use then asks first, in a popup**, in every permission mode,

@@ -20,17 +20,20 @@ happened, not what was planned; superseded entries are kept.
 - M120's shared team selector uses ordered candidates, live availability and
   capability checks with skip reasons, and excludes authors and their engines
   through handoff and borrow chains. Scheduler ticks apply timed secondary-role
-  borrowing and emit journalled recall decisions. Installed host/panel bindings
-  and handoff execution remain pending; existing unconfigured selection and
-  requests stay unchanged.
+  borrowing and emit journalled recall decisions. Frontend, backend and
+  engineering tasks route by area hints with split or cross-review, handoff
+  capture/resume/chain and preference writers with Move to… run on the real
+  board, and pool wiring reads live host facts with M95 provider order and
+  M116 dispatch records. Installed host/panel bindings and the panel editor
+  UI remain pending; existing unconfigured selection and requests stay
+  unchanged.
 
 - M120 outcome stats (D103): per-role, per-candidate records of reviewed
   tasks (first-review acceptance, findings by severity, rounds, time,
   redesigns), reorder suggestions with their figures once both candidates
   have five tasks and the acceptance-rate gap is clear, and opt-in
-  per-role auto-order that applies the suggestion. Panel display and pool
-  wiring arrive with lanes P and W; nothing reorders unless the role opts
-  in.
+  per-role auto-order that applies the suggestion. Panel display arrives with
+  the editor UI; nothing reorders unless the role opts in.
 
 ### Changed
 

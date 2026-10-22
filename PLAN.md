@@ -33622,7 +33622,9 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 
 ### M120 — Preferred agents, availability routing and lane handoff (D103, D212)
 
-**Status 2026-10-09: building.** Status evidence: `docs/certification/m120-0.md`.
+**Status 2026-10-22: core built.** Status evidence: `docs/certification/m120.md`.
+Lane 0, S and 5 receipts: `docs/certification/m120-0.md`, `docs/certification/m120-s.md`,
+`docs/certification/m120-5.md`.
 
 **Lane S 2026-10-09: core built; production bundle qualification blocked by
 the accepted base's What's New encoder bound.**
@@ -33824,7 +33826,7 @@ No merge, push, live/paid calls or aggregate quality; lead owns integration.
   - a front-end task goes to the `frontend` preference list and a back-end
     task to `backend`, with the reason shown;
   - a mixed task is split, or cross-reviewed by the other specialist;
-  - D212, on a fake clock: a role borrows only after 60 s of unmet demand
+  - D212, on an explicit clock: a role borrows only after 60 s of unmet demand
     and never an agent with main-role work due within the lookahead; a
     main-role task recalls the borrowed agent (finish grace honoured,
     recall wait bounded, work captured, task back at the queue head); the
@@ -33833,6 +33835,27 @@ No merge, push, live/paid calls or aggregate quality; lead owns integration.
     by itself unless the user opts in;
   - a single-model user sees no change (golden requests byte-identical);
   - the same thing works in every editor.
+
+**M120 landing (RLM120, 2026-10-22, macbook).** The six-branch chain
+(`src/RLM120/01-c-m120-5` … `06-m120-contracts`) landed onto 0.19.0 as a
+merge, resolved for current main: unbounded queue and scheduler waits
+(D121), UsdAmount costs, the preference-aware selector as the single home
+in `selection.ts`, and the branch's D109 renumbered to D212 (main holds
+D109 for model-call turn limits). Fake-driven suites the test overhaul
+deleted stay deleted; the M120 suites run over real code with explicit
+clocks and recording closures. No RLM96 content exists to merge
+(`rec/rlm96b` stands at the base): W wires lane S into main's own pools,
+M95 provider order and M116 dispatch records directly.
+
+Lanes R, H, P and W are core-built and proven: routing, handoff execution,
+preference writers with Move to…, and live wiring, in
+`src/core/team/codingRoles.ts`, `src/core/team/handoff.ts`,
+`src/core/team/preferences.ts` and `src/core/team/liveWiring.ts`, with
+`board.moveToRole` on the task board. Proof: the mid-edit kill drill and
+the single-model golden in `test/unit/team/teamKillDrill.test.ts`. The
+panel editor UI surface and installed host bindings remain open; every
+other lane-0 "pending" line (installed bindings, handoff execution, pool
+wiring) is now built at the core. Receipt: `docs/certification/m120.md`.
 
 ### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
 
@@ -34751,6 +34774,15 @@ the encoder and its cap are outside this lane's authorized files. Independent
 production team builds match the prior bytes and hashes within all original
 caps. Aggregate quality/build/package qualification remains lead-owned under
 the rig/common brief; no gate or threshold is waived.
+
+**M120 plan-budget deferral (RLM120, 2026-10-22, macbook).** Landing the
+required six-branch chain grew `PLAN.md` from 3563591 to 3581369 bytes
+against the 85% archive gate of 3565158 (over by 16211; this lane's own
+records add 1446 more, over by 17657). The archive procedure proves each
+move by merging every open branch; those branches are not on this rig, so
+archiving here could strand them. No gate is weakened and none is waived:
+`check:plan` keeps failing loudly until the lead's archive pass moves
+closed history. This paragraph is that pass's pointer.
 
 **CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
 release head's two full What's New releases serialize to 79,510 bytes,
