@@ -1,70 +1,118 @@
-// The first-run questionnaire's suggestions (M110t TQ): experiences
-// follow from the named languages, and the skill's stack table parses
-// out of its markdown. Pure.
+// The first-run questionnaire (M110t TQ, D90.27): personas and
+// languages map to packs, and the skill's real Phase 2 stack table
+// parses out of its real SKILL.md. Pure, over real data.
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { parseStackTable, suggestExperiences } from '../../src/shared/profile'
+import {
+  parseStackTable,
+  personaPacks,
+  STRICTNESS_GATES,
+  suggestPacks,
+} from '../../src/shared/profile'
 
-describe('suggestExperiences', () => {
-  it('maps each named language to its experience, with reasons', () => {
-    const suggestions = suggestExperiences({ languages: ['TypeScript', 'python', ' Go '] })
+const SKILL_MD = path.join(
+  __dirname,
+  '..',
+  '..',
+  'vendor',
+  'high-quality-projects-skill',
+  'skills',
+  'project_setup',
+  'SKILL.md',
+)
+
+describe('suggestPacks', () => {
+  it('maps personas and languages to packs, with reasons', () => {
+    const suggestions = suggestPacks({ personas: ['web', 'systems'], languages: ['Go', ' c++ '] })
     expect(suggestions).toEqual([
-      { experience: 'node', reason: 'for TypeScript and JavaScript' },
-      { experience: 'python', reason: 'for Python' },
-      { experience: 'go', reason: 'for Go' },
-      { experience: 'polyglot', reason: 'for working across stacks' },
+      { pack: 'typescript', reason: 'for the web persona' },
+      { pack: 'cpp', reason: 'for the systems persona' },
+      { pack: 'rust', reason: 'for the systems persona' },
+      { pack: 'go', reason: 'for Go' },
+      { pack: 'shell', reason: 'for every stack' },
+      { pack: 'crosscutting', reason: 'for every answer' },
     ])
   })
 
-  it('suggests Unity as notes only, never a pack', () => {
-    const suggestions = suggestExperiences({ languages: ['C#'] })
+  it('accepts aliases and stack words, and deduplicates', () => {
+    const suggestions = suggestPacks({
+      personas: ['learning-and-students'],
+      languages: ['golang', 'GO', 'flutter', 'klingon'],
+    })
     expect(suggestions).toEqual([
-      {
-        experience: 'unity',
-        reason: 'as cross-platform notes only: the Unity editor is not a pack',
-      },
+      { pack: 'python', reason: 'for the learning and students persona' },
+      { pack: 'go', reason: 'for Go' },
+      { pack: 'mobile', reason: 'for Flutter (the Android SDK and mobile gates)' },
+      { pack: 'shell', reason: 'for every stack' },
+      { pack: 'crosscutting', reason: 'for every answer' },
     ])
   })
 
-  it('suggests nothing for unknown words', () => {
-    expect(suggestExperiences({ languages: ['klingon'] })).toEqual([])
+  it('says the Unity note through the C# pack', () => {
+    const suggestions = suggestPacks({ personas: ['game-and-graphics'], languages: ['unity'] })
+    expect(suggestions).toContainEqual({
+      pack: 'csharp',
+      reason: "for C# (Unity's editor has its own licence and is not a pack)",
+    })
+  })
+})
+
+describe('personaPacks', () => {
+  it('installs the persona packs with shell and cross-cutting', () => {
+    expect(personaPacks('data-and-ml')).toEqual(['python', 'shell', 'crosscutting'])
+    expect(personaPacks('security-and-ctf')).toEqual(['shell', 'crosscutting'])
+  })
+})
+
+describe('STRICTNESS_GATES', () => {
+  it('carries the three documented gate sets', () => {
+    expect(STRICTNESS_GATES.strict).toEqual([
+      'format',
+      'lint',
+      'types',
+      'dead-code',
+      'duplication',
+      'security',
+      'tests',
+    ])
+    expect(STRICTNESS_GATES.standard).toEqual(['format', 'lint', 'types', 'tests', 'secrets'])
+    expect(STRICTNESS_GATES.light).toEqual(['format', 'secrets', 'tests'])
   })
 })
 
 describe('parseStackTable', () => {
-  it('reads the Phase 2 stack rows in order', () => {
-    const markdown = [
-      '# Skill',
-      '',
-      '| Stack | Format | Lint | Types | Dead code | Security | Test | Notes |',
-      '| --- | --- | --- | --- | --- | --- | --- | --- |',
-      '| node | prettier | eslint | tsc | knip | audit | vitest | x |',
-      '| python | ruff | ruff | mypy | vulture | pip-audit | pytest | y |',
-      '',
-      'Done.',
-    ].join('\n')
-    expect(parseStackTable(markdown)).toEqual([
-      {
-        stack: 'node',
-        format: 'prettier',
-        lint: 'eslint',
-        types: 'tsc',
-        deadCode: 'knip',
-        security: 'audit',
-        test: 'vitest',
-      },
-      {
-        stack: 'python',
-        format: 'ruff',
-        lint: 'ruff',
-        types: 'mypy',
-        deadCode: 'vulture',
-        security: 'pip-audit',
-        test: 'pytest',
-      },
+  it('reads the real Phase 2 rows in order', () => {
+    const rows = parseStackTable(readFileSync(SKILL_MD, 'utf8'))
+    expect(rows.map((row) => row.stack)).toEqual([
+      'Python',
+      'TS/JS',
+      'Rust',
+      'C++',
+      'C#',
+      'CSS',
+      'HTML',
+      'PowerShell',
+      'Shell',
+      'Go',
+      'GitHub Actions',
     ])
+    expect(rows[1]).toEqual({
+      stack: 'TS/JS',
+      format: 'prettier',
+      lint: 'eslint strictTypeChecked',
+      types: 'tsc strict+',
+      deadCode: 'knip',
+      security: 'npm audit, semgrep',
+      test: 'vitest',
+    })
   })
 
-  it('yields no rows for unknown text, never a guess', () => {
-    expect(parseStackTable('# Nothing here\n\nJust prose.')).toEqual([])
+  it('yields no rows for the skill’s prose, never a guess', () => {
+    const markdown = readFileSync(SKILL_MD, 'utf8')
+    const start = markdown.indexOf('### The flags that make a linter a gate')
+    const end = markdown.indexOf('### Required red drills')
+    if (start === -1 || end === -1 || end <= start) throw new Error('skill sections moved')
+    expect(parseStackTable(markdown.slice(start, end))).toEqual([])
   })
 })
