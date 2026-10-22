@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Estimator provisioning lifecycle** (M117 C-M117-6). The portable core
+  behind Spin it up is complete on fakes: exact per-server quotes with the
+  batch total shown before any confirmation, one confirmation per spend, a
+  hard run budget refused before any request, liability reserved before
+  create and retained on uncertain outcomes, install-then-pair through the
+  node bindings, idle Keep that never extends funding, and wipe-before-delete
+  with a deleted status receipt. Review hardening: the confirmation sees a
+  frozen quote copy while admission spends the quoted values, a duplicate
+  provider id keeps both liabilities, confirmations and idle checks run
+  without holding the serial lock so they can call back into the
+  provisioner, deletion receipts must name the torn-down server, and an
+  unrepresentable budget reports honestly. Rented provisioning stays
+  advice-only until the M109 broker and M110d/M110f bindings land; no new
+  command or surface.
 - **Estimator owned limit facts** (M117 C-M117-3R5). Account and machine
   translators preserve independently unknown measurements, UTC windows and
   observation ownership for every normalized vendor source. Known percentage
