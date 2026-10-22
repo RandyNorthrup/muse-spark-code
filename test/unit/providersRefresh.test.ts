@@ -14,6 +14,7 @@ import {
   withDownStore,
   withHarnessKey,
   writeHarnessFile,
+  type ProvidersCommandHarness,
 } from './helpers/providersCommandHarness'
 import { readProvidersFile } from '../../src/core/providers/providersFile'
 import { azureOrigin } from '../../src/core/providers/presets'
@@ -105,25 +106,26 @@ describe('providers refresh', () => {
     expect(await filedModels(f.filePath)).toEqual(['gpt-x'])
   })
 
-  it('refuses without a stored key, before any list read', async () => {
-    const f = await setup.make('providers-refresh-')
+  it.each([
+    {
+      name: 'a missing key',
+      prepare: (made: ProvidersCommandHarness) => made,
+      errors: () => [fill(EN.providerKeyAbsent, { provider: PROVIDER })],
+    },
+    {
+      name: 'a down credential store',
+      prepare: withDownStore,
+      errors: () => [EN.acpStoreDown],
+    },
+  ])('refuses $name without reading the list', async ({ prepare, errors }) => {
+    const f = prepare(await setup.make('providers-refresh-'))
     await writeHarnessFile(f.filePath, [harnessEntry(PROVIDER, ['gpt-x'])])
     const exit = await providersRefresh(f.deps, PROVIDER, () =>
       Promise.reject(new Error('list must not be read')),
     )
     expect(exit).toBe(1)
-    expect(f.errors).toContain(fill(EN.providerKeyAbsent, { provider: PROVIDER }))
+    expect(f.errors).toEqual(errors())
     expect(await filedModels(f.filePath)).toEqual(['gpt-x'])
-  })
-
-  it('names a down credential store instead of crashing on it', async () => {
-    const f = withDownStore(await setup.make('providers-refresh-'))
-    await writeHarnessFile(f.filePath, [harnessEntry(PROVIDER, ['gpt-x'])])
-    const exit = await providersRefresh(f.deps, PROVIDER, () =>
-      Promise.reject(new Error('list must not be read')),
-    )
-    expect(exit).toBe(1)
-    expect(f.errors).toEqual([EN.acpStoreDown])
   })
 
   it('refuses a paid-token key test with the same sentence as providers test', async () => {
