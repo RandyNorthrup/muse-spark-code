@@ -91,11 +91,11 @@ export class SubscriptionCredential {
   }
 
   /**
-   * Exact literals for the boundaries that persist or scrub text (session
-   * snapshots, receipts): every observed key, including rotated values.
-   * Best-effort and never throwing, so a store that cannot be read
-   * contributes nothing instead of breaking the save.
-   */
+  Exact literals for the boundaries that persist or scrub text (session
+  snapshots, receipts): every observed key, including rotated values.
+  Best-effort and never throwing, so a store that cannot be read
+  contributes nothing instead of breaking the save.
+  */
   public async redactionKeys(): Promise<readonly string[]> {
     const keys: string[] = []
     try {

@@ -1,9 +1,9 @@
 /**
- * The OpenRouter key-usage report (PROVSPEND): the existing key read as the
- * first shared-shape spend report. This module stays small on purpose: the
- * Models panel imports only this (never the admin/balance parsers), so its
- * bundle does not carry them. No model call, no network request here.
- */
+The OpenRouter key-usage report (PROVSPEND): the existing key read as the
+first shared-shape spend report. This module stays small on purpose: the
+Models panel imports only this (never the admin/balance parsers), so its
+bundle does not carry them. No model call, no network request here.
+*/
 import { Usd } from '../../shared/usd'
 import type { ProviderSpendReport } from './providerSpend'
 
@@ -49,10 +49,10 @@ function isKeyUsageNumbers(snapshot: KeyUsageNumbers): boolean {
 }
 
 /**
- * The existing OpenRouter read as the first shared-shape report: the
- * validated key-usage snapshot becomes exact dollars. A non-finite or
- * negative amount is unreadable, never a zero.
- */
+The existing OpenRouter read as the first shared-shape report: the
+validated key-usage snapshot becomes exact dollars. A non-finite or
+negative amount is unreadable, never a zero.
+*/
 export function openRouterSpendReport(
   snapshot: KeyUsageNumbers,
   asOf: string,

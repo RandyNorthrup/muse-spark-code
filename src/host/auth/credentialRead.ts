@@ -294,7 +294,7 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
     try {
       // C-M95-SUB: the opted-in CLI subscription counts for availability;
       // the key itself never enters the store.
-      if ((await port.hasSubscriptionCredential()) === true) isFound = true
+      if (await port.hasSubscriptionCredential()) isFound = true
     } catch (error: unknown) {
       // An unreadable subscription says nothing about presence, so the
       // read answers unknown rather than absent (fail closed).
