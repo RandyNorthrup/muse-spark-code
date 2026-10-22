@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 19,
-      "GENERIC": 113,
+      "GENERIC": 112,
       "CLEANUP": 90
     },
     "root": {
@@ -3437,11 +3437,6 @@
       "file": "src/host/judge/museCodeSameJudge.ts",
       "identity": "f813f2ccd5519402a5f98446858a098acb3a770b625eb7acb1323ed54e139d7b",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/judge/museCodeSameJudge.ts",
-      "identity": "92d3ec0c2b0bc71b3edf1775299d7abf199e518071ec83c2e780578528c8eacd",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/legalFixApplier.ts",

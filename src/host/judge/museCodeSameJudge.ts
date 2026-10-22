@@ -16,7 +16,6 @@ import type {
   TurnPart,
   TurnSubmission,
 } from '../../core/agent/agentBackend'
-import { failureForLog } from '../../core/backends/musecode/logText'
 import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -33,6 +32,7 @@ import {
 import { isJudgeTurnItemAllowed, judgeSessionOptions } from '../../core/judge/same/sessionSpec'
 import { judgeStandaloneTurn } from '../../core/judge/same/wording'
 import { usableReply } from '../../core/turns/usableReply'
+import { judgeRemovalFailureForLog, removeTempRootSettled } from './tempRoot'
 
 export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
   /** Host integration admits and accounts for the actual subscription dispatch. */
@@ -70,6 +70,11 @@ export interface MuseCodeJudgeJob {
 const STARTED_DISPOSITION = 'started'
 const COMPLETED_STATUS = 'completed'
 const AGENT_MESSAGE = 'agentMessage'
+
+/** What `signal.throwIfAborted()` throws when the wait ends first. */
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
 
 /** What one batch turn said: its first completed reply and how it ended. */
 interface TrackedTurn {
@@ -226,6 +231,17 @@ export class MuseCodeSameJudge {
       this.deps.entries.settle(job.entryKey, 'failed')
       this.deps.logWarn(`The Muse Code judge batch failed: ${why}`)
     }
+    // The approval was answered while the batch ran: its verdict is moot,
+    // so the batch settles without a verdict and says so, instead of
+    // failing. Said, never silent; info, never a warning.
+    const standDown = (): void => {
+      this.deps.entries.settle(job.entryKey, 'failed')
+      this.deps.logInfo('The Muse Code judge batch stood down: the approval was answered first')
+    }
+    // The action's own lifetime, when the wiring gave one: the batch
+    // signal also carries the background timeout, so only this tells an
+    // answered approval from a timed-out batch.
+    const isAnswered = (): boolean => this.deps.signal?.aborted === true
     // The user-settings allow-rule check runs before each batch: a rule that
     // lands while earlier batches run stops the later ones.
     const allowed = checkStandingAllowRules(this.deps.readSettingsText())
@@ -246,6 +262,10 @@ export class MuseCodeSameJudge {
     let hasReply = false
     try {
       if (signal.aborted) {
+        if (isAnswered()) {
+          standDown()
+          return
+        }
         failed('the approval stopped waiting')
         return
       }
@@ -266,6 +286,10 @@ export class MuseCodeSameJudge {
         }
         const reply = await awaitBatchReply(session, tracked.turns, submission.turnId, signal)
         if (reply === undefined) {
+          if (isAnswered()) {
+            standDown()
+            return
+          }
           failed('no completed reply in time')
           return
         }
@@ -291,8 +315,13 @@ export class MuseCodeSameJudge {
         tracked.stop()
       }
     } catch (error: unknown) {
-      // Start, effort, send or wait threw: settle once and let the background
-      // runner report it once through onError.
+      // The wait's own abort on an answered approval stands the batch
+      // down: its verdict is moot. Anything else — start, effort, send
+      // or a timeout — settles once and is reported once through onError.
+      if (isAbortError(error) && isAnswered()) {
+        standDown()
+        return
+      }
       this.deps.entries.settle(job.entryKey, 'failed')
       throw error
     } finally {
@@ -307,11 +336,10 @@ export class MuseCodeSameJudge {
         }
         session.dispose()
       }
-      try {
-        await this.deps.removeTempRoot(root)
-      } catch (error: unknown) {
+      const removal = await removeTempRootSettled(() => this.deps.removeTempRoot(root))
+      if (removal !== undefined) {
         this.deps.logWarn(
-          `The Muse Code judge could not remove its folder: ${failureForLog(error)}`,
+          `The Muse Code judge could not remove its folder: ${judgeRemovalFailureForLog(removal)}`,
         )
       }
     }
