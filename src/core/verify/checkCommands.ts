@@ -16,10 +16,9 @@
 // Code gets with each turn is built here too. Pure.
 
 import * as z from 'zod/mini'
+import { checkCommandSchema } from '../../shared/checkCommandSchema'
 import {
-  CHECK_COMMAND_MAX_CHARS,
   CHECK_DEFAULT_TIMEOUT_SECONDS,
-  CHECK_NAME_MAX_CHARS,
   CHECK_PATHS_SEPARATOR,
   type CheckCommandSetting,
   HARNESS_NOTE_TAG,
@@ -32,13 +31,6 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { posixQuoted, powerShellQuoted } from '../shellQuote'
-
-export const checkCommandSchema = z.object({
-  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)),
-  command: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)),
-  changedFiles: z.optional(z.boolean()),
-  timeoutSeconds: z.optional(z.int().check(z.positive())),
-})
 
 /** The setting's whole list, at any length, each name once. */
 export const checkCommandsSchema = z.array(checkCommandSchema).check(

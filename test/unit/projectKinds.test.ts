@@ -36,7 +36,7 @@ async function workspace(files: Record<string, string>): Promise<string> {
 }
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 
 describe('maker project detection on fixture workspaces', () => {

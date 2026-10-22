@@ -15,7 +15,7 @@ import { companionAssets } from '../../src/runtime/maker/assets'
 
 const roots: string[] = []
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPolicy) {
   const root = await mkdtemp(path.join(makerTempRoot(), 'maker-commands-'))
