@@ -1,8 +1,12 @@
 // Usage is a handler and page on M104 C's server; it owns no second listener.
 import { randomUUID } from 'node:crypto'
-import { readFile, realpath } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { readdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
+import { isErrno } from '../../core/fs/errno'
 import { startCompanionServer, type CompanionAsset } from '../companion/server'
+import { renderCompanionPage } from '../companion/page'
+import { agentDataFolder } from '../dataFolder'
 import { usageCompanionEventSchema, usageCompanionRequestSchema } from '../../shared/usageCompanion'
 import type { UsageCompanionEvent } from '../../shared/usageCompanion'
 import type { UsageAccess, UsagePageConnection } from './usageAdapter'
@@ -14,6 +18,7 @@ import { usageDeleteDetail } from '../../shared/usageDeleteText'
 import type { UiText } from '../../shared/l10n/en'
 import type { CoreLogger } from '../../core/logging'
 import {
+  FONT_PACK_SUBFOLDER,
   USAGE_COMPANION_IDLE_MS,
   USAGE_RECORD_MAX_BYTES,
   USAGE_COMPANION_EVENT_BYTES,
@@ -21,7 +26,6 @@ import {
   USAGE_COMPANION_REQUEST_MS,
   USAGE_COMPANION_MAX_WINDOWS,
   USAGE_STALE_MS,
-  WEBVIEW_L10N_ELEMENT_ID,
 } from '../../shared/constants'
 
 interface WindowConnection {
@@ -42,12 +46,72 @@ function emitReply(current: WindowConnection, id: string): void {
     ...(current.download !== undefined && { download: current.download }),
   })
 }
+/** An installed font pack version, served only when `fonts install` published it. */
+export interface CompanionFontPack {
+  readonly directory: string
+  readonly files: readonly string[]
+}
+
+const FONT_PACK_VERSION_PATTERN = /^[a-z\d-]+-[a-f\d]{64}$/
+const FONT_PACK_FILE_PATTERN = /^(?:fonts\.css|[a-z][a-z\d-]*\.woff2)$/
+
+function compareNames(left: string, right: string): number {
+  if (left === right) return 0
+  return left < right ? -1 : 1
+}
+
+/** The servable files of one version directory, or undefined when unusable. */
+async function probePackVersion(directory: string): Promise<readonly string[] | undefined> {
+  const contained = await realpath(directory)
+  const entries = await readdir(directory)
+  const files = entries.filter((file) => FONT_PACK_FILE_PATTERN.test(file)).toSorted(compareNames)
+  if (!files.includes('fonts.css')) return undefined
+  for (const file of files)
+    if (path.dirname(await realpath(path.join(directory, file))) !== contained) return undefined
+  return files
+}
+
+/**
+Locate the installed local-font pack without trusting names: version
+directories match the installer's publication shape and every served file
+is realpath-contained and allowlisted. Returns undefined when no pack is
+installed; the page then uses the system font stack.
+*/
+export async function findCompanionFontPack(
+  fontsRoot: string,
+): Promise<CompanionFontPack | undefined> {
+  let entries: string[]
+  try {
+    entries = await readdir(fontsRoot)
+  } catch (error: unknown) {
+    // An unreadable fonts root has no pack; the page uses the system stack.
+    if (!isErrno(error)) throw error
+    return undefined
+  }
+  const versions = entries
+    .filter((entry) => FONT_PACK_VERSION_PATTERN.test(entry))
+    .toSorted(compareNames)
+  for (const version of versions.toReversed()) {
+    try {
+      const files = await probePackVersion(path.join(fontsRoot, version))
+      if (files !== undefined) return { directory: path.join(fontsRoot, version), files }
+    } catch (error: unknown) {
+      // An unreadable version is skipped for the next older one.
+      if (!isErrno(error)) throw error
+      continue
+    }
+  }
+  return undefined
+}
+
 export async function openUsageCompanion(deps: {
   readonly usage: UsageAccess
   readonly assetsFolder: string
   readonly locale: string
   readonly uiText: UiText
   readonly log: CoreLogger
+  /** Overrides the installed-fonts root (tests); defaults to the user's data folder. */
+  readonly fontsRoot?: string | undefined
 }) {
   setUiText(deps.uiText, deps.locale)
   const table = await loadUsageTable({
@@ -59,14 +123,6 @@ export async function openUsageCompanion(deps: {
     },
   })
   setUsageText(table.table)
-  const embeddedTable = JSON.stringify({ type: 'usage/table', ...table }).replaceAll(
-    '<',
-    String.raw`\u003c`,
-  )
-  const embeddedUiTable = JSON.stringify({ locale: deps.locale, table: deps.uiText }).replaceAll(
-    '<',
-    String.raw`\u003c`,
-  )
   const assets = new Map<string, CompanionAsset>()
   const root = await realpath(deps.assetsFolder)
   const imports: Record<string, string> = {}
@@ -95,14 +151,47 @@ export async function openUsageCompanion(deps: {
     return specifier
   }
   await loadModule('usage.js')
-  const importMap = JSON.stringify({ imports }).replaceAll('<', String.raw`\u003c`)
-  for (const name of ['usage.js', 'usage.css']) {
+  // M114 C-M114-1: the theme closure's emitted sheets ride static files, so
+  // no stylesheet enters the JavaScript chunks or the entry CSS budget. A
+  // missing sheet is a broken install and throws, never an unthemed page.
+  const stylesheets = ['/usage.css', '/theme.css']
+  for (const name of ['usage.js', 'usage.css', 'theme.css']) {
     const source = path.join(root, name)
-    if ((await realpath(source)) !== source) throw new Error('EPANEL_ASSET')
+    // A missing file realpaths to ENOENT; the page reports a broken install
+    // either way, never a half-asset page.
+    let contained: string | undefined
+    try {
+      contained = await realpath(source)
+    } catch (error: unknown) {
+      if (!isErrno(error)) throw error
+      contained = undefined
+    }
+    if (contained !== source) throw new Error('EPANEL_ASSET')
     assets.set(`/${name}`, {
       content: modules.get(name) ?? (await readFile(source)),
       contentType: name.endsWith('.css') ? 'text/css' : 'text/javascript',
     })
+  }
+  // M114 C-M114-1: the installed local-font pack, served only after `fonts
+  // install` published it. Absent without it; the page uses the system stack.
+  const fontsRoot =
+    deps.fontsRoot ??
+    path.join(
+      agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+      FONT_PACK_SUBFOLDER,
+    )
+  const fontPack = await findCompanionFontPack(fontsRoot)
+  if (fontPack !== undefined) {
+    const packRoot = await realpath(fontPack.directory)
+    for (const file of fontPack.files) {
+      const source = path.join(packRoot, file)
+      if (path.dirname(await realpath(source)) !== packRoot) throw new Error('EPANEL_ASSET')
+      assets.set(`/fonts/${file}`, {
+        content: await readFile(source),
+        contentType: file.endsWith('.css') ? 'text/css' : 'font/woff2',
+      })
+    }
+    stylesheets.push('/fonts/fonts.css')
   }
   const connections = new Map<string, WindowConnection>()
   const approvals = new Map<
@@ -121,7 +210,15 @@ export async function openUsageCompanion(deps: {
     },
     assets,
     renderPage: (nonce) =>
-      `<!doctype html><html lang="${table.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/usage.css"><script nonce="${nonce}" type="importmap">${importMap}</script><script nonce="${nonce}" id="${WEBVIEW_L10N_ELEMENT_ID}" type="application/json">${embeddedUiTable}</script><script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedTable}</script></head><body data-host-bridge="http"><div id="root"></div><script type="module" nonce="${nonce}" src="/usage.js"></script></body></html>`,
+      renderCompanionPage(nonce, {
+        locale: table.locale,
+        title: table.table.title,
+        stylesheets,
+        modules: ['/usage.js'],
+        imports,
+        uiTable: { locale: deps.locale, table: deps.uiText },
+        usageTable: { type: 'usage/table', ...table },
+      }),
     handler: {
       inputSchema: usageCompanionRequestSchema,
       outputSchema: usageCompanionEventSchema,

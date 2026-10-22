@@ -103,6 +103,9 @@ describe('companion guard', () => {
     )
     for (const directive of [
       "connect-src 'self'",
+      // blob: names only page-owned font objects the launch bootstrap fetched
+      // with Authorization; a bare font-src 'self' starves installed fonts.
+      "font-src 'self' blob:",
       "frame-ancestors 'none'",
       "form-action 'none'",
       "base-uri 'none'",

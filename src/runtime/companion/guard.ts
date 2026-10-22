@@ -46,7 +46,9 @@ export function secureHeaders(response: ServerResponse, nonce: string): void {
       `script-src 'nonce-${nonce}'`,
       `style-src 'self' 'nonce-${nonce}'`,
       "img-src 'self' data: blob:",
-      "font-src 'self'",
+      // blob: names only page-owned font objects fetched with Authorization by
+      // the launch bootstrap (see installSheet in page.ts); never a remote URL.
+      "font-src 'self' blob:",
       "connect-src 'self'",
       "media-src 'self' blob:",
       "frame-ancestors 'none'",
