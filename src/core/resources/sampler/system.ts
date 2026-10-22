@@ -16,6 +16,7 @@ import type { ResourceSampler, ResourceSettings } from '../../../shared/resource
 import { isErrno } from '../../fs/errno'
 import { MachineResourceSampler } from './machineSampler'
 import type { ResourceProbePort } from './optionalProbes'
+import { DarwinMemoryReader } from './darwinMemory'
 
 /** W supplies the named probe limits from its owned constants region. */
 export interface ResourceProbeLimits {
@@ -139,18 +140,34 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
   }
 }
 
-/** G calls this on the first governed spawn, then owns its RESOURCE_SAMPLE_MS timer. */
+/**
+G calls this on the first governed spawn, then owns its RESOURCE_SAMPLE_MS
+timer. A caller that owns the helper child's lifetime (its own binary, its
+own retirement watch) passes its reader; the sampler samples and retires it
+like its own.
+*/
 export function createMachineResourceSampler(
   settings: () => ResourceSettings,
   limits: ResourceProbeLimits,
   disks?: ResourceDiskSampler,
+  darwinMemory?: DarwinMemoryReader,
 ): ResourceSampler {
   const io = createSamplerIo(limits)
-  // Before libuv 1.52 Darwin's API returns free pages alone, not usable headroom.
-  // Such runtimes, or ones without availableMemory, must report unknown (D87).
+  // Before libuv 1.52 Darwin's API returns free pages alone; use the signed helper.
+  const hasUvVersion = /^\d+\.\d+\.\d+$/u.test(process.versions.uv)
   const [uvMajor = 0, uvMinor = 0] = process.versions.uv.split('.').map(Number)
   const hasDarwinHeadroom =
-    uvMajor > 1 || (uvMajor === 1 && uvMinor >= RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR)
+    hasUvVersion &&
+    (uvMajor > 1 || (uvMajor === 1 && uvMinor >= RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR))
+  const helperMemory =
+    darwinMemory ??
+    (hasUvVersion &&
+    uvMajor === 1 &&
+    uvMinor >= 0 &&
+    uvMinor < RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR &&
+    process.platform === 'darwin'
+      ? new DarwinMemoryReader(limits)
+      : undefined)
   const compatibleProcess: { availableMemory?: () => number } = process
   return new MachineResourceSampler(
     {
@@ -159,10 +176,15 @@ export function createMachineResourceSampler(
       cpus: () => os.cpus().map((cpu) => cpu.times),
       totalMemory: () => os.totalmem(),
       freeMemory: () => os.freemem(),
-      availableMemory: () =>
-        !hasDarwinHeadroom && process.platform === 'darwin'
-          ? null
-          : (compatibleProcess.availableMemory?.() ?? null),
+      availableMemory: () => {
+        if (helperMemory !== undefined) return helperMemory.read()
+        return hasDarwinHeadroom || process.platform !== 'darwin'
+          ? (compatibleProcess.availableMemory?.() ?? null)
+          : null
+      },
+      dispose: () => {
+        helperMemory?.dispose()
+      },
       read: io.read,
       loadOptionalProbes: async () => {
         const { createOptionalResourceProbes } = await import('./optionalProbes')

@@ -100,6 +100,8 @@ export function resourceHistoryReader(
 
 export interface ResourceHistoryRecorder {
   readonly history: ResourceHistoryPort
+  /** The host's recording flag and shared history choice; unreadable is off. */
+  readonly isConsented: () => boolean
   /** Call with each governor sample; a sample arriving while one is written is skipped. */
   sample(status: ResourceStatus): void
   event(event: ResourceEvent): void
@@ -242,6 +244,7 @@ export function resourceHistoryRecorder(
   }
   return {
     history: port(store, binding.dataFolder),
+    isConsented,
     sample(status) {
       if (isSampling || !isAdmitted()) return
       isSampling = true

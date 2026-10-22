@@ -1,5 +1,6 @@
 import { ResourceEvents } from '../../core/resources/events'
 import { ResourceGovernor } from '../../core/resources/governor'
+import type { ResourceLaunchHost, ResourceTreeUsageRow } from '../../core/resources/launchHost'
 import {
   ResourceQueue,
   type ResourcePermit,
@@ -37,12 +38,36 @@ export interface RuntimeResourceHostOptions {
   /** R provides approved availability; headless never does. Absent: no relocation route. */
   hasRelocationTarget?: () => boolean
   onError: (error: unknown) => void
+  /**
+  H–C1: builds this process's governed launch host around this host's one
+  governor, once, at the first governed launch. Its registered work is then
+  this queue's occupancy and its trees are history's harness-work rows.
+  */
+  launches?: ((share: RuntimeGovernorShare) => ResourceLaunchHost) | undefined
+}
+
+/** H–C1: what the process's launch host borrows; nothing here is a second governor. */
+export interface RuntimeGovernorShare {
+  readonly governor: ResourceGovernor
+  readonly events: ResourceEvents
+  /** The settings this host last synced: machine values and the run's flags. */
+  readonly settings: () => ResourceSettings
+  /** Registered work changed: this host's queue reads occupancy again. */
+  readonly workChanged: () => void
+}
+
+/** The runtime host as its process uses it (H–C1); surfaces see only RuntimeResources. */
+export interface RuntimeResourceProcess extends RuntimeResources {
+  /** The process's governed launches, built on first use; absent without a builder. */
+  readonly launches?: () => ResourceLaunchHost
+  /** Their harness-work rows for history; none before the first governed launch. */
+  readonly launchRows: () => readonly ResourceTreeUsageRow[]
 }
 
 /** One process owns this host; C1/T retain permits until observed retirement. */
 export async function createRuntimeResourceHost(
   options: RuntimeResourceHostOptions,
-): Promise<RuntimeResources> {
+): Promise<RuntimeResourceProcess> {
   let settings = resourceSettingsSchema.parse({
     ...(await options.machine.readSettings()),
     ...options.overrides,
@@ -95,17 +120,23 @@ export async function createRuntimeResourceHost(
         await sync()
         return await options.sampler.sample()
       },
+      dispose() {
+        options.sampler.dispose?.()
+      },
     },
     settings,
     events,
     hasRelocationTarget: options.hasRelocationTarget ?? null,
     onError: options.onError,
   })
+  // H–C1: once the process's launches exist, every admitted spawn is theirs, so
+  // their registered work is the occupancy (unknown trees still count as busy).
+  let launch: ResourceLaunchHost | undefined
   const queue = new ResourceQueue({
     clock,
     events,
     capacity: (kind) => governor.capacity(kind),
-    running: options.running,
+    running: { backgroundCount: (kind) => (launch ?? options.running).backgroundCount(kind) },
   })
   const snapshot = () => governor.status(queue.counts())
   const onSample = options.onSample
@@ -151,7 +182,23 @@ export async function createRuntimeResourceHost(
       setTimeout(resolve, RESOURCE_SAMPLE_MS)
     })
   }
-  const host: RuntimeResources = {
+  const build = options.launches
+  const host: RuntimeResourceProcess = {
+    ...(build !== undefined && {
+      launches() {
+        ensureOpen()
+        launch ??= build({
+          governor,
+          events,
+          settings: () => settings,
+          workChanged: () => {
+            queue.wake()
+          },
+        })
+        return launch
+      },
+    }),
+    launchRows: () => launch?.workRows() ?? [],
     async command(action, json) {
       if (action === 'history') {
         const history = await host.history()
@@ -261,6 +308,8 @@ export async function createRuntimeResourceHost(
     },
     dispose() {
       isDisposed = true
+      // Its owned trees are stopped first; the shared governor goes last.
+      launch?.dispose()
       unsubscribe()
       listeners.clear()
       work.clear()

@@ -7,7 +7,8 @@ param(
     [string]$CacheKey,
     [string]$Setup,
     [string]$Command,
-    [string]$Timeout
+    [string]$Timeout,
+    [ValidateSet('resource')][string]$Admission
 )
 $ErrorActionPreference = 'Stop'
 foreach ($directory in @('runs','slots','cache')) { [IO.Directory]::CreateDirectory((Join-Path $Root $directory)) | Out-Null }
@@ -119,6 +120,16 @@ public static class MuseRunnerJob {
       return code;
     } finally { if(child.thread!=IntPtr.Zero) CloseHandle(child.thread); if(child.process!=IntPtr.Zero) CloseHandle(child.process); CloseHandle(job); }
   }
+  // The supervisor's own stdout/stderr are the run's output file (Start
+  // duplicates the log handle into the child). Closing them is what lets
+  // the exit record mean settled: no handle on the run's files is held
+  // once the record is observable. Call only after the job drains, and
+  // write no console output afterwards.
+  public static void ReleaseOutput() {
+    IntPtr output=GetStdHandle(-11), error=GetStdHandle(-12);
+    if(output!=IntPtr.Zero && output!=(IntPtr)(-1)) CloseHandle(output);
+    if(error!=IntPtr.Zero && error!=(IntPtr)(-1) && error!=output) CloseHandle(error);
+  }
 }
 '@
 
@@ -183,6 +194,19 @@ switch ($Action) {
         try { $owner = [IO.File]::Open($allocation, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None) }
         catch [IO.IOException] { Write-Protocol @{runId=$RunId;state='busy'}; break }
         try {
+            # A relocation probe grants no admission: read current load inside allocation.
+            if ($Admission -eq 'resource') {
+                $processors = @(Get-CimInstance Win32_Processor)
+                $unknown = @($processors | Where-Object {
+                    $null -eq $_.NumberOfLogicalProcessors -or $_.NumberOfLogicalProcessors -le 0 -or
+                    $null -eq $_.LoadPercentage -or $_.LoadPercentage -lt 0 -or $_.LoadPercentage -gt 100
+                })
+                $cores = ($processors | Measure-Object NumberOfLogicalProcessors -Sum).Sum
+                $load = (($processors | Measure-Object LoadPercentage -Average).Average / 100) * $cores
+                if ($processors.Count -eq 0 -or $unknown.Count -gt 0 -or $null -eq $cores -or $cores -le 0 -or $null -eq $load -or $load -ge $cores) {
+                    Write-Protocol @{runId=$RunId;state='busy'}; break
+                }
+            }
             $slot = $null
             for ($i=0; $i -lt [int]$MaxJobs; $i++) {
                 $file = Join-Path (Join-Path $Root 'slots') $i
@@ -222,6 +246,11 @@ switch ($Action) {
             try { $creation=[IO.File]::Open(($cache+'.creating'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read) }
             catch [IO.IOException] {
                 [IO.File]::WriteAllText((Join-Path $run 'cache-busy'),'')
+                Initialize-RunnerJob
+                # The supervisor's own stdout/stderr are the run's output
+                # file: release them before announcing, so the record is
+                # observable only once the files are free to touch.
+                [MuseRunnerJob]::ReleaseOutput()
                 [IO.File]::WriteAllText((Join-Path $run 'exit.new'),(ConvertTo-Json -Compress @{runId=$RunId;state='ended';exitCode=75;reason='cacheBusy'}))
                 Move-Item -LiteralPath (Join-Path $run 'exit.new') -Destination (Join-Path $run 'exit.json'); break
             }
@@ -240,6 +269,11 @@ switch ($Action) {
         $code=[MuseRunnerJob]::Run($application,$line,([uint32]$Timeout * 1000))
         $run=Get-RunPath $RunId
         Remove-CacheLock (Join-Path (Join-Path $Root 'cache') $CacheKey) $RunId
+        # The job object is drained (active count zero above) and the run's
+        # processes are gone; the supervisor's own stdout/stderr are the
+        # last handles on the output file. Release them before announcing,
+        # so the exit record is observable only once the files are free.
+        [MuseRunnerJob]::ReleaseOutput()
         $result=@{runId=$RunId;state='ended';exitCode=[int]$code}
         if (Test-Path -LiteralPath (Join-Path $run 'cache-busy')) { $result.reason='cacheBusy' }
         [IO.File]::WriteAllText((Join-Path $run 'exit.new'),(ConvertTo-Json -Compress $result))

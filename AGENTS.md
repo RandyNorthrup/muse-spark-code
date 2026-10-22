@@ -487,7 +487,8 @@ src/webview/resources/** shared chip/popover via injected source and lazy loader
 src/webview/usage/**  ResourcesSection and lazy history boundary;
                       dist/webview/resourceHistory.js plus its CSS; M102 mount
 src/runtime/resources/** machine settings/status/resume, session port and exec-v2
-                      adapter; active spawn/history bindings remain named
+                      adapter; the process's one governor facade, whose launches
+                      (H–C1) are its occupancy, events and history rows
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events, questionDeferral.ts
                       (dist/acpQuestions.js, loaded on the first question,

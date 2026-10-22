@@ -50,6 +50,28 @@ happened, not what was planned; superseded entries are kept.
   files or session record; the dialog loads on first open with its own
   strings, and Help lists it too.
 
+### Changed
+
+- Runner-route resource relocation joins the lazy check router to the
+  existing governor, SSH admission and resource journal. Complete
+  scheduler bindings supply approved routes, exclusive attempt ownership,
+  Ask, Keep here and task/Traffic rows. Queued heavy checks can move at
+  relocate/pause; ambiguous remote admission never retries locally. No
+  runner route is active in an installed editor yet; paired-device
+  relocation stays refused.
+- The ACP agent's resource history now includes its own work. Each
+  `muse-spark-code-acp` process runs one resource governor, shared by the
+  agent, a headless `exec` run and terminal commands instead of each
+  starting another. The tools, checks and other processes the agent starts
+  are that governor's work: at throttle one background item per kind runs
+  and the next starts when it finishes, where before none started until the
+  level dropped. Their CPU time and peak memory appear as harness work in
+  `resources history`, `usage resources`, ACP `/usage resources` and every
+  editor's usage page, as the VS Code window's already did (not yet on
+  macOS). An ACP conversation now gets the resource notice when its own
+  turn's work waits, and a headless run's own deferred or refused work is a
+  v2 `resource` event in its output.
+
 ### Fixed
 
 - **A vault no longer reports itself lost when it was never set up.** The
@@ -97,6 +119,56 @@ happened, not what was planned; superseded entries are kept.
   is 1.4.4 and the effort catalogue and note-only feedback receipt are
   bound in the VS Code window and the CLI/ACP runtime, while
   record-attached feedback and permanent deletion refuse before dispatch.
+- **Runtime resource cleanup on older macOS.** CLI, ACP and headless
+  shutdown now forward disposal to the sampler's memory helper, so a
+  resource status command exits normally and no helper keeps the runtime
+  alive after shutdown.
+- On macOS, memory headroom includes free, inactive and purgeable pages on
+  runtimes with libuv older than 1.52, including Node 22 and older
+  extension hosts. The packaged signed helper handles one request per
+  sample in one child per governor; a failed reading stays unknown, and
+  newer runtimes keep Node's API.
+- Cancelling a runtime launch or reaching its deadline now ends the wait
+  even while the resource governor's first settings read is still pending;
+  other callers keep the same initialization.
+- Attested job accounting in resource history now requires both the host's
+  recording flag and the shared history choice at settlement; turning
+  history off discards buffered rows and their overflow tally, so enabling
+  it later cannot publish work collected while history was off.
+- Runner receivers now publish a run's exit record only after the run is
+  settled (CM1073 round 7): the job supervisor first drains the run's
+  processes to zero (the Windows job object; the POSIX process group)
+  and then closes its own redirected output handle before writing the
+  record, so the record is never observable while a dying process still
+  holds the output file. On Windows this removes the 1-in-5 `EBUSY`
+  deleting `runs\<id>\output` after settlement. A settled run whose
+  output file is still held reports the typed `uncertain` dispatch and
+  stays retryable under the same run id, never Offline, with no leaked
+  slot.
+- Windows runner receivers left at Windows' default execution policy
+  (CM1073 round 5): the SSH remote command now starts Windows PowerShell
+  with the shared `-ExecutionPolicy Bypass` flag (process scope: it changes
+  nothing on the machine), built from the same argument list as every other
+  script-file launch, so the helper runs instead of being refused before
+  its first line. Where Group Policy overrides the flag and still forbids
+  scripts, the run reports its own sentence — “This machine's policy does
+  not allow scripts to run; nothing was started.” — in every language, at
+  the test button and through the run's refusal reason, instead of reading
+  Offline. No machine setting is changed by the product or by a test, ever.
+- Runner-route relocation repairs (reviews RVCM1073B, RVAPP-CM1073R3):
+  registering or unregistering a route rebinds the relocation target on the
+  loaded host instead of disposing it, so unrelated active work is never
+  stopped; a pressure or setting change after the route decision runs the
+  ordinary runner route instead of failing a labelled check Offline, and
+  Offline is produced only when the runner is genuinely unreachable; a
+  target that became busy keeps the check on the source with its reason
+  reported, and the ordinary route keeps a proved receiver refusal reason
+  when every runner is exhausted; losing the last route steps the governor
+  down from relocate to pause at once; an explicitly null relocation target
+  reports no route while no runner is bound. The two PowerShell refusal
+  cases skip with "PowerShell unavailable" where the parser is missing, and
+  the admitted-run case requires Windows PowerShell itself; all three run
+  on Windows.
 
 ### Release infrastructure
 
@@ -2468,7 +2540,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   Recordings return to their starting conversation; picked media uses drop
   confinement and reasoned refusals. Audio pastes transcribe by default;
   Gemini/OpenAI-compatible video remains unsupported.
-
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

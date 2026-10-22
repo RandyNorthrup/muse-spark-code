@@ -10,7 +10,6 @@ import {
   type ResourceLinkedDevice,
   type ResourceStatus,
 } from '../../shared/resources'
-import { reportResourceTransport } from './admission'
 import { unlessAborted } from '../timeouts'
 import type { ResourceEvents } from './events'
 
@@ -63,7 +62,11 @@ export interface ResourceRelocationOptions {
   devices(work: ResourceRelocationWork): readonly ResourceRelocationTarget[]
   runnersEnabled(): boolean
   runners(work: ResourceRelocationWork): readonly ResourceRelocationTarget[]
-  ask(work: ResourceRelocationWork, target: ResourceRelocationTarget): Promise<boolean>
+  ask(
+    work: ResourceRelocationWork,
+    target: ResourceRelocationTarget,
+    signal: AbortSignal,
+  ): Promise<boolean>
   /** Must install the task row with target and reason before returning. */
   row(
     work: ResourceRelocationWork,
@@ -72,7 +75,7 @@ export interface ResourceRelocationOptions {
   ): void
   notice(target: ResourceRelocationTarget): void
   traffic(target: ResourceRelocationTarget, event: RelocatedEvent): void
-  transportResult?: (wasSuccessful: boolean) => Promise<void>
+  transportResult(wasSuccessful: boolean): Promise<void>
   onError(error: unknown): void
 }
 
@@ -129,7 +132,7 @@ export class ResourceRelocator {
       const response = await unlessAborted(Promise.race([target.resource(), expired]), signal)
       signal.throwIfAborted()
       const parsed = deviceResourceSchema.safeParse(response)
-      await (this.options.transportResult ?? reportResourceTransport)(parsed.success)
+      await this.options.transportResult(parsed.success)
       return !parsed.success ||
         !canAdmitResourceRelocation(parsed.data.level) ||
         parsed.data.headroom === 'none'
@@ -137,7 +140,7 @@ export class ResourceRelocator {
         : parsed.data.headroom
     } catch (error: unknown) {
       if (!(error instanceof DOMException && error.name === 'AbortError'))
-        await (this.options.transportResult ?? reportResourceTransport)(false)
+        await this.options.transportResult(false)
       throw error
     } finally {
       clear?.()
@@ -148,6 +151,9 @@ export class ResourceRelocator {
     work: ResourceRelocationWork,
     signal: AbortSignal,
     targetId: string | undefined,
+    // False before the Ask question: only the local offer predicates run, so
+    // nothing is installed, probed or otherwise changed on any target.
+    shouldProbe: boolean,
   ): Promise<ResourceRelocationTarget | undefined> {
     const targets = [
       ...(this.options.devicesEnabled() ? this.options.devices(work) : []),
@@ -158,6 +164,7 @@ export class ResourceRelocator {
     const rooms = await Promise.all(
       targets.map(async (target) => {
         if (targetId !== undefined && target.id !== targetId) return null
+        if (!shouldProbe) return this.offered(work, target) ? ('some' as const) : null
         try {
           return await this.headroom(work, target, signal)
         } catch (error) {
@@ -234,15 +241,23 @@ export class ResourceRelocator {
       )
         return result
       isClaimed = work.claim()
-      if (!isClaimed || this.status(signal, isManual) === null) return result
-      const target = await this.select(work, signal, targetId)
+      const claimed = this.status(signal, isManual)
+      if (!isClaimed || claimed === null) return result
+      let isApproved = isManual
+      let target: ResourceRelocationTarget | undefined
+      if (!isApproved && claimed.settings.relocate === 'ask') {
+        // The question comes before any probe: the offered target is named
+        // from local predicates only, and its headroom is read after Yes.
+        target = await this.select(work, signal, targetId, false)
+        if (target === undefined || this.status(signal, isManual) === null) return result
+        isApproved = (await unlessAborted(this.options.ask(work, target, signal), signal)) === true
+        if (!isApproved) return result
+        if ((await this.headroom(work, target, signal)) === null) return result
+      } else {
+        target = await this.select(work, signal, targetId, true)
+      }
       let status = this.status(signal, isManual)
       if (target === undefined || status === null) return result
-      let isApproved = isManual
-      if (!isApproved && status.settings.relocate === 'ask') {
-        isApproved = await this.options.ask(work, target)
-        if (!isApproved) return result
-      }
       if (isRunning) {
         result = 'uncertain'
         if ((await work.retire?.()) !== true) return result
@@ -253,7 +268,7 @@ export class ResourceRelocator {
       status = this.status(signal, isManual)
       if (status === null || (!isRunning && work.phase() !== 'queued')) return result
       if (!isApproved && status.settings.relocate === 'ask') {
-        isApproved = await this.options.ask(work, target)
+        isApproved = (await unlessAborted(this.options.ask(work, target, signal), signal)) === true
         if (!isApproved || (await this.headroom(work, target, signal)) === null) return result
         status = this.status(signal, isManual)
         if (status === null || (!isRunning && work.phase() !== 'queued')) return result
@@ -275,9 +290,11 @@ export class ResourceRelocator {
       if (result === 'admitted') this.report(target, work.kind, metadata.level)
       return result
     } catch (error) {
+      // A failed move reports and settles uncertain, then stays loud: the
+      // caller decides what a dispatch failure means, not the outcome.
       if (result !== 'admitted' && state.isDispatched) result = 'uncertain'
       this.options.onError(error)
-      return result
+      throw error
     } finally {
       if (isClaimed) work.settle(result)
     }

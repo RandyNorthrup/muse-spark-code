@@ -336,26 +336,29 @@ export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
 
 export function featureCatalog(): readonly Feature[] {
   return [
-    feature(
-      'resources',
-      { ui: 'resourceTitle' },
-      { ui: 'referenceResources' },
-      ['showResources', 'resumeResources'],
-      [
-        'resourceGovernor',
-        'resourceCpuMaxPercent',
-        'resourceMemoryMaxPercent',
-        'resourceMemoryMinFreeGiB',
-        'resourceGpuMaxPercent',
-        'resourceDiskBusyMaxPercent',
-        'resourceDiskMinFreeGiB',
-        'resourceRelocate',
-      ],
-      'keeping-your-machine-responsive',
-      undefined,
-      false,
-      ['vscode', 'acp'],
-    ),
+    {
+      ...feature(
+        'resources',
+        { ui: 'resourceTitle' },
+        { ui: 'referenceResources' },
+        ['showResources', 'resumeResources'],
+        [
+          'resourceGovernor',
+          'resourceCpuMaxPercent',
+          'resourceMemoryMaxPercent',
+          'resourceMemoryMinFreeGiB',
+          'resourceGpuMaxPercent',
+          'resourceDiskBusyMaxPercent',
+          'resourceDiskMinFreeGiB',
+          'resourceRelocate',
+        ],
+        'keeping-your-machine-responsive',
+        undefined,
+        false,
+        ['vscode', 'acp'],
+      ),
+      details: [{ ui: 'resourceRelocateAskDescription' }, { ui: 'resourceRelocateOffDescription' }],
+    } satisfies Feature,
     feature(
       'agent-outcomes',
       { ui: 'agentReceipt' },
@@ -1419,6 +1422,7 @@ const REFERENCE_DETAILS: Readonly<
 > = {
   // Reset also recovers unknown writer ownership through its confirmed path.
   vault: ['referenceVault'],
+  resources: ['referenceResourceMemory'],
   providers: [
     'providerOpenRouterServices',
     'pricePerMillion',

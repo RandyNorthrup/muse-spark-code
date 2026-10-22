@@ -22,7 +22,8 @@ export interface MachineSamplerPort {
   cpus(): unknown
   totalMemory(): number
   freeMemory(): number
-  availableMemory(): number | null
+  availableMemory(): number | null | Promise<number | null>
+  dispose?(): void
   readonly read: SamplerFileReader
   loadOptionalProbes(): Promise<ResourceOptionalProbes>
 }
@@ -164,5 +165,9 @@ export class MachineResourceSampler implements ResourceSampler {
   sample(): Promise<ResourceSample> {
     this.pending ??= this.readPending()
     return this.pending
+  }
+
+  dispose(): void {
+    this.port.dispose?.()
   }
 }

@@ -24,8 +24,10 @@ describe('import git probes (PR #214 review)', () => {
     const { root, file } = scratchRepo()
     const closing = new AbortController()
     closing.abort()
-    await expect(fileImportIo.isIgnored(file, root, closing.signal)).rejects.toThrow(
-      'was not started',
-    )
+    // Admission honors the closed window first, so the probe fails with the
+    // abort itself instead of reaching git's own not-started refusal; either
+    // way nothing waits on git. git's refusal still covers a window that
+    // closes mid-probe.
+    await expect(fileImportIo.isIgnored(file, root, closing.signal)).rejects.toThrow(DOMException)
   })
 })

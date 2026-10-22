@@ -77,6 +77,8 @@ export function windowsTrustedPathVerifier(
     const literal = component.replaceAll("'", "''")
     const isDriveRoot = path.win32.dirname(component) === component
     const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $target = '${literal}'; $attributes = [IO.File]::GetAttributes($target); $safe = $false; if (($attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) { if (($attributes -band [IO.FileAttributes]::Directory) -ne 0) { $acl = [IO.Directory]::GetAccessControl($target) } else { $acl = [IO.File]::GetAccessControl($target) }; $safe = Test-TrustedAcl $acl $${String(isDriveRoot)} $${String(isDirectory)} }; [Console]::WriteLine(([bool]$safe).ToString().ToLowerInvariant())`
+    // Inline `-EncodedCommand`, no script file: the execution policy does not
+    // gate it, so this probe does not use the shared Bypass list.
     const result = await run('powershell.exe', [
       '-NoProfile',
       '-NonInteractive',

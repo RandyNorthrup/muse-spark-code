@@ -1,6 +1,7 @@
 import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { isErrno } from '../core/fs/errno'
 import { abortableSleep } from '../core/backends/modelapi/transport'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
@@ -115,7 +116,7 @@ import { type LogLevel, stderrLogger } from './stderrLog'
 import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
-import { crashTextForLog, createExecLogger, redactWhole } from './exec/execOutput'
+import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
@@ -148,8 +149,11 @@ import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
-import { lazyRuntimeResources } from './resources/load'
-import type { ResourceSettings } from '../shared/resources'
+import {
+  ResourceUnavailableError,
+  lazyRuntimeResources,
+  type ProcessResources,
+} from './resources/load'
 import { execAccountSelection } from './exec/execAccounts'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
 import { runtimeAccountsLoader, type RuntimeAccountsBundle } from './providers/accountsBundle'
@@ -509,12 +513,11 @@ async function runtimeFor(
   })
 }
 
-/** `isRecordingHistory` (usage-history consent) is for the long-lived ACP agent only. */
-function resourcesFor(
-  log: Logger,
-  overrides?: Partial<ResourceSettings>,
-  isRecordingHistory?: () => boolean,
-) {
+/**
+The process's one governor (H–C1), made once by `run()`. The ACP agent adds
+its usage-history consent and headless its run flags through `configure`.
+*/
+function resourcesFor(log: Logger): ProcessResources {
   return lazyRuntimeResources({
     distDir,
     machineDir: agentDataFolder({
@@ -533,8 +536,6 @@ function resourcesFor(
     onDamagedChoice: (text) => {
       log.error(text)
     },
-    ...(overrides !== undefined && { overrides }),
-    ...(isRecordingHistory !== undefined && { isRecordingHistory }),
   })
 }
 
@@ -1021,6 +1022,7 @@ async function serve(
   options: ServeOptions,
   log: Logger,
   loadAccounts: () => RuntimeAccountServices,
+  processResources: ProcessResources,
 ): Promise<number> {
   let clientName = 'ACP'
   const recording = runtimeRecording(
@@ -1046,7 +1048,8 @@ async function serve(
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
     })
     const isUsageHistoryOn = options.usageHistory ?? true
-    const resources = resourcesFor(log, undefined, () => isUsageHistoryOn)
+    // H–C1: the process's one governor records the agent's samples and launches.
+    const resources = processResources.configure({ isRecordingHistory: () => isUsageHistoryOn })
     const scheduleSessions = runtimeScheduleSessionFactory({
       current: runtime,
       create: (backend) => runtimeFor({ ...options, backend }, log),
@@ -1354,7 +1357,7 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
   return command.options.isVerbose ? 'trace' : 'info'
 }
 
-async function main(): Promise<number> {
+async function main(processResources: ProcessResources): Promise<number> {
   // Parse first, on the bundled English table: a stalled package
   // filesystem must not hang argument parsing past exec --timeout or the
   // fixed scan/legal deadlines. Parser refusals read English until the
@@ -1362,6 +1365,14 @@ async function main(): Promise<number> {
   // headless lifecycle further down (unbounded for the interactive
   // commands after it), and scan-secrets does no localization work at all
   // (Codex on PR #213).
+  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
+    await loadUiTable({
+      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+      log: stderrLogger((line) => {
+        writeLine(process.stderr, line)
+      }, 'warn'),
+    })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
@@ -1572,14 +1583,15 @@ async function main(): Promise<number> {
           randomHex: (bytes) => randomBytes(bytes).toString('hex'),
           log,
           resourceOverrides: command.resourceOverrides,
-          createResources: (overrides) => resourcesFor(log, overrides),
+          // H–C1: the run's flags configure the process's one governor and its v2 sink.
+          createResources: (overrides) => processResources.configure({ overrides }),
         },
         referenceTable,
         uiLocale(),
       )
       return headlessCode
     } catch (error: unknown) {
-      log.error(error instanceof Error ? (error.stack ?? error.message) : String(error))
+      log.error(`Run failed: ${failureForLog(error)}`)
       await stderr.flush(lifecycle.remainingGraceMs())
       headlessCode =
         command.command === 'exec' ? EXEC_EXIT.internal : HEADLESS_WIRING_EXIT[command.command]
@@ -1651,21 +1663,27 @@ async function main(): Promise<number> {
       }
     }
     case 'resources': {
-      const resources = resourcesFor(log)
       try {
-        writeLine(process.stdout, await resources.command(command.action, command.json))
+        writeLine(process.stdout, await processResources.command(command.action, command.json))
         return 0
-      } catch {
-        // An unreadable journal is named as such; it is never printed as empty history.
-        writeLine(
-          process.stderr,
-          command.action === 'history'
-            ? UI_TEXT.resourceHistoryInvalid
-            : UI_TEXT.resourceUnavailable,
-        )
+      } catch (error: unknown) {
+        // An unreadable journal is named as such; it is never printed as
+        // empty history. Only a corrupt or missing journal reads that way.
+        if (command.action === 'history') {
+          if (error instanceof SyntaxError) {
+            writeLine(process.stderr, UI_TEXT.resourceHistoryInvalid)
+            return EXIT_FAILED
+          }
+          if (!isErrno(error)) throw error
+          writeLine(process.stderr, UI_TEXT.resourceHistoryInvalid)
+          return EXIT_FAILED
+        }
+        // Any other reading names itself unavailable only when it is.
+        if (!(error instanceof ResourceUnavailableError)) throw error
+        writeLine(process.stderr, UI_TEXT.resourceUnavailable)
         return EXIT_FAILED
       } finally {
-        resources.dispose()
+        processResources.dispose()
       }
     }
     case 'fontsInstall': {
@@ -1903,7 +1921,7 @@ async function main(): Promise<number> {
       return await providers.run(command.action)
     }
     case 'serve': {
-      return await serve(command.options, log, () => loadAccounts(log))
+      return await serve(command.options, log, () => loadAccounts(log), processResources)
     }
     case 'login': {
       const { museCode } = await runtimeFor(command.options, log)
@@ -2345,17 +2363,18 @@ async function main(): Promise<number> {
   }
 }
 
-/** The process's exit code is the command's; a crash prints its stack and fails. */
+/** The process's exit code is the command's; a crash prints its failure word and fails. */
 async function run(): Promise<void> {
-  const processResources = resourcesFor(
-    stderrLogger((line) => {
-      writeLine(process.stderr, line)
-    }, 'warn'),
-  )
+  const log = stderrLogger((line) => {
+    writeLine(process.stderr, line)
+  }, 'warn')
+  const processResources = resourcesFor(log)
   try {
-    process.exitCode = await main()
+    process.exitCode = await main(processResources)
   } catch (error: unknown) {
-    writeLine(process.stderr, redactWhole(crashTextForLog(error), []))
+    // A crash names its failure word, never its text: raw stacks stay out
+    // of the log.
+    log.error(`Run failed: ${failureForLog(error)}`)
     process.exitCode = EXIT_FAILED
   } finally {
     processResources.dispose()

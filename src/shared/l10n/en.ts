@@ -50,6 +50,8 @@ export const EN = {
   resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
   resourceRelocationNoRoute:
     'Relocation requires a paired device or runner route. Work stays on this machine.',
+  resourceRelocationNoTarget:
+    'No approved runner route is active. Work stays on this machine. Paired-device relocation is unavailable.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
   resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceStatusRefused: 'The latest resource status could not be read, so no readings are shown.',
@@ -110,6 +112,8 @@ export const EN = {
   resourceMemoryAmple: 'Ample Headroom',
   referenceResources:
     'Resource, service and transport pressure reduce admission. Each job has observed process and birth limits; cleanup removes only recorded temp roots.',
+  referenceResourceMemory:
+    'On macOS, memory headroom includes free, inactive and purgeable pages. Older runtimes use the signed helper; a failed reading stays unknown.',
   resourceGovernorDescription:
     'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
   resourceCpuMaxPercentDescription:
@@ -123,7 +127,8 @@ export const EN = {
     'Optional disk busy limit in percent. Unset means no disk probe.',
   resourceRelocateDescription:
     'Relocation requires a paired device or runner route. Work stays on this machine.',
-  resourceRelocatePairedDescription: 'No paired-device route is bound. Work stays on this machine.',
+  resourceRelocatePairedDescription:
+    'Use an approved paired device with normal resource load once relocation is available.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.
@@ -3839,6 +3844,7 @@ export const EN = {
     testFailed: 'Runner self-test failed',
     commandTooLong:
       'The Windows runner command exceeds the process command-line limit. Shorten the setup command or check.',
+    executionPolicy: "This machine's policy does not allow scripts to run; nothing was started.",
     hostKeyNotice:
       'Connect once from your own terminal to verify and trust this host key: {fingerprint}.',
     inputHangNotice:

@@ -23,6 +23,7 @@ import type { ResourceGovernor } from './governor'
 import type { ResourceDiskSampler } from './disk'
 import type { CreatedRegistry, CreatedCleanup } from './createdRegistry'
 import type { ResourceEvents } from './events'
+import { ResourceRelocator, type ResourceRelocationOptions } from './relocate'
 import {
   ResourceQueue,
   type ResourcePermit,
@@ -114,9 +115,20 @@ export interface ResourceLaunchHostOptions {
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   /**
   A history recorder drains `settled()` (M107-J-C1-T-accounting; the window's,
-  POSTSPAWN). Without one, no attested row is kept: nothing would ever read it.
+  POSTSPAWN; the runtime's while it records, H–C1). Without one, no attested
+  row is kept: nothing would ever read it.
   */
-  readonly isSettledRead?: boolean | undefined
+  readonly isSettledRead?: boolean | (() => boolean) | undefined
+  /**
+  H–C1: the runtime's one governor is shared, not owned. This host then never
+  pushes settings into it, starts it or disposes it; the runtime host does.
+  */
+  readonly isGovernorShared?: boolean | undefined
+  /**
+  H–C1: registered work changed (admitted, proved, unknown or retired), so the
+  runtime's queue reads this host's occupancy again.
+  */
+  readonly onWorkChanged?: (() => void) | undefined
 }
 
 /** C1: admission reservations plus OS-proved registry entries, shared by the window. */
@@ -149,20 +161,15 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       events: options.events,
       capacity: (kind) => options.governor.capacity(kind),
       diskBlocked: () => options.governor.diskBlocked(),
-      running: {
-        backgroundCount: (kind) => {
-          const entries = [...this.work].filter(
-            (work) => work.kind === kind && work.class === 'background',
-          )
-          return entries.some((work) => !work.known) ? null : entries.length
-        },
-      },
+      running: { backgroundCount: (kind) => this.backgroundCount(kind) },
     })
     this.unsubscribeSample = options.governor.onSample(() => {
+      this.isSettledRead()
       this.queue.wake()
       this.changed()
     })
     this.unsubscribe = options.events.subscribe((event) => {
+      this.isSettledRead()
       if (event.type === 'levelChanged' && event.to !== 'normal') {
         void options.created
           ?.clean()
@@ -171,6 +178,17 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       }
       this.changed()
     })
+  }
+
+  /** Off consent invalidates held accounting, even when the recorder skips a sample. */
+  private isSettledRead(): boolean {
+    const choice = this.options.isSettledRead
+    const isRead = typeof choice === 'function' ? choice() : choice === true
+    if (!isRead) {
+      this.settledRows = []
+      this.settledDropped = 0
+    }
+    return isRead
   }
 
   /** Queue counts move without an event (grants, releases), so callers mark them too. */
@@ -197,11 +215,25 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     const settings = this.options.settings()
     const signature = JSON.stringify(settings)
     if (signature !== this.settings) {
-      this.options.governor.updateSettings(settings)
+      // A shared governor already follows its owner's settings and run flags.
+      if (this.options.isGovernorShared !== true) this.options.governor.updateSettings(settings)
       this.settings = signature
       this.changed()
     }
     return settings
+  }
+
+  /** The runtime's queue reads registered work through this (H–C1). */
+  private workChanged(): void {
+    if (this.disposed) return
+    try {
+      this.options.onWorkChanged?.()
+    } catch (error) {
+      // The occupancy re-read is best-effort: the next registry change wakes
+      // the queue again. Only the queue's own capacity errors read that way.
+      if (!(error instanceof RangeError)) throw error
+      this.options.onError(error)
+    }
   }
 
   private finishTemp(work: Work): void {
@@ -251,6 +283,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
     work.permit.release()
     this.changed()
+    this.workChanged()
     if (isTreeGone) this.finishTemp(work)
     if ([...this.work].some((entry) => entry.process !== undefined)) {
       return
@@ -359,6 +392,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         }),
       )
       this.queue.wake()
+      this.workChanged()
     } finally {
       this.pending = undefined
     }
@@ -456,6 +490,27 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     return this.snapshot.status
   }
 
+  /** One per conversation, on the same governor and history stream as local launches. */
+  createRelocator(
+    options: Omit<ResourceRelocationOptions, 'clock' | 'events' | 'status' | 'transportResult'>,
+  ): ResourceRelocator {
+    if (this.disposed) throw new Error('Resource launch host disposed')
+    return new ResourceRelocator({
+      ...options,
+      clock: this.options.clock,
+      events: this.options.events,
+      transportResult: (wasSuccessful) => {
+        this.recordTransportResult(wasSuccessful)
+        return Promise.resolve()
+      },
+      status: () => {
+        if (this.disposed) throw new Error('Resource launch host disposed')
+        this.applySettings()
+        return this.status()
+      },
+    })
+  }
+
   /** Disposable change notification; read `status()` inside the callback. */
   subscribe(changed: () => void): () => void {
     if (this.disposed) throw new Error('Resource launch host disposed')
@@ -468,6 +523,17 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   /** The window's settings changed: apply them now, not at the next governed launch. */
   settingsChanged(): void {
     if (!this.disposed) this.applySettings()
+  }
+
+  /**
+  Runner routes arrived or left: rebind the relocation target on the same
+  governor. Active work, queued admissions and pressure/override state are
+  untouched; only the cached status is recomputed.
+  */
+  updateRelocationTarget(target: (() => boolean) | null): void {
+    if (this.disposed) return
+    this.options.governor.updateRelocationTarget(target)
+    this.changed()
   }
 
   /**
@@ -506,7 +572,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
     this.applySettings()
-    if (this.options.admission === undefined) this.options.governor.start()
+    if (this.options.admission === undefined && this.options.isGovernorShared !== true)
+      this.options.governor.start()
     const isCheckpoint = workClass === 'checkpoint'
     if (isCheckpoint) {
       if (checkpointDestination === undefined) throw new Error('Checkpoint destination unavailable')
@@ -594,8 +661,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       },
       settle: (settlement: ResourceSettlement) => {
         // History's work source: the attested job's own final accounting, kept only
-        // for a bound reader, and bounded between its reads.
-        if (this.options.isSettledRead !== true) return
+        // for a consented reader, and bounded between its reads.
+        if (!this.isSettledRead()) return
         if (this.settledRows.length >= RESOURCE_SETTLED_ROWS_MAX) {
           this.settledRows.shift()
           this.settledDropped++
@@ -706,14 +773,16 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   /**
   Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
-  (oldest dropped and counted), kept only with `isSettledRead`. The window's
-  history recorder reads it with `treeUsage()` as its ResourceRecordWorkSource
-  (POSTSPAWN); a window without history keeps no rows.
+  (oldest dropped and counted), kept only with `isSettledRead`. History
+  recorders read it with `treeUsage()` through `workRows()`, their
+  ResourceRecordWorkSource (POSTSPAWN; the runtime's, H–C1); a host without
+  a recorder keeps no rows.
   */
   settled(): {
     readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]
     readonly dropped: number
   } {
+    this.isSettledRead()
     const rows = this.settledRows
     const dropped = this.settledDropped
     this.settledRows = []
@@ -738,7 +807,29 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     return [...retired, ...live]
   }
 
+  /**
+  The harness-work rows a history recorder reads (window and runtime alike):
+  attested settlements since the last read, then the registered trees.
+  */
+  workRows(): readonly ResourceTreeUsageRow[] {
+    return [...this.settled().rows, ...this.treeUsage()]
+  }
+
+  /**
+  Running background work of one kind: its registered trees and admitted
+  reservations, or null while any of them is unproved (unknown is busy).
+  This queue reads it, and the runtime's queue reads it too (H–C1).
+  */
+  backgroundCount(kind: ResourceKind): number | null {
+    const entries = [...this.work].filter(
+      (work) => work.kind === kind && work.class === 'background',
+    )
+    return entries.some((work) => !work.known) ? null : entries.length
+  }
+
   dispose(): void {
+    // The window's configuration and the runtime host may both dispose it.
+    if (this.disposed) return
     this.disposed = true
     this.statusListeners.clear()
     this.cancelTreeSample?.()
@@ -748,7 +839,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     for (const cancel of this.admissionCancels) cancel()
     for (const cancel of this.cleanupTimers) cancel()
     this.queue.dispose()
-    this.options.governor.dispose()
+    // A shared governor is the runtime host's to dispose (H–C1).
+    if (this.options.isGovernorShared !== true) this.options.governor.dispose()
     for (const work of this.work) void this.stopOnDispose(work).catch(this.options.onError)
   }
 }

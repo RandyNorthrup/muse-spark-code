@@ -2,7 +2,13 @@
 import { SshRunner } from './sshRunner'
 import { CheckSlots } from '../team/checkSlots'
 import { readRunnerConfig, runnerEnvironment } from '../../core/runners/runnerConfig'
-import { routeChecks } from '../../core/runners/routing'
+import {
+  routeChecks,
+  ResourceRunnerRouter,
+  type ResourceRunnerRouteOptions,
+} from '../../core/runners/routing'
+import { loadResourceWindow, registerResourceRunnerRoutes } from '../../core/resources/admission'
+import { UI_TEXT } from '../../shared/constants'
 import { handleTrafficMessage, handleRunnersMessage } from '../modelsPanelTraffic'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
@@ -15,6 +21,20 @@ export function createTeamRunnersRuntime(table: UiText, locale: string) {
     readRunnerConfig,
     runnerEnvironment,
     routeChecks,
+    /** M96c supplies its exact conversation/attempt and surface ports. */
+    async createResourceRouting(options: Omit<ResourceRunnerRouteOptions, 'port'>) {
+      const unregister = registerResourceRunnerRoutes(
+        () => !options.headless && options.hasTarget(),
+      )
+      try {
+        const window = await loadResourceWindow()
+        if (window === undefined) throw new Error(UI_TEXT.resourceUnavailable)
+        return new ResourceRunnerRouter({ ...options, port: window.port }, unregister)
+      } catch (error: unknown) {
+        unregister()
+        throw error
+      }
+    },
     handleTrafficMessage,
     handleRunnersMessage,
   }

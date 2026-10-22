@@ -609,6 +609,7 @@ const teamSchedulerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const teamRunnersOptions = {
   ...teamOptions,
+  plugins: [...teamOptions.plugins, sharedResourceAdmission],
   entryPoints: [TEAM_RUNNERS_ENTRY],
   outfile: TEAM_RUNNERS_OUTFILE,
 }
