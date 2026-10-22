@@ -413,8 +413,13 @@ function startingModel(
 export function modelEffortLevels(
   models: readonly ModelSummary[],
   modelId: string,
+  backend: AcpBackendKind = 'museCode',
 ): readonly EffortLevel[] {
-  return effortLevelsFor(modelId, models.find((model) => model.modelId === modelId)?.effortLevels)
+  return effortLevelsFor(
+    modelId,
+    models.find((model) => model.modelId === modelId)?.effortLevels,
+    backend,
+  )
 }
 
 /**
@@ -422,8 +427,12 @@ The refusal an editor reads for a level the model does not serve: the
 sentence plus the levels it does serve, the same words headless `exec`
 refuses with, so both surfaces name the choice.
 */
-export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
-  return `${UI_TEXT.execEffortUnavailable} --effort: ${modelEffortLevels(models, modelId).join(', ')}`
+export function effortRefusalData(
+  models: readonly ModelSummary[],
+  modelId: string,
+  backend: AcpBackendKind = 'museCode',
+): string {
+  return `${UI_TEXT.execEffortUnavailable} --effort: ${modelEffortLevels(models, modelId, backend).join(', ')}`
 }
 
 /**
@@ -435,13 +444,14 @@ export function defaultEffortFor(
   models: readonly ModelSummary[],
   modelId: string,
   chosen?: EffortLevel,
+  backend: AcpBackendKind = 'museCode',
 ): EffortLevel {
   const summary = models.find((model) => model.modelId === modelId)
-  const levels = effortLevelsFor(modelId, summary?.effortLevels)
+  const levels = effortLevelsFor(modelId, summary?.effortLevels, backend)
   if (chosen !== undefined && levels.includes(chosen)) return chosen
   const fallback = summary?.defaultEffort
   return fallback !== undefined &&
-    effortLevelsFor(modelId, summary?.effortLevels).includes(fallback)
+    effortLevelsFor(modelId, summary?.effortLevels, backend).includes(fallback)
     ? fallback
     : DEFAULT_EFFORT
 }
@@ -1923,7 +1933,7 @@ class AcpSession {
   the model's own default, else the highest tier it serves.
   */
   private servedEffort(wanted: EffortLevel): EffortLevel {
-    const levels = modelEffortLevels(this.models, this.modelId)
+    const levels = modelEffortLevels(this.models, this.modelId, this.deps.backend.kind)
     if (levels.includes(wanted)) return wanted
     const fallback = this.models.find((model) => model.modelId === this.modelId)?.defaultEffort
     return (
@@ -2144,10 +2154,12 @@ class AcpSession {
         category: 'thought_level',
         type: 'select',
         currentValue: this.effort,
-        options: modelEffortLevels(this.models, this.modelId).map((level) => ({
-          value: level,
-          name: effortLabel(level),
-        })),
+        options: modelEffortLevels(this.models, this.modelId, this.deps.backend.kind).map(
+          (level) => ({
+            value: level,
+            name: effortLabel(level),
+          }),
+        ),
       },
       ...this.fastOption(),
     ]
@@ -2340,6 +2352,7 @@ class AcpSession {
               this.models,
               this.modelId,
               this.isEffortChosen ? this.effort : undefined,
+              this.deps.backend.kind,
             ),
       )
       return
@@ -2347,8 +2360,14 @@ class AcpSession {
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !modelEffortLevels(this.models, this.modelId).includes(value)) {
-      throw RequestError.invalidParams(undefined, effortRefusalData(this.models, this.modelId))
+    if (
+      !isEffortLevel(value) ||
+      !modelEffortLevels(this.models, this.modelId, this.deps.backend.kind).includes(value)
+    ) {
+      throw RequestError.invalidParams(
+        undefined,
+        effortRefusalData(this.models, this.modelId, this.deps.backend.kind),
+      )
     }
     await this.applyEffort(value)
     this.isEffortChosen = true
@@ -3413,7 +3432,7 @@ class AgentState {
     // plan model starts on its catalogue default unless the person chose one.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(defaultEffortFor(models, modelId)),
+      started.applyEffort(defaultEffortFor(models, modelId, undefined, this.deps.backend.kind)),
     )
     // Keep what the editor is shown, including backend events during setup.
     this.choices.set(session.sessionId, acp.currentChoice())

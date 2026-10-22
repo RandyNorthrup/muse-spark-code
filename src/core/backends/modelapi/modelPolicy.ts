@@ -127,7 +127,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
     : evidence.capabilities
   const planFacts = isMeta ? undefined : evidence.planFacts
   const levels = isMeta
-    ? effortLevelsFor(model)
+    ? effortLevelsFor(model, undefined, 'modelApi')
     : (evidence.effortLevels ??
       (planFacts === undefined ? undefined : planOfferedLevels(planFacts)))
   // BYO native hosted routes/prices are a captured M95 follow-up. A native

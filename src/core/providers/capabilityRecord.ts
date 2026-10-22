@@ -360,7 +360,7 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
         },
         reasoning: {
           modes: yes(['level']),
-          effortLevels: yes([...effortLevelsFor(nativeModel)]),
+          effortLevels: yes([...effortLevelsFor(nativeModel, undefined, 'modelApi')]),
           replay: { envelope: 'responses-encrypted', prefixEditPolicy: 'keep' },
         },
         limits: { contextTokens: MODEL_API_CONTEXT_WINDOW },
