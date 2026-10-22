@@ -4407,6 +4407,8 @@
     "few": "{count} zamítnuté schválení",
     "many": "{count} zamítnutého schválení"
   },
+  "bestOfNAttemptCost": "nahlášené výdaje {cost}",
+  "bestOfNAttemptCostPartial": "{cost} nahlášeno, další se očekávají",
   "bestOfNAttemptFailed": "Selhalo: {reason}",
   "bestOfNTakenMark": "Převzato: {branch}",
   "bestOfNDiffClipped": "Diff zkrácen.",
@@ -4427,6 +4429,8 @@
   "bestOfNAttemptNotDone": "Převzít lze pouze dokončený pokus.",
   "bestOfNWorktreeFailed": "Pracovní stromy pokusů se nepodařilo vytvořit: {reason}",
   "bestOfNTaken": "Náhled z {branch} byl použit a připraven k potvrzení.",
+  "bestOfNTakenSpend": "Náhled z {branch} byl použit a připraven k potvrzení. Nahlášené využití: {tokens}.",
+  "bestOfNTakenSpendCost": "Náhled z {branch} byl použit a připraven k potvrzení. Nahlášené využití: {tokens}, nahlášené výdaje {cost}.",
   "bestOfNTakeFailed": "Nelze použít a připravit {branch}. Před dalším pokusem zkontrolujte pracovní kopii: {reason}",
   "paidConfirmAccept": "Zapnout",
   "paidBadge": "Placené: {features}",

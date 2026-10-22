@@ -4116,6 +4116,8 @@
   "bestOfNApprovalsDenied": {
     "other": "{count}项被拒批准"
   },
+  "bestOfNAttemptCost": "已报告支出{cost}",
+  "bestOfNAttemptCostPartial": "已报告{cost}，其余待定",
   "bestOfNAttemptFailed": "失败：{reason}",
   "bestOfNTakenMark": "已采用：{branch}",
   "bestOfNDiffClipped": "差异已被截断。",
@@ -4136,6 +4138,8 @@
   "bestOfNAttemptNotDone": "只能采用已完成的尝试。",
   "bestOfNWorktreeFailed": "无法创建尝试的工作树：{reason}",
   "bestOfNTaken": "已应用并暂存 {branch} 的预览。",
+  "bestOfNTakenSpend": "已应用并暂存 {branch} 的预览。已报告用量：{tokens}。",
+  "bestOfNTakenSpendCost": "已应用并暂存 {branch} 的预览。已报告用量：{tokens}，已报告支出{cost}。",
   "bestOfNTakeFailed": "无法应用并暂存 {branch}。重试前请检查工作副本：{reason}",
   "paidConfirmAccept": "打开",
   "paidBadge": "付费：{features}",

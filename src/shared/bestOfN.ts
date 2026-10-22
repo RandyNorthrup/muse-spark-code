@@ -3,6 +3,7 @@
 // host and webview: no `vscode`, Node, or DOM imports.
 
 import * as z from 'zod/mini'
+import { nonnegativeUsdSchema } from './usdSchema'
 import { BEST_OF_N_DEFAULT_ATTEMPTS, BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT } from './constants'
 
 export const BEST_OF_N_ATTEMPT_STATUSES = [
@@ -37,6 +38,17 @@ export const bestOfNAttemptSchema = z.object({
   ceilingReached: z.boolean(),
   /** Approval cards and questions the run declined: no surface could ask. */
   approvalsDenied: z.int().check(z.nonnegative()),
+  /**
+  Reported model use so far, summed over this attempt's validated
+  per-response deltas (C-M77-2): input plus output tokens, the reported
+  cost only when the provider reported one, and whether some delta came
+  without a reported cost. Absent until the first delta arrives; unknown
+  HTTP tries never become an invented zero.
+  */
+  reportedInputTokens: z.optional(z.int().check(z.nonnegative())),
+  reportedOutputTokens: z.optional(z.int().check(z.nonnegative())),
+  reportedCostUsd: z.optional(nonnegativeUsdSchema),
+  hasUnreportedCost: z.optional(z.boolean()),
   /** Why a failed attempt failed, as its backend described it. */
   failureReason: z.optional(z.string()),
   files: z.array(bestOfNChangedFileSchema),

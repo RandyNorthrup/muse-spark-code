@@ -4213,6 +4213,8 @@
     "one": "{count} reddedilen onay",
     "other": "{count} reddedilen onay"
   },
+  "bestOfNAttemptCost": "bildirilen harcama {cost}",
+  "bestOfNAttemptCostPartial": "{cost} bildirildi, kalan bekleniyor",
   "bestOfNAttemptFailed": "Başarısız: {reason}",
   "bestOfNTakenMark": "Alınan: {branch}",
   "bestOfNDiffClipped": "Diff kırpıldı.",
@@ -4233,6 +4235,8 @@
   "bestOfNAttemptNotDone": "Yalnızca tamamlanan bir deneme alınabilir.",
   "bestOfNWorktreeFailed": "Denemelerin çalışma ağaçları oluşturulamadı: {reason}",
   "bestOfNTaken": "{branch} önizlemesi uygulandı ve hazırlama alanına eklendi.",
+  "bestOfNTakenSpend": "{branch} önizlemesi uygulandı ve hazırlama alanına eklendi. Bildirilen kullanım: {tokens}.",
+  "bestOfNTakenSpendCost": "{branch} önizlemesi uygulandı ve hazırlama alanına eklendi. Bildirilen kullanım: {tokens}, bildirilen harcama {cost}.",
   "bestOfNTakeFailed": "{branch} uygulanıp hazırlama alanına eklenemedi. Yeniden denemeden önce çalışma kopyasını kontrol edin: {reason}",
   "paidConfirmAccept": "Aç",
   "paidBadge": "Ücretli: {features}",

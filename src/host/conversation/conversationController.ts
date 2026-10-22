@@ -204,6 +204,7 @@ import {
 } from '../../shared/agentEvents'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
 import { sessionTitle } from '../../shared/sessions'
+import { bestOfNTakenNotice } from '../../shared/bestOfNAttemptText'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/paletteFormatting'
@@ -5214,8 +5215,12 @@ export class ConversationController {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
-      if (run.takenBranch !== undefined) {
-        this.notice('info', fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch }))
+      // The taken attempt's reported spend folds into the originating
+      // conversation's view (C-M77-2): the shared notice names reported
+      // tokens always and a complete reported cost only.
+      const takenNotice = bestOfNTakenNotice(run)
+      if (takenNotice !== undefined) {
+        this.notice('info', takenNotice)
       }
     } catch (error: unknown) {
       this.deps.log.warn(`A best-of-N attempt could not be taken: ${failureForLog(error)}`)
