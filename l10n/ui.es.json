@@ -70,6 +70,17 @@
     "screenReader": "Modo de lector de pantalla",
     "terminalPerson": "Tu terminal",
     "terminalModel": "Terminal del modelo",
+    "terminalShared": "Terminal compartido",
+    "newTerminal": "Nuevo terminal",
+    "attachTerminal": "Adjuntar terminal",
+    "terminalId": "ID del terminal",
+    "close": "Cerrar",
+    "sessions": "Sesiones",
+    "workspaces": "Espacios de trabajo",
+    "version": "Versión",
+    "challenges": "Desafíos de inicio de sesión pendientes",
+    "help": "Ayuda del nodo",
+    "whatsNew": "Novedades",
     "upload": "Subir archivo",
     "download": "Descargar archivo",
     "trustWorkspace": "Confiar en el espacio de trabajo"
@@ -96,6 +107,43 @@
     "auditRetention": "El almacenamiento de auditoría se limita a {size} y se conserva durante {days}.",
     "unofficial": "Este nodo no es oficial y no cuenta con el respaldo de Meta.",
     "unexpectedFailure": "El nodo encontró un error inesperado y sigue funcionando."
+  },
+  "nodeTerminal": {
+    "connecting": "Conectando…",
+    "ended": "Terminal finalizado."
+  },
+  "nodeDashboard": {
+    "noSessions": "No hay sesiones.",
+    "noWorkspaces": "No hay espacios de trabajo."
+  },
+  "nodeAudit": {
+    "filterAll": "Todos los eventos",
+    "filterSignin": "Inicios de sesión",
+    "filterSignup": "Inscripciones",
+    "filterTerminal": "Terminales",
+    "filterKeys": "Claves",
+    "filterNode": "Nodo",
+    "filterGit": "Git",
+    "filterApproval": "Aprobaciones",
+    "allowed": "Permitido",
+    "refused": "Denegado",
+    "noEntries": "No hay entradas de auditoría."
+  },
+  "nodeHelp": {
+    "title": "Ayuda del nodo",
+    "files": "Archivos del espacio: explore, edite, suba y descargue.",
+    "terminal": "Terminal: un shell en este espacio. Abrirlo verifica su identidad.",
+    "dashboard": "Panel: lecturas, sesiones y espacios en este nodo.",
+    "audit": "Registro de auditoría: inicios de sesión y cada evento auditado, los más recientes primero.",
+    "git": "Cambios de Git: estado, preparación, confirmación y ramas; la red verifica su identidad.",
+    "sandbox": "Todos los espacios comparten un entorno aislado hasta que lleguen los entornos por espacio."
+  },
+  "nodeWhatsNew": {
+    "title": "Novedades en este nodo",
+    "terminal": "Terminal: un shell en el espacio, con auditoría de inicio de sesión en cada sesión.",
+    "dashboard": "Panel: lecturas de CPU, memoria y disco con sesiones y espacios.",
+    "audit": "Registro de auditoría: inicios de sesión y eventos del nodo, los más recientes primero.",
+    "sandbox": "Vista previa para dos usuarios: todos los espacios comparten un entorno aislado por ahora."
   },
   "nodeErrors": {
     "invalidRequest": "La solicitud no es válida.",

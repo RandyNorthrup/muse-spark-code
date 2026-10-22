@@ -70,6 +70,17 @@
     "screenReader": "Mode lecteur d’écran",
     "terminalPerson": "Votre terminal",
     "terminalModel": "Terminal du modèle",
+    "terminalShared": "Terminal partagé",
+    "newTerminal": "Nouveau terminal",
+    "attachTerminal": "Joindre un terminal",
+    "terminalId": "ID du terminal",
+    "close": "Fermer",
+    "sessions": "Sessions",
+    "workspaces": "Espaces de travail",
+    "version": "Version",
+    "challenges": "Défis de connexion en attente",
+    "help": "Aide du nœud",
+    "whatsNew": "Nouveautés",
     "upload": "Importer un fichier",
     "download": "Télécharger un fichier",
     "trustWorkspace": "Faire confiance à l’espace de travail"
@@ -96,6 +107,43 @@
     "auditRetention": "Le stockage d’audit est limité à {size} et conservé pendant {days}.",
     "unofficial": "Ce nœud n’est pas officiel et n’est pas approuvé par Meta.",
     "unexpectedFailure": "Le nœud a rencontré une erreur inattendue et continue de fonctionner."
+  },
+  "nodeTerminal": {
+    "connecting": "Connexion…",
+    "ended": "Terminal terminé."
+  },
+  "nodeDashboard": {
+    "noSessions": "Aucune session.",
+    "noWorkspaces": "Aucun espace de travail."
+  },
+  "nodeAudit": {
+    "filterAll": "Tous les événements",
+    "filterSignin": "Connexions",
+    "filterSignup": "Inscriptions",
+    "filterTerminal": "Terminaux",
+    "filterKeys": "Clés",
+    "filterNode": "Nœud",
+    "filterGit": "Git",
+    "filterApproval": "Approbations",
+    "allowed": "Autorisé",
+    "refused": "Refusé",
+    "noEntries": "Aucune entrée d’audit."
+  },
+  "nodeHelp": {
+    "title": "Aide du nœud",
+    "files": "Fichiers de l’espace : parcourez, modifiez, téléversez et téléchargez.",
+    "terminal": "Terminal : un shell dans cet espace. L’ouverture vérifie votre identité.",
+    "dashboard": "Tableau de bord : mesures, sessions et espaces sur ce nœud.",
+    "audit": "Journal d’audit : connexions et chaque événement audité, plus récents d’abord.",
+    "git": "Modifications Git : état, index, validation et branche ; le réseau vérifie votre identité.",
+    "sandbox": "Tous les espaces partagent un bac à sable jusqu’aux bacs à sable par espace."
+  },
+  "nodeWhatsNew": {
+    "title": "Nouveautés sur ce nœud",
+    "terminal": "Terminal : un shell dans l’espace, avec audit de connexion pour chaque session.",
+    "dashboard": "Tableau de bord : mesures CPU, mémoire et disque avec sessions et espaces.",
+    "audit": "Journal d’audit : connexions et événements du nœud, plus récents d’abord.",
+    "sandbox": "Aperçu à deux utilisateurs : tous les espaces partagent un bac à sable pour l’instant."
   },
   "nodeErrors": {
     "invalidRequest": "La requête est invalide.",

@@ -70,6 +70,17 @@
     "screenReader": "Screenreader-Modus",
     "terminalPerson": "Ihr Terminal",
     "terminalModel": "Modellterminal",
+    "terminalShared": "Geteiltes Terminal",
+    "newTerminal": "Neues Terminal",
+    "attachTerminal": "Terminal verbinden",
+    "terminalId": "Terminal-ID",
+    "close": "Schließen",
+    "sessions": "Sitzungen",
+    "workspaces": "Arbeitsbereiche",
+    "version": "Version",
+    "challenges": "Ausstehende Anmeldeprüfungen",
+    "help": "Knoten-Hilfe",
+    "whatsNew": "Neuigkeiten",
     "upload": "Datei hochladen",
     "download": "Datei herunterladen",
     "trustWorkspace": "Arbeitsbereich vertrauen"
@@ -96,6 +107,43 @@
     "auditRetention": "Der Auditspeicher ist auf {size} begrenzt und wird für {days} aufbewahrt.",
     "unofficial": "Dieser Knoten ist inoffiziell und wird nicht von Meta unterstützt.",
     "unexpectedFailure": "Der Knoten ist auf einen unerwarteten Fehler gestoßen und läuft weiter."
+  },
+  "nodeTerminal": {
+    "connecting": "Verbinden…",
+    "ended": "Terminal beendet."
+  },
+  "nodeDashboard": {
+    "noSessions": "Keine Sitzungen.",
+    "noWorkspaces": "Keine Arbeitsbereiche."
+  },
+  "nodeAudit": {
+    "filterAll": "Alle Ereignisse",
+    "filterSignin": "Anmeldungen",
+    "filterSignup": "Registrierungen",
+    "filterTerminal": "Terminals",
+    "filterKeys": "Schlüssel",
+    "filterNode": "Knoten",
+    "filterGit": "Git",
+    "filterApproval": "Genehmigungen",
+    "allowed": "Erlaubt",
+    "refused": "Verweigert",
+    "noEntries": "Keine Prüfeinträge."
+  },
+  "nodeHelp": {
+    "title": "Knoten-Hilfe",
+    "files": "Arbeitsbereichsdateien: durchsuchen, bearbeiten, hoch- und herunterladen.",
+    "terminal": "Terminal: eine Shell in diesem Arbeitsbereich. Das Öffnen prüft Ihre Identität.",
+    "dashboard": "Dashboard: Messwerte, Sitzungen und Arbeitsbereiche auf diesem Knoten.",
+    "audit": "Prüfprotokoll: Anmeldungen und alle geprüften Ereignisse, neueste zuerst.",
+    "git": "Git-Änderungen: Status, Vormerken, Commit und Branch; Netzvorgänge prüfen Ihre Identität.",
+    "sandbox": "Alle Arbeitsbereiche teilen sich eine Sandbox, bis Arbeitsbereich-Sandboxes landen."
+  },
+  "nodeWhatsNew": {
+    "title": "Neuigkeiten auf diesem Knoten",
+    "terminal": "Terminal: eine Shell im Arbeitsbereich, mit Anmeldeprüfung für jede Sitzung.",
+    "dashboard": "Dashboard: CPU-, Speicher- und Festplattenwerte mit Sitzungen und Arbeitsbereichen.",
+    "audit": "Prüfprotokoll: Anmeldungen und Knotenereignisse, neueste zuerst.",
+    "sandbox": "Vorschau für zwei Benutzer: vorerst teilen sich alle Arbeitsbereiche eine Sandbox."
   },
   "nodeErrors": {
     "invalidRequest": "Die Anfrage ist ungültig.",
