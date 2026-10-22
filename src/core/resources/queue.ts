@@ -10,7 +10,7 @@ import {
 import { type ResourceEvents } from './events'
 import { ResourcePausedError } from './launch'
 
-/** T/C1 bind the registry here. null is unknown, so throttle cannot admit. */
+/** T/C1 bind the registry here. null is unknown, which never holds work. */
 export interface ResourceRunningWork {
   backgroundCount(kind: ResourceKind): number | null
 }
@@ -216,7 +216,9 @@ export class ResourceQueue {
         ).length
         // Registry counts may already include a reservation. Taking the maximum
         // is sufficient for D87's only finite nonzero capacity: one per kind.
-        if (count !== null && Math.max(count, reservations) < limit) this.grant(entry)
+        // An unknown count is no observed occupancy: an unreadable registry
+        // never holds work, while this queue's own held permits still do.
+        if (Math.max(count ?? 0, reservations) < limit) this.grant(entry)
         else if (parent?.class === 'background' && parent.kind === entry.request.kind)
           this.reject(entry, new Error('Resource child cannot wait on its parent slot'))
       } catch (error) {

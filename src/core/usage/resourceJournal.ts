@@ -114,7 +114,7 @@ export interface ResourceJournalOptions {
   /** The last Delete history: nothing stamped at or before it is ever written or read. */
   readonly resetAtMs?: () => number
   /** Retention failed (expired history is still stored); reported once an hour while it fails. */
-  readonly onRetentionError?: () => void
+  readonly onRetentionError?: (error: unknown) => void
   /** Waits between write-lock attempts; tests may inject it. */
   readonly sleep?: (ms: number) => Promise<void>
 }
@@ -193,9 +193,12 @@ function isInWindow(atMs: number, now: number): boolean {
 }
 
 /** Calls a diagnostic, which never fails the recorder. */
-function notify(diagnostic: (() => void) | undefined): void {
+function notify(
+  diagnostic: ((error: unknown) => void) | (() => void) | undefined,
+  error?: unknown,
+): void {
   try {
-    diagnostic?.()
+    diagnostic?.(error)
   } catch {
     // Ignored: reporting is best effort.
   }
@@ -587,6 +590,14 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /** Durable append. A rejected write stays retryable; the next attempt uses a fresh file. */
+  /** A retention failure to the retention channel, at most hourly; never fails the recorder. */
+  private report(error: unknown): void {
+    const now = this.options.now()
+    if (isWithinRetainInterval(this.retentionReportedAt, now)) return
+    this.retentionReportedAt = now
+    notify(this.options.onRetentionError, error)
+  }
+
   public async append(input: ResourceRecord): Promise<void> {
     if (!this.options.isEnabled()) return
     const record = resourceHistoryRecordSchema.parse(input)
@@ -659,13 +670,11 @@ export class ResourceJournal implements ResourceRecordSink {
     try {
       await this.retain()
       this.retentionReportedAt = undefined
-    } catch {
+    } catch (error) {
       // A failed retention is reported through the retention channel and
       // retried later: nothing about it is hidden, and it fails no call.
-      const now = this.options.now()
-      if (isWithinRetainInterval(this.retentionReportedAt, now)) return
-      this.retentionReportedAt = now
-      notify(this.options.onRetentionError)
+      // The failure travels with the alarm, so the log names the cause.
+      this.report(error)
     }
   }
 
