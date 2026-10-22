@@ -5361,6 +5361,7 @@
     "execHelp": "非交互账户：{command} exec --account <id> [--account-pool]。使用 --key-stdin 的CI仅使用默认账户，永不切换账户。",
     "unavailable": "此运行时连接到共享账户服务后，账户才可用。",
     "unavailableReason": "帐户不可用 ({reason})。",
+    "noAccountsEntry": "{provider} 在此运行时中没有帐户条目。",
     "changed": "更新期间帐户发生了变化，请重试。",
     "notReady": "帐户尚未就绪，请重试。",
     "invalidReply": "帐户服务返回了意外答复。",

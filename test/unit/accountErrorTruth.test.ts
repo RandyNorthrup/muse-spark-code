@@ -9,7 +9,7 @@ import {
   isRevokeUnsupportedError,
 } from '../../src/acp/accountText'
 import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
-import { commandError } from '../../src/runtime/providers/accountsCommand'
+import { commandError, runAccountsCommand } from '../../src/runtime/providers/accountsCommand'
 import { fileAccountsMetadata } from '../../src/runtime/providers/providersFileStore'
 import {
   createRuntimeAccountServices,
@@ -17,6 +17,7 @@ import {
   type RuntimeAccountServices,
 } from '../../src/runtime/providers/runtimeServices'
 import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const CONNECTION = UI_TEXT.accounts.unavailable
 
@@ -149,6 +150,66 @@ describe('account errors name their cause', () => {
     const text = commandError(failure)
     expect(text).not.toBe(CONNECTION)
     expect(text.startsWith('Accounts are unavailable (')).toBe(true)
+  })
+
+  it('names a missing accounts entry on the terminal, never the connection (RLTESTDRIVE2 15)', async () => {
+    const folder = await scratch()
+    const services = offlineServices(folder)
+    try {
+      // The service binding is intact: meta's built-in entry still lists.
+      const lines: string[] = []
+      const metaExit = await runAccountsCommand(
+        { action: 'list', provider: 'meta' },
+        {
+          accounts: services.store,
+          metadata: services.metadata,
+          print: (line) => {
+            lines.push(line)
+          },
+          printError: () => undefined,
+        },
+      )
+      expect(metaExit).toBe(0)
+      expect(JSON.parse(lines[0] ?? '')).toEqual([
+        { id: 'default', label: UI_TEXT.accounts.defaultLabel, order: 0, thresholds: {} },
+      ])
+      // A provider with no accounts entry names the missing row: the
+      // runtime is on the account service, so the connection sentence
+      // would lie.
+      const errors: string[] = []
+      const exit = await runAccountsCommand(
+        { action: 'list', provider: 'testprov' },
+        {
+          accounts: services.store,
+          metadata: services.metadata,
+          print: () => undefined,
+          printError: (line) => {
+            errors.push(line)
+          },
+        },
+      )
+      expect(exit).toBe(1)
+      expect(errors).toEqual([
+        fill(UI_TEXT.accounts.unavailableReason, {
+          reason: fill(UI_TEXT.accounts.noAccountsEntry, { provider: 'testprov' }),
+        }),
+      ])
+      // ACP keeps its fixed sentence for the same refusal (FIXM108H): the
+      // cause never crosses that boundary.
+      let failure: unknown
+      try {
+        await services.store.list('testprov')
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(AccountStoreError)
+      expect(accountErrorText(failure)).toBe(CONNECTION)
+      const cause = failure instanceof AccountStoreError ? failure.cause : undefined
+      if (cause instanceof Error && cause.message !== '')
+        expect(accountErrorText(failure).includes(cause.message)).toBe(false)
+    } finally {
+      services.dispose()
+    }
   })
 
   it('keeps the unsupported-revocation refusal on its own sentence', async () => {

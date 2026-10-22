@@ -5361,6 +5361,7 @@
     "execHelp": "非対話型のアカウント: {command} exec --account <id> [--account-pool]。--key-stdin を使うCIは既定のアカウントのみを使用し、アカウントを切り替えません。",
     "unavailable": "このランタイムが共有アカウントサービスに接続されるまで、アカウントは利用できません。",
     "unavailableReason": "アカウントを利用できません ({reason})。",
+    "noAccountsEntry": "{provider} にはこのランタイムにアカウントエントリがありません。",
     "changed": "更新中にアカウントが変更されました。もう一度お試しください。",
     "notReady": "アカウントの準備がまだできていません。もう一度お試しください。",
     "invalidReply": "アカウントサービスから予期しない応答が返されました。",

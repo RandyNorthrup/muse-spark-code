@@ -9,6 +9,7 @@ import {
   type AccountThresholds,
 } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { accountPolicyFor } from './accountPolicy'
 import {
   accountBindingSchema,
@@ -52,7 +53,14 @@ export class AccountStore {
   private async provider(id: string): Promise<AccountProvider> {
     if (!accountIdSchema.safeParse(id).success) throw new AccountStoreError('invalidAccount')
     const provider = await this.metadata.read(id)
-    if (provider?.id !== id) throw new AccountStoreError('unavailable')
+    // No accounts entry for this provider: the runtime is on the account
+    // service, so the refusal names the missing entry (RLTESTDRIVE2 15)
+    // instead of the connection sentence. ACP and the panel map by code
+    // and keep their fixed sentences; the terminal names this cause.
+    if (provider?.id !== id)
+      throw new AccountStoreError('unavailable', 'unavailable', {
+        cause: new Error(fill(UI_TEXT.accounts.noAccountsEntry, { provider: id })),
+      })
     return provider
   }
 

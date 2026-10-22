@@ -5517,6 +5517,7 @@
     "execHelp": "Konten ohne Interaktion: {command} exec --account <id> [--account-pool]. CI mit --key-stdin nutzt nur das Standardkonto und wechselt nie das Konto.",
     "unavailable": "Konten sind erst verfügbar, wenn diese Laufzeit mit dem gemeinsamen Kontendienst verbunden ist.",
     "unavailableReason": "Konten sind nicht verfügbar ({reason}).",
+    "noAccountsEntry": "{provider} hat in dieser Laufzeit keinen Kontoeintrag.",
     "changed": "Die Konten haben sich während der Aktualisierung geändert. Versuchen Sie es erneut.",
     "notReady": "Die Konten sind noch nicht bereit. Versuchen Sie es erneut.",
     "invalidReply": "Der Kontendienst hat mit einer unerwarteten Antwort geantwortet.",

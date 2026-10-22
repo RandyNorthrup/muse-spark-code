@@ -5829,6 +5829,7 @@
     "execHelp": "Konta bez interakcji: {command} exec --account <id> [--account-pool]. CI z --key-stdin używa tylko konta domyślnego i nigdy nie zmienia konta.",
     "unavailable": "Konta będą dostępne po połączeniu tego środowiska z usługą współdzielonych kont.",
     "unavailableReason": "Konta są niedostępne ({reason}).",
+    "noAccountsEntry": "{provider} nie ma w tym środowisku wpisu kont.",
     "changed": "Konta zmieniły się podczas aktualizacji. Spróbuj ponownie.",
     "notReady": "Konta nie są jeszcze gotowe. Spróbuj ponownie.",
     "invalidReply": "Usługa kont zwróciła nieoczekiwaną odpowiedź.",

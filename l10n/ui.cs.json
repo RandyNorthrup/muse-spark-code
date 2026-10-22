@@ -5829,6 +5829,7 @@
     "execHelp": "Účty bez interakce: {command} exec --account <id> [--account-pool]. CI s --key-stdin používá pouze výchozí účet a nikdy účty nestřídá.",
     "unavailable": "Účty budou dostupné po připojení tohoto prostředí ke sdílené službě účtů.",
     "unavailableReason": "Účty jsou nedostupné ({reason}).",
+    "noAccountsEntry": "{provider} nemá v tomto běhovém prostředí žádný záznam účtů.",
     "changed": "Účty se během aktualizace změnily. Zkuste to znovu.",
     "notReady": "Účty ještě nejsou připravené. Zkuste to znovu.",
     "invalidReply": "Účetní služba odpověděla neočekávanou odpovědí.",
