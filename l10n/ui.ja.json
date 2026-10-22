@@ -3234,6 +3234,7 @@
   "usageInsightsBehindNote": "これらの数値は古い可能性があります: トレースログを読み取れなかったため、以前の件数を表示しています。",
   "usageInsightsUnavailableNote": "トレースログを読み取れなかったため、CLIアクティビティは表示されません。",
   "usageInsightTotals": "{sessions}で {attempts}",
+  "usageNotRecorded": "今回の実行の使用量は記録されませんでした ({reason})。",
   "modelAttemptsCount": {
     "other": "{count} 回のモデル試行"
   },

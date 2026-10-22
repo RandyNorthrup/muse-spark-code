@@ -490,8 +490,18 @@ const reportingDestinationsOptions = {
 }
 // C-M113-2: the session and usage inputs (usage journal machinery) load on
 // the first session or usage report, off the reporting engine's budget.
+// RLUSAGE: the journal schemas ride the shared boundaries chunk instead of
+// a second inline copy, off this chunk's unchanged 100 KiB budget.
 const reportInputsOptions = {
   ...reportingOptions,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedRedaction,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: ['src/runtime/reporting/reportInputsEntry.ts'],
   outfile: 'dist/reportInputs.js',
 }

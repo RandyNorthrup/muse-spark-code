@@ -3234,6 +3234,7 @@
   "usageInsightsBehindNote": "이 숫자는 최신이 아닐 수 있습니다: 추적 로그를 읽지 못해 이전 개수를 표시합니다.",
   "usageInsightsUnavailableNote": "추적 로그를 읽지 못해 CLI 활동을 표시하지 않습니다.",
   "usageInsightTotals": "{sessions}에서 {attempts}",
+  "usageNotRecorded": "이번 실행의 사용량이 기록되지 않았습니다 ({reason}).",
   "modelAttemptsCount": {
     "other": "모델 시도 {count}회"
   },

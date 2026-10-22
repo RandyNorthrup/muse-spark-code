@@ -3299,6 +3299,7 @@
   "usageInsightsBehindNote": "Diese Zahlen sind möglicherweise veraltet: Ein Trace-Protokoll konnte nicht gelesen werden, daher wird ein früherer Stand angezeigt.",
   "usageInsightsUnavailableNote": "Die Trace-Protokolle konnten nicht gelesen werden, daher wird keine CLI-Aktivität angezeigt.",
   "usageInsightTotals": "{attempts} in {sessions}",
+  "usageNotRecorded": "Die Nutzung für diesen Durchlauf wurde nicht aufgezeichnet ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} Modellversuch",
     "other": "{count} Modellversuche"

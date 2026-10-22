@@ -102,6 +102,53 @@ failed: semgrep-core exited with code 1`, `Failed to obtain target files
 from semgrep-core`. No finding names this change; hosted CI owns the
 scan.
 
+## Landed: source 02, the exec usage clock
+
+Merge `80ee9e63da` (branch `src/RLUSAGE/02-rv-execusage`) with
+`--no-commit --no-ff`; nine content conflicts resolved for current main
+(the extracted `usageDeltas` module, the `recordLimitSnapshot` helper,
+the side-slot image preamble, the extracted `runtimeRecording` helper).
+The six branch-touched purge-deleted suites stay deleted; the branch's
+new `execUsageClock` suite is real-code and is carried.
+
+What landed: the `EpochMs` brand (`src/shared/epochMs.ts`) with its
+single rounding constructor, applied at every journal boundary, so the
+terminal agent's fractional headless clock can no longer fail the
+journal's integer schema; validation rejections that name their failing
+fields through `usageWriteReason`; the read failure no longer spending
+the once-per-run write warning.
+
+Reworked for current main: the branch's `USAGE_WRITE_REASON_FIELDS`
+first-3 cap is removed under D121 (a diagnostic names every failing
+field); validation is lifted out of the store's `catch` handlers
+(`tryCreateUsageRecord`, `safeParse` in `append`) because the catch
+inventory's conservative classes cannot see downstream reporting, so
+only true write failures stay behind the once-only diagnostic catch —
+observable behavior is unchanged and pinned by the rejection suites.
+
+Budget: the merge put `dist/reportInputs.js` at 100.2 KiB against its
+unchanged 100 KiB (the journal store it bundles grew). The inputs chunk
+now shares the journal schemas through the `sharedModelApiBoundaries`
+plugin instead of a second inline copy: 82.8 KiB. `dist/usageService.js`
+is 98.9 KiB against its unchanged 100 KiB. No budget was raised.
+
+Proof: `test/unit/execUsageClock.test.ts` (6, incl. the real
+`performance.timeOrigin + performance.now()` fractional clock),
+`test/unit/usageJournalAppendInvalid.test.ts` (1, new, own file: the
+store's once-per-run gate spends itself on the first failure),
+journal/usage/deltas/truth/export suites (87 across 11 files).
+Red/green: unrounded `toEpochMs` fails the clock suite (exit 1, 3
+failed); restored green (6 passed). The reportInputs overage itself was
+the build red (exit 1, `OVER dist/reportInputs.js`); the dedup plugin
+is the green (exit 0).
+
+Gates (merge-02 tree): prettier 0; eslint 0; typecheck 0; l10n 0;
+reference 0; host-api 0; plan 0; roadmap 0; catches 0 (CLEANUP 235 to
+234 for the removed handler, baseline regenerated); duplication 0;
+cycles 0; deadcode 0; build 0; audit 0; vitest related 1 (3 EPERM
+symlink setups, the brief's carve-out, left to hosted CI; extension and
+main closures: no test files import them, exit 0).
+
 ## Prior checkpoint
 
 On 2026-10-21 this lane stopped blocked at the 733-byte overage with the

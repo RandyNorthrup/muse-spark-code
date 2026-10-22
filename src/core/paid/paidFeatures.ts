@@ -1,5 +1,6 @@
 import type { RecordedCall, UsageRecording } from '../usage/recording'
 import type { UsageRecord } from '../../shared/usageJournal'
+import { epochNow } from '../../shared/epochMs'
 import {
   PAID_USE_REGISTRY,
   type SearchSettlement,
@@ -290,7 +291,7 @@ export function recordPaidUse(
     provider: 'meta',
     model: feature === 'imageGeneration' ? MODEL_API_IMAGE_MODEL : otherModel,
     kind: feature === 'webSearch' ? 'search' : otherKind,
-    startedAt: Date.now(),
+    startedAt: epochNow(),
     outcome: 'completed',
     units: feature === 'webSearch' ? { searches: units } : otherUnits,
     ...context,

@@ -3364,6 +3364,7 @@
   "usageInsightsBehindNote": "Esses números podem estar desatualizados: um log de rastreamento não pôde ser lido, por isso uma contagem anterior é exibida.",
   "usageInsightsUnavailableNote": "Os logs de rastreamento não puderam ser lidos, por isso nenhuma atividade da CLI é mostrada.",
   "usageInsightTotals": "{attempts} em {sessions}",
+  "usageNotRecorded": "O uso desta execução não foi registrado ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} tentativa do modelo",
     "other": "{count} tentativas do modelo",

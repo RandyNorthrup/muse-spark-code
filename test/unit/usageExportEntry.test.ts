@@ -4,6 +4,7 @@
 // recording, the store, the service and the encoders are all real.
 import { afterEach, describe, expect, it } from 'vitest'
 import { usageLocalDay } from '../../src/core/usage/localDay'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -33,7 +34,7 @@ async function journaledDay(): Promise<{ root: string; day: string }> {
       root,
       writerId: 'export-entry-writer',
       client: 'test',
-      now: () => at,
+      now: () => toEpochMs(at),
       newId: () => 'export-entry-1',
     },
     warnings,
@@ -46,7 +47,7 @@ async function journaledDay(): Promise<{ root: string; day: string }> {
       model: MODEL,
       kind: 'turn',
       pricing: { kind: 'plan' },
-      startedAt: at - 1000,
+      startedAt: toEpochMs(at - 1000),
       durationMs: 1000,
       outcome: 'completed',
     },

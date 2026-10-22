@@ -3234,6 +3234,7 @@
   "usageInsightsBehindNote": "這些數字可能不是最新的：有一個追蹤記錄無法讀取，因此顯示的是先前的計數。",
   "usageInsightsUnavailableNote": "追蹤記錄無法讀取，因此不顯示 CLI 活動。",
   "usageInsightTotals": "{attempts}，來自 {sessions}",
+  "usageNotRecorded": "本次執行的使用情況未被記錄 ({reason})。",
   "modelAttemptsCount": {
     "other": "{count} 次模型嘗試"
   },

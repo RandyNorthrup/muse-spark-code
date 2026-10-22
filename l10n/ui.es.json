@@ -3364,6 +3364,7 @@
   "usageInsightsBehindNote": "Es posible que estos números no estén actualizados: no se pudo leer un registro de traza, por lo que se muestra un recuento anterior.",
   "usageInsightsUnavailableNote": "No se pudieron leer los registros de traza, por lo que no se muestra actividad de la CLI.",
   "usageInsightTotals": "{attempts} en {sessions}",
+  "usageNotRecorded": "El uso de esta ejecución no se registró ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} intento del modelo",
     "other": "{count} intentos del modelo",

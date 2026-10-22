@@ -4,25 +4,13 @@
 import { appendFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
-import { createUsageRecord, type UsageRecordContext } from '../../src/core/usage/journalRecord'
+import { epochNow } from '../../src/shared/epochMs'
+import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { fileRoots, findOnlyJsonlFile } from './helpers/tempDirs'
+import { usageRecordContextAt } from './helpers/usageRecordContext'
 
 const { fresh: freshRoot } = fileRoots()
-
-function contextAt(at: number): UsageRecordContext {
-  return {
-    id: `call-${String(at)}`,
-    at,
-    startedAt: at - 1000,
-    client: 'Zed',
-    backend: 'modelApi',
-    provider: 'custom',
-    model: 'test-model',
-    kind: 'turn',
-    outcome: 'completed',
-  }
-}
 
 async function journalAfterCorrupt(corrupt: (file: string) => void): Promise<UsageJournalStore> {
   const root = await freshRoot('muse-journal-invalid-')
@@ -30,12 +18,12 @@ async function journalAfterCorrupt(corrupt: (file: string) => void): Promise<Usa
   const store = new UsageJournalStore(new NodeUsageFs(root), {
     writerId: 'test-writer',
     isEnabled: () => true,
-    now: () => Date.now(),
+    now: epochNow,
     onWriteError: (code) => {
       writeErrors.push(code)
     },
   })
-  store.append(createUsageRecord(undefined, contextAt(Date.now())))
+  store.append(createUsageRecord(undefined, usageRecordContextAt(Date.now())))
   await store.flush()
   corrupt(findOnlyJsonlFile(root))
   return store

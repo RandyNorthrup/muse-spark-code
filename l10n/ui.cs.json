@@ -3429,6 +3429,7 @@
   "usageInsightsBehindNote": "Tato čísla mohou být zastaralá: jeden trasovací protokol se nepodařilo přečíst, proto je uveden dřívější počet.",
   "usageInsightsUnavailableNote": "Trasovací protokoly se nepodařilo přečíst, proto není zobrazena žádná aktivita CLI.",
   "usageInsightTotals": "{attempts} ({sessions})",
+  "usageNotRecorded": "Využití pro tento běh nebylo zaznamenáno ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} pokus modelu",
     "other": "{count} pokusů modelu",

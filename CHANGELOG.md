@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The terminal agent's requests were missing from usage history since 0.12.0:
+  every headless turn stamped its usage record with a fractional clock, the
+  journal refused the record, and one warning was all that was left. Stored
+  times are now whole milliseconds by construction, and a record that fails
+  validation says which field failed and why instead of failing silently.
 - The usage page no longer re-reads every trace log on each refresh:
   unchanged logs are recognised and re-used, so a refresh re-reads only
   what changed. Numbers for a conversation in progress are complete: a

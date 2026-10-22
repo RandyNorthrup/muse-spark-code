@@ -4016,6 +4016,7 @@ export const EN = {
     'These numbers may be behind: a trace log could not be read, so an earlier count stands in.',
   usageInsightsUnavailableNote: 'The trace logs could not be read, so no CLI activity is shown.',
   usageInsightTotals: '{attempts} across {sessions}',
+  usageNotRecorded: 'Usage for this run was not recorded ({reason}).',
   modelAttemptsCount: forms({
     one: '{count} model attempt',
     other: '{count} model attempts',

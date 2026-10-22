@@ -1,11 +1,13 @@
 // The usage journal's live writers for Muse Code frames (PLAN.md D26): each
-// cumulative report's known delta and each completion's own counters. This
-// module has no value imports, so the activation bundle keeps only the loader
-// (MuseCodeHost.usageNotesLoader) while these writers load with
-// dist/usageService.js on the first session.
+// cumulative report's known delta and each completion's own counters. The
+// activation bundle keeps only the loader (MuseCodeHost.usageNotesLoader)
+// while these writers load with dist/usageService.js on the first session;
+// the one value import is the dependency-free epoch brand, rounded at the
+// note boundary so a fractional clock can never reach the journal.
 import type { AgentEvent, TokenUsageCompletion } from '../../../shared/agentEvents'
 import type { SubscriptionUsage } from '../../../shared/usage'
 import type { UsageRecording } from '../../usage/recording'
+import { toEpochMs, type EpochMs } from '../../../shared/epochMs'
 
 /** What dist/usageService.js serves the activation bundle for live journaling. */
 export interface UsageNotesBundle {
@@ -23,7 +25,7 @@ export function museCodeLimitInput(
     backend: 'museCode',
     provider: 'museCode',
     source: 'museCode',
-    observedAt: usage.observedAtMs,
+    observedAt: toEpochMs(usage.observedAtMs),
     // An empty tier names no plan; the label reader falls back then.
     ...(usage.tier !== '' && { plan: usage.tier }),
     windows: [
@@ -62,7 +64,7 @@ export class MuseUsageDeltas {
   private noteCompletion(
     event: Extract<AgentEvent, { type: 'tokenUsage' }>,
     model: string,
-    startedAt: number,
+    startedAt: EpochMs,
     at: number,
   ): void {
     const completion: TokenUsageCompletion | undefined = event.completion
@@ -156,10 +158,11 @@ export class MuseUsageDeltas {
       // so later requests in one turn do not overlap the first. Frames
       // without a duration keep the turn start (then the receipt time).
       const ownDuration = event.completion.durationMs
-      const completionStartedAt =
+      const completionStartedAt = toEpochMs(
         ownDuration !== undefined && Number.isFinite(ownDuration)
           ? Math.max(0, at - Math.max(0, ownDuration))
-          : (this.startedAt ?? at)
+          : (this.startedAt ?? at),
+      )
       this.noteCompletion(event, model, completionStartedAt, at)
       return
     }
@@ -189,7 +192,7 @@ export class MuseUsageDeltas {
     )
       cached = nextCached - priorCached
     const at = this.now()
-    const startedAt = this.startedAt ?? at
+    const startedAt = toEpochMs(this.startedAt ?? at)
     this.recording.note(
       {
         input_tokens: input,
