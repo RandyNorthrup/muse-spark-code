@@ -9,8 +9,13 @@ import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { admitResource, configureResources } from '../../src/core/resources/admission'
+import { ResourceEvents } from '../../src/core/resources/events'
+import { ResourceGovernor } from '../../src/core/resources/governor'
 import { ResourceLaunchHost } from '../../src/core/resources/launchHost'
-import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorEntry'
+import {
+  createResources,
+  resourceGovernorHost,
+} from '../../src/core/resources/resourceGovernorEntry'
 import { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import {
@@ -53,6 +58,7 @@ function runtimeHost(options: {
   onError: (error: unknown) => void
   builds: { count: number }
   reader?: DarwinMemoryReader | undefined
+  tapWorkChanged?: (() => void) | undefined
 }) {
   const machine = resourceMachineStore({
     settingsFile: path.join(state.machineDir, 'resources.json'),
@@ -80,7 +86,10 @@ function runtimeHost(options: {
         bindTree: () => Promise.resolve(null),
         onError: options.onError,
         isGovernorShared: true,
-        onWorkChanged: share.workChanged,
+        onWorkChanged: () => {
+          options.tapWorkChanged?.()
+          share.workChanged()
+        },
       })
     },
   })
@@ -93,6 +102,7 @@ async function withHost(
     builds: { count: number }
   }) => Promise<void> | void,
   reader?: DarwinMemoryReader,
+  tapWorkChanged?: () => void,
 ): Promise<void> {
   const { clock, clear } = manualClock()
   const errors: unknown[] = []
@@ -106,6 +116,7 @@ async function withHost(
     },
     builds,
     reader,
+    tapWorkChanged,
   })
   try {
     await body({ host, errors, builds })
@@ -257,5 +268,214 @@ describe('shared history consent', () => {
     expect(recorder.isConsented()).toBe(true)
     await recorder.flush()
     expect(errors).toEqual([])
+  })
+})
+
+const PROBE_LIMITS = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
+
+// A real governor with a real launch host on it, shared (the runtime lends
+// its governor) or owned (the window keeps its own). Nothing is sampled:
+// every probe below is synchronous, so no platform helper is involved.
+function sharedPair(isShared: boolean): {
+  governor: ResourceGovernor
+  host: ResourceLaunchHost
+  errors: unknown[]
+  clear: () => void
+} {
+  const { clock, clear } = manualClock()
+  const errors: unknown[] = []
+  const settings = resourceSettingsSchema.parse({ cpuMaxPercent: 90 })
+  const governor = new ResourceGovernor({
+    clock,
+    events: new ResourceEvents((error) => {
+      errors.push(error)
+    }),
+    settings,
+    sampler: createMachineResourceSampler(() => settings, PROBE_LIMITS),
+    hasRelocationTarget: null,
+    onError: (error) => {
+      errors.push(error)
+    },
+  })
+  const hostSettings = resourceSettingsSchema.parse({ cpuMaxPercent: 10 })
+  const host = new ResourceLaunchHost({
+    governor,
+    events: new ResourceEvents((error) => {
+      errors.push(error)
+    }),
+    clock,
+    settings: () => hostSettings,
+    bindTree: () => Promise.resolve(null),
+    onError: (error: unknown) => {
+      errors.push(error)
+    },
+    ...(isShared && { isGovernorShared: true }),
+  })
+  return { governor, host, errors, clear }
+}
+
+function admitCheck(
+  host: ResourceLaunchHost,
+  what: string,
+): Promise<{ complete: (isFailed: boolean) => void }> {
+  return granted(
+    host.admit('check', undefined, 'background', false, undefined, true),
+    what,
+    'did not settle',
+  )
+}
+
+describe('the lent governor is never driven', () => {
+  it('leaves a shared governor running when its launch host disposes', async () => {
+    const shared = sharedPair(true)
+    try {
+      // Disposal happens with the admission still live, as at shutdown.
+      await admitCheck(shared.host, 'shared launch admission')
+      shared.host.dispose()
+      // The governor is the runtime host's: starting it still works.
+      expect(() => {
+        shared.governor.start()
+      }).not.toThrow()
+      expect(shared.errors).toEqual([])
+    } finally {
+      shared.governor.dispose()
+      shared.clear()
+    }
+    const owned = sharedPair(false)
+    try {
+      await admitCheck(owned.host, 'owned launch admission')
+      owned.host.dispose()
+      // An owned governor dies with its host: starting it refuses.
+      expect(() => {
+        owned.governor.start()
+      }).toThrow('Resource governor disposed')
+      expect(owned.errors).toEqual([])
+    } finally {
+      owned.clear()
+    }
+  })
+
+  it('never pushes a shared host’s settings into the lent governor', async () => {
+    const shared = sharedPair(true)
+    try {
+      await admitCheck(shared.host, 'shared launch admission')
+      expect(shared.governor.status([]).settings.cpuMaxPercent).toBe(90)
+      expect(shared.errors).toEqual([])
+    } finally {
+      shared.host.dispose()
+      shared.governor.dispose()
+      shared.clear()
+    }
+    const owned = sharedPair(false)
+    try {
+      await admitCheck(owned.host, 'owned launch admission')
+      expect(owned.governor.status([]).settings.cpuMaxPercent).toBe(10)
+      expect(owned.errors).toEqual([])
+    } finally {
+      owned.host.dispose()
+      owned.governor.dispose()
+      owned.clear()
+    }
+  })
+
+  it('never starts the lent governor from a shared launch', async () => {
+    const shared = sharedPair(true)
+    let samples = 0
+    shared.governor.onSample(() => {
+      samples += 1
+    })
+    try {
+      const lease = await admitCheck(shared.host, 'shared launch admission')
+      // A start would schedule a sample within milliseconds; a quiet third
+      // of a second means no start happened.
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      expect(samples).toBe(0)
+      lease.complete(true)
+      expect(shared.errors).toEqual([])
+    } finally {
+      shared.host.dispose()
+      shared.governor.dispose()
+      shared.clear()
+    }
+  })
+
+  it('reports retired work to the runtime host', async () => {
+    // A plain reservation needs no report on admission: the runtime queue
+    // reads the launches' counts live through its running delegate, so only
+    // the retirement (and tree proof) nudge it to read again.
+    let changes = 0
+    await withHost(
+      async ({ host, errors }) => {
+        const launches = host.launches?.()
+        if (launches === undefined) throw new Error('process launches were not built')
+        const lease = await admitCheck(launches, 'launch admission')
+        const atAdmit = changes
+        lease.complete(true)
+        expect(changes).toBeGreaterThan(atAdmit)
+        expect(errors).toEqual([])
+      },
+      undefined,
+      () => {
+        changes += 1
+      },
+    )
+  })
+
+  it('keeps no harness rows for a reservation the registry never proved', async () => {
+    await withHost(async ({ host, errors }) => {
+      const launches = host.launches?.()
+      if (launches === undefined) throw new Error('process launches were not built')
+      expect(host.launchRows()).toEqual([])
+      const lease = await admitCheck(launches, 'launch admission')
+      lease.complete(true)
+      // No tree was ever bound or proved (native identity is absent on this
+      // build), so history reads no estimate and no row.
+      expect(host.launchRows()).toEqual([])
+      expect(errors).toEqual([])
+    })
+  })
+})
+
+describe('the process entry builds launches around the lent governor', () => {
+  it('admits through the runtime share without touching its own inspect', async () => {
+    const errors: unknown[] = []
+    const facade = await createResources(
+      {
+        machineDir: state.machineDir,
+        sleep: (ms) =>
+          new Promise((resolve) => {
+            setTimeout(resolve, ms)
+          }),
+        onError: (error: unknown) => {
+          errors.push(error)
+        },
+        spawns: {
+          // The lent settings must win: if the entry built its own governor
+          // instead, reading settings calls this and the admission fails.
+          inspect: () => {
+            throw new Error('the lent settings must win')
+          },
+          onError: (error?: unknown) => {
+            errors.push(error)
+          },
+          registryFile: path.join(state.machineDir, 'entry-registry.json'),
+        },
+      },
+      EN,
+      'en',
+    )
+    try {
+      const launches = facade.launches?.()
+      if (launches === undefined) throw new Error('entry built no launches')
+      expect(facade.launches?.()).toBe(launches)
+      expect(facade.launchRows()).toEqual([])
+      const lease = await admitCheck(launches, 'entry launch admission')
+      expect(launches.backgroundCount('check')).toBe(1)
+      lease.complete(true)
+      expect(launches.backgroundCount('check')).toBe(0)
+      expect(errors).toEqual([])
+    } finally {
+      facade.dispose()
+    }
   })
 })

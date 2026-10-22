@@ -180,7 +180,9 @@ const BUDGETS = [
   // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
   { path: 'dist/team.js', budgetKiB: 75 },
   // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
-  { path: 'dist/teamRunners.js', budgetKiB: 75 },
+  // RLM107: 75.3 KiB with the M107 relocation/brand wiring landed; 75.3 x
+  // 1.15 = 86.6 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/teamRunners.js', budgetKiB: 100 },
   // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
   { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),

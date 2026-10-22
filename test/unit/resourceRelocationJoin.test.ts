@@ -35,8 +35,11 @@ afterEach(() => {
 describe('runner-route join switch', () => {
   it('refuses registration until the teams wiring binds a route', () => {
     expect(hasResourceRunnerRoutes()).toBe(false)
-    // Refused: the returned unregister is a no-op and no route was registered.
+    // Refused: no route was registered, so the returned unregister is a
+    // no-op. The mid-assertion is the point: without it a registration
+    // that succeeds and is then unregistered would pass this test too.
     const unregister = registerResourceRunnerRoutes(() => true)
+    expect(hasResourceRunnerRoutes()).toBe(false)
     unregister()
     expect(hasResourceRunnerRoutes()).toBe(false)
   })
