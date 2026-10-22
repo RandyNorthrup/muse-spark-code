@@ -28,6 +28,7 @@
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <sys/wait.h>
+#include <time.h>
 
 static int rules, abi;
 static size_t visited, excluded;
