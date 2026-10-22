@@ -47,6 +47,12 @@ happened, not what was planned; superseded entries are kept.
   record follows the outcome line either way. The command exits with the
   check's own exit code. `/playbook` stays read-only.
 
+- **Governed `/agents` child resumes** (M116, RLM116 D215). In the ACP
+  agent, `/agents continue` and `/agents retry` go through the
+  playbook's child-work admission: while the resource governor
+  pauses new work the resume is refused with its reason and the
+  backend is never called, otherwise the control runs as before.
+
 - **Roles and Agents editor** (M96 U1, C-M96-2), kept hidden behind the team
   worker availability gate. Strict workspace drafts support guided Pair
   setup, editable charters, ordered pools, caps, model capability checks,
@@ -79,6 +85,12 @@ happened, not what was planned; superseded entries are kept.
   ACP and terminals keep `/resources` and `resources status|resume`.
 
 ### Changed
+
+- **One playbook report ordering** (M116, RLM116 D214). Playbook,
+  milestone and fleet report rows order through the same engine
+  path — owner and residual rows first, then failures — and the
+  playbook CLI text reads that same order. Milestone reports merge
+  the journal's residual register into their rows.
 
 - Hidden team execution now preserves saved custom charter text and enforces its workspace and tool policy. New conversations read the Roles workspace orchestrator override, retain its confirmed backend, and Reset to Default restores the composer’s selection.
 

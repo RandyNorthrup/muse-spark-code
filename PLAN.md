@@ -15516,6 +15516,40 @@ board, journals the decision's note either way, spawns the check only on
 allow, and exits with the check's own exit code. Record:
 `docs/certification/rlm116.md`.
 
+### D214 — One report ordering through `collectPlaybookReport` (lead, 2026-10-22; lane RLM116 Q3)
+
+Playbook, milestone and fleet rows feed through the M113 report
+engine ordered by `collectPlaybookReport`, constructed where reports
+are generated from the playbook journal; the playbook CLI text
+surface uses that same ordering, so `orderedPlaybookRecords` and
+`orderReport` are one (no parallel copy). Ordering is presentation,
+never an effect: `orderReport` sorts through the one shared
+comparator and returns its why-note, storing nothing (retention
+would evict a stored view-note first). Severity survives the
+engine's canonical key sort as a bucket key prefix, a pure function
+of the row's flags. Milestone residuals merge the plan rows with
+the journal's residual register (open owner-failing, then unbound,
+then the plan row, then bound accepted history). Record:
+`docs/certification/rlm116.md`.
+
+### D215 — ACP child resumes admitted through `SubagentAdmission` (lead, 2026-10-22; lane RLM116 ACP admission follow-up)
+
+The ACP agent offers no subagent spawn tools (paid denies
+`subagents` structurally, so no spawn path reaches the Model API
+host's playbook check) and exposes no follow-up path; its only
+child-work effects are `/agents continue|retry` onto CLI-native
+children. Those go through the same `SubagentAdmission` port the
+Model API host consults, as `delegate` rounds asked last around the
+control call: a refusal answers the person and reaches no backend,
+and without the port the control runs as before. The runtime
+admission is the hosts' capacity (D213): the M107 governor's latest
+reading, refreshed on every resume, pauses the resume only at its
+paused level, while unknown never pauses work. No journal is read
+or written: ACP sessions hold no module rounds, so there are no
+standings to evaluate — the same outcome as the governor's
+empty-standings path. Record:
+`docs/certification/rlm116.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
