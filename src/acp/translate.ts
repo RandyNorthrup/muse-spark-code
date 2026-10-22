@@ -491,6 +491,9 @@ export class UpdateTranslator {
         // goes out as its own `notice` update where the client can show
         // one, and only then falls back to an agent message (the
         // protocol's sanctioned fallback for clients without notices).
+        // An empty notice has no title and no words: drop it, never send
+        // blank model text.
+        if (event.text.trim() === '') return []
         if (this.areNoticesSupported) {
           return [
             {

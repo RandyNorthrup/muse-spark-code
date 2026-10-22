@@ -1168,6 +1168,7 @@ export const EN = {
     poolUsage: '{used} of {pool} stored',
     replayOmitted: '{name} ({duration}) was left out: {model} does not take {kind}.',
     attachRecording: 'Attach Screen Recording…',
+    recordingDiscarded: 'The recording was discarded; nothing was attached.',
     attachLatestRecording: 'Attach Latest Screen Recording',
     recordingCountdown: 'Recording: {remaining} remaining',
     recordingElapsed: 'Recording: {elapsed} elapsed',
@@ -3364,6 +3365,10 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  compactionDoneDetail: forms({
+    one: 'Compacted {count} turn into a summary ({before} entries before, {after} after).',
+    other: 'Compacted {count} turns into a summary ({before} entries before, {after} after).',
+  }),
   referenceManualCompaction:
     'Summarize the conversation with /compact and keep recent turns verbatim.',
   autoCompactionName: 'Automatic compaction',
@@ -4728,6 +4733,16 @@ export const EN = {
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',
   execFastUnavailable: 'Fast is not available for this model.',
+  modelNotOnProvider: 'Model "{model}" is not offered by provider "{provider}". {remedy}',
+  modelNotInSession:
+    'Model "{model}" is not offered in this session. Choose one of the models offered instead.',
+  unknownModelListModels: 'Run "{command}" to see the models it offers.',
+  unknownModelPickOffered: 'Choose one of the models offered instead.',
+  chatPartNotSupported: 'The "{kind}" part cannot be sent to this model.',
+  effortNotForModel:
+    'Effort "{effort}" is not available for model "{model}". Use one of: {levels}.',
+  effortNoneForModel:
+    'Effort "{effort}" is not available for model "{model}": it offers no effort levels.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
   // EXECPROV round 5: a budget refusal names both remedies with numbers. The

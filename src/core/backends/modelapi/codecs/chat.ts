@@ -1,4 +1,3 @@
-import { UserRefusalError } from '../../../../shared/refusal'
 import { Usd, type UsdAmount } from '../../../../shared/usd'
 // The Chat Completions wire codec (PLAN.md D74, M95 lane H): the shared
 // implementation behind every `chat` preset (OpenRouter, Groq, DeepSeek,
@@ -388,7 +387,8 @@ function textOfParts(parts: readonly InputContentPart[], model: string): string 
       if (part.type === 'input_video') {
         throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
       }
-      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+      // A part the chat route cannot carry names its kind, never a model id.
+      throw new Error(fill(UI_TEXT.chatPartNotSupported, { kind: part.type }))
     })
     .join('')
 }
@@ -403,9 +403,10 @@ function contentOfParts(
   }
   // M105 lane V R2 (RVCM1054 finding 1, same class): the vision check skips
   // a video part, so `chatBlockFor` below refuses it with its own typed
-  // reason instead of the generic unknown-model error.
+  // reason instead of the generic unknown-model error. Any other part here
+  // includes an image: without vision the turn names the part, not a model.
   if (vision === undefined && parts.every((part) => part.type !== 'input_video')) {
-    throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+    throw new Error(fill(UI_TEXT.chatPartNotSupported, { kind: 'input_image' }))
   }
   const hasVision = vision ?? false
   // M101 lane P1 (BYO item 1): images ride as the image-omitted placeholder
@@ -444,7 +445,8 @@ function chatBlockFor(
         : { type: 'text', text: cleanWireText(part.text) }
     }
     default: {
-      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+      // A part the chat route cannot carry names its kind, never a model id.
+      throw new Error(fill(UI_TEXT.chatPartNotSupported, { kind: part.type }))
     }
   }
 }

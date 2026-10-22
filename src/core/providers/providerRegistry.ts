@@ -16,6 +16,7 @@ import { isEffortLevel } from '../../shared/effort'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
+import { unknownModelRefText } from '../unknownModel'
 
 export interface RegistryModel {
   readonly catalogueMissing?: boolean
@@ -99,7 +100,10 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       const model = models.find((model) => model.ref === ref)
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
-        throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+        // No configured provider offers this id (bare Meta ids never
+        // resolve here): the sentence names the id as typed, the entry
+        // that was asked, and what the person can do.
+        throw new Error(unknownModelRefText(ref))
       }
       if (model.catalogueMissing === true)
         throw new UserRefusalError(
