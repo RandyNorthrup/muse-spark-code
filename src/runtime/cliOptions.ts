@@ -109,9 +109,12 @@ const COMMON_OPTIONS = {
 } as const satisfies CliParserOptions
 
 // Serve accepts X's paid-schedule admission flags; no other route does.
+// C-M95-SUB: serve and exec accept the subscription opt-in; auth and login
+// refuse it as unknown instead of silently ignoring it.
 const SERVE_OPTIONS = {
   ...COMMON_OPTIONS,
   'scheduled-prompts': { type: 'boolean' },
+  subscription: { type: 'boolean' },
   'max-budget-usd': { type: 'string' },
 } as const satisfies CliParserOptions
 
@@ -147,6 +150,7 @@ const EXEC_OPTIONS = {
   'fail-on-denial': { type: 'boolean' },
   ephemeral: { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
+  subscription: { type: 'boolean' },
   vault: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'trust-workspace': { type: 'boolean' },
@@ -301,6 +305,7 @@ export const CLI_OPTION_TEXT = {
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',
   'key-stdin': 'key-stdin',
+  subscription: 'subscription',
   'resource-governor': 'resource-governor',
   'cpu-max': 'cpu-max',
   'memory-max': 'memory-max',

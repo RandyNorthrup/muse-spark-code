@@ -39,6 +39,7 @@ import type {
   ProvidersFileRead,
 } from '../core/providers/providersFile'
 import type { TransportDeps } from '../core/backends/modelapi/transport'
+import { resolveAttemptBillingRoute } from '../core/backends/modelapi/billingRoute'
 const { emptyProvidersFile, readProvidersFile, refusalDetail, writeProvidersFileAtomic } =
   providersFile
 import {
@@ -510,6 +511,10 @@ async function readProviderJson(
     result = await client.request(
       url.slice(origin.length),
       {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'catalogue',
+          isMetaDirect: false,
+        }),
         method: 'GET',
         headers,
         accept: 'application/json',

@@ -94,6 +94,11 @@ export interface ServeOptions {
   readonly allowsContributorModels: boolean
   /** The paid features whose flags were given (M63c); each use asks first (M58). Model API only. */
   readonly paidFeatures: readonly AcpPaidFeature[]
+  /**
+   * C-M95-SUB: drive the Model API backend from the Muse Code
+   * subscription instead of a stored key. Model API only.
+   */
+  readonly subscription?: boolean | undefined
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
   /** Interactive ACP questions; no forms still defer at once. */
@@ -746,6 +751,12 @@ export function parseCommandLine<T>(
       exitCode: 2,
     }
   }
+  if (backend !== 'modelApi' && values.subscription === true) {
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.acpSubscriptionNeedsModelApi, { argument: '--subscription' }),
+    }
+  }
   const budget =
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
@@ -769,6 +780,7 @@ export function parseCommandLine<T>(
     ...(values['scheduled-prompts'] !== undefined && {
       scheduledPrompts: values['scheduled-prompts'],
     }),
+    ...(values.subscription === true && { subscription: true }),
     ...(budget !== undefined && { maxBudgetUsd: budget }),
   }
   const [first, second, ...rest] = positionals

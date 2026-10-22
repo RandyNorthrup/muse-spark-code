@@ -129,6 +129,7 @@
   "certaintyUncertain": "Incierto",
   "reservedLabel": "Reservado",
   "certaintyPlan": "Plan",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Local",
   "certaintyUnpriced": "Sin precio",
   "certaintyEstimated": "Estimado",

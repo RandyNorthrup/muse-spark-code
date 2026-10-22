@@ -57,7 +57,11 @@ export function kindLabel(kind: UsageKind): string {
     count: USAGE_TEXT.kindCount,
   }[kind]
 }
-export function certaintyLabel(certainty: UsageCertainty): string {
+export function certaintyLabel(certainty: UsageCertainty, provider?: string): string {
+  // A Meta plan row bills the Muse Code plan (C-M95-SUB: the subscription);
+  // any other plan row keeps the shared label, as do older rows, which
+  // name no provider.
+  if (certainty === 'plan' && provider === 'meta') return USAGE_TEXT.certaintyMuseCodePlan
   return {
     reported: USAGE_TEXT.certaintyReported,
     computed: USAGE_TEXT.certaintyComputed,

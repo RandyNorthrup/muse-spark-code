@@ -157,6 +157,21 @@ export const EN = {
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
+  // C-M95-SUB: the Model API backend on the Muse Code subscription. The
+  // refusals name the fix and never carry the key. (The opt-in's Title Case
+  // label comes from its setting id, `museSpark.useMuseCodeSubscription`.)
+  subscriptionKey: {
+    paidSearch: 'This response’s model tokens also bill your stored Model API key at {price}.',
+    billingChanged: 'The billing account changed. This attempt was refused; try again.',
+    signInAgain:
+      'Muse Code subscription is on, but the Muse Code CLI holds no subscription sign-in here. A pay-as-you-go key (`muse auth set`) does not count. Sign in with your Muse account (`muse login`), then try again — or use a Model API key instead.',
+    cannotRead:
+      'Muse Code subscription is on, but the Muse Code sign-in file cannot be read. Sign the Muse Code CLI in again, then try again — or use a Model API key instead.',
+    keychainBacked:
+      'Muse Code subscription is on, but this sign-in lives in the login keychain, which cannot be read here. Use a Model API key instead.',
+    paidNeedsKey:
+      'Muse Code subscription covers chat. This paid extra needs a stored Model API key: store one and try again.',
+  },
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
@@ -359,6 +374,9 @@ export const EN = {
   estimateWaveStarted: 'Started {lanes}.',
   referenceAgentControls:
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
+  referenceMuseCodeSubscriptionName: 'Muse Code subscription',
+  referenceMuseCodeSubscriptionSummary:
+    'Meta chat uses the Muse Code plan; enabled paid extras require a stored Model API key and consent.',
 
   referenceBestOfNRequirements:
     'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',
@@ -414,6 +432,8 @@ export const EN = {
       '--trust-workspace                Load the folder’s rules, skills and memory',
     maintenance: 'Run the Setup maintenance event instead of init.',
     'muse-binary': '--muse-binary <path>             The Muse Code CLI to run',
+    subscription:
+      '--subscription                 Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan)',
     'shell-sandbox': '--shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
     'allow-dangerously-skip-permissions':
       '--allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
@@ -533,7 +553,7 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
@@ -4552,6 +4572,11 @@ export const EN = {
   acpUnknownArgument: 'Unknown argument: {argument}',
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
+  // {argument}: the subscription flag as typed.
+  acpSubscriptionNeedsModelApi:
+    '{argument} needs --backend modelApi: the Muse Code subscription pays for Model API calls.',
+  execSubscriptionStdin:
+    '--subscription and --key-stdin cannot be combined: one credential per run.',
   // {command}: the executable's name. The options and values stay as typed.
   acpFontUi: 'UI Font',
   acpFontCode: 'Code Font',
@@ -4585,6 +4610,8 @@ export const EN = {
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
+    '  --subscription                   Drive the Model API backend with the Muse Code subscription instead of a key',
+    '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',

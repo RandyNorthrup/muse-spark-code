@@ -1,3 +1,4 @@
+import { payerCredentialSchema, type PayerCredential } from '../backends/modelapi/billingRoute'
 // The best-of-N run (M77, PLAN.md D49): one paid-use popup for the whole
 // run, N worktree-rooted conversations on the Model API backend, a
 // side-by-side diff comparison, and applying/staging the selected immutable
@@ -144,7 +145,7 @@ export interface BestOfNRunnerDeps {
     input?: string,
     beforeRun?: BestOfNGitGuard,
   ) => Promise<string>
-  readonly getAccountId: () => Promise<string | undefined>
+  readonly getAccountId: () => Promise<PayerCredential | undefined>
   readonly getBudgetScope?: () => Promise<OwnedSessionBudgetScope | undefined>
   readonly hasDirtyEditors: () => boolean
   readonly validatePaths: (root: string, files: readonly string[]) => Promise<void>
@@ -197,7 +198,7 @@ interface LiveRun {
   readonly isCurrent: () => boolean
   baseRef: string
   gitDir: string | undefined
-  accountId: string | undefined
+  accountId: PayerCredential | undefined
   budgetScope: OwnedSessionBudgetScope | undefined
   isStarting: boolean
   isTaking: boolean
@@ -468,7 +469,9 @@ export class BestOfNRunner {
                 if (keyDigest === undefined || keyDigest !== run.accountId) {
                   throw new BestOfNError('contextChanged')
                 }
-                if (run.budgetScope?.isStillAllowed(keyDigest) === false)
+                if (
+                  run.budgetScope?.isStillAllowed(payerCredentialSchema.parse(keyDigest)) === false
+                )
                   throw new BestOfNError('contextChanged')
                 if (isTerminal(entry.attempt.status) || entry.isCapturing)
                   throw new BestOfNError('attemptNotDone')

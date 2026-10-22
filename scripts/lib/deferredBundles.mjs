@@ -1549,6 +1549,7 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   'src/shared/usd.ts',
   // INT0170: PORTS017's boundary schemas, which usd.ts re-exports.
   'src/shared/usdSchema.ts',
+  'src/core/paid/paidAuthority.ts',
   'src/shared/legal.ts',
   'src/core/backends/modelapi/legalScanTool.ts',
 ]
@@ -1587,7 +1588,7 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidAuthority|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))

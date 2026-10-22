@@ -444,6 +444,8 @@ export function withRuntimeAccounting(
           forwardRefusal(error)
           throw error
         }
+        const isPlanBilling = guard?.billingRoute?.kind === 'museCodePlan'
+        const zeroUsd = Usd.from(0).toAmount()
         const mediaTokens = guard?.mediaAccounting?.inputTokens
         const canCount =
           accounting === undefined ||
@@ -488,8 +490,9 @@ export function withRuntimeAccounting(
           outputTokens: body.max_output_tokens,
           images: requestImageCount(body),
         })
-        const reserveUsd =
-          requestedUsd === undefined || countCostUsd === undefined
+        const reserveUsd = isPlanBilling
+          ? zeroUsd
+          : requestedUsd === undefined || countCostUsd === undefined
             ? requestedUsd
             : Usd.from(requestedUsd).add(Usd.from(countCostUsd)).toAmount()
         if (
@@ -538,7 +541,9 @@ export function withRuntimeAccounting(
                   cost: response.usage.provider_cost_usd,
                 })
               : undefined
-          let cost = actual === undefined ? undefined : ceilUsd(actual)
+          // A plan-billed turn settles $0 even when the wire reports usage:
+          // the subscription covered it, so the run ledger keeps no dollar.
+          let cost = isPlanBilling ? zeroUsd : actual === undefined ? undefined : ceilUsd(actual)
           const isRefused =
             httpStatus !== undefined &&
             !hasResponseFrame &&

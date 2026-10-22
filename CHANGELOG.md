@@ -7,6 +7,36 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Model API on the Muse Code subscription** (C-M95-SUB). The Model API
+  backend can bill the Muse Code plan instead of a pay-as-you-go key: turn
+  on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
+  machine-scoped, off by default) and the extension reads the subscription
+  key the Muse Code CLI already holds after a browser or device-code
+  sign-in. A pay-as-you-go `muse auth set` key never counts: it is refused,
+  never billed as plan. Those calls count
+  against the plan, never the card; usage and cost surfaces record them as
+  **Muse Code plan** with no dollar price. While the setting is on, a missing or
+  unreadable CLI sign-in stops Model API calls with the fix instead of
+  billing a stored key. The key is held in memory only: never shown, logged,
+  copied into settings, or stored anywhere. Paid images still bill a stored
+  Model API key; enabled hosted search, subagents and Auto review use that
+  key under normal consent, while voice keeps using the stored key. A search
+  response's model tokens also bill that key, disclosed before use; denied
+  search keeps chat on the plan. Rotation preserves saved-session ownership; toggling the opt-in restarts the
+  backend. Outside VS Code, `serve` and
+  `exec` take `--subscription` (Model API backend only); a macOS
+  Keychain-only sign-in cannot be read, so use a key there.
+
+### Fixed
+
+- Bind every Meta attempt to its resolved billing route, including Best-of-N,
+  Judge and prompt/agent hooks. Search consent remembers payer kind and model
+  token rates; subscription/provider account transitions work without a restart,
+  Windows path casing preserves history, and refused retries describe only that
+  attempt.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

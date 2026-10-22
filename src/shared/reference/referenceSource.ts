@@ -179,6 +179,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     id,
     ['vscode:modelApi', 'acp:modelApi'],
   ]),
+  // C-M95-SUB: the subscription credential on the Model API backend, in VS
+  // Code and ACP alike.
+  ...['muse-code-subscription'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
   // M105 lane F: Delete Uploaded Files and ACP /uploads over the account
   // ledger, where the Model API backend runs.
   ...['uploads'].map((id): [string, readonly string[]] => [

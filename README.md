@@ -731,6 +731,35 @@ window runs on. The CLI looks for `muse` through `museSpark.museBinaryPath`,
 then `PATH`, then the platform's install folder (`%LOCALAPPDATA%\Programs\muse`
 on Windows, `~/.local/bin` elsewhere).
 
+### Muse Code subscription
+
+The Model API backend can bill your Muse Code plan instead of a pay-as-you-go
+key. Turn on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
+off by default): the extension reads the subscription key the Muse Code CLI
+already holds after a browser or device-code sign-in and uses it for Model
+API calls. A pay-as-you-go `muse auth set` key never counts: it is refused,
+never billed as plan. Those calls count
+against the plan, never the card; **Account & usage** labels them **Muse Code plan**
+with no dollar price. While the setting is on, a missing or unreadable CLI
+sign-in stops Model API calls with the fix instead of billing a stored key.
+The key is held in memory only: it is never shown, logged, copied into
+settings, or stored anywhere. Exact redaction keeps rotated values in memory
+until the process ends. Each attempt binds its billing and credential together;
+a billing-account change during admission stops it before sending. Rotation
+keeps saved sessions visible under the same resolved sign-in path, ignoring
+Windows path casing. Signing out and back in on the same host keeps unrelated
+provider models usable.
+Paid images, enabled hosted search, subagents, Auto review, Best-of-N, hook
+models and Judge require the
+stored Model API key and their normal price, daily-budget and use consent.
+A search response also bills its model tokens to that key, disclosed before
+use; remembered search consent includes the payer kind and token rates.
+Deny keeps chat on the plan. Disabled extras stay quiet. Voice keeps using
+the stored key. Outside VS Code, pass `--subscription` to
+`serve` or `exec` (Model API backend only); a headless subscription run
+still needs `--max-budget-usd` and `--max-requests`, and its receipt reports
+`$0` billed for the plan-covered chat requests.
+
 Conversations on the Model API backend are saved as they go under VS Code's
 workspace storage for the extension, so the History dialog lists them after
 a reload, and a resumed one continues with its transcript and its edit
