@@ -82,7 +82,7 @@ namespace MuseSpark.VisualStudio.Test
             await channel.OpenAsync(); await channel.ReadyAsync();
             for (var attempt = 0; attempt < 100 && received.Count < 1; attempt++) await Task.Delay(50);
             Assert.AreEqual(1, received.Count);
-            await channel.PostAsync(new JObject { ["mhp"] = "1.1", ["kind"] = "panel", ["surface"] = channel.Surface, ["direction"] = "toHost", ["seq"] = 1, ["payload"] = new JObject { ["type"] = "ready" } }, CancellationToken.None);
+            await channel.PostAsync(new JObject { ["mhp"] = "1.5", ["kind"] = "panel", ["surface"] = channel.Surface, ["direction"] = "toHost", ["seq"] = 1, ["payload"] = new JObject { ["type"] = "ready" } }, CancellationToken.None);
             for (var attempt = 0; attempt < 100 && !File.Exists(marker + ".panel"); attempt++) await Task.Delay(50);
             Assert.AreEqual(1, SchemaContract.ParseObject(File.ReadAllText(marker + ".panel")).Value<int>("seq"));
             await channel.ReloadAsync(); await channel.ReadyAsync();

@@ -15474,6 +15474,23 @@ restore paths are proven by live probes. Manual's words stand unchanged;
 they hold on Muse Code 1.4.7 and later. Record:
 `docs/certification/manualmode.md`.
 
+### D212 — One MHP version in every native host (lead decision, lane RLM104, 2026-10-22)
+
+MHP adopts one protocol version across every native host: the current
+`MHP.version` (`mhp/1.5.0`, wire `1.5`, range `mhp/1.5.0` to exclusive
+`mhp/1.6.0`). A native host negotiates that version or refuses with
+`MHP_INCOMPATIBLE_VERSION`; no host retains a negotiation route, wire tag,
+schema or test for an older version. The Visual Studio lane F2 arrived
+holding the v1.1 frozen contract (1.1.0/1.0.0 selection, `1.1` panel tags,
+pre-1.5 tests); RLM104 moved it to 1.5.0 (peer, carrier channel,
+panel view, carrier/protocol/package tests, the test fake, the bridge
+test, the host README). Eclipse and JetBrains already refuse older
+versions; their peers select 1.5.0. The `mhp-v1.schema.json` /
+`mhp-v1.1.schema.json` filenames and their lock files stay as native build
+inputs, but both advertise 1.5.0: the v1 file carries methods and failures,
+the v1.1 file adds panels. A future MHP rev bumps `MHP.version` /
+`MHP.minimumVersion` and regenerates every schema, lock and host together.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -35389,7 +35406,21 @@ binding (M108 handoffs, kept on the tags). Receipts:
 
 ## 7. Gates
 
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+**RLM104 check:plan deferral (2026-10-22).** `check:plan` fails on size:
+PLAN.md is 3,691,829 bytes against the 3,565,158-byte 85% bound, over by
+126,671 bytes. Main at f3941b85 passes at 3,563,591 bytes; the overrun is
+introduced by this recovery lane's re-merges, which unioned the branches'
+closed history into the live file (dated M104 review-round records, gate
+rows, decision amendments: +1,751/−18 lines against main, the largest
+passage ~880 lines of M104 F4 round records the live plan never held).
+The sanctioned fix is a full archival pass (CONTRIBUTING.md, "Archiving
+closed history from PLAN.md"): open-branch diffs, whole-block moves with
+hashed markers, byte-rebuild proof and a certification record — a
+dedicated lane's work, not this recovery merge's, so RLM104 defers it.
+Fixed in this lane instead: the merge also duplicated the `## 8.` heading
+(the RVMSM104 §7 record sat between the two copies); the record moved back
+into §7 and the duplicate heading is gone, so the gate now reports the
+size bound alone.
 
 **CM971R4 gate receipt (2026-10-10).** The unchanged production build gate
 refuses eight upstream licence texts under the owner's strict slot grammar;
@@ -37214,15 +37245,6 @@ removes it); the vault lane owns removing this row. Evidence:
 
 **PR203FIX rig slow/blocked cases (2026-10-17, macmini, open).** Eight unit cases cannot pass on this lane's rig, all in files byte-identical to `main-now` and outside this lane's import closures. Seven need the process table through `/bin/ps`: `fileLease` process-owner births (3) and the reused-id takeover (1), `treesLifecycleNative` zombie/membership (2), `treesMacNative` zombie identity (1). Every `execFile('/bin/ps', …)` here fails `spawn EPERM` (`/bin/ps: Operation not permitted` in the lane shell; `/bin/ls`, node self-spawn, detached spawn, a freshly compiled helper and `/usr/bin/cc` all succeed), so `processStartTime` reads undefined and the tree readers see no members. The eighth is `nativeGitCore`'s fixture hook: some three dozen git invocations across eight fixture repositories run synchronously under a 10 s hook while one `git init` costs 1.4 s on this rig's disk, so the hook times out even file-alone. The product code is untouched and correct: absolute-path exec, no shell, a 10 s query timeout, and the documented "a birth that cannot be read proves nothing" fallback, which is exactly the semantic the failing assertions observe. Hosted CI runs `test:unit` on `macos-latest` without this sandbox and on fast disks, where these cases pass. Every other full-run failure on this rig (run 1: browserUiText, checkSlots ×4 plus one `ENOTEMPTY` cleanup race, vsixPackaging, two 60 s packaging hooks; run 2: a disjoint set — execStdio hook, checkSlots ×2, lintStagedBatching, teamSchedulerStalls, trafficView render, usagePackaging ×4) passes file-alone on the same tree: parallel-load flakes of this rig, not code. No timeout, threshold, gate or assertion was changed to get green. Disposition: open; the lead re-runs the eight cases outside the sandbox, or takes the CI macOS shard as the binding receipt. Detail: `docs/certification/msm82.md`.
 
-## 8. Escape hatches register
-
-TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
-@typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
-(`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`
-requires the member so the compiler lists every implementer (round-3
-ruling P2-D/P3-6); Muse Code manages its own turn bounds over MSP, so the
-member intentionally binds nothing. Removal guard: the host typecheck,
-which fails without the member.
 **MSM104C red gates — corrected by review RVMSM104 (2026-10-17).** The
 original paragraph measured its "untouched base" at the lane's own prior
 head (`f8428a7e3`), not the lane base: on the real base (`3d30a7321`)
@@ -37240,6 +37262,14 @@ sandbox (Chrome's singleton socket path exceeds the Unix limit under
 its TMPDIR) and remain for the lead's outside-sandbox run.
 
 ## 8. Escape hatches register
+
+TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
+@typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
+(`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`
+requires the member so the compiler lists every implementer (round-3
+ruling P2-D/P3-6); Muse Code manages its own turn bounds over MSP, so the
+member intentionally binds nothing. Removal guard: the host typecheck,
+which fails without the member.
 
 | M104L location                        | Escape hatch                               | Reason                                                                                                                                                                                                            | Date       |
 | ------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

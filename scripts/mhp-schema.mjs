@@ -193,8 +193,8 @@ const panelContract = {
     logging: 'stdout is protocol only; stderr carries redacted technical diagnostics',
   },
 }
-// Legacy snapshot filenames remain native build inputs. Both now advertise
-// 1.4; neither retains a validator or negotiation route for 1.0/1.1.
+// Legacy snapshot filenames remain native build inputs. Both advertise the one
+// current version; neither retains a validator or negotiation route for older ones.
 const adoption = process.argv.find((arg) => arg.startsWith('--adopt-version='))
 if (
   adoption !== undefined &&

@@ -25,7 +25,7 @@ if (process.argv.includes('--child')) {
   }
   send('initialize', {
     host: { id: 'visual-studio', version: '17.14' },
-    protocolRange: { minimum: 'mhp/1.0.0', maximumExclusive: 'mhp/1.2.0' },
+    protocolRange: { minimum: 'mhp/1.5.0', maximumExclusive: 'mhp/1.6.0' },
     capabilities: ['lifecycle', 'documents'],
     locale: 'en',
     theme: { kind: 'dark', tokens: {} },
@@ -55,7 +55,7 @@ if (process.argv.includes('--child')) {
       lifecycle.push(reply)
       if (reply.event === 'ready')
         process.stdout.write(
-          `${JSON.stringify({ mhp: '1.1', kind: 'panel', surface: binding.surface, direction: 'toPanel', seq: panelSequence++, payload: { type: 'focusInput' } })}\n`,
+          `${JSON.stringify({ mhp: '1.5', kind: 'panel', surface: binding.surface, direction: 'toPanel', seq: panelSequence++, payload: { type: 'focusInput' } })}\n`,
         )
       else if (reply.event === 'closed')
         writeFileSync(`${marker}.closed`, JSON.stringify(lifecycle))
@@ -68,8 +68,8 @@ if (process.argv.includes('--child')) {
         throw new Error('FAKE_PANEL_ORDER_MISMATCH')
       writeFileSync(`${marker}.panel`, JSON.stringify(reply))
     } else if (reply.id === 1) {
-      if (reply.result?.protocolVersion !== 'mhp/1.1.0')
-        throw new Error('FAKE_PANEL_MINOR_NOT_SELECTED')
+      if (reply.result?.protocolVersion !== 'mhp/1.5.0')
+        throw new Error('FAKE_PANEL_VERSION_NOT_SELECTED')
       send('documents/list', {})
     } else if (reply.id === 2) writeFileSync(marker, JSON.stringify(reply))
   })

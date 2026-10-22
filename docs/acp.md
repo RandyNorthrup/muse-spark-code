@@ -1168,7 +1168,7 @@ checks. This does not change the supported voice routes in this guide.
 ## Experimental MHP panel commands
 
 `muse-spark-code-acp panel --stdio` and
-`muse-spark-code-acp panel --companion` use MHP 1.2 rather than ACP.
+`muse-spark-code-acp panel --companion` use MHP 1.5 rather than ACP.
 Exactly one transport is required. Backend, workspace-trust, sandbox and
 paid flags retain ACP defaults. A native host negotiates a
 `minimum: mhp/1.5.0`, `maximumExclusive: mhp/1.6.0` range, mandatory

@@ -21,7 +21,7 @@ namespace MuseSpark.VisualStudio.Test
       public int Calls { get; private set; }
       public Task<JToken> InvokeAsync(string method, JObject parameters, CancellationToken cancellation) { Calls++; return Task.FromResult<JToken>(new JArray()); }
     }
-    internal static JObject Initialize(string maximum = "mhp/1.2.0") => new JObject
+    internal static JObject Initialize(string minimum = "mhp/1.5.0", string maximum = "mhp/1.6.0") => new JObject
     {
       ["jsonrpc"] = "2.0",
       ["id"] = "init",
@@ -29,7 +29,7 @@ namespace MuseSpark.VisualStudio.Test
       ["params"] = new JObject
       {
         ["host"] = new JObject { ["id"] = "visual-studio", ["version"] = "17.14" },
-        ["protocolRange"] = new JObject { ["minimum"] = "mhp/1.0.0", ["maximumExclusive"] = maximum },
+        ["protocolRange"] = new JObject { ["minimum"] = minimum, ["maximumExclusive"] = maximum },
         ["capabilities"] = new JArray("lifecycle", "documents"),
         ["locale"] = "en",
         ["theme"] = new JObject { ["kind"] = "dark", ["tokens"] = new JObject() },
@@ -39,7 +39,7 @@ namespace MuseSpark.VisualStudio.Test
     };
     private static JObject Envelope(string surface, long seq, string direction = "toPanel", string type = "focusInput") => new JObject
     {
-      ["mhp"] = "1.1",
+      ["mhp"] = "1.5",
       ["kind"] = "panel",
       ["surface"] = surface,
       ["seq"] = seq,
@@ -86,9 +86,9 @@ namespace MuseSpark.VisualStudio.Test
         var malformed = Envelope("unbound", 1); malformed["kind"] = new JObject();
         await SendAsync(peer, malformed); Assert.AreEqual("MHP_PANEL_INVALID_ENVELOPE", Last(output).Value<string>("code"));
         SchemaContract.Validate(Last(output), peer.Contract.Export["panel"]?["error"] ?? throw new InvalidOperationException());
-        await SendAsync(peer, new JObject { ["mhp"] = "1.1", ["kind"] = "surface" });
+        await SendAsync(peer, new JObject { ["mhp"] = "1.5", ["kind"] = "surface" });
         Assert.AreEqual("MHP_PANEL_WRONG_DIRECTION", Last(output).Value<string>("code"));
-        var refusal = new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = "MHP_PANEL_INVALID_ENVELOPE" };
+        var refusal = new JObject { ["mhp"] = "1.5", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = "MHP_PANEL_INVALID_ENVELOPE" };
         var before = output.ToString(); await SendAsync(peer, refusal); Assert.AreEqual(before, output.ToString());
         refusal["extra"] = true;
         await Assert.ThrowsExceptionAsync<MhpException>(() => SendAsync(peer, refusal));
@@ -96,16 +96,26 @@ namespace MuseSpark.VisualStudio.Test
     }
 
     [TestMethod]
-    public async Task SelectsPanelMinorOnlyForAnExplicitOfferAndKeepsLegacyFrozen()
+    public async Task SelectsCurrentVersionOnlyWithinAnExplicitOffer()
     {
-      foreach (var maximum in new[] { "mhp/1.2.0", "mhp/2.0.0", "mhp/1.1.0" })
+      foreach (var range in new[] { ("mhp/1.5.0", "mhp/1.6.0"), ("mhp/1.0.0", "mhp/2.0.0") })
       {
         using (var output = new StringWriter())
         using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
         {
-          await SendAsync(peer, Initialize(maximum));
-          Assert.AreEqual(maximum == "mhp/1.2.0" ? "mhp/1.1.0" : "mhp/1.0.0", Last(output)["result"]?.Value<string>("protocolVersion"));
-          if (maximum != "mhp/1.2.0") await Assert.ThrowsExceptionAsync<MhpException>(() => peer.WritePanelAsync(Envelope("s", 1)));
+          await SendAsync(peer, Initialize(range.Item1, range.Item2));
+          Assert.AreEqual("mhp/1.5.0", Last(output)["result"]?.Value<string>("protocolVersion"));
+          await peer.WritePanelAsync(Envelope("s", 1));
+        }
+      }
+      foreach (var range in new[] { ("mhp/1.0.0", "mhp/1.5.0"), ("mhp/1.6.0", "mhp/2.0.0"), ("mhp/1.0.0", "mhp/1.2.0") })
+      {
+        using (var output = new StringWriter())
+        using (var peer = new MhpPeer(SchemaContract.Load(true), new Host(), output))
+        {
+          await SendAsync(peer, Initialize(range.Item1, range.Item2));
+          Assert.AreEqual("MHP_INCOMPATIBLE_VERSION", Last(output)["error"]?.Value<string>("message"));
+          await Assert.ThrowsExceptionAsync<MhpException>(() => peer.WritePanelAsync(Envelope("s", 1)));
         }
       }
     }

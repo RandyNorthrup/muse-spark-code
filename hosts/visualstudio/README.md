@@ -26,11 +26,12 @@ undeclared until all auxiliary kinds and placements are implemented. The runtime
 therefore refuses an assembled native panel at this checkpoint. Solution trust
 starts false; native trust transitions still need their adapter. See
 [the Windows parity record](../../docs/certification/m104-pd.md).
-The C# validator consumes the unchanged frozen
+The C# validator consumes the frozen
 [`MHP 1.0`](../../src/shared/hostApi/mhp-v1.schema.json) and additive
 [`MHP 1.1`](../../src/shared/hostApi/mhp-v1.1.schema.json) exports directly.
-The runtime initializes the host; an explicit minor-range offer negotiates
-1.1, while a legacy wide offer keeps 1.0. Panel traffic requires 1.1.
+Both generations advertise the one current version, `mhp/1.5.0` (wire `1.5`);
+an offer must include it or the handshake refuses with
+`MHP_INCOMPATIBLE_VERSION`. Panel traffic requires the negotiated 1.5.
 
 WebView2 installs `window.museHost` before page scripts. Its payloads use the
 shared zod boundaries, bound opaque surfaces, independent ordered sequences,
@@ -101,7 +102,7 @@ alongside auxiliary surfaces until these new methods are implemented. Existing
 Error List, menu and WPF prompt components remain present; the runtime must use
 its reviewed fallbacks or return an explicit unavailable result. They do not
 qualify the complete 1.3 capability groups.
-descendant; shutdown must terminate both. It negotiates 1.1 and exchanges panel
+descendant; shutdown must terminate both. It negotiates 1.5 and exchanges panel
 and lifecycle frames through the actual process transport. Browser tests cover
 the injected API, JSON state, listener removal, reload, vocabulary isolation,
 ordering and transport budgets. Tests inspect the built VSIX and its
