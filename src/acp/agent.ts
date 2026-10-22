@@ -58,6 +58,7 @@ import {
   isPermissionReviewerError,
   isPromptSettledError,
   isSessionNotFoundError,
+  isSessionNotLoadedError,
   type ModelSummary,
   type SessionMcpServer,
   type SkillSummary,
@@ -65,7 +66,7 @@ import {
   type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
-import { isMspFailure, failureForLog } from '../core/backends/musecode/logText'
+import { isMspFailure, failureForLog, internalFaultForLog } from '../core/backends/musecode/logText'
 import { wireWordForLog } from '../core/logging'
 import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
 import {
@@ -170,7 +171,7 @@ import {
   UpdateTranslator,
 } from './translate'
 import { adoptedMode, answerChoice, ApprovalAnswers } from './permissionAsk'
-import type { AcpSharingPort } from './sharing'
+import { isAcpSharingFailure, SHARING_FAILURE_CODES, type AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
@@ -385,6 +386,14 @@ export function isLegalScanUnavailable(error: unknown): boolean {
   return error instanceof Error && error.message === UI_TEXT.legalScanUnavailable
 }
 
+/**
+A refusal the product defines, as the ACP error its own message deserves:
+invalid request in this state, never -32603 internal error (DFACPERR).
+*/
+function refusalError(message: string): RequestError {
+  return RequestError.invalidRequest(undefined, message)
+}
+
 function accountRequestError(error: unknown): RequestError {
   // A refused switch is user-actionable (the session kept its account), not
   // an internal failure: answer invalidRequest with the stay-put text.
@@ -393,7 +402,29 @@ function accountRequestError(error: unknown): RequestError {
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
-    : new RequestError(ACP_ERROR_CODES.unavailable, text)
+    : refusalError(text)
+}
+
+/**
+A sharing failure that crossed the lazy bundle, as the ACP error its code
+deserves. The engine owns the single RequestError constructor; the adapter
+never builds one, so a second bundled copy cannot fail the `instanceof`
+check and misreport a refusal as an internal error. Anything else passes
+through untouched (notably cancellation).
+*/
+function sharingRequestError(error: unknown): unknown {
+  if (!isAcpSharingFailure(error)) return error
+  switch (error.code) {
+    case SHARING_FAILURE_CODES.invalidParams: {
+      return RequestError.invalidParams(undefined, error.message)
+    }
+    case SHARING_FAILURE_CODES.invalidRequest: {
+      return RequestError.invalidRequest(undefined, error.message)
+    }
+    default: {
+      return RequestError.internalError(undefined, error.message)
+    }
+  }
 }
 
 /**
@@ -433,7 +464,7 @@ function startingModel(
     pool.find((candidate) => candidate.isDefault) ??
     (isStrict ? undefined : pool[0])
   if (model === undefined) {
-    if (pool.length === 0) throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+    if (pool.length === 0) throw refusalError(UI_TEXT.acpNoModels)
     throw RequestError.invalidParams(
       undefined,
       `${UI_TEXT.execProviderModelRequired}: ${models.map((candidate) => candidate.modelId).join(', ')}`,
@@ -1735,10 +1766,27 @@ class AcpSession {
   /** A load or resume runs on the remembered mode: a refusal names the host's instead. */
   private async syncRememberedMode(): Promise<void> {
     try {
-      await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+      await this.sessionCommand(() =>
+        this.session.setApprovalMode(approvalModeFor(this.mode, true)),
+      )
     } catch (error: unknown) {
       if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
       await this.showRunningMode(error, this.mode)
+      throw error
+    }
+  }
+
+  /**
+  One backend session command. Muse Code evicts or closes sessions ACP
+  still holds (MSP `sessionNotLoaded`); the editor's id then names nothing,
+  so the request reads as a missing resource, never an internal error.
+  Any other backend failure propagates as before.
+  */
+  private async sessionCommand(action: () => Promise<void>): Promise<void> {
+    try {
+      await action()
+    } catch (error: unknown) {
+      if (isSessionNotLoadedError(error)) throw RequestError.resourceNotFound(this.sessionId)
       throw error
     }
   }
@@ -1812,10 +1860,13 @@ class AcpSession {
       // Only the scanner failing to load says it could not be loaded: the
       // bundle loader's contract throws exactly `legalScanUnavailable` (the
       // log has the cause). A failing scan, a refused permission prompt or a
-      // lost update carries its own cause instead.
-      if (isLegalScanUnavailable(error))
-        throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
-      throw error
+      // lost update is an internal fault instead, with the raw failure in
+      // the log and a fixed reason on the wire.
+      if (isLegalScanUnavailable(error)) throw refusalError(UI_TEXT.legalScanUnavailable)
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: legal scan failed: ${failureForLog(error)}`,
+      )
+      throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
@@ -2455,7 +2506,7 @@ class AcpSession {
         this.deps.backend.kind === 'modelApi',
       )
       this.ensureHeld()
-      await this.session.setModel(listed)
+      await this.sessionCommand(() => this.session.setModel(listed))
       this.modelId = listed
     }
     await this.applyEffort(this.effort)
@@ -2472,7 +2523,9 @@ class AcpSession {
         this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
       ).length > 0
     )
-      await this.session.setReasoningEffort(effortForThinking(served, true))
+      await this.sessionCommand(() =>
+        this.session.setReasoningEffort(effortForThinking(served, true)),
+      )
     if (this.effortChangeRevision === revision) {
       this.effort = served
     }
@@ -2542,7 +2595,7 @@ class AcpSession {
     this.ensureHeld()
     await this.inModeOrder(async () => {
       try {
-        await this.session.setApprovalMode(approvalModeFor(mode, true))
+        await this.sessionCommand(() => this.session.setApprovalMode(approvalModeFor(mode, true)))
       } catch (error: unknown) {
         if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
         // The host runs another mode: show it so the editor agrees with the
@@ -2588,8 +2641,7 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, configId)
     }
     if (configId === ACP_CONFIG_IDS.account) {
-      if (this.accounts === undefined)
-        throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.accounts.unavailable)
+      if (this.accounts === undefined) throw refusalError(UI_TEXT.accounts.unavailable)
       if (this.pending !== undefined || this.preparing !== undefined)
         throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
       try {
@@ -2615,7 +2667,7 @@ class AcpSession {
       }
       this.ensureHeld()
       const revision = this.modelChangeRevision
-      await this.session.setModel(value)
+      await this.sessionCommand(() => this.session.setModel(value))
       // A backend event during the command is authoritative (for example a
       // canonicalized id); its editor update must survive the command ack.
       if (this.modelChangeRevision === revision) {
@@ -2776,8 +2828,7 @@ class AcpSession {
     if (slash !== undefined) {
       if (slash === 'invalid' || blocks.length !== 1)
         throw RequestError.invalidParams(undefined, UI_TEXT.vault.noAccess)
-      if (this.deps.vault === undefined)
-        throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.vault.brokerBlocked)
+      if (this.deps.vault === undefined) throw refusalError(UI_TEXT.vault.brokerBlocked)
       const preparing: PreparingPrompt | undefined =
         slash === 'lock' ? undefined : { isCancelled: false, abort: new AbortController() }
       if (preparing === undefined) this.cancelVaultRequests()
@@ -2789,10 +2840,16 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       } catch (error: unknown) {
+        // Only the broker's own cannot-start refusal reads as one: a protocol
+        // fault (notably a malformed broker status) or a programming fault
+        // stays internal, with the raw failure in the log and a fixed reason
+        // on the wire.
+        if (error instanceof Error && error.message === UI_TEXT.vault.brokerBlocked)
+          throw refusalError(UI_TEXT.vault.brokerBlocked)
         this.deps.log.warn(
           `ACP session ${this.sessionId}: vault command failed: ${failureForLog(error)}`,
         )
-        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+        throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
       }
@@ -3020,8 +3077,7 @@ class AcpSession {
         return 'end_turn'
       }
       if (/^\/accounts(?:\s|$)/.test(typed)) {
-        if (this.accounts === undefined)
-          throw new RequestError(ACP_ERROR_CODES.unavailable, UI_TEXT.accounts.unavailable)
+        if (this.accounts === undefined) throw refusalError(UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
           throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
         let text: string | undefined
@@ -3061,15 +3117,29 @@ class AcpSession {
           !preparing.isCancelled &&
           !('error' in preparing)
         if (!isActive()) return 'cancelled'
-        const text = await unlessAborted(
-          sharing.execute(parsed.displayText, {
-            cwd: this.cwd,
-            sessionId: this.sessionId,
-            isActive,
-            signal: preparing.abort.signal,
-          }),
-          preparing.abort.signal,
-        )
+        // The lazy sharing bundle's failures become the engine's own
+        // RequestErrors here, where the single constructor lives.
+        let text: string | undefined
+        try {
+          text = await unlessAborted(
+            sharing.execute(parsed.displayText, {
+              cwd: this.cwd,
+              sessionId: this.sessionId,
+              isActive,
+              signal: preparing.abort.signal,
+            }),
+            preparing.abort.signal,
+          )
+        } catch (error: unknown) {
+          // An internal sharing fault reaches the wire as the fixed
+          // could-not-complete reason; the log names the underlying fault
+          // the wrapper carries as `cause` (a name only, never raw text).
+          if (isAcpSharingFailure(error) && error.code === SHARING_FAILURE_CODES.internalError)
+            this.deps.log.warn(
+              `ACP session ${this.sessionId}: sharing command failed: ${internalFaultForLog(error)}`,
+            )
+          throw sharingRequestError(error)
+        }
         if ('error' in preparing) throw preparing.error
         if (text === undefined || !isActive()) return 'cancelled'
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
@@ -3230,9 +3300,7 @@ class AcpSession {
           this.commitAnswers(pending)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
-        if (!isAccepted) {
-          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
-        }
+        if (!isAccepted) throw refusalError(UI_TEXT.answerNotAccepted)
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
@@ -3509,7 +3577,7 @@ class AgentState {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
-      throw new RequestError(ACP_ERROR_CODES.unavailable, readiness.message)
+      throw refusalError(readiness.message)
     }
     return readiness
   }

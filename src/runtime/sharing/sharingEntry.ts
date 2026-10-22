@@ -14,13 +14,16 @@ import { canonicalPath } from '../../host/canonicalPath'
 import { writeFileAtomically } from '../../host/fsAtomic'
 import { agentDataFolder, type DataFolderInput } from '../dataFolder'
 import { SharingCommands, runSharingCommand, type SharePreview, type SharingUi } from './commands'
-import type { SharingCommand } from './args'
+import { SharingArgumentError, type SharingCommand } from './args'
 import {
   createAcpSharing,
   acpSharingCommands,
+  sharingRefusal,
   sharingResultText,
   type AcpSharingPort,
 } from '../../acp/sharing'
+import { internalFaultForLog } from '../../core/backends/musecode/logText'
+import type { Logger } from '../../host/logger'
 import {
   UI_TEXT,
   PROMPT_FILE_MODE,
@@ -273,6 +276,7 @@ export async function runRuntimeSharing(
   ports: RuntimeSharingPorts,
   table: UiText,
   locale: string,
+  log?: Logger,
 ): Promise<number> {
   setUiText(table, locale)
   const controller = new AbortController()
@@ -308,6 +312,14 @@ export async function runRuntimeSharing(
             text += decoder.decode(chunk, { stream: true })
           }
           return text + decoder.decode()
+        } catch (error: unknown) {
+          if (
+            error instanceof TypeError &&
+            'code' in error &&
+            error.code === 'ERR_ENCODING_INVALID_ENCODED_DATA'
+          )
+            throw new Error(UI_TEXT.promptFileInvalid, { cause: error })
+          throw error
         } finally {
           clearTimeout(deadline)
           controller.signal.removeEventListener('abort', cancelRead)
@@ -328,17 +340,14 @@ export async function runRuntimeSharing(
       process.stderr.write(`${error.message}\n`)
       return EXEC_EXIT.denied
     }
-    const known = [
-      UI_TEXT.shareConfidential,
-      UI_TEXT.shareCancelled,
-      UI_TEXT.sharePreviewExpired,
-      UI_TEXT.promptTitleRequired,
-    ]
-    const message =
-      error instanceof Error && known.includes(error.message)
-        ? error.message
-        : UI_TEXT.promptFileInvalid
-    process.stderr.write(`${message}\n`)
+    // A defined refusal keeps its own sentence (an empty chat, a damaged
+    // store, a prompt-file format error). Anything else is an unexpected
+    // fault: the fixed could-not-complete reason on stderr, and the
+    // underlying fault's name in the log the reason points at.
+    let refusal = error instanceof Error ? sharingRefusal(error.message) : undefined
+    if (error instanceof SharingArgumentError) refusal = error.message
+    if (refusal === undefined) log?.warn(`sharing command failed: ${internalFaultForLog(error)}`)
+    process.stderr.write(`${refusal ?? UI_TEXT.actionFailed}\n`)
     return EXEC_EXIT.denied
   } finally {
     process.off('SIGINT', stop)

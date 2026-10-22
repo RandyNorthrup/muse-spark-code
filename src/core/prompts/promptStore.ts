@@ -253,7 +253,17 @@ export async function readPromptFile(file: string): Promise<string> {
       position += bytesRead
       parts.push(chunk.subarray(0, bytesRead))
     }
-    return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts))
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts))
+    } catch (error: unknown) {
+      if (
+        error instanceof TypeError &&
+        'code' in error &&
+        error.code === 'ERR_ENCODING_INVALID_ENCODED_DATA'
+      )
+        throw new Error(UI_TEXT.promptFileInvalid, { cause: error })
+      throw error
+    }
   } finally {
     await handle.close()
   }

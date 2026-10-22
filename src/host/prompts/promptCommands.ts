@@ -145,7 +145,9 @@ export class PromptCommands {
   }
 
   private async storedPrompt(input: unknown): Promise<SavedPrompt> {
-    const claimed = savedPromptSchema.parse(input)
+    const parsed = savedPromptSchema.safeParse(input)
+    if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+    const claimed = parsed.data
     const { prompts } = await this.deps.library.list(this.deps.hasWorkspace())
     const prompt = prompts.find((row) => row.id === claimed.id && row.scope === claimed.scope)
     if (prompt === undefined) throw new Error(UI_TEXT.promptFileInvalid)
@@ -176,10 +178,15 @@ export class PromptCommands {
       case 'saveDraft': {
         const value = z
           .strictObject({ draft: promptDraftSchema, previous: z.optional(savedPromptSchema) })
-          .parse(input)
+          .safeParse(input)
+        // D121: titles and bodies have no ceilings, so a draft that fails
+        // its schema is malformed, never over a limit.
+        if (!value.success) throw new Error(UI_TEXT.promptFileInvalid)
         const previous =
-          value.previous === undefined ? undefined : await this.storedPrompt(value.previous)
-        return await this.deps.library.save(value.draft, previous)
+          value.data.previous === undefined
+            ? undefined
+            : await this.storedPrompt(value.data.previous)
+        return await this.deps.library.save(value.data.draft, previous)
       }
       case 'remove': {
         await this.deps.library.remove(await this.storedPrompt(input))
@@ -188,15 +195,21 @@ export class PromptCommands {
       case 'duplicate': {
         const value = z
           .strictObject({ prompt: savedPromptSchema, scope: z.enum(['user', 'workspace']) })
-          .parse(input)
-        return await this.deps.library.duplicate(await this.storedPrompt(value.prompt), value.scope)
+          .safeParse(input)
+        if (!value.success) throw new Error(UI_TEXT.promptFileInvalid)
+        return await this.deps.library.duplicate(
+          await this.storedPrompt(value.data.prompt),
+          value.data.scope,
+        )
       }
       case 'insert': {
         await usePrompt(await this.storedPrompt(input), this.deps.variables)
         return undefined
       }
       case 'importPreview': {
-        const { kind } = z.strictObject({ kind: z.enum(['file', 'link']) }).parse(input)
+        const parsed = z.strictObject({ kind: z.enum(['file', 'link']) }).safeParse(input)
+        if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+        const { kind } = parsed.data
         const scope = await this.deps.ui.chooseScope()
         if (scope === undefined) return undefined
         const location = kind === 'file' ? 'picker' : await this.deps.ui.input(UI_TEXT.promptLink)
@@ -205,7 +218,9 @@ export class PromptCommands {
           : await this.deps.importer.preview({ kind, location }, scope)
       }
       case 'acceptImport': {
-        const { previewId } = z.strictObject({ previewId: z.string() }).parse(input)
+        const parsed = z.strictObject({ previewId: z.string() }).safeParse(input)
+        if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+        const { previewId } = parsed.data
         return await this.deps.library.import(this.deps.importer.accept(previewId))
       }
       case 'sharePromptPreview': {
@@ -221,7 +236,9 @@ export class PromptCommands {
         return { id: preview.id, text: preview.text }
       }
       case 'confirmPromptShare': {
-        const { previewId } = z.strictObject({ previewId: z.string() }).parse(input)
+        const parsed = z.strictObject({ previewId: z.string() }).safeParse(input)
+        if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+        const { previewId } = parsed.data
         try {
           await this.deps.beforeShare()
           await this.deps.sharer.confirm(previewId)

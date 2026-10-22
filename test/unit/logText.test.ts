@@ -4,7 +4,11 @@
 
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it } from 'vitest'
-import { failureForLog, stderrForLog } from '../../src/core/backends/musecode/logText'
+import {
+  failureForLog,
+  internalFaultForLog,
+  stderrForLog,
+} from '../../src/core/backends/musecode/logText'
 import { wireWordForLog } from '../../src/core/logging'
 import { DeadlineError } from '../../src/core/timeouts'
 
@@ -54,6 +58,18 @@ describe('failureForLog', () => {
     expect(failureForLog(new Error(PERSONAL))).toBe('Error')
     expect(failureForLog(new TypeError(PERSONAL))).toBe('TypeError')
     expect(failureForLog(PERSONAL)).toBe('an unknown failure')
+  })
+})
+
+describe('internalFaultForLog', () => {
+  it('names the root only at cause-aware sites while legacy readers name the outer error', () => {
+    const root = new TypeError(PERSONAL)
+    const wrapped = new Error('sanitized boundary', {
+      cause: new Error('another wrapper', { cause: root }),
+    })
+    expect(internalFaultForLog(wrapped)).toBe('TypeError')
+    expect(failureForLog(wrapped)).toBe('Error')
+    expect(internalFaultForLog(wrapped)).not.toContain(PERSONAL)
   })
 })
 

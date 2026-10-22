@@ -64,8 +64,21 @@ export function serialisePromptFile(input: SavedPrompt): string {
 export function parsePromptFile(file: string): SavedPrompt {
   const match = FRONT_MATTER.exec(file)
   if (match === null) throw new Error(UI_TEXT.promptFileInvalid)
-  const metadata = promptMetadataSchema.parse(JSON.parse(match[1] ?? ''))
-  return savedPromptSchema.parse({ ...metadata, body: file.slice(match[0].length) })
+  let metadata: unknown
+  try {
+    metadata = JSON.parse(match[1] ?? '')
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) throw new Error(UI_TEXT.promptFileInvalid, { cause: error })
+    throw error
+  }
+  const header = promptMetadataSchema.safeParse(metadata)
+  if (!header.success) throw new Error(UI_TEXT.promptFileInvalid)
+  const parsed = savedPromptSchema.safeParse({
+    ...header.data,
+    body: file.slice(match[0].length),
+  })
+  if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+  return parsed.data
 }
 
 /** A foreign file cannot claim trust, execute, or resolve clipboard/editor inputs. */

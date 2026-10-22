@@ -1,4 +1,5 @@
-import type { SharePrivacyPort } from '../../shared/share'
+import { scrubUserIdentity } from '../prompts/promptPrivacy'
+import { SCRUB_MARKERS, type SharePrivacyPort } from '../../shared/share'
 import { scrubTransferIdentifiers } from '../export/sessionTransfer'
 
 export interface ChatSharePrivacyContext {
@@ -21,7 +22,9 @@ const PATH_END = /[\s"'<>()[\]{},;]/
 const POSIX_SEGMENT = /^[\p{L}\p{N}._~!$&+%@=-]+$/u
 
 function isPathBoundary(token: string, offset: number, text: string): boolean {
-  if (text.slice(0, offset).endsWith('[home]')) return false
+  // A scrub marker is atomic: the scrub is idempotent, so the release
+  // confirmation's re-scrub is its fixed point (RVDFACPERR5 P2).
+  if (SCRUB_MARKERS.some((marker) => text.slice(0, offset).endsWith(marker))) return false
   // A label's colon is a boundary; a URL's scheme separator is not.
   if (
     offset > 0 &&
@@ -122,14 +125,7 @@ export function createChatSharePrivacy(context: ChatSharePrivacyContext): ShareP
       clean = clean.replaceAll(PATH_TOKENS, (token: string, offset: number, text: string) =>
         isAbsolutePath(token, offset, text) ? '[path]' : token,
       )
-      if (context.userName !== '') {
-        // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- escaped quotes all username metacharacters; Unicode boundaries and flags are fixed (PLAN.md §8).
-        const pattern = new RegExp(
-          String.raw`(?<![\p{L}\p{N}_])${escaped(context.userName)}(?![\p{L}\p{N}_])`,
-          'giu',
-        )
-        clean = clean.replaceAll(pattern, () => '[user]')
-      }
+      clean = scrubUserIdentity(clean, context.userName)
       // Decoding a local URI can expose a registered value or digest that
       // was encoded during the first scrub. Read the current registry again.
       return scrubTransferIdentifiers(context.redactRegisteredSecrets(clean))

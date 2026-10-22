@@ -839,3 +839,40 @@ After: 3,564,873 bytes, 285 bytes under the gate.
 - `planReader` + `planCitation` + `autoCompact` + `paidMoneyStructure`: 135
   passed (after the numeric-cost rework below, which the joined branches
   forced: the money gate fired before this record was written).
+
+## 2026-10-22: room for merge 04 (lane RLACP)
+
+Merge `04-fix-acp-refusal-honesty` added the DFACPERR milestone record
+(~4.1 KB), putting `PLAN.md` at 3,569,528 bytes, 4,370 over the
+`check:plan` gate. Two closed-history moves in the same change, both
+verified byte-identical on reassembly with zero format drift:
+
+| Block                                    | Lines (at `b49b4ecc2`) | Bytes | SHA-256     |
+| ---------------------------------------- | ---------------------- | ----- | ----------- |
+| D34 paid-features as-built design record | 2865–2937              | 4,883 | `c8cc75be…` |
+| M122 roadmap-process bullets             | 17743–17776            | 2,410 | `4a3d456b…` |
+
+D34 (2026-09-25) is superseded as-built history: its prices and wire
+shapes moved on (Tab, TypeSafe, image generation), the paid gate now
+lives in the standing rules and the code's tariffs, and nothing cites
+it. `PLAN.md` keeps the heading and the owner's "do it" rule with
+`Full record` pointing at the archive. M122 (public roadmap, built
+2026-10-08, certified) keeps its heading and status row; the whole
+bullet list (Goal, Sections, Gate, Release step) moved, with
+`Full record` pointing at the archive
+(the M122 fact change is the moved prose itself, accepted for a closed
+milestone; roadmap generation reads only ids, headings and statuses).
+
+After: 3,562,889 bytes, 2,269 bytes under the gate.
+
+### Proofs
+
+- Reassembly: the command rebuilt the old `PLAN.md` before each write
+  (SHA-256 `4c380da2…` for D34, `3b7d1d41…` for M122).
+- D34 parsed facts: identical. M122 parsed facts: changed only in M122;
+  format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/decisions.md
+docs/plan-archive/milestones.md`: clean.
+- `npm run check:plan`: `plan-format-v1; 224 milestones; 0 drift`.
+- `npm run roadmap:generate`: `ROADMAP.md` rewritten for the lane's own
+  `entries.json` change, not for the archive moves.
