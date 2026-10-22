@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { startSerialProcess } from '../../src/core/maker/serial/process'
 import { identifyBoard } from '../../src/core/maker/serial/identity'
 import { checkFlashIdentity } from '../../src/core/maker/flashIdentity'
@@ -53,8 +53,16 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         expect(identifyBoard(identity).family).toBe(board.family)
         const control = new AbortController()
         const deps = await sessionDependencies(board, run.port, leases, control.signal)
-        const confirm = vi.fn(deps.confirm)
-        const open = vi.fn(deps.open)
+        const confirmCalls: Parameters<typeof deps.confirm>[0][] = []
+        const confirm: typeof deps.confirm = (request, review) => {
+          confirmCalls.push(request)
+          return deps.confirm(request, review)
+        }
+        let opens = 0
+        const open: typeof deps.open = (...args) => {
+          opens += 1
+          return deps.open(...args)
+        }
         const input: SerialActionInput = {
           operation: 'read',
           identity,
@@ -73,8 +81,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
             { ...guarded, classify: () => Promise.resolve('refused') },
           ),
         ).toEqual({ status: 'refused', reason: 'classification' })
-        expect(open).not.toHaveBeenCalled()
-        expect(confirm).not.toHaveBeenCalled()
+        expect(opens).toBe(0)
+        expect(confirmCalls).toEqual([])
         expect(
           await runSerialAction(input, {
             ...guarded,
@@ -82,7 +90,7 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
               Promise.resolve({ id: request.id, digest: request.digest, decision: 'reject_once' }),
           }),
         ).toEqual({ status: 'refused', reason: 'approval' })
-        expect(open).not.toHaveBeenCalled()
+        expect(opens).toBe(0)
         const observed = await runSerialAction(input, guarded)
         expect(observed.status).toBe('complete')
         if (observed.status !== 'complete') throw new Error('monitor refused')
@@ -90,8 +98,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         expect(observed.capture.bytes.toString('utf8')).toContain(board.text)
         if (board.script === 'pi')
           expect(observed.capture.bytes.toString('utf8')).toContain('root (automatic login)')
-        expect(confirm).toHaveBeenCalledTimes(1)
-        expect(confirm.mock.calls[0]?.[0]).toMatchObject({
+        expect(confirmCalls).toHaveLength(1)
+        expect(confirmCalls[0]).toMatchObject({
           action: 'connect',
           warnsAboutReset: true,
           target: identity,
@@ -129,8 +137,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
           }
           expect(written.capture.bytes.toString('utf8')).toContain(models[board.name])
         }
-        expect(confirm).toHaveBeenCalledTimes(2)
-        expect(confirm.mock.calls[0]?.[0].id).not.toBe(confirm.mock.calls[1]?.[0].id)
+        expect(confirmCalls).toHaveLength(2)
+        expect(confirmCalls[0].id).not.toBe(confirmCalls[1]?.id)
         // Stop an actual active reader, independently of the normal turn queue.
         const opened = new AbortController()
         const active = runSerialAction(
@@ -211,32 +219,37 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
       let run = await startRig(board, state, 'download')
       const abort = new AbortController()
       const deps = await sessionDependencies(board, run.port, leases, abort.signal)
-      const open = vi.fn(
-        (
-          input: SerialActionInput,
-          maxBytes: number,
-          openSignal: AbortSignal,
-          start: MakerStartGuard,
-        ) =>
-          startSerialProcess(
-            {
-              file: '/usr/bin/python3',
-              args: [
-                '-I',
-                path.resolve('test/fixtures/maker-emulators/flash.py'),
-                board.name,
-                state,
-                String(Buffer.from(input.payloadHex, 'hex').length),
-              ],
-              readyWord: 'serial-ready',
-              writable: true,
-            },
-            makerProcessDeps({ durationMs: input.durationMs, maxBytes }),
-            openSignal,
-            start,
-          ),
-      )
-      const confirm = vi.fn(deps.confirm)
+      let opens = 0
+      const open = (
+        input: SerialActionInput,
+        maxBytes: number,
+        openSignal: AbortSignal,
+        start: MakerStartGuard,
+      ) => {
+        opens += 1
+        return startSerialProcess(
+          {
+            file: '/usr/bin/python3',
+            args: [
+              '-I',
+              path.resolve('test/fixtures/maker-emulators/flash.py'),
+              board.name,
+              state,
+              String(Buffer.from(input.payloadHex, 'hex').length),
+            ],
+            readyWord: 'serial-ready',
+            writable: true,
+          },
+          makerProcessDeps({ durationMs: input.durationMs, maxBytes }),
+          openSignal,
+          start,
+        )
+      }
+      const confirmCalls: Parameters<typeof deps.confirm>[0][] = []
+      const confirm: typeof deps.confirm = (request, review) => {
+        confirmCalls.push(request)
+        return deps.confirm(request, review)
+      }
       const input: SerialActionInput = {
         operation: 'write',
         identity: await discover(board, run.port),
@@ -261,13 +274,13 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         expect(await runSerialAction(input, { ...flashDeps, canUseHardware: () => false })).toEqual(
           { status: 'refused', reason: 'context' },
         )
-        expect(open).not.toHaveBeenCalled()
+        expect(opens).toBe(0)
         if (board.family !== undefined) {
           expect(
             await runSerialAction(input, { ...flashDeps, flashTarget: { family: 'rp2350' } }),
           ).toEqual({ status: 'refused', reason: 'mismatch' })
-          expect(open).not.toHaveBeenCalled()
-          expect(confirm).not.toHaveBeenCalled()
+          expect(opens).toBe(0)
+          expect(confirmCalls).toEqual([])
         }
         const result = await runSerialAction(input, flashDeps)
         expect(result.status).toBe('complete')
@@ -279,8 +292,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         expect(result.capture.bytes.toString('utf8')).toContain(
           board.script === 'avr' ? 'bytes of flash verified' : 'Hash of data verified',
         )
-        expect(confirm).toHaveBeenCalledTimes(1)
-        expect(confirm.mock.calls[0]?.[0]).toMatchObject({
+        expect(confirmCalls).toHaveLength(1)
+        expect(confirmCalls[0]).toMatchObject({
           action: 'program',
           target: input.identity,
         })
@@ -303,8 +316,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
             if (booted.status !== 'complete') throw new Error('reboot monitor refused')
             await writeFile(path.join(receipt, 'flashed-app.txt'), booted.capture.bytes)
             expect(booted.capture.bytes.toString('utf8')).toContain(board.text)
-            expect(confirm).toHaveBeenCalledTimes(2)
-            expect(confirm.mock.calls[1]?.[0].action).toBe('connect')
+            expect(confirmCalls).toHaveLength(2)
+            expect(confirmCalls[1]?.action).toBe('connect')
             await rigCommand(board, 'stop', state)
             run = await startRig(board, state, 'download')
           }
@@ -342,7 +355,7 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         expect(stopped.status).toBe('complete')
         if (stopped.status !== 'complete') throw new Error('flash Stop refused')
         expect(stopped.capture.reason).toBe('stopped')
-        expect(confirm).toHaveBeenCalledTimes(board.name === 'esp32s3' ? 3 : 2)
+        expect(confirmCalls).toHaveLength(board.name === 'esp32s3' ? 3 : 2)
         await writeFile(path.join(receipt, 'flash-stop.txt'), stopped.capture.bytes)
         const pid = Number(await readFile(path.join(state, 'flash-tool-pid'), 'utf8'))
         await until(async () => !(await isTestProcessAlive(pid)))
