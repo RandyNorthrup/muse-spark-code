@@ -28,6 +28,7 @@ import {
 } from '../../../shared/usd'
 import { USD_LIABILITY_DECIMALS } from '../../../shared/usdConstants'
 import { nonnegativeUsdSchema, type UsdAmount } from '../../../shared/usdSchema'
+import { EstimateDiagnosticError } from '../diagnostic'
 import { EstimateSerialOwner } from './owner'
 import { EstimateProvisionClock } from './clock'
 
@@ -84,22 +85,20 @@ export type ProvisionConfirm = (message: string, quote: ProvisionQuote) => Promi
 /** The caller drives every notice: this module keeps no timers. */
 export type ProvisionIdleCheck = (server: ProvisionedServer) => boolean | Promise<boolean>
 
-function refusedBudget(cause: unknown): Error {
-  throw new Error(UI_TEXT.estimateBudgetRequired, { cause })
+function refusedBudget(cause: unknown): never {
+  throw new EstimateDiagnosticError('provision: budget-required', undefined, { cause })
 }
 
 function refusedCap(): never {
-  throw new Error(UI_TEXT.estimateCapExceeded)
+  throw new EstimateDiagnosticError('provision: budget-exceeded')
 }
 
-function denied(cause?: unknown): Error {
-  throw cause === undefined
-    ? new Error(UI_TEXT.estimateDenied)
-    : new Error(UI_TEXT.estimateDenied, { cause })
+function denied(): never {
+  throw new EstimateDiagnosticError('provision: confirmation-denied')
 }
 
 function unknownServer(id: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail: `unknown-server:${id}` }))
+  throw new EstimateDiagnosticError(`provision: unknown-server:${id}`)
 }
 
 /** The callback sees only this frozen copy; admission, reservation and
@@ -121,7 +120,12 @@ function snapshotQuote(quote: ProvisionQuote): ProvisionQuote {
 
 /** Exact per-server quotes with the batch total, before any confirmation. */
 export function quoteProvisioning(selections: readonly ProvisionRequest[]): ProvisionPreview {
-  const requests = provisionBatchSchema.parse(selections)
+  const parsed = provisionBatchSchema.safeParse(selections)
+  if (!parsed.success)
+    throw new EstimateDiagnosticError('provision: invalid-request', undefined, {
+      cause: parsed.error,
+    })
+  const requests = parsed.data
   const quotes = requests.map((request) => {
     const cost = scaleUsdNanos(usdNanos(request.size.hourlyUsd), request.maxBilledHours)
     return {
@@ -133,7 +137,7 @@ export function quoteProvisioning(selections: readonly ProvisionRequest[]): Prov
     }
   })
   const [first, ...rest] = quotes
-  if (first === undefined) throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'no-servers' }))
+  if (first === undefined) throw new EstimateDiagnosticError('provision: no-servers')
   let total = first.cost
   for (const quote of rest) total = addUsdNanos(total, quote.cost)
   return { quotes, total, totalUsd: displayUsdNanos(total) }
@@ -162,23 +166,23 @@ export class EstimateProvisioner {
     private readonly isSpendConfirmed: ProvisionConfirm,
     budget: string,
   ) {
+    const parsedBudget = nonnegativeUsdSchema.safeParse(budget)
+    if (!parsedBudget.success) refusedBudget(parsedBudget.error)
+    this.budget = parsedBudget.data
+    let budgetNanos: UsdNanos
     try {
-      this.budget = nonnegativeUsdSchema.parse(budget)
-    } catch (error) {
-      throw refusedBudget(error)
-    }
-    try {
-      this.budgetNanos = {
+      budgetNanos = {
         numerator: Usd.from(this.budget).units(USD_LIABILITY_DECIMALS),
         denominator: ONE,
       }
     } catch (error) {
       // The budget parsed but is not representable at liability precision.
       // That is a different failure from a missing budget: say so honestly.
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'budget-unrepresentable' }), {
+      throw new EstimateDiagnosticError('provision: budget-unrepresentable', undefined, {
         cause: error,
       })
     }
+    this.budgetNanos = budgetNanos
   }
 
   /** Check-and-reserve under the serial owner, after a confirmation. The
@@ -196,7 +200,7 @@ export class EstimateProvisioner {
       // Two costs must never alias onto one id: the earlier record keeps
       // its cost and the new reservation stays pending, so liability is the
       // sum of both instead of silently dropping the first.
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: `duplicate-server-id:${server.id}` }))
+      throw new EstimateDiagnosticError(`provision: duplicate-server-id:${server.id}`)
     }
     const record: ManagedProvisionedServer = {
       server,
@@ -220,7 +224,7 @@ export class EstimateProvisioner {
     await this.provider.delete(record.server.id)
     const receipt = await this.provider.status(record.server.id)
     if (receipt.state !== 'deleted' || receipt.id !== record.server.id)
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'deletion-unconfirmed' }))
+      throw new EstimateDiagnosticError('provision: deletion-unconfirmed')
     this.managed.delete(record.server.id)
   }
 
@@ -291,12 +295,16 @@ export class EstimateProvisioner {
   provision(requests: readonly ProvisionRequest[]): Promise<readonly ManagedProvisionedServer[]> {
     // Clone/validate before queuing, so a caller cannot alter pending work.
     // Every price and the whole total are fixed before any confirmation.
-    const parsed = provisionBatchSchema.parse(requests)
-    const preview = quoteProvisioning(parsed)
+    const validated = provisionBatchSchema.safeParse(requests)
+    if (!validated.success)
+      throw new EstimateDiagnosticError('provision: invalid-request', undefined, {
+        cause: validated.error,
+      })
+    const preview = quoteProvisioning(validated.data)
     return (async () => {
       const created: ManagedProvisionedServer[] = []
       for (const [index, quote] of preview.quotes.entries()) {
-        const cloudInit = parsed[index]?.cloudInit ?? ''
+        const cloudInit = validated.data[index]?.cloudInit ?? ''
         // Advisory refusal before the surface is asked; `admit` re-checks
         // atomically after the confirmation returns.
         if (compareUsdNanos(addUsdNanos(this.liability(), quote.cost), this.budgetNanos) > 0)
@@ -312,7 +320,9 @@ export class EstimateProvisioner {
         try {
           isConfirmed = await this.isSpendConfirmed(message, snapshot)
         } catch (error) {
-          throw denied(error)
+          throw new EstimateDiagnosticError('provision: confirmation-denied', undefined, {
+            cause: error,
+          })
         }
         if (!isConfirmed) denied()
         created.push(await this.owner.run(() => this.admit(snapshot, cloudInit)))
@@ -363,32 +373,15 @@ export interface EstimateLifecycleBindings {
 const IDLE_MS = ESTIMATE_IDLE_TEARDOWN_MINUTES * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
 const instantSchema = z.iso.datetime({ offset: true })
 
-function fail(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
-}
 function key(providerId: string, serverId: string): string {
   return JSON.stringify([providerId, serverId])
 }
 
-/** A lease step that failed with the step's own error: the sweep ends the
+/** A lease step that failed, with the step's own error: the sweep ends the
 lease failed naming the step instead of dropping the error. */
-export class LeaseStepFailed extends Error {
+export interface LeaseStepFailure {
   readonly step: NonNullable<EstimateServerLease['failure']>
-  constructor(step: NonNullable<EstimateServerLease['failure']>, cause: unknown) {
-    super(`lease ${step} failed`, { cause })
-    this.step = step
-  }
-}
-
-export function isLeaseStepFailed(error: unknown): error is LeaseStepFailed {
-  return error instanceof LeaseStepFailed
-}
-
-function leaseStepFailed(
-  step: NonNullable<EstimateServerLease['failure']>,
-  cause: unknown,
-): LeaseStepFailed {
-  return new LeaseStepFailed(step, cause)
+  readonly cause: unknown
 }
 
 /** One owner for notices/wipe/delete. Synchronous activity invalidates an
@@ -404,13 +397,18 @@ export class EstimateServerLifecycle {
   }
 
   private async receipt(lease: Lease): Promise<ProvisionedServer> {
-    const receipt = provisionedServerSchema.parse(await lease.provider.status(lease.server.id))
+    const parsed = provisionedServerSchema.safeParse(await lease.provider.status(lease.server.id))
+    if (!parsed.success)
+      throw new EstimateDiagnosticError('provision: invalid-receipt', undefined, {
+        cause: parsed.error,
+      })
+    const receipt = parsed.data
     if (
       receipt.id !== lease.server.id ||
       receipt.sizeId !== lease.server.sizeId ||
       receipt.imageId !== lease.server.imageId
     )
-      fail('server-identity')
+      throw new EstimateDiagnosticError('provision: server-identity')
     return receipt
   }
 
@@ -426,7 +424,7 @@ export class EstimateServerLifecycle {
     }
   }
 
-  private async destroy(lease: Lease): Promise<void> {
+  private async destroy(lease: Lease): Promise<LeaseStepFailure | undefined> {
     lease.version++
     let phase: NonNullable<EstimateServerLease['failure']> = 'wipe'
     delete lease.failure
@@ -443,11 +441,11 @@ export class EstimateServerLifecycle {
         if (receipt.state === 'deleted') {
           lease.server = receipt
           lease.state = 'deleted'
-          return
+          return undefined
         }
         if (receipt.state === 'deleting') {
           lease.state = 'deleting'
-          return
+          return undefined
         }
       }
       phase = 'delete'
@@ -456,44 +454,41 @@ export class EstimateServerLifecycle {
       await lease.provider.delete(lease.server.id)
       phase = 'status'
       const receipt = await this.receipt(lease)
-      if (receipt.state !== 'deleted' && receipt.state !== 'deleting') fail('deletion-unconfirmed')
+      if (receipt.state !== 'deleted' && receipt.state !== 'deleting')
+        throw new EstimateDiagnosticError('provision: deletion-unconfirmed')
       lease.server = receipt
       lease.state = receipt.state
+      return undefined
     } catch (error) {
-      throw leaseStepFailed(phase, error)
+      return { step: phase, cause: error }
     }
   }
 
   /** A destroy that ends the lease failed naming the step instead of
-  dropping the error; anything else rethrows. */
+  dropping the error. */
   private async destroyLease(lease: Lease): Promise<void> {
-    try {
-      await this.destroy(lease)
-    } catch (error) {
-      if (!isLeaseStepFailed(error)) throw error
-      lease.state = 'failed'
-      lease.failure = error.step
-    }
+    const failure = await this.destroy(lease)
+    if (failure === undefined) return
+    lease.state = 'failed'
+    lease.failure = failure.step
   }
 
   /** The person's answer, malformed answers included: a rejected ask ends
   the notice failed instead of dropping the error. */
-  private async ask(lease: Lease): Promise<'keep' | 'teardown'> {
+  private async ask(lease: Lease): Promise<'keep' | 'teardown' | LeaseStepFailure> {
+    let answer: unknown
     try {
-      return z.enum(['keep', 'teardown']).parse(await this.bindings.notice(this.snapshot(lease)))
+      answer = await this.bindings.notice(this.snapshot(lease))
     } catch (error) {
-      throw leaseStepFailed('notice', error)
+      return { step: 'notice', cause: error }
     }
+    const parsed = z.enum(['keep', 'teardown']).safeParse(answer)
+    return parsed.success ? parsed.data : { step: 'notice', cause: parsed.error }
   }
 
   private async notice(lease: Lease, version: number): Promise<void> {
-    let answer: 'keep' | 'teardown' | 'failed'
-    try {
-      answer = await this.ask(lease)
-    } catch (error) {
-      if (!isLeaseStepFailed(error)) throw error
-      answer = 'failed'
-    }
+    const asked = await this.ask(lease)
+    const answer = typeof asked === 'string' ? asked : 'failed'
     // A slow user answer owns no cleanup lock. Other sweeps may expire this
     // server meanwhile; activity may invalidate its notice generation.
     await this.owner.run(async () => {
@@ -518,11 +513,21 @@ export class EstimateServerLifecycle {
   }
 
   track(provider: EstimateProviderPort, input: ProvisionedServer, expiresAt: string): void {
-    const server = provisionedServerSchema.parse(input)
-    instantSchema.parse(expiresAt)
-    if (server.state !== 'creating' && server.state !== 'running') fail('invalid-created-server')
+    const parsedServer = provisionedServerSchema.safeParse(input)
+    if (!parsedServer.success)
+      throw new EstimateDiagnosticError('provision: invalid-server', undefined, {
+        cause: parsedServer.error,
+      })
+    const parsedInstant = instantSchema.safeParse(expiresAt)
+    if (!parsedInstant.success)
+      throw new EstimateDiagnosticError('provision: invalid-server', undefined, {
+        cause: parsedInstant.error,
+      })
+    const server = parsedServer.data
+    if (server.state !== 'creating' && server.state !== 'running')
+      throw new EstimateDiagnosticError('provision: invalid-created-server')
     const id = key(provider.id, server.id)
-    if (this.leases.has(id)) fail('duplicate-server')
+    if (this.leases.has(id)) throw new EstimateDiagnosticError('provision: duplicate-server')
     this.leases.set(id, {
       provider,
       server,
@@ -538,8 +543,14 @@ export class EstimateServerLifecycle {
 
   activity(providerId: string, serverId: string, isBusy: boolean): void {
     const lease = this.leases.get(key(providerId, serverId))
-    if (!lease || (lease.state !== 'active' && lease.state !== 'notice')) fail('inactive-server')
-    const isParsedBusy = z.boolean().parse(isBusy)
+    if (!lease || (lease.state !== 'active' && lease.state !== 'notice'))
+      throw new EstimateDiagnosticError('provision: inactive-server')
+    const parsedBusy = z.boolean().safeParse(isBusy)
+    if (!parsedBusy.success)
+      throw new EstimateDiagnosticError('provision: invalid-activity', undefined, {
+        cause: parsedBusy.error,
+      })
+    const isParsedBusy = parsedBusy.data
     lease.lastActiveAt = this.clock.now()
     lease.busy = isParsedBusy
     lease.version++
@@ -556,7 +567,7 @@ export class EstimateServerLifecycle {
   retire(providerId: string, serverId: string): Promise<void> {
     return this.owner.run(async () => {
       const lease = this.leases.get(key(providerId, serverId))
-      if (!lease) fail('unknown-server')
+      if (!lease) unknownServer(serverId)
       if (lease.state !== 'deleted') await this.destroyLease(lease)
     })
   }

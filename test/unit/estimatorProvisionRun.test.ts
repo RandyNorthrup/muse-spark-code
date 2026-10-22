@@ -13,7 +13,6 @@ import {
   type EstimateProvisionBindings,
   type EstimateServerRequest,
 } from '../../src/core/estimator/provision/run'
-import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { tripwireNode, tripwireProvider, unreachablePort } from './helpers/provisionTripwires'
@@ -60,7 +59,7 @@ describe('M117 confirmed run without a provider', () => {
     'requires an explicit valid budget %s before reading a provider',
     (budget) => {
       expect(() => new EstimateProvisionRun(bindings(), budget)).toThrow(
-        UI_TEXT.estimateBudgetRequired,
+        'provision: budget-required',
       )
     },
   )
@@ -89,10 +88,10 @@ describe('M117 confirmed run without a provider', () => {
     expect(advice.availability()).toBe('adviceOnly')
     expect(advice.reservedUsd()).toBe(0)
     expect(advice.snapshots()).toEqual([])
-    await expect(advice.quote([REQUEST])).rejects.toThrow(UI_TEXT.estimateAdvice)
+    await expect(advice.quote([REQUEST])).rejects.toThrow('advice-only')
     const empty = new EstimateProvisionRun(bindings({ providers: [] }), 1)
     expect(empty.availability()).toBe('adviceOnly')
-    await expect(empty.quote([REQUEST])).rejects.toThrow(UI_TEXT.estimateAdvice)
+    await expect(empty.quote([REQUEST])).rejects.toThrow('advice-only')
   })
 
   it('refuses unknown providers and malformed requests before any port call', async () => {

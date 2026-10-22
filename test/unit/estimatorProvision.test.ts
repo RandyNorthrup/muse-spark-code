@@ -5,7 +5,6 @@
 // create/install/teardown path stays unrun and is named as waiting in
 // docs/certification/m117-p-spin-it-up.md. Repository default timeout.
 import { describe, expect, it } from 'vitest'
-import { UI_TEXT } from '../../src/shared/constants'
 import { compareUsdNanos, usdNanos, type UsdNanos } from '../../src/shared/usd'
 import type { ProvisionQuote, ProvisionRequest } from '../../src/core/estimator/provision/lifecycle'
 import {
@@ -79,8 +78,8 @@ describe('M117 provisioning lifecycle without a provider', () => {
   })
 
   it('requires a representable budget before reading anything', () => {
-    expect(() => provisioner('nope')).toThrow(UI_TEXT.estimateBudgetRequired)
-    expect(() => provisioner('')).toThrow(UI_TEXT.estimateBudgetRequired)
+    expect(() => provisioner('nope')).toThrow('provision: budget-required')
+    expect(() => provisioner('')).toThrow('provision: budget-required')
     // Nine liability decimals: a tenth of a nano-USD is not representable,
     // which is a different failure from a missing budget.
     expect(() => provisioner('0.0000000001')).toThrow('budget-unrepresentable')
@@ -92,7 +91,9 @@ describe('M117 provisioning lifecycle without a provider', () => {
       confirmed += 1
       return Promise.resolve(true)
     })
-    await expect(provision.provision([{ ...REQUEST }])).rejects.toThrow(UI_TEXT.estimateCapExceeded)
+    await expect(provision.provision([{ ...REQUEST }])).rejects.toThrow(
+      'provision: budget-exceeded',
+    )
     expect(confirmed).toBe(0)
   })
 
@@ -102,7 +103,9 @@ describe('M117 provisioning lifecycle without a provider', () => {
       messages.push(message)
       return Promise.resolve(false)
     })
-    await expect(provision.provision([{ ...REQUEST }])).rejects.toThrow(UI_TEXT.estimateDenied)
+    await expect(provision.provision([{ ...REQUEST }])).rejects.toThrow(
+      'provision: confirmation-denied',
+    )
     expect(messages).toHaveLength(1)
     // One server at 0.07 USD/h for 3 h: price and total are both 0.21.
     expect(messages[0]).toContain('0.21')
@@ -119,7 +122,9 @@ describe('M117 provisioning lifecycle without a provider', () => {
       }
       return Promise.resolve(false)
     })
-    await expect(provision.provision([{ ...REQUEST }])).rejects.toThrow(UI_TEXT.estimateDenied)
+    await expect(provision.provision([{ ...REQUEST }])).rejects.toThrow(
+      'provision: confirmation-denied',
+    )
     expect(isFrozen).toBe(true)
   })
 

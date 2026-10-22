@@ -16,16 +16,16 @@ import type { EstimateCatalogAdapter } from '../../core/estimator/priceCatalogs'
 import type { EstimatePricePort } from '../../core/estimator/prices'
 import { reportWorkspaceKey } from '../../core/reporting/sources/local'
 import {
-  ReportNetworkFailure,
   ReportNetworkReader,
   publicReportTransport,
   type ReportNetworkPolicy,
   type ReportNetworkTransport,
 } from '../../core/reporting/sources/cache'
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 import type { SourceReadContext } from '../../core/reporting/sources/types'
 import { redactSecrets } from '../../shared/redact'
 import { reportingResponseCache } from '../../runtime/reporting/network'
-import { fill, UI_TEXT, uiLocale } from '../../shared/l10n/text'
+import { UI_TEXT, uiLocale } from '../../shared/l10n/text'
 import { ESTIMATE_PRICE_MAX_BYTES, ESTIMATE_SOURCE_TIMEOUT_MS } from '../../shared/constants'
 
 export interface PriceCatalogSourceDeps {
@@ -38,7 +38,7 @@ export interface PriceCatalogSourceDeps {
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 function key(catalogUrl: string): string {
@@ -70,11 +70,11 @@ export function createPriceCatalogPort(deps: PriceCatalogSourceDeps): EstimatePr
       deps.policy.mode === 'off' ||
       (deps.policy.mode === 'whenSignedIn' && !deps.policy.githubSignedIn)
     )
-      throw new ReportNetworkFailure('catalog-egress-refused')
+      throw new EstimateDiagnosticError('catalog-egress-refused')
     signal.throwIfAborted()
     const response = await inner(request, etag, signal)
     if (new URL(response.url).href !== new URL(request.url).href)
-      throw new ReportNetworkFailure('catalog-redirect-refused')
+      throw new EstimateDiagnosticError('catalog-redirect-refused')
     return response
   }
   const reader = new ReportNetworkReader({

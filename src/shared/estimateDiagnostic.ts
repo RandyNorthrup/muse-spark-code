@@ -22,6 +22,7 @@ export const ESTIMATE_DIAGNOSTIC_CODES = /* @__PURE__ */ (() =>
     'running schedule-cycle schedule-date-overflow self-dependency snapshot-asOf source-incomplete source-unavailable source-waiting unknown-capacity unknown-demand',
     'unknown-duration-model unknown-goal unknown-os-architecture unknown-prerequisite unknown-release-member unknown-review-modules unknown-rig unknownHistoryBasis unknownHistoryVersion unschedulable',
     'unsupported-platform usage',
+    'catalog-egress-refused catalog-paged catalog-redirect-refused catalog-unavailable fact-source-invalid invalid-catalog invalid-clock invalid-decimal invalid-provision-clock provision unknown-catalog',
   ]
     .join(' ')
     .split(' '))()

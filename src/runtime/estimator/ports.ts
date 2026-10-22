@@ -21,7 +21,7 @@ import { estimateHistoryDirectory, fileHistoryPorts } from '../../host/estimator
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
 import { agentDataFolder } from '../dataFolder'
 import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
-import { runEstimateCommand, fleetFailure } from './command'
+import { runEstimateCommand } from './command'
 import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
 import { PLAN_SNAPSHOT_BUNDLE_FILE } from '../../shared/constants'
@@ -83,7 +83,7 @@ export function runtimeEstimatorPorts(
       value !== null &&
       'resourceMachineStore' in value &&
       typeof value.resourceMachineStore === 'function',
-    unavailable: () => fleetFailure('fleet-caps-invalid settings').message,
+    unavailable: () => new EstimateDiagnosticError('fleet-caps-invalid: settings').message,
   })
   let machine: ReturnType<typeof resourceMachineStore> | undefined
   const readSettings = () => {

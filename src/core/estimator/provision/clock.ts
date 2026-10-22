@@ -1,5 +1,4 @@
-import { UI_TEXT } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
+import { EstimateDiagnosticError } from '../diagnostic'
 
 /** Injected epoch milliseconds, monotonic within this lifecycle/run owner. */
 export class EstimateProvisionClock {
@@ -16,7 +15,7 @@ export class EstimateProvisionClock {
       now < this.previous ||
       !Number.isFinite(new Date(now).getTime())
     )
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: this.failure }))
+      throw new EstimateDiagnosticError(this.failure)
     this.previous = now
     return now
   }

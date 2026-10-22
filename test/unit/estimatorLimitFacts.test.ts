@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  ESTIMATE_FACT_TRANSLATORS,
-  EstimateFactSourceError,
-} from '../../src/core/estimator/limitFacts'
+import { ESTIMATE_FACT_TRANSLATORS } from '../../src/core/estimator/limitFacts'
 import { estimateLimitFactSchema, type EstimateAccountOwner } from '../../src/shared/estimateFacts'
 import { USAGE_JOURNAL_VERSION } from '../../src/shared/constants'
 import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
@@ -93,7 +90,7 @@ describe('owned estimator limit facts', () => {
         snapshot.windows = [{ id: 'weekly', usedPercent: 90, resetsAt: Number.MAX_SAFE_INTEGER }]
       else snapshot[field] = Number.MAX_SAFE_INTEGER
       expect(() => ESTIMATE_FACT_TRANSLATORS.observation({ owner, observedAt, snapshot })).toThrow(
-        EstimateFactSourceError,
+        'fact-source-invalid',
       )
       expect(() => ESTIMATE_FACT_TRANSLATORS.observation({ owner, observedAt, snapshot })).toThrow(
         'usage-changed',

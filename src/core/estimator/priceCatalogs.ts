@@ -3,7 +3,7 @@ import machineClasses from '../../shared/machineClasses.json'
 import { machineClassesSchema, type CatalogPrice } from '../../shared/estimate'
 import { compareEstimateIds } from './goal'
 import { ESTIMATE_PRICE_CATALOG_URLS } from '../../shared/constants'
-import { fill, UI_TEXT } from '../../shared/l10n/text'
+import { EstimateDiagnosticError } from './diagnostic'
 
 // A captured public server-price catalog (M117 C-M117-4, PLAN.md D97.6):
 // Azure's retail prices API needs no account and answers a filtered query in
@@ -97,7 +97,7 @@ export function compareCatalogRows(a: CatalogRow, b: CatalogRow): number {
   )
 }
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 /** Azure's retail API carries per-meter start dates but no catalog version,
 so each priced row carries its own meter's `effectiveStartDate`, and the
@@ -119,7 +119,9 @@ export function parseAzureRetailCatalog(
   if (!parsed.success || parsed.data.Items.length === 0) refuse('invalid-catalog')
   if (typeof parsed.data.NextPageLink === 'string' && parsed.data.NextPageLink !== '')
     refuse('catalog-paged')
-  const classes = new Set(machineClassesSchema.parse(machineClasses).map((size) => size.id))
+  const parsedClasses = machineClassesSchema.safeParse(machineClasses)
+  if (!parsedClasses.success) refuse('invalid-catalog')
+  const classes = new Set(parsedClasses.data.map((size) => size.id))
   const rows: { classId: string; price: CatalogPrice }[] = []
   for (const item of parsed.data.Items) {
     const meter = ESTIMATE_AZURE_RETAIL_METERS.find((entry) => entry.meterId === item.meterId)
@@ -133,7 +135,7 @@ export function parseAzureRetailCatalog(
     if (!Number.isFinite(item.retailPrice) || item.retailPrice < 0 || !classes.has(meter.classId))
       refuse('invalid-catalog')
     const meterDate = item.effectiveStartDate.slice(0, 'YYYY-MM-DD'.length)
-    z.iso.date().parse(meterDate)
+    if (!z.iso.date().safeParse(meterDate).success) refuse('invalid-catalog')
     rows.push({
       classId: meter.classId,
       price: {
