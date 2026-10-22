@@ -2568,6 +2568,8 @@
   "bookmarkedState": "Yer imli",
   "bookmarkUnavailable": "Burada kullanılamıyor",
   "bookmarkNoWorkspace": "Yer imleri için açık bir klasör gerekir.",
+  "bookmarksUnavailable": "Yer imleri kullanılamıyor.",
+  "sequencesUnavailable": "İstem dizileri kullanılamıyor.",
   "referenceBookmarks": "Konuşmaları Geçmiş’ten veya başlıktaki yıldızla yer imlerine ekleyin. Yer imli bir Model API oturumu temizlikten sağ çıkar; yer imleri yalnızca kayıtlı istem eşitlemesi açıkken eşitlenir.",
   "resumeItem": "Sürdür",
   "resumeDetail": "Bu çalışma alanındaki önceki bir konuşmayı seçin",

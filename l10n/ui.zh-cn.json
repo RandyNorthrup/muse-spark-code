@@ -2516,6 +2516,8 @@
   "bookmarkedState": "已加书签",
   "bookmarkUnavailable": "此处不可用",
   "bookmarkNoWorkspace": "书签需要打开的文件夹。",
+  "bookmarksUnavailable": "书签不可用。",
+  "sequencesUnavailable": "提示词序列不可用。",
   "referenceBookmarks": "从历史记录或标题栏星标收藏对话。已收藏的 Model API 会话会在清理后保留；书签仅在已保存提示词同步开启时同步。",
   "resumeItem": "恢复",
   "resumeDetail": "在此工作区中选择以前的对话",

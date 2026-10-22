@@ -2620,6 +2620,8 @@
   "bookmarkedState": "Marcada",
   "bookmarkUnavailable": "No disponible aquí",
   "bookmarkNoWorkspace": "Los marcadores necesitan una carpeta abierta.",
+  "bookmarksUnavailable": "Los marcadores no están disponibles.",
+  "sequencesUnavailable": "Las secuencias de prompts no están disponibles.",
   "referenceBookmarks": "Añade conversaciones a marcadores desde el Historial o la estrella del encabezado. Una sesión de Model API marcada sobrevive a la limpieza; los marcadores solo se sincronizan con la sincronización de prompts guardados activada.",
   "resumeItem": "Reanudar",
   "resumeDetail": "Elegir una conversación anterior de esta área de trabajo",

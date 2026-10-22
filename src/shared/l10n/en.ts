@@ -3118,6 +3118,8 @@ export const EN = {
   bookmarkedState: 'Bookmarked',
   bookmarkUnavailable: 'Not available here',
   bookmarkNoWorkspace: 'Bookmarks need an open folder.',
+  bookmarksUnavailable: 'Bookmarks are unavailable.',
+  sequencesUnavailable: 'Prompt sequences are unavailable.',
   referenceBookmarks:
     'Bookmark conversations from History or the header star. A bookmarked Model API session is kept past cleanup; bookmarks sync only with saved prompts sync on.',
   resumeItem: 'Resume',

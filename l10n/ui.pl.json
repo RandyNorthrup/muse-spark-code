@@ -2672,6 +2672,8 @@
   "bookmarkedState": "W zakładkach",
   "bookmarkUnavailable": "Niedostępne tutaj",
   "bookmarkNoWorkspace": "Zakładki wymagają otwartego folderu.",
+  "bookmarksUnavailable": "Zakładki są niedostępne.",
+  "sequencesUnavailable": "Sekwencje promptów są niedostępne.",
   "referenceBookmarks": "Konwersacje dodaje się do zakładek z Historii lub gwiazdką w nagłówku. Sesja Model API w zakładkach przetrwa czyszczenie; zakładki synchronizują się tylko przy włączonej synchronizacji zapisanych promptów.",
   "resumeItem": "Wznów",
   "resumeDetail": "Wybierz poprzednią rozmowę w tym obszarze roboczym",

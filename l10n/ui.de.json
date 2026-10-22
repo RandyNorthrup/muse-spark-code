@@ -2568,6 +2568,8 @@
   "bookmarkedState": "Mit Lesezeichen",
   "bookmarkUnavailable": "Hier nicht verfügbar",
   "bookmarkNoWorkspace": "Lesezeichen brauchen einen geöffneten Ordner.",
+  "bookmarksUnavailable": "Lesezeichen sind nicht verfügbar.",
+  "sequencesUnavailable": "Prompt-Sequenzen sind nicht verfügbar.",
   "referenceBookmarks": "Unterhaltungen werden über den Verlauf oder den Stern in der Kopfzeile als Lesezeichen gespeichert. Eine als Lesezeichen gespeicherte Model-API-Sitzung übersteht die Bereinigung; Lesezeichen werden nur bei eingeschalteter Prompt-Synchronisierung synchronisiert.",
   "resumeItem": "Fortsetzen",
   "resumeDetail": "Eine frühere Unterhaltung in diesem Arbeitsbereich auswählen",
