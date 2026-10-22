@@ -23196,6 +23196,20 @@ specification delivered by C-M96d-1, with RVCM96D1's Windows service-mediated
 launch gap corrected and exercised natively; production implementation, independent
 acceptance and the lead ruling remain outstanding.
 
+**Status 2026-10-22 (RLM96D): built, pending integration.** The
+production coordinator (pure grant engine, durable custody shell,
+exact references, mode selection, discovery endpoint) and all eight
+optimisations (stacked dependencies, review carry-over, tested-tree
+cache, waiting-branch refresh, cross-branch advisories, Traffic
+suggestions, cross-role stealing, source-file regions) are
+implemented with real-code suites and red drills, recorded in
+`docs/certification/rlm96d.md`. Proven on this rig: every pure
+guard, the degraded custody contracts, and the RVM96C2 F1–F4
+schedules against the production engine. Outstanding: native
+three-OS receipts, hosted CI, the `check:plan` archive (§7
+deferral), the lead ruling and independent acceptance before any
+C-M96d-2 claim.
+
 **C-M96d-1 design spike (2026-10-10, design and scoped certification complete).** This lane delivers
 the coordinator design and test-only counterexamples for `RVM96C2` 1–4,
 not a production coordinator. First write the adversarial schedules, then
@@ -35846,6 +35860,19 @@ removes it); the vault lane owns removing this row. Evidence:
 `docs/certification/m113-join.md` (Proof).
 
 **PR203FIX rig slow/blocked cases (2026-10-17, macmini, open).** Eight unit cases cannot pass on this lane's rig, all in files byte-identical to `main-now` and outside this lane's import closures. Seven need the process table through `/bin/ps`: `fileLease` process-owner births (3) and the reused-id takeover (1), `treesLifecycleNative` zombie/membership (2), `treesMacNative` zombie identity (1). Every `execFile('/bin/ps', …)` here fails `spawn EPERM` (`/bin/ps: Operation not permitted` in the lane shell; `/bin/ls`, node self-spawn, detached spawn, a freshly compiled helper and `/usr/bin/cc` all succeed), so `processStartTime` reads undefined and the tree readers see no members. The eighth is `nativeGitCore`'s fixture hook: some three dozen git invocations across eight fixture repositories run synchronously under a 10 s hook while one `git init` costs 1.4 s on this rig's disk, so the hook times out even file-alone. The product code is untouched and correct: absolute-path exec, no shell, a 10 s query timeout, and the documented "a birth that cannot be read proves nothing" fallback, which is exactly the semantic the failing assertions observe. Hosted CI runs `test:unit` on `macos-latest` without this sandbox and on fast disks, where these cases pass. Every other full-run failure on this rig (run 1: browserUiText, checkSlots ×4 plus one `ENOTEMPTY` cleanup race, vsixPackaging, two 60 s packaging hooks; run 2: a disjoint set — execStdio hook, checkSlots ×2, lintStagedBatching, teamSchedulerStalls, trafficView render, usagePackaging ×4) passes file-alone on the same tree: parallel-load flakes of this rig, not code. No timeout, threshold, gate or assertion was changed to get green. Disposition: open; the lead re-runs the eight cases outside the sandbox, or takes the CI macOS shard as the binding receipt. Detail: `docs/certification/msm82.md`.
+
+**RLM96D check:plan deferral (2026-10-22, macbook, open).** PLAN.md
+is 3,568,230 bytes against the 3,565,158-byte budget (85% of the
+4 MiB reader bound); the 0.19.0 base arrived at 3,563,591, and this
+lane's spike-certification text, §8 escape row and M96d status line
+tripped the gate. The prescribed fix (CONTRIBUTING.md, "Archiving
+closed history from PLAN.md") enumerates every unmerged branch's
+PLAN diff and trial-merges each onto the old and new file: program
+surgery that belongs to the lead at integration, once, not to each
+recovery lane. `check:roadmap` is red as a downstream casualty (the
+generator refuses while the plan drifts), and clears with the same
+archive. No threshold, bound or ignore is weakened. All other
+recovery gates pass; evidence: `docs/certification/rlm96d.md`.
 
 ## 8. Escape hatches register
 
