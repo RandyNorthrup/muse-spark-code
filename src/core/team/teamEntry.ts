@@ -15,6 +15,10 @@ import type { UiText } from '../../shared/l10n/en'
 import { teamWorkerPrice, teamWorkerQuestion, canUseTeam } from './teamPaid'
 import { teamTreeSchema, teamUsageSchema, teamItemFields } from '../../shared/teamView'
 
+// The scheduler shares these tools instead of carrying another copy of their
+// definitions and model text (M120CAP). No scheduler dispatch occurs here.
+export { createSchedulerTeamTools } from './teamTools'
+
 /** The Node schema proxies load these only when a team payload is present. */
 export function createTeamViewSchemas() {
   return { teamTreeSchema, teamUsageSchema, teamItemFields }

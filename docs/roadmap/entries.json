@@ -875,7 +875,7 @@
     {
       "id": "M120",
       "title": "Preferred agents and handoff",
-      "summary": "Preferred agents for each role, with work going to the next one when the preferred agent is unavailable, the reason shown, and tasks that move to another agent partway through without losing work.",
+      "summary": "Preferred agents with live availability, rechecked loans, retained readiness wakes, recall delivered once, reviewer shortages blocking merge, retained handoffs, and namespace and real file ownership checks for scheduler, team and runners within original caps.",
       "area": "agents"
     },
     {

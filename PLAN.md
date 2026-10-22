@@ -15279,6 +15279,85 @@ restore paths are proven by live probes. Manual's words stand unchanged;
 they hold on Muse Code 1.4.7 and later. Record:
 `docs/certification/manualmode.md`.
 
+### D212 — Secondary roles: a busy role borrows an idle agent, and gives it back (M120, 2026-10-09; numbered D109 on the rig branches until the 0.19.0 join, when that number was found shared with main's D109 model-call turn limits)
+
+The owner, 2026-10-09: "i want to be able to assign fallback roles to agents
+so they have the main role but if all of a certain type of lane needs help
+... a codex agent is assigned a role as a review agent and all of the coding
+slots are consumed the coding could fallback to that review agent ... if the
+review agent is needed its main role needs to resume priority and there
+should be timers on this so an agent is not pulled ... if they have work very
+soon in the pipeline and we dont want them assigned to that sub role if it
+just became needed it should be a minute or longer". Lead's calls on the
+name and the timers are below. This extends D103; it does not replace it.
+
+- **The name.** Every agent (D103 candidate) has one **main role** and may
+  have **secondary roles**, in order. The panel says "Main role: Review ·
+  Also helps with: Coding". Lending an agent to a secondary role is
+  **borrowing**; taking it back is a **recall**.
+- **When a role may borrow.** All of these hold:
+  - the role has a task that has waited at least the **demand wait** (60 s
+    by default, never less than 60 s) with every candidate on its own
+    preference list busy, capped, rate-limited or unavailable, the whole
+    time (a main candidate freeing up in the window cancels the borrow);
+  - the agent lists that role as a secondary role, meets the task's
+    conditions (D103: platform, tools; review ≠ author), and is under its
+    own caps and the team's;
+  - the agent has no running task and no main-role work **due soon**: none
+    of its main role's tasks is queued (at any lookahead, 0 included), and
+    no running task that will produce main-role work for it (a coding lane
+    that will need a review, a review that will need a fix) is expected to
+    finish within the **lookahead** (10 min by default). The expected finish
+    comes from the running task's time box and the role's recorded median
+    duration;
+  - the agent has not come back from a borrow within the **cooldown**
+    (3 min by default).
+- **Who is borrowed first.** The agent whose main role is idlest: the
+  longest expected time to its next main-role work, then the agent's own
+  secondary-role order, then the borrowing role's preference list order.
+- **One task at a time.** A borrowed agent takes one task. When it ends,
+  the agent returns to its main role before it can be borrowed again.
+- **The main role takes it back.** Unmet main-role tasks pair with borrowed
+  agents that meet their conditions by maximum bipartite matching; agents
+  already asked go first, then the earliest to finish, only as a
+  deterministic tie-break among maximum matchings. When main-role work
+  arrives for a borrowed agent, and no other main candidate can take it:
+  - a borrowed task finishes first only while `now` and its expected finish
+    are both inside the **finish grace** (5 min by default) counted from
+    when unmet main-role work first appeared for that agent (the earliest
+    `unmetSinceMs` it can take); a task already past its expected finish
+    gets no grace;
+  - otherwise the agent is recalled at the task's next safe point, waiting
+    at most the **recall wait** (2 min by default). The D103 handoff
+    captures the work: commits, uncommitted diff, new files, a progress
+    note. The task goes back to the head of its role's queue, keeping its
+    place. If no safe point comes within the recall wait, the agent is
+    stopped and the work is captured the same way, so nothing is lost.
+  - if a main candidate frees up first, the main-role work goes there, and
+    the borrow continues.
+- **Review ≠ author, through borrowing.** An agent that coded a task as a
+  borrowed coder never reviews that task, and neither does its engine (D103).
+- **Meters and money.** A borrowed agent's use counts against its own caps
+  and the borrowing role's pool caps. Paid extras still ask once before the
+  first charge (D78). Borrowing never raises a cap.
+- **Shown, not hidden.** The roster and the panel show "Codex: Review,
+  helping with Coding (since 14:02)". Every skip has a reason ("not
+  borrowed: a review is due in about 4 min"). A recall shows why. The task
+  report records each borrow and each recall in the D103 chain.
+- **Settings.** Each role's advanced settings hold the demand wait,
+  lookahead, finish grace, recall wait and cooldown, with the defaults above.
+  The demand wait cannot go below 60 s. The preference editor sets an
+  agent's secondary roles by drag and drop, in every editor.
+- **Defaults.** A user with no team, or with no secondary role set, sees no
+  change; golden requests stay byte-identical. The built-in team templates
+  set sensible secondary roles out of the box (enhancements on by default):
+  `frontend` and `backend` help each other and `engineering`; `review` helps
+  `engineering`. The user can clear them.
+- **Fleet first.** The lead's rig fleet follows the same rules. In
+  `scratchpad/rig-lanes/roles.json`, the review engine's secondary role is
+  coding, with the same timers. Every borrow and recall is logged to
+  `fleet-outcomes.tsv`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -33884,9 +33963,179 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-### M120 — Preferred agents, availability routing and lane handoff (D103)
+### M120 — Preferred agents, availability routing and lane handoff (D103, D212)
 
-**Status 2026-10-08: planned.**
+**Status 2026-10-22: core built.** Status evidence: `docs/certification/m120.md`.
+Lane 0, S and 5 receipts: `docs/certification/m120-0.md`, `docs/certification/m120-s.md`,
+`docs/certification/m120-5.md`.
+
+**Lane S 2026-10-09: core built; production bundle qualification blocked by
+the accepted base's What's New encoder bound.**
+
+Lane S connects the lane-0 preference contracts to pool and scheduler selection,
+with live probe facts, capability checks and author exclusions. Scheduler ticks
+build borrowing snapshots from the board, preserve unmet-demand windows, record
+borrows in the journalled chain and emit recall decisions to an explicit lane-H
+consumer. Legacy D75 selection and requests remain unchanged without preferences.
+M95 currently sends OpenRouter's provider order to the service; it has no local
+configured-candidate selector to replace. Lane W owns installed host bindings;
+lane H owns stopping and capturing work. Lane S receipts: `docs/certification/m120-s.md`.
+
+**Lane S round 2 (RVM120SG, 2026-10-09).** Repair all four P2 findings:
+borrowing evaluates once per wake, with stable recall ids delivered exactly
+once outside the drain and safe scheduler re-entry; agent identities and
+review exclusions use their own assignment/task snapshots; tasks without
+preferences keep D75 selection and do not enter borrowing; exhausted reviewer
+preferences block review/merge with skips and the role's exhaustion policy.
+Add the reviewer's reproductions before fixes, prove each guard by byte-exact
+red drills, run all team suites and request goldens at repository timeouts,
+and certify changed-file formatting/lint and all five typechecks. No merge,
+push, live/paid call or aggregate quality (lead-owned under the rig brief).
+
+**Lane S round 3 (RVM120S2C, 2026-10-09).** Make loans authoritative
+board records carrying their assignment/candidate/entry authorization. Every
+projection and authorization recheck synchronously validates those records,
+native-candidate recovery and main-role demand; active loans retain recall
+ownership even after assignments disappear. Every ready task protects its
+main-role lenders and participates in recall, including legacy tasks that
+cannot themselves borrow. Pool selection and reviewer selection share one
+recoverability classification for live skips. Retain the review reproductions
+and add deterministic random fake-clock interleavings covering arrivals,
+completion, authorization changes, cooldowns and recalls. Prove each guard
+with byte-exact drills, run complete team suites/request goldens and scoped
+gates at repository deadlines. Aggregate quality and the inherited encoder
+blocker remain lead-owned; no merge, push or live/paid calls.
+
+**Lane S round 4 (RVM120S3C, 2026-10-09).** Revalidate the board's
+loan authorization and D212 lending conditions synchronously after the
+launch journal's last await, immediately before starting the worker. A
+refused unstarted attempt returns to its queue and its journal is closed;
+no process-retirement proof is fabricated. Latch readiness wakes through
+the final journal write and drain again before resolving them. Retain both
+reviewer reproductions, extend the seeded property with journal-boundary
+revocation and overlapping wakes, and prove both guards with byte-exact
+drills. Run complete team suites/request goldens, scoped formatting/lint
+and one unit-project typecheck at repository deadlines. Aggregate quality and the
+accepted production-build blocker remain lead-owned under the rig brief.
+
+**Lane S round 5 — redesign (RVM120S4C, host, 2026-10-10).** Five rounds
+of patches to the final launch gate kept finding P2s, because the gate re-ran
+selection against counts that already held its own admission, and drain
+ownership was released after the last latch check. The launch is now one
+reservation. After consent, one synchronous step ranks the task against live
+facts and counts the attempt (turn, caps, lender slot), recording the loan it
+holds. After the launch journal, the gate only validates that reservation:
+the board still carries the same unrecalled loan on this attempt, the
+assignment, candidate and home entry still authorize it, and the lender is
+live and idle. D212's lending conditions must also still hold, with main
+candidates asked whether they could take this admission in the lender's
+place. The worker starts in the same synchronous step. A refused reservation
+is closed and refunded exactly once through the new
+`BoardContext.refundAttempt`, and its slot and lease go back. Pause or Stop
+during the journal keeps the existing uncertain liability. One drain owner
+loops until the wake latch is clear and releases ownership in that same
+synchronous step. Ownership is published before the first pass, so a
+re-entrant wake joins it. D212's rules and timers are unchanged. Receipts:
+`docs/certification/m120-s.md`, round 5.
+
+**Round 5 redesign, fix 1 (RVM120S5C, host, 2026-10-10).** The review found
+that the gate read fewer facts than admission. It skipped installed agent
+availability, work outside the task board, and the live Default identity of
+a Default lender. As the lead ruled, one admission predicate for a (task,
+lender, reservation) triple now serves both sides. The borrowing tick, the
+per-pass loan re-validation and the final gate all call it. Selection
+additionally ranks and reserves. The gate re-evaluates only the predicate,
+setting aside its own reservation once, and refunds exactly once on refusal.
+The predicate's facts are named in `LOAN_FACTS`, and a property flips each one
+during the launch journal. That gives a test for every fact, and a new fact
+without a flip fails the typecheck and the coverage test. The running maps in
+the selection snapshot now state that they include admissions journalled but
+not yet started.
+
+**M120CAP (2026-10-10): scheduler bundle qualification.** Measure the
+accepted `6fa76bdf0` scheduler with production options and record its top 25
+inputs, D212/core/rare-path composition and duplication. Share the scheduler
+tool factory through the existing team bundle before considering any cap
+change; keep the normal tick synchronous and behavior unchanged. Re-measure,
+prove the shared implementation and size gate fire with byte-exact drills,
+run scheduler/selection and bundle suites plus scoped static checks, and
+record results in `docs/certification/m120-s.md`. The brief permits a cap of
+floor(measured bytes × 1.15) only if genuine scheduler code still exceeds the
+existing cap after trimming. Aggregate quality and the inherited What's New
+encoder blocker remain lead-owned; no merge, push or live/paid calls.
+
+**M120CAP result (2026-10-10):** the scheduler measures 65,533 B, down
+from 89,070 B; `team.js` grows 3,478 B and the three team bundles save
+20,059 B in total. The original 76,800 B cap remains unchanged. No new
+lazy chunk is needed. Scoped suites and byte-exact guard drills certify the
+shared factory and cap in `docs/certification/m120-s.md`; the inherited
+aggregate encoder failure remains a separate integration blocker.
+
+**M120CAP round 2 (RVM120CAP, 2026-10-10): reverse ownership.** Keep
+every scheduler implementation under `src/core/team/scheduler/` and the
+scheduler's entry, pool, selector, reviewer, borrowing and same-model helpers
+out of `team.js`. Only the existing stateless tool factory, declarations,
+roster support and model text are shared there; common boundary schemas and
+utilities retain their existing readers. Add an in-memory production import
+regression, positive shared-module coverage and Windows-path cases. Remove
+the ownership rule once to prove the regression fails, restore byte-exact by
+SHA-256, then rerun bundle suites, teamRuntimePackage, one unit-project tsc,
+changed-file ESLint/Prettier and documentation freshness checks. No cap,
+runtime behavior, merge, push or live/paid call changes; aggregate quality
+and the inherited encoder blocker remain lead-owned.
+
+- [x] Add and prove the reverse scheduler ownership guard.
+- [x] Complete scoped verification and certify the drill (210 tests pass;
+      CAP3 fails with 31 regressions and restores byte-exact).
+- [x] Commit with installed hooks and review their committed diff.
+
+**M120CAP round 3 (RVM120CAP2, 2026-10-10): graph ownership.** Replace
+the scheduler filename/directory ownership list with reachability from all
+three production entry graphs. Every source module has one entry owner or
+is shared. The build's shared source location is `src/shared/`; shared
+modules retain their existing readers there. Implementation outside that
+location cannot become shared through a cross-bundle import. External
+bundle imports are graph boundaries, including the existing scheduler tool
+factory in `team.js`. Check every emitted source against its graph owners
+in all six scheduler/team/runners directions, including zero-byte shims.
+Prove renamed implementations/re-exports, future folders inside and outside
+`src/`, and Windows paths with regressions and byte-exact red/restored
+drills. Keep all three
+76,800 B caps, production bytes and runtime behavior unchanged. No merge,
+push, new dependency or live/paid call; aggregate quality stays lead-owned.
+
+- [x] Replace ownership lists and sweep all team bundle pairs.
+- [x] Prove every directed pair, renamed shim, future folder and Windows paths.
+- [x] Run scoped gates, record drills and unchanged size receipts (204 tests,
+      five typechecks; full build retains the inherited encoder blocker).
+- [x] Commit with installed hooks and reread committed diff (all nine file
+      hashes unchanged by hooks; implementation `e45c046f4`).
+
+**M120CAP round 4 (RVM120CAP3, 2026-10-10): namespace ownership.**
+Classify every team metafile input by esbuild namespace before applying
+filesystem rules. Only file inputs resolved inside the repository can be
+shared under `src/shared/` or treated as installed dependencies. Reject
+outside-repository files and symlink aliases into shared source. Other
+namespaces belong to one reaching entry; multiple readers require an exact
+ID allowlist beside the generating build plugins (empty for today's build).
+This applies to graph inputs even when tree-shaken from every output or
+reached through a real installed dependency.
+Production metafiles use relative file IDs; reject ambiguous drive-prefixed
+IDs, which a single-letter plugin namespace can also create.
+Cover shared/dependency-prefix impersonation, data URLs, file aliases and
+all six ownership directions with regressions and byte-exact red drills.
+Keep caps, production bytes, dependencies and runtime behavior unchanged.
+No merge, push, live/paid calls or aggregate quality; lead owns integration.
+
+- [x] Add namespace and canonical-file classification; sweep sibling bypasses.
+- [x] Prove regressions fail on the reviewed guard and in deliberate drills
+      (26 reviewed-guard failures; CAP6: 16 red, CAP7: six red, CAP8: one,
+      CAP9: 12, CAP10/CAP11: one each; byte-exact restore).
+- [x] Run scoped gates and record unchanged artifacts and inherited encoder
+      blocker (670 tests in 15 complete files; five typechecks plus final unit
+      recheck; production bytes and all three 76,800 B caps unchanged).
+- [x] Commit with installed hooks and reread staged and committed diffs
+      (implementation `0f2b025db`; all seven file hashes and patch unchanged).
 
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
@@ -33899,12 +34148,17 @@ Final evidence is recorded in `docs/certification/macslow.md`.
     area hints, task-to-role routing, split-or-cross-review for mixed
     tasks, and user-defined specializations;
   - S, selection: the live availability, skip reasons and conditions,
-    including review ≠ author;
+    including review ≠ author; D212 borrowing (demand wait, due-soon
+    lookahead, cooldown, idlest-first) on the same clock and board;
   - H, handoff: safe points, stopping the tree, capturing work, the resume
-    brief and the chain record;
+    brief and the chain record; D212 recall (finish grace, recall wait,
+    back to the head of the queue);
   - P, panel: the preference editor and "Move to…" in every editor;
   - W, wiring into D75 pools, M100/M110 routing, the judge engine, M95
     provider order and M116 dispatch.
+  - 5, outcomes: the per-role, per-candidate recorder, reorder suggestions
+    and opt-in per-role auto-order (D103 19076-19086); receipt
+    `docs/certification/m120-5.md`.
 - **Acceptance:**
   - the preferred candidate is used when available, and the next one when
     it isn't, with the reason shown;
@@ -33915,10 +34169,36 @@ Final evidence is recorded in `docs/certification/macslow.md`.
   - a front-end task goes to the `frontend` preference list and a back-end
     task to `backend`, with the reason shown;
   - a mixed task is split, or cross-reviewed by the other specialist;
+  - D212, on an explicit clock: a role borrows only after 60 s of unmet demand
+    and never an agent with main-role work due within the lookahead; a
+    main-role task recalls the borrowed agent (finish grace honoured,
+    recall wait bounded, work captured, task back at the queue head); the
+    cooldown stops thrash; a borrowed coder never reviews its own task;
   - reorder suggestions come from recorded outcomes, and nothing reorders
     by itself unless the user opts in;
   - a single-model user sees no change (golden requests byte-identical);
   - the same thing works in every editor.
+
+**M120 landing (RLM120, 2026-10-22, macbook).** The six-branch chain
+(`src/RLM120/01-c-m120-5` … `06-m120-contracts`) landed onto 0.19.0 as a
+merge, resolved for current main: unbounded queue and scheduler waits
+(D121), UsdAmount costs, the preference-aware selector as the single home
+in `selection.ts`, and the branch's D109 renumbered to D212 (main holds
+D109 for model-call turn limits). Fake-driven suites the test overhaul
+deleted stay deleted; the M120 suites run over real code with explicit
+clocks and recording closures. No RLM96 content exists to merge
+(`rec/rlm96b` stands at the base): W wires lane S into main's own pools,
+M95 provider order and M116 dispatch records directly.
+
+Lanes R, H, P and W are core-built and proven: routing, handoff execution,
+preference writers with Move to…, and live wiring, in
+`src/core/team/codingRoles.ts`, `src/core/team/handoff.ts`,
+`src/core/team/preferences.ts` and `src/core/team/liveWiring.ts`, with
+`board.moveToRole` on the task board. Proof: the mid-edit kill drill and
+the single-model golden in `test/unit/team/teamKillDrill.test.ts`. The
+panel editor UI surface and installed host bindings remain open; every
+other lane-0 "pending" line (installed bindings, handoff execution, pool
+wiring) is now built at the core. Receipt: `docs/certification/m120.md`.
 
 ### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
 
@@ -34880,6 +35160,24 @@ alone cannot close the macOS-only outline/image failure or M118 ACP timeout.
 Record the missing platform receipts and failure-stage diagnostics in
 `docs/certification/cifix017.md`; this is a qualification deferral, not a
 release-green claim.
+
+**M120CAP round 4 qualification (2026-10-10, linuxlt).** Namespace and
+real-file ownership regressions, byte-exact drills and scoped gates are
+certified in `docs/certification/m120-s.md`. The accepted base's full build
+still fails at the What's New content decode bound before aggregate emission;
+the encoder and its cap are outside this lane's authorized files. Independent
+production team builds match the prior bytes and hashes within all original
+caps. Aggregate quality/build/package qualification remains lead-owned under
+the rig/common brief; no gate or threshold is waived.
+
+**M120 plan-budget deferral (RLM120, 2026-10-22, macbook).** Landing the
+required six-branch chain grew `PLAN.md` from 3563591 to 3581369 bytes
+against the 85% archive gate of 3565158 (over by 16211; this lane's own
+records add 1446 more, over by 17657). The archive procedure proves each
+move by merging every open branch; those branches are not on this rig, so
+archiving here could strand them. No gate is weakened and none is waived:
+`check:plan` keeps failing loudly until the lead's archive pass moves
+closed history. This paragraph is that pass's pointer.
 
 **CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
 release head's two full What's New releases serialize to 79,510 bytes,

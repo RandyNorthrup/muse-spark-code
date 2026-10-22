@@ -5308,6 +5308,23 @@ export const EN = {
   teamSwitchReasonReset: 'headroom back after reset',
   teamPoolNotStaffed: 'Role {role} has no entries in its pool: it is not staffed.',
   teamCapExceeded: '{entry} has no {measure}/{window} headroom left ({used} of {amount} used).',
+  teamRouteReason: 'Task matches the {role} area ({areas}).',
+  teamRouteNoMatch: 'Task matches no role area; it stays with engineering.',
+  teamRouteSplit: 'Split across {roles}.',
+  teamRouteCrossReview: '{author} work, cross-reviewed by {reviewer}.',
+  teamResumeBriefEmpty: 'Task {task} is new to {candidate}: no earlier work to resume.',
+  teamResumeBriefBorrow:
+    'Task {task} continues with {candidate}: borrowed from {lender} for {role}.',
+  teamResumeBriefRecall:
+    'Task {task} returns to {candidate}: the recall ended {ending}. Resume from {diff}: {commits}; new files: {files}.',
+  teamResumeBriefMove:
+    'Task {task} moves from {from} to {candidate}: {trigger}. Resume from {diff}: {commits}; new files: {files}.',
+  teamResumeBriefNoDiff: 'no diff',
+  teamResumeBriefNoCommits: 'no commits',
+  teamResumeBriefNoFiles: 'none',
+  teamCodingRoleFrontend: 'Build what the person sees: panels, pages, styles and interactions.',
+  teamCodingRoleBackend: 'Build what serves it: APIs, storage, workers and their contracts.',
+  teamCodingRoleEngineering: 'Build the shared core both sides run on: logic, tools and wiring.',
   // Inline completions (M94, PLAN.md D73): the paid feature, the
   // once-per-window popup (Q-M94a), the status bar with its menu, the snooze
   // and the Account & usage row. {price} is a dollar amount in the display
@@ -6622,6 +6639,11 @@ export const EN = {
   teamSuggestFallback: 'One entry only: add a fallback ({model}).',
   teamSuggestBudgetCaps: 'Day caps that fit the daily budget left: {amount}.',
   teamSuggestLearned: '{median} from your last {count} {role} tasks.',
+  // Reorder suggestion from recorded outcomes (D103, M120 lane 5). {better}
+  // moves above {worse}: each named with its first-review acceptances and
+  // tasks; {role} is the role id the panel already shows.
+  teamOutcomeReorderReason:
+    '{better}: {betterAccepted} of {betterTasks} {role} tasks accepted on first review; {worse}: {worseAccepted} of {worseTasks}.',
   teamPreviewTitle: 'Preview',
   teamPreviewSample: 'Sample Task',
   // {cost}: the labelled cost of one orchestrator turn.

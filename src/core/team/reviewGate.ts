@@ -6,7 +6,7 @@
 // same-model review is refused instead of marked. Pure: no git, no
 // `vscode`.
 
-import type { ReviewPick } from './reviewerPick'
+import type { ReviewPick, ReviewUnavailable } from './reviewerPick'
 
 export interface ReviewGateState {
   /** The branch head a review already covered, if any. */
@@ -16,7 +16,7 @@ export interface ReviewGateState {
   /** The branch's current head. */
   readonly branchHead: string
   /** The pick for this branch, if any reviewer has headroom. */
-  readonly reviewer: ReviewPick | undefined
+  readonly reviewer: ReviewPick | ReviewUnavailable | undefined
   /** `.muse/team.json` requires a reviewer of a different model. */
   readonly requireDifferentModel: boolean
 }
@@ -35,6 +35,7 @@ export type ReviewGateVerdict =
     }
   /** Same-model review, but the repository requires a different model. */
   | { readonly ok: false; readonly reason: 'sameModelRefused' }
+  | ({ readonly ok: false; readonly reason: 'noneEligible' } & Omit<ReviewUnavailable, 'kind'>)
 
 export function reviewGate(state: ReviewGateState): ReviewGateVerdict {
   if (state.reviewedHead !== undefined && state.reviewedHead === state.branchHead) {
@@ -49,6 +50,15 @@ export function reviewGate(state: ReviewGateState): ReviewGateVerdict {
   const reviewer = state.reviewer
   if (reviewer === undefined) {
     return { ok: true, review: 'notReviewed' }
+  }
+  if ('kind' in reviewer) {
+    return {
+      ok: false,
+      reason: 'noneEligible',
+      roleId: reviewer.roleId,
+      skips: reviewer.skips,
+      exhausted: reviewer.exhausted,
+    }
   }
   if (reviewer.sameModel && state.requireDifferentModel) {
     return { ok: false, reason: 'sameModelRefused' }

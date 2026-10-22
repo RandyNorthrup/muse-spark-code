@@ -251,8 +251,8 @@ const LAZY_ONLY = [
 // metafiles hundreds of times, which made one run take seconds.
 const metafiles = new Map()
 
-/** The bundle's source files and the bytes each contributed, from its metafile. */
-function inputsOf({ output, metafile }) {
+/** Read the full graph, including re-exports that contribute no output bytes. */
+function metafileOf({ metafile }) {
   if (!existsSync(metafile)) {
     throw new Error(`${metafile} is missing: run "node scripts/build.mjs --production" first`)
   }
@@ -261,6 +261,12 @@ function inputsOf({ output, metafile }) {
     parsed = JSON.parse(readFileSync(metafile, 'utf8'))
     metafiles.set(metafile, parsed)
   }
+  return parsed
+}
+
+/** The bundle's source files and the bytes each contributed, from its metafile. */
+function inputsOf({ output, metafile }) {
+  const parsed = metafileOf({ metafile })
   const bundle = Object.entries(parsed.outputs).find(
     ([file]) => file.replaceAll('\\', '/') === output,
   )?.[1]
@@ -1124,7 +1130,7 @@ for (const file of readdirSync('src/core/tab')) {
   if (file.endsWith('.ts') && !tabFiles.includes(`src/core/tab/${file}`))
     problems.push(`src/core/tab/${file} is absent from the deferred Tab inventory`)
 }
-problems.push(...checkDeferredBundles(inputsOf))
+problems.push(...checkDeferredBundles(inputsOf, metafileOf))
 
 // ACTDIET: ACP shares the journal before session initialization or report reading.
 const acpMeta = JSON.parse(readFileSync(BUNDLES.acp.metafile, 'utf8'))

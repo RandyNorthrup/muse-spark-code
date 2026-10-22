@@ -220,6 +220,8 @@ const BUDGETS = [
   // R4 follow-up: first-merge flow, 9.6 KiB measured +15%, rounded up.
   { path: 'dist/teamMerge.js', budgetKiB: 12 },
   // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
+  // M120CAP (2026-10-10): scheduler 65,533 B after sharing team tools;
+  // retain M96c X2's original cap. Receipt: docs/certification/m120-s.md.
   { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
   // loaded the first time a session holding one runs a hook: 64.9 KiB when
