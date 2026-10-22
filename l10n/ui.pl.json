@@ -1899,7 +1899,26 @@
       "paused": "Strażnik dla {repository} wstrzymany.",
       "resumed": "Strażnik dla {repository} wznowiony.",
       "alreadyPaused": "Strażnik dla {repository} jest już wstrzymany.",
-      "notPaused": "Strażnik dla {repository} nie jest wstrzymany."
+      "notPaused": "Strażnik dla {repository} nie jest wstrzymany.",
+      "invalidRepository": "Podaj repozytorium jako właściciel/nazwa.",
+      "watching": "Obserwowanie {repository}."
+    },
+    "poll": {
+      "skippedPullRequest": "żądanie ściągnięcia, nie zgłoszenie",
+      "skippedLocked": "zablokowane",
+      "skippedAuthor": "ignorowany autor",
+      "skippedLabels": "poza obserwowanymi etykietami",
+      "alreadyAcked": "już potwierdzone",
+      "ackPosted": "potwierdzone"
+    },
+    "verdicts": {
+      "valid": "Prawidłowe",
+      "needsInfo": "Wymaga informacji",
+      "duplicate": "Duplikat",
+      "alreadyFixed": "Już naprawione",
+      "inHand": "W toku",
+      "invalid": "Nieprawidłowe",
+      "spam": "Spam"
     },
     "refusal": {
       "spamHeld": "Wstrzymano jako podejrzany spam: nic nie opublikowano.",

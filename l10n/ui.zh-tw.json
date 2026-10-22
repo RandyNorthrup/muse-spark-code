@@ -1812,7 +1812,26 @@
       "paused": "已暫停 {repository} 的看守。",
       "resumed": "已恢復 {repository} 的看守。",
       "alreadyPaused": "{repository} 的看守已處於暫停狀態。",
-      "notPaused": "{repository} 的看守未處於暫停狀態。"
+      "notPaused": "{repository} 的看守未處於暫停狀態。",
+      "invalidRepository": "請按 擁有者/名稱 的格式指定儲存庫。",
+      "watching": "正在監視 {repository}。"
+    },
+    "poll": {
+      "skippedPullRequest": "是提取請求，而非問題",
+      "skippedLocked": "已鎖定",
+      "skippedAuthor": "已忽略的作者",
+      "skippedLabels": "監視標籤範圍之外",
+      "alreadyAcked": "已確認",
+      "ackPosted": "已確認"
+    },
+    "verdicts": {
+      "valid": "有效",
+      "needsInfo": "需要資訊",
+      "duplicate": "重複",
+      "alreadyFixed": "已修復",
+      "inHand": "處理中",
+      "invalid": "無效",
+      "spam": "垃圾訊息"
     },
     "refusal": {
       "spamHeld": "因疑似垃圾訊息已被扣留：未發佈任何內容。",

@@ -1812,7 +1812,26 @@
       "paused": "{repository} のウォッチドッグを一時停止しました。",
       "resumed": "{repository} のウォッチドッグを再開しました。",
       "alreadyPaused": "{repository} のウォッチドッグは既に一時停止しています。",
-      "notPaused": "{repository} のウォッチドッグは一時停止していません。"
+      "notPaused": "{repository} のウォッチドッグは一時停止していません。",
+      "invalidRepository": "リポジトリは owner/name 形式で指定してください。",
+      "watching": "{repository} を監視しています。"
+    },
+    "poll": {
+      "skippedPullRequest": "issue ではなくプルリクエスト",
+      "skippedLocked": "ロック中",
+      "skippedAuthor": "無視する作成者",
+      "skippedLabels": "監視対象ラベル外",
+      "alreadyAcked": "受領済み",
+      "ackPosted": "受領しました"
+    },
+    "verdicts": {
+      "valid": "有効",
+      "needsInfo": "情報が必要",
+      "duplicate": "重複",
+      "alreadyFixed": "修正済み",
+      "inHand": "対応中",
+      "invalid": "無効",
+      "spam": "スパム"
     },
     "refusal": {
       "spamHeld": "スパムの疑いで保留されました: 何も投稿されていません。",
