@@ -6,9 +6,17 @@
 // installs from the index only. Pure.
 
 import * as z from 'zod/mini'
+import { packNameSchema } from '../../../shared/profile'
 
 /** A dotted numeric version with an optional prerelease suffix. */
 export const versionSchema = z.string().check(z.regex(/^\d+(\.\d+)*(-[0-9A-Za-z.]+)?$/))
+
+/** One machine kind an artifact runs on. Absent means every machine. */
+export const packPlatformSchema = z.strictObject({
+  os: z.enum(['linux', 'darwin', 'windows']),
+  arch: z.enum(['x64', 'arm64']),
+})
+export type PackPlatform = z.infer<typeof packPlatformSchema>
 
 /** One upstream artifact a pack installs, pinned by version and URL. */
 export const packArtifactSchema = z.strictObject({
@@ -20,6 +28,8 @@ export const packArtifactSchema = z.strictObject({
   sha256: z.optional(z.string().check(z.regex(/^[0-9a-f]{64}$/))),
   /** The artifact's bytes, measured by the pack build. */
   sizeBytes: z.optional(z.number().check(z.int(), z.gte(0))),
+  /** The machines this artifact runs on; absent runs everywhere. */
+  platforms: z.optional(z.array(packPlatformSchema).check(z.minLength(1))),
 })
 export type PackArtifact = z.infer<typeof packArtifactSchema>
 
@@ -44,7 +54,7 @@ export type PackConstraint = z.infer<typeof packConstraintSchema>
 
 /** One toolchain pack definition, as deploy/packs/ carries it. */
 export const packDefinitionSchema = z.strictObject({
-  name: z.string().check(z.minLength(1)),
+  name: packNameSchema,
   version: versionSchema,
   description: z.string().check(z.minLength(1)),
   license: z.string().check(z.minLength(1)),

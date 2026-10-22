@@ -9,9 +9,16 @@ import { createHash } from 'node:crypto'
 import { appendFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import type { ExperienceName } from '../../../shared/profile'
 import { TOOLCHAINS_FILE, toolchainsSchema, type ToolchainPack } from '../../../shared/toolchains'
-import { checkConstraints, packDefinitionSchema, type PackDefinition } from './definition'
+import { personaPacks, type PackName, type Persona } from '../../../shared/profile'
+import {
+  checkConstraints,
+  compareVersions,
+  packDefinitionSchema,
+  type PackArtifact,
+  type PackDefinition,
+  type PackPlatform,
+} from './definition'
 import {
   installedToolchainVersions,
   packIndexSchema,
@@ -62,40 +69,18 @@ export type PackRefusal =
   | 'in-use'
   | 'downgrade'
   | 'expired'
+  | 'unsupported-platform'
 
 export type PackVerdict =
   | { readonly ok: true; readonly notice?: 'cached-index' | undefined }
   | { readonly ok: false; readonly reason: PackRefusal; readonly detail: string }
 
-/**
-The packs each experience stands on (M110t TP2): the base underneath,
-then the stack. Unity has none: the editor is not a pack, and the note
-says so.
-*/
-export function packsForExperience(experience: ExperienceName): readonly string[] {
-  switch (experience) {
-    case 'node': {
-      return ['base', 'node']
-    }
-    case 'python': {
-      return ['base', 'python']
-    }
-    case 'rust': {
-      return ['base', 'rust']
-    }
-    case 'go': {
-      return ['base', 'go']
-    }
-    case 'flutter': {
-      return ['base', 'flutter']
-    }
-    case 'polyglot': {
-      return ['base', 'node', 'python', 'rust', 'go']
-    }
-    case 'unity': {
-      return []
-    }
-  }
+/** One offered update: the pack, its versions, and the download bytes. */
+export interface PackUpdate {
+  readonly pack: string
+  readonly installed: string
+  readonly available: string
+  readonly bytes: number
 }
 
 export interface PackFetch {
@@ -113,6 +98,10 @@ export interface PackManagerDeps {
   readonly now: () => Date
   readonly verifySignature: (bytes: Uint8Array) => Promise<boolean>
   readonly governed: (work: () => Promise<void>) => Promise<void>
+  /** This machine, as `process.platform` and `process.arch` name it. */
+  readonly host: { readonly os: string; readonly arch: string }
+  /** Packs whose click-through licence the person accepted on the device. */
+  readonly acceptedClickThrough: readonly string[]
 }
 
 const INDEX_FILE = 'index.json'
@@ -122,6 +111,17 @@ const LAYERS_DIR = 'layers'
 const PACKS_DIR = 'packs'
 /** The range answer that continues a partial download instead of restarting it. */
 const HTTP_PARTIAL_CONTENT = 206
+/** `process.platform` names the packs know. */
+const HOST_OS: ReadonlyMap<string, PackPlatform['os']> = new Map([
+  ['linux', 'linux'],
+  ['darwin', 'darwin'],
+  ['win32', 'windows'],
+])
+/** `process.arch` names the packs know. */
+const HOST_ARCH: ReadonlyMap<string, PackPlatform['arch']> = new Map([
+  ['x64', 'x64'],
+  ['arm64', 'arm64'],
+])
 
 function sha256Hex(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex')
@@ -206,6 +206,47 @@ export class PackManager {
     return `${this.layerPath(digest)}.part`
   }
 
+  /** This machine as the packs name it, or nothing when they do not. */
+  private hostPlatform(): PackPlatform | undefined {
+    const os = HOST_OS.get(this.deps.host.os)
+    const arch = HOST_ARCH.get(this.deps.host.arch)
+    return os === undefined || arch === undefined ? undefined : { os, arch }
+  }
+
+  /** The artifacts that run on this machine. */
+  private artifactsForHost(artifacts: readonly PackArtifact[], host: PackPlatform): PackArtifact[] {
+    return artifacts.filter(
+      (artifact) =>
+        artifact.platforms === undefined ||
+        artifact.platforms.some(
+          (platform) => platform.os === host.os && platform.arch === host.arch,
+        ),
+    )
+  }
+
+  /** Download and verify each artifact; anything else refuses. */
+  private async fetchArtifacts(
+    pack: string,
+    version: string,
+    artifacts: readonly PackArtifact[],
+  ): Promise<PackVerdict> {
+    for (const artifact of artifacts) {
+      if (artifact.sha256 === undefined || artifact.sizeBytes === undefined) {
+        await this.audit({ action: 'refuse', pack, version, reason: 'unlocked-artifact' })
+        return { ok: false, reason: 'unverified', detail: `${pack}/${artifact.name}` }
+      }
+      const verdict = await this.downloadArtifact(artifact.url, {
+        sha256: artifact.sha256,
+        sizeBytes: artifact.sizeBytes,
+      })
+      if (!verdict.ok) {
+        await this.audit({ action: 'refuse', pack, version, reason: verdict.reason })
+        return verdict
+      }
+    }
+    return { ok: true }
+  }
+
   /**
   Download one artifact with resume: a partial file continues where it
   stopped when the server answers ranges, else starts over. The bytes
@@ -277,9 +318,10 @@ export class PackManager {
   }
 
   /**
-  Install one pack from the index: its requirements first, compatibility
-  against the installed set, every artifact downloaded and verified,
-  then the record lands. A pack already installed at the same version
+  Install one pack from the index: its licence accepted, its platform
+  known, its requirements first, compatibility against the installed
+  set, every artifact for this machine downloaded and verified, then
+  the record lands. A pack already installed at the same version
   verifies its layers and stands.
   */
   private async installPack(
@@ -291,6 +333,29 @@ export class PackManager {
     if (definition === undefined) {
       await this.audit({ action: 'refuse', pack: name, reason: 'not-found' })
       return { ok: false, reason: 'not-found', detail: name }
+    }
+    if (definition.clickThrough && !this.deps.acceptedClickThrough.includes(name)) {
+      await this.audit({
+        action: 'refuse',
+        pack: name,
+        version: definition.version,
+        reason: 'click-through',
+      })
+      return { ok: false, reason: 'click-through', detail: name }
+    }
+    const host = this.hostPlatform()
+    if (host === undefined) {
+      await this.audit({ action: 'refuse', pack: name, reason: 'unsupported-platform' })
+      return {
+        ok: false,
+        reason: 'unsupported-platform',
+        detail: `${this.deps.host.os}/${this.deps.host.arch}`,
+      }
+    }
+    const artifacts = this.artifactsForHost(definition.artifacts, host)
+    if (artifacts.length === 0) {
+      await this.audit({ action: 'refuse', pack: name, reason: 'unsupported-platform' })
+      return { ok: false, reason: 'unsupported-platform', detail: name }
     }
     if (installing.includes(name)) {
       return {
@@ -308,17 +373,7 @@ export class PackManager {
     const installed = await this.installedPacks()
     const same = installed.get(name)
     if (same?.version === definition.version) {
-      for (const artifact of definition.artifacts) {
-        if (artifact.sha256 === undefined || artifact.sizeBytes === undefined) {
-          return { ok: false, reason: 'unverified', detail: `${name}/${artifact.name}` }
-        }
-        const verdict = await this.downloadArtifact(artifact.url, {
-          sha256: artifact.sha256,
-          sizeBytes: artifact.sizeBytes,
-        })
-        if (!verdict.ok) return verdict
-      }
-      return { ok: true }
+      return await this.fetchArtifacts(name, definition.version, artifacts)
     }
     const conflicts = checkConstraints(definition, installedToolchainVersions(installed.values()))
     if (conflicts.length > 0) {
@@ -335,30 +390,8 @@ export class PackManager {
       })
       return { ok: false, reason: 'conflict', detail }
     }
-    for (const artifact of definition.artifacts) {
-      if (artifact.sha256 === undefined || artifact.sizeBytes === undefined) {
-        await this.audit({
-          action: 'refuse',
-          pack: name,
-          version: definition.version,
-          reason: 'unlocked-artifact',
-        })
-        return { ok: false, reason: 'unverified', detail: `${name}/${artifact.name}` }
-      }
-      const verdict = await this.downloadArtifact(artifact.url, {
-        sha256: artifact.sha256,
-        sizeBytes: artifact.sizeBytes,
-      })
-      if (!verdict.ok) {
-        await this.audit({
-          action: 'refuse',
-          pack: name,
-          version: definition.version,
-          reason: verdict.reason,
-        })
-        return verdict
-      }
-    }
+    const fetched = await this.fetchArtifacts(name, definition.version, artifacts)
+    if (!fetched.ok) return fetched
     await mkdir(path.join(this.root, PACKS_DIR), { recursive: true })
     const record: InstalledPack = { installedAt: this.deps.now().toISOString(), definition }
     await writeFile(
@@ -372,6 +405,30 @@ export class PackManager {
       version: definition.version,
     })
     return { ok: true }
+  }
+
+  /** Drop the packs (and their unshared layers) no experience references. */
+  private async collectUnreferenced(referenced: ReadonlySet<string>): Promise<void> {
+    const installed = await this.installedPacks()
+    // Layers stay while any referenced pack references their digest.
+    const keptDigests = new Set<string>()
+    for (const [name, definition] of installed) {
+      if (referenced.has(name)) {
+        for (const artifact of definition.artifacts) {
+          if (artifact.sha256 !== undefined) keptDigests.add(artifact.sha256)
+        }
+      }
+    }
+    for (const [name, definition] of installed) {
+      if (referenced.has(name)) continue
+      await rm(path.join(this.root, PACKS_DIR, `${name}.json`), { force: true })
+      for (const artifact of definition.artifacts) {
+        if (artifact.sha256 === undefined || keptDigests.has(artifact.sha256)) continue
+        await rm(this.layerPath(artifact.sha256), { force: true })
+        await rm(this.partPath(artifact.sha256), { force: true })
+      }
+      await this.audit({ action: 'remove', pack: name })
+    }
   }
 
   /** Rewrite the capability file from the installed packs. */
@@ -484,26 +541,31 @@ export class PackManager {
 
   /**
   Install an experience: refresh the index (or stand on the cache
-  offline), install its packs in order, count the experience against
-  them, and rewrite the capability file.
+  offline), converge its pack set (the persona's packs, or the person's
+  ticked list), drop what no experience references anymore, and rewrite
+  the capability file. Re-running converges again.
   */
-  async installExperience(experience: ExperienceName): Promise<PackVerdict> {
+  async installExperience(experience: Persona, packs?: readonly PackName[]): Promise<PackVerdict> {
     const refreshed = await this.refreshIndex()
     if ('refusal' in refreshed) {
       return { ok: false, reason: refreshed.refusal, detail: refreshed.detail }
     }
-    const names = packsForExperience(experience)
+    const names = packs ?? personaPacks(experience)
     for (const name of names) {
       const verdict = await this.installPack(name, refreshed.index, [])
       if (!verdict.ok) return verdict
     }
-    const experiences = await this.experiences()
-    if (experiences.every((record) => record.name !== experience)) {
-      await this.writeExperiences([
-        ...experiences,
-        { name: experience, packs: [...names], installedAt: this.deps.now().toISOString() },
-      ])
+    const record = {
+      name: experience,
+      packs: [...names],
+      installedAt: this.deps.now().toISOString(),
     }
+    const experiences = await this.experiences()
+    const next = experiences.some((entry) => entry.name === experience)
+      ? experiences.map((entry) => (entry.name === experience ? record : entry))
+      : [...experiences, record]
+    await this.writeExperiences(next)
+    await this.collectUnreferenced(new Set(next.flatMap((entry) => entry.packs)))
     await this.writeToolchains(await this.installedPacks())
     await this.audit({ action: 'install', experience })
     const notice: 'cached-index' | undefined = refreshed.cached ? 'cached-index' : undefined
@@ -523,34 +585,48 @@ export class PackManager {
     }
     const remaining = experiences.filter((record) => record.name !== experience)
     await this.writeExperiences(remaining)
-    const referenced = new Set(remaining.flatMap((record) => record.packs))
-    const installed = await this.installedPacks()
-    const dropped: string[] = []
-    for (const [name] of installed) {
-      if (!referenced.has(name)) dropped.push(name)
-    }
-    // Layers stay while any remaining pack references their digest.
-    const keptDigests = new Set<string>()
-    for (const [name, definition] of installed) {
-      if (referenced.has(name)) {
-        for (const artifact of definition.artifacts) {
-          if (artifact.sha256 !== undefined) keptDigests.add(artifact.sha256)
-        }
-      }
-    }
-    for (const name of dropped) {
-      const definition = installed.get(name)
-      await rm(path.join(this.root, PACKS_DIR, `${name}.json`), { force: true })
-      const artifacts = definition?.artifacts ?? []
-      for (const artifact of artifacts) {
-        if (artifact.sha256 === undefined || keptDigests.has(artifact.sha256)) continue
-        await rm(this.layerPath(artifact.sha256), { force: true })
-        await rm(this.partPath(artifact.sha256), { force: true })
-      }
-      await this.audit({ action: 'remove', pack: name, experience })
-    }
+    await this.collectUnreferenced(new Set(remaining.flatMap((record) => record.packs)))
     await this.writeToolchains(await this.installedPacks())
     await this.audit({ action: 'remove', experience })
     return { ok: true }
+  }
+
+  /**
+  Offer updates: the installed packs the index has newer than the
+  installed versions, with their versions and download bytes for this
+  machine. Offline with a cache, the offer stands on the cache.
+  */
+  async checkUpdates(): Promise<
+    | { readonly updates: readonly PackUpdate[]; readonly cached: boolean }
+    | { readonly refusal: PackRefusal; readonly detail: string }
+  > {
+    const host = this.hostPlatform()
+    if (host === undefined) {
+      return {
+        refusal: 'unsupported-platform',
+        detail: `${this.deps.host.os}/${this.deps.host.arch}`,
+      }
+    }
+    const refreshed = await this.refreshIndex()
+    if ('refusal' in refreshed) {
+      return { refusal: refreshed.refusal, detail: refreshed.detail }
+    }
+    const installed = await this.installedPacks()
+    const updates: PackUpdate[] = []
+    for (const definition of refreshed.index.packs) {
+      const same = installed.get(definition.name)
+      if (same === undefined || compareVersions(definition.version, same.version) <= 0) continue
+      let bytes = 0
+      for (const artifact of this.artifactsForHost(definition.artifacts, host)) {
+        bytes += artifact.sizeBytes ?? 0
+      }
+      updates.push({
+        pack: definition.name,
+        installed: same.version,
+        available: definition.version,
+        bytes,
+      })
+    }
+    return { updates, cached: refreshed.cached }
   }
 }

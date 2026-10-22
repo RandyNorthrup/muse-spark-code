@@ -1,21 +1,32 @@
-// The pack index and manager (M110t TP1/TP2): locked indexes verify
-// before use, artifacts resume and digest-check, conflicts refuse in
-// words, and experiences share packs by count. The fake server speaks
-// the same HTTP the real one does (200, 206, digests).
+// The pack index and manager (M110t TP1/TP2, D90.27): locked indexes
+// verify before use, artifacts resume and digest-check per machine,
+// conflicts and click-through refuse in words, and persona experiences
+// converge their pack sets with shared packs counted. The fake server
+// speaks the same HTTP the real one does (200, 206, digests).
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
-import type { PackArtifact, PackDefinition } from '../../src/runtime/node/packs/definition'
+import type {
+  PackArtifact,
+  PackDefinition,
+  PackPlatform,
+} from '../../src/runtime/node/packs/definition'
 import { PACK_INDEX_VERSION, verifyIndex, type PackIndex } from '../../src/runtime/node/packs/index'
-import { PackManager, type PackFetch } from '../../src/runtime/node/packs/manager'
+import {
+  PackManager,
+  type PackFetch,
+  type PackManagerDeps,
+} from '../../src/runtime/node/packs/manager'
+import type { Persona } from '../../src/shared/profile'
 import { toolchainsSchema } from '../../src/shared/toolchains'
 
 const NOW = new Date('2026-06-01T00:00:00.000Z')
 const FUTURE = '2027-01-01T00:00:00.000Z'
 const PAST = '2026-01-01T00:00:00.000Z'
+const LINUX_X64 = { os: 'linux', arch: 'x64' }
 
 function sha256Hex(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex')
@@ -25,6 +36,7 @@ function makeArtifact(
   name: string,
   version: string,
   content: string,
+  platforms?: PackPlatform[],
 ): { artifact: PackArtifact; bytes: Uint8Array } {
   const bytes = new TextEncoder().encode(content)
   return {
@@ -35,26 +47,33 @@ function makeArtifact(
       url: `https://packs.example/${name}-${version}.tar.gz`,
       sha256: sha256Hex(bytes),
       sizeBytes: bytes.byteLength,
+      platforms,
     },
   }
 }
 
 function makePack(
-  name: string,
+  name: PackName,
   artifacts: PackArtifact[],
-  options: { requires?: string[]; constraints?: PackDefinition['constraints'] } = {},
+  options: {
+    requires?: string[]
+    constraints?: PackDefinition['constraints']
+    clickThrough?: boolean
+    version?: string
+  } = {},
 ): PackDefinition {
+  const label: string = name
   return {
     name,
-    version: '1.0.0',
-    description: `the ${name} pack`,
+    version: options.version ?? '1.0.0',
+    description: `the ${label} pack`,
     license: 'MIT',
-    languages: name === 'base' ? [] : [name],
-    requires: options.requires ?? (name === 'base' ? [] : ['base']),
+    languages: name === 'shell' || name === 'crosscutting' ? [] : [name],
+    requires: options.requires ?? [],
     artifacts,
-    checks: [{ name: `${name}-check`, command: [name, 'check'] }],
+    checks: [{ name: `${label}-check`, command: [name, 'check'] }],
     constraints: options.constraints ?? [],
-    clickThrough: false,
+    clickThrough: options.clickThrough ?? false,
     checkedAt: '2026-05-01T00:00:00.000Z',
   }
 }
@@ -118,6 +137,35 @@ class FakeServer implements PackFetch {
   }
 }
 
+interface TestWorld {
+  server: FakeServer
+  typescript: PackDefinition
+  python: PackDefinition
+  shell: PackDefinition
+  crosscutting: PackDefinition
+  mobile: PackDefinition
+}
+
+function testWorld(): TestWorld {
+  const tsTool = makeArtifact('node-toolchain', '24.0.0', 'typescript-bytes')
+  const pyTool = makeArtifact('python-toolchain', '3.14.0', 'python-bytes')
+  const shTool = makeArtifact('shell-tools', '1.0.0', 'shell-bytes')
+  const ccTool = makeArtifact('cross-tools', '1.0.0', 'crosscutting-bytes')
+  const sdkTool = makeArtifact('android-sdk', '19.0.0', 'sdk-bytes')
+  const typescript = makePack('typescript', [tsTool.artifact])
+  const python = makePack('python', [pyTool.artifact])
+  const shell = makePack('shell', [shTool.artifact])
+  const crosscutting = makePack('crosscutting', [ccTool.artifact])
+  const mobile = makePack('mobile', [sdkTool.artifact], { clickThrough: true })
+  const server = new FakeServer([typescript, python, shell, crosscutting, mobile])
+  server.serve(tsTool.artifact, tsTool.bytes)
+  server.serve(pyTool.artifact, pyTool.bytes)
+  server.serve(shTool.artifact, shTool.bytes)
+  server.serve(ccTool.artifact, ccTool.bytes)
+  server.serve(sdkTool.artifact, sdkTool.bytes)
+  return { server, typescript, python, shell, crosscutting, mobile }
+}
+
 /** A missing layer reads as absent; anything else fails the test loudly. */
 async function isLayerPresent(file: string): Promise<boolean> {
   try {
@@ -131,28 +179,9 @@ async function isLayerPresent(file: string): Promise<boolean> {
   }
 }
 
-function testPacks(): {
-  base: PackDefinition
-  node: PackDefinition
-  python: PackDefinition
-  server: FakeServer
-} {
-  const baseTool = makeArtifact('base-tool', '1.0.0', 'base-bytes')
-  const nodeTool = makeArtifact('node-toolchain', '24.0.0', 'node-bytes')
-  const pythonTool = makeArtifact('python-toolchain', '3.14.0', 'python-bytes')
-  const base = makePack('base', [baseTool.artifact])
-  const node = makePack('node', [nodeTool.artifact])
-  const python = makePack('python', [pythonTool.artifact])
-  const server = new FakeServer([base, node, python])
-  server.serve(baseTool.artifact, baseTool.bytes)
-  server.serve(nodeTool.artifact, nodeTool.bytes)
-  server.serve(pythonTool.artifact, pythonTool.bytes)
-  return { base, node, python, server }
-}
-
 describe('verifyIndex', () => {
   it('accepts a signed, checksummed, fresh, locked index', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const bytes = server.indexBytes()
     const verdict = await verifyIndex({
       indexBytes: bytes,
@@ -167,7 +196,7 @@ describe('verifyIndex', () => {
   })
 
   it('refuses a bad signature before anything else', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const bytes = server.indexBytes()
     const verdict = await verifyIndex({
       indexBytes: bytes,
@@ -182,7 +211,7 @@ describe('verifyIndex', () => {
   })
 
   it('refuses a checksum mismatch', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const verdict = await verifyIndex({
       indexBytes: server.indexBytes(),
       expectedSha256: '0'.repeat(64),
@@ -196,7 +225,7 @@ describe('verifyIndex', () => {
   })
 
   it('refuses a revision below the installed one, and accepts above', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const bytes = server.indexBytes()
     const options = {
       indexBytes: bytes,
@@ -214,9 +243,9 @@ describe('verifyIndex', () => {
   })
 
   it('refuses an expired or dateless index', async () => {
-    const { base } = testPacks()
+    const { shell } = testWorld()
     for (const expiresAt of [PAST, 'not-a-date']) {
-      const index = makeIndex([base], { expiresAt })
+      const index = makeIndex([shell], { expiresAt })
       const bytes = new TextEncoder().encode(JSON.stringify(index))
       const verdict = await verifyIndex({
         indexBytes: bytes,
@@ -232,10 +261,8 @@ describe('verifyIndex', () => {
   })
 
   it('refuses an index with an unlocked artifact', async () => {
-    const { base } = testPacks()
     const unlocked: PackDefinition = {
-      ...base,
-      name: 'unlocked',
+      ...makePack('shell', []),
       artifacts: [{ name: 'tool', version: '1.0.0', url: 'https://packs.example/tool.tar.gz' }],
     }
     const index = makeIndex([unlocked])
@@ -262,13 +289,18 @@ describe('PackManager', () => {
     await rm(root, { recursive: true, force: true })
   })
 
-  function managerFor(server: FakeServer): PackManager {
+  function managerFor(
+    server: FakeServer,
+    deps: Partial<Pick<PackManagerDeps, 'host' | 'acceptedClickThrough'>> = {},
+  ): PackManager {
     return new PackManager({
       root,
       fetch: server,
       now: () => NOW,
       verifySignature: () => Promise.resolve(server.signatureOk),
       governed: (work) => work(),
+      host: deps.host ?? LINUX_X64,
+      acceptedClickThrough: deps.acceptedClickThrough ?? [],
     })
   }
 
@@ -282,72 +314,108 @@ describe('PackManager', () => {
       .map((line) => auditLineSchema.parse(JSON.parse(line)))
   }
 
+  function layerPath(digest: string): string {
+    return path.join(root, 'layers', digest.slice(0, 2), digest)
+  }
+
   it('installs an experience: packs, layers, capabilities, audit', async () => {
-    const { server, node } = testPacks()
+    const { server, typescript } = testWorld()
     const manager = managerFor(server)
-    const verdict = await manager.installExperience('node')
+    const verdict = await manager.installExperience('web')
     expect(verdict).toEqual({ ok: true, notice: undefined })
     expect(await manager.experiences()).toEqual([
-      { name: 'node', packs: ['base', 'node'], installedAt: NOW.toISOString() },
+      {
+        name: 'web',
+        packs: ['typescript', 'shell', 'crosscutting'],
+        installedAt: NOW.toISOString(),
+      },
     ])
     const installed = await manager.installedPacks()
-    expect(new Set(installed.keys())).toEqual(new Set(['base', 'node']))
-    const digest = node.artifacts[0]?.sha256 ?? ''
-    const layer = await readFile(path.join(root, 'layers', digest.slice(0, 2), digest))
-    expect(layer.toString()).toBe('node-bytes')
+    expect(new Set(installed.keys())).toEqual(new Set(['typescript', 'shell', 'crosscutting']))
+    const digest = typescript.artifacts[0]?.sha256 ?? ''
+    const layer = await readFile(layerPath(digest))
+    expect(layer.toString()).toBe('typescript-bytes')
     const toolchains = toolchainsSchema.parse(
       JSON.parse(await readFile(path.join(root, 'toolchains.json'), 'utf8')),
     )
     expect(toolchains.version).toBe(1)
-    expect(new Set(toolchains.packs.map((pack) => pack.name))).toEqual(new Set(['base', 'node']))
+    expect(new Set(toolchains.packs.map((pack) => pack.name))).toEqual(
+      new Set(['typescript', 'shell', 'crosscutting']),
+    )
     const lines = await auditLines()
     expect(lines.filter((line) => line.action === 'install').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('installing twice verifies the layers and repairs damage', async () => {
-    const { server, node } = testPacks()
+  it('installs a ticked pack list instead of the persona default', async () => {
+    const { server } = testWorld()
     const manager = managerFor(server)
-    expect(await manager.installExperience('node')).toEqual({ ok: true, notice: undefined })
-    const digest = node.artifacts[0]?.sha256 ?? ''
-    await writeFile(path.join(root, 'layers', digest.slice(0, 2), digest), 'tampered!!')
-    expect(await manager.installExperience('node')).toEqual({ ok: true, notice: undefined })
-    const layer = await readFile(path.join(root, 'layers', digest.slice(0, 2), digest))
-    expect(layer.toString()).toBe('node-bytes')
+    expect(await manager.installExperience('web', ['typescript'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
+    expect(await manager.experiences()).toEqual([
+      { name: 'web', packs: ['typescript'], installedAt: NOW.toISOString() },
+    ])
+    const installed = await manager.installedPacks()
+    expect(new Set(installed.keys())).toEqual(new Set(['typescript']))
+  })
+
+  it('re-running converges: dropped packs leave when nothing references them', async () => {
+    const { server } = testWorld()
+    const manager = managerFor(server)
+    expect(await manager.installExperience('web')).toEqual({ ok: true, notice: undefined })
+    expect(await manager.installExperience('web', ['typescript'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
+    const installed = await manager.installedPacks()
+    expect(new Set(installed.keys())).toEqual(new Set(['typescript']))
+    expect(await manager.experiences()).toEqual([
+      { name: 'web', packs: ['typescript'], installedAt: NOW.toISOString() },
+    ])
+  })
+
+  it('installing twice verifies the layers and repairs damage', async () => {
+    const { server, typescript } = testWorld()
+    const manager = managerFor(server)
+    expect(await manager.installExperience('web')).toEqual({ ok: true, notice: undefined })
+    const digest = typescript.artifacts[0]?.sha256 ?? ''
+    await writeFile(layerPath(digest), 'tampered!!')
+    expect(await manager.installExperience('web')).toEqual({ ok: true, notice: undefined })
+    const layer = await readFile(layerPath(digest))
+    expect(layer.toString()).toBe('typescript-bytes')
   })
 
   it('resumes a partial download where the server answers ranges', async () => {
-    const { server, node } = testPacks()
+    const { server, typescript } = testWorld()
     const manager = managerFor(server)
-    const digest = node.artifacts[0]?.sha256 ?? ''
-    const full = new TextEncoder().encode('node-bytes')
-    await manager.installExperience('python')
-    await rm(path.join(root, 'layers', digest.slice(0, 2), digest), { force: true })
+    const digest = typescript.artifacts[0]?.sha256 ?? ''
+    const full = new TextEncoder().encode('typescript-bytes')
+    await manager.installExperience('data-and-ml')
+    await rm(layerPath(digest), { force: true })
     await mkdir(path.join(root, 'layers', digest.slice(0, 2)), { recursive: true })
-    await writeFile(
-      path.join(root, 'layers', digest.slice(0, 2), `${digest}.part`),
-      full.slice(0, 4),
-    )
-    const verdict = await manager.installExperience('node')
+    await writeFile(`${layerPath(digest)}.part`, full.slice(0, 4))
+    const verdict = await manager.installExperience('web', ['typescript'])
     expect(verdict).toEqual({ ok: true, notice: undefined })
-    const layer = await readFile(path.join(root, 'layers', digest.slice(0, 2), digest))
-    expect(layer.toString()).toBe('node-bytes')
+    const layer = await readFile(layerPath(digest))
+    expect(layer.toString()).toBe('typescript-bytes')
   })
 
   it('restarts the download where the server ignores ranges', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     server.rangeSupport = false
     const manager = managerFor(server)
-    const verdict = await manager.installExperience('node')
+    const verdict = await manager.installExperience('web', ['typescript'])
     expect(verdict).toEqual({ ok: true, notice: undefined })
   })
 
   it('refuses wrong bytes by digest and drops the partial file', async () => {
-    const { server, node } = testPacks()
-    const artifact = node.artifacts[0]
-    if (artifact === undefined) throw new Error('missing node artifact')
-    server.serve(artifact, new TextEncoder().encode('WRONG-byte'))
+    const { server, typescript } = testWorld()
+    const artifact = typescript.artifacts[0]
+    if (artifact === undefined) throw new Error('missing typescript artifact')
+    server.serve(artifact, new TextEncoder().encode('WRONG-bytes-fine'))
     const manager = managerFor(server)
-    const verdict = await manager.installExperience('node')
+    const verdict = await manager.installExperience('web', ['typescript'])
     expect(verdict.ok).toBe(false)
     if (verdict.ok) throw new Error('installed tampered bytes')
     expect(verdict.reason).toBe('checksum')
@@ -356,148 +424,275 @@ describe('PackManager', () => {
   })
 
   it('refuses short bytes by size and keeps the partial file', async () => {
-    const { server, node } = testPacks()
-    const artifact = node.artifacts[0]
-    if (artifact === undefined) throw new Error('missing node artifact')
+    const { server, typescript } = testWorld()
+    const artifact = typescript.artifacts[0]
+    if (artifact === undefined) throw new Error('missing typescript artifact')
     server.serve(artifact, new TextEncoder().encode('short'))
     const manager = managerFor(server)
-    const verdict = await manager.installExperience('node')
+    const verdict = await manager.installExperience('web', ['typescript'])
     expect(verdict.ok).toBe(false)
     if (verdict.ok) throw new Error('installed short bytes')
     expect(verdict.reason).toBe('size')
     const digest = artifact.sha256 ?? ''
-    const partial = await readFile(path.join(root, 'layers', digest.slice(0, 2), `${digest}.part`))
+    const partial = await readFile(`${layerPath(digest)}.part`)
     expect(partial.toString()).toBe('short')
   })
 
   it('refuses a pack whose constraints break the installed set, naming both sides', async () => {
-    const { server, base } = testPacks()
-    const tool = makeArtifact('node-toolchain', '24.0.0', 'node-bytes')
-    const strict = makePack('node', [tool.artifact], {
-      constraints: [{ package: 'base-tool', range: '>=2', reason: 'needs the newer base' }],
+    const { server, shell } = testWorld()
+    const tool = makeArtifact('python-toolchain', '3.14.0', 'python-bytes')
+    const strict = makePack('python', [tool.artifact], {
+      constraints: [{ package: 'shell-tools', range: '>=2', reason: 'needs the newer shell' }],
     })
-    server.index = makeIndex([base, strict])
+    server.index = makeIndex([shell, strict])
     server.serve(tool.artifact, tool.bytes)
     const manager = managerFor(server)
-    const verdict = await manager.installExperience('node')
+    const verdict = await manager.installExperience('data-and-ml', ['shell', 'python'])
     expect(verdict.ok).toBe(false)
     if (verdict.ok) throw new Error('installed past the conflict')
     expect(verdict.reason).toBe('conflict')
-    expect(verdict.detail).toContain('base-tool')
+    expect(verdict.detail).toContain('shell-tools')
     expect(verdict.detail).toContain('1.0.0')
     expect(verdict.detail).toContain('>=2')
   })
 
-  it('offline with a cache stands on the cache and says so', async () => {
-    const { server } = testPacks()
+  it('refuses a require cycle, naming the loop', async () => {
+    const { server } = testWorld()
+    const tsTool = makeArtifact('node-toolchain', '24.0.0', 'typescript-bytes')
+    const pyTool = makeArtifact('python-toolchain', '3.14.0', 'python-bytes')
+    const typescript = makePack('typescript', [tsTool.artifact], { requires: ['python'] })
+    const python = makePack('python', [pyTool.artifact], { requires: ['typescript'] })
+    server.index = makeIndex([typescript, python])
+    server.serve(tsTool.artifact, tsTool.bytes)
+    server.serve(pyTool.artifact, pyTool.bytes)
     const manager = managerFor(server)
-    expect(await manager.installExperience('node')).toEqual({ ok: true, notice: undefined })
+    const verdict = await manager.installExperience('web', ['typescript'])
+    expect(verdict.ok).toBe(false)
+    if (verdict.ok) throw new Error('installed past the cycle')
+    expect(verdict.reason).toBe('conflict')
+    expect(verdict.detail).toContain('typescript -> python -> typescript')
+  })
+
+  it('refuses a click-through pack until the person accepts its licence', async () => {
+    const { server } = testWorld()
+    const manager = managerFor(server)
+    expect(await manager.installExperience('mobile', ['mobile'])).toEqual({
+      ok: false,
+      reason: 'click-through',
+      detail: 'mobile',
+    })
+    const accepted = managerFor(server, { acceptedClickThrough: ['mobile'] })
+    expect(await accepted.installExperience('mobile', ['mobile'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
+  })
+
+  it('installs only the artifacts for this machine', async () => {
+    const { server } = testWorld()
+    const linuxTool = makeArtifact('node-toolchain-linux-x64', '24.0.0', 'linux-bytes', [
+      { os: 'linux', arch: 'x64' },
+    ])
+    const macTool = makeArtifact('node-toolchain-darwin-arm64', '24.0.0', 'mac-bytes', [
+      { os: 'darwin', arch: 'arm64' },
+    ])
+    const typescript = makePack('typescript', [linuxTool.artifact, macTool.artifact])
+    server.index = makeIndex([typescript])
+    server.serve(linuxTool.artifact, linuxTool.bytes)
+    server.serve(macTool.artifact, macTool.bytes)
+    const linux = managerFor(server, { host: { os: 'linux', arch: 'x64' } })
+    expect(await linux.installExperience('web', ['typescript'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
+    const linuxDigest = linuxTool.artifact.sha256 ?? ''
+    const macDigest = macTool.artifact.sha256 ?? ''
+    expect(await isLayerPresent(layerPath(linuxDigest))).toBe(true)
+    expect(await isLayerPresent(layerPath(macDigest))).toBe(false)
+  })
+
+  it('refuses a pack with nothing for this machine, and an unknown machine', async () => {
+    const { server } = testWorld()
+    const macTool = makeArtifact('node-toolchain', '24.0.0', 'mac-bytes', [
+      { os: 'darwin', arch: 'arm64' },
+    ])
+    server.index = makeIndex([makePack('typescript', [macTool.artifact])])
+    server.serve(macTool.artifact, macTool.bytes)
+    const linux = managerFor(server, { host: { os: 'linux', arch: 'x64' } })
+    expect(await linux.installExperience('web', ['typescript'])).toEqual({
+      ok: false,
+      reason: 'unsupported-platform',
+      detail: 'typescript',
+    })
+    const exotic = managerFor(server, { host: { os: 'freebsd', arch: 'x64' } })
+    expect(await exotic.installExperience('web', ['typescript'])).toEqual({
+      ok: false,
+      reason: 'unsupported-platform',
+      detail: 'freebsd/x64',
+    })
+    expect(await exotic.checkUpdates()).toEqual({
+      refusal: 'unsupported-platform',
+      detail: 'freebsd/x64',
+    })
+  })
+
+  it('offers updates with versions and bytes, from the cache when offline', async () => {
+    const { server } = testWorld()
+    const manager = managerFor(server)
+    expect(await manager.installExperience('web', ['typescript'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
+    expect(await manager.checkUpdates()).toEqual({ updates: [], cached: false })
+    const tool = makeArtifact('node-toolchain', '24.1.0', 'typescript-v2-bytes!')
+    const newer = makePack('typescript', [tool.artifact], { version: '2.0.0' })
+    server.index = makeIndex(
+      [newer, ...server.index.packs.filter((pack) => pack.name !== 'typescript')],
+      {
+        revision: 2,
+      },
+    )
+    server.serve(tool.artifact, tool.bytes)
+    const offered = await manager.checkUpdates()
+    if ('refusal' in offered) throw new Error('refused the update check')
+    expect(offered.cached).toBe(false)
+    expect(offered.updates).toEqual([
+      {
+        pack: 'typescript',
+        installed: '1.0.0',
+        available: '2.0.0',
+        bytes: tool.bytes.byteLength,
+      },
+    ])
     server.failIndex = new TypeError('network down')
-    const verdict = await manager.installExperience('python')
+    const cached = await manager.checkUpdates()
+    if ('refusal' in cached) throw new Error('refused the cached update check')
+    expect(cached.cached).toBe(true)
+    expect(cached.updates).toEqual(offered.updates)
+  })
+
+  it('offline with a cache stands on the cache and says so', async () => {
+    const { server } = testWorld()
+    const manager = managerFor(server)
+    expect(await manager.installExperience('web', ['typescript'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
+    server.failIndex = new TypeError('network down')
+    const verdict = await manager.installExperience('data-and-ml', ['python'])
     expect(verdict).toEqual({ ok: true, notice: 'cached-index' })
   })
 
   it('offline without a cache refuses', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     server.failIndex = new TypeError('network down')
     const manager = managerFor(server)
-    const verdict = await manager.installExperience('node')
+    const verdict = await manager.installExperience('web', ['typescript'])
     expect(verdict.ok).toBe(false)
     if (verdict.ok) throw new Error('installed with no index at all')
     expect(verdict.reason).toBe('offline')
   })
 
   it('refuses an index without its digest header', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     server.sendDigest = false
     const manager = managerFor(server)
-    const verdict = await manager.installExperience('node')
+    const verdict = await manager.installExperience('web', ['typescript'])
     expect(verdict).toEqual({ ok: false, reason: 'unverified', detail: 'index digest header' })
   })
 
   it('refuses a bad signature, a downgrade, and an expired index', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const unsigned = managerFor(server)
     server.signatureOk = false
-    expect(await unsigned.installExperience('node')).toEqual({
+    expect(await unsigned.installExperience('web', ['typescript'])).toEqual({
       ok: false,
       reason: 'unverified',
       detail: 'bad-signature',
     })
     server.signatureOk = true
     const manager = managerFor(server)
-    expect(await manager.installExperience('node')).toEqual({ ok: true, notice: undefined })
+    expect(await manager.installExperience('web', ['typescript'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
     server.index = makeIndex(server.index.packs, { revision: 0 })
-    expect(await manager.installExperience('python')).toEqual({
+    expect(await manager.installExperience('data-and-ml', ['python'])).toEqual({
       ok: false,
       reason: 'downgrade',
       detail: 'downgrade',
     })
     server.index = makeIndex(server.index.packs, { revision: 2, expiresAt: PAST })
-    expect(await manager.installExperience('python')).toEqual({
+    expect(await manager.installExperience('data-and-ml', ['python'])).toEqual({
       ok: false,
       reason: 'expired',
       detail: 'expired',
     })
   })
 
-  it('removes experiences by count: shared packs stay until last use', async () => {
-    const { server, base } = testPacks()
-    const manager = managerFor(server)
-    expect(await manager.installExperience('node')).toEqual({ ok: true, notice: undefined })
-    expect(await manager.installExperience('python')).toEqual({ ok: true, notice: undefined })
-    expect(await manager.removeExperience('node')).toEqual({ ok: true })
-    const installed = await manager.installedPacks()
-    expect(new Set(installed.keys())).toEqual(new Set(['base', 'python']))
-    const baseDigest = base.artifacts[0]?.sha256 ?? ''
-    const layerPath = path.join(root, 'layers', baseDigest.slice(0, 2), baseDigest)
-    expect(await isLayerPresent(layerPath)).toBe(true)
-    expect(await manager.removeExperience('python')).toEqual({ ok: true })
-    const remaining = await manager.installedPacks()
-    expect(remaining.size).toBe(0)
-    expect(await isLayerPresent(layerPath)).toBe(false)
-    expect(await manager.experiences()).toEqual([])
-  })
-
   it('a dropped download reads as offline, and a broken fetch is loud', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const offline = managerFor(server)
     server.failArtifact = new TypeError('network down')
-    expect(await offline.installExperience('node')).toEqual({
+    expect(await offline.installExperience('web', ['typescript'])).toEqual({
       ok: false,
       reason: 'offline',
-      detail: 'https://packs.example/base-tool-1.0.0.tar.gz',
+      detail: 'https://packs.example/node-toolchain-24.0.0.tar.gz',
     })
     const lines = await auditLines()
     expect(
       lines.some((line) => line.action === 'refuse' && line.reason === 'download-offline'),
     ).toBe(true)
     server.failArtifact = new Error('broken fetch')
-    await expect(offline.installExperience('node')).rejects.toThrow('broken fetch')
+    await expect(offline.installExperience('web', ['typescript'])).rejects.toThrow('broken fetch')
   })
 
   it('a broken index fetch is loud', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     server.failIndex = new Error('broken fetch')
     const manager = managerFor(server)
-    await expect(manager.installExperience('node')).rejects.toThrow('broken fetch')
+    await expect(manager.installExperience('web', ['typescript'])).rejects.toThrow('broken fetch')
+  })
+
+  it('removes experiences by count: shared packs stay until last use', async () => {
+    const { server, shell } = testWorld()
+    const manager = managerFor(server)
+    expect(await manager.installExperience('web')).toEqual({ ok: true, notice: undefined })
+    expect(await manager.installExperience('data-and-ml')).toEqual({
+      ok: true,
+      notice: undefined,
+    })
+    expect(await manager.removeExperience('web')).toEqual({ ok: true })
+    const installed = await manager.installedPacks()
+    expect(new Set(installed.keys())).toEqual(new Set(['python', 'shell', 'crosscutting']))
+    const shellDigest = shell.artifacts[0]?.sha256 ?? ''
+    expect(await isLayerPresent(layerPath(shellDigest))).toBe(true)
+    expect(await manager.removeExperience('data-and-ml')).toEqual({ ok: true })
+    const remaining = await manager.installedPacks()
+    expect(remaining.size).toBe(0)
+    expect(await isLayerPresent(layerPath(shellDigest))).toBe(false)
+    expect(await manager.experiences()).toEqual([])
   })
 
   it('refuses to remove an experience that was never installed', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const manager = managerFor(server)
-    expect(await manager.removeExperience('rust')).toEqual({
+    const missing: Persona = 'systems'
+    expect(await manager.removeExperience(missing)).toEqual({
       ok: false,
       reason: 'not-found',
-      detail: 'rust',
+      detail: 'systems',
     })
   })
 
   it('treats a corrupt experience store as none, and says so in the audit', async () => {
-    const { server } = testPacks()
+    const { server } = testWorld()
     const manager = managerFor(server)
     await writeFile(path.join(root, 'experiences.json'), 'not json')
-    expect(await manager.installExperience('node')).toEqual({ ok: true, notice: undefined })
+    expect(await manager.installExperience('web', ['typescript'])).toEqual({
+      ok: true,
+      notice: undefined,
+    })
     const lines = await auditLines()
     expect(lines.some((line) => line.action === 'refuse' && line.reason === 'corrupt-store')).toBe(
       true,
