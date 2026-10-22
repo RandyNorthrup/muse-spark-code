@@ -34,6 +34,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Key-billed team work paces as background `team` traffic, so team dispatches
+  queue behind the provider's headroom instead of spending the user's
+  foreground turn.
 - Native Muse Code feedback opens outside inert page regions, keeps keyboard
   focus within the dialog and restores its opener on close. Switching sessions
   discards the old dialog and port. The bridge and form load only on first use.
