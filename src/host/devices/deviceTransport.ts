@@ -134,8 +134,7 @@ export class DeviceTransport {
       !deviceEndpointSchema.safeParse({ address: local, port }).success ||
       !pair.isActive() ||
       !pair.isOffered() ||
-      this.listeners.has(pair.pairId) ||
-      this.listeners.size >= DEVICE_LIMITS.pairedDevices
+      this.listeners.has(pair.pairId)
     )
       throw new Error('unpaired')
     const server = createServer(

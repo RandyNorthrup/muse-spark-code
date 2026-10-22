@@ -134,7 +134,11 @@ export const RESOURCE_EXEC_EVENT_VERSION = 2
 
 export const PRODUCT_NAME = 'Muse Spark'
 
-// M100/D80: hard protocol/resource ceilings, not permission or retirement rules.
+// M100/D80 wire terms: protocol shapes, byte/connection/queue/time caps before
+// parsing, and credential lifetimes. D121: the person's counts, sizes and
+// caps carry no number here; offers, pairs, grants, briefs, reports, paths,
+// journals and tallies are unbounded. D121 outcome 4 keeps are listed for
+// the lead in docs/certification/nolimits-m100.md.
 export const DEVICE_LIMITS = {
   protocolVersion: 1,
   devicesDefault: false,
@@ -168,36 +172,19 @@ export const DEVICE_LIMITS = {
   connectionsTotal: 16,
   queuedFrames: 32,
   controlFrames: 32,
-  pairedDevices: 16,
-  repositories: 32,
-  entries: 32,
-  checks: 32,
-  workers: 32,
-  processes: 128,
-  heavyChecks: 8,
-  tokens: 1_000_000,
-  spendUsd: 500,
-  modelIdChars: 128,
-  labelChars: 80,
-  taskBriefChars: 8192,
-  guidanceChars: 8192,
-  reportChars: 16_384,
-  writePaths: 256,
-  pathChars: 512,
+  // D121: the person's counts, sizes and caps carry no number of ours;
+  // offers, pairs, grants, briefs, reports, paths and journals are unbounded.
   artifactBytes: 67_108_864,
   expandedArtifactBytes: 268_435_456,
-  artifactObjects: 16_384,
-  artifactFiles: 4096,
   artifactChunkBytes: 65_536,
   base64GroupChars: 4,
   base64GroupBytes: 3,
   artifactChunkBase64Chars: 87_384,
-  unresolvedAttempts: 128,
   reconciliationPage: 32,
-  journalBytes: 16_777_216,
-  terminalRecords: 4096,
+  // D121 outcome 4, listed for the lead: terminal compaction keeps the
+  // reviewed 30-day retention until it is wired to the person's cleanup
+  // setting when a caller arrives (compact has no production caller yet).
   terminalRetentionMs: 2_592_000_000,
-  tombstones: 65_536,
   // M100 phase 2 (lane 0): channel, capability, grant and result contracts.
   // G50 caps one long-lived paced channel per pair: at most 3 pending
   // handshakes per host, jittered backoff from 15 s capped at 10 minutes.
@@ -213,12 +200,8 @@ export const DEVICE_LIMITS = {
   // G52: one failed authentication stops and asks; retries never loop.
   authFailuresBeforeAsk: 1,
   capabilityBytes: 8192,
-  capabilityTools: 64,
-  capabilityEngines: 16,
   grantBytes: 4096,
   grantValidityMs: 3_600_000,
-  ownersPerDevice: 4,
-  grantsPerOwner: 16,
   stepUpValidityMs: 300_000,
   resultEnvelopeBytes: 4096,
   pendingResultAcks: 256,

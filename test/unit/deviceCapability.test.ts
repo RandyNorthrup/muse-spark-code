@@ -34,25 +34,9 @@ function measured(): Omit<DeviceCapability, 'observedAt'> {
 
 function oversized(): Omit<DeviceCapability, 'observedAt'> {
   const base = measured()
-  type Engine = Omit<DeviceCapability, 'observedAt'>['engines'][number]
-  const engines: Engine[] = Array.from(
-    { length: DEVICE_LIMITS.capabilityEngines },
-    (_, index): Engine => ({
-      model: {
-        modelId: `${String(index)}-model`.padEnd(DEVICE_LIMITS.modelIdChars, 'm'),
-        providerId: 'provider'
-          .repeat(DEVICE_LIMITS.modelIdChars)
-          .slice(0, DEVICE_LIMITS.modelIdChars),
-      },
-      budget: 'ok',
-    }),
-  )
   return {
     ...base,
-    tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
-      `tool-${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, 'x'),
-    ),
-    engines,
+    tools: Array.from({ length: 100 }, (_, index) => `tool-${String(index)}-`.padEnd(100, 'x')),
     pressure: { ...base.pressure, transportResets: Number.MAX_SAFE_INTEGER },
   }
 }
@@ -75,9 +59,7 @@ describe('capability advertisement (lane V)', () => {
     expect(() => buildCapability({ ...measured(), tools: ['node', 'node'] }, NOW)).toThrow(
       'invalid-frame',
     )
-    expect(() =>
-      buildCapability({ ...measured(), slotCap: DEVICE_LIMITS.workers + 1 }, NOW),
-    ).toThrow('invalid-frame')
+    expect(buildCapability({ ...measured(), slotCap: 40 }, NOW).slotCap).toBe(40)
   })
   it('admits a fresh wire advertisement under the schema and cap', () => {
     const capability = buildCapability(measured(), NOW)
@@ -103,9 +85,7 @@ describe('capability advertisement (lane V)', () => {
   it('applies the byte cap to multibyte measurements at build and admission', () => {
     const wide = {
       ...measured(),
-      tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
-        `${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, '\u{4F60}'),
-      ),
+      tools: Array.from({ length: 60 }, (_, index) => `${String(index)}-`.padEnd(60, '\u{4F60}')),
     }
     const wire = { ...wide, observedAt: NOW }
     expect(JSON.stringify(wire).length).toBeLessThan(DEVICE_LIMITS.capabilityBytes)
@@ -160,9 +140,7 @@ describe('capability advertisement (lane V)', () => {
       { ...oversized(), observedAt: NOW },
       {
         ...capability,
-        tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
-          `${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, '\u{4F60}'),
-        ),
+        tools: Array.from({ length: 60 }, (_, index) => `${String(index)}-`.padEnd(60, '\u{4F60}')),
       },
     ]) {
       expect(() => {

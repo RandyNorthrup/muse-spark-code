@@ -284,7 +284,7 @@ describe('M100 Devices panel and shared bridge', () => {
       ).toBe(false)
     },
   )
-  it('bounds invitations, rows, labels, observations, counters and retained liability', () => {
+  it('bounds invitations and observations; rows, labels, counters and liability run free', () => {
     expect(
       parseDeviceWebviewRequest({
         type: 'deviceRequest',
@@ -297,48 +297,52 @@ describe('M100 Devices panel and shared bridge', () => {
         },
       }).ok,
     ).toBe(false)
-    expect(
-      devicesPanelStateSchema.safeParse({
-        ...state,
-        devices: Array.from({ length: DEVICE_LIMITS.pairedDevices + 1 }, () => row),
-      }).success,
-    ).toBe(false)
     for (const change of [
       { deviceId: 'x'.repeat(32) },
       { deviceId: ID + '\n' },
       { fingerprint: HASH + '\n' },
-      { unresolvedAttempts: DEVICE_LIMITS.unresolvedAttempts + 1 },
       { fingerprint: 'f'.repeat(63) },
-      { label: 'x'.repeat(DEVICE_LIMITS.labelChars + 1) },
       { label: '' },
       { lastObservedAt: -1 },
       { lastObservedAt: Number.MAX_SAFE_INTEGER + 1 },
-      { waitingApprovals: DEVICE_LIMITS.unresolvedAttempts + 1 },
       { unresolvedAttempts: -1 },
       { retainedLiabilityUsd: Infinity },
       { retainedLiabilityUsd: -1 },
-      { retainedLiabilityUsd: DEVICE_LIMITS.spendUsd * DEVICE_LIMITS.unresolvedAttempts + 1 },
-      {
-        offers: Array.from({ length: DEVICE_LIMITS.repositories + 1 }, () => ({
-          deviceId: ID,
-          receiverIncarnationId: ID,
-          poolId: ID,
-          repositoryId: ID,
-          grantId: ID,
-          grantRevision: 1,
-          platform: 'darwin',
-          toolchainDigest: HASH,
-          lanes: false,
-          checks: true,
-          caps,
-          entries: [],
-          checkIds: [ID],
-        })),
-      },
     ])
       expect(
         devicesPanelStateSchema.safeParse({ ...state, devices: [{ ...row, ...change }] }).success,
       ).toBe(false)
+    const freeOffer = {
+      deviceId: ID,
+      receiverIncarnationId: ID,
+      poolId: ID,
+      repositoryId: ID,
+      grantId: ID,
+      grantRevision: 1,
+      platform: 'darwin',
+      toolchainDigest: HASH,
+      lanes: false,
+      checks: true,
+      caps,
+      entries: [],
+      checkIds: [ID],
+    }
+    expect(
+      devicesPanelStateSchema.safeParse({
+        ...state,
+        devices: Array.from({ length: 20 }, () => row),
+      }).success,
+    ).toBe(true)
+    for (const change of [
+      { unresolvedAttempts: 200 },
+      { waitingApprovals: 200 },
+      { label: 'x'.repeat(100) },
+      { retainedLiabilityUsd: 100_000 },
+      { offers: Array.from({ length: 40 }, () => freeOffer) },
+    ])
+      expect(
+        devicesPanelStateSchema.safeParse({ ...state, devices: [{ ...row, ...change }] }).success,
+      ).toBe(true)
     expect(
       parseDeviceWebviewRequest({
         type: 'deviceRequest',

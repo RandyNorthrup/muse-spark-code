@@ -816,7 +816,6 @@ export class PacedDeviceChannels {
       }
       return existing.result.promise
     }
-    if (this.jobs.size >= DEVICE_LIMITS.pairedDevices) return Promise.reject(new Error('capacity'))
     const job: ChannelJob = {
       isReceiver,
       handshake,

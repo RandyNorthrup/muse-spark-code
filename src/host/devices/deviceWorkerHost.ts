@@ -22,8 +22,8 @@ type Retirement = Awaited<DeviceLocalAttempt['retirement']>
 type Power = 'ac' | 'battery' | 'unknown'
 const contextSchema = z.strictObject({
   session: z.int().check(z.gte(0)),
-  station: z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.pathChars)),
-  desktop: z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.pathChars)),
+  station: z.string().check(z.minLength(1)),
+  desktop: z.string().check(z.minLength(1)),
 })
 const querySchema = z.strictObject({
   context: contextSchema,
@@ -118,11 +118,10 @@ export function deviceWorkerUncertain(
 }
 /** Only the host's validated request: never a peer-supplied unit, task or job property. */
 export type DeviceWorkerAttempt = Readonly<Pick<DeviceDispatch, 'identity' | 'caps'>>
-/** Admitted process ceiling: kernel admission or supervised termination; invalid limits refuse. */
+/** Admitted process ceiling: kernel admission or supervised termination; invalid limits refuse. D121: the ceiling is the person's offer, with no maximum of ours. */
 export function admittedProcessLimit(attempt: DeviceWorkerAttempt): number {
   const limit = attempt.caps.processes
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > DEVICE_LIMITS.processes)
-    throw new DeviceWorkerHostError('preflight')
+  if (!Number.isSafeInteger(limit) || limit < 1) throw new DeviceWorkerHostError('preflight')
   return limit
 }
 export interface DeviceWorkerDriver {

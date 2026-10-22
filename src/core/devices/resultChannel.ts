@@ -50,7 +50,7 @@ export const deviceResultRecordSchema = z
   .strictObject({
     version: z.literal(DEVICE_LIMITS.protocolVersion),
     identity: deviceAttemptIdentitySchema,
-    receipts: z.array(receiptSchema).check(z.minLength(1), z.maxLength(DEVICE_LIMITS.tombstones)),
+    receipts: z.array(receiptSchema).check(z.minLength(1)),
   })
   .check(
     z.refine((record) => {
@@ -109,11 +109,6 @@ export class ResultChannel implements DeviceResultPort {
     try {
       const raw = await this.store.load(result.identity.attemptId)
       stored = raw === undefined ? undefined : deviceResultRecordSchema.parse(raw)
-      if (
-        stored !== undefined &&
-        Buffer.byteLength(JSON.stringify(stored)) > DEVICE_LIMITS.journalBytes
-      )
-        throw new DeviceResultError('storage')
     } catch (error) {
       this.hasFailed = true
       throw new DeviceResultError('storage', { cause: error })
@@ -150,15 +145,11 @@ export class ResultChannel implements DeviceResultPort {
       disposition: isLate ? 'quarantined' : 'accepted',
       acknowledgedAt: now,
     })
-    if ((stored?.receipts.length ?? 0) >= DEVICE_LIMITS.tombstones)
-      throw new DeviceResultError('capacity')
     const record = deviceResultRecordSchema.parse({
       version: DEVICE_LIMITS.protocolVersion,
       identity: result.identity,
       receipts: [...(stored?.receipts ?? []), { envelope: result, ack }],
     })
-    if (Buffer.byteLength(JSON.stringify(record)) > DEVICE_LIMITS.journalBytes)
-      throw new DeviceResultError('capacity')
     try {
       await this.store.save(record)
     } catch (error) {

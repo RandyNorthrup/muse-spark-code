@@ -23,6 +23,10 @@ const timestamp = z.int().check(z.gte(0))
 const revision = z.int().check(z.gte(1))
 const base64Pattern = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$(?![\s\S])/
 const boundedText = (max: number) => z.string().check(z.minLength(1), z.maxLength(max))
+// D121: person-set and measured text carries no maximum of ours; only blank refuses.
+const nonEmptyText = z.string().check(z.minLength(1))
+// D121: person-set and measured counts carry no maximum of ours.
+const wholeNonNegative = z.int().check(z.gte(0))
 const base64 = (max: number) => boundedText(max).check(z.regex(base64Pattern))
 const artifactChunk = base64(DEVICE_LIMITS.artifactChunkBase64Chars).check(
   z.refine((value) => {
@@ -118,12 +122,8 @@ export type DevicePairingConfirmation = z.infer<typeof devicePairingConfirmation
 
 // M95 binding: canonical identity only, never ProviderDefinition/auth/endpoint.
 const model = z.strictObject({
-  providerId: boundedText(DEVICE_LIMITS.modelIdChars).check(
-    z.regex(/^[a-z0-9][a-z0-9._-]*$(?![\s\S])/),
-  ),
-  modelId: boundedText(DEVICE_LIMITS.modelIdChars).check(
-    z.regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$(?![\s\S])/),
-  ),
+  providerId: nonEmptyText.check(z.regex(/^[a-z0-9][a-z0-9._-]*$(?![\s\S])/)),
+  modelId: nonEmptyText.check(z.regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$(?![\s\S])/)),
 })
 export const deviceRouteSchema = z.strictObject({
   pairId: id,
@@ -136,12 +136,12 @@ export const deviceRouteSchema = z.strictObject({
 export type DeviceRoute = z.infer<typeof deviceRouteSchema>
 
 export const deviceCapsSchema = z.strictObject({
-  workers: cap(DEVICE_LIMITS.workers),
-  processes: cap(DEVICE_LIMITS.processes),
-  heavyChecks: cap(DEVICE_LIMITS.heavyChecks),
-  tokens: cap(DEVICE_LIMITS.tokens),
-  spendUsd: z.number().check(z.gte(0), z.lte(DEVICE_LIMITS.spendUsd)),
-  artifactBytes: cap(DEVICE_LIMITS.artifactBytes),
+  workers: wholeNonNegative,
+  processes: wholeNonNegative,
+  heavyChecks: wholeNonNegative,
+  tokens: wholeNonNegative,
+  spendUsd: z.number().check(z.gte(0)),
+  artifactBytes: wholeNonNegative,
 })
 export type DeviceCaps = z.infer<typeof deviceCapsSchema>
 
@@ -174,8 +174,8 @@ export const deviceOfferSchema = z
     lanes: z.boolean(),
     checks: z.boolean(),
     caps: deviceCapsSchema,
-    entries: z.array(entry).check(z.maxLength(DEVICE_LIMITS.entries)),
-    checkIds: z.array(id).check(z.maxLength(DEVICE_LIMITS.checks)),
+    entries: z.array(entry),
+    checkIds: z.array(id),
   })
   .check(
     z.refine(
@@ -203,7 +203,7 @@ const snapshot = z
     dirtyPreviewDigest: z.optional(digest),
   })
   .check(z.refine((value) => value.baseCommit.length === value.tree.length))
-const relativePath = boundedText(DEVICE_LIMITS.pathChars).check(
+const relativePath = nonEmptyText.check(
   z.refine(
     (value) =>
       !/[\\:]|\p{Cc}|\p{Zl}|\p{Zp}/u.test(value) &&
@@ -258,9 +258,9 @@ export const deviceDispatchSchema = z.discriminatedUnion('kind', [
       route: deviceRouteSchema,
       roleId: id,
       isolation: z.enum(['own-branch', 'read-only']),
-      brief: boundedText(DEVICE_LIMITS.taskBriefChars),
-      guidance: z.optional(boundedText(DEVICE_LIMITS.guidanceChars)),
-      plannedWrites: z.array(relativePath).check(z.maxLength(DEVICE_LIMITS.writePaths)),
+      brief: nonEmptyText,
+      guidance: z.optional(nonEmptyText),
+      plannedWrites: z.array(relativePath),
     })
     .check(
       z.refine(
@@ -284,8 +284,8 @@ export const deviceArtifactManifestSchema = z
     bundleDigest: digest,
     bundleBytes: cap(DEVICE_LIMITS.artifactBytes).check(z.gte(1)),
     expandedBytes: cap(DEVICE_LIMITS.expandedArtifactBytes).check(z.gte(1)),
-    objectCount: cap(DEVICE_LIMITS.artifactObjects).check(z.gte(1)),
-    fileCount: cap(DEVICE_LIMITS.artifactFiles),
+    objectCount: wholeNonNegative.check(z.gte(1)),
+    fileCount: wholeNonNegative,
   })
   .check(
     z.refine(
@@ -300,10 +300,10 @@ const usage = z.strictObject({
   settlementId: id,
   payer: z.enum(['subscription', 'apiKey', 'local', 'unknown']),
   certainty: z.enum(['known', 'estimated', 'uncertain']),
-  inputTokens: cap(DEVICE_LIMITS.tokens),
-  outputTokens: cap(DEVICE_LIMITS.tokens),
-  returnedUsd: z.number().check(z.gte(0), z.lte(DEVICE_LIMITS.spendUsd)),
-  retainedLiabilityUsd: z.number().check(z.gte(0), z.lte(DEVICE_LIMITS.spendUsd)),
+  inputTokens: wholeNonNegative,
+  outputTokens: wholeNonNegative,
+  returnedUsd: z.number().check(z.gte(0)),
+  retainedLiabilityUsd: z.number().check(z.gte(0)),
 })
 const outcome = z
   .strictObject({
@@ -381,7 +381,7 @@ export const deviceFrameSchema = z
     body: z.discriminatedUnion('kind', [
       z.strictObject({
         kind: z.literal('offers'),
-        offers: z.array(deviceOfferSchema).check(z.maxLength(DEVICE_LIMITS.repositories)),
+        offers: z.array(deviceOfferSchema),
       }),
       z.strictObject({ kind: z.literal('dispatch'), dispatch: deviceDispatchSchema }),
       z.strictObject({ kind: z.literal('outcome'), outcome }),
@@ -420,7 +420,7 @@ export const deviceFrameSchema = z
         checkId: id,
         toolchainDigest: digest,
         status: z.enum(['passed', 'failed', 'not-run']),
-        report: boundedText(DEVICE_LIMITS.reportChars),
+        report: nonEmptyText,
       }),
       z.strictObject({ kind: z.literal('failure'), reason: z.enum(DEVICE_FAILURES) }),
     ]),
@@ -597,13 +597,9 @@ export const deviceCapabilitySchema = z
     receiverIncarnationId: id,
     observedAt: timestamp,
     platform: z.enum(['win32', 'linux', 'darwin']),
-    osVersion: boundedText(DEVICE_LIMITS.labelChars),
-    tools: z
-      .array(boundedText(DEVICE_LIMITS.labelChars))
-      .check(z.maxLength(DEVICE_LIMITS.capabilityTools)),
-    engines: z
-      .array(z.strictObject({ model, budget: engineBudget }))
-      .check(z.maxLength(DEVICE_LIMITS.capabilityEngines)),
+    osVersion: nonEmptyText,
+    tools: z.array(nonEmptyText),
+    engines: z.array(z.strictObject({ model, budget: engineBudget })),
     presence: z.strictObject({
       touchId: z.boolean(),
       windowsHello: z.boolean(),
@@ -612,7 +608,7 @@ export const deviceCapabilitySchema = z
     }),
     power: z.enum(['ac', 'battery', 'unknown']),
     sleepInhibited: z.boolean(),
-    slotCap: cap(DEVICE_LIMITS.workers),
+    slotCap: wholeNonNegative,
     pressure: z.strictObject({
       cpuPercent: percent,
       memoryPercent: percent,
@@ -765,24 +761,6 @@ export const deviceGrantRefusalSchema = z.strictObject({
   retryable: z.boolean(),
 })
 export type DeviceGrantRefusal = z.infer<typeof deviceGrantRefusalSchema>
-
-// Lane K reads: the owner/grant queue bounds as callable guards, mirroring
-// canOpenHandshake. Lane K calls canAddOwner before binding another owner
-// to a device and canAddGrant before issuing another grant under an owner,
-// so the caps are enforced by the shared contract rather than picked per
-// lane. Counts are current occupancy, not the incoming item.
-export function canAddOwner(ownerCount: number): boolean {
-  return (
-    Number.isSafeInteger(ownerCount) &&
-    ownerCount >= 0 &&
-    ownerCount < DEVICE_LIMITS.ownersPerDevice
-  )
-}
-export function canAddGrant(grantCount: number): boolean {
-  return (
-    Number.isSafeInteger(grantCount) && grantCount >= 0 && grantCount < DEVICE_LIMITS.grantsPerOwner
-  )
-}
 
 // Lane R reads: the result channel. Results return content-addressed and
 // are acknowledged once; a resend returns the recorded duplicate outcome,

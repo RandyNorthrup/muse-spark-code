@@ -40,18 +40,14 @@ export class DeviceJournalError extends Error {
 }
 const stateSchema = z.strictObject({
   version: z.literal(DEVICE_LIMITS.protocolVersion),
-  records: z.array(deviceJournalRecordSchema).check(z.maxLength(DEVICE_LIMITS.tombstones)),
-  cancellations: z.optional(
-    z.array(deviceAttemptIdentitySchema).check(z.maxLength(DEVICE_LIMITS.tombstones)),
+  records: z.array(deviceJournalRecordSchema),
+  cancellations: z.optional(z.array(deviceAttemptIdentitySchema)),
+  acknowledgements: z.array(
+    z.strictObject({
+      attemptId: z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/)),
+      recordedAt: z.int().check(z.gte(0)),
+    }),
   ),
-  acknowledgements: z
-    .array(
-      z.strictObject({
-        attemptId: z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/)),
-        recordedAt: z.int().check(z.gte(0)),
-      }),
-    )
-    .check(z.maxLength(DEVICE_LIMITS.terminalRecords)),
 })
 type JournalState = z.infer<typeof stateSchema>
 
@@ -118,10 +114,7 @@ function validateState(state: JournalState): void {
       state.acknowledgements.length ||
     state.acknowledgements.some((ack) =>
       state.records.every((row) => identityOf(row).attemptId !== ack.attemptId || !isTerminal(row)),
-    ) ||
-    state.records.filter((row) => !isTerminal(row)).length > DEVICE_LIMITS.unresolvedAttempts ||
-    state.records.filter((row) => row.kind === 'receiver-record' && isTerminal(row)).length >
-      DEVICE_LIMITS.terminalRecords
+    )
   )
     throw new DeviceJournalError('storage')
 }
@@ -216,13 +209,11 @@ export class AttemptJournal {
       await this.assertStorage()
       const file = path.join(this.directory, 'attempts.json')
       const sample = await checkPrivate(file, false, this.storage)
-      if (!sameFile(this.fileIdentity, sample) || sample.size > BigInt(DEVICE_LIMITS.journalBytes))
-        throw new DeviceJournalError('storage')
+      if (!sameFile(this.fileIdentity, sample)) throw new DeviceJournalError('storage')
       const handle = await open(file, 'r')
       try {
         if (!sameFile(sample, await handleIdentity(handle))) throw new DeviceJournalError('storage')
         const bytes = await handle.readFile()
-        if (bytes.length > DEVICE_LIMITS.journalBytes) throw new DeviceJournalError('storage')
         const raw: unknown = JSON.parse(bytes.toString('utf8'))
         const state = stateSchema.parse(raw)
         if (JSON.stringify(state) !== bytes.toString('utf8'))
@@ -242,7 +233,6 @@ export class AttemptJournal {
       const parsed = stateSchema.parse(state)
       validateState(parsed)
       const bytes = Buffer.from(JSON.stringify(parsed))
-      if (bytes.length > DEVICE_LIMITS.journalBytes) throw new DeviceJournalError('storage')
       await this.assertStorage()
       const stage = path.join(
         this.directory,
@@ -304,14 +294,6 @@ export class AttemptJournal {
         if (payload !== incoming) throw new DeviceJournalError('payload-changed')
         return prior
       }
-      if (
-        state.records.filter((row) => !isTerminal(row)).length >=
-          DEVICE_LIMITS.unresolvedAttempts ||
-        state.records.length >= DEVICE_LIMITS.tombstones ||
-        state.records.filter((row) => row.kind === 'receiver-record' && isTerminal(row)).length >=
-          DEVICE_LIMITS.terminalRecords
-      )
-        throw new DeviceJournalError('capacity')
       state.records.push(deviceJournalRecordSchema.parse(record))
       await this.writeNow(state)
       return record
@@ -346,7 +328,6 @@ export class AttemptJournal {
           throw new DeviceJournalError('payload-changed')
         return
       }
-      if (cancellations.length >= DEVICE_LIMITS.tombstones) throw new DeviceJournalError('capacity')
       state.cancellations = [...cancellations, cancelledIdentity]
       await this.writeNow(state)
     })

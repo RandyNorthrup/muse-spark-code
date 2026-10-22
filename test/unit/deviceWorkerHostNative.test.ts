@@ -365,11 +365,7 @@ function linuxDriver() {
     },
   })
 }
-function linuxLaunch(
-  native: DeviceWorkerDriver,
-  script: string,
-  processes: number = DEVICE_LIMITS.processes,
-) {
+function linuxLaunch(native: DeviceWorkerDriver, script: string, processes = 64) {
   return launchedJob(
     native.launch(
       { executable: '/bin/sh', args: ['-c', script], cwd: linux.directory, requiredTools: [] },
@@ -403,7 +399,7 @@ describe.skipIf(process.platform !== 'linux' || process.env['XDG_RUNTIME_DIR'] =
 const {workerEnvironment}=require('./environment.cjs');
 (async()=>{
  const driver=deviceWorkerLinux({environment:process.env,log:{trace:()=>{},info:()=>{},warn:()=>{},error:()=>{}}});
- const launched=await driver.launch({executable:'/bin/sh',args:['-c',process.argv[2]],cwd:process.cwd(),requiredTools:[]},workerEnvironment(process.env,'linux'),${JSON.stringify(admitted(DEVICE_LIMITS.processes))});
+ const launched=await driver.launch({executable:'/bin/sh',args:['-c',process.argv[2]],cwd:process.cwd(),requiredTools:[]},workerEnvironment(process.env,'linux'),${JSON.stringify(admitted(64))});
  if(launched.kind!=='launched')throw launched.error;
  const job=launched.job;
  await job.activate();process.stdout.write(JSON.stringify(job.query)+'\n');
@@ -730,7 +726,7 @@ const {workerEnvironment}=require('./environment.cjs');
             requiredTools: [],
           },
           linuxEnvironment(),
-          admitted(DEVICE_LIMITS.processes),
+          admitted(64),
         ),
       )
       try {
@@ -753,7 +749,7 @@ const {workerEnvironment}=require('./environment.cjs');
             requiredTools: [],
           },
           linuxEnvironment(),
-          admitted(DEVICE_LIMITS.processes),
+          admitted(64),
         ),
       )
       try {

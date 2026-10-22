@@ -322,18 +322,6 @@ const CAP_KEYS = [
   'spendUsd',
   'artifactBytes',
 ] as const
-// The browser Devices closure reads DEVICE_LIMITS only through literal
-// member access (the build's reader-only lazy module refuses element reads),
-// so the per-cap maxima live in this literal table beside the key tuple.
-const CAP_MAXIMA: Record<(typeof CAP_KEYS)[number], number> = {
-  workers: DEVICE_LIMITS.workers,
-  processes: DEVICE_LIMITS.processes,
-  heavyChecks: DEVICE_LIMITS.heavyChecks,
-  tokens: DEVICE_LIMITS.tokens,
-  spendUsd: DEVICE_LIMITS.spendUsd,
-  artifactBytes: DEVICE_LIMITS.artifactBytes,
-}
-
 function OfferEditor({
   pairId,
   caps,
@@ -385,7 +373,6 @@ function OfferEditor({
               name={key}
               type="number"
               min={0}
-              max={CAP_MAXIMA[key]}
               step={key === 'spendUsd' ? 'any' : 1}
               defaultValue={caps === undefined ? 0 : caps[key]}
               required

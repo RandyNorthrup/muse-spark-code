@@ -157,8 +157,6 @@ export class DeviceReceiver implements DeviceExecutionPort {
     const cancellations = await journal.cancellations()
     for (const identity of cancellations)
       receiver.cancelled.set(identity.attemptId, Object.freeze(identity))
-    if (receiver.cancelled.size >= DEVICE_LIMITS.tombstones)
-      receiver.transition({ kind: 'failed', reason: 'capacity' })
     const records = await journal.records()
     // Retention restores recorded occupancy, write sets and liabilities. An
     // empty journal has none, so it never asks the execution owner: a host
@@ -237,18 +235,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
           throw new DeviceJournalError('payload-changed')
         const effects: ReceiverEffect[] = []
         // Identity is remembered before aborts, local cancellation or journal effects.
-        if (
-          this.cancelled.has(event.identity.attemptId) ||
-          this.cancelled.size < DEVICE_LIMITS.tombstones
-        ) {
-          this.cancelled.set(event.identity.attemptId, Object.freeze(event.identity))
-          if (this.cancelled.size >= DEVICE_LIMITS.tombstones)
-            this.transition({ kind: 'failed', reason: 'capacity' })
-        } else {
-          this.isPaused = true
-          this.failure = 'capacity'
-          effects.push({ kind: 'report', error: new DeviceJournalError('capacity') })
-        }
+        this.cancelled.set(event.identity.attemptId, Object.freeze(event.identity))
         for (const row of pending) effects.push({ kind: 'abort', control: row.control })
         if (live !== undefined) {
           effects.push({ kind: 'abort', control: live.control }, { kind: 'cancel', live })

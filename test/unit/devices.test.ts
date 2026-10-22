@@ -283,10 +283,10 @@ describe('M100 scoped offers and dispatch', () => {
     ).toBe(false)
   })
   it.each(['workers', 'processes', 'heavyChecks', 'tokens', 'spendUsd', 'artifactBytes'] as const)(
-    'enforces %s ceilings and nonnegative finite caps',
+    'takes any nonnegative finite %s with no ceiling of ours',
     (key) => {
-      expect(deviceCapsSchema.safeParse({ ...caps, [key]: DEVICE_LIMITS[key] }).success).toBe(true)
-      for (const value of [-1, NaN, Infinity, DEVICE_LIMITS[key] + 1]) {
+      expect(deviceCapsSchema.safeParse({ ...caps, [key]: 1_000_000 }).success).toBe(true)
+      for (const value of [-1, NaN, Infinity]) {
         expect(deviceCapsSchema.safeParse({ ...caps, [key]: value }).success).toBe(false)
       }
       if (key !== 'spendUsd')
@@ -319,7 +319,7 @@ describe('M100 scoped offers and dispatch', () => {
       }).success,
     ).toBe(false)
   })
-  it('rejects malformed routing ids, provider identities and oversized model names', () => {
+  it('rejects malformed routing ids and provider identities, at any name length', () => {
     for (const value of [
       '',
       'x'.repeat(32),
@@ -331,17 +331,20 @@ describe('M100 scoped offers and dispatch', () => {
     }
     for (const model of [
       { ...route.model, providerId: 'https://provider.test' },
-      { ...route.model, providerId: 'p'.repeat(DEVICE_LIMITS.modelIdChars + 1) },
-      { ...route.model, modelId: 'm'.repeat(DEVICE_LIMITS.modelIdChars + 1) },
       { ...route.model, modelId: 'user@provider.test' },
     ])
       expect(deviceRouteSchema.safeParse({ ...route, model }).success).toBe(false)
+    for (const model of [
+      { ...route.model, providerId: `p${'p'.repeat(200)}` },
+      { ...route.model, modelId: `m${'m'.repeat(200)}` },
+    ])
+      expect(deviceRouteSchema.safeParse({ ...route, model }).success).toBe(true)
     expect(
       deviceOfferSchema.safeParse({ ...offer, grantRevision: Number.MAX_SAFE_INTEGER + 1 }).success,
     ).toBe(false)
     expect(deviceOfferSchema.safeParse({ ...offer, grantRevision: 0 }).success).toBe(false)
   })
-  it('refuses empty, impossible, oversized or duplicate offers', () => {
+  it('refuses empty, impossible or duplicate offers, at any list length', () => {
     const changed = [
       { ...offer, lanes: false, checks: false, entries: [], checkIds: [] },
       { ...offer, entries: [] },
@@ -351,22 +354,18 @@ describe('M100 scoped offers and dispatch', () => {
       { ...offer, caps: { ...caps, heavyChecks: 0 } },
       { ...offer, entries: [offer.entries[0], offer.entries[0]] },
       { ...offer, checkIds: [ID, ID] },
-      {
-        ...offer,
-        entries: Array.from({ length: DEVICE_LIMITS.entries + 1 }, (_unused, index) => ({
-          ...offer.entries[0],
-          entryId: index.toString(16).padStart(32, '0'),
-        })),
-      },
-      {
-        ...offer,
-        checkIds: Array.from({ length: DEVICE_LIMITS.checks + 1 }, (_unused, index) =>
-          index.toString(16).padStart(32, '0'),
-        ),
-      },
     ]
     for (const value of changed) expect(deviceOfferSchema.safeParse(value).success).toBe(false)
     expect(deviceOfferSchema.safeParse({ ...offer, lanes: false, entries: [] }).success).toBe(true)
+    const longEntries = Array.from({ length: 40 }, (_unused, index) => ({
+      ...offer.entries[0],
+      entryId: index.toString(16).padStart(32, '0'),
+    }))
+    expect(deviceOfferSchema.safeParse({ ...offer, entries: longEntries }).success).toBe(true)
+    const longCheckIds = Array.from({ length: 40 }, (_unused, index) =>
+      index.toString(16).padStart(32, '0'),
+    )
+    expect(deviceOfferSchema.safeParse({ ...offer, checkIds: longCheckIds }).success).toBe(true)
   })
   it.each(['in-place', 'bypassPermissions'])('refuses remote widening %s', (value) => {
     expect(deviceDispatchSchema.safeParse({ ...dispatch, isolation: value }).success).toBe(false)
@@ -387,18 +386,11 @@ describe('M100 scoped offers and dispatch', () => {
       false,
     )
   })
-  it('binds dispatch routing to the attempt and bounds approved task input', () => {
+  it('binds dispatch routing to the attempt, with unbounded approved task input', () => {
     for (const value of [
       { ...dispatch, route: { ...route, pairId: OTHER_ID } },
       { ...dispatch, route: { ...route, receiverIncarnationId: OTHER_ID } },
       { ...dispatch, isolation: 'read-only' },
-      { ...dispatch, brief: 'x'.repeat(DEVICE_LIMITS.taskBriefChars + 1) },
-      { ...dispatch, guidance: 'x'.repeat(DEVICE_LIMITS.guidanceChars + 1) },
-      {
-        ...dispatch,
-        plannedWrites: Array.from({ length: DEVICE_LIMITS.writePaths + 1 }, () => 'src/file'),
-      },
-      { ...dispatch, plannedWrites: ['x'.repeat(DEVICE_LIMITS.pathChars + 1)] },
       { ...dispatch, snapshot: { ...dispatch.snapshot, tree: HASH } },
       { ...dispatch, command: 'echo fixture' },
       { ...dispatch, brief: '' },
@@ -408,6 +400,13 @@ describe('M100 scoped offers and dispatch', () => {
       deviceDispatchSchema.safeParse({ ...dispatch, isolation: 'read-only', plannedWrites: [] })
         .success,
     ).toBe(true)
+    for (const value of [
+      { ...dispatch, brief: 'x'.repeat(9000) },
+      { ...dispatch, guidance: 'x'.repeat(9000) },
+      { ...dispatch, plannedWrites: Array.from({ length: 300 }, () => 'src/file') },
+      { ...dispatch, plannedWrites: [`src/${'x'.repeat(600)}`] },
+    ])
+      expect(deviceDispatchSchema.safeParse(value).success).toBe(true)
   })
 })
 
@@ -564,12 +563,8 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
     expect(unresolved.occupied).toEqual(caps)
     expect(unresolved.usage.retainedLiabilityUsd).toBe(1)
   })
-  it('bounds offer and reconciliation batches, report text and artifact chunks', () => {
+  it('bounds reconciliation batches and artifact chunks; offers and reports run free', () => {
     const oversized: DeviceFrame['body'][] = [
-      {
-        kind: 'offers',
-        offers: Array.from({ length: DEVICE_LIMITS.repositories + 1 }, () => offer),
-      },
       {
         kind: 'reconcile',
         identities: Array.from({ length: DEVICE_LIMITS.reconciliationPage + 1 }, () => identity),
@@ -581,6 +576,14 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
         offset: 0,
         base64: 'A'.repeat(DEVICE_LIMITS.artifactChunkBase64Chars + 4),
       },
+    ]
+    for (const body of oversized)
+      expect(deviceFrameSchema.safeParse(frame(body)).success).toBe(false)
+    expect(deviceFrameSchema.safeParse(frame({ kind: 'reconcile', identities: [] })).success).toBe(
+      false,
+    )
+    const freed: DeviceFrame['body'][] = [
+      { kind: 'offers', offers: Array.from({ length: 40 }, () => offer) },
       {
         kind: 'checkReport',
         identity,
@@ -589,14 +592,10 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
         checkId: ID,
         toolchainDigest: HASH,
         status: 'passed',
-        report: 'x'.repeat(DEVICE_LIMITS.reportChars + 1),
+        report: 'x'.repeat(20_000),
       },
     ]
-    for (const body of oversized)
-      expect(deviceFrameSchema.safeParse(frame(body)).success).toBe(false)
-    expect(deviceFrameSchema.safeParse(frame({ kind: 'reconcile', identities: [] })).success).toBe(
-      false,
-    )
+    for (const body of freed) expect(deviceFrameSchema.safeParse(frame(body)).success).toBe(true)
   })
   it('enforces decoded chunk bytes at the final partial base64 group', () => {
     const chunk = { kind: 'artifactChunk', identity, artifactId: ID, offset: 0 } as const
@@ -624,14 +623,16 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
     const artifactBounds = {
       bundleBytes: DEVICE_LIMITS.artifactBytes,
       expandedBytes: DEVICE_LIMITS.expandedArtifactBytes,
-      objectCount: DEVICE_LIMITS.artifactObjects,
-      fileCount: DEVICE_LIMITS.artifactFiles,
     }
     for (const [key, max] of Object.entries(artifactBounds)) {
       expect(deviceArtifactManifestSchema.safeParse({ ...artifact, [key]: max + 1 }).success).toBe(
         false,
       )
     }
+    expect(
+      deviceArtifactManifestSchema.safeParse({ ...artifact, objectCount: 20_000, fileCount: 5000 })
+        .success,
+    ).toBe(true)
     for (const change of [
       { baseCommit: '' },
       { headCommit: HASH },

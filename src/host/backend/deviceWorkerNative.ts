@@ -1,6 +1,6 @@
 // Compile-once native Devices helper. M27/M50 sources and fallbacks stay untouched.
 import { execFile } from 'node:child_process'
-import { access, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { access, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -126,9 +126,6 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
     try {
       await previous
       await mkdir(root, { recursive: true })
-      const entries = await readdir(root)
-      if (entries.length >= DEVICE_LIMITS.unresolvedAttempts)
-        throw new DeviceWorkerHostError('capacity')
       await mkdir(directory)
     } finally {
       unlock.resolve()

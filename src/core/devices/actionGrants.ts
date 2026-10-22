@@ -283,11 +283,7 @@ export class DeviceActionGrants implements DeviceActionGrantPort {
     for (const [key, entry] of this.attestations) {
       if (entry.approval.expiresAt <= this.deps.now()) this.attestations.delete(key)
     }
-    if (
-      this.pending.has(actionDigest) ||
-      this.pending.size + this.attestations.size >= DEVICE_LIMITS.grantsPerOwner
-    )
-      return this.refusal(request, 'presence-unverified')
+    if (this.pending.has(actionDigest)) return this.refusal(request, 'presence-unverified')
     this.pending.add(actionDigest)
     const control = new AbortController()
     const timer = setTimeout(() => {

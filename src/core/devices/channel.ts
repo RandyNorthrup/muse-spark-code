@@ -32,7 +32,7 @@ const messageSchema = z.union([
   z.strictObject({ kind: z.literal('resultAck'), ack: deviceResultAckSchema }),
   z.strictObject({
     kind: z.literal('log'),
-    text: z.string().check(z.maxLength(DEVICE_LIMITS.reportChars)),
+    text: z.string(),
   }),
 ])
 export type MultiplexedDeviceMessage = z.infer<typeof messageSchema>

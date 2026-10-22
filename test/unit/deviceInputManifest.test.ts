@@ -187,7 +187,7 @@ describe('dispatch input manifests (lane V)', () => {
         ).join('')}x`,
       )
     }
-    generated.push('x'.repeat(DEVICE_LIMITS.pathChars))
+    generated.push('x'.repeat(600))
     for (const inputPath of generated) {
       const candidate = { ...manifest, items: [{ path: inputPath, digest: PLAN_DIGEST, bytes: 0 }] }
       expect(buildInputManifest(candidate).items[0]!.path, inputPath).toBe(inputPath)
@@ -246,7 +246,6 @@ describe('dispatch input manifests (lane V)', () => {
         }
       }
     }
-    await expectRefusedPath('x'.repeat(DEVICE_LIMITS.pathChars + 1))
   })
   it('builds a manifest of content-addressed inputs plus base objects', () => {
     const { manifest } = laneDispatch()
@@ -409,21 +408,20 @@ describe('dispatch input manifests (lane V)', () => {
     expect(copy.checkedBases).toEqual([])
     expect(copy.readPaths).toEqual([])
   })
-  it('refuses more items than the file cap at build', () => {
+  it('builds a manifest with any number of items', () => {
     const { dispatch } = laneDispatch()
-    const items = Array.from({ length: DEVICE_LIMITS.artifactFiles + 1 }, (_, index) => ({
+    const items = Array.from({ length: 5000 }, (_, index) => ({
       path: `input-${String(index)}.md`,
       digest: PLAN_DIGEST,
       bytes: 1,
     }))
-    expect(() =>
-      buildInputManifest({
-        identity: dispatch.identity,
-        baseCommit: BASE_COMMIT,
-        tree: TREE,
-        items,
-      }),
-    ).toThrow('invalid-frame')
+    const manifest = buildInputManifest({
+      identity: dispatch.identity,
+      baseCommit: BASE_COMMIT,
+      tree: TREE,
+      items,
+    })
+    expect(manifest.items).toHaveLength(5000)
   })
   it('refuses unsafe paths, malformed digests, versions and unknown fields', () => {
     const { manifest } = laneDispatch()

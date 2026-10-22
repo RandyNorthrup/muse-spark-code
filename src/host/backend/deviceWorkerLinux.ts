@@ -404,8 +404,6 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
     try {
       maxProcesses = admittedProcessLimit(attempt)
       await manager()
-      if (slots.size >= DEVICE_LIMITS.unresolvedAttempts)
-        throw new DeviceWorkerHostError('capacity')
       const canonical = workerEnvironment(environment, 'linux')
       if (JSON.stringify(canonical) !== JSON.stringify(environment))
         throw new DeviceWorkerHostError('preflight')

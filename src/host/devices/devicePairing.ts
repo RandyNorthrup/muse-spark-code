@@ -1,6 +1,5 @@
 // Explicit Devices actions only. U supplies QR rendering from publicText;
 // I binds the lazy desktop factory, T binds socket closure, E binds grants.
-import { DEVICE_LIMITS } from '../../shared/constants'
 import {
   deviceHostMessageSchema,
   parseDeviceWebviewRequest,
@@ -114,7 +113,6 @@ export class DevicePairing {
   }
   private async begin(): Promise<Partial<Setup>> {
     const state = await this.deps.store.read()
-    if (state.pairs.length >= DEVICE_LIMITS.pairedDevices) throw new DevicePairingError('capacity')
     const existing = state.pending[0]
     if (existing !== undefined) {
       if (this.deps.now() >= existing.local.expiresAt) {
