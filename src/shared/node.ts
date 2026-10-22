@@ -295,6 +295,13 @@ export const nodeGitRepositoryConfigSchema = z.partialRecord(
   z.enum(NODE_GIT_INERT_CONFIG_NAMES),
   z.string().check(z.minLength(1), z.maxLength(NODE_MAX_ARG_CHARS), z.regex(/^[A-Za-z0-9]+$/u)),
 )
+/** A status branch is a catalog ref and often the short name (`main`);
+the credentialed network tuple needs the full branch path. Both the
+page (when it builds the tuple) and N (when it admits it) normalize
+through this one function so the two sides always agree. */
+export function nodeNetworkBranchRef(branch: string): string {
+  return branch.startsWith('refs/heads/') ? branch : `refs/heads/${branch}`
+}
 /** SSH destination and verified host key, included in the step-up action digest. */
 export const nodeGitDestinationSchema = z.strictObject({
   host: nodeDomainSchema,

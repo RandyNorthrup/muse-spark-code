@@ -74,11 +74,11 @@ const networkGit = z.strictObject({
 const gitResult = z.strictObject({ head, changed: z.boolean() })
 
 /**
- * Access is a dispatch requirement, never a grant implied by a valid shape.
- * N's Git runner uses NODE_GIT_OPTIONS/environment and a service-owned closed
- * gitdir; bind/recheck destination, host key, ref and head before credential use.
- * See M110-N-git in docs/certification/m110-captures.md; argv alone is insufficient.
- */
+Access is a dispatch requirement, never a grant implied by a valid shape.
+N's Git runner uses NODE_GIT_OPTIONS/environment and a service-owned closed
+gitdir; bind/recheck destination, host key, ref and head before credential use.
+See M110-N-git in docs/certification/m110-captures.md; argv alone is insufficient.
+*/
 export const nodeMethods = {
   'node/auth/begin': {
     access: 'public',
@@ -277,6 +277,7 @@ export const nodeMethodErrorSchema = z.strictObject({
     'conflict',
     'tooLarge',
     'rateLimited',
+    'notText',
     'noSuchWorkspace',
     'notFound',
     'cancelled',

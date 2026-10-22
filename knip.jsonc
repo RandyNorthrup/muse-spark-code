@@ -612,7 +612,8 @@
     "ssh-keygen",
     "dash",
     "flock",
-    "openssl"
+    "openssl",
+    "gpgv"
   ],
 
   "ignoreExportsUsedInFile": true,

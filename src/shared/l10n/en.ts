@@ -16,6 +16,35 @@
 import { forms } from './forms'
 
 export const EN = {
+  nodeWorkspace: {
+    controlCharacter: 'Control character',
+    selectionDeleted: 'Selection deleted',
+    currentBranch: 'Current branch',
+    refresh: 'Refresh',
+    search: 'Search files',
+    path: 'File path',
+    save: 'Save file',
+    saved: 'File saved.',
+    diff: 'Review changes',
+    original: 'Saved version',
+    modified: 'Edited version',
+    stage: 'Stage file',
+    fetch: 'Fetch',
+    pull: 'Pull',
+    branches: 'Branches',
+    branchName: 'New branch name',
+    createBranch: 'Create branch',
+    noFiles: 'No files found.',
+    discard: 'Discard edits',
+    unsaved: 'Save or discard your edits before opening another file.',
+    truncated: 'This diff is truncated. Refresh for the current changes.',
+    destination: 'SSH destination',
+    hostKey: 'Verified host key',
+    head: 'Current commit',
+    networkConfirm: 'Verify {action} to {remote} on {ref} at {head}.',
+    binaryReplaced:
+      'The upload replaced the open file with bytes that are not UTF-8 text. The editor was closed.',
+  },
   // M110a0: node labels and messages; consumers read UI_TEXT at runtime.
   // M110-A1: console recovery and browser trust instructions.
   nodeAuth: {
@@ -112,6 +141,7 @@ export const EN = {
     conflict: 'The file or branch changed. Refresh before retrying.',
     tooLarge: 'The request exceeds the size limit.',
     rateLimited: 'Too many requests. Wait before retrying.',
+    notText: 'This file is not UTF-8 text.',
     noSuchWorkspace: 'The workspace does not exist.',
     notFound: 'The requested item was not found.',
     cancelled: 'The action was cancelled.',
