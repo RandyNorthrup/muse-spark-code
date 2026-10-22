@@ -96,6 +96,25 @@ function requiredBundles(bundles, folder) {
       ts.forEachChild(node, (child) => bind(child, functionScope, blockScope))
     }
     bind(tree, tree, tree)
+    // A module that the bundle also imports dynamically is emitted as a lazy
+    // initializer (`var a, b; init = fn(() => { a = "x.js" })`), so a name
+    // declared without a value takes the value its own scope's assignment
+    // gives it (shared/constants is emitted this way once a team surface
+    // imports a module of its own in-bundle).
+    visit(tree, (node) => {
+      if (
+        !ts.isBinaryExpression(node) ||
+        node.operatorToken.kind !== ts.SyntaxKind.EqualsToken ||
+        !ts.isIdentifier(node.left)
+      )
+        return
+      for (let owner = node.parent; owner; owner = owner.parent) {
+        const scope = scopes.get(owner)
+        if (!scope?.has(node.left.text)) continue
+        if (scope.get(node.left.text) === undefined) scope.set(node.left.text, node.right)
+        return
+      }
+    })
     const resolved = new WeakMap()
     function valueOf(identifier) {
       for (let owner = identifier.parent; owner; owner = owner.parent) {
