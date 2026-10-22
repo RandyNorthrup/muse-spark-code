@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The vault panel no longer drops an Unlock (or any other panel action)
+  without a word when a vault event arrives while it is being sent: the
+  action is delivered and its answer shown. An edit that another change
+  overtakes now says the vault changed instead of discarding the draft
+  silently.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
