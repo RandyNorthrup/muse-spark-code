@@ -66,6 +66,15 @@ pressure change in between moves the governor but never the binding.
 Registration never disturbs unrelated active work, queued admissions, or
 the governor's pressure/override state.
 */
+/**
+A rebind that never had a host: the load failed while everything shut down
+or reconfigured, so there is no binding to rebind and the load failure
+already reached whoever awaited it.
+*/
+function isDeadRebind(error: unknown): boolean {
+  return error instanceof Error && (state.isDisposed || state.options === undefined)
+}
+
 function refreshRoutes(): void {
   const options = state.options
   if (options === undefined) return
@@ -74,7 +83,9 @@ function refreshRoutes(): void {
     ?.then((host) => {
       if (state.options === options) host.updateRelocationTarget(target)
     })
-    .catch(() => {
+    .catch((error: unknown) => {
+      // A dead rebind absorbs; anything else is not a rebind outcome.
+      if (!isDeadRebind(error)) throw error
       options.onError()
     })
   state.window?.port.updateRelocationTarget(target)

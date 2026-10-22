@@ -48,6 +48,13 @@ export interface ProcessResources extends RuntimeResources {
   configure(run: RuntimeResourceRun): ProcessResources
 }
 
+/** The runtime's resource reading is unavailable: shut down or never loaded. */
+export class ResourceUnavailableError extends Error {
+  public constructor() {
+    super(UI_TEXT.resourceUnavailable)
+  }
+}
+
 /** Creating/subscribing the facade never loads the bundle or reads machine settings. */
 export function lazyRuntimeResources(
   options: ResourceEntryOptions & {
@@ -77,7 +84,7 @@ export function lazyRuntimeResources(
   const sessions = new AsyncLocalStorage<ResourceWorkContext>()
   const load = async (signal?: AbortSignal) => {
     signal?.throwIfAborted()
-    if (state.isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
+    if (state.isDisposed) throw new ResourceUnavailableError()
     pending ??= (async () => {
       await Promise.resolve()
       let created: Loaded | undefined
@@ -95,7 +102,7 @@ export function lazyRuntimeResources(
         )
         created = host
         if (state.isDisposed) {
-          throw new Error(UI_TEXT.resourceUnavailable)
+          throw new ResourceUnavailableError()
         }
         loaded = host
         for (const subscribe of subscriptions) bound.set(subscribe, subscribe(host))
@@ -116,11 +123,11 @@ export function lazyRuntimeResources(
     // Initialization belongs to the process; cancellation belongs to this caller.
     const host = signal === undefined ? await pending : await unlessAborted(pending, signal)
     signal?.throwIfAborted()
-    if (host === undefined) throw new Error(UI_TEXT.resourceUnavailable)
+    if (host === undefined) throw new ResourceUnavailableError()
     return host
   }
   const subscribe = (bind: (host: RuntimeResources) => () => void) => {
-    if (state.isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
+    if (state.isDisposed) throw new ResourceUnavailableError()
     subscriptions.add(bind)
     if (loaded !== undefined) bound.set(bind, bind(loaded))
     return () => {
@@ -182,7 +189,7 @@ export function lazyRuntimeResources(
   })
   const facade: ProcessResources = {
     configure(run) {
-      if (state.isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
+      if (state.isDisposed) throw new ResourceUnavailableError()
       if (run.overrides !== undefined) overrides = run.overrides
       if (run.isRecordingHistory !== undefined) isRecordingHistory = run.isRecordingHistory
       return facade
