@@ -239,7 +239,7 @@ namespace MuseSpark.VisualStudio.Test
     [TestMethod]
     public async Task BoundsFramesAndRefusesTruncationBatchesAndDuplicateFields()
     {
-      await Assert.ThrowsExceptionAsync<MhpException>(() => MhpPeer.ReadFrameAsync(new StringReader(new string('x', SchemaContract.MaximumFrameChars + 1) + "\n")));
+      await Assert.ThrowsExceptionAsync<MhpException>(() => MhpPeer.ReadFrameAsync(new StringReader(new string('x', SchemaContract.MaximumFrameBytes + 1) + "\n")));
       await Assert.ThrowsExceptionAsync<MhpException>(() => MhpPeer.ReadFrameAsync(new StringReader("{}")));
       Assert.AreEqual("{}", await MhpPeer.ReadFrameAsync(new StringReader("{}\r\n")));
       Assert.ThrowsException<MhpException>(() => SchemaContract.ParseObject("[]"));

@@ -19,17 +19,18 @@
     <Compile Include="..\Panel\AssetPolicy.cs" Link="Panel\AssetPolicy.cs" />
     <Compile Include="..\Panel\RuntimeProcess.cs" Link="Panel\RuntimeProcess.cs" />
     <Compile Include="..\Panel\UiText.cs" Link="Panel\UiText.cs" />
-    <Compile Include="..\Panel\PanelInbox.cs" Link="Panel\PanelInbox.cs" />
+    <Compile Include="..\Panel\RuntimeLocator.cs" Link="Panel\RuntimeLocator.cs" />
     <Compile Include="..\Panel\IPanelChannel.cs" Link="Panel\IPanelChannel.cs" />
     <Compile Include="..\Panel\PanelChannel.cs" Link="Panel\PanelChannel.cs" />
+    <Compile Include="..\Panel\MhpPanelChannel.cs" Link="Panel\MhpPanelChannel.cs" />
     <Compile Include="..\Panel\NativeUi.cs" Link="Panel\NativeUi.cs" />
-    <Compile Include="..\..\..\test\m104\windows\*.cs" Link="Windows\%(Filename)%(Extension)" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="WindowsBase" />
     <Reference Include="System.Xaml" />
+    <EmbeddedResource Include="..\..\..\src\shared\hostApi\mhp-v1.schema.json" Link="Protocol\mhp-v1.schema.json" />
     <EmbeddedResource Include="..\..\..\src\shared\hostApi\mhp-v1.1.schema.json" Link="Protocol\mhp-v1.1.schema.json" />
   </ItemGroup>
 </Project>

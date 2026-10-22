@@ -81,6 +81,25 @@ namespace MuseSpark.VisualStudio.Panel
     }
 
     public Task OpenAsync() => LifecycleAsync("opened");
+    public async Task ReadyAsync()
+    {
+      await sending.WaitAsync().ConfigureAwait(false);
+      try
+      {
+        if (disposed) throw new MhpException("cancelled", "MHP_SURFACE_CLOSED");
+        if (ready) return;
+        await LifecycleAsync("ready").ConfigureAwait(false);
+        ready = true;
+        hasBeenReady = true;
+      }
+      finally { sending.Release(); }
+    }
+    public Task HiddenAsync() => LifecycleAsync("hidden");
+    public void SaveState(JToken state)
+    {
+      // The page persists its own state under sessionStorage (DocumentBootstrap); the host validates the shape.
+      SchemaContract.Validate(state, peer.Contract.Export["embeddedBridge"]?["setState"]?["state"] ?? throw Invalid());
+    }
     public async Task ReloadAsync()
     {
       await sending.WaitAsync().ConfigureAwait(false);

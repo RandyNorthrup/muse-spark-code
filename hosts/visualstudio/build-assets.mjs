@@ -28,6 +28,16 @@ const { EN, TABLE_LOCALES, buildWebviewHtml, createNonce } = await import(
 
 await mkdir(path.join(assets, 'l10n'), { recursive: true })
 await mkdir(path.join(assets, 'runtime'), { recursive: true })
+await esbuild.build({
+  entryPoints: [path.join(plugin, 'Panel/embedded-bridge.mjs')],
+  outfile: path.join(assets, 'embedded-bridge.js'),
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  globalName: 'MuseVisualStudio',
+  platform: 'browser',
+  target: 'chrome132',
+})
 await cp(path.join(root, 'dist/webview'), path.join(assets, 'webview'), { recursive: true })
 const englishManifest = JSON.parse(await readFile(path.join(root, 'package.nls.json'), 'utf8'))
 for (const locale of ['en', ...TABLE_LOCALES]) {
@@ -60,6 +70,10 @@ for (const locale of ['en', ...TABLE_LOCALES]) {
     html.replace('<body data-host="embedded">', '<body data-host="embedded" data-surface="tasks">'),
   )
 }
+await cp(
+  path.join(root, 'src/shared/hostApi/mhp-v1.schema.json'),
+  path.join(assets, 'mhp-v1.schema.json'),
+)
 await cp(
   path.join(root, 'src/shared/hostApi/mhp-v1.1.schema.json'),
   path.join(assets, 'mhp-v1.1.schema.json'),
