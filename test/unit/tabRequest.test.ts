@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  TAB_FAST_MAX_OUTPUT_TOKENS,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   TAB_HOLE_MARKER,
   TAB_MODEL_TEXT,
-  TAB_MULTILINE_MAX_OUTPUT_TOKENS,
   TAB_PROMPT_CACHE_KEY_PREFIX,
 } from '../../src/shared/constants'
 import {
@@ -17,6 +16,7 @@ import { promptCacheKey } from '../../src/core/backends/modelapi/promptCache'
 import {
   buildTabRequest,
   tabPromptCacheKey,
+  tabRequestMaxOutputTokens,
   tabUserText,
   type TabRequestInput,
 } from '../../src/core/tab/tabRequest'
@@ -29,6 +29,7 @@ const INPUT: TabRequestInput = {
   suffix: '\n}\n',
   snippets: '',
   mode: 'fast',
+  maxOutputTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
 }
 
 describe('buildTabRequest', () => {
@@ -44,13 +45,15 @@ describe('buildTabRequest', () => {
     expect('previous_response_id' in body).toBe(false)
     expect(body.include).toEqual([])
     expect(body.instructions).toBe(TAB_MODEL_TEXT.tabSystem)
-    expect(body.max_output_tokens).toBe(TAB_FAST_MAX_OUTPUT_TOKENS)
+    expect(body.max_output_tokens).toBe(INPUT.maxOutputTokens)
   })
 
-  it('uses the multi-line output cap in multi-line mode', () => {
+  it('carries the resolved output cap in both modes (acceptance 6)', () => {
+    // The mode selects context, not output: both send the caller's number.
     expect(buildTabRequest({ ...INPUT, mode: 'multiline' }).max_output_tokens).toBe(
-      TAB_MULTILINE_MAX_OUTPUT_TOKENS,
+      INPUT.maxOutputTokens,
     )
+    expect(buildTabRequest({ ...INPUT, maxOutputTokens: 2048 }).max_output_tokens).toBe(2048)
   })
 
   it('fences the path, the prefix, the hole and the suffix as data', () => {
@@ -91,6 +94,23 @@ describe('buildTabRequest', () => {
     expect(later).toContain(snippets)
     const head = earlier.slice(0, earlier.indexOf(snippets) + snippets.length)
     expect(later.startsWith(head)).toBe(true)
+  })
+})
+
+describe('tabRequestMaxOutputTokens (M94 goal, D121)', () => {
+  it("sends the provider's maximum while the person sets nothing", () => {
+    expect(tabRequestMaxOutputTokens(0, MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)).toBe(
+      MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
+    )
+  })
+
+  it('sends a set cap lower or higher than the record maximum alike', () => {
+    // The person's number is theirs: lower caps the request, higher
+    // still sends (the provider enforces its own maximum).
+    expect(tabRequestMaxOutputTokens(2048, MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)).toBe(2048)
+    expect(tabRequestMaxOutputTokens(1_000_000, MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS)).toBe(
+      1_000_000,
+    )
   })
 })
 

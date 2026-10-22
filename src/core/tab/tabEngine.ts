@@ -41,6 +41,8 @@ export interface TabEngineRequest {
   /** Ordered, bounded, redacted related-file excerpts. */
   readonly snippets: string
   readonly mode: TabMode
+  /** The request's output cap, resolved by the provider (acceptance 6). */
+  readonly maxOutputTokens: number
   readonly isInvoke: boolean
   /** The cursor line's text before the cursor (whitespace normalization). */
   readonly cursorLineBefore: string
@@ -134,6 +136,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
       suffix: request.suffix,
       snippets: request.snippets,
       mode: request.mode,
+      maxOutputTokens: request.maxOutputTokens,
     })
     const filter = {
       mode: request.mode,

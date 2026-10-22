@@ -143,6 +143,7 @@
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: stawki Standard, brak treningu na Twoim kodzie.",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor: stawki kontrybucyjne, Meta trenuje na wysłanym kodzie.",
   "config.tabDailyBudgetUsd.description": "Sztywny dzienny budżet w dolarach na żądania uzupełnień Tab we wszystkich oknach tej maszyny; żądanie, którego najgorszy przypadek by go przekroczył, nie jest wysyłane. Od 0,05 $ do 50 $.",
+  "config.tabMaxOutputTokens.description": "Maksymalna liczba tokenów wyjściowych na żądanie uzupełniania Tab; 0 oznacza maksimum dostawcy dla modelu. Ustawiony limit wyznacza rozmiar żądania i rezerwę kosztów najgorszego przypadku.",
   "config.tabLanguages.description": "Języki, dla których Tab sugeruje, na wzór github.copilot.enable programu GitHub Copilot: każdy język jest włączony oprócz plaintext, markdown i scminput, chyba że wskazano tu inaczej.",
   "config.tabMultiline.description": "Kiedy Tab dodaje otaczający kontekst dla uzupełnień wielowierszowych.",
   "config.tabMultiline.enumDescriptions.auto": "Wielowierszowo, gdy wiersz kursora jest pusty lub kończy się otwarciem bloku, oraz przy każdym jawnym żądaniu.",
