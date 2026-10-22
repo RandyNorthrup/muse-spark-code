@@ -50,10 +50,10 @@ function conversation(retryAccount?: string): AccountPoolRequest {
   }
 }
 
-function worker(owner: string): AccountPoolRequest {
+function worker(): AccountPoolRequest {
   return {
-    owner,
-    budgetOwner: owner,
+    owner: 'worker-1',
+    budgetOwner: 'worker-1',
     modelId: MODEL,
     kind: 'worker',
     account: 's1',
@@ -79,7 +79,8 @@ async function storedEvents(directory: string): Promise<AccountEvent[]> {
   return events
 }
 
-async function setup(rows: Account[]) {
+async function setup(rows: Account[], settings?: { isSwapOn: boolean; isParallelOn: boolean }) {
+  const live = settings ?? { isSwapOn: true, isParallelOn: true }
   const dir = await mkdtemp(path.join(tmpdir(), 'account-pool-'))
   folders.push(dir)
   const journalDir = path.join(dir, ACCOUNT_REQUEST_STORE.directory)
@@ -146,7 +147,7 @@ async function setup(rows: Account[]) {
     gate: new AccountPolicyGate(confirmations),
     now: () => NOW,
     usageUrl: 'https://example.test/usage',
-    settings: () => ({ isSwapOn: true, isParallelOn: true }),
+    settings: () => live,
     headroom: (row) => journal.headroom(row, 'meta'),
     canUseModel: (_row, request) => modelPolicyFor(request.modelId).identity.provider === 'meta',
     coldCache: (_previous, _next, request) => {
@@ -322,7 +323,7 @@ describe('M108 account pool composition', () => {
     const priming = await harness.pool.acquire(conversation())
     priming.beforeSend()
     await priming.settle(parseUsd('0.01'))
-    const admitted = await harness.pool.acquire(worker('worker-1'))
+    const admitted = await harness.pool.acquire(worker())
     expect(admitted.account).toBe('s2')
     expect(harness.asked.count).toBe(0)
     admitted.beforeSend()
@@ -330,6 +331,40 @@ describe('M108 account pool composition', () => {
     expect(harness.published).toEqual([
       expect.objectContaining({ type: 'spread', account: 's2', workerId: 'worker-1' }),
     ])
+  })
+
+  it('stops instead of swapping when the swap setting is off', async () => {
+    const harness = await setup([account('s1', 0), account('s2', 1)], {
+      isSwapOn: false,
+      isParallelOn: true,
+    })
+    const resetAt = new Date(NOW + 3_600_000).toISOString()
+    harness.journal.block('meta', 's1', resetAt)
+    let failure: unknown = 'admitted'
+    try {
+      await harness.pool.acquire(conversation())
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(AccountPoolStoppedError)
+    expect((failure as AccountPoolStoppedError).resetAt).toBe(resetAt)
+    expect(harness.asked.count).toBe(0)
+    expect(harness.published).toEqual([])
+  })
+
+  it('keeps a worker on its account when the parallel setting is off', async () => {
+    const harness = await setup([account('s1', 0), account('s2', 1)], {
+      isSwapOn: true,
+      isParallelOn: false,
+    })
+    const priming = await harness.pool.acquire(conversation())
+    priming.beforeSend()
+    await priming.settle(parseUsd('0.01'))
+    const admitted = await harness.pool.acquire(worker())
+    expect(admitted.account).toBe('s1')
+    admitted.beforeSend()
+    await admitted.settle(parseUsd('0.01'))
+    expect(harness.published).toEqual([])
   })
 
   it('refunds a reservation that never sends to zero', async () => {
