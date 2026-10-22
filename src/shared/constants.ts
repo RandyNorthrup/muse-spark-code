@@ -4867,6 +4867,9 @@ export const ACP_PAID_OPTIONS = {
 // One session-list page the agent reads for the editor's cursor; the editor
 // pages through every one, so no session is hidden past the page.
 export const ACP_SESSION_LIST_LIMIT = 50
+// How many known commands the unknown-slash answer names. The unknown command
+// itself is still refused, and the full list arrives with the session.
+export const ACP_NEAREST_COMMAND_COUNT = 3
 // Model API sessions of the agent, per folder, under the user's data folder:
 // the folder named per platform, and the length of the folder's hash.
 // M114 F: optional WOFF2 pack; never an activation or VSIX asset.

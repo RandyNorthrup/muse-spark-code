@@ -96,6 +96,7 @@ import {
   ACP_AGENT_TITLE,
   ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
+  ACP_NEAREST_COMMAND_COUNT,
   ACP_PAID_TOOL_CALL_PREFIX,
   ACP_QUESTIONS_BUNDLE_FILE,
   ACP_SESSION_LIST_LIMIT,
@@ -365,9 +366,6 @@ interface SessionClaim {
 }
 
 const CANCELLED_TERMINAL = 'cancelled'
-/** How many known commands the unknown-slash answer names. */
-const NEAREST_COMMAND_COUNT = 3
-
 /** Alphabetical fallback order for the unknown-slash suggestions. */
 function compareCommandName(left: string, right: string): number {
   return left.localeCompare(right)
@@ -895,11 +893,11 @@ class AcpSession {
     const holds = names
       .filter((candidate) => !starts.includes(candidate) && candidate.toLowerCase().includes(lower))
       .toSorted(compareCommandName)
-    const nearest = [...starts, ...holds].slice(0, NEAREST_COMMAND_COUNT)
+    const nearest = [...starts, ...holds].slice(0, ACP_NEAREST_COMMAND_COUNT)
     const shown =
       nearest.length > 0
         ? nearest
-        : names.toSorted(compareCommandName).slice(0, NEAREST_COMMAND_COUNT)
+        : names.toSorted(compareCommandName).slice(0, ACP_NEAREST_COMMAND_COUNT)
     return shown.map((candidate) => `/${candidate}`).join(', ')
   }
 
