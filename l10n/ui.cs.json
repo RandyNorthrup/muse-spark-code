@@ -3843,6 +3843,15 @@
   },
   "acpNoModels": "Backend nenabízí žádný model, který by tento agent mohl použít.",
   "acpPromptBusy": "V této relaci už běží jiný prompt.",
+  "acpSessionStartFailed": "Relaci se nepodařilo spustit ({detail}). Podrobnosti najdete v protokolu Muse Spark.",
+  "acpTurnStartFailed": "Kolo se nepodařilo spustit ({detail}). Podrobnosti najdete v protokolu Muse Spark.",
+  "createdRegistrySave": {
+    "failed": "Registr vytvořených prostředků se nepodařilo uložit ({reason}). Podrobnosti najdete v protokolu Muse Spark.",
+    "refused": "systémový pomocník uložení odmítl",
+    "unsafe": "bezpečnostní kontrola uloženého registru selhala",
+    "invalid": "uložený registr je neplatný",
+    "io": "uložení se nezdařilo zapsat"
+  },
   "acpQuestionFormMessage": "Muse má na vás otázku.",
   "acpQuestionAsked": "Muse má otázku; tento editor ji neumí zobrazit jako formulář, odpovězte proto v další zprávě:",
   "acpUnknownArgument": "Neznámý argument: {argument}",

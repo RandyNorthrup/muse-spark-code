@@ -4,9 +4,11 @@
 
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it } from 'vitest'
-import { failureForLog, stderrForLog } from '../../src/core/backends/musecode/logText'
+import { causeForLog, failureForLog, stderrForLog } from '../../src/core/backends/musecode/logText'
+import { CreatedRegistrySaveError } from '../../src/shared/createdRegistrySaveError'
 import { wireWordForLog } from '../../src/core/logging'
 import { DeadlineError } from '../../src/core/timeouts'
+import { UI_TEXT } from '../../src/shared/constants'
 
 // Synthetic: free text naming a path under a profile and an e-mail address.
 const PERSONAL = String.raw`failed for someone@example.com at C:\Users\someone\.config\muse\auth.json`
@@ -54,6 +56,54 @@ describe('failureForLog', () => {
     expect(failureForLog(new Error(PERSONAL))).toBe('Error')
     expect(failureForLog(new TypeError(PERSONAL))).toBe('TypeError')
     expect(failureForLog(PERSONAL)).toBe('an unknown failure')
+  })
+})
+
+describe('causeForLog', () => {
+  it('adds a machine code word to the name, never the message', () => {
+    expect(causeForLog(Object.assign(new Error(PERSONAL), { code: 'EPIPE' }))).toBe('Error EPIPE')
+    expect(causeForLog(Object.assign(new Error(PERSONAL), { code: 'ABORT_ERR' }))).toBe(
+      'Error ABORT_ERR',
+    )
+    // A refusal shaped any other way stays exactly failureForLog: the
+    // message, however personal, never passes.
+    expect(causeForLog(Object.assign(new Error(PERSONAL), { code: PERSONAL }))).toBe('Error')
+    expect(causeForLog(Object.assign(new Error(PERSONAL), { code: -32_000 }))).toBe('Error')
+    expect(causeForLog(new Error(PERSONAL))).toBe('Error')
+    expect(causeForLog(PERSONAL)).toBe('an unknown failure')
+  })
+
+  it('names a refused registry save with its fixed reason', () => {
+    for (const reason of ['refused', 'unsafe', 'invalid', 'io'] as const) {
+      expect(causeForLog(new CreatedRegistrySaveError(reason))).toBe(
+        `CreatedRegistrySaveError ${reason}`,
+      )
+    }
+    // Anything else stays the name alone: the message never passes.
+    const other = Object.assign(new CreatedRegistrySaveError('refused'), { reason: PERSONAL })
+    expect(causeForLog(other)).toBe('CreatedRegistrySaveError')
+  })
+
+  it('passes one of our own sentences untouched, and nothing near it', () => {
+    // Our layers throw their own installed sentences when they know what
+    // happened (a closed session refusing a command): those are fixed
+    // vocabulary, safe to keep. Anything else stays the name alone.
+    expect(causeForLog(new Error(UI_TEXT.questionCancelled))).toBe(UI_TEXT.questionCancelled)
+    expect(causeForLog(new Error(UI_TEXT.commandTooLarge))).toBe(UI_TEXT.commandTooLarge)
+    expect(causeForLog(new Error(`${UI_TEXT.questionCancelled} ${PERSONAL}`))).toBe('Error')
+    expect(causeForLog(new Error(PERSONAL))).toBe('Error')
+  })
+
+  it('keeps MSP failures and deadline words exactly failureForLog', () => {
+    const refused = new MspError({
+      code: -32_000,
+      message: PERSONAL,
+      data: { kind: 'commandRejected' },
+    })
+    expect(causeForLog(refused)).toBe('commandRejected (MSP error -32000)')
+    expect(causeForLog(new DeadlineError('Muse Code did not answer task/stopAll in time'))).toBe(
+      'Muse Code did not answer task/stopAll in time',
+    )
   })
 })
 

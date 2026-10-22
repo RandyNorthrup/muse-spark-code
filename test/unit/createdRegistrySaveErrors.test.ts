@@ -9,12 +9,11 @@
 import { mkdtemp, rm, writeFile, chmod } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { CreatedRegistry, type CreatedPathProof } from '../../src/core/resources/createdRegistry'
 import {
-  CreatedRegistry,
   isCreatedRegistrySaveError,
-  type CreatedPathProof,
   type CreatedRegistrySaveReason,
-} from '../../src/core/resources/createdRegistry'
+} from '../../src/shared/createdRegistrySaveError'
 import { denyWrites } from './helpers/deniedAccess'
 
 const proof: CreatedPathProof = {

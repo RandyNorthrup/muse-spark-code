@@ -63,7 +63,7 @@ import {
   type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
-import { failureForLog } from '../core/backends/musecode/logText'
+import { causeForLog, failureForLog } from '../core/backends/musecode/logText'
 import { wireWordForLog } from '../core/logging'
 import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
 import {
@@ -132,6 +132,7 @@ import {
   type AccountsSessionPort,
 } from './accounts'
 import { isInvalidProvidersFileError } from './accountText'
+import { startFailureText, type StartSite } from './startText'
 import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
@@ -361,6 +362,17 @@ function accountRequestError(error: unknown): RequestError {
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
     : RequestError.internalError(undefined, text)
+}
+
+/**
+A failed start as the ACP answer: a RequestError already carries the
+client's words and passes through; anything else becomes words naming the
+failure, never a bare "Internal error" with the cause buried in its data.
+*/
+function startRequestError(error: unknown, site: StartSite): RequestError {
+  return error instanceof RequestError
+    ? error
+    : RequestError.internalError(undefined, startFailureText(error, site))
 }
 
 /**
@@ -679,7 +691,7 @@ class AcpSession {
       await this.client.notify('session/update', { sessionId: this.sessionId, update })
     } catch (error: unknown) {
       this.deps.log.warn(
-        `ACP session ${this.sessionId}: an update was not sent: ${failureForLog(error)}`,
+        `ACP session ${this.sessionId}: an update was not sent: ${causeForLog(error)}`,
       )
       observeError(this.deps, 'updateNotSent')
     }
@@ -1292,7 +1304,10 @@ class AcpSession {
         return
       }
       pending.reject(
-        RequestError.internalError(undefined, event.reason ?? event.errorKind ?? event.terminal),
+        RequestError.internalError(
+          undefined,
+          event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
+        ),
       )
       return
     }
@@ -2897,8 +2912,12 @@ class AcpSession {
       // submitTurn starts the turn detached and resolves, and the refusal
       // fails the turn as turnCompleted with the sentence as reason
       // (ModelApiHost.ts: reason = describe(error)), settled above at
-      // settle. A raw error here keeps the SDK's shape unchanged.
-      throw error
+      // settle. A failed start says what failed in words instead of keeping
+      // the raw error's shape; only a RequestError keeps its own shape.
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: the turn could not be started: ${causeForLog(error)}`,
+      )
+      throw startRequestError(error, 'turn')
     } finally {
       this.starting = undefined
     }
@@ -3384,40 +3403,49 @@ class AgentState {
     requestedMcp: readonly McpServer[] | undefined,
     client: AgentContext,
   ) {
-    const { host, models } = await this.openHost(cwd)
-    const modelId = startingModel(
-      models,
-      this.deps.options.initialModelId,
-      this.deps.backend.kind === 'modelApi',
-    )
-    const mcpServers = this.forwardedMcp(host, requestedMcp)
-    // The start carries no account identity: a step that needs a stored key
-    // refuses then, in the one store sentence, never at the open.
-    const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
-    // Manual asks the person because the session reviews with `:ask-me`
-    // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
-    // its words describe. Omitted profiles keep the host default, which is
-    // what every headless session starts with, as before.
-    const permissionProfile = mspStartPermissionProfile(
-      approvalMode,
-      this.deps.options.isHeadless === true,
-    )
-    const session = await host.startSession({
-      workspaceRoot: cwd,
-      modelId,
-      approvalMode,
-      ...(permissionProfile !== undefined && { permissionProfile }),
-      ...(mcpServers !== undefined && { mcpServers }),
-    })
-    // The mode and model went with the start; the effort is set here. A
-    // plan model starts on its catalogue default unless the person chose one.
-    const claim = this.claimSession(session.sessionId)
-    const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(defaultEffortFor(models, modelId)),
-    )
-    // Keep what the editor is shown, including backend events during setup.
-    this.choices.set(session.sessionId, acp.currentChoice())
-    return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
+    try {
+      const { host, models } = await this.openHost(cwd)
+      const modelId = startingModel(
+        models,
+        this.deps.options.initialModelId,
+        this.deps.backend.kind === 'modelApi',
+      )
+      const mcpServers = this.forwardedMcp(host, requestedMcp)
+      // The start carries no account identity: a step that needs a stored key
+      // refuses then, in the one store sentence, never at the open.
+      const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
+      // Manual asks the person because the session reviews with `:ask-me`
+      // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
+      // its words describe. Omitted profiles keep the host default, which is
+      // what every headless session starts with, as before.
+      const permissionProfile = mspStartPermissionProfile(
+        approvalMode,
+        this.deps.options.isHeadless === true,
+      )
+      const session = await host.startSession({
+        workspaceRoot: cwd,
+        modelId,
+        approvalMode,
+        ...(permissionProfile !== undefined && { permissionProfile }),
+        ...(mcpServers !== undefined && { mcpServers }),
+      })
+      // The mode and model went with the start; the effort is set here. A
+      // plan model starts on its catalogue default unless the person chose one.
+      const claim = this.claimSession(session.sessionId)
+      const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
+        started.applyEffort(defaultEffortFor(models, modelId)),
+      )
+      // Keep what the editor is shown, including backend events during setup.
+      this.choices.set(session.sessionId, acp.currentChoice())
+      return {
+        sessionId: session.sessionId,
+        modes: acp.modes(),
+        configOptions: acp.configOptions(),
+      }
+    } catch (error: unknown) {
+      this.deps.log.warn(`ACP session/new failed: ${causeForLog(error)}`)
+      throw startRequestError(error, 'session')
+    }
   }
 
   public async loadSession(

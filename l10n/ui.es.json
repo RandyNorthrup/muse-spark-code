@@ -3768,6 +3768,15 @@
   },
   "acpNoModels": "El backend no ofrece ningún modelo que este agente pueda usar.",
   "acpPromptBusy": "Ya hay un prompt en curso en esta sesión.",
+  "acpSessionStartFailed": "La sesión no se pudo iniciar ({detail}). El registro de Muse Spark tiene los detalles.",
+  "acpTurnStartFailed": "El turno no se pudo iniciar ({detail}). El registro de Muse Spark tiene los detalles.",
+  "createdRegistrySave": {
+    "failed": "El registro de recursos creados no se pudo guardar ({reason}). El registro de Muse Spark tiene los detalles.",
+    "refused": "el ayudante del sistema rechazó el guardado",
+    "unsafe": "una comprobación de seguridad del registro guardado falló",
+    "invalid": "el registro guardado no es válido",
+    "io": "el guardado no se pudo escribir"
+  },
   "acpQuestionFormMessage": "Muse tiene una pregunta para usted.",
   "acpQuestionAsked": "Muse tiene una pregunta; este editor no puede mostrarla como formulario, así que responda en su próximo mensaje:",
   "acpUnknownArgument": "Argumento desconocido: {argument}",
