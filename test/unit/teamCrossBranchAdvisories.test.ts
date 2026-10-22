@@ -85,24 +85,34 @@ function modeOf(input: {
   return input.ours?.mode ?? input.theirs?.mode ?? '100644'
 }
 
+type StructuredMerge = { kind: 'merged'; text: string } | { kind: 'conflict' }
+
+/** A structured leg of the landing routine over a real merge. */
+function structuredLeg(
+  merge: (base: string, ours: string, theirs: string) => StructuredMerge,
+): MergeRoutineDeps['jsonTable'] {
+  return (input) => {
+    const result = merge(textOf(input.base), textOf(input.ours), textOf(input.theirs))
+    return Promise.resolve(
+      result.kind === 'merged'
+        ? { status: 'clean', file: { bytes: Buffer.from(result.text), mode: modeOf(input) } }
+        : { status: 'conflict', markers: null },
+    )
+  }
+}
+
+/** A routine leg that passes our side through untouched. */
+const passThrough: MergeRoutineDeps['jsonTable'] = (input) =>
+  Promise.resolve({ status: 'clean', file: input.ours })
+
+/** A text leg that always merges clean. */
+const cleanText: MergeRoutineDeps['text'] = () =>
+  Promise.resolve({ bytes: Buffer.from('x'), conflicts: false })
+
 function realRoutine(scratch: string): MergeRoutineDeps {
   return {
-    jsonTable: (input) => {
-      const result = mergeJsonTable(textOf(input.base), textOf(input.ours), textOf(input.theirs))
-      return Promise.resolve(
-        result.kind === 'merged'
-          ? { status: 'clean', file: { bytes: Buffer.from(result.text), mode: modeOf(input) } }
-          : { status: 'conflict', markers: null },
-      )
-    },
-    changelog: (input) => {
-      const result = mergeChangelog(textOf(input.base), textOf(input.ours), textOf(input.theirs))
-      return Promise.resolve(
-        result.kind === 'merged'
-          ? { status: 'clean', file: { bytes: Buffer.from(result.text), mode: modeOf(input) } }
-          : { status: 'conflict', markers: null },
-      )
-    },
+    jsonTable: structuredLeg(mergeJsonTable),
+    changelog: structuredLeg(mergeChangelog),
     text: (base, ours, theirs) => {
       const oursTmp = path.join(scratch, 'ours')
       const baseTmp = path.join(scratch, 'base')
@@ -419,8 +429,8 @@ describe('M96d cross-branch advisory scope', () => {
       base: () => Promise.resolve(stubVersion('base')),
       routine: {
         jsonTable: () => Promise.resolve({ status: 'refused', reason: 'too big' }),
-        changelog: (input) => Promise.resolve({ status: 'clean', file: input.ours }),
-        text: () => Promise.resolve({ bytes: Buffer.from('x'), conflicts: false }),
+        changelog: passThrough,
+        text: cleanText,
       },
       shared: new SharedFiles(),
       onAdvisory: (advisory) => {
@@ -484,9 +494,9 @@ describe('M96d cross-branch advisory scope', () => {
     const advisor = new CrossBranchAdvisor({
       base: () => Promise.reject(new Error('base exploded')),
       routine: {
-        jsonTable: (input) => Promise.resolve({ status: 'clean', file: input.ours }),
-        changelog: (input) => Promise.resolve({ status: 'clean', file: input.ours }),
-        text: () => Promise.resolve({ bytes: Buffer.from('x'), conflicts: false }),
+        jsonTable: passThrough,
+        changelog: passThrough,
+        text: cleanText,
       },
       shared: new SharedFiles(),
       onAdvisory: () => {

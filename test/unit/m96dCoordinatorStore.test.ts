@@ -17,20 +17,9 @@ import {
   type CoordinatorLedger,
   type CoordinatorLedgerRefusal,
 } from '../../src/core/team/coordinator/ledger'
-import type { CoordinatorReference } from '../../src/core/team/coordinator/references'
+import { reference, retiredReference } from './helpers/coordinatorReferences'
 
 const resources = ['worker', 'processWorker', 'heavyCommand', 'singleton', 'landing'] as const
-const reference: CoordinatorReference = {
-  platform: 'linux',
-  kind: 'pidfd',
-  token: 'held-reference-A',
-  boot: 'boot-A',
-  start: '1000001',
-  pid: 42,
-  validated: true,
-  exited: false,
-}
-const retiredReference: CoordinatorReference = { ...reference, exited: true }
 
 const stores: string[] = []
 const ledgers: CoordinatorLedger[] = []

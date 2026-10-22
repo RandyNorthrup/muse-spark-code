@@ -32,6 +32,13 @@ function submitOne(board: TaskBoard): void {
   submit(board, [submission('task', {})])
 }
 
+/** The first attempt runs and readies its successor. */
+function runFirstAttempt(board: TaskBoard): void {
+  expect(board.begin('task', attempt(1))).toBe(true)
+  retire(board, 'task', 1)
+  expect(board.prepareNext('task', 1, 2, 'review')).toBe(true)
+}
+
 describe('M96d waiting-branch refresh', () => {
   it('gates the next begin until the moved integration is acknowledged', () => {
     const holder = { head: 'h1' }
@@ -40,9 +47,7 @@ describe('M96d waiting-branch refresh', () => {
     expect(board.integrationRefreshDue('task')).toBeUndefined()
     expect(board.acknowledgeIntegrationRefresh('task', 'h1')).toBe(true)
     expect(board.integrationRefreshDue('task')).toBeUndefined()
-    expect(board.begin('task', attempt(1))).toBe(true)
-    retire(board, 'task', 1)
-    expect(board.prepareNext('task', 1, 2, 'review')).toBe(true)
+    runFirstAttempt(board)
     holder.head = 'h2'
     expect(board.integrationRefreshDue('task')).toEqual({ base: 'h2' })
     expect(board.begin('task', attempt(2))).toBe(false)
@@ -63,9 +68,7 @@ describe('M96d waiting-branch refresh', () => {
     submitOne(board)
     expect(board.integrationRefreshDue('task')).toBeUndefined()
     // No provider, no base: the begin proceeds exactly as M96c ran it.
-    expect(board.begin('task', attempt(1))).toBe(true)
-    retire(board, 'task', 1)
-    expect(board.prepareNext('task', 1, 2, 'review')).toBe(true)
+    runFirstAttempt(board)
     expect(board.begin('task', attempt(2))).toBe(true)
   })
 

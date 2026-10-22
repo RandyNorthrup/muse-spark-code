@@ -13,6 +13,16 @@ import {
   testBoardContext as testContext,
 } from './helpers/teamBoard'
 
+/** A board with a dependency and its stacked dependent, both submitted. */
+function stackedBoard(heads?: Map<string, string>): TaskBoard {
+  const board = new TaskBoard('workspace', 'window', testContext(heads))
+  submit(board, [
+    submission('dep', {}),
+    submission('stacked', { depends_on: [{ task: 'dep', on: 'stacked' }] }),
+  ])
+  return board
+}
+
 function runTo(board: TaskBoard, id: string, state: 'review' | 'merged' | 'done'): void {
   expect(board.begin(id, attempt(1))).toBe(true)
   retire(board, id, 1)
@@ -45,11 +55,7 @@ describe('M96d stacked dependencies', () => {
       task: 'a',
       on: 'stacked',
     })
-    const board = new TaskBoard('workspace', 'window', testContext())
-    submit(board, [
-      submission('dep', {}),
-      submission('stacked', { depends_on: [{ task: 'dep', on: 'stacked' }] }),
-    ])
+    const board = stackedBoard()
     expect(board.task('stacked').depends_on).toEqual([{ task: 'dep', on: 'stacked' }])
     // Cycles and unknown tasks refuse uniformly, whatever the edge kind.
     const cyclic = new TaskBoard('workspace', 'window', testContext())
@@ -69,11 +75,7 @@ describe('M96d stacked dependencies', () => {
 
   it('waits for the finished head, then starts from it', () => {
     const heads = new Map([['dep', 'head-1']])
-    const board = new TaskBoard('workspace', 'window', testContext(heads))
-    submit(board, [
-      submission('dep', {}),
-      submission('stacked', { depends_on: [{ task: 'dep', on: 'stacked' }] }),
-    ])
+    const board = stackedBoard(heads)
     // Queued, ready and running are unfinished: the dependent waits.
     expect(board.task('stacked').state).toBe('queued')
     expect(board.task('dep').state).toBe('ready')
@@ -94,20 +96,12 @@ describe('M96d stacked dependencies', () => {
 
   it('treats merged and done as finished heads, unsuccessful ends as blocks', () => {
     for (const state of ['merged', 'done'] as const) {
-      const board = new TaskBoard('workspace', 'window', testContext())
-      submit(board, [
-        submission('dep', {}),
-        submission('stacked', { depends_on: [{ task: 'dep', on: 'stacked' }] }),
-      ])
+      const board = stackedBoard()
       runTo(board, 'dep', state)
       expect(board.task('stacked').state).toBe('ready')
     }
     for (const state of ['discarded', 'failed', 'cancelled', 'redesign'] as const) {
-      const board = new TaskBoard('workspace', 'window', testContext())
-      submit(board, [
-        submission('dep', {}),
-        submission('stacked', { depends_on: [{ task: 'dep', on: 'stacked' }] }),
-      ])
+      const board = stackedBoard()
       expect(board.begin('dep', attempt(1))).toBe(true)
       retire(board, 'dep', 1)
       if (state === 'redesign') {
@@ -125,11 +119,7 @@ describe('M96d stacked dependencies', () => {
 
   it('refreshes the dependent at its next boundary when rework moves the head', () => {
     const heads = new Map([['dep', 'head-1']])
-    const board = new TaskBoard('workspace', 'window', testContext(heads))
-    submit(board, [
-      submission('dep', {}),
-      submission('stacked', { depends_on: [{ task: 'dep', on: 'stacked' }] }),
-    ])
+    const board = stackedBoard(heads)
     expect(board.begin('dep', attempt(1))).toBe(true)
     retire(board, 'dep', 1)
     expect(board.transition('dep', 1, 'review', 3)).toBe(true)

@@ -2,7 +2,6 @@
 // result only when the snapshot's tree hash and the check identity
 // are both equal. Tree hashes below are real git trees from a real
 // scratch repository; git itself proves when two landings share one.
-import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -25,14 +24,9 @@ import {
   type MergeAdmissionDeps,
   type MergeCandidate,
 } from '../../src/core/team/mergeQueue'
-import { resolveWorkingGit } from './helpers/realGit'
+import { syncGitRunner } from './helpers/realGit'
 
-const workingGit: Promise<string> = resolveWorkingGit()
-const GIT = await workingGit
-
-function git(args: readonly string[], cwd: string): string {
-  return execFileSync(GIT, [...args], { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
-}
+const git = await syncGitRunner()
 
 function scratchRepo(): string {
   const root = mkdtempSync(path.join(tmpdir(), 'm96d-trees-'))
@@ -53,6 +47,14 @@ function treeOf(root: string, commit: string): string {
   return git(['rev-parse', commit + '^{tree}'], root).trim()
 }
 
+/** Write one file, commit everything, and return the new tree. */
+function commitTree(root: string, name: string, content: string, message: string): string {
+  writeFileSync(path.join(root, name), content)
+  git(['add', '.'], root)
+  git(['commit', '-m', message], root)
+  return treeOf(root, 'HEAD')
+}
+
 function candidate(id: string): MergeCandidate {
   return {
     id,
@@ -69,6 +71,14 @@ function candidate(id: string): MergeCandidate {
 /** A tree the queue merges: an opaque handle carrying its real hash. */
 interface HashTree {
   readonly hash: string
+}
+
+/** A cache admission wired to hash trees, under one check identity. */
+function cachedAdmission(
+  checkIdentity: string,
+  cache = new TestedTreeCache(),
+): MergeAdmissionCache<HashTree> {
+  return { cache, checkIdentity, treeHash: (tree) => tree.hash }
 }
 
 describe('M96d tested-tree cache', () => {
@@ -186,24 +196,15 @@ describe('M96d tested-tree cache in the merge queue', () => {
     // Two windows land the same bytes on two branches; git proves
     // the trees identical.
     git(['checkout', '-b', 'window-1'], root)
-    writeFileSync(path.join(root, 'a.ts'), 'export const a = 2\n')
-    git(['add', '.'], root)
-    git(['commit', '-m', 'change a'], root)
-    const firstTree = treeOf(root, 'HEAD')
+    const firstTree = commitTree(root, 'a.ts', 'export const a = 2\n', 'change a')
     git(['checkout', base, '-b', 'window-2'], root)
-    writeFileSync(path.join(root, 'a.ts'), 'export const a = 2\n')
-    git(['add', '.'], root)
-    git(['commit', '-m', 'change a again'], root)
-    const secondTree = treeOf(root, 'HEAD')
+    const secondTree = commitTree(root, 'a.ts', 'export const a = 2\n', 'change a again')
     expect(secondTree).toBe(firstTree)
     expect(firstTree).not.toBe(baseTree)
 
     const cache = new TestedTreeCache()
-    const withCache = (checkIdentity: string): MergeAdmissionCache<HashTree> => ({
-      cache,
-      checkIdentity,
-      treeHash: (tree) => tree.hash,
-    })
+    const withCache = (checkIdentity: string): MergeAdmissionCache<HashTree> =>
+      cachedAdmission(checkIdentity, cache)
     let checkRuns = 0
     // The harness maps each candidate onto its real tree; the hashes
     // are git's, the wiring is the test's.
@@ -260,22 +261,11 @@ describe('M96d tested-tree cache in the merge queue', () => {
     const root = scratchRepo()
     const base = git(['rev-parse', 'HEAD'], root).trim()
     const baseTree = treeOf(root, base)
-    writeFileSync(path.join(root, 'a.ts'), 'export const a = 2\n')
-    git(['add', '.'], root)
-    git(['commit', '-m', 'change a'], root)
-    const badTree = treeOf(root, 'HEAD')
-    writeFileSync(path.join(root, 'a.ts'), 'export const a = 3\n')
-    git(['add', '.'], root)
-    git(['commit', '-m', 'change a again'], root)
-    const fixedTree = treeOf(root, 'HEAD')
+    const badTree = commitTree(root, 'a.ts', 'export const a = 2\n', 'change a')
+    const fixedTree = commitTree(root, 'a.ts', 'export const a = 3\n', 'change a again')
     expect(fixedTree).not.toBe(badTree)
 
-    const cache = new TestedTreeCache()
-    const withCache: MergeAdmissionCache<HashTree> = {
-      cache,
-      checkIdentity: 'checks-1',
-      treeHash: (tree) => tree.hash,
-    }
+    const withCache = cachedAdmission('checks-1')
     const trees = new Map([
       ['bad', badTree],
       ['fixed', fixedTree],
@@ -334,21 +324,10 @@ describe('M96d tested-tree cache in the merge queue', () => {
     const root = scratchRepo()
     const base = git(['rev-parse', 'HEAD'], root).trim()
     const baseTree = treeOf(root, base)
-    writeFileSync(path.join(root, 'a.ts'), 'export const a = 2\n')
-    git(['add', '.'], root)
-    git(['commit', '-m', 'change a'], root)
-    const goodTree = treeOf(root, 'HEAD')
-    writeFileSync(path.join(root, 'b.ts'), 'export const b = 1\n')
-    git(['add', '.'], root)
-    git(['commit', '-m', 'add b'], root)
-    const batchTree = treeOf(root, 'HEAD')
+    const goodTree = commitTree(root, 'a.ts', 'export const a = 2\n', 'change a')
+    const batchTree = commitTree(root, 'b.ts', 'export const b = 1\n', 'add b')
 
-    const cache = new TestedTreeCache()
-    const withCache: MergeAdmissionCache<HashTree> = {
-      cache,
-      checkIdentity: 'checks-1',
-      treeHash: (tree) => tree.hash,
-    }
+    const withCache = cachedAdmission('checks-1')
     const serialTrees = new Map([
       [`${baseTree}+good`, goodTree],
       [`${goodTree}+bad`, batchTree],
@@ -395,17 +374,9 @@ describe('M96d tested-tree cache in the merge queue', () => {
     const root = scratchRepo()
     const base = git(['rev-parse', 'HEAD'], root).trim()
     const baseTree = treeOf(root, base)
-    writeFileSync(path.join(root, 'a.ts'), 'export const a = 2\n')
-    git(['add', '.'], root)
-    git(['commit', '-m', 'change a'], root)
-    const flakyTree = treeOf(root, 'HEAD')
+    const flakyTree = commitTree(root, 'a.ts', 'export const a = 2\n', 'change a')
 
-    const cache = new TestedTreeCache()
-    const withCache: MergeAdmissionCache<HashTree> = {
-      cache,
-      checkIdentity: 'checks-1',
-      treeHash: (tree) => tree.hash,
-    }
+    const withCache = cachedAdmission('checks-1')
     let checkRuns = 0
     let calls = 0
     const deps: MergeAdmissionDeps<HashTree> = {
