@@ -105,7 +105,7 @@ export async function drivePanelFlow(
       },
       { timeout: STEP_TIMEOUT_MS, interval: 50 },
     )
-    expect(toasts, `${label}: no failure toast`).toEqual([])
+    expect(toasts, `${label}: no failure toast; log ${JSON.stringify(logged)}`).toEqual([])
     const frame = frames.at(-1)
     if (frame === undefined) throw new Error('the panel published nothing')
     return frame

@@ -148,7 +148,9 @@ suite('schedule background entry in the real host', () => {
   }).timeout(0)
 
   const registerTest = process.platform === 'win32' ? test.skip : test
-  registerTest(
+  // mocha's TDD `test.skip` returns nothing at run time (its types say a
+  // Test), so the no-limit timeout goes only on the platforms where it runs.
+  const wakeTest = registerTest(
     'a due wake reaches entry.register, which really refuses the unverified launcher',
     async () => {
       const { background, consent, entry, folder } = await coordinator(WAKE)
@@ -169,7 +171,8 @@ suite('schedule background entry in the real host', () => {
         await removeFolder(folder)
       }
     },
-  ).timeout(0)
+  )
+  if (process.platform !== 'win32') wakeTest.timeout(0)
 
   test('an explicit removal retires the entry with no consent record', async () => {
     const { background, entry, folder } = await coordinator(undefined)
