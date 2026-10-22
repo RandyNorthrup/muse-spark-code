@@ -7,6 +7,58 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Model API on the Muse Code subscription** (C-M95-SUB). The Model API
+  backend can bill the Muse Code plan instead of a pay-as-you-go key: turn
+  on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
+  machine-scoped, off by default) and the extension reads the subscription
+  key the Muse Code CLI already holds after a browser or device-code
+  sign-in. A pay-as-you-go `muse auth set` key never counts: it is refused,
+  never billed as plan. Those calls count
+  against the plan, never the card; usage and cost surfaces record them as
+  **Muse Code plan** with no dollar price. While the setting is on, a missing or
+  unreadable CLI sign-in stops Model API calls with the fix instead of
+  billing a stored key. The key is held in memory only: never shown, logged,
+  copied into settings, or stored anywhere. Paid images still bill a stored
+  Model API key; enabled hosted search, subagents and Auto review use that
+  key under normal consent, while voice keeps using the stored key. A search
+  response's model tokens also bill that key, disclosed before use; denied
+  search keeps chat on the plan. Rotation preserves saved-session ownership; toggling the opt-in restarts the
+  backend. Outside VS Code, `serve` and
+  `exec` take `--subscription` (Model API backend only); a macOS
+  Keychain-only sign-in cannot be read, so use a key there.
+- PROVUSAGE (provider-reported spend): each preset declares one spend
+  capability (`none`, `key-usage`, `balance`, `admin-report`). `providers
+  usage <id> [--days n] [--output json]` shows the provider's own figures
+  for the period (tokens by model, dollars by day) next to the journal
+  estimate with the difference, over the pinned transport; `auth
+  set|status|clear --provider <id> --admin` stores the separate admin
+  report key after saying what it can read. The OpenRouter read is the
+  first shared-shape report. Admin wire shapes are documented, not live
+  captured (UNVERIFIED until the lead's capture); a provider with no spend
+  API shows nothing new. Spend reports are display only and never feed a
+  cap.
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+### Fixed
+
+- Bind every Meta attempt to its resolved billing route, including Best-of-N,
+  Judge and prompt/agent hooks. Search consent remembers payer kind and model
+  token rates; subscription/provider account transitions work without a restart,
+  Windows path casing preserves history, and refused retries describe only that
+  attempt.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

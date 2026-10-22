@@ -81,6 +81,13 @@ const PROVIDER_OPTIONS = {
   privacy: { type: 'string' },
   'private-ok': { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
+  // PROVSPEND: `providers usage <id> [--days n] [--output json]` and
+  // `auth set|clear --provider <id> --admin`. Serve and login still refuse
+  // these through NON_SERVE_OPTIONS in cliArgs; the auth route refuses
+  // everything but `admin` beside its own targeting.
+  days: { type: 'string' },
+  admin: { type: 'boolean' },
+  output: { type: 'string' },
 } as const satisfies CliParserOptions
 
 const COMMON_OPTIONS = {
@@ -109,9 +116,12 @@ const COMMON_OPTIONS = {
 } as const satisfies CliParserOptions
 
 // Serve accepts X's paid-schedule admission flags; no other route does.
+// C-M95-SUB: serve and exec accept the subscription opt-in; auth and login
+// refuse it as unknown instead of silently ignoring it.
 const SERVE_OPTIONS = {
   ...COMMON_OPTIONS,
   'scheduled-prompts': { type: 'boolean' },
+  subscription: { type: 'boolean' },
   'max-budget-usd': { type: 'string' },
 } as const satisfies CliParserOptions
 
@@ -147,6 +157,7 @@ const EXEC_OPTIONS = {
   'fail-on-denial': { type: 'boolean' },
   ephemeral: { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
+  subscription: { type: 'boolean' },
   vault: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'trust-workspace': { type: 'boolean' },
@@ -185,6 +196,13 @@ export const CLI_OPTION_REGISTRY = {
       add: { type: 'string', multiple: true },
       remove: { type: 'string', multiple: true },
       force: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
+  providersUsage: {
+    options: {
+      days: { type: 'string' },
+      output: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   },
@@ -250,6 +268,8 @@ export const CLI_OPTION_TEXT = {
   preset: 'preset',
   as: 'as',
   address: 'address',
+  days: 'days',
+  admin: 'admin',
   format: 'format',
   privacy: 'privacy',
   'private-ok': 'private-ok',
@@ -301,6 +321,7 @@ export const CLI_OPTION_TEXT = {
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',
   'key-stdin': 'key-stdin',
+  subscription: 'subscription',
   'resource-governor': 'resource-governor',
   'cpu-max': 'cpu-max',
   'memory-max': 'memory-max',
@@ -368,8 +389,8 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     providersList: 'providers list',
     providersTest: 'providers test <provider>',
     providersRemove: 'providers remove <provider>',
+    providersUsage: 'providers usage <id> [--days <n>] [--output json]',
     openRouterConnect: 'providers connect openrouter',
-    providerKeyUsage: 'providers usage <id>',
     helpTopic: 'help <command>',
     authGitHub: 'auth github login|logout|status',
   }
@@ -379,8 +400,8 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       providersList: table.referenceProviders,
       providersTest: table.referenceProviders,
       providersRemove: table.referenceProviders,
+      providersUsage: table.referenceProvidersUsage,
       openRouterConnect: table.providerOpenRouterServices,
-      providerKeyUsage: table.usageKeyUsage,
       helpTopic: table.referenceBriefHelp,
       authGitHub: table.referenceAuthGitHub,
       schedule: table.scheduleV2.runtime.usage,

@@ -83,6 +83,17 @@ describe('usage aggregation', () => {
     expect(usageSumUsd([undefined, undefined])).toBeUndefined()
     expect(usageSumUsd([a(0), undefined])).toBe('0')
   })
+  it('keeps a Meta plan row apart for the Muse Code plan label', () => {
+    const records = [
+      record({ provider: 'meta', cost: { certainty: 'plan' } }),
+      record({ provider: 'other', cost: { certainty: 'plan' } }),
+    ]
+    const result = aggregateUsage(records, [], query, now)
+    expect(result.totals.costs).toEqual([
+      { certainty: 'plan', records: 1, provider: 'meta' },
+      { certainty: 'plan', records: 1, provider: 'other' },
+    ])
+  })
   const trials = (() => {
     let seed = 102
     const random = (max: number): number => {
@@ -149,14 +160,20 @@ describe('usage aggregation', () => {
                   .filter((call) => call.cost.certainty === certainty)
                   .map((call) => call.cost[key] ?? a(0))
                 const expected = amounts.length === 0 ? undefined : sumUsd(...amounts)
-                const amount = result.totals.costs.find((cost) => cost.certainty === certainty)?.[
-                  key
-                ]
+                // Plan rows split by provider (C-M95-SUB's "Muse Code plan"),
+                // so every certainty's amount sums all of its rows.
+                const amount = usageSumUsd(
+                  result.totals.costs
+                    .filter((cost) => cost.certainty === certainty)
+                    .map((cost) => cost[key]),
+                )
                 expect(amount).toBe(expected)
                 for (const groups of [result.breakdown, result.buckets, result.features]) {
                   const sum = usageSumUsd(
-                    groups.map(
-                      (row) => row.totals.costs.find((cost) => cost.certainty === certainty)?.[key],
+                    groups.flatMap((row) =>
+                      row.totals.costs
+                        .filter((cost) => cost.certainty === certainty)
+                        .map((cost) => cost[key]),
                     ),
                   )
                   expect(sum).toBe(expected)
@@ -284,7 +301,7 @@ describe('usage aggregation', () => {
       expect.arrayContaining([
         { certainty: 'unpriced', records: 1 },
         { certainty: 'local', records: 1, usd: '0' },
-        { certainty: 'plan', records: 1, apiEquivalentUsd: '2' },
+        { certainty: 'plan', records: 1, apiEquivalentUsd: '2', provider: 'meta' },
         { certainty: 'uncertain', records: 1, usd: '3' },
       ]),
     )

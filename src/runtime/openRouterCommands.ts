@@ -16,14 +16,8 @@ import {
 } from '../host/backend/providersEntry'
 import type { createConfiguredProviderServices } from '../core/providers/configured'
 import { ACP_AGENT_NAME, CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../shared/constants'
-import {
-  isCredentialLockBusy,
-  recoverOpenRouterJournalReport,
-  reportJournalRecovery,
-} from './providerAuth'
+import { isCredentialLockBusy, recoverOpenRouterJournalReport } from './providerAuth'
 import { fill } from '../shared/l10n/text'
-import { formatUsdAtPrecision } from '../shared/l10n/exactUsd'
-import { Usd } from '../shared/usd'
 import { unlessAborted } from '../core/timeouts'
 
 type OpenRouterApi = Pick<
@@ -261,70 +255,6 @@ export async function runOpenRouterConnect(
     connecting.delete(deps.secrets)
     process.off('SIGINT', abort)
     process.off('SIGTERM', abort)
-  }
-}
-
-export async function runOpenRouterUsage(
-  deps: ProvidersDeps,
-  api: OpenRouterApi,
-  id: string,
-): Promise<number> {
-  const read = async (): Promise<number> => {
-    try {
-      const target = await keyTargetFor(deps.readUserFile, id)
-      const account = providerSecretAccount(id)
-      if (
-        account === undefined ||
-        !target.ok ||
-        target.preset.id !== 'openrouter' ||
-        target.origin !== OPENROUTER_ORIGIN
-      )
-        throw new Error(UI_TEXT.providerUsageFailed)
-      const stored = await deps.secrets.get(account)
-      const value: unknown = stored === undefined ? undefined : JSON.parse(stored)
-      const parsed = parseStoredProviderSecret(value)
-      if (parsed?.record.origin !== OPENROUTER_ORIGIN) throw new Error(UI_TEXT.providerUsageFailed)
-      const usage = await api.openRouterUsage(
-        { id, preset: 'openrouter', address: OPENROUTER_ORIGIN, auth: 'apiKey', models: [] },
-        parsed.key,
-      )
-      if ((await deps.secrets.get(account)) !== stored) throw new Error(UI_TEXT.providerUsageFailed)
-      const rows: readonly (readonly [string, number | string | undefined])[] = [
-        [UI_TEXT.usageKeyTotal, usage.usedTotal],
-        [UI_TEXT.usageToday, usage.usedToday],
-        [UI_TEXT.usageWeekly, usage.usedThisWeek],
-        [UI_TEXT.usageThisMonth, usage.usedThisMonth],
-        [UI_TEXT.usageLimit, usage.limit],
-        [UI_TEXT.usageRemaining, usage.remaining],
-      ]
-      for (const [label, amount] of rows) {
-        if (amount !== undefined)
-          deps.print(
-            `${label}: ${formatUsdAtPrecision(Usd.from(amount), Math.max(2, Usd.from(amount).toString().split('.', 2)[1]?.length ?? 0))}`,
-          )
-        else if (label === UI_TEXT.usageLimit && usage.unlimited)
-          deps.print(`${label}: ${UI_TEXT.usageUnlimited}`)
-      }
-      return 0
-    } catch {
-      deps.printError(UI_TEXT.providerUsageFailed)
-      return 1
-    }
-  }
-  if (deps.withUserFileLock === undefined) return await read()
-  // A crashed Connect is found without connecting again: usage runs the
-  // same recovery inside the same lease. A reader never fails on a live
-  // writer's lease: without the lock it reads the primary and leaves
-  // another attempt's journal alone.
-  try {
-    return await deps.withUserFileLock(async () => {
-      const report = await recoverOpenRouterJournalReport(deps.secrets)
-      reportJournalRecovery(deps, report)
-      return report.failed ? 1 : await read()
-    })
-  } catch (error: unknown) {
-    if (!isCredentialLockBusy(error)) throw error
-    return await read()
   }
 }
 
