@@ -1,7 +1,8 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import type { UserPresence, UserPresenceRequest } from '../../src/core/maker/userPresence'
 import { runRuntimeMaker } from '../../src/runtime/maker/entry'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
 import { createUserPresence } from '../../src/runtime/maker/userPresence'
@@ -20,7 +21,18 @@ async function fixture() {
   roots.push(root)
   const workspace = path.join(root, 'workspace')
   await mkdir(workspace)
-  const presence = { check: vi.fn().mockResolvedValue('denied') }
+  const calls = {
+    presence: [] as UserPresenceRequest[],
+    prints: [] as string[],
+    secretReads: 0,
+  }
+  const state = { presence: 'denied' as 'approved' | 'denied' | 'unavailable' }
+  const presence: UserPresence = {
+    check: (request) => {
+      calls.presence.push(request)
+      return Promise.resolve(state.presence)
+    },
+  }
   const deps = {
     dataDirectory: path.join(root, 'data'),
     distDirectory: path.join(root, 'dist'),
@@ -28,21 +40,30 @@ async function fixture() {
     platform: process.platform,
     env: {},
     presence,
-    print: vi.fn(),
-    readSecret: vi.fn(),
-    secrets: { get: vi.fn(), store: vi.fn(), delete: vi.fn() },
+    print: (line: string) => {
+      calls.prints.push(line)
+    },
+    readSecret: () => {
+      calls.secretReads += 1
+      return Promise.resolve(undefined)
+    },
+    secrets: {
+      get: () => Promise.resolve(undefined),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
     done: AbortSignal.abort(),
     table: EN,
     locale: 'en',
   }
-  return { deps, presence }
+  return { deps, presence, calls, state }
 }
 describe('terminal spoofing never supplies physical authority', () => {
   it.each(RUNTIME_MAKER_AGENT_MARKERS)(
     'refuses %s agent-shell enable, add and panel before asking for OS presence',
     async (marker) => {
-      const { deps, presence } = await fixture()
-      presence.check.mockResolvedValue('approved')
+      const { deps, calls, state } = await fixture()
+      state.presence = 'approved'
       for (const args of [
         ['hardware', 'enable', '--reason', 'agent claim', '--trust-workspace'],
         ['machines', 'add', '--registration', '{}', '--key-stdin', '--trust-workspace'],
@@ -54,9 +75,9 @@ describe('terminal spoofing never supplies physical authority', () => {
           UI_TEXT.makerUnattendedDenied,
         )
       }
-      expect(presence.check).not.toHaveBeenCalled()
-      expect(deps.readSecret).not.toHaveBeenCalled()
-      expect(deps.print).not.toHaveBeenCalled()
+      expect(calls.presence).toEqual([])
+      expect(calls.secretReads).toBe(0)
+      expect(calls.prints).toEqual([])
     },
   )
   it.each([
@@ -66,7 +87,7 @@ describe('terminal spoofing never supplies physical authority', () => {
     ['AppleScript driving Terminal', 'darwin', { TERM_PROGRAM: 'Apple_Terminal' }],
     ['multiplexer capture-pane', 'linux', { TMUX: '/tmp/agent-session' }],
   ] as const)('%s cannot enable hardware', async (_probe, platform, env) => {
-    const { deps, presence } = await fixture()
+    const { deps, calls } = await fixture()
     const command = parseMakerCommand([
       'hardware',
       'enable',
@@ -78,9 +99,9 @@ describe('terminal spoofing never supplies physical authority', () => {
     await expect(runRuntimeMaker(command, { ...deps, platform, env })).rejects.toThrow(
       UI_TEXT.makerPresenceDenied,
     )
-    expect(presence.check).toHaveBeenCalledOnce()
-    expect(deps.readSecret).not.toHaveBeenCalled()
-    expect(deps.print).not.toHaveBeenCalled()
+    expect(calls.presence).toHaveLength(1)
+    expect(calls.secretReads).toBe(0)
+    expect(calls.prints).toEqual([])
   })
   it.each(['darwin', 'win32'] as const)(
     'M109 %s adapter uses the OS presence port and otherwise refuses',
@@ -92,14 +113,20 @@ describe('terminal spoofing never supplies physical authority', () => {
         summary: 'Send once',
       }
       expect(await createUserPresence(platform).check(request)).toBe('unavailable')
-      const fake = { check: vi.fn().mockResolvedValue('approved') }
-      expect(await createUserPresence(platform, fake).check(request)).toBe('approved')
-      expect(fake.check).toHaveBeenCalledWith(request)
+      const seen: UserPresenceRequest[] = []
+      const adapter: UserPresence = {
+        check: (asked) => {
+          seen.push(asked)
+          return Promise.resolve('approved')
+        },
+      }
+      expect(await createUserPresence(platform, adapter).check(request)).toBe('approved')
+      expect(seen).toEqual([request])
     },
   )
   it('denied presence sends no payload even if an ACP client automatically answers allow_once', async () => {
-    const { deps, presence } = await fixture()
-    presence.check.mockResolvedValue('approved')
+    const { deps, calls, state } = await fixture()
+    state.presence = 'approved'
     const service = await createRuntimeMakerService({
       ...deps,
       trusted: () => true,
@@ -116,7 +143,7 @@ describe('terminal spoofing never supplies physical authority', () => {
     })
     try {
       await service.host.setHardware(true, 'bench')
-      presence.check.mockResolvedValue('denied')
+      state.presence = 'denied'
       const snapshot = {
         kind: 'command' as const,
         id: randomUUID(),
@@ -126,19 +153,17 @@ describe('terminal spoofing never supplies physical authority', () => {
         target: { kind: 'workspace' as const, workspace: deps.workspace },
         payload: 'flash.bin',
       }
-      const send = vi.fn()
+      let sends = 0
       const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
       const answer = await service.host.confirm(snapshot, (raw) => engine.review(raw))
-      if (engine.answer(answer) !== undefined) send()
-      expect(send).not.toHaveBeenCalled()
+      if (engine.answer(answer) !== undefined) sends += 1
+      expect(sends).toBe(0)
       expect(engine.start(snapshot.target)).toBe(false)
-      expect(presence.check).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          id: snapshot.id,
-          digest: snapshot.digest,
-          machine: deps.workspace,
-        }),
-      )
+      expect(calls.presence.at(-1)).toMatchObject({
+        id: snapshot.id,
+        digest: snapshot.digest,
+        machine: deps.workspace,
+      })
     } finally {
       await service.close()
     }
