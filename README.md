@@ -37,7 +37,14 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
+The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
+with Xcode Source Editor commands. Its authenticated container and approved
+buffer-edit path have native core/fake-runtime receipts. Its relay uses the
+shared MHP 1.5 panel contract; editor/voice/Tab integration and installed
+qualification are still required before it can be offered as a supported host.
+
 **Contents:** [What's new](#whats-new-in-0182) · [Roadmap](ROADMAP.md) ·
+
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -620,6 +627,38 @@ Get it from the
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
+**Standalone panel carriers (M104, experimental):** `muse-spark-code-acp
+panel --stdio` speaks negotiated MHP 1.5 NDJSON to a native editor host;
+`muse-spark-code-acp panel --companion` opens the authenticated loopback
+carrier through that host's `ui/openExternal` service. Exactly one transport
+is required. Both accept the agent's existing backend, trust and paid-use
+flags; the Model API key stays in the OS credential store. The native host
+must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
+correlated service requests. These commands stream the shared conversation
+through the authenticated portable browser renderer and UI bridge. Native
+MHP 1.5 adoption, auxiliary surfaces, feature adapters and assembled editor
+qualification remain incomplete. See
+[the integration evidence and remaining gaps](docs/certification/m104-int.md)
+and [macOS qualification](docs/certification/m104-pf.md).
+
+Eclipse's experimental native host discovers the Windows npm shim and resolves
+it to Node plus the verified installed ACP script without starting a shell.
+Discovery refuses linked package directories or ancestors below the canonical
+npm prefix.
+`MUSE_SPARK_RUNTIME` accepts an absolute native/shim path or a JSON pair of
+absolute Node and ACP script paths. See [the Eclipse launch contract](hosts/eclipse/README.md)
+for layout validation and override examples; installed Windows qualification remains open.
+
+The [complete parity inventory](docs/certification/m104-pf-inventory.md) names
+all 56 feature rows, editor families, backend/provider profiles and the
+remaining installed-artifact receipts. Component tests do not promote support.
+
+Portable session changes retire previous surface IDs and open fresh bindings.
+Settings and storage are owned by the runtime; initialization selects the
+editor's language. CLI trust never overrides an editor's restricted workspace.
+Runtime parity receipts and the owning feature-factory contracts are in
+[the lane A record](docs/certification/m104-pa.md).
+
 **The ACP agent** needs Node.js 22 or later. Install it from npm:
 
 ```bash
@@ -1004,6 +1043,115 @@ Revoking testing authority closes admission immediately and attempts to stop
 recorded profiles before saving. Persistence failures are reported; a durable
 revocation audit prevents restoring the previous enabled grant. Removing an
 unknown profile reports an error without changing the current grant.
+
+The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
+lists every provider's pooling decision with its clause, source and date.
+“Confirmation required” quotes the restriction and offers Confirm, Only at
+my own caps, or Cancel; one-account-per-person rules also apply at user caps.
+Accounts sharing a vendor limit group add no capacity against that limit.
+These rules hold on every device and in developer mode. Nothing creates
+accounts, changes request identity or moves a credential to another device.
+The source checkout includes experimental stdio LSP and independent runtime
+supervision for M104. The LSP uses the M94 Tab engine and its caps, file
+eligibility, usage and daily ledger. Paid Tab is off until `--tab` and
+`--trust-workspace` are supplied; its editor consent prompt names the price
+and budget. A native-store Model API key is required only when dispatching.
+One private broker serves each canonical workspace, with eight clients and
+60 seconds of idle time. Conflicting runtime options are refused.
+
+From a built checkout, these offline commands exercise help and Stop:
+
+```sh
+node dist/acp.js lsp --help
+node dist/acp.js supervise --version
+node dist/acp.js stop
+node scripts/gen-reference.mjs
+npm run check:reference
+```
+
+Configure the installed agent's `lsp` command in your editor, with
+`--workspace` pointing to its project root. Neovim supplies `MuseLsp`, Emacs
+supplies `muse-spark-lsp` through Eglot, Sublime has an optional LSP package
+configuration, Qt Creator can use its generic language client, and Zed has
+Rust extension source. Each shim's Stop route runs a separate authenticated
+control command; it can run while the request queue is blocked.
+
+Stop gives TERM 500 ms, then uses verified per-member KILL. Workload launches
+wait for registration with the shared process authority: Linux kernel start
+ticks, macOS kernel microseconds from the shipped signed helper, or Windows
+creation FILETIME/job membership. The POSIX EOF guardian uses that same
+registry after supervisor SIGKILL. Zombies count as exited; observed detached
+or reparented descendants retain their exact identities. A descendant that
+double-forks wholly between observations can still escape this sampling
+policy. Windows uses a named native job and awaits Windows qualification.
+
+The broker and supervisor select a verified private root in platform order: Linux
+`XDG_RUNTIME_DIR`, then configured `XDG_STATE_HOME` / `XDG_CACHE_HOME`, then
+`~/.local/state/muse-spark`; macOS's per-user temporary directory from the
+signed helper, then `~/Library/Application Support/Muse Spark`; Windows
+`%LOCALAPPDATA%\Muse Spark`. Diagnostics record each refused candidate and
+its failing ancestor, and the selected real path. If none qualifies, startup
+refuses. Supervision also requires a verified stable home fallback for path-only
+root locators (`runtime-roots/`): Linux's home state fallback, macOS Application
+Support, or `~/AppData/Local/Muse Spark` on Windows. No control token is in a
+locator. Independent Stop searches every verified platform candidate in the
+order above, then previously selected roots from those locators, verifying each
+again. It finds runs even after XDG/TMPDIR changes or an earlier refused root
+becomes trusted. Each owner record names its canonical trust root. Unusable
+records and trust-root mismatches are reported and skipped without signalling;
+duplicate well-formed owner UUID/generations refuse before any signal, retaining
+ownership. POSIX Stop sockets use the verified platform runtime root even when
+a registry is deeply nested. An address beyond the portable OS limit refuses
+startup with `ESTOP_SOCKET_PATH` before control state or child launch. No matching run exits 1 with `ESTOP_NO_RUN`; ambiguous
+ownership exits 1 with `ESTOP_AMBIGUOUS`. Normal completion removes its locator;
+uncertain cleanup retains it. Verification walks the whole real path to the filesystem/volume root.
+POSIX ancestors must be root/user-owned. Group write is allowed only for
+the user's private group: its gid is the user's primary gid, its name matches
+the user name, and system membership lookups prove it has no other members.
+Unavailable membership information refuses that exception. Linux requires
+`/usr/bin/getent` for those lookups; macOS uses the signed native helper.
+World write is refused except at a root-owned sticky ancestor with an
+immediately user-owned child. The private leaf must be user-owned 0700 and ACL-free on macOS. Windows
+refuses reparse points and other SIDs' mutating grants throughout the ancestry,
+with protected owner/SYSTEM security at the private leaf.
+
+Private directories receive final permissions at creation; unsafe existing
+namespaces are refused. Records are exclusively created without following
+links, and their empty held file's owner, mode, link count and native ACL are
+verified. Before contents, the resolved record pathname must still name that
+held inode, and the parent must still name the verified directory. Windows
+uses CREATE_NEW, protected file security and retained native handles for the
+same checks. Same-user processes can already edit these files and signal the
+user's processes; they are outside this cross-user trust boundary.
+
+POSIX actions recheck the exact birth immediately before synchronous signal,
+without an intervening await. A residual remains between that recheck and
+kill if the PID is reused during that interval; no pidfd binding is installed.
+Windows acts through one retained process handle. Stop requires per-member
+exit receipts rather than counting an admitted signal as completion. After
+owner death it requires the guardian's exclusively created completed receipt
+for every observed descendant, bound to the current random generation, owner
+UUID, resource ticket, guardian/root PIDs and births, and member identities.
+A copied or older receipt cannot retire current ownership. An absent, pending or invalid receipt makes `stop` exit 1 with
+“Cannot verify Stop — processes may still be running” and observed PIDs;
+ownership stays on disk. A later completed guardian receipt allows retirement.
+Intentional Stop returns 0, including the Windows job helper's 143/137
+termination results. Ordinary workload exit codes are preserved; unexpected
+POSIX signal death returns 128 + the signal number and names the signal on
+stderr.
+
+LSP Stop and shutdown remain available when ordinary requests fill their
+queue. Stop during guardian startup waits for child cleanup. Deny or closing
+Tab's paid-use question snoozes Tab for that editor connection until it
+reconnects; another editor connection asks independently.
+
+The required merge sources do not contain the panel/review controller.
+The production LSP explicitly refuses open-panel/Fix/Explain and does not
+advertise review code actions; injected conformance services test diagnostics,
+version/hash checks and approved workspace edits. Native GUI qualification,
+Zed SDK compilation and full editor parity remain open. See the
+[reference](docs/runtime-reference.md) and
+[M104 H/L certification](docs/certification/m104-h.md).
 
 ## Permission modes
 
@@ -5305,6 +5453,8 @@ shows the dialog there.
   the moment after the extension starts, before its recorder has loaded.
 - **Other editors:** `muse-spark-code-acp report` prints the same kind of
   report in a terminal ([docs/acp.md](docs/acp.md#report-a-problem-m93)).
+  On agent-driven surfaces, including the companion panel, a report request
+  opens the same dialog: the agent package ships its bundle.
 
 What the recorder keeps, where, for how long, and what each export does:
 [PRIVACY.md](docs/PRIVACY.md#reporting-a-problem).
@@ -5903,6 +6053,14 @@ Optional surfaces also load their shared English text on first use; startup
 keeps first-paint text and the complete translated-table validation contract.
 Surface and keyboard budgets follow the emitted production graph.
 
+The MHP 1.5.0 panel contract for native and companion adapters is
+[documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
+Schemas reuse the shared panel payload validators. The 1.5 adoption retains
+closed native shapes over pre-normalization inputs, including the 0.17 payloads;
+older peers are refused by the version handshake.
+Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
+snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
+bridge implementation and editor qualification remain in M104's other lanes.
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn
@@ -5930,6 +6088,87 @@ skips only requests, for example:
 ```sh
 BADGE_CHECK_SKIP_NETWORK='offline local verification' npm run check:badges
 ```
+
+M104's portable panel foundation is under development. VS Code builds only
+its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
+`dist/webview/whatsNew.js`. Native and companion hosts use the separate
+`dist/webview/portable/main.js`, `whatsNew.js`, `bridge.js`, `fallbacks.js` and their shared
+chunks; common React host-service fallbacks and manager pages load through
+`PanelBridge.loadFallbacks()`. Portable delivery has two independent caps:
+1,100 KiB for the larger native or companion startup variant's requested built resources,
+and 1,486 KiB for every delivered JavaScript entry and chunk, including lazy features.
+Both bundle gates boot the production page in headless Chrome with the shared
+native/companion browser fakes and authenticated loader. They wait for the
+synchronous first-render `muse:chat-mounted` mark and count built resources
+whose requests started before it once per variant, by path, byte length and SHA-256.
+Context-level routes include dedicated workers, iframes, fonts and extensionless
+outputs. Unknown URLs, WebSockets, arbitrary data/blob fetches or imports,
+EventSource, WebTransport and WebRTC data channels fail with
+`PORTABLE_STARTUP_UNBUILT_REQUEST`, even when application code catches the error.
+Only the authenticated loader's exact module blobs from already-counted built
+bytes are admitted. Worker CSP violations report through the same measurement
+boundary. A measurement-only worker preface refuses transport constructors and
+relays violations through the owning worker before termination. Its probe bytes,
+like frame init scripts and the synthetic main document, are excluded; each
+receipt identifies the original immutable built output. Shared and
+service-worker and nested-worker boot activity is refused with
+`PORTABLE_STARTUP_UNROUTABLE_TARGET` because those targets cannot be fully routed
+by the measurement. Imports awaited
+inside arguments or helpers are included; requests after the mark remain deferred. Chrome must be
+installed (`CHROME_PATH` can select it). Optional features must remain deferred.
+The VS Code budgets are unchanged. Native
+UI requests on native stdio use the correlated MHP host-service channel.
+Companion windows receive correlated React UI requests on authenticated
+`POST /host/events` and return method-validated replies to `POST /host/message`,
+separately from panel payloads. Their packaged `modules.json` lets a nonce
+loader fetch and verify both static and deferred modules through the window's
+private bearer closure. The ACP package includes that portable graph; the new
+Node factories require F's exact inventory update before this integration ships. ACP now
+submits rich parts through the same composed conversation controller; its
+translation and permission prompts remain in the ACP view.
+The [integration record](docs/certification/m104-int.md) lists all 56 features
+and the remaining native bootstrap, auxiliary-view and editor conformance
+work. These development artifacts do not qualify a new editor as supported.
+
+The panel command now composes the shared checkpoint, verifier, plan, transfer,
+Tasks, What's New and report adapters through checked lazy entries. Other engine
+and auxiliary record providers use exact typed native contracts; absent catalog,
+credential, process or storage attestations leave those services unavailable.
+Standalone paid consent requires a verified selected-model quote and configured
+hard shared ledger; the stock carrier refuses before a popup when either is absent.
+MHP includes saved-plan/manager/role/diff/walkthrough messages, fresh diagnostics,
+file/save and HTML publication acknowledgements, and protected native GitHub
+leases. OAuth tokens and pasted keys stay with native credential services.
+Native carriers must adopt and qualify the new contract before shipment. The
+[continuation integration record](docs/certification/m104-pa-integration.md)
+lists the current scoped receipts, bounded stops and exact owner handoffs.
+The VSIX includes the shared `dist/hostProtocol.js` required at extension load;
+its package-member test and production deferred-bundle activation test cover
+that dependency. ACP and native packaging inventories still require F's adoption.
+
+The replacement MHP 1.5.0 contract is frozen in the generated
+[service schema](src/shared/hostApi/mhp-v1.schema.json) and
+[panel schema](src/shared/hostApi/mhp-v1.1.schema.json). The legacy-named
+[native guide](docs/ide-compatibility/host-api-panel-1.1.md) describes the closed
+input-shape policy. The editor initiates
+`initialize` with its metadata, locale, theme and capabilities; the runtime
+answers with its capabilities. Only 1.5 is supported. `node scripts/mhp-schema.mjs
+--adopt-version=mhp/1.5.0` performed the reviewed version adoption; repeating
+adoption of the current version refuses. `npm run check:mhp` checks the frozen
+snapshots and locks. Their legacy filenames remain native build inputs.
+MHP 1.5 replaces 1.1 and 1.2, and supersedes 1.3 and 1.4; both legacy-named snapshots carry the current 1.5 schemas
+and reuse the shared panel payload validators.
+Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
+snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
+bridge implementation and editor qualification remain in M104's other lanes. The
+[JetBrains development plugin](hosts/jetbrains/README.md) has native fake-runtime
+panel and Tab qualification; its [follow-up record](docs/certification/m104-e3.md)
+lists the compatibility matrix and remaining assembled-runtime work.
+
+The native JVM hosts share schema-generated MHP error tables. Regenerate them
+with `node scripts/mhp-errors.mjs`; `npm run check:mhp` verifies their freshness.
+The generator's drift controls run with
+`node --test test/m104/linux/mhpErrors.test.mjs`.
 
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
@@ -6003,7 +6242,7 @@ the checkout) load from `dist/conversationGit.js` with the first
 conversation or "Open a pull request in a conversation…" command.
 The importer loads its UI adapter only on the first import. Node bundles
 require the shared English fallback (`dist/uiText.js`), and each keeps
-its own installed-language state. The webview is React 19 bundled to one IIFE with
+its own installed-language state. The webview is React 19 bundled as ES modules with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
@@ -6129,8 +6368,11 @@ Model API backend's own bundle, 225 KiB for the checkpoint store, 150 KiB for
 the conversation's Git bundle, 125 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
-web fetch's page converter worker, 900 KiB for the webview's entry and all
-static JavaScript imports, and 850 KiB for
+web fetch's page converter worker, 900 KiB for webview startup plus 50 KiB
+for its deferred JavaScript, 1100 KiB for the built resources of each measured native/companion startup variant
+including its authenticated loader and built resources requested before chat's
+first-render mark, 1486 KiB for the complete portable graph
+including every lazy JavaScript entry and chunk, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 
 The webview's Git panel loads when it has state to show; Account & usage

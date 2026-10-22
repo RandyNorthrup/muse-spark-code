@@ -17856,6 +17856,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   the shell tool's runner.
   */
   public runUserShell(command: string): Promise<void> {
+    if (this.isDisposed || this.isHostClosing()) {
+      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
+    }
     if (!this.deps.isWorkspaceTrusted()) {
       return Promise.reject(new Error(UI_TEXT.userShellRestricted))
     }
@@ -18031,6 +18034,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   turn when nothing runs, as `goal/*` does; nothing else starts one.
   */
   public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    if (this.isDisposed || this.isHostClosing()) {
+      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
+    }
     const problem = goalObjectiveProblem(
       command,
       contextModelFor(this.deps, this.modelId)?.contextTokens,

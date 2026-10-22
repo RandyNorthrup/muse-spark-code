@@ -264,6 +264,15 @@ export class WindowPresence {
     }
   }
 
+  /** The owner stops its heartbeat first; admitted presence writes then settle. */
+  public async drain(): Promise<void> {
+    try {
+      await this.writing
+    } catch {
+      // The publishing caller receives the error; an uncertain presence stays fenced.
+    }
+  }
+
   /**
   The windows open on this store and the turns running in each, this one
   included. The presence files of windows that are gone are removed, but

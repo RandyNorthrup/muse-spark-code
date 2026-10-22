@@ -198,7 +198,7 @@ export function usdPeriodDelta(
 const DECIMAL_RADIX = 10n
 const ZERO = 0n
 const ONE = 1n
-const NANO_USD_DECIMALS = 9
+const NANO_USD_DECIMALS = USD_LIABILITY_DECIMALS
 const NANOS_PER_USD = DECIMAL_RADIX ** BigInt(NANO_USD_DECIMALS)
 
 /** Exact nano-USD fraction. Retain sub-nano charges until display, never
@@ -256,4 +256,24 @@ export function displayUsdNanos(value: UsdNanos): number {
   const whole = ceiling / NANOS_PER_USD
   const fraction = (ceiling % NANOS_PER_USD).toString().padStart(NANO_USD_DECIMALS, '0')
   return Number(`${String(whole)}.${fraction}`)
+}
+
+/** Parse the decimal amount without binary multiplication. Liability rounds up; caps down. */
+export function usdToNanoUsd(value: number, rounding: 'up' | 'down' = 'up'): bigint {
+  if (!Number.isFinite(value) || value < 0) throw new Error('USD_AMOUNT_INVALID')
+  const [mantissa = '', exponent = '0'] = value.toString().split('e', 2)
+  const [whole = '', fraction = ''] = mantissa.split('.', 2)
+  const digits = BigInt(whole + fraction)
+  const shift = NANO_USD_DECIMALS + Number(exponent) - fraction.length
+  if (shift >= 0) return digits * DECIMAL_RADIX ** BigInt(shift)
+  const divisor = DECIMAL_RADIX ** BigInt(-shift)
+  const rounded = digits / divisor
+  return rounding === 'up' && digits % divisor !== ZERO ? rounded + ONE : rounded
+}
+
+/** Public USD fields are a display projection; admission and accumulation use bigint. */
+export function nanoUsdToUsd(value: bigint): number {
+  const numeric = Number(value)
+  if (value < ZERO || !Number.isSafeInteger(numeric)) throw new Error('USD_AMOUNT_INVALID')
+  return numeric / Number(NANOS_PER_USD)
 }

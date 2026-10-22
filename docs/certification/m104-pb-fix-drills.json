@@ -1,0 +1,156 @@
+[
+  {
+    "drill": "R1-write-fence",
+    "file": "src/core/paid/paidFeatures.ts",
+    "tests": ["test/m104/engines/paidComposition.test.ts"],
+    "expectedFailure": "drains an accepted store write and discards later and queued mutations on disposal",
+    "exitCode": 1,
+    "elapsedSeconds": 1.93,
+    "sha256Before": "260311ab1a525b99dac2eb96b36cf58f2b3165af96cd8fdbe648954c0648555a",
+    "sha256After": "260311ab1a525b99dac2eb96b36cf58f2b3165af96cd8fdbe648954c0648555a",
+    "log": "temp/m104-pb/fix/R1-write-fence.log"
+  },
+  {
+    "drill": "R1-serialization",
+    "file": "src/runtime/features/paidUse.ts",
+    "tests": ["test/m104/engines/paidComposition.test.ts"],
+    "expectedFailure": "serializes gate acceptances so two toggles retain both accepted features",
+    "exitCode": 1,
+    "elapsedSeconds": 3.54,
+    "sha256Before": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "sha256After": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "log": "temp/m104-pb/fix/R1-serialization.log"
+  },
+  {
+    "drill": "R2-runtime-cancel",
+    "file": "src/runtime/features/tab.ts",
+    "tests": ["test/m104/engines/tab.test.ts"],
+    "expectedFailure": "clears a rate-limited unsent trigger and finishes shutdown without advancing the clock",
+    "exitCode": 1,
+    "elapsedSeconds": 2.32,
+    "sha256Before": "56f7a7049a6b1524da942d1894509fed9bc96f68119c918b05769fc2c7bbd2ab",
+    "sha256After": "56f7a7049a6b1524da942d1894509fed9bc96f68119c918b05769fc2c7bbd2ab",
+    "log": "temp/m104-pb/fix/R2-runtime-cancel.log"
+  },
+  {
+    "drill": "R2-answer-settlement",
+    "file": "src/core/tab/tabEngine.ts",
+    "tests": ["test/unit/tabEngine.test.ts"],
+    "expectedFailure": "settles a cancelled waiting answer while a sent request retains its usage",
+    "exitCode": 1,
+    "elapsedSeconds": 9.6,
+    "sha256Before": "6c159045434fd4af2f97632554162b17a652103a02ee36d49cbe1095b0115e88",
+    "sha256After": "6c159045434fd4af2f97632554162b17a652103a02ee36d49cbe1095b0115e88",
+    "log": "temp/m104-pb/fix/R2-answer-settlement.log"
+  },
+  {
+    "drill": "R3-window-once",
+    "file": "src/runtime/features/paidUse.ts",
+    "tests": ["test/m104/engines/paidUse.test.ts"],
+    "expectedFailure": "keeps Tab Allow once for exactly its window and revokes it with Ask again",
+    "exitCode": 1,
+    "elapsedSeconds": 3.36,
+    "sha256Before": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "sha256After": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "log": "temp/m104-pb/fix/R3-window-once.log"
+  },
+  {
+    "drill": "R3-window-isolation",
+    "file": "src/runtime/features/paidUse.ts",
+    "tests": ["test/m104/engines/paidUse.test.ts"],
+    "expectedFailure": "shares a pending Tab question in one window without authorizing another window",
+    "exitCode": 1,
+    "elapsedSeconds": 3.24,
+    "sha256Before": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "sha256After": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "log": "temp/m104-pb/fix/R3-window-isolation.log"
+  },
+  {
+    "drill": "R3-revocation",
+    "file": "src/runtime/features/paidUse.ts",
+    "tests": ["test/m104/engines/paidUse.test.ts"],
+    "expectedFailure": "discards an old Always answer after workspace Ask again",
+    "exitCode": 1,
+    "elapsedSeconds": 3.1,
+    "sha256Before": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "sha256After": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "log": "temp/m104-pb/fix/R3-revocation.log"
+  },
+  {
+    "drill": "R4-floating-totals",
+    "file": "src/host/backend/sessionBudgetJournal.ts",
+    "tests": ["test/m104/engines/paidBudget.test.ts"],
+    "expectedFailure": "admits an exactly affordable decimal total and rejects one nano-USD more",
+    "exitCode": 1,
+    "elapsedSeconds": 1.78,
+    "sha256Before": "f120f2576c7d97a491e12256bb2147112e54ccab45b1b30f809d34d4f60a4f3a",
+    "sha256After": "f120f2576c7d97a491e12256bb2147112e54ccab45b1b30f809d34d4f60a4f3a",
+    "log": "temp/m104-pb/fix/R4-floating-totals.log"
+  },
+  {
+    "drill": "R4-liability-rounding",
+    "file": "src/shared/usd.ts",
+    "tests": ["test/m104/engines/paidBudget.test.ts"],
+    "expectedFailure": "rounds fractional nano-USD liability up and a cap down without a tolerance",
+    "exitCode": 1,
+    "elapsedSeconds": 1.77,
+    "sha256Before": "062d53e22f0212645174c1c2aead832b539a71082d15626d8b4a0ac31c6b5f93",
+    "sha256After": "062d53e22f0212645174c1c2aead832b539a71082d15626d8b4a0ac31c6b5f93",
+    "log": "temp/m104-pb/fix/R4-liability-rounding.log"
+  },
+  {
+    "drill": "R4-remaining",
+    "file": "src/runtime/features/paidBudget.ts",
+    "tests": ["test/m104/engines/paidBudget.test.ts"],
+    "expectedFailure": "returns exact remaining nano-USD after decimal subtraction",
+    "exitCode": 1,
+    "elapsedSeconds": 1.87,
+    "sha256Before": "5c9bc6e8a428be9729266ee6f91811c15f60da165ae8e50c3f7a21f1d4584296",
+    "sha256After": "5c9bc6e8a428be9729266ee6f91811c15f60da165ae8e50c3f7a21f1d4584296",
+    "log": "temp/m104-pb/fix/R4-remaining.log"
+  },
+  {
+    "drill": "R5-json-subtotal",
+    "file": "docs/certification/m104-pb-continuation-gates.json",
+    "tests": ["test/m104/engines/certification.test.ts"],
+    "expectedFailure": "records the historical owned-engine subtotal as the sum of its persisted cohorts",
+    "exitCode": 1,
+    "elapsedSeconds": 1.62,
+    "sha256Before": "27eeaba496648e6b2620570ad2c29e29aac51e3ad030cf91def5233409ac64fb",
+    "sha256After": "27eeaba496648e6b2620570ad2c29e29aac51e3ad030cf91def5233409ac64fb",
+    "log": "temp/m104-pb/fix/R5-json-subtotal.log"
+  },
+  {
+    "drill": "R5-doc-subtotal",
+    "file": "docs/certification/m104-pb.md",
+    "tests": ["test/m104/engines/certification.test.ts"],
+    "expectedFailure": "records the historical owned-engine subtotal as the sum of its persisted cohorts",
+    "exitCode": 1,
+    "elapsedSeconds": 1.27,
+    "sha256Before": "9e6e107c897f8de0ff6ad0c894036df918664a922e62529e5d2aa4d7b4155527",
+    "sha256After": "9e6e107c897f8de0ff6ad0c894036df918664a922e62529e5d2aa4d7b4155527",
+    "log": "temp/m104-pb/fix/R5-doc-subtotal.log"
+  },
+  {
+    "drill": "R1-grant-snapshot",
+    "file": "src/runtime/features/paidUse.ts",
+    "tests": ["test/m104/engines/paidComposition.test.ts"],
+    "expectedFailure": "cannot regrant a different feature from a snapshot queued behind its revocation",
+    "exitCode": 1,
+    "elapsedSeconds": 3.68,
+    "sha256Before": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "sha256After": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "log": "temp/m104-pb/fix/R1-grant-snapshot.log"
+  },
+  {
+    "drill": "R1-drain",
+    "file": "src/runtime/features/paidUse.ts",
+    "tests": ["test/m104/engines/paidComposition.test.ts"],
+    "expectedFailure": "drains a grant store write and refuses queued workspace revocation after disposal",
+    "exitCode": 1,
+    "elapsedSeconds": 2.5,
+    "sha256Before": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "sha256After": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e",
+    "log": "temp/m104-pb/fix/R1-drain.log"
+  }
+]

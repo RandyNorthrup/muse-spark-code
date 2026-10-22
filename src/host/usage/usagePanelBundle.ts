@@ -1,7 +1,7 @@
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { createUsagePanel, createUsageBudget } from './usagePanelEntry'
+import type { createUsagePanel, createUsageBudget } from '../vscode/usage/usagePanelEntry'
 
 export interface UsageBudgetBundle {
   readonly createUsageBudget: typeof createUsageBudget

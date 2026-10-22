@@ -4856,6 +4856,24 @@
   ],
   "cli": [
     {
+      "route": "lsp",
+      "name": "lsp [options]",
+      "description": "Stdio language server with paid Tab opt-in and editor consent.",
+      "text": { "ui": "referenceLsp" }
+    },
+    {
+      "route": "supervise",
+      "name": "supervise <runtime arguments>",
+      "description": "Run the runtime with independent authenticated Stop control.",
+      "text": { "ui": "referenceSupervise" }
+    },
+    {
+      "route": "stop",
+      "name": "stop [runtime options]",
+      "description": "Stop verified runtime owners in this workspace.",
+      "text": { "ui": "referenceStop" }
+    },
+    {
       "route": "usage",
       "name": "usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json",
       "description": "Show usage and cost across models, or open the usage page.",
@@ -5224,6 +5242,100 @@
       "description": "Print the installed agent version.",
       "text": { "ui": "referenceVersion" },
       "invocations": []
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --backend <value>",
+      "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
+      "text": { "cli": "backend" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["museCode", "modelApi"],
+        "default": "museCode"
+      }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --trust-workspace",
+      "description": "--trust-workspace                Load the folder’s rules, skills and memory",
+      "text": { "cli": "trust-workspace" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --muse-binary <value>",
+      "description": "--muse-binary <path>             The Muse Code CLI to run",
+      "text": { "cli": "muse-binary" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --shell-sandbox <value>",
+      "description": "--shell-sandbox auto|muse|off    Muse Code’s shell sandbox",
+      "text": { "cli": "shell-sandbox" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["auto", "muse", "off"],
+        "default": "auto"
+      }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --allow-contributor-models",
+      "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
+      "text": { "cli": "allow-contributor-models" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --verbose",
+      "description": "--verbose                        Log every detail on stderr",
+      "text": { "cli": "verbose" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --workspace <value>",
+      "description": "Workspace root for the language server.",
+      "text": { "cli": "workspace" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab",
+      "description": "Opt into paid Tab completions with consent.",
+      "text": { "cli": "tab" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab-model <value>",
+      "description": "Model for paid Tab completions.",
+      "text": { "cli": "tab-model" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab-daily-budget-usd <value>",
+      "description": "Shared daily Tab budget in USD.",
+      "text": { "cli": "tab-daily-budget-usd" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --broker-worker",
+      "description": "Internal workspace broker worker.",
+      "text": { "cli": "broker-worker" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
       "route": "providersAdd",
@@ -5679,6 +5791,26 @@
         "required": "modelApi",
         "unit": "USD"
       }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --stdio",
+      "description": "panel --stdio: Serve the portable panel over standard input and standard output",
+      "text": { "cli": "panel-stdio" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "route": "usage serve",
+        "protocol": "usageCompanion",
+        "default": false
+      }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --companion",
+      "description": "panel --companion: Serve the portable panel as a loopback browser companion",
+      "text": { "cli": "panel-companion" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
       "route": "login",

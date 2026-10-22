@@ -1,0 +1,136 @@
+{
+  "base": "271d3bea270652d59798b50167b79b63c1941b72",
+  "commands": [
+    {
+      "name": "base-eclipse-red",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "-o",
+        "verify",
+        "-pl",
+        "io.musespark:io.musespark.eclipse.tests",
+        "-am",
+        "-Dtest=PeerTest#everySchemaErrorKeepsItsNumericCodeAndTechnicalMessageOnTheWire,SessionTest#rootKilledBeforeCloseStillKillsItsReparentedChild"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/base/hosts/eclipse",
+      "exit": 1,
+      "seconds": 33.144
+    },
+    {
+      "name": "base-jetbrains-red",
+      "command": [
+        "./gradlew",
+        "test",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--offline",
+        "--no-daemon",
+        "--tests",
+        "*MhpConnectionTest.everySchemaErrorHasParityWithEclipseAndKeepsItsCodeOnTheWire"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/base/hosts/jetbrains",
+      "exit": 1,
+      "seconds": 80.966
+    },
+    {
+      "name": "process-current-green-compile",
+      "command": [
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/javac",
+        "-cp",
+        "/home/randy/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar:/home/randy/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+        "-d",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-current-green/classes",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-current-green/RuntimeProcess.java",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-current-green/RuntimeStressTest.java",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-current-green/RuntimeExitFixture.java"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4",
+      "exit": 0,
+      "seconds": 1.265
+    },
+    {
+      "name": "process-current-green",
+      "command": [
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+        "-cp",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-current-green/classes:/home/randy/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar:/home/randy/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+        "org.junit.runner.JUnitCore",
+        "io.musespark.eclipse.tests.RuntimeStressTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4",
+      "exit": 0,
+      "seconds": 3.564
+    },
+    {
+      "name": "process-reused-pid-red-compile",
+      "command": [
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/javac",
+        "-cp",
+        "/home/randy/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar:/home/randy/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+        "-d",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-reused-pid-red/classes",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-reused-pid-red/RuntimeProcess.java",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-reused-pid-red/RuntimeStressTest.java",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-reused-pid-red/RuntimeExitFixture.java"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4",
+      "exit": 0,
+      "seconds": 1.129
+    },
+    {
+      "name": "process-reused-pid-red",
+      "command": [
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+        "-cp",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-reused-pid-red/classes:/home/randy/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar:/home/randy/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+        "org.junit.runner.JUnitCore",
+        "io.musespark.eclipse.tests.RuntimeStressTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4",
+      "exit": 1,
+      "seconds": 3.509
+    },
+    {
+      "name": "process-tracking-red-compile",
+      "command": [
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/javac",
+        "-cp",
+        "/home/randy/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar:/home/randy/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+        "-d",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-tracking-red/classes",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-tracking-red/RuntimeProcess.java",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-tracking-red/RuntimeStressTest.java",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-tracking-red/RuntimeExitFixture.java"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4",
+      "exit": 0,
+      "seconds": 1.151
+    },
+    {
+      "name": "process-tracking-red",
+      "command": [
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+        "-cp",
+        "/home/randy/lanes/FIXM104PE4/temp/pe4/process-tracking-red/classes:/home/randy/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar:/home/randy/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar",
+        "org.junit.runner.JUnitCore",
+        "io.musespark.eclipse.tests.RuntimeStressTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4",
+      "exit": 1,
+      "seconds": 19.036
+    }
+  ],
+  "unchangedSourceSha256": {
+    "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java": "882d9e6b517076193a5b10b8f90024a3bfcbb3f76a896373c00ff53d5341a9e5",
+    "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeStressTest.java": "5e1060e20c33dba4f827795e396fd285aa8cf3f01467062c13df1df065191a15",
+    "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeExitFixture.java": "0deb5286c1f069de15ee5ce18b523de0993e94469a19bdf02d126d83cdfeda07"
+  },
+  "generatorControls": [
+    "Java numeric drift rejected",
+    "Kotlin numeric drift rejected",
+    "missing alias target rejected",
+    "changed and new schema codes reach both generated tables"
+  ]
+}

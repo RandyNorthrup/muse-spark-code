@@ -33,7 +33,7 @@ import { isStoreErrorCode, storeErrorCode } from '../backend/storeErrors'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as WhatsNewEntry from './whatsNewEntry'
-import type { WhatsNewPages, WhatsNewPagesDeps } from './whatsNewPanel'
+import type { WhatsNewPages, WhatsNewPagesDeps } from '../vscode/whatsNew/whatsNewPanel'
 
 const ALREADY_CLAIMED = 'EEXIST'
 

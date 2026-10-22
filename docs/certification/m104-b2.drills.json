@@ -1,0 +1,263 @@
+{
+  "base": "86b91545",
+  "machine": "macmini",
+  "liveModelAttempts": 0,
+  "records": [
+    {
+      "label": "companion-queue",
+      "file": "src/runtime/companion/events.ts",
+      "test": "test/unit/companionEvents.test.ts",
+      "exit": 1,
+      "sha256": "bd95be9107b4866501890264d5b38ac39c64ee5de1a5d3dc67483791ca89a98d",
+      "restored": true
+    },
+    {
+      "label": "bytes",
+      "file": "src/runtime/panel/delivery.ts",
+      "test": "test/unit/panelDelivery.test.ts",
+      "exit": 1,
+      "sha256": "bca41e50667b88ae3959b06ea2054bbef28482d77bcc1d0d4498d653c4c2518d",
+      "restored": true
+    },
+    {
+      "label": "count",
+      "file": "src/runtime/panel/delivery.ts",
+      "test": "test/unit/panelDelivery.test.ts",
+      "exit": 1,
+      "sha256": "bca41e50667b88ae3959b06ea2054bbef28482d77bcc1d0d4498d653c4c2518d",
+      "restored": true
+    },
+    {
+      "label": "frame",
+      "file": "src/runtime/panel/delivery.ts",
+      "test": "test/unit/panelDelivery.test.ts",
+      "exit": 1,
+      "sha256": "bca41e50667b88ae3959b06ea2054bbef28482d77bcc1d0d4498d653c4c2518d",
+      "restored": true
+    },
+    {
+      "label": "drain",
+      "file": "src/runtime/panel/delivery.ts",
+      "test": "test/unit/panelDelivery.test.ts",
+      "exit": 1,
+      "sha256": "bca41e50667b88ae3959b06ea2054bbef28482d77bcc1d0d4498d653c4c2518d",
+      "restored": true
+    },
+    {
+      "label": "order",
+      "file": "src/runtime/panel/surfaces.ts",
+      "test": "test/unit/panelSurfaces.test.ts",
+      "exit": 1,
+      "sha256": "0dd84cae9cbfaa4fa7bff286c12a751ba08e4a58b7ad8e31a42b4cffa6230574",
+      "restored": true
+    },
+    {
+      "label": "tombstone",
+      "file": "src/runtime/panel/surfaces.ts",
+      "test": "test/unit/panelSurfaces.test.ts",
+      "exit": 1,
+      "sha256": "0dd84cae9cbfaa4fa7bff286c12a751ba08e4a58b7ad8e31a42b4cffa6230574",
+      "restored": true
+    },
+    {
+      "label": "surfaces",
+      "file": "src/runtime/panel/surfaces.ts",
+      "test": "test/unit/panelSurfaces.test.ts",
+      "exit": 1,
+      "sha256": "0dd84cae9cbfaa4fa7bff286c12a751ba08e4a58b7ad8e31a42b4cffa6230574",
+      "restored": true
+    },
+    {
+      "label": "claim",
+      "file": "src/runtime/panel/controllerRegistry.ts",
+      "test": "test/unit/controllerRegistry.test.ts",
+      "exit": 1,
+      "sha256": "c799283f1db757c28f31223492cbaefdec44968ce6b072694fe6ce5265a1f3fe",
+      "restored": true
+    },
+    {
+      "label": "carrier",
+      "file": "src/runtime/cliArgs.ts",
+      "test": "test/unit/acpRuntime.test.ts",
+      "exit": 1,
+      "sha256": "45ac30351c97c94b650331e284c0d451d7643cee618e02b07915df899b404afd",
+      "restored": true
+    },
+    {
+      "label": "fatal-status",
+      "file": "src/runtime/main.ts",
+      "test": "test/e2e/panelStdio.e2e.test.ts",
+      "exit": 1,
+      "sha256": "c63317647bee85e49db73c4da1af002db77a7576cbc8939404d14ac782daf059",
+      "restored": true
+    },
+    {
+      "label": "utf8-status",
+      "file": "src/runtime/panel/runPanel.ts",
+      "test": "test/e2e/panelStdio.e2e.test.ts",
+      "exit": 1,
+      "sha256": "b9060c83cc137bc42cfd8e964b3eee47103199f21d6917e7d3959b5cb3c9f549",
+      "restored": true
+    },
+    {
+      "label": "http-admission",
+      "file": "src/runtime/companion/server.ts",
+      "test": "test/e2e/panelCompanion.e2e.test.ts",
+      "exit": 1,
+      "sha256": "50c99b6e8d4fecb0dc1c0618428c8dd9099679369eec3d0b4e515307b01a4201",
+      "restored": true
+    },
+    {
+      "label": "sse-name",
+      "file": "src/runtime/companion/events.ts",
+      "test": "test/e2e/panelCompanion.e2e.test.ts",
+      "exit": 1,
+      "sha256": "bd95be9107b4866501890264d5b38ac39c64ee5de1a5d3dc67483791ca89a98d",
+      "restored": true
+    },
+    {
+      "label": "binding-bytes",
+      "file": "src/runtime/panel/surfaces.ts",
+      "test": "test/unit/panelSurfaces.test.ts",
+      "exit": 1,
+      "sha256": "9b4943639bb9ca34fbd084db519dc45a05a0bc3ff1fdd3d8f94a3a39b9c48eb7",
+      "restored": true
+    },
+    {
+      "label": "read-size",
+      "file": "src/runtime/panel/runtimeFeatures.ts",
+      "test": "test/unit/runtimePanelPorts.test.ts",
+      "exit": 1,
+      "sha256": "9ee94e9b745db2e044dfed0bf085a70d952151fe1b96dc2f7461d985d07cfcae",
+      "restored": true
+    },
+    {
+      "label": "read-expected",
+      "file": "src/runtime/panel/runtimeFeatures.ts",
+      "test": "test/unit/runtimePanelPorts.test.ts",
+      "exit": 1,
+      "sha256": "9ee94e9b745db2e044dfed0bf085a70d952151fe1b96dc2f7461d985d07cfcae",
+      "restored": true
+    },
+    {
+      "label": "editor-trust",
+      "file": "src/runtime/panel/runtimeFeatures.ts",
+      "test": "test/unit/runtimePanelPorts.test.ts",
+      "exit": 1,
+      "sha256": "9ee94e9b745db2e044dfed0bf085a70d952151fe1b96dc2f7461d985d07cfcae",
+      "restored": true
+    },
+    {
+      "label": "editor-protected",
+      "file": "src/runtime/panel/runtimeFeatures.ts",
+      "test": "test/unit/runtimePanelPorts.test.ts",
+      "exit": 1,
+      "sha256": "9ee94e9b745db2e044dfed0bf085a70d952151fe1b96dc2f7461d985d07cfcae",
+      "restored": true
+    },
+    {
+      "label": "paid-deny",
+      "file": "src/runtime/panel/runtimeFeatures.ts",
+      "test": "test/e2e/panelStdio.e2e.test.ts",
+      "exit": 1,
+      "sha256": "9ee94e9b745db2e044dfed0bf085a70d952151fe1b96dc2f7461d985d07cfcae",
+      "restored": true
+    },
+    {
+      "label": "native-trust",
+      "file": "src/runtime/panel/runPanel.ts",
+      "test": "test/e2e/panelStdio.e2e.test.ts",
+      "exit": 1,
+      "sha256": "522889dda59ba7791eab5634f3768e170ba21c975d048b6bcea94cd80c293eed",
+      "restored": true
+    },
+    {
+      "label": "checkpoint-status",
+      "file": "src/runtime/panel/runtimeFeatures.ts",
+      "test": "test/unit/runtimePanelPorts.test.ts",
+      "exit": 1,
+      "sha256": "1a58a26aa83a22e62dfc64b1ce70ea11ad01c1cdcf46ca67205de82478c69038",
+      "restored": true
+    },
+    {
+      "label": "release-barrier",
+      "file": "src/runtime/panel/controllerRegistry.ts",
+      "test": "test/unit/controllerRegistry.test.ts",
+      "exit": 1,
+      "sha256": "3e3c27916c7b111249aae778054d6af12f2dc6b64bbbffd8ecab484085b16b31",
+      "restored": true
+    },
+    {
+      "label": "release-all",
+      "file": "src/runtime/panel/controllerRegistry.ts",
+      "test": "test/unit/controllerRegistry.test.ts",
+      "exit": 1,
+      "sha256": "3e3c27916c7b111249aae778054d6af12f2dc6b64bbbffd8ecab484085b16b31",
+      "restored": true
+    },
+    {
+      "label": "surface-kind",
+      "file": "src/runtime/panel/runPanel.ts",
+      "test": "test/e2e/panelStdio.e2e.test.ts",
+      "exit": 1,
+      "sha256": "c357ae431cce6602a50146edee21799070721d8a7778c4309bae643579aa1b61",
+      "restored": true
+    },
+    {
+      "label": "snapshot-bytes",
+      "file": "src/runtime/panel/runPanel.ts",
+      "test": "test/e2e/panelStdio.e2e.test.ts",
+      "exit": 1,
+      "sha256": "abfd8d5a153209a264028f294a64999674e5864b0c0f898cf4b6b682adedccb7",
+      "restored": true
+    },
+    {
+      "label": "runtimePanel-size",
+      "file": "dist/runtimePanel.js",
+      "test": "scripts/check-bundle-size.mjs",
+      "exit": 1,
+      "sha256": "90428266df99e6f1799752f8963150965fa7c08dd1db7a4d53e91f48969d03b9",
+      "restored": true
+    },
+    {
+      "label": "runtimePanel-globals",
+      "file": "dist/runtimePanel.js",
+      "test": "scripts/check-host-globals.mjs",
+      "exit": 1,
+      "sha256": "90428266df99e6f1799752f8963150965fa7c08dd1db7a4d53e91f48969d03b9",
+      "restored": true
+    },
+    {
+      "label": "runtimePanel-split",
+      "file": "dist/meta-acp/acp.json",
+      "test": "scripts/check-bundle-split.mjs",
+      "exit": 1,
+      "sha256": "5a089deb07b9990878bed1834997a27d0afec61d75d86674ce30110ab451ec5d",
+      "restored": true
+    },
+    {
+      "label": "runtimePanelPorts-size",
+      "file": "dist/runtimePanelPorts.js",
+      "test": "scripts/check-bundle-size.mjs",
+      "exit": 1,
+      "sha256": "360fe076884c388ae68d6570aefb34aa995f648270e08d8024b54338eb68c129",
+      "restored": true
+    },
+    {
+      "label": "runtimePanelPorts-globals",
+      "file": "dist/runtimePanelPorts.js",
+      "test": "scripts/check-host-globals.mjs",
+      "exit": 1,
+      "sha256": "360fe076884c388ae68d6570aefb34aa995f648270e08d8024b54338eb68c129",
+      "restored": true
+    },
+    {
+      "label": "runtimePanelPorts-split",
+      "file": "dist/meta-acp/acp.json",
+      "test": "scripts/check-bundle-split.mjs",
+      "exit": 1,
+      "sha256": "5a089deb07b9990878bed1834997a27d0afec61d75d86674ce30110ab451ec5d",
+      "restored": true
+    }
+  ]
+}

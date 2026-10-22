@@ -510,6 +510,7 @@ function neededOids(write: WriteRecord): readonly string[] {
 
 export class CheckpointStore {
   private queue: Promise<unknown> = Promise.resolve()
+  private closing: Promise<void> | undefined
   /** The shadow repository's setup: under way, or done. */
   private opening: Promise<Opened> | undefined
   private hasTidied = false
@@ -2145,14 +2146,27 @@ export class CheckpointStore {
   journal stays for another window to fold what it did not seal.
   */
   public dispose(): void {
-    this.stopping.abort()
-    void this.queue.then(async () => {
-      await this.copies.close()
-      clearInterval(this.heartbeat)
-      this.presenceStopping.abort()
-      if (!this.hasUnprovedLocalWork()) {
-        this.presence.leave()
-      }
+    void this.close().catch((error: unknown) => {
+      this.deps.log.warn(`Checkpoint close failed: ${failureForLog(error)}`)
     })
+  }
+
+  /** Portable owners await file/record work and handles before releasing the journal. */
+  public close(): Promise<void> {
+    this.stopping.abort()
+    this.closing ??= (async () => {
+      await this.queue
+      try {
+        await this.copies.close()
+      } finally {
+        clearInterval(this.heartbeat)
+        this.presenceStopping.abort()
+        await this.presence.drain()
+        if (!this.hasUnprovedLocalWork()) {
+          this.presence.leave()
+        }
+      }
+    })()
+    return this.closing
   }
 }

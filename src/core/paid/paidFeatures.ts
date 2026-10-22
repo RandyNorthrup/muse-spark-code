@@ -38,6 +38,13 @@ import {
 
 import type { CoreLogger } from '../logging'
 import { estimateCostUsd } from '../usage/insights'
+import { unlessAborted } from '../timeouts'
+
+/** The portable owner fences each write and cancels only an unanswered confirmation. */
+interface PaidFeatureMutationGuard {
+  readonly signal: AbortSignal
+  readonly check: () => void
+}
 
 /** A verified per-call search tariff; other providers must inject their own price. */
 export function webSearchPriceUsd(modelId: string): UsdAmount | undefined {
@@ -98,7 +105,12 @@ export class PaidFeatureGate {
     }
   }
 
-  private async setAccepted(feature: PaidFeature, isAccepted: boolean): Promise<void> {
+  private async setAccepted(
+    feature: PaidFeature,
+    isAccepted: boolean,
+    check?: () => void,
+  ): Promise<void> {
+    check?.()
     const accepted = new Set(this.deps.readAccepted())
     if (accepted.has(feature) === isAccepted) {
       return
@@ -109,6 +121,7 @@ export class PaidFeatureGate {
       accepted.delete(feature)
     }
     await this.deps.writeAccepted(accepted)
+    check?.()
   }
 
   /** The confirmation for a setting found on without an accepted price. */
@@ -218,8 +231,10 @@ export class PaidFeatureGate {
   }
 
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
-  public async turnOn(feature: PaidFeature): Promise<boolean> {
+  public async turnOn(feature: PaidFeature, guard?: PaidFeatureMutationGuard): Promise<boolean> {
+    guard?.check()
     if (this.deps.isAvailable?.(feature) === false) return false
+
     if (this.isOn(feature)) {
       return true
     }
@@ -233,8 +248,10 @@ export class PaidFeatureGate {
     }
     if (this.asksOnFirstUse(feature)) {
       // No modal: its first use asks, naming the price (D48).
-      await this.setAccepted(feature, true)
+      await this.setAccepted(feature, true, guard?.check)
+      guard?.check()
       await this.deps.setSetting(feature, true)
+      guard?.check()
       this.deps.log.info(`Paid feature ${feature} turned on; its first use asks`)
       this.notify()
       return true
@@ -245,7 +262,11 @@ export class PaidFeatureGate {
     this.asking.add(feature)
     let isConfirmed: boolean
     try {
-      isConfirmed = await this.deps.confirm(feature)
+      const confirmation = this.deps.confirm(feature)
+      isConfirmed =
+        (await (guard === undefined ? confirmation : unlessAborted(confirmation, guard.signal))) ??
+        false
+      guard?.check()
     } finally {
       this.asking.delete(feature)
     }
@@ -254,16 +275,20 @@ export class PaidFeatureGate {
       return false
     }
     // Accepted before the setting changes, so the change asks nothing more.
-    await this.setAccepted(feature, true)
+    await this.setAccepted(feature, true, guard?.check)
+    guard?.check()
     await this.deps.setSetting(feature, true)
+    guard?.check()
     this.deps.log.info(`Paid feature ${feature} turned on; the user accepted its price`)
     this.notify()
     return true
   }
 
-  public async turnOff(feature: PaidFeature): Promise<void> {
+  public async turnOff(feature: PaidFeature, guard?: PaidFeatureMutationGuard): Promise<void> {
+    guard?.check()
     await this.deps.setSetting(feature, false)
-    await this.setAccepted(feature, false)
+    guard?.check()
+    await this.setAccepted(feature, false, guard?.check)
     this.deps.log.info(`Paid feature ${feature} turned off`)
     this.notify()
   }
@@ -306,20 +331,47 @@ export class PaidUsage {
   public constructor(
     private readonly log: CoreLogger,
     private readonly recording?: UsageRecording,
+    /** Verified catalog cost for the actual request model; undefined refuses an unpriced receipt. */
+    private readonly costOf?: (modelId: string, usage: SubagentUsage) => number | undefined,
   ) {}
+
+  /**
+  One receipt's exact cost. A caller-verified cost wins, then the
+  provider's own receipt. With an injected catalog a receipt it cannot
+  price is refused (no Meta fallback); without one, the published Meta
+  rates estimate it and an unpriced model is refused.
+  */
+  private usageCost(
+    modelId: string,
+    usage: SubagentUsage,
+    verifiedCostUsd?: number | UsdAmount,
+    errors: UsageErrors = AUTO_REVIEW_ERRORS,
+    shouldRequireIntegers = true,
+  ): UsdAmount {
+    if (verifiedCostUsd === undefined && this.costOf === undefined)
+      return receiptCost(modelId, usage, errors, shouldRequireIntegers)
+    if (!isValidTaskUsage(usage, shouldRequireIntegers)) throw new Error(errors.invalid)
+    if (verifiedCostUsd === undefined && usage.costUsd !== undefined) return usage.costUsd
+    const cost = verifiedCostUsd ?? this.costOf?.(modelId, usage)
+    // A settled ledger amount is already exact; a catalog number enters exact money once.
+    if (
+      cost === undefined ||
+      (typeof cost === 'number' && !Number.isFinite(cost)) ||
+      Usd.from(cost).compare(Usd.from(0)) < 0
+    )
+      throw new Error('Paid usage has no verified catalog cost')
+    return Usd.from(cost).toAmount()
+  }
 
   private addTaskUsage(
     kind: 'teamWorker' | 'bestOfN',
     modelId: string,
     usage: SubagentUsage,
   ): void {
-    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate ' + kind + ' use for an unpriced model')
-    }
-    const { costUsd } = usage
-    if (!isValidTaskUsage(usage)) {
-      throw new Error(kind + ' usage must be valid nonnegative token counts')
-    }
+    const cost = this.usageCost(modelId, usage, undefined, {
+      unpriced: 'Cannot estimate ' + kind + ' use for an unpriced model',
+      invalid: kind + ' usage must be valid nonnegative token counts',
+    })
     const unknownKey = `${kind}UnknownRequests` as const
     const tokenKey = `${kind}Tokens` as const
     const costKey = `${kind}CostUsd` as const
@@ -329,10 +381,7 @@ export class PaidUsage {
       ...this.tally,
       [unknownKey]: unknown - 1,
       [tokenKey]: (this.tally[tokenKey] ?? 0) + usage.inputTokens + usage.outputTokens,
-      [costKey]: sumUsd(
-        Usd.from(this.tally[costKey] ?? 0).toAmount(),
-        costUsd ?? estimateCostUsd(usage, modelId),
-      ),
+      [costKey]: sumUsd(Usd.from(this.tally[costKey] ?? 0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
@@ -494,8 +543,8 @@ export class PaidUsage {
   }
 
   /** One paid judge receipt, apart from main-thread tokens; unmatched receipts do nothing. */
-  public addJudgeUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = reviewerCost(modelId, usage)
+  public addJudgeUsage(modelId: string, usage: SubagentUsage, verifiedCostUsd?: UsdAmount): void {
+    const cost = this.usageCost(modelId, usage, verifiedCostUsd)
     const unknown = this.tally.judgeUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -509,7 +558,7 @@ export class PaidUsage {
 
   /** One Auto review's tokens and cost (M78), billed apart from the conversation. */
   public addReviewerUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = reviewerCost(modelId, usage)
+    const cost = this.usageCost(modelId, usage)
     const { tally } = this
     const unknown = tally.autoReviewUnknownRequests ?? 0
     if (unknown === 0) return
@@ -525,7 +574,7 @@ export class PaidUsage {
   }
 
   public addLegalExplanationUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = reviewerCost(modelId, usage)
+    const cost = this.usageCost(modelId, usage)
     const unknown = this.tally.legalExplanationUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -543,13 +592,16 @@ export class PaidUsage {
 
   /** One admitted child attempt reported billable usage; never replayed from storage. */
   public addSubagentUsage(modelId: string, usage: SubagentUsage): void {
-    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate subagent use for an unpriced model')
-    }
-    const { costUsd } = usage
-    if (!isValidTaskUsage(usage, false)) {
-      throw new Error('Subagent usage must be finite and nonnegative')
-    }
+    const cost = this.usageCost(
+      modelId,
+      usage,
+      undefined,
+      {
+        unpriced: 'Cannot estimate subagent use for an unpriced model',
+        invalid: 'Subagent usage must be finite and nonnegative',
+      },
+      false,
+    )
     const { tally } = this
     if ((tally.subagentUnknownRequests ?? 0) === 0) {
       return
@@ -558,10 +610,7 @@ export class PaidUsage {
       ...tally,
       subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) - 1,
       subagentTokens: (tally.subagentTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      subagentCostUsd: sumUsd(
-        tally.subagentCostUsd ?? Usd.from(0).toAmount(),
-        costUsd ?? estimateCostUsd(usage, modelId),
-      ),
+      subagentCostUsd: sumUsd(tally.subagentCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) {
       listener()
@@ -589,23 +638,17 @@ export class PaidUsage {
 
   /** One hook run's reported billable usage; never replayed from storage. */
   public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
-    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate hook model use for an unpriced model')
-    }
-    const { costUsd } = usage
-    if (!isValidTaskUsage(usage)) {
-      throw new Error('Hook model usage must be valid nonnegative token counts')
-    }
+    const cost = this.usageCost(modelId, usage, undefined, {
+      unpriced: 'Cannot estimate hook model use for an unpriced model',
+      invalid: 'Hook model usage must be valid nonnegative token counts',
+    })
     const unknown = this.tally.hookModelUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
       ...this.tally,
       hookModelUnknownRequests: unknown - 1,
       hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      hookModelCostUsd: sumUsd(
-        this.tally.hookModelCostUsd ?? Usd.from(0).toAmount(),
-        costUsd ?? estimateCostUsd(usage, modelId),
-      ),
+      hookModelCostUsd: sumUsd(this.tally.hookModelCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
@@ -625,14 +668,11 @@ export class PaidUsage {
   request model's rates, apart from every conversation. A request that
   never reports keeps its unknown count, never a zero cost.
   */
-  public addTabUsage(modelId: string, usage: SubagentUsage): void {
-    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate Tab use for an unpriced model')
-    }
-    const { costUsd } = usage
-    if (!isValidTaskUsage(usage)) {
-      throw new Error('Tab usage must be valid nonnegative token counts')
-    }
+  public addTabUsage(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): void {
+    const cost = this.usageCost(modelId, usage, verifiedCostUsd, {
+      unpriced: 'Cannot estimate Tab use for an unpriced model',
+      invalid: 'Tab usage must be valid nonnegative token counts',
+    })
     const unknown = this.tally.tabUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -640,33 +680,24 @@ export class PaidUsage {
       tabUnknownRequests: unknown - 1,
       tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
       tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
-      tabCostUsd: sumUsd(
-        this.tally.tabCostUsd ?? Usd.from(0).toAmount(),
-        costUsd ?? estimateCostUsd(usage, modelId),
-      ),
+      tabCostUsd: sumUsd(this.tally.tabCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
 
   /** One owned host's per-response delta, never a cumulative/replayed frame. */
   public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
-    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate best-of-N use for an unpriced model')
-    }
-    const { costUsd } = usage
-    if (!isValidTaskUsage(usage)) {
-      throw new Error('Best-of-N usage must be valid nonnegative token counts')
-    }
+    const cost = this.usageCost(modelId, usage, undefined, {
+      unpriced: 'Cannot estimate best-of-N use for an unpriced model',
+      invalid: 'Best-of-N usage must be valid nonnegative token counts',
+    })
     const unknown = this.tally.bestOfNUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
       ...this.tally,
       bestOfNUnknownRequests: unknown - 1,
       bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      bestOfNCostUsd: sumUsd(
-        this.tally.bestOfNCostUsd ?? Usd.from(0).toAmount(),
-        costUsd ?? estimateCostUsd(usage, modelId),
-      ),
+      bestOfNCostUsd: sumUsd(this.tally.bestOfNCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
@@ -687,14 +718,29 @@ function isValidTaskUsage(usage: SubagentUsage, shouldRequireIntegers = true): b
   )
 }
 
-/** One Auto review's tokens (M78): its cost, at the model's published rates. */
-function reviewerCost(modelId: string, usage: SubagentUsage): UsdAmount {
+interface UsageErrors {
+  readonly unpriced: string
+  readonly invalid: string
+}
+
+const AUTO_REVIEW_ERRORS: UsageErrors = {
+  unpriced: 'Cannot estimate an Auto review on an unpriced model',
+  invalid: 'Auto review usage must be valid nonnegative token counts',
+}
+
+/** One receipt's cost: the provider's exact receipt, else the model's published rates. */
+function receiptCost(
+  modelId: string,
+  usage: SubagentUsage,
+  errors: UsageErrors,
+  shouldRequireIntegers: boolean,
+): UsdAmount {
   if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
-    throw new Error('Cannot estimate an Auto review on an unpriced model')
+    throw new Error(errors.unpriced)
   }
   const { costUsd } = usage
-  if (!isValidTaskUsage(usage)) {
-    throw new Error('Auto review usage must be valid nonnegative token counts')
+  if (!isValidTaskUsage(usage, shouldRequireIntegers)) {
+    throw new Error(errors.invalid)
   }
   return costUsd ?? estimateCostUsd(usage, modelId)
 }

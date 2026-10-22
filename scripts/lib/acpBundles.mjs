@@ -51,6 +51,26 @@ export function acpUsageAssets(packageRoot = process.cwd()) {
 
 export const ACP_BUNDLES = [
   'acp.js',
+  // M104 (D84): the standalone panel runtime and its companion/native
+  // bundles the ACP agent serves to every editor.
+  'runtimePanel.js',
+  'runtimePanelPorts.js',
+  'runtimeContext.js',
+  'runtimeEngines.js',
+  'runtimeBackendServices.js',
+  'runtimePresentation.js',
+  'hostProtocol.js',
+  'sessionBoard.js',
+  'checkpointStore.js',
+  'planMarkdown.js',
+  'judge.js',
+  'browserCheck.js',
+  'browserRuntime.js',
+  'whatsNew.json',
+  'conversation.js',
+  'lsp.js',
+  'runtimeWatchdog.js',
+  'runtimeProcessAuthority.js',
   'estimator.js',
   'headless.js',
   'sharingRuntime.js',
@@ -122,6 +142,9 @@ export const ACP_BUNDLES = [
   'modelApiVerify.js',
   'modelApiImage.js',
   'recorder.js',
+  // The report dialog the agent-side conversation loads on openReport
+  // (portable reports in the runtime presentation, M93/M104).
+  'report.js',
   'reporting.js',
   'reportingNetwork.js',
   'reportInputs.js',

@@ -47,7 +47,7 @@ export function createNonce(): string {
 }
 
 /** JSON that is safe as the text of a `<script>` element. */
-function scriptSafeJson(value: unknown): string {
+export function scriptSafeJson(value: unknown): string {
   return JSON.stringify(value).replaceAll(
     SCRIPT_UNSAFE,
     (character) => SCRIPT_ESCAPES[character] ?? character,

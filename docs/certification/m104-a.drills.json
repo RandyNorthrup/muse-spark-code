@@ -1,0 +1,441 @@
+[
+  {
+    "mutation": "factory imports vscode",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "FAIL  test/unit/conversationComposition.test.ts [ test/unit/conversationComposition.test.ts ]"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "bypass reads a stale default",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× reads live settings and retains paid gates, key checks and per-use consent 7ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > reads live settings and retains paid gates, key checks and per-use consent"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "voice skips the paid gate",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× reads live settings and retains paid gates, key checks and per-use consent 13ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > reads live settings and retains paid gates, key checks and per-use consent"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "voice skips key availability",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× reads live settings and retains paid gates, key checks and per-use consent 6ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > reads live settings and retains paid gates, key checks and per-use consent"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "confirm accepts a string id",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× uses host services for clipboard, save, external links, folder opens and explicit confirms 9ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > uses host services for clipboard, save, external links, folder opens and explicit confirms"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "paid use bypasses consent",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× reads live settings and retains paid gates, key checks and per-use consent 7ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > reads live settings and retains paid gates, key checks and per-use consent"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "board forgets caller registry",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× shares the caller registry, guards external edits and refuses an escaped image before reading 10ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > shares the caller registry, guards external edits and refuses an escaped image before reading"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "edit ignores protected paths",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× shares the caller registry, guards external edits and refuses an escaped image before reading 11ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > shares the caller registry, guards external edits and refuses an escaped image before reading"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "params skip schema refusal",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× validates params and returned values before crossing the boundary 14ms",
+      "× validates optional feature handlers, notifications and settings updates 2ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > validates params and returned values before crossing the boundary",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > validates optional feature handlers, notifications and settings updates"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "responses skip schema refusal",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× validates params and returned values before crossing the boundary 14ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > validates params and returned values before crossing the boundary"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "prototype method accepted",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× rejects unknown JavaScript calls, initial distrust and invalid caret positions 9ms",
+      "× validates optional feature handlers, notifications and settings updates 5ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > rejects unknown JavaScript calls, initial distrust and invalid caret positions",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > validates optional feature handlers, notifications and settings updates"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "shutdown keeps host open",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown 11ms",
+      "× validates optional feature handlers, notifications and settings updates 5ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > validates optional feature handlers, notifications and settings updates"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "cancellation ignored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× honors cancellation before and after an asynchronous document open 13ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > honors cancellation before and after an asynchronous document open"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "initial distrust ignored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× rejects unknown JavaScript calls, initial distrust and invalid caret positions 20ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > rejects unknown JavaScript calls, initial distrust and invalid caret positions"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "initial version guard removed",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× applies edits once with one undo and refuses stale versions before an edit 13ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > applies edits once with one undo and refuses stale versions before an edit"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "version after editor show ignored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× rechecks version and trust after showing an editor and before a mutation 9ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > rechecks version and trust after showing an editor and before a mutation"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "trust after editor show ignored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× rechecks version and trust after showing an editor and before a mutation 11ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > rechecks version and trust after showing an editor and before a mutation"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "undo boundaries removed",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× applies edits once with one undo and refuses stale versions before an edit 10ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > applies edits once with one undo and refuses stale versions before an edit"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "reversed range accepted",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× refuses reversed, out-of-bounds and overlapping edits without editor effects 19ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > refuses reversed, out-of-bounds and overlapping edits without editor effects"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "range bounds ignored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× refuses reversed, out-of-bounds and overlapping edits without editor effects 11ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > refuses reversed, out-of-bounds and overlapping edits without editor effects"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "overlap accepted",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× refuses reversed, out-of-bounds and overlapping edits without editor effects 10ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > refuses reversed, out-of-bounds and overlapping edits without editor effects"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "failed edits reported successful",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× keeps insert and apply on the selected editor, and reports failed edit/save operations 6ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > keeps insert and apply on the selected editor, and reports failed edit/save operations"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "failed saves reported successful",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× keeps insert and apply on the selected editor, and reports failed edit/save operations 7ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > keeps insert and apply on the selected editor, and reports failed edit/save operations"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "invalid caret accepted",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× rejects unknown JavaScript calls, initial distrust and invalid caret positions 14ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > rejects unknown JavaScript calls, initial distrust and invalid caret positions"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "unbound methods lack typed refusal",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown 13ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "protocol version not checked",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown 12ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "named credentials stored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× validates optional feature handlers, notifications and settings updates 26ms",
+      "× refuses credentials in settings and storage before persisting or returning them 2ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > validates optional feature handlers, notifications and settings updates",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > refuses credentials in settings and storage before persisting or returning them"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "secret-shaped text stored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× refuses credentials in settings and storage before persisting or returning them 6ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > refuses credentials in settings and storage before persisting or returning them"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "notification binding silently absent",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown 25ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "unknown setting admitted",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× validates optional feature handlers, notifications and settings updates 12ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > validates optional feature handlers, notifications and settings updates"
+    ],
+    "sha256": "301d5e95346460bf6cdaf9a3f08292cdc2bcb075d8bc9212a06d4f92869c0e2d",
+    "restored": true
+  },
+  {
+    "mutation": "activation loses held-project check guidance",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/gitActivationWiring.test.ts",
+    "exit": 1,
+    "failures": [
+      "× reads a held pull request worktree as untrusted wherever git or the shell would run 12ms",
+      "FAIL  test/unit/gitActivationWiring.test.ts > activation wires git and pull requests to the window’s guards (M71) > reads a held pull request worktree as untrusted wherever git or the shell would run"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "factory loses the default model",
+    "file": "src/host/compose/conversationDeps.ts",
+    "suite": "test/unit/conversationComposition.test.ts",
+    "exit": 1,
+    "failures": [
+      "× composes a real controller with fake HostServices and no vscode module 11ms",
+      "FAIL  test/unit/conversationComposition.test.ts > portable conversation composition > composes a real controller with fake HostServices and no vscode module"
+    ],
+    "sha256": "710aad972d72feddabe76749705a2ac27ef25d1c20dd14487bd2cb7e602835d5",
+    "restored": true
+  },
+  {
+    "mutation": "native confirm returns a translated title",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× retains modal detail, stable choice ids, clipboard and folder behavior 3ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > retains modal detail, stable choice ids, clipboard and folder behavior"
+    ],
+    "sha256": "2244f13f0a33e6c378c177332f8a537f901878da014f7d89a9858fd325baac70",
+    "restored": true
+  },
+  {
+    "mutation": "active selection is not bounded",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× bounds active selection text and maps diagnostics 2ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > bounds active selection text and maps diagnostics"
+    ],
+    "sha256": "2244f13f0a33e6c378c177332f8a537f901878da014f7d89a9858fd325baac70",
+    "restored": true
+  },
+  {
+    "mutation": "trust after document open ignored",
+    "file": "src/host/vscode/hostServices.ts",
+    "suite": "test/unit/vscodeHostServices.test.ts",
+    "exit": 1,
+    "failures": [
+      "× rechecks trust after opening a document before a mutation 8ms",
+      "FAIL  test/unit/vscodeHostServices.test.ts > VS Code HostServices in-process boundary > rechecks trust after opening a document before a mutation"
+    ],
+    "sha256": "2244f13f0a33e6c378c177332f8a537f901878da014f7d89a9858fd325baac70",
+    "restored": true
+  },
+  {
+    "mutation": "portable host imports vscode outside permitted roots",
+    "file": "src/host/logger.ts",
+    "command": "node scripts/check-host-api.mjs",
+    "exit": 1,
+    "failures": [
+      "src/host/logger.ts imports vscode outside src/extension.ts or src/host/vscode/",
+      "portable graph reaches vscode"
+    ],
+    "sha256": "a087e17fff73f6db171c706854d8c90667aa83c211e5a645fbd4f1135d4b9d48",
+    "restored": true
+  }
+]

@@ -129,6 +129,7 @@ try {
     copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
   }
   cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
+  cpSync('dist/webview/portable', path.join(STAGE, 'dist/webview/portable'), { recursive: true })
   stageCiLauncher(process.cwd(), STAGE, CI_LAUNCHER_SOURCES)
   for (const source of pageAssets) {
     const staged = path.join(STAGE, source)
@@ -163,7 +164,6 @@ try {
       if (!existsSync(helper)) {
         continue
       }
-
       const staged = path.join(STAGE, helper)
       mkdirSync(path.dirname(staged), { recursive: true })
       copyFileSync(helper, staged)

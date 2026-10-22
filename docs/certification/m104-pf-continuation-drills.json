@@ -1,0 +1,38 @@
+[
+  {
+    "label": "ACP integrated members",
+    "file": "scripts/package-acp.mjs",
+    "failures": [
+      "integrated ACP installable closure refuses an absent runtimeContext.js before packing",
+      "integrated ACP installable closure refuses an absent runtimeEngines.js before packing",
+      "integrated ACP installable closure refuses an absent runtimeBackendServices.js before packing",
+      "integrated ACP installable closure refuses an absent runtimePresentation.js before packing",
+      "integrated ACP installable closure refuses an absent hostProtocol.js before packing",
+      "integrated ACP installable closure refuses an absent sessionBoard.js before packing",
+      "integrated ACP installable closure refuses an absent checkpointStore.js before packing",
+      "integrated ACP installable closure refuses an absent planMarkdown.js before packing",
+      "integrated ACP installable closure refuses an absent judge.js before packing",
+      "integrated ACP installable closure refuses an absent browserCheck.js before packing",
+      "integrated ACP installable closure refuses an absent browserRuntime.js before packing",
+      "integrated ACP installable closure refuses an absent whatsNew.json before packing",
+      "integrated ACP installable closure packs every lazy Node dependency and the complete portable tree byte-exact"
+    ],
+    "sha256": "2e4dad17c108d26119688c7727ba9f3c0316843d21ba92364299452e014eef59"
+  },
+  {
+    "label": "native integrated members",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses an incomplete runtime before invoking any native command"
+    ],
+    "sha256": "78f9d519e0853b8644838d5f0a9948aa2492ae760890b9e986d57cf3ec6d2f14"
+  },
+  {
+    "label": "portable presentation root",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses missing, changed, duplicate and unlisted portable modules before dispatch"
+    ],
+    "sha256": "78f9d519e0853b8644838d5f0a9948aa2492ae760890b9e986d57cf3ec6d2f14"
+  }
+]

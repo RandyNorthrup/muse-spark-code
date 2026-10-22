@@ -1,0 +1,52 @@
+{
+  "base": "9ae7c6c34205a04fce1d2a3f43e7be476c0b79a6",
+  "restoration": "Every mutated file restored in finally and compared by SHA-256",
+  "drills": [
+    {
+      "label": "eclipse-exact-base",
+      "restored": {
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java": "c2f6b167604199a1453260549c8e5cf7f3e893652d8798b37d74110290c7be36",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/MusePlugin.java": "16b584e433be05e9891dd85948ccc7518b597b90c836cacca6b66c86fd798d2a",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/OpenHandler.java": "fe7e9a349706686a4cd59b5badb941818ef992fb3693587bd5c2cde9e4e3db9b"
+      }
+    },
+    {
+      "label": "eclipse-base-observation-and-owner",
+      "restored": {
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java": "c2f6b167604199a1453260549c8e5cf7f3e893652d8798b37d74110290c7be36",
+        "hosts/eclipse/tests/src/io/musespark/eclipse/tests/SessionTest.java": "98a57dd9b5113afb308c90a71f2f3392d49d78d7652dd61ec20c340de97147aa"
+      }
+    },
+    {
+      "label": "eclipse-descendant-kill-removed",
+      "restored": {
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java": "c2f6b167604199a1453260549c8e5cf7f3e893652d8798b37d74110290c7be36"
+      }
+    },
+    {
+      "label": "jetbrains-exact-base-detekt",
+      "restored": {
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeHostServices.kt": "21b8c9be9271174d66c85b87b93e618b95b449f05c8beac35b5e2d5f25731bdf"
+      }
+    },
+    {
+      "label": "eclipse-deferred-cleanup-exact-base",
+      "restored": {
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/MuseView.java": "ed52940f2cde641c5384f5fa1364e6b582b5434256b0b9ee547ff3d7ccccda42",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/PanelSurface.java": "992774dec938d0a1f8eb0308cd5b7238059d07ab6fbeeb517df7874d1e20d10f"
+      }
+    },
+    {
+      "label": "eclipse-stop-admission-removed",
+      "restored": {
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/MusePlugin.java": "fdeb926c7e9a9b0e8006740fa9a9f349bb741325f22b7e3fbddd27b6ab5bd041"
+      }
+    }
+  ],
+  "repeat_driver": {
+    "source": "/home/randy/lanes/FIXM104PE3/temp/pe3/DescendantRepeatTest.java",
+    "sha256": "94f800687b883aa3b316de20216679db3c09076fcc26c9124e1868e838c5d95d",
+    "cases": 20,
+    "fixture": "Each parameter calls SessionTest.setup, closeKillsCapturedDescendantsAfterTheParentExits, and cleanup; temporary source and compiled driver removed after verification."
+  }
+}

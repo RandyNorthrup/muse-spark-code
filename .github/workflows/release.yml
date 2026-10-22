@@ -264,8 +264,8 @@ jobs:
   # pretends to pass.
   release:
     name: GitHub Release
-    needs: [verify, reuse, build]
-    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}
+    needs: [verify, reuse, build, native-sign]
+    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && needs.native-sign.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -319,7 +319,18 @@ jobs:
           github-token: ${{ github.token }}
           name: muse-created-linux-arm64
           path: helpers/arm64
+      # Keep each host's receipt beside its own archives for exact verification.
+      # Recovery's native-sign job has already verified the prior signed bytes.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
+          pattern: m104-native-release-*
+          merge-multiple: false
+          path: native-release
       - run: npm ci --ignore-scripts --no-audit
+      - name: verify and stage every present native host's archives and receipt
+        run: node scripts/package-hosts/release.mjs stage native-release release
       # M80 hook: inert until its schemas exist. They ship as assets beside
       # the packages, listed in SHA256SUMS and attested like them.
       - name: stage the M80 schemas when present
@@ -398,9 +409,10 @@ jobs:
         working-directory: release
         run: |
           mapfile -t schemas < .schemas
+          mapfile -t native < .native
           shopt -s nullglob
           helper_assets=(helpers/linux-*)
-          sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" > SHA256SUMS
+          sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" "${native[@]/#/./}" > SHA256SUMS
           # Helpers upload under their basenames, so SHA256SUMS must name
           # them that way or `sha256sum -c` fails on a downloaded asset.
           if ((${#helper_assets[@]})); then
@@ -420,9 +432,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mapfile -t schemas < release/.schemas
+          mapfile -t native < release/.native
           shopt -s nullglob
           helper_assets=(release/helpers/linux-*)
-          node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json "${schemas[@]/#/release/}" "${helper_assets[@]}" release/SHA256SUMS
+          node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json "${schemas[@]/#/release/}" "${native[@]/#/release/}" "${helper_assets[@]}" release/SHA256SUMS
       - id: outcome
         run: echo 'outcome=published' >> "$GITHUB_OUTPUT"
 
@@ -574,6 +587,200 @@ jobs:
       - name: publish muse-spark-code-acp to npm
         id: published
         run: node scripts/publish-registry.mjs npm release/muse-spark-code-acp-*.tgz
+
+  # M104-I: build without credentials; sign/publish only in the tag-only environment.
+  native-build:
+    name: native host packages
+    needs: [verify, reuse]
+    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && github.event_name == 'push' }}
+    uses: ./.github/workflows/hosts-native.yml
+
+  native-sign:
+    name: native artifact signing (${{ matrix.host }})
+    needs: [verify, reuse, native-build]
+    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && (needs.native-build.result == 'success' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    environment: marketplace
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { host: jetbrains, os: ubuntu-latest }
+          - { host: visualstudio, os: windows-latest }
+          - { host: eclipse, os: ubuntu-latest }
+          - { host: zed, os: ubuntu-latest }
+          - { host: xcode, os: macos-latest }
+          - { host: qtcreator, os: ubuntu-latest }
+          - { host: neovim, os: ubuntu-latest }
+          - { host: emacs, os: ubuntu-latest }
+          - { host: sublime, os: ubuntu-latest }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: folder
+        env:
+          HOST_ID: ${{ matrix.host }}
+        run: |
+          if [ -e "hosts/$HOST_ID" ] || [ -L "hosts/$HOST_ID" ]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo "::notice::skipped-host-absent: hosts/$HOST_ID is absent"
+            echo "$HOST_ID: skipped-host-absent — hosts/$HOST_ID is absent" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.folder.outputs.present == 'true'
+        with:
+          node-version: 22
+      - name: tools without install scripts or channel credentials
+        if: steps.folder.outputs.present == 'true'
+        run: npm ci --ignore-scripts --no-audit
+      - name: download the built bytes or the verified recovery run's signed bytes
+        if: steps.folder.outputs.present == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ github.event_name == 'workflow_dispatch' && format('m104-native-release-{0}', matrix.host) || format('m104-native-{0}', matrix.host) }}
+          run-id: ${{ inputs.artifacts_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: native-package
+      - name: verify this tag's source tree and exact artifact bytes
+        if: steps.folder.outputs.present == 'true'
+        env:
+          HOST_ID: ${{ matrix.host }}
+        run: node scripts/package-hosts/release.mjs verify "$HOST_ID" native-package
+      - name: sign with only this channel's supplied credentials (never during recovery)
+        if: steps.folder.outputs.present == 'true' && github.event_name == 'push'
+        env:
+          HOST_ID: ${{ matrix.host }}
+          JETBRAINS_CERTIFICATE_CHAIN: ${{ matrix.host == 'jetbrains' && secrets.JETBRAINS_CERTIFICATE_CHAIN || '' }}
+          JETBRAINS_PRIVATE_KEY: ${{ matrix.host == 'jetbrains' && secrets.JETBRAINS_PRIVATE_KEY || '' }}
+          JETBRAINS_PRIVATE_KEY_PASSWORD: ${{ matrix.host == 'jetbrains' && secrets.JETBRAINS_PRIVATE_KEY_PASSWORD || '' }}
+          WINDOWS_SIGNING_CERTIFICATE: ${{ matrix.host == 'visualstudio' && secrets.WINDOWS_SIGNING_CERTIFICATE || '' }}
+          WINDOWS_SIGNING_PASSWORD: ${{ matrix.host == 'visualstudio' && secrets.WINDOWS_SIGNING_PASSWORD || '' }}
+          ECLIPSE_SIGNING_KEY: ${{ matrix.host == 'eclipse' && secrets.ECLIPSE_SIGNING_KEY || '' }}
+          ECLIPSE_SIGNING_PASSWORD: ${{ matrix.host == 'eclipse' && secrets.ECLIPSE_SIGNING_PASSWORD || '' }}
+          APPLE_SIGNING_CERTIFICATE: ${{ matrix.host == 'xcode' && secrets.APPLE_SIGNING_CERTIFICATE || '' }}
+          APPLE_SIGNING_PASSWORD: ${{ matrix.host == 'xcode' && secrets.APPLE_SIGNING_PASSWORD || '' }}
+          APPLE_NOTARY_KEY: ${{ matrix.host == 'xcode' && secrets.APPLE_NOTARY_KEY || '' }}
+          APPLE_NOTARY_KEY_ID: ${{ matrix.host == 'xcode' && secrets.APPLE_NOTARY_KEY_ID || '' }}
+          APPLE_NOTARY_ISSUER_ID: ${{ matrix.host == 'xcode' && secrets.APPLE_NOTARY_ISSUER_ID || '' }}
+        run: node scripts/package-hosts/release.mjs sign "$HOST_ID" native-package
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.folder.outputs.present == 'true'
+        with:
+          name: m104-native-release-${{ matrix.host }}
+          path: native-package/*
+          if-no-files-found: error
+          retention-days: 30
+
+  native-publish:
+    name: native channel (${{ matrix.host }})
+    needs: [release, native-sign]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.native-sign.result == 'success' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    environment: marketplace
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { host: jetbrains, os: ubuntu-latest }
+          - { host: visualstudio, os: windows-latest }
+          - { host: eclipse, os: ubuntu-latest }
+          - { host: zed, os: ubuntu-latest }
+          - { host: xcode, os: macos-latest }
+          - { host: qtcreator, os: ubuntu-latest }
+          - { host: neovim, os: ubuntu-latest }
+          - { host: emacs, os: ubuntu-latest }
+          - { host: sublime, os: ubuntu-latest }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: folder
+        env:
+          HOST_ID: ${{ matrix.host }}
+        run: |
+          if [ -e "hosts/$HOST_ID" ] || [ -L "hosts/$HOST_ID" ]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo "::notice::skipped-host-absent: hosts/$HOST_ID is absent"
+            echo "$HOST_ID: skipped-host-absent — hosts/$HOST_ID is absent" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.folder.outputs.present == 'true'
+        with:
+          node-version: 22
+      - name: tools without install scripts or channel credentials
+        if: steps.folder.outputs.present == 'true'
+        run: npm ci --ignore-scripts --no-audit
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: steps.folder.outputs.present == 'true'
+        with:
+          name: m104-native-release-${{ matrix.host }}
+          path: native-package
+      - name: confirm the exact native assets are already attached to this GitHub Release
+        if: steps.folder.outputs.present == 'true'
+        env:
+          HOST_ID: ${{ matrix.host }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/package-hosts/release.mjs github "$HOST_ID" native-package
+      - name: publish uploaded bytes or report the named registry prerequisite
+        if: steps.folder.outputs.present == 'true'
+        env:
+          HOST_ID: ${{ matrix.host }}
+          MUSE_HOST_OUTCOME_FILE: native-outcome/${{ matrix.host }}.json
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ matrix.host == 'jetbrains' && secrets.JETBRAINS_MARKETPLACE_TOKEN || '' }}
+          VSCE_PAT: ${{ matrix.host == 'visualstudio' && secrets.VSCE_PAT || '' }}
+          LUAROCKS_API_KEY: ${{ matrix.host == 'neovim' && secrets.LUAROCKS_API_KEY || '' }}
+        run: |
+          mkdir -p native-outcome
+          node scripts/package-hosts/release.mjs publish "$HOST_ID" native-package
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.folder.outputs.present == 'true' && success()
+        with:
+          name: m104-native-outcome-${{ matrix.host }}
+          path: native-outcome/*.json
+          if-no-files-found: error
+
+  native-summary:
+    name: native release channel outcomes
+    needs: [native-build, native-sign, native-publish]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      all-published: ${{ steps.report.outputs.all-published }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: m104-native-outcome-*
+          path: native-outcomes
+          merge-multiple: true
+      - id: report
+        run: node scripts/package-hosts/release.mjs summary native-outcomes
 
   summary:
     name: release channel outcomes

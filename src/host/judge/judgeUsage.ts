@@ -2,6 +2,7 @@
 import type { PaidUsage } from '../../core/paid/paidFeatures'
 import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
+import type { UsdAmount } from '../../shared/usd'
 
 export interface JudgeUsageDeps {
   readonly billing: 'modelApi' | 'subscription'
@@ -31,12 +32,12 @@ export class JudgeUsageRows {
   }
 
   /** Receipts settle even for a late advisory; the already charged call is still usage. */
-  public finished(itemId: string, usage: ItemSnapshot['usage']): void {
+  public finished(itemId: string, usage: ItemSnapshot['usage'], verifiedCostUsd?: UsdAmount): void {
     const pending = this.pending.get(itemId)
     if (pending === undefined) return
     const { item } = pending
     if (usage !== undefined && this.deps.billing === 'modelApi')
-      this.deps.usage.addJudgeUsage(pending.modelId, usage)
+      this.deps.usage.addJudgeUsage(pending.modelId, usage, verifiedCostUsd)
     this.pending.delete(itemId)
     this.deps.emit({
       type: 'itemCompleted',

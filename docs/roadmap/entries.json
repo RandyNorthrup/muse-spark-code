@@ -770,8 +770,9 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Every feature working in every supported editor, through that editor's own APIs or the project's own panel, with each new feature arriving in all of them together.",
-      "area": "editors"
+      "summary": "Native and companion panels and LSP are joined with their contract, launch-security, fixture, duplication and startup-size repairs; they stay experimental until the joined gates, native hosted CI, installed-editor receipts and resource parity pass.",
+      "area": "editors",
+      "labels": ["experimental", "untested"]
     },
     {
       "id": "M105",

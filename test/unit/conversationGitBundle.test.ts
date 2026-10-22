@@ -16,7 +16,7 @@ import {
   gitFeaturesLoader,
   openPullRequestInConversation,
 } from '../../src/host/git/conversationGitBundle'
-import type { GitFeaturesDeps } from '../../src/host/git/gitWindow'
+import type { GitFeaturesDeps } from '../../src/host/vscode/git/gitWindow'
 import { requireFile } from '../../src/host/lazyBundle'
 import { errorLogger } from './helpers/collectingLogger'
 import { usingTempDir } from './helpers/temporaryFolders'

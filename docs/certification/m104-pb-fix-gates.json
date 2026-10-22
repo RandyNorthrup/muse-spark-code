@@ -1,0 +1,527 @@
+{
+  "machine": "kubuntu",
+  "workspace": "/home/randy/lanes/M104PB",
+  "repairBase": "737196296055a4ed18248811050820abbb6f58b1",
+  "totalFiles": 38,
+  "totalPassed": 450,
+  "totalFailed": 0,
+  "totalPending": 0,
+  "ownedEngineFiles": 26,
+  "ownedEnginePassed": 220,
+  "originalFiles": 12,
+  "originalPassed": 230,
+  "testResults": [
+    {
+      "check": "finish-owned-1",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/auth.test.ts",
+        "test/m104/engines/autoReviewer.test.ts",
+        "test/m104/engines/certification.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.43,
+      "log": "temp/m104-pb/fix/finish-owned-1.log",
+      "files": [
+        "test/m104/engines/auth.test.ts",
+        "test/m104/engines/autoReviewer.test.ts",
+        "test/m104/engines/certification.test.ts"
+      ],
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-2",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/checkpoints.test.ts",
+        "test/m104/engines/codeIntel.test.ts",
+        "test/m104/engines/editReview.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 9.01,
+      "log": "temp/m104-pb/fix/finish-owned-2.log",
+      "files": [
+        "test/m104/engines/checkpoints.test.ts",
+        "test/m104/engines/codeIntel.test.ts",
+        "test/m104/engines/editReview.test.ts"
+      ],
+      "passed": 36,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-3",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/editorContext.test.ts",
+        "test/m104/engines/git.test.ts",
+        "test/m104/engines/hooks.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.44,
+      "log": "temp/m104-pb/fix/finish-owned-3.log",
+      "files": [
+        "test/m104/engines/editorContext.test.ts",
+        "test/m104/engines/git.test.ts",
+        "test/m104/engines/hooks.test.ts"
+      ],
+      "passed": 18,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-4",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/judge.test.ts",
+        "test/m104/engines/lifetime.test.ts",
+        "test/m104/engines/mcp.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.26,
+      "log": "temp/m104-pb/fix/finish-owned-4.log",
+      "files": [
+        "test/m104/engines/judge.test.ts",
+        "test/m104/engines/lifetime.test.ts",
+        "test/m104/engines/mcp.test.ts"
+      ],
+      "passed": 20,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-5",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/network.test.ts",
+        "test/m104/engines/paidBudget.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.24,
+      "log": "temp/m104-pb/fix/finish-owned-5.log",
+      "files": [
+        "test/m104/engines/network.test.ts",
+        "test/m104/engines/paidBudget.test.ts",
+        "test/m104/engines/paidComposition.test.ts"
+      ],
+      "passed": 33,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-6",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/paidRequest.test.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/review.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.85,
+      "log": "temp/m104-pb/fix/finish-owned-6.log",
+      "files": [
+        "test/m104/engines/paidRequest.test.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/review.test.ts"
+      ],
+      "passed": 39,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-7",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/sessionCommands.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/transfer.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 4.62,
+      "log": "temp/m104-pb/fix/finish-owned-7.log",
+      "files": [
+        "test/m104/engines/sessionCommands.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/transfer.test.ts"
+      ],
+      "passed": 29,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-8",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/usageInsights.test.ts",
+        "test/m104/engines/verify.test.ts",
+        "test/m104/engines/voice.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.03,
+      "log": "temp/m104-pb/fix/finish-owned-8.log",
+      "files": [
+        "test/m104/engines/usageInsights.test.ts",
+        "test/m104/engines/verify.test.ts",
+        "test/m104/engines/voice.test.ts"
+      ],
+      "passed": 21,
+      "failed": 0
+    },
+    {
+      "check": "finish-owned-9",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/workflows.test.ts",
+        "test/m104/engines/worktrees.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.92,
+      "log": "temp/m104-pb/fix/finish-owned-9.log",
+      "files": ["test/m104/engines/workflows.test.ts", "test/m104/engines/worktrees.test.ts"],
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "check": "final-original-1",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/paidConsent.test.ts",
+        "test/unit/acpPaid.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.92,
+      "log": "temp/m104-pb/fix/final-original-1.log",
+      "files": [
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/paidConsent.test.ts",
+        "test/unit/acpPaid.test.ts"
+      ],
+      "passed": 75,
+      "failed": 0
+    },
+    {
+      "check": "final-original-3",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/sessionBudgetJournal.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/judgeAdmissionLedger.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 8.59,
+      "log": "temp/m104-pb/fix/final-original-3.log",
+      "files": [
+        "test/unit/sessionBudgetJournal.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/judgeAdmissionLedger.test.ts"
+      ],
+      "passed": 73,
+      "failed": 0
+    },
+    {
+      "check": "final-original-4",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/fileSessionStore.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/modelApiClient.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 6.13,
+      "log": "temp/m104-pb/fix/final-original-4.log",
+      "files": [
+        "test/unit/fileSessionStore.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/modelApiClient.test.ts"
+      ],
+      "passed": 51,
+      "failed": 0
+    },
+    {
+      "check": "finish-tab-core",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/tabEngine.test.ts",
+        "test/unit/tabScheduler.test.ts",
+        "test/unit/tabRequest.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 1.83,
+      "log": "temp/m104-pb/fix/finish-tab-core.log",
+      "files": [
+        "test/unit/tabEngine.test.ts",
+        "test/unit/tabScheduler.test.ts",
+        "test/unit/tabRequest.test.ts"
+      ],
+      "passed": 31,
+      "failed": 0
+    }
+  ],
+  "supplementalRuns": [
+    {
+      "check": "finish-paid-composition",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.03,
+      "log": "temp/m104-pb/fix/finish-paid-composition.log",
+      "files": ["test/m104/engines/paidComposition.test.ts"],
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "check": "finish-certification-after-docs",
+      "files": ["test/m104/engines/certification.test.ts"],
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--config",
+        "temp/m104-pb.vitest.config.ts",
+        "test/m104/engines/certification.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passed": 1,
+      "failed": 0,
+      "log": "temp/m104-pb/fix/finish-certification.log"
+    }
+  ],
+  "gateResults": [
+    {
+      "check": "finish-owned-typecheck",
+      "command": ["npx", "tsc", "-p", "test/m104/engines/tsconfig.json", "--noEmit"],
+      "exitCode": 0,
+      "elapsedSeconds": 18.93,
+      "log": "temp/m104-pb/fix/finish-owned-typecheck.log"
+    },
+    {
+      "check": "finish-typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0,
+      "elapsedSeconds": 98.3,
+      "log": "temp/m104-pb/fix/finish-typecheck.log"
+    },
+    {
+      "check": "finish-eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/tab/tabEngine.ts",
+        "src/host/backend/sessionBudgetJournal.ts",
+        "src/runtime/features/paidBudget.ts",
+        "src/runtime/features/paidUse.ts",
+        "src/runtime/features/tab.ts",
+        "src/shared/constants.ts",
+        "test/m104/engines/paidBudget.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidHarness.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/unit/tabEngine.test.ts",
+        "src/shared/usd.ts",
+        "test/m104/engines/certification.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 23.09,
+      "log": "temp/m104-pb/fix/finish-eslint.log"
+    },
+    {
+      "check": "finish-duplication",
+      "command": ["npx", "jscpd"],
+      "exitCode": 0,
+      "elapsedSeconds": null,
+      "log": "temp/m104-pb/fix/finish-duplication.log",
+      "note": "Final shared held-shutdown fixture: actual plain jscpd rerun passed with zero clones."
+    },
+    {
+      "check": "finish-owned-typecheck-after-fixture",
+      "command": ["npx", "tsc", "-p", "test/m104/engines/tsconfig.json", "--noEmit"],
+      "exitCode": 0,
+      "elapsedSeconds": 18.47,
+      "log": "temp/m104-pb/fix/finish-owned-typecheck-after-fixture.log"
+    },
+    {
+      "check": "finish-eslint-after-fixture",
+      "command": ["npx", "eslint", "--max-warnings=0", "test/m104/engines/paidComposition.test.ts"],
+      "exitCode": 0,
+      "elapsedSeconds": 6.62,
+      "log": "temp/m104-pb/fix/finish-eslint-after-fixture.log"
+    },
+    {
+      "check": "finish-build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "elapsedSeconds": 9.84,
+      "log": "temp/m104-pb/fix/finish-build.log"
+    },
+    {
+      "check": "finish-localization",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0,
+      "elapsedSeconds": 2.9,
+      "log": "temp/m104-pb/fix/finish-localization.log"
+    },
+    {
+      "check": "finish-deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 1,
+      "elapsedSeconds": 3.86,
+      "log": "temp/m104-pb/fix/finish-deadcode.log"
+    },
+    {
+      "check": "finish-knip-discovery",
+      "command": ["npx", "knip", "--config", "temp/m104-pb.knip.jsonc"],
+      "exitCode": 0,
+      "elapsedSeconds": 4.71,
+      "log": "temp/m104-pb/fix/finish-knip-discovery.log"
+    },
+    {
+      "check": "finish-host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 1,
+      "elapsedSeconds": 19.52,
+      "log": "temp/m104-pb/fix/finish-host-api.log"
+    },
+    {
+      "check": "finish-prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/certification/m104-pb.md",
+        "docs/certification/m104-pb-requests.md",
+        "docs/certification/m104-pb-continuation-gates.json",
+        "docs/certification/m104-pb-fix-drills.json",
+        "docs/certification/m104-pb-fix-gates.json",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/tab/tabEngine.ts",
+        "src/host/backend/sessionBudgetJournal.ts",
+        "src/runtime/features/paidUse.ts",
+        "src/runtime/features/paidBudget.ts",
+        "src/runtime/features/tab.ts",
+        "src/shared/constants.ts",
+        "src/shared/usd.ts",
+        "test/m104/engines/paidHarness.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidBudget.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/certification.test.ts",
+        "test/unit/tabEngine.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "temp/m104-pb/fix/finish-prettier.log"
+    }
+  ],
+  "sourceSha256": [
+    {
+      "file": "src/core/paid/paidFeatures.ts",
+      "sha256": "260311ab1a525b99dac2eb96b36cf58f2b3165af96cd8fdbe648954c0648555a"
+    },
+    {
+      "file": "src/core/tab/tabEngine.ts",
+      "sha256": "6c159045434fd4af2f97632554162b17a652103a02ee36d49cbe1095b0115e88"
+    },
+    {
+      "file": "src/host/backend/sessionBudgetJournal.ts",
+      "sha256": "f120f2576c7d97a491e12256bb2147112e54ccab45b1b30f809d34d4f60a4f3a"
+    },
+    {
+      "file": "src/runtime/features/paidBudget.ts",
+      "sha256": "5c9bc6e8a428be9729266ee6f91811c15f60da165ae8e50c3f7a21f1d4584296"
+    },
+    {
+      "file": "src/runtime/features/paidUse.ts",
+      "sha256": "1c68c4d8f51b0d1be365f519b8e0785b0c2bd99e4293e21a20ef7912e017e61e"
+    },
+    {
+      "file": "src/runtime/features/tab.ts",
+      "sha256": "56f7a7049a6b1524da942d1894509fed9bc96f68119c918b05769fc2c7bbd2ab"
+    },
+    {
+      "file": "src/shared/constants.ts",
+      "sha256": "23e1c5ba5abd9db8e0ff43e3eb4e3abaf32b55564b11992c3133c1f1d2e18cba"
+    },
+    {
+      "file": "src/shared/usd.ts",
+      "sha256": "062d53e22f0212645174c1c2aead832b539a71082d15626d8b4a0ac31c6b5f93"
+    }
+  ],
+  "limitations": [
+    "Actual Knip awaits A-owned discovery/lazy wiring: 44 files and one checkpoint factory export.",
+    "Actual host API rejects F-owned generated Node import inventory; portable value/type graph passes.",
+    "No aggregate quality/coverage or native/provider/editor/live qualification: lead-owned integration step."
+  ],
+  "fixCommit": "57cf28d93a706908e17fb4a64171778adf3240e7",
+  "commitHooks": {
+    "lintStaged": "passed: ESLint/Prettier on 15 TypeScript files and Prettier on seven documentation/JSON files",
+    "gitleaks": "passed: staged scan, no leaks",
+    "sourceSha256AfterHooks": "all matched"
+  }
+}

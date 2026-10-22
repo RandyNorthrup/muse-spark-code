@@ -3228,3 +3228,342 @@ it measured; nothing in the merged tree replaces its migration claims. The
 schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
 fire could run while delivery is uncertified
 (`docs/real-life/pr207-2026-10-18.md`).
+
+## M104 lane suites deleted by review RVMSM104 (2026-10-17)
+
+The M104 lane (MSM104/MSM104C) carried suites written before the test
+overhaul: under main's eslint they hold 330 stand-in errors (`vi.fn`,
+`vi.mock`, `vi.spyOn`, `vi.stubGlobal`, mock* methods, stand-in module
+imports), plus two hostApi suites whose command runners are `vi.fn`.
+RVMSM104 deleted them on the same terms as the overhaul; the behaviours
+below are unproven until real use or a real-code suite proves them. The
+three recorder-only files (`test/unit/panelDelivery.test.ts`,
+`test/unit/runtimeLspFactory.test.ts`, `test/unit/helpers/lspClient.ts`)
+were rewritten with plain closures and stay.
+
+### test/e2e/panelProcess.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/e2e/panelStdio.e2e.test.ts
+
+- `runtime panel native process`
+- `streams the shared conversation on fake ${backend}, rejects replay, and closes`
+- `refuses hosted search before a popup without a verified native catalog and ledger`
+- `closes when the live fake backend exits during a turn`
+- `refuses a v1-only offer before starting a conversation`
+- `initializes in restricted mode when CLI trust exceeds the native host grant`
+- `refuses a result that has no matching native request`
+- `rejects a malformed correlated native result and closes fatally`
+- `replays current history on reload while preserving sequence counters`
+- `refuses invalid UTF-8 and does not dispatch a subsequent complete request`
+- `bounds retained document snapshots separately from admitted frame size`
+- `refuses an incomplete EOF frame`
+- `${backend}: new conversation retires the old view before opening a fresh binding`
+
+### test/unit/accountsPanelBridge.test.ts
+
+- `M104 accounts panel bridge`
+- `lists through the dispatcher as accounts/state`
+- `selects through boundary admission and re-reads state`
+- `rejects a secret-bearing request before any mutation`
+- `passes the dispatcher fixed errors through untouched`
+- `maps dispatcher failures to fixed codes without adapter text`
+- `forwards validated notices and maps malformed ones`
+- `throws the fixed sentence when subscribing fails`
+
+### test/unit/conversationComposition.test.ts
+
+- `portable conversation composition`
+- `composes a real controller with fake HostServices and no vscode module`
+- `uses host services for clipboard, save, external links, folder opens and explicit confirms`
+- `reads live settings and retains paid gates, key checks and per-use consent`
+- `shares the caller registry, guards external edits and refuses an escaped image before reading`
+
+### test/unit/helpers/fakeSurface.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/lspPrivateDirectoryMock.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/panelBridgeRig.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/runtimePanel.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/panelBridges.test.ts
+
+- `posts chat payloads, delivers host messages once, saves state, and removes listeners`
+- `refuses another surface vocabulary before posting`
+- `saves optional snapshot fields with the host’s JSON semantics`
+- `uses the Tasks vocabulary through the same bridge`
+- `posts every What’s New action`
+- `refuses a duplicate companion sequence and stops dispatch`
+- `refuses companion queue message pressure and posts after disposal`
+- `refuses a too-large companion envelope and aggregate byte pressure`
+
+### test/unit/panelConnection.test.ts
+
+- `native request correlation`
+- `consumes a valid late reply after a timeout`
+- `bounds retired ids by refusing new requests until a retained reply is consumed`
+- `drains actual cancelled adapter work before reporting settlement`
+- `keeps bidirectional settings authoritative in the runtime even when the host offers them`
+- `bounds cancelled adapter work until its actual completion, even with shared promises`
+- `auxiliary surface adoption ordering`
+- `adopts the awaited open result before lifecycle and readiness from the same batch`
+
+### test/unit/panelSurfaces.test.ts
+
+- `runtime MHP surface admission`
+- `bounds retained binding bytes even after the surfaces close`
+- `bounds surface bindings and tombstones for the lifetime of a carrier`
+- `requires a registered session, immutable kind/binding, readiness and next sequence`
+- `queues output before ready, preserves counters on reload and replays once after ready`
+- `counts queued drops, unsubscribes, refuses reused ids, and lets a reconnect use a fresh id`
+- `orders asynchronous dispatch and closes queued work before any later side effect`
+- `closes fatally on a dispatched listener failure without logging its payload`
+- `retires every old session binding and drops queued output before a replacement can subscribe`
+- `accepts one correctly bound native close acknowledgement after runtime retirement`
+
+### test/unit/reactFallbacks.test.tsx
+
+- `Confirm returns the opaque choice id and Escape cancels`
+- `Picker filters and preserves multiple selected opaque ids`
+- `Input submits an edited value by Enter and does not parse it as markup`
+- `Toasts announce errors and dismiss the requested notification`
+- `StatusStrip hides invisible entries, updates progress and invokes commands`
+- `SettingsPage waits for the real settings/update and keeps the saved value`
+- `SettingsPage refuses a nonfinite number and reports a rejected update`
+- `Walkthrough runs an existing panel action through the selected bridge`
+- `DiffPage escapes both versions and settles an accepted hunk once`
+- `TerminalOutput displays untrusted output as text and stops a running command`
+- `starts each consecutive input from its own value and rejects all disposed prompts`
+- `serializes prompts, supports cancellation, and restores opener focus`
+
+### test/unit/runtimeBroker.test.ts
+
+- `M104L workspace broker`
+- `three simultaneous frontends share exactly one workspace owner and keep independent initialization`
+- `refuses an incorrect token and never initializes an unauthenticated client`
+- `serializes dead-owner recovery without deleting the replacement owner`
+- `exits after bounded idle time even with an authenticated frontend connected`
+- `bounds startup when a dead owner has an abandoned recovery lock`
+
+### test/unit/runtimeLsp.test.ts
+
+- `LSP argv admission`
+- `keeps Tab off and requires explicit contributor and trust flags`
+- `M104L LSP client conformance`
+- `passes request cancellation to the controller service`
+- `rejects requests before initialization and unsupported position encoding`
+- `drops a stale completion and handles Stop while completion is busy`
+- `Stop and shutdown bypass saturated ordinary requests even after cancellation`
+- `cancellation during final edit admission prevents applyEdit`
+- `version-checks diagnostics, prompts before edits and sends one versioned workspace edit`
+- `refuses forged edits and stale selections, and clears closed-document diagnostics`
+- `bounded LSP framing and document validation`
+- `accepts fragmented and coalesced byte frames and rejects malformed UTF-8 JSON`
+- `accepts null-id protocol errors without echoing them and rejects mixed RPC shapes`
+- `bounds document state independently of rejected URI leases`
+- `rejects oversized docs, traversal, stale versions and invalid UTF-16 ranges`
+
+### test/unit/runtimeLspConsent.test.ts
+
+- `M104L connection Tab consent`
+
+### test/unit/runtimeProcessAuthority.test.ts
+
+- `LSP uses the M107 process authority`
+- `rejects the same-second recycled parent and its unrelated detached child`
+- `refuses fast-exit group-number reuse without signalling the replacement`
+- `retains detached descendants across root reuse while refusing the reused group`
+- `enrolls a new genuine child at a departed PID through fresh parent proof`
+- `treats persistent zombies as exited, including a zombie root`
+- `preserves unknown enumeration as failure instead of an empty success`
+- `keeps per-member refusals and never treats an admitted signal as exit`
+
+### test/unit/runtimeProcessLaunch.test.ts
+
+- `data`
+- `LSP Windows launch registration seam`
+- `holds native GO until exact job registration completes`
+- `closes admission after registration refusal without any bare child signal`
+- `registers the native launcher in the named job before GO and keeps the independent owner alive after frontend exit`
+
+### test/unit/runtimeRegistry.test.ts
+
+- `M104L private registry authority`
+- `requires protected owner/SYSTEM creation and same-handle non-reparse ACL proof in the shipped Windows helper`
+
+### test/unit/runtimeSettingsStore.test.ts
+
+- `runtime settings and storage`
+- `distinguishes defaults from explicit user/workspace settings for CLI precedence`
+- `drains every admitted write before reporting a failed publication`
+- `waits for the earlier same-key publication before publishing the next update`
+- `serializes the same resolved record across independent store instances`
+- `refuses a stale revision and retries from the newer record before publication`
+- `migrates legacy activity records without overwriting a newer observation`
+- `keeps newest activity even when an older observation arrives later, with revision breaking ties`
+- `publishes setting changes to other same-root stores and preserves workspace isolation`
+- `coordinates real separate processes without a lost revision or older restore`
+- `refuses an owned or abandoned lock at the fixed deadline without stealing it`
+- `uses shared defaults, validates updates, and gives workspace settings precedence`
+- `retains null and false values and isolates settings, global storage and each workspace`
+- `orders same-key writes and does not lose unrelated keys from independent stores`
+- `hashes untrusted keys and refuses named credentials before persisting them`
+- `refuses corrupt, mismatched and oversized records and over-limit writes`
+- `refuses a linked record rather than reading another file`
+
+### test/unit/runtimeSupervisor.test.ts
+
+- `M104H2 runtime supervision`
+- `waits out an owner that closed its control socket and is removing its record`
+- `refuses an owner that closed its control socket and died keeping its record`
+- `accepts a disappearing owner record but preserves other open failures`
+- `refuses dead ownership without a completion receipt and retains the record`
+- `parses Stop separately and refuses recursive supervisors`
+- `builds its own guardian without a production dist directory`
+- `preserves binary stdio and child exit status, stripping credentials`
+- `fails explicitly when the configured child cannot start`
+- `Stop kills an unresponsive TERM-ignoring root and grandchild, waits for both, and isolates workspaces`
+- `refuses a wrong control token without stopping the owner`
+- `reports malformed and oversized ownership records without dialing`
+- `skips a foreign trust-root record and reports it without signalling`
+- `refuses duplicate well-formed owners across roots before signalling`
+
+### test/unit/runtimeTab.test.ts
+
+- `M104L real M94 runtime adapter`
+- `uses the real engine, settles reported usage and reuses a typing-through cache`
+- `blocks ignored files and a cancellation during consent before reserving/sending`
+- `redacts a complete secret before dispatch`
+- `keeps the onInvoke default and refuses a secret split by the cursor`
+
+### test/unit/runtimeTrustedPath.test.ts
+
+- `one full-path trust rule`
+
+### test/unit/runtimeWatchdog.test.ts
+
+- `ordinary module inspection does not enter the private preload pipe`
+- `retains ownership and names observed PIDs when the owner dies before guardian completion`
+- `rejects a genuine completion receipt copied from another guardian generation`
+- `independent Stop reports no such run without signalling or creating a registry`
+- `Stop receipt generation and identity bindings`
+
+### test/unit/uiResponder.test.ts
+
+- `returns the original typed id and rejects a renderer result invalid for its method`
+- `refuses bad envelopes and validates parameters before calling the renderer`
+- `refuses duplicate work, cancels only its typed id and disposes every remaining prompt`
+
+### test/unit/vscodeHostServices.test.ts
+
+- `VS Code HostServices in-process boundary`
+- `validates params and returned values before crossing the boundary`
+- `negotiates frozen v1, explicitly refuses unbound methods, and closes on shutdown`
+- `applies edits once with one undo and refuses stale versions before an edit`
+- `refuses current dirty buffers for every mutation while allowing a versioned save`
+- `rejects coincident zero-length inserts and refuses save-all before trust`
+- `rechecks version and trust after showing an editor and before a mutation`
+- `rechecks trust after opening a document before a mutation`
+- `refuses reversed, out-of-bounds and overlapping edits without editor effects`
+- `honors cancellation before and after an asynchronous document open`
+- `rejects unknown JavaScript calls, initial distrust and invalid caret positions`
+- `validates optional feature handlers, notifications and settings updates`
+- `keeps insert and apply on the selected editor, and reports failed edit/save operations`
+- `retains modal detail, stable choice ids, clipboard and folder behavior`
+- `bounds active selection text and maps diagnostics`
+- `refuses credentials in settings and storage before persisting or returning them`
+
+### test/unit/xcodeHost.test.ts
+
+- `Xcode host shared boundary`
+- `bundles the exact reviewed MHP 1.5 snapshot and refuses the earlier range`
+- `ships current tunables and the credential exclusions to Swift`
+- `ships the English native-only prompts without duplicating model text in Swift`
+- `ships each native label in every installed-language table`
+- `uses the real companion bootstrap and admits the native selection payload through the shared parser`
+
+### test/hostApi/distribution.test.mjs
+
+- `native distribution guards`
+- `selects one changed host on PRs and all hosts for shared changes or weekly runs`
+- `names every absent host and never executes a child`
+- `fails an existing host without its integration manifest`
+- `refuses a host path that is a file rather than an adapter folder`
+- `fails a broken host symlink instead of reporting an absent-folder skip`
+- `rejects unknown hosts, unsafe artifact paths and incompatible protocols`
+- `refuses a symlink outside the host tree`
+- `removes credentials and child injection variables, preserving ordinary environment`
+- `stages runtime bytes and records exact artifact hashes and source tree`
+- `refuses an incomplete runtime before invoking any native command`
+- `refuses mismatched runtime versions and dependency pins before dispatch`
+- `refuses nested runtime symlinks before they are copied or a native child runs`
+- `records every runtime and deferred byte and refuses native mutation of the injected tree`
+- `refuses missing, changed, duplicate and unlisted portable modules before dispatch`
+- `refuses a runtime entry that is a directory before invoking a native command`
+- `rejects duplicate output names from two native artifacts`
+- `MHP 1.3 every-host conformance runner`
+- `executes every shared scenario against both fake backends`
+- `runs the existing host harness with the full contract and checks its observations`
+- `requires the harness of every existing host, rather than stopping after the first`
+- `rejects zero tests, duplicates, skips, wrong host and wrong protocol`
+- `rejects extra results even if all required scenarios are present`
+- `reports duplicate scenario identities with the explicit correlation error`
+- `propagates harness errors and rejects malformed output`
+
+### test/hostApi/release.test.mjs
+
+- `native release integrity`
+- `accepts scoped runtime dependencies and refuses unsafe paths or invalid hashes`
+- `refuses old MHP receipts and absent or empty runtime inventories before a channel command`
+- `verifies exact source tree, version, host, inventory and bytes`
+- `rejects additional files, missing assets and empty archives`
+- `names missing signing credentials and local-only Xcode builds without creating credentials`
+- `refuses partial signing credentials before invoking a signer`
+- `allows an unencrypted signing key without a password`
+- `gives the signer only its own credentials and updates signed byte hashes`
+- `fails supplied signing credentials without a real injected signing command`
+- `reports every missing registry credential and manual channel loudly`
+- `publishes exact signed artifacts with only its channel credential`
+- `refuses a publishing command that rebuilds or mutates the uploaded bytes`
+- `fails supplied registry credentials without a real injected publish command`
+- `stages every verified native asset and receipt into the common release inventory`
+- `refuses a missing host artifact download before staging any native release bytes`
+- `rejects colliding native asset names across two hosts before copying`
+- `names absent hosts in the channel summary and fails missing reports for present hosts`
+- `refuses another host report, fabricated absence and malformed channel outcomes`
+- `keeps the all-published signal false for missing registry credentials`
+- `requires the exact archive and receipt to be attached before registry publication`
+
+### test/hostApi/fakeHost.mjs
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/acpComposition.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/judgeBody.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/liveSupervision.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/portableBundle.ts
+
+- (helper/fixture module; no test titles of its own)
+
+### test/unit/helpers/trustedPathVectors.ts
+
+- (helper/fixture module; no test titles of its own)

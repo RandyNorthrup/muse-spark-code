@@ -16,6 +16,7 @@ import { fill } from '../../shared/l10n/text'
 import { type PatchFile, parsePatchFiles } from '../../shared/patchDocument'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import type { Logger } from '../logger'
+import { stripExtendedLengthPrefix } from './extendedLengthPath'
 
 /** How a Revert's change is held to what it read (`ToolIo.writeFileIfUnchanged`'s options). */
 export interface RevertWriteOptions {
@@ -130,23 +131,7 @@ function patchFilesOf(patchJson: string): readonly PatchFile[] | undefined {
   return files === undefined || files.length === 0 ? undefined : files
 }
 
-// Windows extended-length prefixes. The CLI's patch document names files
-// as `\\?\C:\ws\notes.md` (verified live 2026-09-22), which `path.relative`
-// would treat as a different root from `C:\ws`.
 const BOM = '\u{FEFF}'
-const WIN_SEP = path.win32.sep
-const UNC_PREFIX = `${WIN_SEP}${WIN_SEP}`
-const EXTENDED_PREFIX = `${UNC_PREFIX}?${WIN_SEP}`
-const EXTENDED_UNC_PREFIX = `${EXTENDED_PREFIX}UNC${WIN_SEP}`
-
-/** The plain path behind a Windows extended-length (`\\?\`) path. */
-export function stripExtendedLengthPrefix(filePath: string): string {
-  if (filePath.startsWith(EXTENDED_UNC_PREFIX)) {
-    return `${UNC_PREFIX}${filePath.slice(EXTENDED_UNC_PREFIX.length)}`
-  }
-  return filePath.startsWith(EXTENDED_PREFIX) ? filePath.slice(EXTENDED_PREFIX.length) : filePath
-}
-
 /** Edit review (M5): each call returns the notices to show in the transcript. */
 export interface EditReviewActions {
   openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
@@ -486,6 +471,11 @@ export class EditReview implements EditReviewActions {
   /** Content for a `muse-edit:` URI path; undefined when nothing was staged. */
   public provide(uriPath: string): string | undefined {
     return this.originals.get(uriPath)
+  }
+
+  /** The owning surface is released after its in-flight operations have drained. */
+  public dispose(): void {
+    this.originals.clear()
   }
 
   /** Opens one diff per file in the patch; returns the notices to show. */

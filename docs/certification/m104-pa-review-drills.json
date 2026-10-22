@@ -1,0 +1,166 @@
+[
+  {
+    "name": "P2-1-original-root-publication",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelState.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelState.test.ts > museCode: each conversation publishes only its own effective settings and revokes its own Bypass",
+      "FAIL  test/unit/runtimePanelState.test.ts > modelApi: each conversation publishes only its own effective settings and revokes its own Bypass"
+    ],
+    "beforeSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "afterSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "restored": true
+  },
+  {
+    "name": "P2-1-own-conversation-settings",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelState.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelState.test.ts > museCode: each conversation publishes only its own effective settings and revokes its own Bypass",
+      "FAIL  test/unit/runtimePanelState.test.ts > modelApi: each conversation publishes only its own effective settings and revokes its own Bypass"
+    ],
+    "beforeSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "afterSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "restored": true
+  },
+  {
+    "name": "P2-1-effective-change-publication",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelState.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelState.test.ts > museCode: each conversation publishes only its own effective settings and revokes its own Bypass",
+      "FAIL  test/unit/runtimePanelState.test.ts > modelApi: each conversation publishes only its own effective settings and revokes its own Bypass"
+    ],
+    "beforeSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "afterSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "restored": true
+  },
+  {
+    "name": "P2-1-worktree-bypass-revocation",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelState.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelState.test.ts > museCode: each conversation publishes only its own effective settings and revokes its own Bypass",
+      "FAIL  test/unit/runtimePanelState.test.ts > modelApi: each conversation publishes only its own effective settings and revokes its own Bypass"
+    ],
+    "beforeSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "afterSha256": "7f3ad6d5ed48c6db994280d071bc56dfa07d2e41e01c337f6772cd4165d6c975",
+    "restored": true
+  },
+  {
+    "name": "P2-2-original-composition",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelPorts.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelPorts.test.ts > standalone conversation ports > delegates paid policy, accounting, account/budget/attempt hosts and authentication to the engine contribution"
+    ],
+    "beforeSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "afterSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "restored": true
+  },
+  {
+    "name": "P2-2-paid-contribution",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelPorts.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelPorts.test.ts > standalone conversation ports > delegates paid policy, accounting, account/budget/attempt hosts and authentication to the engine contribution"
+    ],
+    "beforeSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "afterSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "restored": true
+  },
+  {
+    "name": "P2-2-model-api-contribution",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelPorts.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelPorts.test.ts > standalone conversation ports > delegates paid policy, accounting, account/budget/attempt hosts and authentication to the engine contribution"
+    ],
+    "beforeSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "afterSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "restored": true
+  },
+  {
+    "name": "P2-2-authentication-readiness",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelPorts.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelPorts.test.ts > standalone conversation ports > delegates paid policy, accounting, account/budget/attempt hosts and authentication to the engine contribution"
+    ],
+    "beforeSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "afterSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "restored": true
+  },
+  {
+    "name": "P2-2-credential-availability",
+    "command": ["npx", "vitest", "run", "test/unit/runtimePanelPorts.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimePanelPorts.test.ts > standalone conversation ports > delegates paid policy, accounting, account/budget/attempt hosts and authentication to the engine contribution"
+    ],
+    "beforeSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "afterSha256": "24c100b62a8e457f821d6a9ef46415dc7fd797de190f050e4babf3f879ee02dd",
+    "restored": true
+  },
+  {
+    "name": "P3-2-replacement-guide",
+    "command": ["npx", "vitest", "run", "test/unit/mhpPanelContract.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/mhpPanelContract.test.ts > MHP 1.2 replacement panel contract > documents replacement of 1.1 and current 1.2 schemas behind legacy filenames"
+    ],
+    "beforeSha256": "688ddc008c8eab2aa514799d5214a8593b3dd83ecff4e43ed0b6a8b9ad22dcc4",
+    "afterSha256": "688ddc008c8eab2aa514799d5214a8593b3dd83ecff4e43ed0b6a8b9ad22dcc4",
+    "restored": true
+  },
+  {
+    "name": "P3-1-shared-browser-preparation",
+    "command": ["npx", "vitest", "run", "test/e2e/panelCompanion.e2e.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/e2e/panelCompanion.e2e.test.ts > runtime companion panel process > mounts the authenticated shared React graph and streams fake museCode in Chrome",
+      "FAIL  test/e2e/panelCompanion.e2e.test.ts > runtime companion panel process > mounts the authenticated shared React graph and streams fake modelApi in Chrome"
+    ],
+    "beforeSha256": "9c140901e2023b9afc1df5415e3a3a94b3e303786d1fc7cbb4ae83e237a6a11c",
+    "afterSha256": "9c140901e2023b9afc1df5415e3a3a94b3e303786d1fc7cbb4ae83e237a6a11c",
+    "restored": true
+  },
+  {
+    "name": "P3-1-assets-shared-preparation",
+    "command": ["npx", "vitest", "run", "test/unit/portableAssets.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/portableAssets.test.ts > loads the static and deferred authenticated graph under nonce CSP",
+      "FAIL  test/unit/portableAssets.test.ts > refuses altered authenticated module bytes before executing them",
+      "FAIL  test/unit/portableAssets.test.ts > refuses a duplicate manifest before loading its graph",
+      "FAIL  test/unit/portableAssets.test.ts > refuses a import-span manifest before loading its graph",
+      "FAIL  test/unit/portableAssets.test.ts > refuses a cycle manifest before loading its graph",
+      "FAIL  test/unit/portableAssets.test.ts > refuses a unlisted-import manifest before loading its graph"
+    ],
+    "beforeSha256": "df9093c9a450f2fad0ee4296a9825683e79291ef2bbe95235231eaa49bb70595",
+    "afterSha256": "df9093c9a450f2fad0ee4296a9825683e79291ef2bbe95235231eaa49bb70595",
+    "restored": true
+  },
+  {
+    "name": "P3-1-explicit-panel-readiness",
+    "command": ["npx", "vitest", "run", "test/unit/companionBrowser.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/companionBrowser.test.ts > companion browser security > exchanges the fragment without leaking it, then refuses a foreign form, fetch, EventSource and WebSocket",
+      "FAIL  test/unit/companionBrowser.test.ts > companion browser security > exchanges fresh codes in two tabs and opens independent authenticated streams",
+      "FAIL  test/unit/companionBrowser.test.ts > companion browser security > keeps two runtimes authenticated in one browser context without cross-runtime bearer replay"
+    ],
+    "beforeSha256": "166f8e731c14ebfeb3a2d3184c24766a8e76fd303ed8c0fe814492b08d973ac3",
+    "afterSha256": "166f8e731c14ebfeb3a2d3184c24766a8e76fd303ed8c0fe814492b08d973ac3",
+    "restored": true
+  },
+  {
+    "name": "P3-1-owned-browser-exit",
+    "command": ["npx", "vitest", "run", "test/unit/portableAssets.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": ["FAIL  test/unit/portableAssets.test.ts [ test/unit/portableAssets.test.ts ]"],
+    "beforeSha256": "dd82e9cbd5f65b9ef34c650e91fa7123d1f019ef05dd15df7ec23e591e3e2c7d",
+    "afterSha256": "dd82e9cbd5f65b9ef34c650e91fa7123d1f019ef05dd15df7ec23e591e3e2c7d",
+    "restored": true
+  }
+]

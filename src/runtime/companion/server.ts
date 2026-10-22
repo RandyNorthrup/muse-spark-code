@@ -7,7 +7,14 @@ import {
   type ServerResponse,
 } from 'node:http'
 import * as z from 'zod/mini'
-import { HTTP_STATUS, IDE_MCP_LOOPBACK_HOST, IDE_MCP_TOKEN_BYTES } from '../../shared/constants'
+import {
+  HTTP_STATUS,
+  IDE_MCP_LOOPBACK_HOST,
+  IDE_MCP_TOKEN_BYTES,
+  MHP_PANEL,
+} from '../../shared/constants'
+import type { panelLifecycleSchema } from '../../shared/hostApi/panel'
+import { MhpPanelError } from '../../shared/hostApi/panelError'
 import { CompanionEvents } from './events'
 import { isSameOrigin, readJson, secureHeaders, sessionBearer, singleHeader } from './guard'
 import { launchPage } from './page'
@@ -18,7 +25,15 @@ export interface CompanionHandler<Input, Output> {
   readonly inputSchema: z.ZodMiniType<Input>
   readonly outputSchema: z.ZodMiniType<Output>
   post(message: Input, sessionId: string, signal: AbortSignal): Promise<void>
-  subscribe(sessionId: string, emit: (message: unknown) => void): () => void
+  surface?(
+    message: z.infer<typeof panelLifecycleSchema>,
+    sessionId: string,
+    signal: AbortSignal,
+  ): Promise<void>
+  readonly isBindingAllowed?: (message: unknown, context: string | undefined) => boolean
+  readonly surfaceSchema?: typeof panelLifecycleSchema
+  readonly eventId?: (message: unknown) => string | undefined
+  subscribe(sessionId: string, emit: (message: unknown, complete?: () => void) => void): () => void
 }
 
 export interface CompanionLimits {
@@ -38,11 +53,13 @@ export interface CompanionAsset {
 
 export interface CompanionOptions<Input, Output> {
   readonly handler: CompanionHandler<Input, Output>
+  /** Optional MHP UI RPC uses the same guards and an independent window stream. */
+  readonly services?: CompanionHandler<unknown, unknown>
   readonly limits: CompanionLimits
   /** Exact URL paths to packaged assets. No filesystem path is derived from a request. */
   readonly assets: ReadonlyMap<string, CompanionAsset>
   /** Trusted packaged UI, with nonce on every script. No credential or launch code is passed. */
-  readonly renderPage: (nonce: string) => string
+  readonly renderPage: (nonce: string, context?: string) => string
   readonly host?: string
   readonly signal?: AbortSignal
 }
@@ -53,6 +70,41 @@ const eventsSchema = z.strictObject({})
 function reply(response: ServerResponse, status: number, error?: string): void {
   response.writeHead(status, { 'Content-Type': 'application/json', Connection: 'close' })
   response.end(error === undefined ? undefined : JSON.stringify({ error }))
+}
+
+function admissionError(code: MhpPanelError['frame']['code']): MhpPanelError {
+  return new MhpPanelError({
+    mhp: MHP_PANEL.wireVersion,
+    kind: 'panelError',
+    surface: null,
+    seq: null,
+    code,
+  })
+}
+function panelReply(response: ServerResponse, error: MhpPanelError): void {
+  let status: number = HTTP_STATUS.badRequest
+  switch (error.frame.code) {
+    case 'MHP_PANEL_UNKNOWN_SURFACE': {
+      status = HTTP_STATUS.notFound
+      break
+    }
+    case 'MHP_PANEL_TOO_LARGE': {
+      status = HTTP_STATUS.payloadTooLarge
+      break
+    }
+    case 'MHP_PANEL_BACKPRESSURE': {
+      status = HTTP_STATUS.tooManyRequests
+      break
+    }
+    case 'MHP_PANEL_OUT_OF_ORDER':
+    case 'MHP_PANEL_NOT_READY':
+    case 'MHP_PANEL_BINDING_MISMATCH': {
+      status = HTTP_STATUS.conflict
+      break
+    }
+  }
+  response.writeHead(status, { 'Content-Type': 'application/json', Connection: 'close' })
+  response.end(JSON.stringify(error.frame))
 }
 
 /** Browser boundary. Close on runtime abort, process signal, or authenticated inactivity. */
@@ -73,8 +125,9 @@ export async function startCompanionServer<Input, Output>(
     limits.sessionTtlMs,
     limits.maxSessions,
   )
-  const events = new CompanionEvents(limits.maxEventBytes)
-  const calls = new Set<AbortController>()
+  const events = new CompanionEvents(limits.maxEventBytes, handler.eventId)
+  const serviceEvents = new CompanionEvents(limits.maxEventBytes)
+  const calls = new Map<AbortController, string | undefined>()
   let origin = ''
   let idle: ReturnType<typeof setTimeout> | undefined
   let closing: Promise<void> | undefined
@@ -91,8 +144,9 @@ export async function startCompanionServer<Input, Output>(
   const server = createTransport((request, response) => {
     const nonce = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
     secureHeaders(response, nonce)
-    void handle(request, response, nonce).catch(() => {
+    void handle(request, response, nonce).catch((error: unknown) => {
       if (response.headersSent) response.destroy()
+      else if (error instanceof MhpPanelError) panelReply(response, error)
       else reply(response, HTTP_STATUS.internalServerError, 'EPANEL_HANDLER')
     })
   })
@@ -105,18 +159,23 @@ export async function startCompanionServer<Input, Output>(
     idle = setTimeout(onSignal, limits.idleTimeoutMs)
   }
 
-  function openEvents(session: CompanionSession, response: ServerResponse): void {
-    if (events.has(session.id)) {
+  function openEvents(
+    session: CompanionSession,
+    response: ServerResponse,
+    stream = events,
+    owner: Pick<CompanionHandler<unknown, unknown>, 'subscribe' | 'outputSchema'> = handler,
+  ): void {
+    if (stream.has(session.id)) {
       reply(response, HTTP_STATUS.forbidden, 'EPANEL_STREAM')
       return
     }
     activity()
-    events.open(
+    stream.open(
       session.id,
       response,
       session.expiresAt,
-      (emit) => handler.subscribe(session.id, emit),
-      (message) => JSON.stringify(handler.outputSchema.parse(message)),
+      (emit) => owner.subscribe(session.id, emit),
+      (message) => JSON.stringify(owner.outputSchema.parse(message)),
       activity,
     )
   }
@@ -126,7 +185,7 @@ export async function startCompanionServer<Input, Output>(
     response: ServerResponse,
     nonce: string,
   ): Promise<void> {
-    const isPrivileged = request.method === 'POST' || request.url === '/events'
+    const isPrivileged = request.method === 'POST' || request.url === '/panel/events'
     if (!isSameOrigin(request, origin, isPrivileged)) {
       reply(response, HTTP_STATUS.forbidden, 'EPANEL_ORIGIN')
       return
@@ -152,9 +211,11 @@ export async function startCompanionServer<Input, Output>(
     if (request.method === 'GET') {
       if (request.url === '/') {
         response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/html; charset=utf-8' })
-        response.end(session === undefined ? launchPage(nonce) : options.renderPage(nonce))
+        response.end(
+          session === undefined ? launchPage(nonce) : options.renderPage(nonce, session.context),
+        )
         if (session !== undefined) activity()
-      } else if (session !== undefined && request.url === '/events') {
+      } else if (session !== undefined && request.url === '/panel/events') {
         openEvents(session, response)
       } else {
         if (asset === undefined) {
@@ -167,15 +228,29 @@ export async function startCompanionServer<Input, Output>(
       }
       return
     }
-    if (request.url !== '/session' && request.url !== '/post' && request.url !== '/events') {
+    if (
+      request.url !== '/session' &&
+      request.url !== '/panel/message' &&
+      request.url !== '/panel/surface' &&
+      request.url !== '/panel/events' &&
+      (options.services === undefined ||
+        !(request.url === '/host/events' || request.url === '/host/message'))
+    ) {
       reply(response, HTTP_STATUS.notFound, 'EPANEL_PATH')
       return
     }
     const controller = new AbortController()
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        response.destroy()
+      },
+      { once: true },
+    )
     const abort = () => {
       controller.abort()
     }
-    calls.add(controller)
+    calls.set(controller, session?.context)
     response.once('close', abort)
     const deadline = setTimeout(() => {
       controller.abort()
@@ -185,7 +260,18 @@ export async function startCompanionServer<Input, Output>(
       let input: unknown
       try {
         input = await readJson(request, limits.maxBodyBytes)
-      } catch {
+      } catch (error: unknown) {
+        if (request.url === '/panel/message' || request.url === '/panel/surface') {
+          panelReply(
+            response,
+            admissionError(
+              error instanceof Error && error.message === 'EPANEL_TOO_LARGE'
+                ? 'MHP_PANEL_TOO_LARGE'
+                : 'MHP_PANEL_INVALID_ENVELOPE',
+            ),
+          )
+          return
+        }
         reply(response, HTTP_STATUS.badRequest, 'EPANEL_BODY')
         return
       }
@@ -199,13 +285,35 @@ export async function startCompanionServer<Input, Output>(
         }
         response.setHeader('Authorization', `Bearer ${created.id}`)
         response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/html; charset=utf-8' })
-        response.end(options.renderPage(nonce))
+        response.end(options.renderPage(nonce, created.context))
       } else if (session !== undefined) {
         if (sessions.get(session.id) === undefined) {
           reply(response, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
           return
         }
-        if (request.url === '/events') {
+        if (
+          options.services !== undefined &&
+          (request.url === '/host/events' || request.url === '/host/message')
+        ) {
+          if (request.url === '/host/events') {
+            if (!eventsSchema.safeParse(input).success) {
+              reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
+              return
+            }
+            openEvents(session, response, serviceEvents, options.services)
+          } else {
+            const parsed = options.services.inputSchema.safeParse(input)
+            if (!parsed.success) {
+              reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
+              return
+            }
+            await options.services.post(parsed.data, session.id, controller.signal)
+            if (!controller.signal.aborted) reply(response, HTTP_STATUS.noContent)
+          }
+          activity()
+          return
+        }
+        if (request.url === '/panel/events') {
           if (!eventsSchema.safeParse(input).success) {
             reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
             return
@@ -213,14 +321,33 @@ export async function startCompanionServer<Input, Output>(
           openEvents(session, response)
           return
         }
+        if (request.url === '/panel/surface') {
+          const parsed = handler.surfaceSchema?.safeParse(input)
+          if (parsed?.success !== true || handler.surface === undefined) {
+            panelReply(response, admissionError('MHP_PANEL_INVALID_LIFECYCLE'))
+            return
+          }
+          if (handler.isBindingAllowed?.(parsed.data, session.context) === false) {
+            panelReply(response, admissionError('MHP_PANEL_UNKNOWN_SURFACE'))
+            return
+          }
+          await handler.surface(parsed.data, session.id, controller.signal)
+          if (!controller.signal.aborted) reply(response, HTTP_STATUS.noContent)
+          activity()
+          return
+        }
         const parsed = handler.inputSchema.safeParse(input)
         if (!parsed.success) {
-          reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
+          panelReply(response, admissionError('MHP_PANEL_INVALID_PAYLOAD'))
+          return
+        }
+        if (handler.isBindingAllowed?.(parsed.data, session.context) === false) {
+          panelReply(response, admissionError('MHP_PANEL_UNKNOWN_SURFACE'))
           return
         }
         await handler.post(parsed.data, session.id, controller.signal)
         if (controller.signal.aborted) return
-        reply(response, HTTP_STATUS.accepted)
+        reply(response, HTTP_STATUS.noContent)
       }
       activity()
     } finally {
@@ -235,8 +362,9 @@ export async function startCompanionServer<Input, Output>(
     closing = (async () => {
       await Promise.resolve()
       clearTimeout(idle)
-      for (const controller of calls) controller.abort()
+      for (const controller of calls.keys()) controller.abort()
       events.close()
+      serviceEvents.close()
       sessions.clear()
       await new Promise<void>((resolve) => {
         server.close(() => {
@@ -310,9 +438,16 @@ export async function startCompanionServer<Input, Output>(
     if (earlySignal.signal.aborted) await close()
     return {
       url: `${origin}/`,
-      launchUrl: () => {
+      launchUrl: (context?: string) => {
         if (closing !== undefined) throw new Error('EPANEL_CLOSED')
-        return `${origin}/#k=${sessions.issue()}`
+        return `${origin}/#k=${sessions.issue(context)}`
+      },
+      retireContext: (context: string) => {
+        for (const id of sessions.retireContext(context)) {
+          events.retire(id)
+          serviceEvents.retire(id)
+        }
+        for (const [call, owner] of calls) if (owner === context) call.abort()
       },
       close,
       closed,

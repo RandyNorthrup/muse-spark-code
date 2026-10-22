@@ -20,7 +20,8 @@ import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
 import { setTimeout as nodeSleep } from 'node:timers/promises'
-import type { SignInMethod } from '../acp/agent'
+import type { AcpController, SignInMethod } from '../acp/agent'
+import { ControllerRegistry } from './panel/controllerRegistry'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { voiceCompanionLoader } from './companion/voiceLoader'
 import type { VoiceCompanionContext } from './companion/voiceEntry'
@@ -56,6 +57,9 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
+  RUNTIME_PANEL_BUNDLE_FILE,
+  RUNTIME_PANEL,
+  CONVERSATION_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -85,6 +89,7 @@ import {
   runtimeEstimatorPorts,
 } from './estimator/ports'
 import { lazyEstimator } from '../host/estimator/estimatorBundle'
+import type { RuntimeBackendExtensions } from './panel/backendEntry'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -104,7 +109,16 @@ import {
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
+import { paidGrantsFile } from './dataFolder'
+import {
+  stopRuntime,
+  runtimeLocatorDirectory,
+  superviseRuntime,
+  UnverifiedStopError,
+} from './lsp/supervisor'
+import { trustedPrivateRoot } from './privateDirectory'
 import { keepGitCredentialRoutes } from './gitUserEnvironment'
+
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -133,6 +147,7 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+import { execPanelPort, panelLoader } from './panel/panelLoader'
 import { reportsLoader } from './reporting/reportsLoader'
 import { reportInputsLoader } from './reporting/reportInputsLoader'
 import { runtimeReportsPlanMaxBytes } from './runtimeReportsPlan'
@@ -482,14 +497,27 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
+/** A store that cannot be read reads no (documented in docs/acp.md). */
+async function hasStoredKey(): Promise<boolean> {
+  try {
+    const stored = await secrets.get(SECRET_KEYS.modelApiKey)
+    return stored !== undefined && stored !== ''
+  } catch {
+    return false
+  }
+}
+
 async function runtimeFor(
   options: ServeOptions,
   log: Logger,
   questions?: { remove(sessionId: string): Promise<void> },
+  // M104: the portable panel's context, engines and presentation services.
+  extensions?: RuntimeBackendExtensions,
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
+    ...extensions,
     options,
     version: packageVersion(),
     distDir,
@@ -1101,6 +1129,11 @@ async function serve(
       log,
     })
     const reports = runtimeReports(log, runtime, recording)
+    // ACP is a view: the shared registry and the composed controller own each
+    // session (M104), as the portable panel's do.
+    const controllers = new ControllerRegistry<AcpController>(log, (id) =>
+      engine.RequestError.resourceNotFound(id),
+    )
     // Model API sessions only: the Muse Code backend runs on its
     // subscription. Meta's entry is built in, so the metadata reads without
     // a providers file; a refused file or a loader failure leaves the
@@ -1115,6 +1148,27 @@ async function serve(
     }
     const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
+      controllers,
+      createConversation: panelLoader({
+        bundlePath: path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE),
+        log,
+      })().createAcpConversations(
+        {
+          runtime,
+          options,
+          dataRoot: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          conversationBundle: path.join(distDir, CONVERSATION_BUNDLE_FILE),
+          runGit: processGitRunner(),
+          log,
+          controllers,
+        },
+        UI_TEXT,
+        uiLocale(),
+      ),
       schedules: {
         isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
         async holdWorkspace(cwd, session) {
@@ -1268,17 +1322,18 @@ async function serve(
       await connection.closed
     } finally {
       dictationLifetime.abort()
-      await Promise.allSettled(
-        registries.map((registry) => {
-          registry.dispose()
-          return registry.flush()
-        }),
-      )
       try {
-        await loadedSchedules?.close()
+        await controllers.close()
       } finally {
+        await Promise.allSettled(
+          registries.map((registry) => {
+            registry.dispose()
+            return registry.flush()
+          }),
+        )
         try {
           await scheduleSessions.close()
+          await loadedSchedules?.close()
         } finally {
           try {
             await usage.dispose()
@@ -1343,7 +1398,7 @@ function runtimeDictation(
 }
 
 function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
-  if (command.command !== 'serve') {
+  if (command.command !== 'serve' && command.command !== 'panel') {
     return 'warn'
   }
   return command.options.isVerbose ? 'trace' : 'info'
@@ -1358,6 +1413,9 @@ async function main(): Promise<number> {
   // commands after it), and scan-secrets does no localization work at all
   // (Codex on PR #213).
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
+  const log = stderrLogger((line) => {
+    writeLine(process.stderr, line)
+  }, logLevel(command))
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
       platform: process.platform,
@@ -1551,6 +1609,7 @@ async function main(): Promise<number> {
           options: command.options,
           version: packageVersion(),
           distDir,
+          ...execPanelPort(distDir),
           platform: process.platform,
           env: process.env,
           homeDir: homedir(),
@@ -1592,9 +1651,6 @@ async function main(): Promise<number> {
       )
     }
   }
-  const log = stderrLogger((line) => {
-    writeLine(process.stderr, line)
-  }, logLevel(command))
   // The language's table goes in before anything reads the text (D33).
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
@@ -1603,6 +1659,52 @@ async function main(): Promise<number> {
     log,
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
+  if (command.command === 'supervise' || command.command === 'stop') {
+    const diagnostic = (message: string) => {
+      log.warn(message)
+    }
+    try {
+      if (command.command === 'stop') {
+        await stopRuntime(process.cwd(), packageRoot, homedir(), diagnostic)
+        return 0
+      }
+      const registry = path.join(
+        await trustedPrivateRoot(packageRoot, diagnostic),
+        `muse-runtime-${workspaceKey(homedir())}`,
+      )
+      const code = await superviseRuntime({
+        registry,
+        locatorDirectory: await runtimeLocatorDirectory(packageRoot, true),
+        cwd: process.cwd(),
+        file: process.execPath,
+        args: [__filename, ...command.args],
+        env: process.env,
+        packageRoot,
+        stdin: process.stdin,
+        stdout: process.stdout,
+        onSignalExit: (signal) => {
+          writeLine(process.stderr, fill(UI_TEXT.acpSupervisorSignal, { signal }))
+        },
+      })
+      if (code !== 0) writeLine(process.stderr, 'ESUPERVISE_EXIT')
+      return code
+    } catch (error: unknown) {
+      if (error instanceof UnverifiedStopError) {
+        writeLine(process.stderr, fill(UI_TEXT.acpStopUnverified, { pids: error.pids.join(', ') }))
+        return EXIT_FAILED
+      }
+      if (
+        error instanceof Error &&
+        (error.message === 'ESTOP_NO_RUN' || error.message === 'ESTOP_AMBIGUOUS')
+      ) {
+        writeLine(process.stderr, error.message)
+        return EXIT_FAILED
+      }
+      // Never expose a private control token, profile path or raw child error.
+      writeLine(process.stderr, 'ESUPERVISE_STOP')
+      return EXIT_FAILED
+    }
+  }
   switch (command.command) {
     case 'dictate': {
       const recording = runtimeRecording(
@@ -1893,6 +1995,89 @@ async function main(): Promise<number> {
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
+    case 'lsp': {
+      const { runLsp } = await import('./lsp/lspEntry')
+      const dataInput = { platform: process.platform, env: process.env, homeDir: homedir() }
+      return await runLsp(command.options, {
+        stdin: process.stdin,
+        stdout: process.stdout,
+        executable: process.execPath,
+        entry: __filename,
+        registry: path.join(
+          await trustedPrivateRoot(packageRoot, (message) => {
+            log.warn(message)
+          }),
+          `muse-runtime-${workspaceKey(homedir())}`,
+        ),
+        dataFolder: agentDataFolder(dataInput),
+        grantsFile: paidGrantsFile(dataInput),
+        secrets,
+        env: process.env,
+        log,
+        table: UI_TEXT,
+        locale: uiLocale(),
+        runGit: processGitRunner(),
+      })
+    }
+    case 'panel': {
+      const runtime = await runtimeFor(command.options, log)
+      await runtime.forgetUnflaggedGrants()
+      const result = await panelLoader({
+        bundlePath: path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE),
+        log,
+      })().runRuntimePanel(
+        {
+          options: command.options,
+          transport: command.transport,
+          runtime,
+          configureRuntime: (options, _settings, _root, extensions) =>
+            runtimeFor(options, log, undefined, extensions),
+          portable: {
+            version: packageVersion(),
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+            hasStoredKey,
+          },
+          loadLanguage: (language) =>
+            loadUiTable({
+              language,
+              readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+              log,
+            }),
+          dataRoot: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          conversationBundle: path.join(distDir, CONVERSATION_BUNDLE_FILE),
+          defaultCwd: process.cwd(),
+          input: process.stdin,
+          output: process.stdout,
+          runGit: processGitRunner(),
+          log,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      // This standalone carrier owns its process. Its backend cleanup has
+      // completed; stop stale SDK request timers after bounded pipe flushing.
+      const flush = (stream: NodeJS.WriteStream) =>
+        new Promise<void>((resolve) => {
+          if (stream.destroyed) {
+            resolve()
+            return
+          }
+          const timer = setTimeout(resolve, RUNTIME_PANEL.closeTimeoutMs)
+          stream.write('', () => {
+            clearTimeout(timer)
+            resolve()
+          })
+        })
+      await Promise.all([flush(process.stdout), flush(process.stderr)])
+      // eslint-disable-next-line unicorn/no-process-exit -- panel owns its standalone process; awaited backend cleanup and bounded pipe flush precede exit (PLAN §8).
+      return process.exit(result)
+    }
     case 'chatGptProvider': {
       const providers = await chatGptDeps()
       return await providers.run(command.action)
@@ -2128,15 +2313,7 @@ async function main(): Promise<number> {
         // The agent took its credential variables out of its environment at
         // start (rule 8): presence is read from what it took.
         hasEnvironmentApiKey: wasEnvironmentApiKeyPresent,
-        readStoredKeyPresence: async () => {
-          try {
-            const stored = await secrets.get(SECRET_KEYS.modelApiKey)
-            return stored !== undefined && stored !== ''
-          } catch {
-            // A store that cannot be read reads no (documented in docs/acp.md).
-            return false
-          }
-        },
+        readStoredKeyPresence: hasStoredKey,
         nowMs,
         // Reading prunes expired records but sets and consumes no marker.
         readJournal: async () => {

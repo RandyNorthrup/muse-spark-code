@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.8.3" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.8.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading" Version="17.14.15" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+    <Compile Include="..\Protocol\*.cs" Link="Protocol\%(Filename)%(Extension)" />
+    <Compile Include="..\Editor\EditPlan.cs" Link="Editor\EditPlan.cs" />
+    <Compile Include="..\Editor\DocumentPath.cs" Link="Editor\DocumentPath.cs" />
+    <Compile Include="..\Editor\DocumentTable.cs" Link="Editor\DocumentTable.cs" />
+    <Compile Include="..\Editor\CompletionPlan.cs" Link="Editor\CompletionPlan.cs" />
+    <Compile Include="..\Panel\AssetPolicy.cs" Link="Panel\AssetPolicy.cs" />
+    <Compile Include="..\Panel\RuntimeProcess.cs" Link="Panel\RuntimeProcess.cs" />
+    <Compile Include="..\Panel\UiText.cs" Link="Panel\UiText.cs" />
+    <Compile Include="..\Panel\PanelInbox.cs" Link="Panel\PanelInbox.cs" />
+    <Compile Include="..\Panel\IPanelChannel.cs" Link="Panel\IPanelChannel.cs" />
+    <Compile Include="..\Panel\PanelChannel.cs" Link="Panel\PanelChannel.cs" />
+    <Compile Include="..\Panel\NativeUi.cs" Link="Panel\NativeUi.cs" />
+    <Compile Include="..\..\..\test\m104\windows\*.cs" Link="Windows\%(Filename)%(Extension)" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <EmbeddedResource Include="..\..\..\src\shared\hostApi\mhp-v1.1.schema.json" Link="Protocol\mhp-v1.1.schema.json" />
+  </ItemGroup>
+</Project>

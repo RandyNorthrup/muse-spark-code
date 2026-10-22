@@ -40,6 +40,7 @@ export interface MuseCodeReviewerPort {
   /** Whether a session is one of the reviewer's side sessions: no History lists it. */
   readonly isSideSession: (sessionId: string) => boolean
   readonly dispose: () => void
+  readonly settled: () => Promise<void>
 }
 
 export interface MuseCodeReviewerPortDeps {
@@ -51,6 +52,7 @@ export interface MuseCodeReviewerPortDeps {
   readonly log: Logger
   /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
   readonly loadBundle?: ((file: string) => unknown) | undefined
+  readonly isCurrent?: (modelId: string) => boolean
 }
 
 /** The window's reviewer port: the bundle and the reviewer, made on first use. */
@@ -76,6 +78,7 @@ export function museCodeReviewerPort(deps: MuseCodeReviewerPortDeps): MuseCodeRe
             sideSessionIds.add(sessionId)
           },
           describeFailure: failureForLog,
+          ...(deps.isCurrent !== undefined && { isCurrent: deps.isCurrent }),
         },
         UI_TEXT,
         uiLocale(),
@@ -85,6 +88,9 @@ export function museCodeReviewerPort(deps: MuseCodeReviewerPortDeps): MuseCodeRe
     isSideSession: (sessionId) => sideSessionIds.has(sessionId),
     dispose: () => {
       reviewer?.dispose()
+    },
+    settled: async () => {
+      await reviewer?.settled()
     },
   }
 }

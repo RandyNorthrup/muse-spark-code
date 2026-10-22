@@ -1,0 +1,59 @@
+{
+  "before": {
+    "sourceRevision": "acb0f5cdce7772516297f4ad103a31ec941ef710",
+    "metafileSha256": "4f5e2738b37b91b147f6a0b6f8218df712f5699aad3b32d6475c5ed0cea5e314",
+    "budgetKiB": 1100,
+    "javaScriptOutputs": 177,
+    "javaScriptBytes": 1353195,
+    "inputBytes": 1292608,
+    "groups": {
+      "application sources": 653129,
+      "English fallback regions": 83685,
+      "resource zod copy": 29942,
+      "other npm libraries": 171396,
+      "highlight.js": 89402,
+      "zod": 56035,
+      "react-dom": 209019
+    },
+    "largestInputs": {
+      "node_modules/react-dom/cjs/react-dom-client.production.js": 204927,
+      "src/webview/state/uiState.ts": 52105,
+      "src/webview/App.tsx": 48805,
+      "src/shared/l10n/en.ts": 39672,
+      "node_modules/zod/v4/core/schemas.js": 24491,
+      "browser-surface-english:browser-surface-english": 22388,
+      "node_modules/highlight.js/lib/core.js": 20674,
+      "src/webview/components/Transcript.tsx": 15196,
+      "src/webview/components/Composer.tsx": 14997,
+      "src/shared/constants.ts": 13617,
+      "src/shared/protocol.ts": 13581,
+      "node_modules/highlight.js/es/languages/css.js": 13446,
+      "src/webview/components/UsageDialogContent.tsx": 11728,
+      "resource-validation:node_modules/zod/v4/core/schemas.js": 11573,
+      "browser-reference-english:browser-reference-english": 11477,
+      "src/webview/estimator/EstimatorPanel.tsx": 10871,
+      "src/webview/components/AgentMapContent.tsx": 10856,
+      "node_modules/mdast-util-from-markdown/lib/index.js": 10217,
+      "node_modules/property-information/lib/svg.js": 10097,
+      "src/webview/components/ToolRow.tsx": 9976,
+      "src/shared/paletteRegistry.ts": 9885,
+      "src/webview/components/QuestionCard.tsx": 9393,
+      "src/shared/reference/referenceSchema.generated.ts": 9235,
+      "src/shared/estimate.ts": 9030,
+      "src/webview/components/TeamTree.tsx": 8879
+    }
+  },
+  "after": {
+    "parentRevision": "ff0ea08894aa0ea7b1b98b9ed04fb484eb4683b5",
+    "buildScriptSha256": "48db4512f0e49801378fc5f82f63d42895072e4736f04579c4b52028bd5fd77f",
+    "metafileSha256": "1429e51ff492430495cd763990e87a58f7cbe811e9f031fb9a8ce7e2bb560eb0",
+    "budgetKiB": 1100,
+    "javaScriptOutputs": 177,
+    "javaScriptBytes": 1323336,
+    "inputBytes": 1262595,
+    "resourceParserCopyBytes": 0
+  },
+  "savedBytes": 29859,
+  "overBudgetBytes": 196936,
+  "budgetGateSha256": "3f1610d0f7e6833ccf2b8ae1296995e5ee6a542a150c27ec6468bb3bf264c6b3"
+}

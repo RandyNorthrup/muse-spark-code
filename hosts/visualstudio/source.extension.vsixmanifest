@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="MuseSparkCode.VisualStudio" Version="0.18.2" Language="en-US" Publisher="RandyNorthrup" />
+    <DisplayName>Muse Spark Code (Unofficial)</DisplayName>
+    <Description xml:space="preserve">Meta's Muse Spark model as a coding agent in a Visual Studio tool window. Unofficial and open source (MIT): not affiliated with or endorsed by Meta or Microsoft. You bring your own Muse subscription or Meta Model API key.</Description>
+    <MoreInfo>https://github.com/RandyNorthrup/muse-spark-code</MoreInfo>
+    <License>LICENSE.txt</License>
+    <ReleaseNotes>https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md</ReleaseNotes>
+    <Icon>icon.png</Icon>
+    <PreviewImage>icon.png</PreviewImage>
+    <Tags>AI;coding agent;chat;Muse Spark;code assistant</Tags>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)"><ProductArchitecture>amd64</ProductArchitecture></InstallationTarget>
+  </Installation>
+  <Dependencies>
+    <Dependency Id="Microsoft.Framework.NDP" DisplayName=".NET Framework" Version="[4.8,)" />
+  </Dependencies>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,19.0)" DisplayName="Visual Studio" />
+  </Prerequisites>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="MuseSpark.VisualStudio" Path="|MuseSpark.VisualStudio;PkgdefProjectOutputGroup|" />
+    <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="MuseSpark.VisualStudio" Path="|MuseSpark.VisualStudio;BuiltProjectOutputGroup|" />
+  </Assets>
+</PackageManifest>

@@ -21,7 +21,7 @@
     "src/runtime/reporting/reportsEntry.ts",
     "src/runtime/reporting/reportInputsEntry.ts",
     "src/runtime/reporting/playbookSchedulesInputsEntry.ts",
-    "src/host/reporting/reportPanelEntry.ts",
+    "src/host/vscode/reporting/reportPanelEntry.ts",
     "src/webview/reporting/main.tsx",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
@@ -43,7 +43,7 @@
     "src/core/backends/modelapi/modelApiImageEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
-    "src/host/usage/usagePanelEntry.ts",
+    "src/host/vscode/usage/usagePanelEntry.ts",
     "src/webview/usage/usage.tsx",
     "src/runtime/companion/voiceEntry.ts",
     "src/webview/voice/companion.ts",
@@ -76,12 +76,13 @@
     "src/runtime/vault/posixEntry.ts",
     "src/runtime/vault/windowsEntry.ts",
     "src/runtime/vault/storeEntry.ts",
+    "src/shared/hostApi/hostProtocolEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
     // The legal header-fix planner, built as dist/legalFix.js (D6), loaded by path.
     "src/core/legal/legalFixEntry.ts",
-    "src/host/prompts/promptEntry.ts",
+    "src/host/vscode/prompts/promptEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     // The Muse Code backend's own bundle (PR206), required by path on its first start.
@@ -89,7 +90,7 @@
     "src/host/backend/providersEntry.ts",
     "src/host/backend/subscriptionsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
-    "src/host/models/modelsPanelEntry.ts",
+    "src/host/vscode/models/modelsPanelEntry.ts",
     // The sign-in gate's own bundle (CIFIX161B), required by path on the
     // first credential, money or consent read.
     "src/host/auth/authEntry.ts",
@@ -179,11 +180,20 @@
     "src/host/web/pageWorker.ts",
     "src/core/imageResizeWorker.ts",
     "src/webview/main.tsx",
+    "src/webview/portable.tsx",
+    "src/shared/browser/presentation.ts",
+    "src/webview/whatsNew/portable.ts",
+    "src/webview/bridges/select.ts",
+    "src/webview/bridges/moduleLoader.ts",
+    // M104D: a browser module imported by carriers on their first fallback.
+    "src/webview/fallbacks/index.ts",
     "src/webview/resources/ResourceSurface.tsx",
     "src/webview/usage/ResourcesSection.tsx",
     // The Models & Agents panel's own entry (M95 lane M), required by path.
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
+    "src/runtime/panel/panelEntry.ts",
+    "src/runtime/panel/runtimeFeaturesEntry.ts",
     "src/runtime/sharing/sharingEntry.ts",
     // M105 media attachments, the window's media registry and screen
     // recording, each required by path on first use (dist/media.js,
@@ -200,7 +210,7 @@
     "src/runtime/fonts/fontsEntry.ts",
     "src/runtime/schedules/backgroundEntry.ts",
     // The vault's window (M109 W), required by path on the first vault command.
-    "src/host/vault/vaultPanelEntry.ts",
+    "src/host/vscode/vault/vaultPanelEntry.ts",
     // The vault's explicit-action code, required by path on the first vault
     // action (RVAPP-CM1091D5 BYTES).
     "src/host/vault/vaultActionsEntry.ts",
@@ -222,7 +232,26 @@
     "test/harness/vault/run-mounted.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
+    "src/runtime/panel/contextEntry.ts",
+    "src/runtime/panel/engineEntry.ts",
+    "src/runtime/panel/backendEntry.ts",
+    "src/host/views/runtimePresentationEntry.ts",
+    "src/runtime/lsp/lspEntry.ts",
+    "src/shared/featureCatalog.ts",
+    "src/runtime/lsp/watchdogEntry.ts",
+    // Shipped deferred entry: path/receipt imports map to these native-runtime exports.
+    "src/runtime/lsp/processAuthority.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    // The Xcode host's generator bundles this table source by path
+    // (hosts/xcode/Scripts/generate.mjs), which knip does not trace.
+    "hosts/xcode/Scripts/nativeTables.ts",
+    // The native host harnesses start this fixture runtime by path
+    // (hosts/xcode/Scripts/prepare-tests.mjs), which knip does not trace.
+    "test/hosts/xcode/fake-runtime.ts",
+    "test/harness/presentation.tsx",
+    "test/harness/whatsNew.ts",
+    // Built by the fallback accessibility suite and loaded by its real browser.
+    "test/unit/helpers/fallbackHarness.tsx",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
     "test/harness/usage-resource-scenes.mjs",
@@ -246,6 +275,9 @@
     // Round-4 two-process ledger proof bundles this child by path; esbuild
     // entries are not traced.
     "test/unit/helpers/media/ledgerChild.ts",
+    "test/unit/helpers/fakeLsp.ts",
+    "test/unit/helpers/supervisorParent.ts",
+    "test/unit/helpers/runtimeLspParent.ts",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.
     "test/e2e/reportsEntry.ts",
@@ -259,6 +291,7 @@
     "test/unit/reportKindRenderFixtures.ts",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
+
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",
@@ -272,6 +305,7 @@
     "action/apply/lib/*.mjs",
     // The live Action receipt's judge (action-live.yml), started by path.
     "test/action/*.mjs",
+
     "scripts/**/*.mjs",
     ".vscode-test.mjs",
 

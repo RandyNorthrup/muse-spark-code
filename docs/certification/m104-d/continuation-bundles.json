@@ -1,0 +1,425 @@
+{
+  "baselineEagerBytes": 898682,
+  "previousEagerBytes": 903255,
+  "previousDeferredBytes": 71064,
+  "webview": {
+    "eagerBytes": 898666,
+    "deferredBytes": 40898,
+    "totalBytes": 939564,
+    "chunkBytes": 325023,
+    "outputs": [
+      {
+        "file": "dist/webview/main.js",
+        "bytes": 614541,
+        "entry": "src/webview/main.tsx",
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/HistoryDialog-X7ZLKXQP.js",
+        "bytes": 3433,
+        "entry": "src/webview/components/HistoryDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/SessionBoardDialog-EOOVBDME.js",
+        "bytes": 2286,
+        "entry": "src/webview/components/SessionBoardDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/chunk-UOYOK4KR.js",
+        "bytes": 1877,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/chunk-5D5OIGMZ.js",
+        "bytes": 165,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/AgentMap-B32GXLAB.js",
+        "bytes": 8037,
+        "entry": "src/webview/components/AgentMap.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/chunk-W6KOUK65.js",
+        "bytes": 4040,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/UsageDialog-5QGRKJJV.js",
+        "bytes": 11254,
+        "entry": "src/webview/components/UsageDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/chunk-6EQBUZHN.js",
+        "bytes": 372,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-XD24SZIO.js",
+        "bytes": 8335,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/BestOfNDialog-RC4TABHN.js",
+        "bytes": 7043,
+        "entry": "src/webview/components/BestOfNDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/chunk-SWHPV76Z.js",
+        "bytes": 210,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/ReviewPane-XT74R6YS.js",
+        "bytes": 5610,
+        "entry": "src/webview/components/ReviewPane.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/chunk-FQWAEDFM.js",
+        "bytes": 951,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-C2X3ZFMI.js",
+        "bytes": 67890,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-AFP3HUJD.js",
+        "bytes": 5498,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-KHQX7Z54.js",
+        "bytes": 1549,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-ZP3BQIJJ.js",
+        "bytes": 1143,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/TasksApp-6A5NPW4O.js",
+        "bytes": 1358,
+        "entry": "src/webview/TasksApp.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/chunks/chunk-F4OI7QRV.js",
+        "bytes": 1491,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-S32S6X63.js",
+        "bytes": 4530,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-EJUUKSOO.js",
+        "bytes": 7051,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-5OYIARPN.js",
+        "bytes": 0,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-OEALNJ7J.js",
+        "bytes": 31962,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/chunks/chunk-FDXEH6VO.js",
+        "bytes": 148938,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/main.css",
+        "bytes": 66257,
+        "eager": false
+      }
+    ]
+  },
+  "portable": {
+    "eagerBytes": 902374,
+    "deferredBytes": 72548,
+    "totalBytes": 974922,
+    "chunkBytes": 557654,
+    "outputs": [
+      {
+        "file": "dist/webview/portable/chunks/BestOfNDialog-52HNR57P.js",
+        "bytes": 7108,
+        "entry": "src/webview/components/BestOfNDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/ReviewPane-F4J7XLNK.js",
+        "bytes": 5736,
+        "entry": "src/webview/components/ReviewPane.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/native-U6YPELQO.js",
+        "bytes": 494,
+        "entry": "src/webview/bridges/native.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/tasksProtocol-N2NUZHJU.js",
+        "bytes": 245,
+        "entry": "src/shared/tasksProtocol.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/whatsNewMessages-SYAOW4EZ.js",
+        "bytes": 183,
+        "entry": "src/shared/whatsNewMessages.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/panel-ROCAC5VJ.js",
+        "bytes": 792,
+        "entry": "src/shared/hostApi/panel.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/companion-GUSZL6IB.js",
+        "bytes": 2935,
+        "entry": "src/webview/bridges/companion.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-UCCZLZRH.js",
+        "bytes": 3376,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-BZJ5NN3R.js",
+        "bytes": 305,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/TasksApp-4S63BPBC.js",
+        "bytes": 1207,
+        "entry": "src/webview/TasksApp.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-5IOAAY7Y.js",
+        "bytes": 335,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/main.js",
+        "bytes": 397723,
+        "entry": "src/webview/portable.tsx",
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-CJOXMO5L.js",
+        "bytes": 951,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-4UZUDGD2.js",
+        "bytes": 1551,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/whatsNew.js",
+        "bytes": 995,
+        "entry": "src/webview/whatsNew/portable.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-LQBNDVYD.js",
+        "bytes": 3362,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/fallbacks.js",
+        "bytes": 17221,
+        "entry": "src/webview/fallbacks/index.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-QW55664D.js",
+        "bytes": 213836,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/bridge.js",
+        "bytes": 1329,
+        "entry": "src/webview/bridges/select.ts",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-XTXMI7XF.js",
+        "bytes": 721,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-72WR7SS5.js",
+        "bytes": 2265,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/HistoryDialog-VH533FNC.js",
+        "bytes": 3498,
+        "entry": "src/webview/components/HistoryDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/SessionBoardDialog-N2M2A3IY.js",
+        "bytes": 2351,
+        "entry": "src/webview/components/SessionBoardDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-SR5S3XVV.js",
+        "bytes": 1942,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-5D5OIGMZ.js",
+        "bytes": 165,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-EQM4AY4U.js",
+        "bytes": 242,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/AgentMap-XXOXTP2H.js",
+        "bytes": 8158,
+        "entry": "src/webview/components/AgentMap.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-7C7DGK42.js",
+        "bytes": 4105,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-6NYCEFBF.js",
+        "bytes": 55581,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-5P4VOFIA.js",
+        "bytes": 12651,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-A7AS7J2A.js",
+        "bytes": 1143,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-L37JLZDH.js",
+        "bytes": 4530,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/UsageDialog-CUQ6GFSW.js",
+        "bytes": 11352,
+        "entry": "src/webview/components/UsageDialog.tsx",
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-VYF6D5Q4.js",
+        "bytes": 367,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-KCHKQUUF.js",
+        "bytes": 8330,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-HSF33VFQ.js",
+        "bytes": 4158,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-6AN37I32.js",
+        "bytes": 1434,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-5OYIARPN.js",
+        "bytes": 0,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-QCBRQZS2.js",
+        "bytes": 1554,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-7QB7L436.js",
+        "bytes": 34246,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-MGULZ2SN.js",
+        "bytes": 7083,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-ZKL4EFL5.js",
+        "bytes": 8975,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-7LEPRTKF.js",
+        "bytes": 139749,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/chunk-DCANE7XH.js",
+        "bytes": 638,
+        "eager": true
+      },
+      {
+        "file": "dist/webview/portable/chunks/native-YNYBINDK.css",
+        "bytes": 1752,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/chunks/companion-LGFWHNJG.css",
+        "bytes": 1752,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/main.css",
+        "bytes": 68008,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/whatsNew.css",
+        "bytes": 19824,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/fallbacks.css",
+        "bytes": 1752,
+        "eager": false
+      },
+      {
+        "file": "dist/webview/portable/bridge.css",
+        "bytes": 1752,
+        "eager": false
+      }
+    ]
+  }
+}

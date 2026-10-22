@@ -1,0 +1,310 @@
+{
+  "lane": "M104F4",
+  "round": 3,
+  "report": "RVM104F4C",
+  "machine": "Kubuntu, Linux x86_64",
+  "date": "2026-10-10",
+  "base": "4206966e25034d396199500c001d4896de6d3ec7",
+  "measurements": [
+    {
+      "name": "native startup JS",
+      "bytes": 782149,
+      "outputs": 64,
+      "budgetKiB": 1100
+    },
+    {
+      "name": "companion startup JS",
+      "bytes": 804007,
+      "outputs": 71,
+      "budgetKiB": 1100
+    },
+    {
+      "name": "total JS",
+      "bytes": 1323637,
+      "outputs": 178,
+      "budgetKiB": 1486
+    }
+  ],
+  "metafileSha256": "4d8629c801b1be55336bcc30ee15d5f79806ec4d4ac721982d04228e14c0cfa5",
+  "bootImports": [
+    {
+      "file": "src/webview/portable.tsx",
+      "path": "./bridges/select",
+      "variant": "both"
+    },
+    {
+      "file": "src/webview/portable.tsx",
+      "path": "../shared/tasksProtocol",
+      "variant": "tasks"
+    },
+    {
+      "file": "src/webview/portable.tsx",
+      "path": "./bridges/companionUi",
+      "variant": "companion"
+    },
+    {
+      "file": "src/webview/portable.tsx",
+      "path": "./TasksApp",
+      "variant": "tasks"
+    },
+    {
+      "file": "src/webview/bridges/select.ts",
+      "path": "./native",
+      "variant": "native"
+    },
+    {
+      "file": "src/webview/bridges/select.ts",
+      "path": "./companion",
+      "variant": "companion"
+    },
+    {
+      "file": "src/webview/bridges/select.ts",
+      "path": "../../shared/hostApi/panel",
+      "variant": "companion"
+    }
+  ],
+  "sourceSha256": {
+    "scripts/lib/webviewBundles.mjs": "c211cbf1c6d83e1f8f182df7fc6e0ebcd4d5782bd1754b49695fe0dc3ba756ed",
+    "scripts/check-bundle-split.mjs": "047e1725cad08c3040aa23509bf53a11c0a4558eb9a333e56b3dea66aadd32ab",
+    "src/webview/portable.tsx": "be462047bd77820a644c32bae414a45be4209617dae9e64322190add0576b354",
+    "src/webview/bridges/select.ts": "b03637b2df3309578dc5929f3d72316c39d23da04ebab033d770c292b21382a5",
+    "src/webview/bridges/types.ts": "922e10c7fe19b0e3a558e8ccf25fbab9a34cf04294fbd2002176af92977543f3",
+    "test/unit/bundleSize.test.mjs": "7dd4d6d6314b4ba841048ef6b2861e19e906a36cbefd5eff032757ef2e9e6a82",
+    "test/unit/webviewBundle.test.mjs": "14c30cadd5352e2f46a449445f0cf8d04f9503827bcdbd3ac03491eb55d28fa8",
+    "test/unit/webviewBundles.test.mjs": "6deecc28454c873aceb61deb52c5c3f5acb03babf6c50976986ddfe07856d6bd"
+  },
+  "drills": [
+    {
+      "drill": "accounting",
+      "command": "npx vitest run test/unit/bundleSize.test.mjs test/unit/webviewBundles.test.mjs --maxWorkers=3",
+      "exit": 1,
+      "file": "scripts/lib/webviewBundles.mjs",
+      "before": "c211cbf1c6d83e1f8f182df7fc6e0ebcd4d5782bd1754b49695fe0dc3ba756ed",
+      "mutated": "fe6b2d96111443323fef6d026cf53cf9d81941d445c1d64bdb6d4c76780d1429",
+      "log": "temp/f4-r3-drill-accounting.log",
+      "restored": "c211cbf1c6d83e1f8f182df7fc6e0ebcd4d5782bd1754b49695fe0dc3ba756ed"
+    },
+    {
+      "drill": "guard",
+      "command": "npx vitest run test/unit/bundleSize.test.mjs test/unit/webviewBundles.test.mjs --maxWorkers=3",
+      "exit": 1,
+      "file": "scripts/lib/webviewBundles.mjs",
+      "before": "c211cbf1c6d83e1f8f182df7fc6e0ebcd4d5782bd1754b49695fe0dc3ba756ed",
+      "mutated": "ad83f273b220b8abafbc2883f3c36eeae1746e4c60ea90110ddeaa7462e22e4d",
+      "log": "temp/f4-r3-drill-guard.log",
+      "restored": "c211cbf1c6d83e1f8f182df7fc6e0ebcd4d5782bd1754b49695fe0dc3ba756ed"
+    }
+  ],
+  "realAwaitedOptionalBuildDrill": {
+    "file": "src/webview/portable.tsx",
+    "before": "be462047bd77820a644c32bae414a45be4209617dae9e64322190add0576b354",
+    "imports": 64,
+    "mutated": "ea4d22eb2561f44f0ccb65608ff886f3b25fceba8ebe2dc7c264dfbfbd04f189",
+    "command": "npm run build",
+    "exit": 1,
+    "measurements": [
+      {
+        "name": "native startup JS",
+        "outputs": 160,
+        "bytes": 1239136,
+        "budgetKiB": 1100
+      },
+      {
+        "name": "companion startup JS",
+        "outputs": 161,
+        "bytes": 1240090,
+        "budgetKiB": 1100
+      },
+      {
+        "name": "total JS",
+        "outputs": 178,
+        "bytes": 1326103,
+        "budgetKiB": 1486
+      }
+    ],
+    "restored": "be462047bd77820a644c32bae414a45be4209617dae9e64322190add0576b354"
+  },
+  "verification": [
+    {
+      "command": "npm run build",
+      "exit": 0,
+      "log": "temp/f4-r3-build-final.log"
+    },
+    {
+      "command": "npm run typecheck:webview",
+      "exit": 0,
+      "log": "temp/f4-r3-tsc.log"
+    },
+    {
+      "command": "npx vitest run test/unit/bundleSize.test.mjs test/unit/webviewBundle.test.mjs test/unit/webviewBundles.test.mjs --maxWorkers=3",
+      "exit": 0,
+      "tests": 149,
+      "seconds": 46.46,
+      "log": "temp/f4-r3-bundle-restored.log"
+    },
+    {
+      "command": "npx vitest run test/unit/webviewEntries.test.mjs --maxWorkers=3",
+      "exit": 0,
+      "tests": 3,
+      "seconds": 8.35,
+      "log": "temp/f4-r3-entries-final.log"
+    },
+    {
+      "command": "npx eslint --max-warnings=0 scripts/lib/webviewBundles.mjs scripts/check-bundle-split.mjs src/webview/portable.tsx src/webview/bridges/select.ts src/webview/bridges/types.ts test/unit/webviewBundles.test.mjs test/unit/bundleSize.test.mjs test/unit/webviewBundle.test.mjs",
+      "exit": 0,
+      "seconds": 7.32,
+      "log": "temp/f4-r3-final-eslint.log"
+    },
+    {
+      "command": "npx prettier --write README.md PLAN.md docs/certification/m104.md",
+      "exit": 0,
+      "seconds": 16.16,
+      "log": "temp/f4-r3-final-format.log"
+    },
+    {
+      "command": "npm run roadmap:generate",
+      "exit": 0,
+      "seconds": 0.86,
+      "log": "temp/f4-r3-final-roadmap-generate.log"
+    },
+    {
+      "command": "npx prettier --check scripts/lib/webviewBundles.mjs scripts/check-bundle-split.mjs src/webview/portable.tsx src/webview/bridges/select.ts src/webview/bridges/types.ts test/unit/webviewBundles.test.mjs test/unit/bundleSize.test.mjs test/unit/webviewBundle.test.mjs README.md CHANGELOG.md PLAN.md docs/certification/m104.md docs/roadmap/entries.json ROADMAP.md",
+      "exit": 0,
+      "seconds": 16.93,
+      "log": "temp/f4-r3-final-prettier.log"
+    },
+    {
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 3.55,
+      "log": "temp/f4-r3-final-l10n.log"
+    },
+    {
+      "command": "npm run check:reference",
+      "exit": 0,
+      "seconds": 3.33,
+      "log": "temp/f4-r3-final-reference.log"
+    },
+    {
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "seconds": 38.01,
+      "log": "temp/f4-r3-final-host-api.log"
+    },
+    {
+      "command": "npm run check:plan",
+      "exit": 0,
+      "seconds": 0.6,
+      "log": "temp/f4-r3-final-plan.log"
+    },
+    {
+      "command": "npm run check:roadmap",
+      "exit": 0,
+      "seconds": 0.86,
+      "log": "temp/f4-r3-final-roadmap.log"
+    },
+    {
+      "command": "npm run deadcode",
+      "exit": 0,
+      "seconds": 6.02,
+      "log": "temp/f4-r3-final-deadcode.log"
+    },
+    {
+      "command": "npm run duplication",
+      "exit": 0,
+      "seconds": 2.02,
+      "log": "temp/f4-r3-final-duplication.log"
+    },
+    {
+      "command": "npx vitest run test/unit/webviewBundle.test.mjs --maxWorkers=3",
+      "exit": 0,
+      "tests": 61,
+      "log": "temp/f4-r3-production-regression-final.log",
+      "reason": "Require the startup overflow diagnostic, not merely the startup label."
+    }
+  ],
+  "logSha256": [
+    {
+      "file": "temp/f4-r3-final-eslint.log",
+      "sha256": "f5b401bfe1b1807296cc3a1dac3c8430702bb826690b2b5b6a4553374cec58c0"
+    },
+    {
+      "file": "temp/f4-r3-final-format.log",
+      "sha256": "e06825825edd7e3496a9138a43b569b763cb7eddc631d3fd5e1ac4457c618e2e"
+    },
+    {
+      "file": "temp/f4-r3-final-roadmap-generate.log",
+      "sha256": "aa7ec5794f15466c6d90966421d0dad57f87bb0cb3892fce099e07f3b86fe9cf"
+    },
+    {
+      "file": "temp/f4-r3-final-prettier.log",
+      "sha256": "735f53edb9ac01387a69dd5ac22c312a357e333e79808e5c64bebb4c385afcf3"
+    },
+    {
+      "file": "temp/f4-r3-final-l10n.log",
+      "sha256": "0d0bbe35b49c20c9ba1da849e23ac62130c77661503562d86f041afd37ee71e8"
+    },
+    {
+      "file": "temp/f4-r3-final-reference.log",
+      "sha256": "73e587c563b307d7fccace5c24e9d14a1ff2e249cbbbd05ec3fb6dea25c0ebcc"
+    },
+    {
+      "file": "temp/f4-r3-final-host-api.log",
+      "sha256": "96bc71dcfe64be71e10321c7d6aaee24813e821e2868b72600c3123ad4f541ee"
+    },
+    {
+      "file": "temp/f4-r3-final-plan.log",
+      "sha256": "7d92b0a61352418afffc6815b26141a0a3249a0d70bcafae45b1cedad2e85c87"
+    },
+    {
+      "file": "temp/f4-r3-final-roadmap.log",
+      "sha256": "e9e415bd9d0fc6e9aea6b4cb90239175b2fecf90ee404a630b88c51b82d8203e"
+    },
+    {
+      "file": "temp/f4-r3-final-deadcode.log",
+      "sha256": "eaf13aa84256b8706555f78e45b63d98bdfbc725d3e365ea597eb3139c00667b"
+    },
+    {
+      "file": "temp/f4-r3-final-duplication.log",
+      "sha256": "bc3156bf4a2fc369b1bbe863a96d3e995aed47c516e550806141a6b3bead6937"
+    },
+    {
+      "file": "temp/f4-r3-bundle-restored.log",
+      "sha256": "84ee847e40b2de984fc00683758fc764c3b999073e1313a925c35117ddfeff45"
+    },
+    {
+      "file": "temp/f4-r3-entries-final.log",
+      "sha256": "3d94e28a01166bd836157d59d35b4c48e2dd703d0fb8e674ff1c678995a6ec46"
+    },
+    {
+      "file": "temp/f4-r3-tsc.log",
+      "sha256": "633b74e4b35967032d3fc8b1d6c4e4f1379e773455384afd1fb866768c95c352"
+    },
+    {
+      "file": "temp/f4-r3-build-final.log",
+      "sha256": "62a5bda45da022801b849bbe60b54ef7efeecb8d4d4c98f4096d3a290dca8d6e"
+    },
+    {
+      "file": "temp/f4-r3-drill-accounting.log",
+      "sha256": "5675fe94d9b0a347992525828c3b295fb4255df814599b1efeb69fe45fa21003"
+    },
+    {
+      "file": "temp/f4-r3-drill-guard.log",
+      "sha256": "2bc36638ab26998b33638254d87eacead7cb7850e9cab5d318bac76d1b336453"
+    },
+    {
+      "file": "temp/f4-r3-drill-real-build.log",
+      "sha256": "03e62cf917ae85b573cba08f909895cf4244bd2533b7facfeb9a3d0899d44e5a"
+    },
+    {
+      "file": "temp/f4-r3-production-regression-final.log",
+      "sha256": "4ab1c2697cb5bb9cf2932259a180a559847cec7c04f270143d8a62e849419a56"
+    }
+  ],
+  "limits": "Repository test deadlines; no timeout override, cap change, paid/live call, network research, merge, rebase, push or sub-agent. Full quality forbidden by lane brief; lead-owned.",
+  "preCommitScanner": {
+    "initialExit": 1,
+    "rule": "generic-api-key",
+    "finding": "A log SHA-256 assigned to a filename containing host-api was a false positive. Record hashes as file/sha256 rows; no scanner rule, ignore, hook or policy changed."
+  }
+}

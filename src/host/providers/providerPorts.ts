@@ -4,7 +4,7 @@
 // models-list parsers; lane T owns the shared transport the key tests and
 // scans call through. Until those merge, every member below is an injected
 // dependency: production code never fakes one, and the composition in
-// `src/host/models/modelsPanelEntry.ts` takes each from its owning lane's
+// `src/host/vscode/models/modelsPanelEntry.ts` takes each from its owning lane's
 // real module (through `dist/providers.js`, PLAN.md D6). Tests hand in
 // fixtures from `test/**`.
 //
