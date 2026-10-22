@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **The usage companion page now matches the Muse design.** It follows
+  your computer's light or dark mode, and uses your installed fonts once
+  `fonts install` has run.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

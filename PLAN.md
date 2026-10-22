@@ -31972,6 +31972,18 @@ N with M110a0.
   and plain labels, F71 Share-as heading. Still waiting: N with M110a0, D
   with M111; F62 per-model CLI prices (upstream: the CLI reports no tier);
   F69 Session Usage real-life check with a signed-in CLI.
+- **RLM114 companion binding (2026-10-22, lane RLM114,
+  `docs/certification/rlm114.md`):** lane C's companion half is bound to
+  the real page: the usage page links static `dist/webview/theme.css`
+  (25 KiB cap, 22.1 measured), mounts the CSS-free consumer with an
+  empty-role Muse-palette port, applies stored appearance through F's
+  ports, and serves the installed font pack when present; the launch
+  bootstrap installs the page under the launch nonce and fetches
+  packaged fonts authenticated. The F69 row chain (host report to
+  rendered totals) is pinned by real-code tests. Still waiting: the
+  native-host binding (no MHP theme message on main), the F62 upstream
+  prices and F8 switch, the F69 live check, the companion look on a
+  browser rig, N with M110a0, D with M111.
 
 - **Goal.** Every surface, in every editor and on Muse Desktop, looks modern
   and of a piece: it matches the user's theme, VS Code's own elements stay VS
