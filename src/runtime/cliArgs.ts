@@ -18,6 +18,8 @@ import {
   type AcpPaidFeature,
   CHATGPT_NEW_ACCOUNT_FLAG,
   MILLISECONDS_PER_SECOND,
+  PROVIDER_SPEND_DAYS_DEFAULT,
+  PROVIDER_SPEND_DAYS_MAX,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -95,9 +97,9 @@ export interface ServeOptions {
   /** The paid features whose flags were given (M63c); each use asks first (M58). Model API only. */
   readonly paidFeatures: readonly AcpPaidFeature[]
   /**
-   * C-M95-SUB: drive the Model API backend from the Muse Code
-   * subscription instead of a stored key. Model API only.
-   */
+  C-M95-SUB: drive the Model API backend from the Muse Code
+  subscription instead of a stored key. Model API only.
+  */
   readonly subscription?: boolean | undefined
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
@@ -194,6 +196,7 @@ export type RuntimeCommand =
   | {
       readonly command: 'authStatus' | 'authClear'
       readonly provider?: string | undefined
+      readonly admin?: boolean | undefined
     }
   | { readonly command: 'authGitHub'; readonly action: GitHubAuthAction }
   | { readonly command: 'providersList' }
@@ -202,11 +205,17 @@ export type RuntimeCommand =
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
   | { readonly command: 'openRouterConnect' }
-  | { readonly command: 'providerKeyUsage'; readonly provider: string }
+  | {
+      readonly command: 'providersUsage'
+      readonly provider: string
+      readonly days: number
+      readonly json: boolean
+    }
   | {
       readonly command: 'authSet'
       readonly provider?: string | undefined
       readonly target?: AccountTarget
+      readonly admin?: boolean | undefined
     }
   | { readonly command: 'accounts'; readonly options: AccountsCommand }
   | { readonly command: 'developer'; readonly args: readonly string[] }
@@ -267,7 +276,12 @@ const PROVIDER_AUTH_OPTIONS = [
   'key-stdin',
   'context-window',
 ] as const
-const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS] as const
+const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS, 'days', 'admin', 'output'] as const
+/**
+Flags the auth route refuses beside its own targeting: the providers-add
+flags and the spend report's own flags. `--admin` passes through.
+*/
+const AUTH_FORBIDDEN_OPTIONS = [...PROVIDER_AUTH_OPTIONS, 'days', 'output'] as const
 
 /** The strict parser's values, for the provider subcommands below. */
 type StrictValues = ReturnType<typeof parseCommandLineStrictly>['values']
@@ -813,7 +827,9 @@ export function parseCommandLine<T>(
   // Auth positionals are never echoed: a mistyped token may be the key itself.
   if (rest.length > 0)
     return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
-  const refusedAuthFlag = PROVIDER_AUTH_OPTIONS.find((name) => values[name] !== undefined)
+  // The auth route takes its own targeting plus `--admin` (PROVSPEND); the
+  // providers-add flags and the spend report's own flags stay out.
+  const refusedAuthFlag = AUTH_FORBIDDEN_OPTIONS.find((name) => values[name] !== undefined)
   if (refusedAuthFlag !== undefined) {
     return invalid(`--${refusedAuthFlag}`)
   }
@@ -823,6 +839,14 @@ export function parseCommandLine<T>(
   }
   const provider = values.provider
   const hasTarget = values.account !== undefined
+  // PROVSPEND: the admin report key is per provider, never per account.
+  const isAdmin = values.admin === true
+  if (isAdmin && (provider === undefined || !isProviderId(provider))) {
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+  }
+  if (isAdmin && hasTarget) {
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+  }
   if (auth === 'authSet' && hasTarget) {
     const targetProvider = accountIdSchema.safeParse(provider ?? 'meta')
     const targetAccount = accountIdSchema.safeParse(values.account ?? ACCOUNT_DEFAULT_ID)
@@ -837,8 +861,59 @@ export function parseCommandLine<T>(
       exitCode: 2,
     }
   }
+  if (provider === undefined) return { command: auth }
+  return isAdmin ? { command: auth, provider, admin: true } : { command: auth, provider }
+}
 
-  return provider === undefined ? { command: auth } : { command: auth, provider }
+/**
+`providers usage <id> [--days n] [--output json]` (PROVSPEND): what the
+provider itself reports was spent. Only its own flags ride along.
+*/
+/**
+The `<id>` of `providers test|remove|usage`: the id, or the invalid
+command unless exactly one known provider id rides along.
+*/
+function providersIdOrInvalid(rest: readonly string[], usage: string): string | RuntimeCommand {
+  const [provider] = rest
+  if (provider === undefined || rest.length !== 1) {
+    return invalid(usage)
+  }
+  if (!isProviderId(provider)) {
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.providerUnknown, { provider }),
+      exitCode: 2,
+    }
+  }
+  return provider
+}
+
+function parseProvidersUsage(values: StrictValues, rest: readonly string[]): RuntimeCommand {
+  const provider = providersIdOrInvalid(rest, 'providers usage')
+  if (typeof provider !== 'string') return provider
+  if (
+    values.preset !== undefined ||
+    values.as !== undefined ||
+    values.address !== undefined ||
+    values.format !== undefined ||
+    values.model !== undefined ||
+    values.privacy !== undefined ||
+    values['private-ok'] !== undefined ||
+    values['key-stdin'] !== undefined ||
+    values.admin === true
+  ) {
+    return invalid('providers usage')
+  }
+  let days = PROVIDER_SPEND_DAYS_DEFAULT
+  if (values.days !== undefined) {
+    const parsed = /^\d+$/.test(values.days) ? Number(values.days) : NaN
+    if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > PROVIDER_SPEND_DAYS_MAX)
+      return invalid('providers usage')
+    days = parsed
+  }
+  return values.output === undefined || values.output === 'json'
+    ? { command: 'providersUsage', provider, days, json: values.output === 'json' }
+    : invalid('providers usage')
 }
 
 /** `auth github login|logout|status` (M123): exactly one word, no flag, no value. */
@@ -861,15 +936,6 @@ function parseProviders(
         ? { command: 'openRouterConnect' }
         : invalid('providers connect openrouter')
     }
-    case 'usage': {
-      const [provider] = rest
-      return provider !== undefined &&
-        rest.length === 1 &&
-        isProviderId(provider) &&
-        Object.keys(values).length === 0
-        ? { command: 'providerKeyUsage', provider }
-        : invalid('providers usage <id>')
-    }
     case 'list': {
       return rest.length === 0
         ? { command: 'providersList' }
@@ -877,18 +943,12 @@ function parseProviders(
     }
     case 'test':
     case 'remove': {
-      const [provider] = rest
-      if (provider === undefined || rest.length !== 1) {
-        return invalid(`providers ${verb}`)
-      }
-      if (!isProviderId(provider)) {
-        return {
-          command: 'invalid',
-          reason: fill(UI_TEXT.providerUnknown, { provider }),
-          exitCode: 2,
-        }
-      }
+      const provider = providersIdOrInvalid(rest, `providers ${verb}`)
+      if (typeof provider !== 'string') return provider
       return { command: verb === 'test' ? 'providersTest' : 'providersRemove', provider }
+    }
+    case 'usage': {
+      return parseProvidersUsage(values, rest)
     }
     case 'add': {
       return parseProvidersAdd(values, rest)

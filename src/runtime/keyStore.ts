@@ -21,6 +21,7 @@ import {
   KEYSTORE_LOCK_ACCOUNT_CHARS,
   KEYSTORE_LOCK_DIR,
   KEYSTORE_LOCK_PIPE,
+  PROVIDER_ADMIN_SECRET_PREFIX,
   UI_TEXT,
 } from '../shared/constants'
 import type { CredentialRecord } from '../core/providers/credentialRecord'
@@ -304,6 +305,16 @@ a provider id (`meta` is reserved and never valid).
 */
 export function providerSecretAccount(providerId: string): string | undefined {
   return isProviderId(providerId) ? `museSpark.provider.${providerId}` : undefined
+}
+
+/**
+The OS store account holding a provider's admin report key (PROVSPEND):
+its own name under the same service, so an inference read never finds
+it and the admin key is used for nothing but read-only report requests.
+Undefined for anything but a provider id, exactly like the inference key.
+*/
+export function providerAdminSecretAccount(providerId: string): string | undefined {
+  return isProviderId(providerId) ? `${PROVIDER_ADMIN_SECRET_PREFIX}${providerId}` : undefined
 }
 
 /**

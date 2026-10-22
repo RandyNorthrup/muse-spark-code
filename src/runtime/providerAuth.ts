@@ -158,11 +158,12 @@ export async function runAuthSetProvider(
   providerId: string,
   readUserFile: () => Promise<ProvidersFileRead>,
   withLock: CredentialLock,
+  options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
   try {
     return await withLock(async () => {
       const report = await recoverAndReportJournal(deps)
-      return report.failed ? 1 : await authSetProvider(deps, providerId, readUserFile)
+      return report.failed ? 1 : await authSetProvider(deps, providerId, readUserFile, options)
     })
   } catch (error: unknown) {
     if (!isCredentialLockBusy(error)) throw error
@@ -176,11 +177,12 @@ export async function runAuthClearProvider(
   deps: AuthCommandDeps,
   providerId: string,
   withLock: CredentialLock,
+  options: { readonly admin?: boolean | undefined } = {},
 ): Promise<number> {
   try {
     return await withLock(async () => {
       const report = await recoverAndReportJournal(deps)
-      return report.failed ? 1 : await authClearProvider(deps, providerId)
+      return report.failed ? 1 : await authClearProvider(deps, providerId, options)
     })
   } catch (error: unknown) {
     if (!isCredentialLockBusy(error)) throw error
@@ -198,11 +200,12 @@ export async function runAuthStatusProvider(
   deps: AuthCommandDeps,
   providerId: string,
   withLock: CredentialLock,
+  options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
   try {
     return await withLock(async () => {
       const report = await recoverAndReportJournal(deps)
-      return report.failed ? 1 : await authStatusProvider(deps, providerId)
+      return report.failed ? 1 : await authStatusProvider(deps, providerId, options)
     })
   } catch (error: unknown) {
     if (!isCredentialLockBusy(error)) throw error

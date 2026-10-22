@@ -7,7 +7,7 @@
 
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
-import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
+import { PROVIDER_ADMIN_SECRET_PREFIX, PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import { CredentialStore } from '../auth/credentialStore'
 
 /**
@@ -105,6 +105,53 @@ export async function readProviderCredential(
 /** Deletes a provider's credential record (removal after its Undo). */
 export async function deleteProviderCredential(secrets: RecordStore, id: string): Promise<void> {
   await secrets.delete(providerSecretKey(id))
+}
+
+/**
+The SecretStorage account name for a provider's admin report key
+(PROVSPEND): its own name, so an inference read never finds it.
+*/
+export function providerAdminSecretKey(id: string): string {
+  return `${PROVIDER_ADMIN_SECRET_PREFIX}${id}`
+}
+
+/** Stores a provider's admin report key, bound to the provider's API origin. */
+export async function saveProviderAdminCredential(
+  secrets: RecordStore,
+  id: string,
+  record: CredentialRecord,
+): Promise<void> {
+  await secrets.store(providerAdminSecretKey(id), JSON.stringify(record))
+}
+
+/** The stored admin report key, or undefined when none was entered. */
+export async function readProviderAdminCredential(
+  secrets: RecordStore,
+  id: string,
+): Promise<CredentialRecord | undefined> {
+  const stored = await secrets.get(providerAdminSecretKey(id))
+  if (stored === undefined || stored === '') {
+    return undefined
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stored)
+  } catch {
+    throw new Error(`The stored admin credential for provider ${id} is not valid JSON`)
+  }
+  const record = credentialRecordSchema.safeParse(parsed)
+  if (!record.success) {
+    throw new Error(`The stored admin credential for provider ${id} is not a credential record`)
+  }
+  return record.data
+}
+
+/** Deletes a provider's admin report key (removing the provider removes it). */
+export async function deleteProviderAdminCredential(
+  secrets: RecordStore,
+  id: string,
+): Promise<void> {
+  await secrets.delete(providerAdminSecretKey(id))
 }
 
 /**

@@ -282,8 +282,9 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     usage: [
       (command) => `${command} providers list|add|test|remove`,
       (command) => `${command} providers models <entry> [--add <model>] [--remove <model>]`,
+      (command) => `${command} providers usage <id> [--days <n>] [--output json]`,
     ],
-    routes: ['providersAdd', 'providersModels'],
+    routes: ['providersAdd', 'providersModels', 'providersUsage'],
     options: [
       { name: 'preset', shape: '<preset>' },
       { name: 'as', shape: '<id>' },
@@ -305,6 +306,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'add', shape: '<model>' },
       { name: 'remove', shape: '<model>' },
       { name: 'force', shape: '<reason>' },
+      { name: 'days', shape: '<n>' },
+      { name: 'output', shape: '<format>' },
       { name: 'help', shape: '' },
     ],
     examples: [
