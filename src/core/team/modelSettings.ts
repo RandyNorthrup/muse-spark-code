@@ -15,6 +15,7 @@ import {
   TEAM_ROLE_IDS,
   TEAM_ROLE_BASE_EFFORT,
   TEAM_DEFAULT_ROLE_EFFORT,
+  isModelApiModelId,
 } from '../../shared/constants'
 
 /** Every setting an entry or the orchestrator slot may expose. */
@@ -88,10 +89,10 @@ export function supportedSettings(source: TeamModelSettingsSource): readonly Tea
   if (source.supportsMaxOutputTokens) {
     settings.push('maxOutputTokens')
   }
-  if (source.supportsSampling && !isMuseSparkModel(source.modelRef)) {
+  if (source.supportsSampling && !isMetaFirstPartyModel(source.modelRef)) {
     settings.push('sampling')
   }
-  if (source.supportsVerbosity && !isMuseSparkModel(source.modelRef)) {
+  if (source.supportsVerbosity && !isMetaFirstPartyModel(source.modelRef)) {
     settings.push('verbosity')
   }
   if (source.supportsParallelToolCalls) {
@@ -103,8 +104,8 @@ export function supportedSettings(source: TeamModelSettingsSource): readonly Tea
   return settings
 }
 
-function isMuseSparkModel(modelRef: string): boolean {
-  return modelRef.startsWith('muse-spark-')
+function isMetaFirstPartyModel(modelRef: string): boolean {
+  return isModelApiModelId(modelRef)
 }
 
 /** Each setting's one-line cost note (D75). */

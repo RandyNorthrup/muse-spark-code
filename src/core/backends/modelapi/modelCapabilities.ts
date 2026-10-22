@@ -4,6 +4,7 @@ import type { ArgumentPreviewCapabilities } from './argumentPreview'
 import { modelPolicyFor } from './modelPolicy'
 import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
+  MODEL_API_PRICED_MODELS,
   M106_CAPTURED_META_MODEL,
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
@@ -16,14 +17,17 @@ export function metaModelFacts(modelId: string):
     }
   | undefined {
   if (!MODEL_API_LEGACY_CONTEXT_MODELS.includes(modelId)) return undefined
+  const wonder: readonly string[] = MODEL_API_PRICED_MODELS.wonder
   return {
     capabilities: {
       toolCalling: true,
       vision: true,
       reasoning: true,
       parallelToolCalls: true,
-      // Owner's live 2026-10-05 strict-tool receipt (M101INT brief).
-      supportsStrictTools: true,
+      // Owner's live 2026-10-05 strict-tool receipt (M101INT brief) covered
+      // Muse Spark only; Wonder's strict support is unmeasured, so strict
+      // tools are not sent there.
+      ...(!wonder.includes(modelId) && { supportsStrictTools: true }),
     },
     quirks: { cachedUsageFields: ['input_tokens_details.cached_tokens'] },
   }

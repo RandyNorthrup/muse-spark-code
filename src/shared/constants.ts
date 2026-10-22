@@ -2545,9 +2545,15 @@ export const MODEL_API_VERSION = 'v1'
 // Only chat models are listed; the catalogue also carries image, voice and
 // segmentation models.
 export const MODEL_API_MODEL_PREFIX = 'muse-spark-'
+// Muse Wonder rides the same backend under its own name (dev.meta.ai/docs/
+// models, 2026-10-21): both prefixes are Meta first-party chat models.
+export const MODEL_API_MODEL_PREFIXES: readonly string[] = [MODEL_API_MODEL_PREFIX, 'muse-wonder-']
+export function isModelApiModelId(model: string | undefined): boolean {
+  return model !== undefined && MODEL_API_MODEL_PREFIXES.some((prefix) => model.startsWith(prefix))
+}
 export const CONTRIBUTOR_MODEL_SUFFIX = '-contributor'
 // Meta's published Model API prices per million tokens (dev.meta.ai/docs/
-// pricing-rate-limits, read 2026-09-22). Finite admission uses only the
+// pricing-rate-limits, read 2026-10-22). Finite admission uses only the
 // exact MODEL_API_PRICED_MODELS whitelist below. A suffix display fallback
 // for a future model is not a verified tariff or capped spending.
 export const MODEL_API_PRICES_PER_MILLION = {
@@ -2561,8 +2567,13 @@ export const MODEL_API_PRICES_PER_MILLION = {
     cachedInput: /* @__PURE__ */ usdAmountSchema.parse('0.002'),
     output: /* @__PURE__ */ usdAmountSchema.parse('0.2'),
   },
+  wonder: {
+    input: /* @__PURE__ */ usdAmountSchema.parse('4'),
+    cachedInput: /* @__PURE__ */ usdAmountSchema.parse('0.2'),
+    output: /* @__PURE__ */ usdAmountSchema.parse('20'),
+  },
 } as const
-export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
+export const MODEL_API_PRICES_VERIFIED_ON = '2026-10-22'
 export const MODEL_API_PRICE_DECIMALS = 3
 /** Decimal currency coefficients stay integers; no binary USD arithmetic in admission. */
 export const USD_USAGE_DISPLAY_DECIMALS = 4
@@ -2571,6 +2582,8 @@ export const PROVIDER_PRICE_MAX_DECIMALS = 20
 export const MODEL_API_PRICED_MODELS = {
   standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
+  // Standard mode at its own tariff; Contributor mode is not offered for it.
+  wonder: ['muse-wonder-1.0'],
 } as const
 /** A consent grant covers actual child HTTP attempts, including all retries. */
 // D121 (owner 2026-10-16): no request bound of ours on a child task — a
@@ -2593,8 +2606,9 @@ export const BEST_OF_N_MIN_GIT_MINOR = 36
 /** Bump when the accepted rates or child-task limit changes. */
 export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-10-19:unbounded:v1'
 export const TOKENS_PER_MILLION = 1_000_000
-// dev.meta.ai/docs/models: every Muse Spark model has this window; the
-// output cap is well under the documented 131,072 maximum.
+// dev.meta.ai/docs/models: every Muse Spark model has this window, and so
+// does Muse Wonder 1.0; the output cap is well under the documented
+// 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 /** Verified legacy ids only; an installed registry resolver always owns its rows. */
 export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
@@ -2603,6 +2617,7 @@ export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
   'muse-spark-1.3',
   'muse-spark-1.2-contributor',
   'muse-spark-1.3-contributor',
+  'muse-wonder-1.0',
 ]
 // U8/U10 captured selected model; other models retain unknown capability states.
 export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'

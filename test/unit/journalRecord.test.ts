@@ -219,7 +219,7 @@ describe('journal records', () => {
       certainty: 'uncertain',
       usd: '0.000125',
       source: 'meta-published',
-      date: '2026-09-26',
+      date: '2026-10-22',
     })
     expect(createUsageRecord({ output_tokens: 20 }, meta).cost.usd).toBe('0.000085')
     expect(
@@ -235,7 +235,14 @@ describe('journal records', () => {
       certainty: 'computed',
       usd: '0.00021',
       source: 'meta-published',
-      date: '2026-09-26',
+      date: '2026-10-22',
+    })
+    const wonder = { ...context, provider: 'meta', model: 'muse-wonder-1.0' }
+    expect(createUsageRecord({ input_tokens: 100, output_tokens: 20 }, wonder).cost).toEqual({
+      certainty: 'computed',
+      usd: '0.0008',
+      source: 'meta-published',
+      date: '2026-10-22',
     })
     expect(createUsageRecord(usage, { ...meta, model: 'future-contributor' }).cost).toEqual({
       certainty: 'unpriced',
