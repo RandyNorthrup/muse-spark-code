@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@agentclientprotocol/sdk'
+import type { ContentBlock } from '@agentclientprotocol/sdk/unstable'
 import { AcpMedia, type AcpMediaDeps } from '../../src/acp/media'
 import { resourceName } from '../../src/acp/translate'
 import { UI_TEXT } from '../../src/shared/constants'

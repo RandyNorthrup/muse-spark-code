@@ -49,7 +49,7 @@ import {
   type SessionModeState,
   type SessionUpdate,
   type StopReason,
-} from '@agentclientprotocol/sdk'
+} from '@agentclientprotocol/sdk/unstable'
 import {
   type AgentHost,
   type AgentSession,

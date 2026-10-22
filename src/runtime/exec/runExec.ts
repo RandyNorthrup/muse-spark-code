@@ -1,5 +1,5 @@
 import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
-import type * as acp from '@agentclientprotocol/sdk'
+import type * as acp from '@agentclientprotocol/sdk/unstable'
 import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import {
   createUsageRecording,

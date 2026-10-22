@@ -39,7 +39,7 @@ import type {
   ToolCallStatus,
   ToolCallUpdate,
   ToolKind,
-} from '@agentclientprotocol/sdk'
+} from '@agentclientprotocol/sdk/unstable'
 import type { SessionMcpServer, TurnPart } from '../core/agent/agentBackend'
 import { resolveWorkspacePath } from '../core/workspacePath'
 import { readImageInfo } from '../core/imageDimensions'

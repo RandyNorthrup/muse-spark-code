@@ -1,6 +1,6 @@
 // M112 lane A: the agent owns the clock; the portable registry owns state,
 // persistence, coalescing and exactly-once delivery. Cancellation is cooperative.
-import type { AgentContext, CreateElicitationResponse } from '@agentclientprotocol/sdk'
+import type { AgentContext, CreateElicitationResponse } from '@agentclientprotocol/sdk/unstable'
 import { isSteerRefusedError, type AgentSession, type TurnPart } from '../core/agent/agentBackend'
 import type { AgentEvent } from '../shared/agentEvents'
 import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../shared/constants'

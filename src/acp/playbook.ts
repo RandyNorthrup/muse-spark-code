@@ -1,7 +1,7 @@
 // ACP's local /playbook: no turn, tool, backend request or model charge.
 // Parsing and rendering load with the journal bundle on first use; a
 // missing bundle answers unavailable rather than starting a model turn.
-import type { ContentBlock } from '@agentclientprotocol/sdk'
+import type { ContentBlock } from '@agentclientprotocol/sdk/unstable'
 import { UI_TEXT } from '../shared/constants'
 import type { PlaybookCommand, PlaybookSurfacePort } from '../runtime/playbook/command'
 

@@ -6,7 +6,7 @@
 // permission rule can already allow a command.
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
-import type { RequestPermissionResponse } from '@agentclientprotocol/sdk'
+import type { RequestPermissionResponse } from '@agentclientprotocol/sdk/unstable'
 import type { ApprovalChoice } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import { approvalChoiceSchema } from '../../src/shared/agentEvents'
