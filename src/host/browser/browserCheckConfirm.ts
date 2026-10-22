@@ -8,11 +8,7 @@
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { BrowserCheckScope } from '../../core/browser/browserTool'
-import {
-  BROWSER_DEV_ORIGIN_GRANTS_KEY,
-  BROWSER_CHECK_EXTRA_HOSTS_MAX,
-  UI_TEXT,
-} from '../../shared/constants'
+import { BROWSER_DEV_ORIGIN_GRANTS_KEY, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { widenedHost, isLoopbackHost, isMachineBrowserUrl } from '../../core/browser/browserPolicy'
 
@@ -27,17 +23,13 @@ export function browserDevOrigins(
 ) {
   let revision = 0
   const remembered = () => {
-    const parsed = z
-      .array(z.string())
-      .check(z.maxLength(BROWSER_CHECK_EXTRA_HOSTS_MAX))
-      .safeParse(state.get(BROWSER_DEV_ORIGIN_GRANTS_KEY))
+    const parsed = z.array(z.string()).safeParse(state.get(BROWSER_DEV_ORIGIN_GRANTS_KEY))
     return parsed.success ? parsed.data : []
   }
   const configured = () =>
-    settings().flatMap((entry) => {
-      const host = widenedHost(entry)
-      return host === undefined ? [] : [host]
-    })
+    settings()
+      .map((entry) => widenedHost(entry))
+      .filter((host) => host !== undefined)
   let grants = remembered()
   let writes = Promise.resolve()
   const save = (entries: readonly string[]) => {

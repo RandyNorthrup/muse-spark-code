@@ -6,10 +6,15 @@ import { startThonnyServer } from './thonnyServer'
 import { startCompanion } from './companionServer'
 import { companionAssets } from './assets'
 import { stopResultText } from './stop'
-import { runProgram, windowsPowerShell } from '../../host/processTree'
+import { runProgram } from '../../host/processTree'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
 import { powerShellQuoted } from '../../core/shellQuote'
-import { environmentValue } from '../../core/backends/musecode/launch'
+import {
+  environmentValue,
+  noWorkspaceChildEnvironment,
+  windowsPowerShell,
+} from '../../core/execGuard'
+import { realpathSync } from 'node:fs'
 
 export interface MakerCommandDeps {
   readonly service: Awaited<ReturnType<typeof createRuntimeMakerService>>
@@ -146,5 +151,10 @@ export async function openMakerBrowser(
       [...WINDOWS_POWERSHELL_COMMAND_ARGS, `Start-Process -FilePath ${powerShellQuoted(url)}`],
       shell.env,
     )
-  } else await runProgram(platform === 'darwin' ? '/usr/bin/open' : '/usr/bin/xdg-open', [url], env)
+  } else
+    await runProgram(
+      platform === 'darwin' ? '/usr/bin/open' : '/usr/bin/xdg-open',
+      [url],
+      noWorkspaceChildEnvironment(platform, env, realpathSync),
+    )
 }

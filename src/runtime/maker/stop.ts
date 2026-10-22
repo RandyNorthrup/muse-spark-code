@@ -10,15 +10,15 @@ import {
   type LeaseDependencies,
 } from '../../core/maker/lease'
 import type { MakerSecrets } from '../../core/maker/ports'
-import { environmentValue } from '../../core/backends/musecode/launch'
-import { runProgram, windowsPowerShell, type RunProgram } from '../../host/processTree'
+import { environmentValue, windowsPowerShell } from '../../core/execGuard'
+import { runProgram, type RunProgram } from '../../host/processTree'
 import { RUNTIME_MAKER_TIMEOUT_MS, RUNTIME_MAKER_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
 /**
- * The runtime's lease identity: Windows needs SystemRoot's PowerShell, or every
- * answer is unknown. Its name ignores case, as Windows does, in any copied env.
- */
+The runtime's lease identity: Windows needs SystemRoot's PowerShell, or every
+answer is unknown. Its name ignores case, as Windows does, in any copied env.
+*/
 export function runtimeLeaseIdentity(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,

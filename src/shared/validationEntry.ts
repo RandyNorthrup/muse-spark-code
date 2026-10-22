@@ -45,7 +45,6 @@ export {
   object,
   omit,
   optional,
-  omit,
   partial,
   pipe,
   positive,

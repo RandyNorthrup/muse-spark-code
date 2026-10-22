@@ -1375,7 +1375,6 @@ export class MuseSession implements ScheduledAgentSession {
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
-    this.timeouts = channel.timeouts
     this.hardwareGuard = new SessionHardwareGuard(
       this.hardwareContext,
       (id) => this.prompts.pending(id),

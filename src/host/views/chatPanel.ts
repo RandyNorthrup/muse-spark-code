@@ -39,7 +39,6 @@ function attachChatPanel(
     id: surfaceId,
     restoredSessionId,
     isVisible: () => panel.visible,
-    isActive: () => panel.active,
     isSideChat,
     reveal: () => {
       panel.reveal(undefined, false)
