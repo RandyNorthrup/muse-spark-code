@@ -227,7 +227,7 @@
   "command.savePrompt.title": "Guardar prompt",
   "command.useSavedPrompt.title": "Usar prompt guardado…",
   "command.copyToMyPrompts.title": "Copiar a mis prompts",
-  "config.syncPromptsAndBookmarks.description": "Reflejar los prompts de todos los espacios de trabajo en la sincronización de configuración. Los prompts del espacio permanecen locales.",
+  "config.syncPromptsAndBookmarks.description": "Reflejar los prompts de todos los espacios de trabajo y los marcadores en la sincronización de configuración. Los prompts del espacio permanecen locales.",
   "command.attachScreenRecording.title": "Adjuntar grabación de pantalla…",
   "command.attachLatestScreenRecording.title": "Adjuntar la última grabación de pantalla",
   "command.deleteUploadedFiles.title": "Eliminar archivos subidos…",

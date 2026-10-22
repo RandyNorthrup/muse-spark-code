@@ -227,7 +227,7 @@
   "command.savePrompt.title": "Prompt speichern",
   "command.useSavedPrompt.title": "Gespeicherten Prompt verwenden…",
   "command.copyToMyPrompts.title": "In meine Prompts kopieren",
-  "config.syncPromptsAndBookmarks.description": "Prompts für alle Arbeitsbereiche in die Einstellungssynchronisierung spiegeln. Arbeitsbereich-Prompts bleiben lokal.",
+  "config.syncPromptsAndBookmarks.description": "Prompts für alle Arbeitsbereiche und Lesezeichen in die Einstellungssynchronisierung spiegeln. Arbeitsbereich-Prompts bleiben lokal.",
   "command.attachScreenRecording.title": "Bildschirmaufnahme anhängen…",
   "command.attachLatestScreenRecording.title": "Neueste Bildschirmaufnahme anhängen",
   "command.deleteUploadedFiles.title": "Hochgeladene Dateien löschen…",

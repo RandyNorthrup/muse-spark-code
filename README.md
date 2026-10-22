@@ -5708,6 +5708,28 @@ whole prompt, declared variables and destination scope, and marks the result
 untrusted. A gist web page is HTML, so use its raw-file URL. Publishing secret
 gists is phase 2; node links, team libraries and email are phase 3.
 
+### Prompt sequences
+
+**Prompt Sequences…** in the palette (or `/sequences`) keeps ordered lists
+of prompts. Starting one sends the first step as your own message; each later
+step goes only after the previous turn completes, and the run ends when a
+turn fails or is cancelled, on **Stop**, on a session switch, or when the
+panel closes. A run row above the composer names the step with **Stop**. On
+the Model API each step is an ordinary billed turn under the session budget,
+and the start dialog says so with the conversation and its permission mode.
+Personal sequences live in the agent data folder, workspace ones in
+`.muse/prompts/sequences/`; sequences never sync.
+
+### Bookmarks
+
+The header star bookmarks the open conversation; in History every row has a
+star, and **Alt+B** toggles the highlighted row from the search box. The
+**Bookmarked** group comes first, newest bookmark first; a stored title
+stands in for a session the list has not named yet, marked not available
+here with **Remove** as its only action. A bookmarked Model API session is
+kept past `museSpark.cleanupPeriodDays`. Bookmarks sync only while
+`museSpark.syncPromptsAndBookmarks` is on, per workspace.
+
 ### Sharing a chat
 
 Use **Share** in the header or **Muse Spark: Share chat…**. Choose the whole

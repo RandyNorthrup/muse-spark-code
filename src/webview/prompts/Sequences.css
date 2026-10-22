@@ -1,0 +1,73 @@
+/* Beside PromptLibrary.css (imported first): only what sequences add or change. */
+.sequences textarea {
+  min-height: 72px;
+}
+
+.sequences-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.sequences fieldset {
+  border: 1px solid var(--vscode-panel-border);
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+  min-width: 0;
+}
+
+.sequences fieldset ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.sequences li {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sequences fieldset li {
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: 0;
+  border-top: none;
+}
+
+/* The run's steps are plain list rows, not library rows. */
+.sequences-start li {
+  display: block;
+  padding-block: 0;
+  border-top: none;
+}
+
+.sequences-start dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.sequences-start dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.sequences-start dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sequences-start ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
+.sequences-start li p {
+  white-space: pre-wrap;
+}

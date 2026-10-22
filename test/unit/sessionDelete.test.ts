@@ -20,7 +20,7 @@ import type {
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { canDeleteMuseSession } from '../../src/core/backends/musecode/museDeleteGate'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
-import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
+import { DEFAULT_MODEL_ID, MILLISECONDS_PER_DAY } from '../../src/shared/constants'
 import { fill, UI_TEXT } from '../../src/shared/l10n/text'
 import { sessionTitle } from '../../src/shared/sessions'
 import {
@@ -447,6 +447,79 @@ describe('ConversationController.deleteSession tells one true story', () => {
     } finally {
       await removeFolder(directory)
     }
+  })
+})
+
+// M88 lane B: a bookmarked session is kept past `cleanupPeriodDays` — the
+// retention asks the bookmark store's ids, skips them, and takes the
+// session at the next listing once the bookmark is gone.
+describe("retention keeps the bookmark store's ids", () => {
+  const NOW = Date.parse('2026-10-21T00:00:00.000Z')
+  const RETENTION_DAYS = 30
+  let directory = ''
+
+  const store = (isRetained: (sessionId: string) => Promise<boolean>, asked: string[]) =>
+    createFileSessionStore({
+      directory,
+      log: {
+        trace: () => undefined,
+        info: () => undefined,
+        warn: () => undefined,
+        error: () => undefined,
+      },
+      retentionDays: () => RETENTION_DAYS,
+      now: () => NOW,
+      sleep: () => Promise.resolve(),
+      isRetained: (sessionId) => {
+        asked.push(sessionId)
+        return isRetained(sessionId)
+      },
+    })
+
+  const aged = (sessionId: string, idleDays: number): StoredSession => ({
+    ...session,
+    sessionId,
+    name: `Aged ${sessionId}`,
+    lastActivityAt: new Date(NOW - idleDays * MILLISECONDS_PER_DAY).toISOString(),
+  })
+
+  beforeAll(async () => {
+    directory = await mkdtemp(path.join(tmpdir(), 'muse-session-retain-'))
+  })
+  afterAll(async () => {
+    await removeFolder(directory)
+  })
+
+  it('keeps a retained session past its idle period, then takes it when released', async () => {
+    const asked: string[] = []
+    const retained = new Set(['old-kept'])
+    const sessions = store((id) => Promise.resolve(retained.has(id)), asked)
+    await sessions.save(aged('old-kept', 45))
+    await sessions.save(aged('old-taken', 45))
+    const listed = await sessions.list()
+    expect(listed.map((header) => header.sessionId)).toEqual(['old-kept'])
+    expect(await sessions.load('old-kept')).toBeDefined()
+    expect(await sessions.load('old-taken')).toBeUndefined()
+    expect(asked.toSorted((left, right) => left.localeCompare(right))).toEqual([
+      'old-kept',
+      'old-taken',
+    ])
+
+    // The bookmark is removed: retention takes the session at the next listing.
+    retained.delete('old-kept')
+    const relisted = await sessions.list()
+    expect(relisted.map((header) => header.sessionId)).toEqual([])
+    expect(await sessions.load('old-kept')).toBeUndefined()
+    expect(await readdir(directory)).not.toContain('old-kept.json')
+  })
+
+  it('never asks about a session young enough to keep', async () => {
+    const asked: string[] = []
+    const sessions = store(() => Promise.resolve(false), asked)
+    await sessions.save(aged('young', 2))
+    const listed = await sessions.list()
+    expect(listed.map((header) => header.sessionId)).toEqual(['young'])
+    expect(asked).toEqual([])
   })
 })
 

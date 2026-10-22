@@ -227,7 +227,7 @@
   "command.savePrompt.title": "Save Prompt",
   "command.useSavedPrompt.title": "Use Saved Prompt…",
   "command.copyToMyPrompts.title": "Copy to My Prompts",
-  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.",
+  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces and bookmarks into Settings Sync. Workspace prompts stay local.",
   "command.attachScreenRecording.title": "Attach Screen Recording…",
   "command.attachLatestScreenRecording.title": "Attach Latest Screen Recording",
   "command.deleteUploadedFiles.title": "Delete Uploaded Files…",

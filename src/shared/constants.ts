@@ -4384,6 +4384,8 @@ export const HANDOFF_OPEN_TODO_STATUSES: ReadonlySet<string> = new Set(['pending
 export const PLAN_BRIEF_LOCAL_ID_PREFIX = 'plan-brief-'
 // The local id of the user card a handoff request sends (M74).
 export const HANDOFF_LOCAL_ID_PREFIX = 'handoff-'
+// The local id of the user card a prompt sequence step sends (M88).
+export const SEQUENCE_STEP_LOCAL_ID_PREFIX = 'sequence-step-'
 // `add_memory`'s optional `type` (the binary's schema; `user`, `reference`
 // and `project` seen accepted live).
 export const MEMORY_NOTE_TYPES = ['user', 'feedback', 'project', 'reference'] as const
@@ -6248,6 +6250,8 @@ export const SLASH_COMMAND_NAMES = {
   report: 'report',
   // D203: the agent plays back its understanding from working memory only.
   playback: 'playback',
+  // M88: the prompt sequence library.
+  sequences: 'sequences',
 } as const
 
 // M113 / D93: deterministic reports, independent of M93's problem reports.
@@ -6565,6 +6569,15 @@ export const PROMPT_COMMAND_IDS = {
   use: 'museSpark.useSavedPrompt',
   copyToUser: 'museSpark.copyToMyPrompts',
 } as const
+// M88: bookmarks ride the same sync opt-in as saved prompts (D67); a
+// workspace holds any number of them (D121: the 200 ceiling was invented).
+export const BOOKMARK_SYNC_KEY = 'museSpark.bookmarks.v1'
+export const BOOKMARK_SCHEMA_VERSION = 1
+// M88: a prompt sequence is one JSON file in its scope's prompts folder,
+// under this subfolder so the prompt store's scan keeps skipping it.
+export const SEQUENCE_SUBFOLDER = 'sequences'
+export const SEQUENCE_FILE_SUFFIX = '.sequence.json'
+export const SEQUENCE_SCHEMA_VERSION = 1
 export const SHARE_SCHEMA_VERSION = 1
 export const SHARE_DESTINATIONS = [
   'copy',

@@ -37,6 +37,18 @@ export const sessionRowSchema = z.object({
 })
 export type SessionRow = z.infer<typeof sessionRowSchema>
 
+/**
+A bookmark as History groups it (M88, PLAN.md D67): the session, the title
+stored when it was bookmarked (standing in until the row is seen), and when.
+The backend rides the protocol's record; grouping never needs it.
+*/
+export const bookmarkRefSchema = z.object({
+  sessionId: z.string(),
+  title: z.string(),
+  bookmarkedAtMs: z.number(),
+})
+export type BookmarkRef = z.infer<typeof bookmarkRefSchema>
+
 const WHITESPACE_RUNS = /\s+/g
 
 export interface SessionTitleSource {
@@ -74,7 +86,7 @@ export function isStale(row: SessionRow, nowMs: number, archiveAfterDays: number
   return archiveAfterDays > 0 && nowMs - activityOf(row) > archiveAfterDays * MS_PER_DAY
 }
 
-export type SessionGroupId = 'today' | 'yesterday' | 'week' | 'older'
+export type SessionGroupId = 'bookmarked' | 'today' | 'yesterday' | 'week' | 'older'
 
 export interface SessionGroup {
   readonly id: SessionGroupId
@@ -105,6 +117,7 @@ const GROUP_ORDER: readonly SessionGroupId[] = ['today', 'yesterday', 'week', 'o
 /** A group's heading, read when the list is built so it is in the installed table. */
 function groupTitle(id: SessionGroupId): string {
   const titles: Readonly<Record<SessionGroupId, string>> = {
+    bookmarked: UI_TEXT.historyGroupBookmarked,
     today: UI_TEXT.historyToday,
     yesterday: UI_TEXT.historyYesterday,
     week: UI_TEXT.historyWeek,
@@ -113,12 +126,34 @@ function groupTitle(id: SessionGroupId): string {
   return titles[id]
 }
 
+/**
+A bookmarked session History has no row for (M88, PLAN.md D67): the stored
+title stands in until the row is seen. The dialog marks it not available
+here; its only action is Remove.
+*/
+export function bookmarkStandIn(ref: BookmarkRef): SessionRow {
+  const at = new Date(ref.bookmarkedAtMs).toISOString()
+  return {
+    sessionId: ref.sessionId,
+    title: ref.title,
+    isNamed: false,
+    createdAt: at,
+    updatedAt: at,
+    lastActivityAt: at,
+    status: 'notLoaded',
+    turnCount: 0,
+    isFork: false,
+  }
+}
+
 export interface SessionListOptions {
   readonly nowMs: number
   readonly query: string
   readonly archivedIds: ReadonlySet<string>
   readonly archiveAfterDays: number
   readonly isShowingArchived: boolean
+  /** This workspace's bookmarks on the listed backend, in store order. */
+  readonly bookmarks: readonly BookmarkRef[]
 }
 
 /** Case-insensitive substring match on the title and the branch. */
@@ -138,19 +173,50 @@ export function isArchived(row: SessionRow, options: SessionListOptions): boolea
   )
 }
 
-/** The rows to show, newest first inside Today / Yesterday / Previous 7 days / Older. */
+/**
+The rows to show, newest first inside Bookmarked (M88, PLAN.md D67) and
+Today / Yesterday / Previous 7 days / Older. A bookmarked row shows in
+the Bookmarked group only. Age never hides one — the bookmark pins it —
+but an explicitly archived bookmark stays hidden until "Show archived",
+as everywhere else.
+*/
 export function groupSessions(
   rows: readonly SessionRow[],
   options: SessionListOptions,
 ): readonly SessionGroup[] {
+  const byId = new Map(rows.map((row) => [row.sessionId, row]))
+  const seen = new Set<string>()
+  const bookmarked = options.bookmarks
+    .filter((ref) => {
+      if (seen.has(ref.sessionId)) {
+        return false
+      }
+      seen.add(ref.sessionId)
+      return true
+    })
+    .map((ref) => ({ ref, row: byId.get(ref.sessionId) ?? bookmarkStandIn(ref) }))
+    .filter(({ row }) => isMatch(row, options.query))
+    .filter(({ row }) => options.isShowingArchived || !options.archivedIds.has(row.sessionId))
+    .toSorted((a, b) => b.ref.bookmarkedAtMs - a.ref.bookmarkedAtMs)
+    .map(({ row }) => row)
   const shown = rows
+    .filter((row) => !seen.has(row.sessionId))
     .filter((row) => isMatch(row, options.query))
     .filter((row) => options.isShowingArchived || !isArchived(row, options))
     .toSorted((a, b) => activityOf(b) - activityOf(a))
-  return GROUP_ORDER.flatMap((id) => {
+  const groups = GROUP_ORDER.flatMap((id) => {
     const members = shown.filter((row) => groupIdOf(row, options.nowMs) === id)
     return members.length === 0 ? [] : { id, title: groupTitle(id), rows: members }
   })
+  if (bookmarked.length === 0) {
+    return groups
+  }
+  const first: SessionGroup = {
+    id: 'bookmarked',
+    title: groupTitle('bookmarked'),
+    rows: bookmarked,
+  }
+  return [first, ...groups]
 }
 
 /**

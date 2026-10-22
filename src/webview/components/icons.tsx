@@ -130,6 +130,18 @@ export function HistoryIcon(props: IconProps) {
   )
 }
 
+/** The bookmark star (M88): outline until bookmarked, filled after. */
+export function StarIcon({ filled = false, ...rest }: IconProps & { readonly filled?: boolean }) {
+  return (
+    <Svg {...rest}>
+      <path
+        d="M8 2.4L9.41 6.46L13.71 6.55L10.28 9.14L11.53 13.25L8 10.8L4.47 13.25L5.72 9.14L2.29 6.55L6.59 6.46Z"
+        fill={filled ? 'currentColor' : 'none'}
+      />
+    </Svg>
+  )
+}
+
 export function BoardIcon(props: IconProps) {
   return (
     <Svg {...props}>

@@ -1188,6 +1188,36 @@
       "editors": ["vscode"]
     },
     {
+      "id": "bookmarks",
+      "name": { "ui": "bookmarkAdd" },
+      "summary": { "ui": "referenceBookmarks" },
+      "description": { "ui": "referenceBookmarks" },
+      "commands": [],
+      "settings": ["museSpark.syncPromptsAndBookmarks"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#bookmarks",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
+      "id": "prompt-sequences",
+      "name": { "ui": "sequenceLibrary" },
+      "summary": { "ui": "referenceSequences" },
+      "description": { "ui": "referenceSequences" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#prompt-sequences",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "windows-paths",
       "name": { "ui": "referenceWindowsPaths" },
       "summary": { "ui": "referenceWindowsPathsDetail" },
@@ -4435,7 +4465,7 @@
     {
       "id": "museSpark.syncPromptsAndBookmarks",
       "name": "museSpark.syncPromptsAndBookmarks",
-      "description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.",
+      "description": "Mirror prompts for all workspaces and bookmarks into Settings Sync. Workspace prompts stay local.",
       "descriptionKey": "config.syncPromptsAndBookmarks.description",
       "type": "boolean",
       "default": false,
@@ -4589,6 +4619,16 @@
       },
       "backends": ["museCode", "modelApi"],
       "syntax": ["/resume"]
+    },
+    {
+      "name": "sequences",
+      "description": "Prompt Sequences",
+      "descriptions": {
+        "museCode": { "ui": "referenceSequences" },
+        "modelApi": { "ui": "referenceSequences" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/sequences"]
     },
     {
       "name": "commit",
@@ -7859,7 +7899,7 @@
     },
     {
       "command": "team.pool",
-      "key": "ArrowUp / ArrowDown",
+      "key": "Alt+ArrowUp / Alt+ArrowDown",
       "when": "team.pool",
       "text": { "ui": "referenceTeamPoolKeys" }
     },
@@ -7934,6 +7974,12 @@
       "key": "Delete",
       "when": "history.archive",
       "text": { "ui": "referenceArchiveKeys" }
+    },
+    {
+      "command": "history.bookmark",
+      "key": "Alt+B",
+      "when": "history.bookmark",
+      "text": { "ui": "bookmarkAdd" }
     },
     {
       "command": "palette",

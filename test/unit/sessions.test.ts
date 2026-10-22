@@ -41,6 +41,7 @@ const options: SessionListOptions = {
   archivedIds: new Set(),
   archiveAfterDays: 14,
   isShowingArchived: false,
+  bookmarks: [],
 }
 
 // What reaches sessionTitle is already the person's words: Muse Code's
@@ -139,6 +140,82 @@ describe('groupSessions', () => {
     expect(groups).toHaveLength(1)
     expect(groups[0]?.rows[0]?.sessionId).toBe('week')
     expect(groupSessions(rows, { ...options, query: 'zzz' })).toEqual([])
+  })
+})
+
+// M88 lane B: the Bookmarked group comes first, newest bookmark first. A
+// bookmarked row shows there only; the stored title stands in for an id
+// the list has not named yet.
+describe('groupSessions bookmarks', () => {
+  const rows = [
+    row({ sessionId: 'today', updatedAt: at(HOUR), title: 'Recent' }),
+    row({ sessionId: 'pinned', updatedAt: at(HOUR), title: 'Pinned chat' }),
+    row({ sessionId: 'plain', updatedAt: at(2 * HOUR), title: 'Ordinary' }),
+    row({ sessionId: 'old', updatedAt: at(30 * DAY), title: 'Ancient work' }),
+  ]
+
+  it('pins bookmarked rows first and shows them nowhere else', () => {
+    const groups = groupSessions(rows, {
+      ...options,
+      bookmarks: [
+        { sessionId: 'pinned', title: 'Stored', bookmarkedAtMs: NOW - 2000 },
+        { sessionId: 'today', title: 'Stored', bookmarkedAtMs: NOW - 1000 },
+      ],
+    })
+    expect(groups.map((group) => group.id)).toEqual(['bookmarked', 'today'])
+    expect(groups[0]?.title).toBe('Bookmarked')
+    // Newest bookmark first, with the listed rows' live titles.
+    expect(groups[0]?.rows.map((r) => r.title)).toEqual(['Recent', 'Pinned chat'])
+    expect(groups.flatMap((group) => group.rows.map((r) => r.sessionId))).toEqual([
+      'today',
+      'pinned',
+      'plain',
+    ])
+  })
+
+  it('stands the stored title in for ids the list never named', () => {
+    const groups = groupSessions(rows, {
+      ...options,
+      bookmarks: [{ sessionId: 'gone', title: 'Stored title', bookmarkedAtMs: NOW }],
+    })
+    expect(groups[0]?.id).toBe('bookmarked')
+    expect(groups[0]?.rows).toHaveLength(1)
+    expect(groups[0]?.rows[0]).toMatchObject({ sessionId: 'gone', title: 'Stored title' })
+  })
+
+  it('pins stale rows by age but honours an explicit archive', () => {
+    const bookmarks = [{ sessionId: 'old', title: 'Ancient work', bookmarkedAtMs: NOW }]
+    const pinned = groupSessions(rows, { ...options, bookmarks })
+    expect(pinned[0]?.rows.map((r) => r.sessionId)).toEqual(['old'])
+    const archived = groupSessions(rows, {
+      ...options,
+      bookmarks,
+      archivedIds: new Set(['old']),
+    })
+    expect(archived.flatMap((group) => group.rows.map((r) => r.sessionId))).not.toContain('old')
+    const shown = groupSessions(rows, {
+      ...options,
+      bookmarks,
+      archivedIds: new Set(['old']),
+      isShowingArchived: true,
+    })
+    expect(shown[0]?.id).toBe('bookmarked')
+    expect(shown[0]?.rows.map((r) => r.sessionId)).toEqual(['old'])
+  })
+
+  it('matches the query against stored titles and keeps one row per id', () => {
+    const withDupes = groupSessions(rows, {
+      ...options,
+      query: 'stored',
+      bookmarks: [
+        { sessionId: 'gone', title: 'Stored title', bookmarkedAtMs: NOW },
+        { sessionId: 'gone', title: 'Stored twice', bookmarkedAtMs: NOW },
+        { sessionId: 'pinned', title: 'Stored', bookmarkedAtMs: NOW },
+      ],
+    })
+    expect(withDupes).toHaveLength(1)
+    expect(withDupes[0]?.rows).toHaveLength(1)
+    expect(withDupes[0]?.rows[0]).toMatchObject({ sessionId: 'gone', title: 'Stored title' })
   })
 })
 

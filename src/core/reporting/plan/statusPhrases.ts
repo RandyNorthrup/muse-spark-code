@@ -52,6 +52,8 @@ export const STATUS_PHRASES: Readonly<Record<string, PlanMilestone['status'] | u
     'built',
   'built on `feature/m84-export`; `docs/certification/m84.md`': 'built',
   'M87 built and joined (its status below); M88 planned, nothing built': 'building',
+  "M87 built and joined (its status below); M88 sequences and bookmarks built on main (lanes 0, P, A, B, W), timed sends with resume stay M115's; evidence docs/certification/rlm88.md":
+    'building',
   "joined on `m87/int` with main at `2e341e4c`; hosted CI on the milestone PR's head and native VS Code Tasks acceptance remain open":
     'built',
   "built and joined on the integration branch `m87/l0` (`feature/m87-panel-polish`); native VS Code Tasks acceptance and hosted CI on the milestone PR's exact head remain open":
