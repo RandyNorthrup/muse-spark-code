@@ -15,6 +15,7 @@ import { installUsageTable } from './installUsageTable'
 import { DeferredSurface } from '../components/DeferredSurface'
 import './usage.css'
 import { companionUsagePort } from './companion'
+import { companionStorage, loadCompanionTheme } from './companionTheme'
 
 const UsageApp = lazy(async () => {
   const module = await import('./UsageApp')
@@ -99,6 +100,27 @@ try {
     ...(swt !== undefined && { swt: () => swtHostBridge(swt) }),
   })
   host = create(bridgeKind(document.body.dataset['hostBridge']))
+  // M114 C: the companion page mounts the lazy theme consumer with its
+  // stored appearance, still before the first render. Editor and native
+  // hosts keep their own fonts and theme. A refused theme install reads
+  // unthemed on the generated defaults; anything else keeps its kind and
+  // reads unavailable through the outer handler.
+  if (document.body.dataset['hostBridge'] === 'http') {
+    const nonce = document.querySelector<HTMLElement>(`#${WEBVIEW_ROOT_ELEMENT_ID}`)?.dataset[
+      'themeNonce'
+    ]
+    if (nonce === undefined || nonce === '') throw new TypeError('Missing companion theme nonce')
+    try {
+      await loadCompanionTheme({
+        root: document.documentElement,
+        nonce,
+        storage: companionStorage(),
+        signal: new AbortController().signal,
+      })
+    } catch (error: unknown) {
+      if (!(error instanceof Error) || error.message !== 'EPANEL_THEME') throw error
+    }
+  }
   if (tableElement !== null) {
     try {
       const data: unknown = JSON.parse(tableElement.textContent)

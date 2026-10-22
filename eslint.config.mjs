@@ -484,12 +484,18 @@ const config = tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: {
       // fetch and WebSocket are Node 22 globals (scripts/capture-themes.mjs).
+      // Request, Headers, Blob and setTimeout are too (the companion launch
+      // test drives the real fetch transport).
       globals: {
         console: 'readonly',
         process: 'readonly',
         URL: 'readonly',
         fetch: 'readonly',
         WebSocket: 'readonly',
+        Request: 'readonly',
+        Headers: 'readonly',
+        Blob: 'readonly',
+        setTimeout: 'readonly',
       },
     },
     rules: {

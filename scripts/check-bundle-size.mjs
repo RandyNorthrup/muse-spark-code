@@ -159,6 +159,9 @@ const BUDGETS = [
   { path: 'dist/usagePanel.js', budgetKiB: 75 },
   { path: 'dist/webview/usage.js', budgetKiB: 500 },
   { path: 'dist/webview/usage.css', budgetKiB: 25 },
+  // M114 C: the companion page's static theme sheets (the consumer
+  // closure CSS half): 22.1 KiB measured under its specified 25 KiB cap.
+  { path: 'dist/webview/theme.css', budgetKiB: 25 },
   // TRAIN15E: Models page and its shared static imports: 424.9 KiB +15%.
   { path: 'dist/webview/models.js', budgetKiB: 500 },
   // M115W: v1's Model API schedules beside the v2 runtime binding (store,

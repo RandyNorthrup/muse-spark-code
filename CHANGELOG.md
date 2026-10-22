@@ -106,6 +106,9 @@ happened, not what was planned; superseded entries are kept.
 - The session's background tasks, hooks and plugins open as a read-only
   dialog with Refresh, and the History dialog offers a Recap button
   where the backend can recap sessions.
+- **The usage companion page now matches the Muse design.** It follows
+  your computer's light or dark mode, and uses your installed fonts once
+  `fonts install` has run.
 
 ### Changed
 
