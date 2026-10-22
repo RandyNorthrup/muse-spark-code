@@ -136,3 +136,26 @@ engine port performs.
 - The product switch still needs the release latch and a true
   `museSpark.team` setting; README says the feature remains unavailable
   until its integration is complete.
+
+## Integration (int/recovery, 2026-10-22)
+
+Two test defects surfaced when the merged suites ran on the owner's
+Windows 11 PC; neither came from a conflict resolution.
+
+- `teamPanel` (2 cases) asserted `not.toHaveBeenCalled()` on the rig's
+  plain recording functions, which always throws `is not a spy` (the
+  same lines fail on `rec/rlm96` itself). They now read the rig's own
+  records: `updateCalls` and `reloadCalls` stay empty.
+- `modelsPanelVaultSection` "routes vault envelopes without reporting,
+  and still reports garbage" asserted synchronously, while M96 made the
+  panel receive host messages in order through an async queue (lazy team
+  schemas first). It now waits for the garbage report and then requires
+  it to be the only one, which proves the state and vault envelope before
+  it were routed without a report.
+
+Drill: an extra `deps.state.update('drill', 1)` at the start of
+`roles/import` in `src/core/team/teamPanel.ts`, and `vaultEnvelopeOf`
+matching `vaultStateDrill` in `src/webview/models/panel.tsx`, made all
+three cases red (exit 1: `expected [ { key: 'drill', value: 1 } ] to
+deeply equal []` twice, and two reports where one was expected);
+restored byte-exact, green (exit 0, 40/40 across both files).

@@ -126,7 +126,7 @@ describe('Vault section mount', () => {
     })
   })
 
-  it('routes vault envelopes without reporting, and still reports garbage', () => {
+  it('routes vault envelopes without reporting, and still reports garbage', async () => {
     const { fn: post } = recordCalls<Parameters<HostBridge['post']>>()
     const host: HostBridge = {
       post,
@@ -150,9 +150,15 @@ describe('Vault section mount', () => {
         }),
       )
     })
-    expect(reportCalls).toEqual([])
     act(() => {
       window.dispatchEvent(new MessageEvent('message', { data: { type: 'nope' } }))
+    })
+    // The panel receives host messages in order, one after another, each
+    // after its lazy schemas load (M96). Once the garbage is reported, the
+    // state and the vault envelope before it were routed: the one report
+    // is the garbage's.
+    await waitFor(() => {
+      expect(reportCalls.length).toBeGreaterThan(0)
     })
     expect(reportCalls).toEqual([['hostMessage', expect.any(Error)]])
   })
