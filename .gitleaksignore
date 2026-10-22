@@ -17,3 +17,7 @@ src/core/reporting/collect/estimate.ts:generic-api-key:123
 src/core/reporting/collect/estimate.ts:generic-api-key:124
 # Public hCaptcha site key inside MediaWiki's page config (wg*), served to every reader of the recorded Wikipedia fixture; site keys are public by design, no credential.
 test/fixtures/webfetch/wiki-internet.body:generic-api-key:6
+# RFC 6238 Appendix B's published TOTP test secret ("12345678901234567890", base32); a standard vector, no credential.
+test/unit/nodeSignin.test.ts:generic-api-key:28
+# Example ACME challenge token in a unit test; invented for the test, no credential.
+test/unit/nodeSignin.test.ts:generic-api-key:147
