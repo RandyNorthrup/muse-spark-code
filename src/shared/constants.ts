@@ -4825,6 +4825,8 @@ export const ACP_CONFIG_IDS = {
   effort: 'effort',
   fast: 'fast',
   account: 'account',
+  mode: 'mode',
+  paidAllowAlways: 'paidAllowAlways',
 } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse

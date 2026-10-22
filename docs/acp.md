@@ -428,12 +428,18 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 - **Modes**: Manual, Edit automatically, Plan, Auto (and Bypass permissions
   with its flag), as in the panel, except that Auto runs without the panel's
-  Auto reviewers. A session loaded or resumed runs in the
+  Auto reviewers. The same modes are also a `mode` settings selector, so an
+  editor on settings selectors keeps working after the dedicated mode
+  methods go away; either way the editor is told when the mode changes.
+  A session loaded or resumed runs in the
   mode the editor is told, not the one it last ran in.
   Stored sessions marked imported start in Manual (the agent has no option
   for another initial mode) before mode mapping and history replay; an imported
   Auto or Bypass choice is never restored automatically.
-- **Settings**: the model and the reasoning effort. A session loaded or
+- **Settings**: the model and the reasoning effort, plus, where the editor
+  renders boolean settings, "Allow Always in This Workspace": off, paid uses
+  offer only Allow once and Deny in that session, and no workspace grant is
+  stored from it. A session loaded or
   resumed runs on the model and effort the editor is shown; one last run
   on a model the agent does not list moves to the default. A session the
   agent cannot set up this way is let go, and the editor's request fails.
@@ -480,10 +486,20 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   or fewer than the question allows (at least one where it sets no
   bound, as in the panel), is declined; an invalid late answer keeps the
   open question available.
-- **Sessions**: listed, loaded with their history, resumed and closed.
+- **Sessions**: listed, loaded with their history, resumed, closed and
+  deleted. Deleting removes the stored session so listing stops showing
+  it; deleting what is already gone succeeds quietly. Signing out
+  (`logout`) stops every session and, on the Model API backend, removes
+  the stored key, so the next turn asks to sign in again; the Muse Code
+  sign-in itself is ended with `muse logout`, as it is started with
+  `muse login`. A session can be opened with further workspace roots
+  (`additionalDirectories`); they are reported back on listing, while
+  tools keep running in the session folder.
   Closing a session (or loading it again) ends its running prompt as
   cancelled and stops that turn, and an answer you give it afterwards
-  decides nothing.
+  decides nothing. Cancelling one request (`$/cancel_request`) ends its
+  prompt the same way a session cancel does, and a cancel in turn stops
+  the editor's own waiting requests (permission, forms).
 - **Prompts**: text, files as @mentions, attached excerpts, and PNG, JPEG,
   GIF and WebP images at any size (reads bounded only by host memory; the
   selected model's capability record and the provider answer for the rest).

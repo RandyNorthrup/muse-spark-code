@@ -14,6 +14,26 @@ happened, not what was planned; superseded entries are kept.
   plain version address can name any one of them, and 0.19.0's check
   compared the universal package with another platform's (every package
   was published and matched when checked by its own address).
+- ACP gaps lane (ACPGAPS): editors using the agent protocol can now delete
+  a stored session, sign out (stopping every session and, with a stored
+  Model API key, removing it), cancel a single request, pick the permission
+  mode from the settings selectors as well as the old mode control, switch
+  off "Allow always" per session where the editor shows boolean settings,
+  and open sessions with extra workspace folders. Streamed messages carry
+  message ids and tool calls carry tool names, so editors group them
+  correctly. The agent still never drives the editor's terminal or files
+  itself; that stays a design note until a turn needs it.
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
 
 ## [0.19.0] - 2026-10-21
 
