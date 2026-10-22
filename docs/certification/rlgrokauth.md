@@ -141,6 +141,16 @@ at 29.2 KiB. Every bundle reads the cores through subscriptionsEntry
 agent resolves the same dynamic imports to the new file, and the
 post-split drills above were re-run identically against it.
 
+## Pre-existing environmental failures (not this lane)
+
+`test/unit/mediaConvert.test.ts` (1 test) and
+`test/unit/privateRootLease.test.ts` (2 tests) fail in this sandbox with
+`EPRIVATE_ROOT`: POSIX ancestor verification requires `/` to be owned by
+root or the user, but the sandbox maps `/` and `/home` to uid 65534.
+Verified identical at base `f3941b8548` (same 3 failures, 14 passed in
+those two files). Unrelated files (media conversion, private roots);
+nothing in the lane touches them.
+
 ## Gate record (this lane's final runs)
 
 `tsc` (host, webview), `eslint --max-warnings=0`, `prettier --check`,
