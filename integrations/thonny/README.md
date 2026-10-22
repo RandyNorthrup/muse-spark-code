@@ -43,7 +43,9 @@ Thonny 4.x or 5.x, Python 3.10+, and the installed `muse-spark-code-acp` runtime
 on PATH. The plugin downloads nothing. On Windows it uses the bundled .NET
 Framework compiler to build a process-job launcher in a private temporary
 directory. The plugin fails explicitly if the runtime/compiler/browser is
-unavailable. Its Python runtime uses only the standard library.
+unavailable. Its Python code uses only the standard library; the package
+declares the Thonny versions it supports (`thonny>=4.1.7,<6`) so Thonny's
+plug-in manager can read the range from PyPI.
 
 ## Local control interface (v2 proposal)
 
@@ -117,3 +119,27 @@ CI runs the Python 3.10/3.14 suite and package checks on its hosted matrix.
 Windows fake-process and isolated Thonny smoke receipts are recorded in
 `docs/certification/m103-t.md`; real POSIX and installed R/P receipts remain
 integration prerequisites.
+
+## Publishing
+
+The first release goes out on a tag of the form `thonny-v<version>` (for
+example `thonny-v0.1.0`, matching `version` in `pyproject.toml`). The tag
+starts `.github/workflows/publish-thonny.yml`, which builds, checks and
+uploads with the `pypi` environment through PyPI Trusted Publishing: the
+workflow file name and the environment name are what the PyPI trusted
+publisher record must name exactly, so neither may be renamed. The wheel
+is what Thonny's Manage plug-ins dialog installs; the sdist carries the
+same sources plus the catalogue compiler, never the tests.
+
+Measured on this branch (isolated `python -m build`, `twine check`
+PASSED on both files):
+
+- `thonny_muse_spark-0.1.0-py3-none-any.whl`, 56,996 bytes
+- `thonny_muse_spark-0.1.0.tar.gz`, 34,124 bytes
+
+The wheel holds the nine `thonnycontrib.muse_spark` modules,
+`windows_job.cs`, all 14 locale folders with `muse_spark.mo` and
+`muse_spark.po`, and the MIT licence in `.dist-info`; its metadata says
+`Requires-Python: >=3.10` and `Requires-Dist: thonny<6,>=4.1.7`. Every
+`python -m build` also writes an untracked `src/thonny_muse_spark.egg-info`
+directory beside the sources; delete it after building, it is not shipped.

@@ -20,9 +20,11 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
 ]
-# No dependencies: only the standard library. Thonny itself is the host
-# and provides the `thonny` package; the test suite runs against fakes.
-dependencies = []
+# The plug-in's own code uses only the standard library (the test suite
+# runs against fakes). The one declared dependency is the supported Thonny
+# host range, which Thonny's plug-in manager reads from PyPI: receipts
+# cover Thonny 4.1.7 through 5.x, so anything older or 6+ is refused.
+dependencies = ["thonny>=4.1.7,<6"]
 
 [project.urls]
 Homepage = "https://github.com/RandyNorthrup/muse-spark-code"
