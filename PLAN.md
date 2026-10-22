@@ -28599,6 +28599,22 @@ Each joins when its dependency merges, and none blocks the others.
   - [ ] Editor matrix rows recorded; strings in all 14 tables; budgets
         measured; full gate green
 
+**RLM107 — recovery landing (2026-10-22, macbook, base 0.19.0).**
+`01-c-m107-2` and `03-m107-hc1` merged, 12 M107-only picks from
+`02-c-m107-3` (M120/M96/N9000/CMBDEPS/docs-only hunks excluded for
+RLM120/RLM96). Binds older-libuv darwin headroom with sampler disposal,
+one governor per runtime process with the entry building launches around
+the lent governor, and the relocation join (registration refused until the
+teams wiring binds; queued SSH checks move only through it; paired devices
+still refused for RLM100). The purged mock H–C1 suites are replaced with
+real-code proof: 68 tests across 8 suites, each guard red-drilled with a
+byte-exact restoration receipt; static gates and the production build are
+green, with `dist/teamRunners.js` moved 75 to 100 KiB by the D6 rule.
+Records: [`docs/certification/m107.md`](docs/certification/m107.md#rlm107--recovery-landing-headroom-disposal-hc1-and-the-relocation-join).
+Turn-level session/configure/v2-sink proof and positive attested rows ride
+the lead's real-life run and matrix (no browser/GUI/keychain/registered
+trees on this rig); M100–R and M96–C2 stay open.
+
 ---
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
