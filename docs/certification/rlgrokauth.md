@@ -143,13 +143,24 @@ post-split drills above were re-run identically against it.
 
 ## Pre-existing environmental failures (not this lane)
 
-`test/unit/mediaConvert.test.ts` (1 test) and
-`test/unit/privateRootLease.test.ts` (2 tests) fail in this sandbox with
-`EPRIVATE_ROOT`: POSIX ancestor verification requires `/` to be owned by
-root or the user, but the sandbox maps `/` and `/home` to uid 65534.
-Verified identical at base `f3941b8548` (same 3 failures, 14 passed in
-those two files). Unrelated files (media conversion, private roots);
-nothing in the lane touches them.
+Full-suite fanout: 705 files passed, 9 failed, 22,183 tests passed,
+33 failed. Of the 33, 3 were this lane's and are fixed (`manifest` 1:
+`grokClientId` added to `MACHINE_SCOPED_SETTINGS`, now 40/40;
+`packagedBundles` 2: `dist/subscriptionCommands.js` added to
+`.vscodeignore`, now 8/8). The other 30 fail identically at base
+`f3941b8548` in `$TMPDIR/base-check` (same names, verified this run),
+all sandbox-caused, in files nothing in the lane touches:
+
+- `inspectNative.test.ts` (18): B1 kernel-boundary helpers refuse
+  (`{"refused":"systemFile"}`, exit 125) under the sandbox kernel.
+- `privateDirectory.test.ts` (3), `privateRootLease.test.ts` (2),
+  `mediaConvert.test.ts` (1), `vault/brokerSocketDirectory.test.ts`
+  (3): POSIX `EPRIVATE_ROOT`/owner checks fail because the sandbox
+  maps `/` and `/home` to uid 65534.
+- `scheduleBackgroundReconcile.test.ts` (1): the staged launcher path
+  under the sandbox tree fails the trusted-path check.
+- `vsixCompression.test.mjs` (2): the pinned zopfli tool is not
+  installed in the sandbox (refuses the zlib fallback by design).
 
 ## Gate record (this lane's final runs)
 
