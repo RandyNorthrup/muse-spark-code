@@ -40,8 +40,10 @@ export type NodeListenerErrorCode =
   | 'unauthenticated'
   | 'forbidden'
   | 'notFound'
+  | 'conflict'
   | 'tooLarge'
   | 'rateLimited'
+  | 'notText'
   | 'unavailable'
 export class NodeListenerError extends Error {
   constructor(
@@ -50,6 +52,35 @@ export class NodeListenerError extends Error {
   ) {
     super(UI_TEXT.nodeErrors[code], options)
   }
+}
+
+/** Every node page handler funnels through this boundary: only a
+NodeListenerError (or the caller's own cancellation) escapes. Any other
+throw — a filesystem TypeError, a rejected port promise, a Zod parse of a
+malformed port result — is an internal failure the listener reports as
+`unavailable` rather than leaking it raw. RVM110U2 round 3. */
+export async function guardNodeHandler<T>(
+  signal: AbortSignal,
+  work: () => Promise<T>,
+  report: (error: unknown) => void,
+): Promise<T> {
+  try {
+    return await work()
+  } catch (error: unknown) {
+    if (error instanceof NodeListenerError) throw error
+    if (signal.aborted) throw error
+    report(error)
+    throw new NodeListenerError('unavailable')
+  }
+}
+
+/** Adapts one page handler to the typed boundary above, so the file and
+git tables share a single funnel instead of repeating it. */
+export function guardNodeMethod<I, O>(
+  work: (input: I, signal: AbortSignal) => Promise<O>,
+  report: (error: unknown) => void,
+): (input: I, signal: AbortSignal) => Promise<O> {
+  return (input, signal) => guardNodeHandler(signal, () => work(input, signal), report)
 }
 
 /** Raw counts catch duplicated headers even when Node merges their values. */

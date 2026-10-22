@@ -1,0 +1,128 @@
+.node-workspace {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--vscode-font-family, system-ui);
+  font-size: var(--vscode-font-size, 13px);
+  padding: var(--ms-node-workspace-padding, 12px);
+  overflow-wrap: anywhere;
+}
+
+.node-workspace h1 {
+  font-size: 1.2em;
+}
+
+.node-workspace h2 {
+  font-size: 1.1em;
+}
+
+.node-workspace form,
+.node-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 8px;
+}
+
+.node-workspace label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.node-workspace input,
+.node-workspace textarea,
+.node-workspace select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-foreground));
+  padding: 6px;
+}
+
+.node-workspace button {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-foreground));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  background: var(--vscode-button-secondaryBackground, var(--vscode-sideBar-background));
+}
+
+.node-workspace button:disabled {
+  opacity: 60%;
+}
+
+.node-workspace :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.node-workspace ul {
+  padding-inline-start: 20px;
+}
+
+.node-workspace li {
+  margin-block: 8px;
+}
+
+.node-workspace code {
+  overflow-wrap: anywhere;
+}
+
+.node-workspace dd {
+  margin-inline-start: 0;
+}
+
+.node-file-tree {
+  overflow: auto;
+  border: 1px solid var(--vscode-panel-border, var(--vscode-foreground));
+}
+
+.node-file-row {
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.node-file-row[aria-selected='true'] {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.node-file-disclosure {
+  display: inline-block;
+  border-block: 4px solid transparent;
+  border-inline-start: 6px solid currentcolor;
+  margin-inline: 4px 8px;
+}
+
+.node-file-row[aria-expanded='true'] .node-file-disclosure {
+  transform: rotate(90deg);
+}
+
+.node-editor,
+.node-diff,
+.node-git-diff {
+  max-height: 480px;
+  overflow: auto;
+}
+
+.node-git-diff pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* CodeMirror owns these case-sensitive class names. */
+.node-diff [class~='cm-mergeView'] {
+  display: block;
+}
+
+.node-diff [class~='cm-mergeViewEditors'] {
+  flex-direction: column;
+}
+
+.node-diff [class~='cm-mergeViewEditor'] {
+  width: 100%;
+}

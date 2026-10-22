@@ -505,6 +505,19 @@ describe('M110-N real selected-interface HTTPS listener', () => {
     expect(await status('/node/stop', '{}', {}, built.port, 'GET')).toBe(400)
   })
   nodeNativeTest(
+    'typed method failures keep their catalog code through the live server',
+    async () => {
+      fixture.request.once(() => Promise.reject(new NodeListenerError('conflict')))
+      const conflict = await post('/node/stop')
+      expect(conflict.status).toBe(409)
+      expect(conflict.body).toBe('{"code":"conflict"}')
+      fixture.request.once(() => Promise.reject(new Error('plain failure')))
+      const down = await post('/node/stop')
+      expect(down.status).toBe(503)
+      expect(down.body).toBe('{"code":"unavailable"}')
+    },
+  )
+  nodeNativeTest(
     'H07 the real TLS upgrade refuses foreign Origin and dispatches same-origin first-frame/input through the shared port',
     async () => {
       await expect(terminalSocket('https://evil.local')).rejects.toThrow()
