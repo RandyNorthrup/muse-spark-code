@@ -112,4 +112,112 @@ describe('Muse usage deltas over the real journal', () => {
     expect(third?.tokens.output).toBe(100)
     expect(third?.tokens.cached).toBe(5000)
   })
+
+  it('journals a reported completion as completed, served where the frame names it', async () => {
+    // RLWINFIX2 item 4: every `session/tokenUsage` frame is one model call
+    // that completed (SDK SessionTokenUsageParams: "one per model
+    // completion that reports usage"), so its record's outcome is
+    // completed, never incomplete — on the per-completion path and the
+    // cumulative-delta path alike. The frame's effective modelId is the
+    // model that served the call. Frames shaped like the recorded
+    // 2026-10-08 exchange (docs/research/m105-captures/u16-2026-10-08.jsonl,
+    // CLI 1.4.2): the first completion finishes with tool_calls, the
+    // second carries no finish reason, the third predates per-completion
+    // usage, the fourth names no model.
+    const dataFolder = await mkdtemp(path.join(tmpdir(), 'rel0190-usage-outcome-'))
+    roots.push(dataFolder)
+    let ids = 0
+    const store = new UsageJournalStore(new NodeUsageFs(dataFolder, () => NOW), {
+      writerId: 'outcome-test',
+      isEnabled: () => true,
+      now: () => NOW,
+      onWriteError: () => undefined,
+    })
+    const recording = createUsageRecording({
+      client: 'test',
+      now: () => NOW,
+      newId: () => `note-${String((ids += 1))}`,
+      isEnabled: () => true,
+      writer: () => Promise.resolve(store),
+      log: {
+        trace: () => undefined,
+        info: () => undefined,
+        warn: () => undefined,
+        error: () => undefined,
+      },
+    })
+    const deltas = new MuseUsageDeltas(recording, sessionId, 'muse-spark-1.3', true, () => NOW)
+    deltas.receive(
+      tokenUsageEvent({
+        sessionId,
+        modelId: 'muse-spark-1.3-contributor',
+        usage: {
+          inputTokens: 24_999,
+          outputTokens: 770,
+          cachedTokens: 0,
+          cacheWriteTokens: 0,
+          cacheReadTokens: 0,
+          reasoningTokens: 574,
+        },
+        promptTokens: 24_999,
+        totalTokens: 25_769,
+        finishReason: 'tool_calls',
+        durationMs: 8167,
+        cumulative: { promptTokens: 24_999, outputTokens: 770, totalTokens: 25_769 },
+      }),
+    )
+    deltas.receive(
+      tokenUsageEvent({
+        sessionId,
+        modelId: 'muse-spark-1.3-contributor',
+        usage: {
+          inputTokens: 25_790,
+          outputTokens: 117,
+          cachedTokens: 24_945,
+          cacheWriteTokens: 0,
+          cacheReadTokens: 24_945,
+          reasoningTokens: 85,
+        },
+        promptTokens: 25_790,
+        totalTokens: 25_907,
+        durationMs: 12_502,
+        cumulative: {
+          promptTokens: 50_789,
+          outputTokens: 887,
+          totalTokens: 51_676,
+          cacheReadTokens: 24_945,
+        },
+      }),
+    )
+    // A frame that predates per-completion usage journals its delta.
+    deltas.receive(
+      tokenUsageEvent({
+        sessionId,
+        modelId: 'muse-spark-1.3-contributor',
+        cumulative: { promptTokens: 60_789, outputTokens: 987, totalTokens: 61_776 },
+      }),
+    )
+    // A frame that names no model: the record keeps the last model
+    // the CLI named and names no served model.
+    deltas.receive(
+      tokenUsageEvent({
+        sessionId,
+        cumulative: { promptTokens: 70_789, outputTokens: 1087, totalTokens: 71_876 },
+      }),
+    )
+    await recording.flush()
+    const journal = await store.read()
+    expect(journal.records).toHaveLength(4)
+    const [first, second, third, fourth] = journal.records
+    expect(first?.outcome).toBe('completed')
+    expect(first?.model).toBe('muse-spark-1.3-contributor')
+    expect(first?.served).toBe('muse-spark-1.3-contributor')
+    expect(second?.outcome).toBe('completed')
+    expect(second?.served).toBe('muse-spark-1.3-contributor')
+    expect(third?.outcome).toBe('completed')
+    expect(third?.served).toBe('muse-spark-1.3-contributor')
+    expect(fourth?.outcome).toBe('completed')
+    expect(fourth?.model).toBe('muse-spark-1.3-contributor')
+    expect(fourth?.served).toBeUndefined()
+  })
 })

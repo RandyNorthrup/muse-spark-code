@@ -62,6 +62,7 @@ export class MuseUsageDeltas {
   private noteCompletion(
     event: Extract<AgentEvent, { type: 'tokenUsage' }>,
     model: string,
+    served: string | undefined,
     startedAt: number,
     at: number,
   ): void {
@@ -91,6 +92,7 @@ export class MuseUsageDeltas {
         backend: 'museCode',
         provider: 'museCode',
         model,
+        ...(served !== undefined && { served }),
         session: this.sessionId,
         kind: 'turn',
         pricing: { kind: 'plan' },
@@ -99,7 +101,11 @@ export class MuseUsageDeltas {
           completion.durationMs !== undefined && Number.isFinite(completion.durationMs)
             ? Math.max(0, completion.durationMs)
             : Math.max(0, at - startedAt),
-        outcome: 'incomplete',
+        // The frame exists because the model call completed (SDK
+        // SessionTokenUsageParams: one per completion that reports
+        // usage); a failed, cancelled or refused call reports no usage
+        // and journals no record.
+        outcome: 'completed',
       },
     )
   }
@@ -137,7 +143,10 @@ export class MuseUsageDeltas {
     // The tier the request was really sent as is this completion's own
     // effective model; the standing model is only the fallback for frames
     // that predate it. A later model change must not rename an earlier call.
+    // The frame's effective model is also the served model, where the CLI
+    // reports one; the standing model is the selection, never served.
     const model = event.completion?.modelId ?? event.modelId ?? this.currentModel
+    const served = event.completion?.modelId ?? event.modelId
     if (event.completion !== undefined) {
       const at = this.now()
       // The CLI can deliver the same completion-bearing frame twice; its
@@ -160,7 +169,7 @@ export class MuseUsageDeltas {
         ownDuration !== undefined && Number.isFinite(ownDuration)
           ? Math.max(0, at - Math.max(0, ownDuration))
           : (this.startedAt ?? at)
-      this.noteCompletion(event, model, completionStartedAt, at)
+      this.noteCompletion(event, model, served, completionStartedAt, at)
       return
     }
     if (
@@ -200,12 +209,14 @@ export class MuseUsageDeltas {
         backend: 'museCode',
         provider: 'museCode',
         model,
+        ...(served !== undefined && { served }),
         session: this.sessionId,
         kind: 'turn',
         pricing: { kind: 'plan' },
         startedAt,
         durationMs: Math.max(0, at - startedAt),
-        outcome: 'incomplete',
+        // One frame per model call that completed, as above.
+        outcome: 'completed',
       },
     )
   }
