@@ -39,7 +39,7 @@ function loadBundle(file, exportName) {
     TextEncoder: globalThis.TextEncoder,
     TextDecoder: globalThis.TextDecoder,
     AbortController: globalThis.AbortController,
-    setTimeout: globalThis.setTimeout,
+    setTimeout,
     clearTimeout: globalThis.clearTimeout,
     setInterval: globalThis.setInterval,
     clearInterval: globalThis.clearInterval,

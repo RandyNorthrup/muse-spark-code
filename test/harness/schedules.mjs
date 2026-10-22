@@ -168,7 +168,7 @@ async function playScheduleHarness() {
     if (scenario.includes('background')) {
       const details = globalThis.document.querySelector('.schedule-v2-surface > details')
       if (details === null) {
-        globalThis.setTimeout(openAudit, 100)
+        setTimeout(openAudit, 100)
         return
       }
       details.open = true
@@ -177,7 +177,7 @@ async function playScheduleHarness() {
     }
     const card = globalThis.document.querySelector('.schedule-v2-card')
     if (card === null) {
-      globalThis.setTimeout(openAudit, 100)
+      setTimeout(openAudit, 100)
       return
     }
     for (const details of card.querySelectorAll('details')) details.open = true
