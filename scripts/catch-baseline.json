@@ -1500,12 +1500,12 @@
     },
     {
       "file": "src/core/media/record/windows.ts",
-      "identity": "ce9a9acd10e146ad8f64efc3cc5b64ae3a100e8530fd052c25de5b6afd8c83ec",
+      "identity": "bd5660f07d9f82351b8f864784c8ed06fcfc17c057b45b8f2b7f229b3e4cf9dc",
       "class": "CLEANUP"
     },
     {
       "file": "src/core/media/record/windows.ts",
-      "identity": "93ab3a7830fccc99e38975ceae813739486d372e84f593675bb8b8ed8a167a48",
+      "identity": "2ccdc342da780a77e2482f465d3f69b3b8eda611618df90b83eadd6c2134353f",
       "class": "CLEANUP"
     },
     {
@@ -1530,7 +1530,7 @@
     },
     {
       "file": "src/core/media/record/windows.ts",
-      "identity": "6ad6e078ce25b11c601dcbd75d7287ec206e6cbc526c89c614db2c3d899a2213",
+      "identity": "84ee34f52631c09e87d0317dbd3e11dc28501a23d2c473b9b032e3829b999c5f",
       "class": "GENERIC"
     },
     {
@@ -4110,7 +4110,7 @@
     },
     {
       "file": "src/host/vault/vaultExecSpawn.ts",
-      "identity": "a8bb0f78fc59596cdd8b550a2dcac31ee90dde8756e2da18046e3f063d7ff1a1",
+      "identity": "efc7f046795198cf3a551ce86e242cfc7153b338b60535b608e0e7e3cf48551e",
       "class": "CLEANUP"
     },
     {

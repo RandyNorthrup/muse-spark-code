@@ -15,7 +15,8 @@ import {
 } from '../execGuard'
 import { environmentValue } from '../execGuard'
 import { existsSync, realpathSync } from 'node:fs'
-import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
+import { CLI_OUTPUT_MAX_BYTES } from '../../shared/constants'
+import { callerStop } from '../timeouts'
 import { spawnResourceProcess } from './process'
 
 /**
@@ -175,16 +176,14 @@ export async function execResourceFile(
       : { workspaceRoot: options.workspaceRoot }
   const file = resolveCommand(command, env, workspace)
   const childEnv = childEnvironment(env, workspace)
-  // Infinity names no deadline (as `src/host/git.ts` reads it): the run then
-  // ends on the child's own exit or the caller's abort alone. An absent
-  // timeout keeps the named default.
-  const timeout = options.timeout ?? PROCESS_TABLE_TIMEOUT_MS
-  const bounds = [options.signal, timeout === Infinity ? undefined : AbortSignal.timeout(timeout)]
-  const signal = AbortSignal.any(bounds.filter((bound) => bound !== undefined))
+  // Only the caller's own cancel or `timeout` stops the command, as with
+  // execFile: no deadline of ours (a cold Windows PowerShell can take longer).
+  // An absent, 0 or Infinity timeout names none (as `src/host/git.ts` reads it).
+  const signal = callerStop(options.signal, options.timeout)
   const launched = await spawnResourceProcess(profile, file, args, {
     env: childEnv,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
-    signal,
+    ...(signal !== undefined && { signal }),
   })
   const { child, stop } = launched
   child.stdin.end()
@@ -204,9 +203,9 @@ export async function execResourceFile(
         reject(new Error('Governed command tree stop failed', { cause: error }))
       })
     }
-    // One named deadline covers admission and the run (the launch also stops on it).
-    signal.addEventListener('abort', abort, { once: true })
-    if (signal.aborted) abort()
+    // The caller's stop covers admission and the run (the launch also stops on it).
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted === true) abort()
     child.stdout.on('data', (bytes: Buffer) => {
       bytesRead += bytes.length
       if (bytesRead > max) abort()
@@ -221,7 +220,7 @@ export async function execResourceFile(
       abort()
     })
     child.once('close', (code) => {
-      signal.removeEventListener('abort', abort)
+      signal?.removeEventListener('abort', abort)
       void (async () => {
         await stopping
         const outcome = await launched.outcome()
