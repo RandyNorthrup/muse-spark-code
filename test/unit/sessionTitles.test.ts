@@ -10,7 +10,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import * as acp from '@agentclientprotocol/sdk'
+import * as acp from '@agentclientprotocol/sdk/unstable'
 import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'

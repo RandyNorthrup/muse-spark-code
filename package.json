@@ -1959,7 +1959,7 @@
     "{*.{json,jsonc,md,yml,yaml},!(vendor)/**/*.{json,jsonc,md,yml,yaml}}": "prettier --write"
   },
   "devDependencies": {
-    "@agentclientprotocol/sdk": "1.8.0",
+    "@agentclientprotocol/sdk": "2.0.1",
     "@eslint/js": "10.0.1",
     "@muse-code/sdk": "1.4.11",
     "@testing-library/dom": "10.4.2",

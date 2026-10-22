@@ -2,10 +2,13 @@ import {
   DEFAULT_MAX_MESSAGE_BYTES,
   MessageTooLargeError,
   ndJsonStream,
-} from '@agentclientprotocol/sdk'
-import { ReadableStream, WritableStream } from 'node:stream/web'
+} from '@agentclientprotocol/sdk/unstable'
+import * as stable from '@agentclientprotocol/sdk'
+import * as unstable from '@agentclientprotocol/sdk/unstable'
+import { ReadableStream, TransformStream, WritableStream } from 'node:stream/web'
 import { TextEncoder } from 'node:util'
 import { describe, expect, it } from 'vitest'
+import * as z from 'zod'
 import { boundedAcpStream } from '../../src/shared/acpStream'
 import {
   ACP_MAX_MESSAGE_BYTES,
@@ -150,6 +153,83 @@ describe('the product ACP stream bound', () => {
       })
     } finally {
       reader.releaseLock()
+    }
+  })
+})
+
+// The loosened stable client against a newer agent (the 2.0 entrypoint
+// split): an agent speaking full v1 emits a real unstable-only update
+// (`plan_removed`, absent from the stable schema), and the stable client
+// loosened exactly as production does (`execClient.ts`, `acpProcess.ts`:
+// drop the constructor's strict session-update router) receives it on
+// its loose boundary instead of failing the connection. Both ends are
+// the real SDK over a real crossed NDJSON transport.
+function loosenConstructorRouter(clientApp) {
+  const builder = Reflect.get(clientApp, 'builder')
+  if (typeof builder !== 'object' || builder === null) {
+    throw new Error('The ACP client changed shape')
+  }
+  const handlers = Reflect.get(builder, 'handlers')
+  if (!Array.isArray(handlers) || handlers.length !== 1) {
+    throw new Error('The ACP client changed shape')
+  }
+  const router = handlers[0]
+  if (
+    typeof router !== 'object' ||
+    router === null ||
+    !('describe' in router) ||
+    typeof router.describe !== 'function'
+  ) {
+    throw new Error('The ACP client changed shape')
+  }
+  if (Reflect.apply(router.describe, router, []) !== 'client-session-update-router') {
+    throw new Error('The ACP client changed shape')
+  }
+  handlers.shift()
+}
+
+describe('the loosened stable client against a newer agent', () => {
+  it('delivers an unstable-only update to the loose boundary', async () => {
+    const received = []
+    const agentApp = unstable
+      .agent()
+      .onRequest('initialize', () => ({ protocolVersion: unstable.PROTOCOL_VERSION }))
+      .onRequest('session/new', () => ({ sessionId: 's1' }))
+      .onRequest('session/prompt', async ({ params, client }) => {
+        await client.notify('session/update', {
+          sessionId: params.sessionId,
+          update: { sessionUpdate: 'plan_removed', planId: 'p1' },
+        })
+        return { stopReason: 'end_turn' }
+      })
+    const toAgent = new TransformStream()
+    const toClient = new TransformStream()
+    const agentStream = unstable.ndJsonStream(toClient.writable, toAgent.readable)
+    const clientStream = stable.ndJsonStream(toAgent.writable, toClient.readable)
+    const clientApp = stable.client({ name: 'loose-boundary' })
+    loosenConstructorRouter(clientApp)
+    clientApp.onNotification(
+      'session/update',
+      z.looseObject({ sessionId: z.string(), update: z.unknown() }),
+      ({ params }) => {
+        received.push(params.update)
+      },
+    )
+    const agentConnection = agentApp.connect(agentStream)
+    const connection = clientApp.connect(clientStream)
+    try {
+      const agent = connection.agent
+      await agent.request('initialize', { protocolVersion: 1, clientCapabilities: {} })
+      const created = await agent.request('session/new', { cwd: '/tmp', mcpServers: [] })
+      const result = await agent.request('session/prompt', {
+        sessionId: created.sessionId,
+        prompt: [{ type: 'text', text: 'hi' }],
+      })
+      expect(result.stopReason).toBe('end_turn')
+      expect(received).toEqual([{ sessionUpdate: 'plan_removed', planId: 'p1' }])
+    } finally {
+      connection.close()
+      agentConnection.close()
     }
   })
 })

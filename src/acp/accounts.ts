@@ -1,6 +1,6 @@
 // D88.9. The profile-owned service binds account selection to the backend's
 // next request. ACP and the companion never handle credentials.
-import type { SessionConfigOption } from '@agentclientprotocol/sdk'
+import type { SessionConfigOption } from '@agentclientprotocol/sdk/unstable'
 import { accountEventSchema, accountIdSchema, type AccountEvent } from '../shared/accounts'
 import {
   accountsReplySchema,
