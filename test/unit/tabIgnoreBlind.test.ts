@@ -5,30 +5,11 @@ import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { GitExitError } from '../../src/host/git'
 import { TabIgnoreCache, type TabIgnoreDeps } from '../../src/host/tab/tabIgnore'
+import { resolveWorkingGit } from './helpers/realGit'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 const runExecFile = promisify(execFile)
-/**
-A git that can actually answer on this machine: the PATH git where it
-works, the Command Line Tools git where Apple's shim is broken (this
-rig: `git init` through /usr/bin/git dies spawning a missing xcodebuild).
-Each candidate is asked its real version; the first that answers wins.
-*/
-const resolvedGit: Promise<string> = (async (): Promise<string> => {
-  const candidates =
-    process.platform === 'darwin'
-      ? ['/Library/Developer/CommandLineTools/usr/bin/git', 'git']
-      : ['git']
-  for (const candidate of candidates) {
-    try {
-      await runExecFile(candidate, ['--version'], { env: process.env })
-      return candidate
-    } catch {
-      continue
-    }
-  }
-  throw new Error('no working git on PATH for the ignore drill')
-})()
+const resolvedGit: Promise<string> = resolveWorkingGit()
 
 /** Real git: answers and failures come from the git binary itself. */
 const realRunGit = async (args: readonly string[], cwd: string): Promise<string> => {

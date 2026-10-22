@@ -1,72 +1,18 @@
 // M96d stacked dependencies: real boards, real attempts, real heads.
 import { describe, expect, it } from 'vitest'
-import {
-  TaskBoard,
-  type BoardContext,
-  type BoardSubmission,
-} from '../../src/core/team/scheduler/board'
+import { TaskBoard } from '../../src/core/team/scheduler/board'
 import { inheritedPriorities } from '../../src/core/team/scheduler/pick'
 import { landingOrderEdges, orderMergeQueue } from '../../src/core/team/mergeQueue'
-import { teamDependencySchema, type TeamAttempt, type TeamBoardTask } from '../../src/shared/team'
+import { teamDependencySchema } from '../../src/shared/team'
 
-function testContext(heads?: Map<string, string>): BoardContext {
-  const archived = new Map<string, TeamBoardTask>()
-  const context: BoardContext = {
-    workspaceFor: () => 'workspace',
-    workspaceMode: () => 'own-branch',
-    report: (taskId) => `report-${taskId}`,
-    countAttempt: () => true,
-    archive: (tasks) => {
-      for (const task of tasks) archived.set(task.id, task)
-    },
-    archivedTask: (id) => archived.get(id),
-  }
-  if (heads !== undefined) {
-    context.head = (taskId) => heads.get(taskId) ?? `head-${taskId}`
-  }
-  return context
-}
+import {
+  boardAttempt as attempt,
+  retireAttempt as retire,
+  submitTasks as submit,
+  taskSubmission as submission,
+  testBoardContext as testContext,
+} from './helpers/teamBoard'
 
-function submit(board: TaskBoard, inputs: BoardSubmission[]): void {
-  board.submit(inputs, 1)
-}
-
-function submission(id: string, fields: BoardSubmission['fields']): BoardSubmission {
-  return { id, parentSessionId: 'session', roleId: 'role', workspaceMode: 'own-branch', fields }
-}
-
-function attempt(number: number): TeamAttempt {
-  return {
-    number,
-    entryId: 'entry',
-    agentProfileId: 'profile',
-    modelId: 'model',
-    kind: 'engine',
-    state: 'running',
-    startedAt: 1,
-    usage: {
-      inputTokens: 0,
-      cachedInputTokens: 0,
-      outputTokens: 0,
-      reasoningTokens: 0,
-      modelCalls: 0,
-      costUsd: 0,
-      accuracy: 'reported',
-    },
-  }
-}
-
-function retire(board: TaskBoard, id: string, number: number): void {
-  expect(
-    board.finishAttempt(id, number, {
-      state: 'retired',
-      endedAt: 2,
-      retirement: { kind: 'userDecision' },
-    }),
-  ).toBe(true)
-}
-
-/** Run a task to a finished state through real transitions. */
 function runTo(board: TaskBoard, id: string, state: 'review' | 'merged' | 'done'): void {
   expect(board.begin(id, attempt(1))).toBe(true)
   retire(board, id, 1)
