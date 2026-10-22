@@ -38,7 +38,7 @@ approveButton.disabled = true;
 denyButton.disabled = true;
 let response;
 try {
-response = await fetch('/post', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: JSON.stringify({ type: 'decide', intentId: intent.intentId, digest: intent.digest, approve }) });
+response = await fetch('/panel/message', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: JSON.stringify({ type: 'decide', intentId: intent.intentId, digest: intent.digest, approve }) });
 } catch {
 response = undefined;
 }
@@ -92,7 +92,7 @@ list.append(item);
 }
 async function stream() {
 say(text.loading);
-const response = await fetch('/events', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: '{}' });
+const response = await fetch('/panel/events', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: '{}' });
 if (!response.ok || response.body === null) throw new Error('EPANEL_STREAM');
 const reader = response.body.getReader();
 const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -105,7 +105,8 @@ let boundary = pending.indexOf('\n\n');
 while (boundary !== -1) {
 const frame = pending.slice(0, boundary);
 pending = pending.slice(boundary + 2);
-if (frame.startsWith('data: ')) render(JSON.parse(frame.slice(6)).intents);
+const data = frame.split('\n').find((line) => line.startsWith('data: '));
+if (data !== undefined) render(JSON.parse(data.slice(6)).intents);
 boundary = pending.indexOf('\n\n');
 }
 }

@@ -462,11 +462,14 @@ async function darwinReceipt(
 ) {
   const env = withoutKeyringRoutes(withoutCredentials(process.env))
   const text = await new Promise<string>((resolve, reject) => {
-    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- installed native fd ACL probe, held fd, sanitized environment; no workspace command (PLAN §8).
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- installed native fd ACL probe, held fd, branded no-workspace environment; no workspace command (PLAN §8).
     const child = spawn(
       path.join(packageRoot, 'native', 'darwin', 'muse-dictate'),
       [command, String(RUNTIME_STOP.launchFd)],
-      { env: { ...env, LC_ALL: 'C' }, stdio: ['ignore', 'pipe', 'ignore', handle.fd] },
+      {
+        env: noWorkspaceChildEnvironment(process.platform, { ...env, LC_ALL: 'C' }, realpathSync),
+        stdio: ['ignore', 'pipe', 'ignore', handle.fd],
+      },
     )
     if (child.stdout === null) throw new Error('ELSP_PRIVATE')
     const chunks: Buffer[] = []

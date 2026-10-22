@@ -216,7 +216,7 @@ describe('M117 diagnostic × real surface replacement table', () => {
         // the report's language (its factory snapshot, or the installed
         // table for factory-less readers).
         'src/core/reporting/sources/estimate.ts',
-        'src/host/views/webviewSetup.ts',
+        'src/host/vscode/views/webviewSetup.ts',
       ].toSorted(byText),
     )
   })
