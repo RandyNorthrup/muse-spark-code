@@ -4775,7 +4775,8 @@
     "azureResource": "Azure 資源",
     "deployment": "部署",
     "loopbackPort": "本機連接埠",
-    "customFormat": "通訊協定格式"
+    "customFormat": "通訊協定格式",
+    "safetyIdentifier": "最終使用者ID（xAI安全）"
   },
   "providerDocs": "文件",
   "providerDataUse": "資料的使用方式",

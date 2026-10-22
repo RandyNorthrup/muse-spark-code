@@ -4899,7 +4899,8 @@
     "azureResource": "Azure-Ressource",
     "deployment": "Bereitstellung",
     "loopbackPort": "Lokaler Port",
-    "customFormat": "Schnittstellenformat"
+    "customFormat": "Schnittstellenformat",
+    "safetyIdentifier": "Endbenutzer-ID (xAI-Sicherheit)"
   },
   "providerDocs": "Dokumentation",
   "providerDataUse": "Wie Ihre Daten verwendet werden",

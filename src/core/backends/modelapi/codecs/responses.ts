@@ -74,6 +74,12 @@ export interface ResponsesEncodeOptions {
   readonly shouldUseStrictTools?: boolean | undefined
   readonly model?: string | undefined
   readonly replayOrigins?: Readonly<Record<string, string>> | undefined
+  /**
+  The entry's end-user id, sent as `safety_identifier` where set (xAI
+  only: the caller gates by preset, `safetyIdentifierFor`). Absent
+  sends nothing.
+  */
+  readonly safetyIdentifier?: string | undefined
 }
 
 /**
@@ -487,6 +493,9 @@ export function createResponsesCodec(
           quirks.sendPromptCacheRetention && {
             prompt_cache_retention: body.prompt_cache_retention,
           }),
+        ...(options?.safetyIdentifier !== undefined && {
+          safety_identifier: options.safetyIdentifier,
+        }),
       }
     },
     async *decodeStream(

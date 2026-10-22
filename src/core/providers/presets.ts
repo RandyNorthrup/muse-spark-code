@@ -552,26 +552,29 @@ const XAI_PRESET: ProviderPreset = {
     // a 1 s base doubling per try, with no documented maximum wait.
     retryLimits: { maxRetries: 4, baseMs: 1000 },
   },
-  // grok-4.5 takes `xhigh` (requests with it are treated as `high`) though
-  // the pinned catalogue lists only low/medium/high (lane REASONSHAPESR2,
-  // XAI-G01: `docs.x.ai/developers/model-capabilities/text/reasoning`,
-  // read 2026-10-13). The live list wins where it speaks; XAI-LIST
-  // settles the dated catalogue against it.
-  reasoningFacts: [
-    {
-      modelId: 'grok-4.5',
-      docUrl: 'https://docs.x.ai/developers/model-capabilities/text/reasoning',
-      readOn: '2026-10-13',
-      fields: {
-        reasoning: {
-          effortLevels: {
-            state: 'yes',
-            value: ['low', 'medium', 'high', 'xhigh'],
-          },
+  // The reasoning page documents low/medium/high/`xhigh` for grok-4.5
+  // through grok-4.7 with a `high` default, and that `xhigh` on 4.5 is
+  // treated as `high` (lane REASONSHAPESR2, XAI-G01:
+  // `docs.x.ai/developers/model-capabilities/text/reasoning`, read
+  // 2026-10-22). The pinned catalogue carries the levels; the facts
+  // repeat them as the dated backstop and carry the default the
+  // catalogue lacks, so a switched model selects `high` instead of the
+  // last level. The live list wins where it speaks; XAI-LIST settles
+  // the dated catalogue against it.
+  reasoningFacts: ['grok-4.5', 'grok-4.6', 'grok-4.7'].map((modelId): PresetReasoningFacts => ({
+    modelId,
+    docUrl: 'https://docs.x.ai/developers/model-capabilities/text/reasoning',
+    readOn: '2026-10-22',
+    fields: {
+      reasoning: {
+        effortLevels: {
+          state: 'yes',
+          value: ['low', 'medium', 'high', 'xhigh'],
         },
+        defaultEffort: 'high',
       },
     },
-  ],
+  })),
   wireCapture: true,
 }
 
@@ -839,15 +842,13 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   // for the DeepSeek models; the pinned catalogue lists only
   // `[low, high, max]`. Until it carries the fact, the record takes
   // the documented names here (deepseek-flash VERIFIED as named by
-  // DS-XHIGH/DS-ULTRA; the other three UNVERIFIED until captured).
-  // Re-check on each catalogue sync; prefer the catalogue the moment
-  // it carries the fact.
-  reasoningFacts: [
-    'deepseek-flash',
-    'deepseek-v4-flash',
-    'deepseek-v4-pro',
-    'deepseek-v4-flash-vision-exp',
-  ].map((modelId): PresetReasoningFacts => ({
+  // DS-XHIGH/DS-ULTRA; deepseek-v4-pro UNVERIFIED until captured).
+  // `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` are retired
+  // (api-docs.deepseek.com, read 2026-10-22: served by
+  // DeepSeek-V4.1-Flash-1017 under the Flash price), so they carry no
+  // facts. Re-check on each catalogue sync; prefer the catalogue the
+  // moment it carries the fact.
+  reasoningFacts: ['deepseek-flash', 'deepseek-v4-pro'].map((modelId): PresetReasoningFacts => ({
     modelId,
     docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
     readOn: '2026-10-13',
@@ -1288,6 +1289,21 @@ export function wireModelFor(
   const deployment = entry.deployment
   if (deployment === undefined || deployment === '') throw new Error(UI_TEXT.actionFailed)
   return deployment
+}
+
+/**
+The end-user identifier on the wire for an entry (xAI's
+`safety_identifier`, docs.x.ai release notes September 2026, read
+2026-10-22): the person's own id from their xAI entry, so xAI
+attributes a policy violation to it rather than to the API key. Only
+xAI entries send it (OC5's setting shape); every other preset, and an
+xAI entry without one, sends nothing.
+*/
+export function safetyIdentifierFor(entry: {
+  readonly preset: string
+  readonly safetyIdentifier?: string | undefined
+}): string | undefined {
+  return entry.preset === 'xai' ? entry.safetyIdentifier : undefined
 }
 
 // --- OpenRouter as a first-class provider (D74) ---

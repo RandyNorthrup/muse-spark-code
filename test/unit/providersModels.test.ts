@@ -166,6 +166,23 @@ describe('stored force reasons', () => {
   })
 })
 
+describe('stored safety identifier', () => {
+  it('keeps a valid id and rejects blanks and terminal controls', () => {
+    // The id is printed back in the panel and the file, so like a
+    // stored model id it never validates blank or with control or
+    // format characters (the bidi override would steer a terminal).
+    expect(
+      providerEntrySchema.safeParse(entry(['grok-4.7'], { safetyIdentifier: 'coder-7' })).success,
+    ).toBe(true)
+    for (const id of ['', ' '.repeat(3), 'ok\nforged', 'a\u{1B}[31mb', 'a\u{202E}b']) {
+      expect(
+        providerEntrySchema.safeParse(entry(['grok-4.7'], { safetyIdentifier: id })).success,
+        JSON.stringify(id),
+      ).toBe(false)
+    }
+  })
+})
+
 describe('providers models parsing', () => {
   it('parses list, add, remove and force', () => {
     expect(parseCommandLine(['providers', 'models', 'openrouter'])).toEqual({

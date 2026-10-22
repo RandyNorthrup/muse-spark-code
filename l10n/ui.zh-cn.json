@@ -4775,7 +4775,8 @@
     "azureResource": "Azure 资源",
     "deployment": "部署",
     "loopbackPort": "本地端口",
-    "customFormat": "协议格式"
+    "customFormat": "协议格式",
+    "safetyIdentifier": "最终用户ID（xAI安全）"
   },
   "providerDocs": "文档",
   "providerDataUse": "数据的使用方式",

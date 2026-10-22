@@ -4775,7 +4775,8 @@
     "azureResource": "Azure 리소스",
     "deployment": "배포",
     "loopbackPort": "로컬 포트",
-    "customFormat": "프로토콜 형식"
+    "customFormat": "프로토콜 형식",
+    "safetyIdentifier": "최종 사용자 ID(xAI 안전)"
   },
   "providerDocs": "문서",
   "providerDataUse": "데이터 사용 방식",

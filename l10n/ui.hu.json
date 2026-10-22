@@ -4899,7 +4899,8 @@
     "azureResource": "Azure-erőforrás",
     "deployment": "Üzembe helyezés",
     "loopbackPort": "Helyi port",
-    "customFormat": "Protokollformátum"
+    "customFormat": "Protokollformátum",
+    "safetyIdentifier": "Végfelhasználói azonosító (xAI-biztonság)"
   },
   "providerDocs": "Dokumentáció",
   "providerDataUse": "Adatai felhasználása",

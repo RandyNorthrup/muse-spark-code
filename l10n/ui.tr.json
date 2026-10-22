@@ -4899,7 +4899,8 @@
     "azureResource": "Azure kaynağı",
     "deployment": "Dağıtım",
     "loopbackPort": "Yerel bağlantı noktası",
-    "customFormat": "Protokol biçimi"
+    "customFormat": "Protokol biçimi",
+    "safetyIdentifier": "Son kullanıcı kimliği (xAI güvenliği)"
   },
   "providerDocs": "Belgeler",
   "providerDataUse": "Verilerinizin nasıl kullanıldığı",

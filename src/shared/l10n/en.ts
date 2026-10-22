@@ -6275,6 +6275,7 @@ export const EN = {
     deployment: 'Deployment',
     loopbackPort: 'Local Port',
     customFormat: 'Wire Format',
+    safetyIdentifier: 'End-user ID (xAI safety)',
   },
   providerDocs: 'Documentation',
   providerDataUse: 'How Your Data Is Used',

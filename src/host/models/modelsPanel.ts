@@ -166,6 +166,8 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
     auth: entry?.auth ?? preset?.auth ?? 'apiKey',
     // An Azure edit reopens with its deployment; the resource stays in the address.
     ...(entry?.deployment !== undefined && { deployment: entry.deployment }),
+    // An xAI edit reopens with its end-user id.
+    ...(entry?.safetyIdentifier !== undefined && { safetyIdentifier: entry.safetyIdentifier }),
     keyPresent: false,
     keyShapeOk: false,
     connected: false,
@@ -457,6 +459,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }),
         ...(base.preset === 'azure' &&
           draft.deployment !== initial.deployment && { deployment: draft.deployment }),
+        // An xAI edit keeps, sets or clears its end-user id; a blank
+        // clears it, and the entry schema refuses blanks on save.
+        ...(base.preset === 'xai' &&
+          draft.safetyIdentifier !== initial.safetyIdentifier && {
+            safetyIdentifier: draft.safetyIdentifier === '' ? undefined : draft.safetyIdentifier,
+          }),
         ...(preset.id === 'openrouter' &&
           (isPrivacyChanged || isOrderChanged || isFallbacksChanged) && {
             routing: {
@@ -482,6 +490,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       // by the model family the user ticked (PROVM95).
       ...(preset.id === 'azure' &&
         draft.deployment !== undefined && { deployment: draft.deployment }),
+      // The end-user id rides a new xAI entry the same way; a blank
+      // field saves nothing, and the schema refuses blanks.
+      ...(preset.id === 'xai' &&
+        draft.safetyIdentifier !== undefined &&
+        draft.safetyIdentifier !== '' && { safetyIdentifier: draft.safetyIdentifier }),
       ...(modelLimits !== undefined && { modelLimits }),
       ...(draft.customFormat !== undefined && { format: draft.customFormat }),
       ...(preset.id === 'openrouter' && {
