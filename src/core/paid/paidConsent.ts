@@ -40,6 +40,7 @@ import {
   type PaidStoreFailureKind,
   type PaidUseDecision,
   type PaidUseRequest,
+  scheduledRunPrice,
 } from '../../shared/paid'
 import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
@@ -406,7 +407,7 @@ export class PaidUseConsent {
   public readonly authority: PaidAuthority
 
   public constructor(private readonly deps: PaidUseConsentDeps) {
-    this.authority = deps.authority ?? new PaidAuthority()
+    this.authority = deps.authority ?? new PaidAuthority(UI_TEXT, uiLocale())
   }
 
   private quoteGeneration(): string {
@@ -586,8 +587,8 @@ export class PaidUseConsent {
       storedGeneration !== (this.deps.quoteGeneration?.() ?? 'initial')
     )
       return undefined
-    const quote = freezePaidQuote(
-      request.quote ?? {
+    const quote = freezePaidQuote({
+      ...(request.quote ?? {
         id: randomUUID(),
         feature: 'webSearch',
         provider: 'meta',
@@ -596,8 +597,12 @@ export class PaidUseConsent {
         tariffUsd: Usd.from(request.priceUsd).toAmount(),
         unit: 'search',
         capturedAt: Date.now(),
-      },
-    )
+      }),
+      ...(request.payerKind !== undefined && { payerKind: request.payerKind }),
+      ...(request.paidModelId !== undefined && {
+        modelTokenBilling: scheduledRunPrice(request.paidModelId),
+      }),
+    })
     const generation = JSON.stringify([localGeneration, storedGeneration])
     const priceGeneration = this.deps.windowOnceGeneration?.('webSearch')
     const windowKey = JSON.stringify([

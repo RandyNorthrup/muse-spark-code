@@ -214,9 +214,15 @@ function add(target: Accumulator, row: UsageAggregateRow): void {
   total.retries += value.retries
   total.rateLimited += value.rateLimited
   for (const cost of value.costs) {
-    let existing = total.costs.find((entry) => entry.certainty === cost.certainty)
+    // Plan rows split by provider: a Meta plan row ("Muse Code plan") never
+    // merges into another plan row's shared "Plan". Every other certainty
+    // merges as before, with no provider set.
+    let existing = total.costs.find(
+      (entry) => entry.certainty === cost.certainty && entry.provider === cost.provider,
+    )
     if (existing === undefined) {
       existing = { certainty: cost.certainty, records: 0 }
+      if (cost.provider !== undefined) existing.provider = cost.provider
       total.costs.push(existing)
     }
     existing.records += cost.records
@@ -315,6 +321,9 @@ function recordRow(record: UsageRecord): UsageAggregateRow {
           ...(record.cost.apiEquivalentUsd !== undefined && {
             apiEquivalentUsd: record.cost.apiEquivalentUsd,
           }),
+          // Only plan rows name their provider (C-M95-SUB's "Muse Code
+          // plan"); every other row merges provider-blind as before.
+          ...(record.cost.certainty === 'plan' && { provider: record.provider }),
         },
       ],
       ...(record.durationMs !== undefined && { durationMs: record.durationMs }),

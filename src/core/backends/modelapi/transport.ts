@@ -1,4 +1,5 @@
 import { UserRefusalError } from '../../refusal'
+import type { AttemptBillingRoute, BillingRoute } from './billingRoute'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
@@ -624,6 +625,10 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 export interface ResponseAttemptGuard {
   /** After retry accounting/backoff, allow the owner to rebuild the next request. */
   readonly beforeRetry?: () => void
+  /** Frozen Meta auth/pricing snapshot; never forwarded to another provider's auth. */
+  readonly billingRoute?: BillingRoute | undefined
+  /** Compare-only after admission: a fresh route may refuse, never replace auth. */
+  readonly confirmBillingRoute?: (() => Promise<void>) | undefined
   readonly mediaAccounting?: MediaRequestAccounting
   readonly pacingClass?: PacingClass
   readonly searchQuote?: PaidQuote
@@ -740,11 +745,11 @@ export class RequestTransport {
   }
 
   /** Read authorization fresh for every attempt. */
-  private async headers(url: string): Promise<AuthHeaders> {
-    if (this.deps.auth !== undefined) {
+  private async headers(url: string, authKey?: string): Promise<AuthHeaders> {
+    if (authKey === undefined && this.deps.auth !== undefined) {
       return await this.deps.auth.headers(url)
     }
-    const key = await this.deps.apiKey?.()
+    const key = authKey ?? (await this.deps.apiKey?.())
     if (key === undefined) {
       throw new MissingApiKeyError()
     }
@@ -986,6 +991,7 @@ export class RequestTransport {
   public async streamRequest(
     path: string,
     init: {
+      readonly billingRoute: AttemptBillingRoute
       readonly body: unknown
       readonly headers?: Readonly<Record<string, string>>
       readonly modelId?: string
@@ -1173,6 +1179,7 @@ export class RequestTransport {
   public async request(
     path: string,
     init: {
+      readonly billingRoute: AttemptBillingRoute
       readonly method: 'GET' | 'POST'
       readonly body?: unknown
       readonly modelId?: string
@@ -1186,6 +1193,12 @@ export class RequestTransport {
       so it is not.
       */
       readonly headers?: Readonly<Record<string, string>>
+      /**
+       * An explicit credential for this request (a paid image on the
+       * stored key while chat bills the subscription): exact redaction and
+       * the digest follow the override, never the default key.
+       */
+      readonly authKey?: string
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
         readonly claim: SpendClaim
@@ -1263,7 +1276,12 @@ export class RequestTransport {
       }
       let credentials: Awaited<ReturnType<RequestTransport['headers']>>
       try {
-        credentials = await this.headers(url)
+        credentials = await this.headers(
+          url,
+          this.deps.auth === undefined
+            ? (init.billingRoute.billing?.credential ?? init.authKey)
+            : undefined,
+        )
       } catch (error: unknown) {
         // Same test as isAborted(signal): a stop cancels the attempt.
         if (signal?.aborted) {
@@ -1277,6 +1295,18 @@ export class RequestTransport {
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
+      if (
+        attempt > 0 &&
+        init.billingRoute.billing !== undefined &&
+        init.authKey === undefined &&
+        init.billingRoute.requiresCredentialCheck &&
+        credentials.keyDigest !== (await this.currentKeyDigest())
+      )
+        throw new Error(
+          confirmed === undefined
+            ? UI_TEXT.subscriptionKey.billingChanged
+            : UI_TEXT.scheduleConfirmationExpired,
+        )
       admitAttempt?.check?.()
       await this.deps.verifyEndpoint?.(url)
       if (isAborted(signal)) {
@@ -1344,6 +1374,7 @@ export class RequestTransport {
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
       admitAttempt?.check?.()
+      await admitAttempt?.confirmBillingRoute?.()
       if (init.paid !== undefined) {
         if (init.paid.isSent) {
           throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')

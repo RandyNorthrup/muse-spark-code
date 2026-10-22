@@ -55,6 +55,13 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
                   model: request.quote.model,
                 }),
               ]),
+          ...(request.paidModelId === undefined
+            ? []
+            : [
+                fill(UI_TEXT.subscriptionKey.paidSearch, {
+                  price: hookModelPrice(request.paidModelId),
+                }),
+              ]),
           ...(request.quoteNotice === undefined
             ? []
             : [

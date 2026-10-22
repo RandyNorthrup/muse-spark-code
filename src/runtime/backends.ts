@@ -35,6 +35,11 @@ import {
 } from '../core/paid/spendClaim'
 import type { UsageRecording } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
+import { SubscriptionCredential } from '../host/auth/subscriptionCredential'
+import {
+  SubscriptionKeySource,
+  subscriptionKeyRefusal,
+} from '../core/backends/modelapi/subscriptionKey'
 import type { Logger } from '../host/logger'
 import {
   FILE_REFUSAL_MODEL_TEXT,
@@ -93,6 +98,7 @@ import { recordPaidUse } from '../core/paid/paidFeatures'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
+import type { SessionStore } from '../core/backends/modelapi/sessionStore'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
@@ -203,6 +209,36 @@ function independentEditorStartupPolicy(log: Logger): Promise<void> {
   return Promise.resolve()
 }
 
+// Snapshot copies are plain structured data. Keep their type/shape while
+// replacing every string leaf before a headless transcript reaches disk.
+export function redactSnapshotCopy(value: unknown, literals: readonly string[]): void {
+  if (typeof value !== 'object' || value === null) return
+  for (const [key, leaf] of Object.entries(value)) {
+    if (typeof leaf === 'string') Reflect.set(value, key, redactSecrets(leaf, literals))
+    else redactSnapshotCopy(leaf, literals)
+  }
+}
+
+/**
+A session store whose saves scrub every credential that could have
+been sent (the pasted key and the opted-in subscription key) before a
+headless transcript reaches disk. The literals resolve per save and
+never throw, so an unreadable sign-in cannot break persistence.
+*/
+export function withCredentialRedaction(
+  store: SessionStore,
+  redactionKeys: () => Promise<readonly string[]>,
+): SessionStore {
+  return {
+    ...store,
+    async save(snapshot) {
+      const copy = structuredClone(snapshot)
+      redactSnapshotCopy(copy, await redactionKeys())
+      await store.save(copy)
+    },
+  }
+}
+
 function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
   const { options, log } = deps
   // VS Code inherits its host environment (D1); the standalone runtime has
@@ -303,6 +339,7 @@ function newFilesClient(input: {
 function modelApiManager(
   deps: RuntimeBackendDeps,
   credentials: CredentialStore,
+  subscription: SubscriptionCredential,
   storedWorkspaceRoot: string,
   workspaceRoot: string,
   homes: MuseHomes,
@@ -467,34 +504,10 @@ function modelApiManager(
             },
           }),
         })
-  // Snapshot copies are plain structured data. Keep their type/shape while
-  // replacing every string leaf before a headless transcript reaches disk.
-  const redactSnapshot = (value: unknown, literals: readonly string[]): void => {
-    if (typeof value !== 'object' || value === null) return
-    for (const [key, leaf] of Object.entries(value)) {
-      if (typeof leaf === 'string') Reflect.set(value, key, redactSecrets(leaf, literals))
-      else redactSnapshot(leaf, literals)
-    }
-  }
   const headlessStore =
     store === undefined
       ? undefined
-      : {
-          ...store,
-          async save(snapshot: Parameters<typeof store.save>[0]) {
-            // A dead store holds no key to redact against; the save itself
-            // must still succeed so a session starts without a key store.
-            let key: string | undefined
-            try {
-              key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
-            } catch (error: unknown) {
-              if (!isStoreUnavailable(error)) throw error
-            }
-            const copy = structuredClone(snapshot)
-            redactSnapshot(copy, key === undefined ? [] : [key])
-            await store.save(copy)
-          },
-        }
+      : withCredentialRedaction(store, () => subscription.redactionKeys())
   // Lanes V and VB: Windows conversion runs in M50's kill-on-close job under
   // a kernel memory cap; its launcher compiles on first use from the C#
   // shipped beside dist/ (scripts/package-acp.mjs JOB_SOURCES).
@@ -518,31 +531,23 @@ function modelApiManager(
     mediaAudioAction: undefined,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
-    getApiKey: async () => {
-      const key = await credentials.getApiKey()
-      if (key !== undefined) return key
-      // getApiKey degrades a dead store to undefined (D25). Once the gate
-      // has proven the store dead, a step that needs the stored key throws
-      // the store failure instead, so it names the store rather than
-      // claiming no key is stored. Unprobed sessions keep absent-key reads.
-      // The prompt turn runs no readiness check of its own, so the probe
-      // may predate an unlocked store: re-read once before refusing, and
-      // heal the probe when the store answers again.
-      if (metaKeyProbe.state === 'storeDown') {
-        let reread: string | undefined
-        try {
-          reread = await deps.secrets.get(SECRET_KEYS.modelApiKey)
-          metaKeyProbe.state = reread !== undefined && reread !== '' ? 'key' : 'absent'
-        } catch (error: unknown) {
-          if (!isStoreUnavailable(error)) throw error
-        }
-        if (metaKeyProbe.state === 'storeDown') throw new StoreUnavailableError()
-        // The store answered again: this step gets the key it just read, not
-        // an absent-key read that would refuse the step the probe just healed.
-        if (reread !== undefined && reread !== '') return reread
+    // The effective key per attempt: the pasted key, or the opted-in
+    // subscription's. Resolution re-reads every call, so an unlocked store
+    // or a rotated file heals without a probe.
+    getApiKey: () => subscription.getApiKey(),
+    // Paid extras bill the stored key even while chat bills the plan. The
+    // watched store covers a stdin key too; nothing here throws, so an
+    // unreadable store reads as no paid key and the image path refuses.
+    getPaidApiKey: async () => {
+      try {
+        const stored = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+        return stored === undefined || stored === '' ? undefined : stored
+      } catch {
+        return
       }
-      return
     },
+    subscriptionAccountId: subscription.accountId(),
+    getBillingRoute: (isPaid) => subscription.route(isPaid),
     // No Meta key on record means no catalogue dial: the model list comes
     // from the providers file alone, so a keyless session still opens.
     // Unprobed sessions keep today's dial behavior.
@@ -824,17 +829,37 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   let registry: AttachedMedia | undefined
   const attachedMedia = lazyAttachedMedia(() => registry)
   const mediaIo = new Map<string, ToolIo>()
+  // C-M95-SUB: the Model API backend on the Muse Code subscription. The
+  // flag is the one opt-in; without it the pasted key behaves as before.
+  // The source reads only the CLI's auth file, never the secret store.
+  const subscriptionSource = new SubscriptionKeySource({
+    platform: deps.platform,
+    homeDir: deps.homeDir,
+    xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+  })
   const credentials = new CredentialStore(
     deps.secrets,
     (message) => {
       deps.log.warn(message)
     },
     "the operating system's credential store",
+    undefined,
+    // The --subscription opt-in counts the CLI sign-in for backend
+    // availability; the key itself never enters the store.
+    async () => deps.options.subscription === true && (await subscriptionSource.isReady()),
   )
   const grants = paidGrantFile({
     file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
     log: deps.log,
     sleep: deps.sleep,
+  })
+  const subscription = new SubscriptionCredential({
+    credentials,
+    isEnabled: () => deps.options.subscription === true,
+    platform: deps.platform,
+    homeDir: deps.homeDir,
+    xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+    source: subscriptionSource,
   })
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
@@ -949,6 +974,15 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         failureOf: entry.chatGptFailureOf,
       }
     }
+    // The opted-in CLI subscription counts before the secret store is
+    // touched: a valid sign-in is usable with no pasted key, and an
+    // unavailable OS store never blocks subscription-only use.
+    let subscriptionRefusal: string | undefined
+    if (deps.options.subscription === true) {
+      const read = await subscriptionSource.read()
+      if (read.status === 'ready') return { state: 'ready' }
+      subscriptionRefusal = subscriptionKeyRefusal(read.status)
+    }
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
@@ -991,6 +1025,34 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         // An unreadable providers file reads as no default: the key gate
         // below still refuses, and the run surfaces the file's own error.
       }
+    }
+    // The early key return above leaves only an absent or empty key here,
+    // so this gate is the interactive session's ChatGPT-grant check alone.
+    if (deps.exec === undefined) {
+      try {
+        const hasProviderRecord =
+          (await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined
+        const configFile = path.join(
+          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+          PROVIDERS_CONFIG_DIR_NAME,
+          PROVIDERS_FILE_NAME,
+        )
+        if (hasProviderRecord || existsSync(configFile)) {
+          const entry = await import('./chatGptProviderCommands')
+          const factory = entry.runtimeSubscriptionClient({
+            secrets: deps.secrets,
+            fetch: deps.fetch,
+            configFile,
+            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+            callbackText: () => UI_TEXT.acpChatGpt.callback,
+          })
+          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+        }
+      } catch {
+        // An unreadable providers file reads as no default: the key gate
+        // below still refuses, and the run surfaces the file's own error.
+      }
       const chatGpt = await chatGptFactory()
       if (chatGpt !== undefined) {
         try {
@@ -1029,6 +1091,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       }
       return { state: 'unavailable', message: UI_TEXT.acpChatGpt.failure }
     }
+    // C-M95-SUB: an opted-in subscription that is not usable refuses in its
+    // own words before the generic key refusal.
+    if (subscriptionRefusal !== undefined)
+      return { state: 'signedOut', message: subscriptionRefusal }
     // A plan model's refusal names its own sign-in, never the Meta key. The
     // name comes from the resolved hint (the configured default included),
     // not the flag: without `--model` the flag is empty here (Codex on PR
@@ -1068,6 +1134,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     const manager = modelApiManager(
       deps,
       credentials,
+      subscription,
       cwd,
       canonical,
       homes,

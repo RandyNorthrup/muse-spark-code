@@ -1,3 +1,4 @@
+import type { BillingRoute, PayerCredential } from '../../backends/modelapi/billingRoute'
 import type { StructuredOutputDeps } from '../../backends/modelapi/structuredOutput'
 import { type UsdAmount } from '../../../shared/usd'
 import type { CreateResponseBody } from '../../backends/modelapi/schemas'
@@ -33,5 +34,8 @@ export interface ModelApiJudgeTransport {
 export interface ModelApiJudgeConnection extends StructuredOutputDeps {
   readonly source: ModelApiJudgeSource
   readonly transport: ModelApiJudgeTransport
-  readonly keyDigest: string
+  readonly resolvePayer: () => Promise<{
+    readonly route: BillingRoute | undefined
+    readonly payerCredential: PayerCredential
+  }>
 }

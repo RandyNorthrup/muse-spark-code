@@ -139,6 +139,7 @@
   "certaintyUncertain": "Неопределённая",
   "reservedLabel": "Зарезервировано",
   "certaintyPlan": "План",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Локальная",
   "certaintyUnpriced": "Без цены",
   "certaintyEstimated": "Оценочная",

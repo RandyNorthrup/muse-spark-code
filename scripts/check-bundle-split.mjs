@@ -161,6 +161,10 @@ const ACTIVATION_ALLOWED = new Map([
     'autoCompactionAdmission.ts',
     'shared paid admission bound by panel and runtime managers (M101)',
   ],
+  [
+    'billingRoute.ts',
+    'the frozen credential route and stable sign-in identity shared by activation and Model API (D106)',
+  ],
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
   // imageGeneration.ts loads with the image chunk on the backend's first
   // image call (MODEL_API_IMAGE_ONLY); activation keeps its own copy for
@@ -168,6 +172,15 @@ const ACTIVATION_ALLOWED = new Map([
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
+  // C-M95-SUB: the subscription key source. Activation reads it for the
+  // opt-in readiness gate; the runtime engine (serve) and the headless
+  // preflight read it for the --subscription opt-in; dist/modelApi.js never
+  // carries it (the manager receives the credential instead of importing
+  // the source).
+  [
+    'subscriptionKey.ts',
+    'the subscription key source activation reads for the opt-in readiness gate (C-M95-SUB)',
+  ],
 ])
 
 // The files that load only with the backend: the host, its tools, hooks,
@@ -338,6 +351,15 @@ for (const name of [
 }
 
 const activation = inputsOf(BUNDLES.activation)
+// D106: the frozen route belongs to the engine, never the tiny headless preflight.
+const headlessRouteInputs = inputsOf({
+  output: 'dist/headless.js',
+  metafile: 'dist/meta-acp/headless.json',
+})
+if (headlessRouteInputs.has(`${MODEL_API_DIR}/billingRoute.ts`))
+  problems.push(
+    'dist/headless.js carries the billing route; keep it out of the headless preflight (D106)',
+  )
 // M118: prompt/share implementations load with their first action, never
 // activation. Type-only imports contribute no runtime bytes.
 for (const file of ['src/shared/prompts.ts', 'src/shared/share.ts']) {

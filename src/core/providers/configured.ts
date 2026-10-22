@@ -1,3 +1,4 @@
+import { resolveAttemptBillingRoute } from '../backends/modelapi/billingRoute'
 // Shared configured-provider transport. Hosts supply their own secret store;
 // every send rechecks configuration, credential origin and pinned DNS answers.
 import { createHash, randomUUID } from 'node:crypto'
@@ -917,7 +918,16 @@ export function createConfiguredProviderServices(
     }
     const result = await transport.request(
       address.path,
-      { method: 'GET', accept: 'application/json', headers, retries: 'rateLimitOnly' },
+      {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'catalogue',
+          isMetaDirect: false,
+        }),
+        method: 'GET',
+        accept: 'application/json',
+        headers,
+        retries: 'rateLimitOnly',
+      },
       signal,
     )
     if (isExact) {
@@ -1495,6 +1505,10 @@ export function createConfiguredProviderServices(
             const result = await transport.request(
               count.path,
               {
+                billingRoute: await resolveAttemptBillingRoute({
+                  feature: 'tokenCount',
+                  isMetaDirect: false,
+                }),
                 method: 'POST',
                 body: count.body,
                 ...(encoded.headers !== undefined && { headers: encoded.headers }),

@@ -807,6 +807,10 @@ export const SETTING_DEFAULTS = {
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
   modelApiSessionBudgetUsd: 0,
+  // C-M95-SUB: drive the Model API backend from the Muse Code subscription
+  // instead of a pay-as-you-go key. Off until the user turns it on; machine
+  // scoped, since a repository must not choose what is billed.
+  useMuseCodeSubscription: false,
   // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
   // before the media block below); machine scoped, since a repository must
   // not set what is uploaded, kept or billed on the key. D121: no cap of

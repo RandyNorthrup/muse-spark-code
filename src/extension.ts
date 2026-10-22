@@ -20,7 +20,6 @@ import {
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   LEGAL_REGISTRY_NOTICE_KEY,
-  BACKEND_SETTING,
   BYPASS_SETTING,
   CLI_PROCESS_SETTINGS,
   HTTP_POSTURE_SETTINGS,
@@ -165,6 +164,8 @@ import {
   resolveAgainstRoot,
   rootRelativePath,
 } from './core/workspaceRoot'
+import { SubscriptionCredential } from './host/auth/subscriptionCredential'
+import { SubscriptionKeySource } from './core/backends/modelapi/subscriptionKey'
 import type { QuestionStore } from './shared/questions'
 import {
   museSettingsPath,
@@ -375,7 +376,12 @@ import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
-import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
+import {
+  requiresBackendRestart,
+  permissionSettingsOf,
+  readSettings,
+  toSettingsSnapshot,
+} from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
@@ -1221,15 +1227,37 @@ async function activateWindow(
       },
     }))
   const providersSeamBundle = () => subscriptionFeatures().seam
-  const credentials = providerCredentials(secrets, log, async () => {
-    const features = subscriptionFeatures()
-    const entries = await features.seam.store.list()
-    // Only a live, non-confidential host grant supplies credential-free readiness.
-    return entries.map((entry) =>
-      entry.id === 'copilot' && features.hasCopilotAccess()
-        ? { ...entry, auth: 'none' as const }
-        : entry,
-    )
+  // C-M95-SUB: the Model API backend on the Muse Code subscription. The
+  // source reads only the CLI's auth file (never SecretStorage); the
+  // setting is the one opt-in, so the store gate counts the subscription
+  // only while the user has it on.
+  const subscriptionSource = new SubscriptionKeySource({
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+  })
+  const credentials = providerCredentials(
+    secrets,
+    log,
+    async () => {
+      const features = subscriptionFeatures()
+      const entries = await features.seam.store.list()
+      // Only a live, non-confidential host grant supplies credential-free readiness.
+      return entries.map((entry) =>
+        entry.id === 'copilot' && features.hasCopilotAccess()
+          ? { ...entry, auth: 'none' as const }
+          : entry,
+      )
+    },
+    async () => currentSettings().useMuseCodeSubscription && (await subscriptionSource.isReady()),
+  )
+  const subscription = new SubscriptionCredential({
+    credentials,
+    isEnabled: () => currentSettings().useMuseCodeSubscription,
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    source: subscriptionSource,
   })
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
@@ -3080,7 +3108,11 @@ async function activateWindow(
       prepareCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, log, top),
     afterTurnRuns: (sessionId, turnId, end) =>
       finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: () => subscription.getApiKey(),
+    // Paid extras bill the stored key even while chat bills the plan.
+    getPaidApiKey: () => credentials.getApiKey(),
+    subscriptionAccountId: subscription.accountId(),
+    getBillingRoute: (isPaid) => subscription.route(isPaid),
     workspaceRoot,
     io: checkpointedIo,
     listAttemptFiles: (attemptRoot) =>
@@ -4456,7 +4488,7 @@ async function activateWindow(
           accountFacts: async (kind) => {
             const resolution = backend.resolveLaunch()
             const isCliSession = await hasCliSession()
-            const hasKey = (await credentials.getApiKey()) !== undefined
+            const hasKey = await subscription.hasCredential()
             const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
             const cliVersion = resolution.ok
               ? backend.installedVersion(resolution.launch.installDir)
@@ -5397,8 +5429,7 @@ async function activateWindow(
       // A host keeps its sandbox posture, its environment and its binary for
       // life, and the backend choice is made per host: drop them so the next
       // message spawns afresh (and resumes the conversation, D25).
-      const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
-      if (isBackendSetting) {
+      if (requiresBackendRestart((key) => event.affectsConfiguration(key))) {
         if (isSubscriptionConnecting) return
         void restartBackend('the backend setting changed')
           .then(() => auth.refresh())
