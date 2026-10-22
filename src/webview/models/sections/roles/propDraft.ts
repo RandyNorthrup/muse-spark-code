@@ -81,10 +81,10 @@ function applyReply(previous: unknown, arrived: unknown, draft: object, sent: re
 }
 
 /**
- * @param prop the host-owned value, referentially stable across renders
- * that carry no new host data (a value rebuilt every render needs a
- * useMemo on its host inputs, or every local render looks external).
- */
+@param prop the host-owned value, referentially stable across renders
+that carry no new host data (a value rebuilt every render needs a
+useMemo on its host inputs, or every local render looks external).
+*/
 export function usePropDraft<T extends object | undefined>(
   prop: T,
 ): [draft: T, update: (next: (previous: T) => T) => T] {
