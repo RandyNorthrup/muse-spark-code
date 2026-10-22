@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 270,
+      "GENERIC": 271,
       "CLEANUP": 242
     },
     "host": {
@@ -2422,6 +2422,11 @@
       "file": "src/core/team/teamMerge.ts",
       "identity": "8860638ec5e676719fa61994e7bb282a4ddc3d34c8cd3dd6e4821d167c7c1026",
       "class": "CLEANUP"
+    },
+    {
+      "file": "src/core/team/teamMergeFlow.ts",
+      "identity": "268a7718005c1c888b772f295201bd576c59b84b07aeb973c06bbc59b1e0712f",
+      "class": "GENERIC"
     },
     {
       "file": "src/core/team/teamPool.ts",

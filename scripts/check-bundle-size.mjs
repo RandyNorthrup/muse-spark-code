@@ -196,13 +196,12 @@ const BUDGETS = [
   // 1.15 = 86.6 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
   { path: 'dist/teamRunners.js', budgetKiB: 100 },
   // C-M96-3: the team host service with its engine worker and merge ports,
-  // loaded only for a workspace that stores a team. Measured 135,361 bytes
-  // (132.2 KiB, production build on macbook, 2026-10-22) x 1.15 = 155,665
-  // bytes (152.02 KiB), rounded up to the KiB. Re-measured on the 0.19.0
-  // merge: HEAD's constants table grew 413,877 to 504,155 bytes since the
-  // branch's base, and the exact-Usd settlement the recovery requires rides
-  // in this bundle.
-  { path: 'dist/teamHost.js', budgetKiB: 153 },
+  // loaded only for a workspace that stores a team. Measured 114,909 bytes
+  // (112.2 KiB, production build on Kubuntu, 2026-10-10) x 1.15 = 132,145
+  // bytes (129.05 KiB), rounded up to the KiB (lead, 2026-10-10). With M96b's
+  // headless team merged, the engine ports stay in dist/teamEngine.js: 103,406
+  // bytes (101.0 KiB, Windows 11, int/recovery 2026-10-22).
+  { path: 'dist/teamHost.js', budgetKiB: 130 },
   { path: 'dist/teamEngine.js', budgetKiB: 100 },
   // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
   { path: 'dist/teamFileIo.js', budgetKiB: 10 },

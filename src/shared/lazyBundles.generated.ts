@@ -176,7 +176,6 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
       { importer: 'src/runtime/exec/providerList.ts', symbol: 'readProviderJson', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
-      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
     ],
@@ -269,6 +268,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
   },
   { file: 'execGuard.js', side: 'both', requestedBy: [] },
+  {
+    file: 'execTeam.js',
+    side: 'acp',
+    requestedBy: [{ importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] }],
+  },
   { file: 'extension.js', side: 'vscode', requestedBy: [] },
   {
     file: 'extensionHooks.js',
@@ -432,6 +436,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'modelApiFileRange.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/modelapi/tools.ts',
+        symbol: 'loadFileRangeTools',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'modelApiHooks.js',
     side: 'both',
     requestedBy: [
@@ -497,6 +512,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/core/backends/modelapi/ModelApiHost.ts',
         symbol: 'ModelApiSession.toolAssist',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/modelapi/tools.ts',
+        symbol: 'loadSearchCalls',
         side: ['acp', 'vscode'],
       },
     ],
@@ -914,6 +934,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'runtimeFor', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
@@ -1089,39 +1110,51 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'teamCreate.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/core/team/workers/workerFence.ts',
         symbol: 'withWorkerFile',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
   {
     file: 'teamEngine.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
-      { importer: 'src/host/team/teamHostEntry.ts', symbol: 'createTeamHost', side: ['vscode'] },
+      {
+        importer: 'src/host/team/teamHostEntry.ts',
+        symbol: 'createTeamHost',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/runtime/exec/execTeamEntry.ts', symbol: 'createExecTeam', side: ['acp'] },
     ],
   },
   {
     file: 'teamFileIo.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
-      { importer: 'src/host/team/teamEnginePorts.ts', symbol: 'runWorkerTask', side: ['vscode'] },
+      {
+        importer: 'src/host/team/teamEnginePorts.ts',
+        symbol: 'runWorkerTask',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
     file: 'teamHost.js',
-    side: 'vscode',
-    requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
+      { importer: 'src/runtime/exec/execTeamEntry.ts', symbol: 'createExecTeam', side: ['acp'] },
+    ],
   },
   {
     file: 'teamMerge.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
-      { importer: 'src/core/team/teamHost.ts', symbol: 'beginMerge', side: ['vscode'] },
+      { importer: 'src/core/team/teamHost.ts', symbol: 'beginMerge', side: ['acp', 'vscode'] },
     ],
   },
   {
@@ -1162,28 +1195,28 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'teamWorkerOps.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/core/team/workers/workerCreateEntry.ts',
         symbol: 'createWorkerFile',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
-      { importer: 'src/host/team/teamEnginePorts.ts', symbol: 'defaultTeamGit', side: ['vscode'] },
+      {
+        importer: 'src/host/team/teamEnginePorts.ts',
+        symbol: 'defaultTeamGit',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/runtime/exec/execTeamEntry.ts', symbol: 'createExecTeam', side: ['acp'] },
     ],
   },
-  { file: 'test/integration/backgroundNotice.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/codeIntel.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/extension.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/legal.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/pageWorker.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/questions.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/scheduleBackground.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/sessionBudget.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/teamPanelAvailability.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/unsavedRefusal.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/verifyEditor.test.js', side: 'unreached', requestedBy: [] },
-  { file: 'test/integration/webFetch.test.js', side: 'unreached', requestedBy: [] },
+  {
+    file: 'toolRange.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/host/backend/toolIo.ts', symbol: 'fileRangeIo', side: ['acp', 'vscode'] },
+    ],
+  },
   { file: 'uiText.js', side: 'both', requestedBy: [] },
   { file: 'uiTextHooks.js', side: 'both', requestedBy: [] },
   { file: 'uiTextMedia.js', side: 'both', requestedBy: [] },

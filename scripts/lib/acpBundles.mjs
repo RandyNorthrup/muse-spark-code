@@ -118,7 +118,12 @@ export const ACP_BUNDLES = [
   'modelEfforts.js',
   'team.js',
   'teamHost.js',
+  // M96's engine, native-creation and worker-operation chunks: headless
+  // teams (M96b) reach them through teamHost.js and execTeam.js.
+  'teamEngine.js',
   'teamFileIo.js',
+  'teamCreate.js',
+  'teamWorkerOps.js',
   'teamMerge.js',
   'execTeam.js',
   'teamRunners.js',
@@ -128,6 +133,9 @@ export const ACP_BUNDLES = [
   'foreignHooks.js',
   'hookRuntime.js',
   'modelApiTools.js',
+  // RLLIMITS: byte-range read_file/edit_file, loaded on the first range call.
+  'modelApiFileRange.js',
+  'toolRange.js',
   'modelApiVerify.js',
   'modelApiImage.js',
   'recorder.js',

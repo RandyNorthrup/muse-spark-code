@@ -10,6 +10,8 @@ import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { EXEC_TEAM_CLEANUP_FILE, EXEC_TEAM_RUN_PREFIX } from '../../src/shared/constants'
 import { processTeamGit } from '../../src/core/team/workers/workerOps'
+import { configureResources } from '../../src/core/resources/admission'
+import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import {
   currentOwner,
   predictedAgentsRef,
@@ -41,6 +43,8 @@ describe('exec team sweep over the real runs root', () => {
   let orphanFolder = ''
   let agentsRef = ''
   let gitImpl: ReturnType<typeof processTeamGit> | undefined
+  let jobsRoot = ''
+  let disposeResources: (() => void) | undefined
 
   beforeAll(async () => {
     // This rig's /usr/bin/git is an Xcode shim the sandbox cannot launch;
@@ -56,6 +60,14 @@ describe('exec team sweep over the real runs root', () => {
         await execFileAsync('git', ['--version'], { timeout: 10_000 })
       }
     }
+    // The sweep's git is the governed contained launch, so the governor is
+    // configured as the runtime process configures it for a headless run.
+    jobsRoot = await mkdtemp(path.join(tmpdir(), 'exec-team-sweep-jobs-'))
+    disposeResources = configureResources({
+      inspect: () => ({}),
+      onError: () => undefined,
+      windowsJob: runtimeWindowsJob(jobsRoot, process.cwd()),
+    })
     gitImpl = processTeamGit(process.platform)
     root = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}sweep-`))
     repo = path.join(root, 'repo')
@@ -91,8 +103,10 @@ describe('exec team sweep over the real runs root', () => {
   }, REAL_GIT_TIMEOUT_MS)
 
   afterAll(async () => {
+    disposeResources?.()
     const { rm } = await import('node:fs/promises')
     await rm(root, { recursive: true, force: true })
+    await rm(jobsRoot, { recursive: true, force: true })
   }, REAL_GIT_TIMEOUT_MS)
 
   it(
