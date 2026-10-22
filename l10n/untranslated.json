@@ -299,6 +299,7 @@
       "teamCapabilityWarning",
       "teamTreeLabel",
       "teamUsageTitle",
+      "feedbackClassificationBug",
       "openPullRequestRepository"
     ],
     "zh-cn": ["toolLabels.shell"],

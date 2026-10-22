@@ -115,6 +115,7 @@ export const ACP_BUNDLES = [
   'whatsNew.json',
   'media.js',
   'reviewer.js',
+  'modelEfforts.js',
   'team.js',
   'teamRunners.js',
   'teamScheduler.js',

@@ -5091,6 +5091,9 @@ export type TaskRequest = (typeof TASK_REQUESTS)[number]
 export const CLARIFICATION_FORMAT = 'text'
 export const CLARIFICATION_MAX_CHARS = 500
 export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
+// A feedback note (C-M106-3R2): free text with its classification, at most
+// this many characters, inside the MSP frame budget with room to spare.
+export const FEEDBACK_NOTE_MAX_CHARS = 2000
 
 // Questions that never block (M112, PLAN.md D92). These limits apply in
 // the process holding the session, on every interactive editor surface.
@@ -5447,11 +5450,15 @@ export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
 // first: the IDE server's warning names it.
 // `sessionRename` (1.4.8) lets the host say rename is unavailable (Windows)
 // up front; older hosts ignore unknown entries, so this stays safe there.
+// `feedback` is last: the 1.4.4 capture grants exactly what its client asks
+// for (sessionListStream, feedback), and the feedback dialog sends only
+// while it is granted.
 export const MSP_REQUESTED_CAPABILITIES = [
   'sessionMcp',
   'sessionListStream',
   'userShell',
   'sessionRename',
+  'feedback',
 ] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // How the extension waits on `muse serve` (PLAN.md D25; the SDK has no

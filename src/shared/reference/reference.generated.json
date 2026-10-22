@@ -673,6 +673,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "native-feedback",
+      "name": { "ui": "feedbackTitle" },
+      "summary": { "ui": "feedbackPrivacy" },
+      "description": { "ui": "feedbackPrivacy" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["museCode"],
+      "paid": false,
+      "surfaces": ["vscode:museCode"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "native-deletion",
       "name": { "ui": "memoryDeleteAction" },
       "summary": { "ui": "historyLabel" },
@@ -697,7 +712,7 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
       "backends": ["museCode", "modelApi"],
       "paid": false,
-      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
       "details": [],
       "facts": {
         "default": "high",
@@ -707,7 +722,7 @@
         },
         "thinkingOff": { "museCode": "none", "modelApi": "minimal" }
       },
-      "editors": ["vscode"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "custom-agents",

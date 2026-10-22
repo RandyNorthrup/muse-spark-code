@@ -145,7 +145,12 @@ import type { MuseUsageDeltas, UsageNotesBundle } from './usageDeltas'
 import { failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
-import { submitMuseFeedback, type FeedbackOutcomeReader, type FeedbackRequest } from './feedback'
+import {
+  NATIVE_FEEDBACK_READER,
+  submitMuseFeedback,
+  type FeedbackOutcomeReader,
+  type FeedbackRequest,
+} from './feedback'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -176,12 +181,14 @@ export interface MuseHostInfo extends HostInfo {
 }
 
 export interface MuseCodeEffortInfo {
-  readonly variants?: readonly string[] | 'unknown'
-  readonly reasoningEffortVariants?: readonly {
-    readonly tier: string
-    readonly description?: string
-  }[]
-  readonly defaultReasoningEffort?: string
+  readonly variants?: readonly string[] | 'unknown' | undefined
+  readonly reasoningEffortVariants?:
+    | readonly {
+        readonly tier: string
+        readonly description?: string | undefined
+      }[]
+    | undefined
+  readonly defaultReasoningEffort?: string | undefined
 }
 
 /**
@@ -264,6 +271,19 @@ export interface MuseCodeFeaturePorts {
   the person may use one.
   */
   readonly contributorMode?: boolean
+}
+
+// The captured-frame reader every backend construction binds (C-M106-3R2):
+// the note-only `feedback/submit` receipt
+// (test/fixtures/m106/msp-1.4.4-host-feedback.json). The 1.4.4 `model/list`
+// effort reader binds the same way, but the manager preloads its module on
+// first spawn (see `MuseCodeBackendManager`), so it stays out of the
+// activation bundle (lane K budget) while every spawn reads the same
+// catalogue. No lifecycle reader: 1.4.4 sends no delete frames, so deletion
+// stays refused with sessionDeleteUnsupported and History stays
+// archive-only.
+export const NATIVE_MUSE_CODE_FEATURE_PORTS: MuseCodeFeaturePorts = {
+  feedback: NATIVE_FEEDBACK_READER,
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -1343,6 +1363,10 @@ export class MuseSession implements ScheduledAgentSession {
   private modeOpsCache: ModeSyncOps | undefined
   private readonly leaseGeneration: number
 
+  /** The host's feedback disclosure ports, bound by `track` (absent in tests). */
+  public readonly previewFeedbackNote?: (note: string) => string
+  public readonly submitFeedback?: (input: FeedbackRequest) => Promise<string>
+
   public constructor(
     public readonly sessionId: string,
     public modelId: string,
@@ -1352,10 +1376,20 @@ export class MuseSession implements ScheduledAgentSession {
     private readonly canRunUserShell: boolean,
     private readonly usageDeltas?: MuseUsageDeltas,
     initialApprovalMode?: string,
+    feedback?: {
+      readonly previewNote: (note: string) => string
+      readonly submit: (input: FeedbackRequest) => Promise<string>
+    },
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
     this.leaseGeneration = channel.generation
+    if (feedback === undefined) {
+      return
+    }
+
+    this.previewFeedbackNote = feedback.previewNote
+    this.submitFeedback = feedback.submit
   }
 
   /** One MSP command against this session with a freshly minted commandId. */
@@ -2951,6 +2985,10 @@ export class MuseCodeHost implements AgentHost {
         ? undefined
         : this.createUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
       initialApprovalMode,
+      {
+        previewNote: (note) => this.previewFeedbackNote(note),
+        submit: (input) => this.submitFeedback(input),
+      },
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
@@ -3232,7 +3270,8 @@ export class MuseCodeHost implements AgentHost {
   */
   public async deleteSession(sessionId: string): Promise<void> {
     const reader = this.features.lifecycle
-    if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
+    if (reader === undefined)
+      throw new Error(fill(UI_TEXT.sessionDeleteUnsupported, { version: this.info.serverVersion }))
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
@@ -3444,9 +3483,23 @@ export class MuseCodeHost implements AgentHost {
       },
       signal,
     )
-    const models = modelListResultSchema
-      .parse(result)
-      .models.map((model) => toModelSummary(model, this.features.modelEfforts))
+    const models = modelListResultSchema.parse(result).models.map((model) => {
+      try {
+        return toModelSummary(model, this.features.modelEfforts)
+      } catch (error: unknown) {
+        // A malformed row reads as before instead of failing the whole
+        // catalogue (C-M106-3R3): the row's identity is logged, its
+        // content stays out of the log. Anything else is a reader bug
+        // and fails the listing instead of hiding behind tierless rows.
+        // The zod failure is matched by name (registry.ts): minification
+        // must not decide which rows keep their tiers.
+        if (!(error instanceof Error && error.name === '$ZodError')) throw error
+        this.log.warn(
+          `model/list row for ${model.modelId} has malformed effort extras; reading it without tiers`,
+        )
+        return toModelSummary(model)
+      }
+    })
     return this.features.contributorMode === true
       ? [...models, ...contributorModelSummaries(models)]
       : models

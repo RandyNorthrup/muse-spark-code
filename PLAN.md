@@ -27152,6 +27152,77 @@ consent, defaults, wire shapes or dependencies. The rig brief forbids aggregate
 quality and integration here; the lead retains those gates and independent
 review.
 
+**C-M106-3 native readers (2026-10-11, macmini).** Native effort and
+feedback readers from the C-M106-1 1.4.4 frames: `modelEfforts.ts` reads
+each `model/list` row's ordered variants, tier descriptions and default
+(future tiers verbatim, explicit `unknown` kept), and `feedback.ts` reads
+the note-only receipt, showing the upload without its identifiers. Where
+Muse Code sends no frame the feature refuses with an upstream request
+(`docs/research/m106-s1-upstream.md`, unposted): record-attached receipts
+and `session/delete` (methodNotFound, no terminal frame); History stays
+archive-only. EffortSlider and HistoryDialog needed no change. Reader
+binding at the host constructions, the FeedbackDialog restore and History
+deletion wiring remain for integration. Evidence:
+`docs/certification/m106-native-readers.md`.
+
+**C-M106-3R2 end-to-end binding and dialog restore (2026-10-11, macmini).**
+The R1 readers are bound where the backend is constructed:
+`NATIVE_MUSE_CODE_FEATURE_PORTS` (note-only `feedback/submit` receipt)
+into `MuseCodeBackendManager` in `src/extension.ts` and
+`src/runtime/backends.ts`, the `feedback` handshake grant appended last,
+and the effort catalogue reader preloaded from the new
+`dist/modelEfforts.js` on first spawn (static binding broke the lane K
+activation budget at 3237 vs 3072; the split measures 2689 with identical
+behaviour). The feedback dialog is restored on the real reader
+(`FeedbackDialog.tsx` lazy turn-menu entry, `feedbackBridge.ts` zod
+bridge, controller answers with refusal before dispatch, ten strings in
+all 14 tables, `native-feedback` Help entry, reference at 78 features):
+note with classification only, no Files/Session-record controls (still
+refused, upstream request 2). Session delete stays refused with
+`sessionDeleteUnsupported`; History stays archive-only (upstream request
+1). Eight red drills (D4–D11) with SHA-256 byte-exact restores; bundle
+evidence (action dialogs 22.7/25, surface English 24.4/25, modelEfforts
+1.3/25) and the walked-back/still-hidden lists are in
+`docs/certification/m106-native-readers.md`. Open for the reviewer:
+`feedback-narrow` visual scenes (320 px, six themes) with baselines,
+`npm run test:a11y` (sandbox-blocked here), and the opt-in live receipt.
+
+**C-M106-3R3 review repairs (RVCM1063, 2026-10-11, macmini).** All four P2
+and four P3 findings fixed with no residuals. Only an `uploaded` receipt
+resolves: every other SDK outcome refuses with its own sentence in all 14
+tables, the dialog shows the refusal it carries, and a reply with neither
+outcome nor error rejects. The note stops at the protocol maximum with a
+counter; refused previews and submits settle with their reason. Request ids
+are unique for the webview lifetime, close settles preview waiters too, and
+a session change closes the bridge. The captured variants, descriptions and
+catalogue default flow through the controller's model rows to the Modes
+footer and palette dots and the ACP (which starts on the catalogue
+default); malformed rows read tierless, and unknown tiers ride open-string
+fields. The form uses the question-card/secret-prompt classes with three
+authored narrow scenes and end-state readiness gates; the Italian bad-result
+label reads `Brutto risultato`; the VS Code binding test reads the
+window's production wiring. Twelve red drills with hash-verified byte-exact
+restores; evidence in `docs/certification/m106-native-readers.md`. Open for
+the reviewer: render and review the scene baselines, `npm run
+check:visual`, `npm run test:a11y`, and the opt-in live receipt.
+
+**C-M106-3R4 review repair plan (RVCM1063B, 2026-10-11, linuxlt).**
+Merge the explicitly named `snap/04f47a026` first, preserving both features.
+Then move feedback outside inert regions, restore its opener's focus and
+clear closed session state; lazy-load its bridge and English with the dialog
+without changing startup caps. The lifecycle and form have separate lazy
+owners: the new lifecycle gets its own measured 25 KiB guard; the original
+startup, deferred aggregate and action-dialog caps remain fixed. Share served effort admission across pointer,
+keyboard, palette and ACP, disabling unfamiliar tiers and retaining empty
+catalogues. Localize the fake upload receipt. Repair all owned red dependents,
+compare native review failures with a same-machine control, and certify every
+non-hub dependent plus all five typechecks and scoped gates. Each finding
+gets a failing regression/drill with byte-exact restoration. Chrome proves
+focus, Tab, Escape, inertness and six-theme narrow accessibility. Full quality
+and cross-machine integration remain lead-owned under the explicit rig brief;
+no additional branch merge, dependency, cap change or live/paid call.
+Progress and receipts: `docs/certification/m106-native-readers.md`.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
@@ -27777,6 +27848,51 @@ in `docs/certification/m106-r.md`; no RVM106R residual remains.
         linked
   - [ ] Provider × item table complete; strings in all 14 tables; budgets
         measured; full gate green; the live check counted
+
+**MSM106 finish (2026-10-16, linuxlt).** The 0.18.0 code is connected end to
+end: streamed argument previews render in the panel and ACP on models whose
+record verifies them and never reach headless replay; the 1.4.4 effort
+catalogue drives dots, keyboard, palette and ACP admission; the note-only
+feedback receipt is bound in the VS Code window and the CLI/ACP runtime with
+the dialog reachable from a reply's actions menu; record-attached outcomes
+and session deletion still refuse with the upstream request. No `@unwired
+M106` tag remains. Native-reader tests run through the real modules with the
+captured frames as data; live dispatch is lead real-life steps. Evidence:
+`docs/certification/msm106.md`. Still the lead's: per-model live receipts,
+the provider × item table, and the full gate.
+
+**C-M106-4 team pacing draw (2026-10-22, macmini).** The last unwired
+fan-out class: `fanOutPacingClass` maps key-billed `teamWorkers` traffic to
+the `team` pacing class, so team dispatches queue behind the provider's
+headroom like every other fan-out caller instead of spending the user's
+foreground turn (D86.6; the R-TEAM-JUDGE handoff in
+`docs/certification/m106-r.md`). Health needed no code: the `/v1/status`
+row, the problem-report facts and the 5xx banner link are all wired
+(`readServiceStatus` through the controller, `extensionReportFacts`,
+`modelApiServiceFailed`), and the catalog already carries
+`service-status`, `retry-limits` and `parallel-reads`. Pinned by a mapping
+test in the pacing suite; the red drill fails 1 of 9 with exit 1 and
+restores byte-exact. Evidence: `docs/certification/rlm106.md`.
+
+**RLM106 recovery integration (2026-10-22, macmini).** Merged
+`src/RLM106/01-rv-msm106` (MSM106 finish, C-M106-3 native readers) into
+0.19.0 main and resolved for the current tree: the served catalogue rides
+the unioned model-option/protocol shapes (`effortLevels`/`defaultEffort`/
+`fastTier` plus the verbatim `variants` trio), controller/ACP/panel/palette
+admit through the one shared `servedEffortLevels`, the manager preloads the
+captured 1.4.4 reader on first spawn, malformed rows degrade per-row with
+their identity logged, and the duplicate `sessionDeleteUnsupported`
+sentence resolves to main's `{version}` wording with the host filling it.
+The fake tests main deleted stay deleted (fake-muse serve, DiffTallyRow,
+EffortSlider, git); the source branch's `vi.fn` probes are real closures
+(the repo gate bans `vi.fn`), and the one exact-string label test is gone
+with the Italian fix kept. D121 note: D121 removed M106's continuation
+(item 8), repeat-call (item 9) and structured-repair (item 3) caps, and this
+tree carries none of them — `RepeatGuard` observes without stopping the
+turn, no output cap or step ceiling of ours is sent, and neither landed
+branch reintroduces a bound. Still the lead's: per-model live receipts,
+the provider × item table, off/on goldens, the M75 pair, the SDK audit,
+and the full gate with hosted CI.
 
 ---
 
@@ -34649,6 +34765,17 @@ callback assertion now verifies the resolved record and passes. The complete
 dependent gate remains outstanding; this record does not certify those
 260 files or claim release readiness.
 
+**C-M106-3R4 scoped certification (2026-10-11, linuxlt).** The explicit
+rig/common brief forbids aggregate quality here. Run complete owning and
+related files in batches of at most three at repository deadlines, all five
+typechecks and scoped static/build/accessibility gates. The lead retains
+aggregate quality and cross-OS integration. The native review no-filter
+collector is unchanged from the base; a same-machine native/Node-error control
+isolates its `exitCode`/`code` defect. The native schedule test encounters the
+rig's existing group-writable systemd search root; no machine mode is changed.
+These receipts and final dispositions remain explicit in
+`docs/certification/m106-native-readers.md`; no gate, timeout or cap is raised.
+
 **C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
 brief forbids aggregate quality, full-suite runs and branch integration.
 Run the owning whole test files at repository timeouts with at most three
@@ -36348,15 +36475,18 @@ No new escape hatch is introduced.
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
 | `test/unit/eval/evalFreezeLayout.test.ts` (`trackedFiles`) | `eslint-disable-next-line unicorn/prefer-unicode-code-point-escapes` on the NUL split | The lane brief mandates the `\x00` escape text where a literal NUL byte stood (Git read the file as binary); `\u{0}` would satisfy the rule but not the mandated text. Test-only; the split still yields NUL at runtime. | 2026-10-12 |
 
-| PR227W1 location                                                                               | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                     | Date       |
-| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/core/backends/modelapi/ModelApiHost.ts`, `trackIdentityWait`                              | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | Node 20 (VS Code 1.99's host) lacks `Promise.withResolvers`; the close-drain gate uses `new Promise` with a synchronously assigned resolver instead (the M62 pattern, as in `developerOptions.ts` `serialize`). Remove if the minimum host gains `withResolvers`.          | 2026-10-18 |
-| TOOLCAP location                                                                               | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                     | Date       |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------           | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/core/backends/modelapi/toolResultBound.ts` (`boundToolResultText`, uncut and cut returns) | `text as BoundedToolText`, `joined as BoundedToolText`           | The bound measured this text under every cap (characters for the estimate, UTF-8 bytes for the window-share guarantee), so it may enter a request; the brand is the choke's own output.                                                                                    | 2026-10-13 |
-| `src/core/backends/modelapi/toolResultBound.ts` (`withCutNotice`)                              | `` `${bounded}\n${notice}` as BoundedToolText ``                 | The kept text already passed the bound; the appended notice is harness words with counts, never tool text.                                                                                                                                                                 | 2026-10-13 |
-| `src/core/backends/modelapi/toolResultBound.ts` (`fixedHarnessText`)                           | `text as BoundedToolText`                                        | Fixed harness words with no tool text (cancellations, refusals, skip reasons, continuation prompts); a misuse reads as one at the call site. Never a wrapper for tool text.                                                                                                | 2026-10-13 |
-| `src/core/backends/modelapi/schemas.ts` (`restoredToolText`)                                   | `text as BoundedToolText`                                        | Restore is byte-identical by design (goldens, forks, compaction rely on it); text stored before the bound still meets it through send-time recovery. Lives beside the brand because the stored-session format ships in the activation bundle while the bound loads lazily. | 2026-10-13 |
+| PR227W1 location                                                                               | Escape hatch                                                                                           | Reason                                                                                                                                                                                                                                                                     | Date       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/backends/modelapi/ModelApiHost.ts`, `trackIdentityWait`                              | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers`                                       | Node 20 (VS Code 1.99's host) lacks `Promise.withResolvers`; the close-drain gate uses `new Promise` with a synchronously assigned resolver instead (the M62 pattern, as in `developerOptions.ts` `serialize`). Remove if the minimum host gains `withResolvers`.          | 2026-10-18 |
+| RLM106 location                                                                                | Escape hatch                                                                                           | Reason                                                                                                                                                                                                                                                                     | Date       |
+| -------------------------------------                                                          | ----------------------------------------------------------------------------------------------------   | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                            | ---------- |
+| `test/unit/FeedbackDialog.test.tsx` (generic refusal)                                          | `eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors` on `Promise.reject('gone')` | The dialog's generic-failure path takes a non-Error rejection, which the rule forbids; the test rejects with the string on purpose and asserts the generic sentence. Test-only; remove if the dialog ever types refusals as `unknown` upstream.                            | 2026-10-22 |
+| TOOLCAP location                                                                               | Escape hatch                                                                                           | Reason                                                                                                                                                                                                                                                                     | Date       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------                                                 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/backends/modelapi/toolResultBound.ts` (`boundToolResultText`, uncut and cut returns) | `text as BoundedToolText`, `joined as BoundedToolText`                                                 | The bound measured this text under every cap (characters for the estimate, UTF-8 bytes for the window-share guarantee), so it may enter a request; the brand is the choke's own output.                                                                                    | 2026-10-13 |
+| `src/core/backends/modelapi/toolResultBound.ts` (`withCutNotice`)                              | `` `${bounded}\n${notice}` as BoundedToolText ``                                                       | The kept text already passed the bound; the appended notice is harness words with counts, never tool text.                                                                                                                                                                 | 2026-10-13 |
+| `src/core/backends/modelapi/toolResultBound.ts` (`fixedHarnessText`)                           | `text as BoundedToolText`                                                                              | Fixed harness words with no tool text (cancellations, refusals, skip reasons, continuation prompts); a misuse reads as one at the call site. Never a wrapper for tool text.                                                                                                | 2026-10-13 |
+| `src/core/backends/modelapi/schemas.ts` (`restoredToolText`)                                   | `text as BoundedToolText`                                                                              | Restore is byte-identical by design (goldens, forks, compaction rely on it); text stored before the bound still meets it through send-time recovery. Lives beside the brand because the stored-session format ships in the activation bundle while the bound loads lazily. | 2026-10-13 |
 | (2026-10-17, lane PR223FIX: the STANDINS loader row for                                        |
 | `test/packaging/moduleExports.test.mjs` is withdrawn — the `Module._load`                      |
 | trap, the `vscode` Proxy and both suppressions are deleted; VS Code-bound                      |

@@ -1,0 +1,110 @@
+[
+  {
+    "theme": "light",
+    "scene": "feedback-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "light",
+    "scene": "feedback-preview-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "light",
+    "scene": "feedback-sent-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "dark",
+    "scene": "feedback-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "dark",
+    "scene": "feedback-preview-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "dark",
+    "scene": "feedback-sent-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "hc-dark",
+    "scene": "feedback-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "hc-dark",
+    "scene": "feedback-preview-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "hc-dark",
+    "scene": "feedback-sent-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "hc-light",
+    "scene": "feedback-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "hc-light",
+    "scene": "feedback-preview-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "hc-light",
+    "scene": "feedback-sent-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "one-dark-pro",
+    "scene": "feedback-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "one-dark-pro",
+    "scene": "feedback-preview-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "one-dark-pro",
+    "scene": "feedback-sent-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "dracula",
+    "scene": "feedback-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "dracula",
+    "scene": "feedback-preview-narrow",
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "theme": "dracula",
+    "scene": "feedback-sent-narrow",
+    "violations": [],
+    "incomplete": []
+  }
+]

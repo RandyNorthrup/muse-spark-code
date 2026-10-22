@@ -3298,7 +3298,9 @@ palette with a filter box of its own. Its groups:
   Continue a Claude Code or Codex session (CLI backend).
 - **Git and pull requests:** commit, push, open a pull request, and open a
   pull request in a conversation.
-- **Model:** switch model, effort (Left and Right step it), thinking.
+- **Model:** switch model, effort (Left and Right step it), thinking. Effort dots and
+  keyboard selection follow the served catalogue when present; unfamiliar
+  tiers are disabled. ACP and headless runs admit the same selectable tiers.
 - **Customize:** permission mode, Focus view, Send with Ctrl+Enter, MCP
   servers, hooks, memory, settings, keybindings.
 - **Account & Usage** (with the paid features' toggles where the backend can
@@ -6530,12 +6532,15 @@ when you set it; a provider that documents no maximum retries until its own
 wait or stop answer ends the exchange. Idle deadlines and fan-out pacing are
 bounded and Stop aborts the wait.
 
-The SDK is pinned to 1.4.2. Its effort, manual feedback and permanent deletion
-ports are present, but this integration does not yet have the recorded MSP
-feature frames needed to enable them. No receipt or terminal parser is
-inferred from SDK declarations. Until those readers are bound, current model
-effort controls and History archive behavior continue; feedback and permanent
-deletion refuse before dispatch. This release is unofficial.
+The SDK is pinned to 1.4.4. Its effort catalogue and note-only feedback
+receipt are bound from the recorded 1.4.4 frames: the served variants and
+default drive the effort dots, keyboard stepping, the palette and ACP
+admission, with unfamiliar tiers shown and disabled. A reply's actions menu
+offers Send feedback to Muse Code: a note with its classification, previewed
+scrubbed before consent and uploaded without files or session record.
+Permanent deletion has no recorded frame, so it refuses before dispatch;
+a receipt that reports a session record attached is never shown as a
+verified upload. History stays archive-only. This release is unofficial.
 
 ### Models and providers
 

@@ -3586,6 +3586,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'mentionResults': {
       return { ...state, mentionResults: { requestId: message.requestId, items: message.items } }
     }
+    case 'feedbackPreview':
+    case 'feedbackOutcome': {
+      // Answered by the dialog's own bridge, which correlates request ids;
+      // the shared state keeps nothing.
+      return state
+    }
     case 'attachmentAdded': {
       const others = state.attachments.filter((entry) => entry.id !== message.attachment.id)
       return {

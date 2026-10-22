@@ -15,7 +15,11 @@ import {
 } from '../../../shared/constants'
 import type { PacingClass } from './pacing'
 
-/** Existing paid admission tags also identify background request owners (D86.6). */
+/**
+Existing paid admission tags also identify background request owners (D86.6):
+key-billed team work paces as background `team`, so it queues behind the
+provider's headroom instead of spending the user's foreground turn.
+*/
 export function fanOutPacingClass(feature: PaidFeature | undefined): PacingClass {
   switch (feature) {
     case 'subagents': {
@@ -23,6 +27,9 @@ export function fanOutPacingClass(feature: PaidFeature | undefined): PacingClass
     }
     case 'bestOfN': {
       return 'bestOfN'
+    }
+    case 'teamWorkers': {
+      return 'team'
     }
     case 'scheduledPrompts': {
       return 'schedule'
