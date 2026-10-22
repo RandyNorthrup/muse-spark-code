@@ -84,6 +84,41 @@ describe('exact-count request build', () => {
       buildExactCountRequest('anthropic-count-tokens', { path: '/v1/messages', body: null }),
     ).toBeUndefined()
   })
+
+  it('drops manual thinking: the count endpoint documents budget_tokens as requiring max_tokens, which it does not accept', () => {
+    const built = buildExactCountRequest('anthropic-count-tokens', {
+      path: '/v1/messages',
+      body: {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        stream: true,
+        metadata: { user_id: 'u' },
+        messages: [{ role: 'user', content: 'hi' }],
+        thinking: { type: 'enabled', budget_tokens: 1024 },
+      },
+      headers: {},
+    })
+    expect(built?.path).toBe('/v1/messages/count_tokens')
+    expect(built?.body).not.toHaveProperty('thinking')
+    expect(built?.body).not.toHaveProperty('max_tokens')
+    expect(built?.body).toHaveProperty('model', 'claude-haiku-4-5-20251001')
+  })
+
+  it('keeps output_config beside adaptive thinking, both documented without max_tokens', () => {
+    const built = buildExactCountRequest('anthropic-count-tokens', {
+      path: '/v1/messages',
+      body: {
+        model: 'claude-sonnet-5-5',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: 'hi' }],
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'high' },
+      },
+      headers: {},
+    })
+    expect(built?.body).toHaveProperty('thinking', { type: 'adaptive' })
+    expect(built?.body).toHaveProperty('output_config', { effort: 'high' })
+  })
 })
 
 describe('exact-count answer parse', () => {
