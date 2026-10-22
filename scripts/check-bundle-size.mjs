@@ -205,6 +205,11 @@ const BUDGETS = [
   // 23,433 B measured (2026-10-11); D6: 23,433 × 1.15 = 26,947.95 B,
   // rounded up to the next 25 KiB multiple = 51,200 B (50 KiB).
   { path: 'dist/modelApiTools.js', budgetKiB: 50 },
+  // The byte-range file execution (reads and edits of one byte window),
+  // loaded on the first range addressed call, off the per-call helpers'
+  // budget: 32,040 B measured; D6: 32,040 × 1.15 = 36,846 B, rounded up
+  // to the next 25 KiB multiple = 51,200 B (50 KiB).
+  { path: 'dist/modelApiFileRange.js', budgetKiB: 50 },
   // The verify loop's session side (M68: the loop, its ledger and the
   // diagnostics history), loaded on the first turn that verifies tool
   // edits: 51,213 B measured (2026-10-18); D6: 51,213 × 1.15 = 58,894.95 B,
@@ -233,6 +238,9 @@ const BUDGETS = [
   // drivers, loaded on the first recording command: 30.2 KiB when split
   // out. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/screenRecord.js', budgetKiB: 50 },
+  // The host side of byte-range file reads and edits, loaded on the first
+  // range addressed call. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/toolRange.js', budgetKiB: 25 },
   // M83: the import from other agents (the scan, the converters, the file
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).

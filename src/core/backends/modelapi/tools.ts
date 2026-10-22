@@ -9,7 +9,6 @@ import type { ContentSource } from '../../schedules/provenance'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import type { ResourceKind } from '../../../shared/resources'
-import { setImmediate as yieldToHost } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import {
   type PatchSummary,
@@ -22,10 +21,7 @@ import {
 import {
   type CheckCommandSetting,
   CODE_INTEL_TOOLS,
-  FILE_REFUSAL_MODEL_TEXT,
-  EDIT_MATCH_YIELD_LINES,
   IMAGE_EXTENSIONS,
-  LIST_FILES_DEFAULT_LIMIT,
   BYTES_PER_MIB,
   MEDIA_READ_MAX_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
@@ -37,27 +33,37 @@ import {
   READ_FILE_DEFAULT_LIMIT,
   READ_FILE_MAX_LINE_CHARS,
   READ_FILE_CONTEXT_CHAR_FRACTION,
-  SEARCH_HIT_MAX_CHARS,
-  SEARCH_MAX_CANDIDATES,
-  SEARCH_MAX_FILE_BYTES,
-  SEARCH_MAX_HITS,
-  SEARCH_MAX_RESULTS,
-  SEARCH_PATTERN_MAX_LENGTH,
-  SEARCH_TIMEOUT_MS,
-  TOOL_OUTPUT_CLIP_MARKER,
-  TOOL_OUTPUT_ELIDED_MARKER,
+  TOOL_FILE_MAX_BYTES,
   TOOL_OUTPUT_MAX_CHARS,
   UI_TEXT,
   VERIFY_TOOLS,
 } from '../../../shared/constants'
-import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
 import { fill, formatBytes, formatNumber, formatUnit, plural } from '../../../shared/l10n/text'
 import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
 import type { MediaFileInfo } from '../../media/limits'
 import type { UploadSource } from './files'
 import type { DocumentPart, ImagePart } from '../../agent/agentBackend'
 import type { Owner } from '../../checkpoints/toolWrites'
-import { changeHunk } from '../../codeIntel/codeText'
+import {
+  BOM,
+  CRLF,
+  LF,
+  clip,
+  clipMiddle,
+  codePointBoundary,
+  editRefusal,
+  failure,
+  fileText,
+  isDenied,
+  locateHead,
+  resolveEditRanges,
+  modelText,
+  patchOutcome,
+  type TextShape,
+  toLf,
+  touchedBy,
+  writeAdmission,
+} from '../../toolEdit'
 import { MODEL_API_CODE_INTEL_DEFINITIONS } from '../../codeIntel/definitions'
 import { readImageInfo } from '../../imageDimensions'
 import type { MemoryWrites } from '../../memory/memoryStore'
@@ -71,8 +77,8 @@ import {
   BROWSER_CHECK_REQUIRED,
 } from '../../browser/browserTool'
 import { confineWorkspacePath, normalizeModelPath } from '../../workspacePath'
-import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
+import type { ListFilesCallArgs, SearchCallArgs } from './searchPaging'
 import type { HookHttpResult } from './hookHandlers'
 import type { FileRules } from './permissionPolicy'
 import {
@@ -94,6 +100,7 @@ import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
+import type { FileByteRange, FileRangeRead, SpliceFileOutcome } from './fileRangeTools'
 import { vaultShellSecretsSchema, type VaultShellSecrets } from '../../vault/exec/schema'
 import { VAULT_EXEC_PARAMETERS } from '../../vault/exec/toolSchema'
 import type { McpTool } from '../../mcp'
@@ -213,6 +220,48 @@ export interface ToolIo {
     signal?: AbortSignal,
     observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<Uint8Array | undefined>
+  /**
+  The file's size in bytes; undefined when it does not exist. Absent on IO
+  that predates range reads.
+  */
+  readonly fileSize?: (
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+  ) => Promise<number | undefined>
+  /**
+  One byte window of a file of any size, with the file's size, mtime and
+  text shape, so reads and edits reach past the whole-read cap by range.
+  Undefined when the file does not exist. Absent on IO that predates range
+  reads.
+  */
+  readonly readFileRange?: (
+    absolutePath: string,
+    expectedCanonicalPath: string | undefined,
+    range: FileByteRange,
+    signal?: AbortSignal,
+  ) => Promise<FileRangeRead | undefined>
+  /**
+  Replace bytes `[start, end)` of the file with `replacement`, streaming the
+  rest through a temporary file so a range edit never loads the whole file.
+  Memory stays flat (one 64 KiB copy chunk plus the window); only the window
+  is ever decoded. The write lands only while the file still has `expected`
+  size and mtime: `changed`, and nothing written, when not. A missing file
+  is `changed` too. Other failures (permissions, a full disk) throw, naming
+  the OS cause in words.
+  */
+  readonly spliceFileRange?: (
+    absolutePath: string,
+    expectedCanonicalPath: string | undefined,
+    expected: { readonly size: number; readonly mtimeMs: number },
+    start: number,
+    end: number,
+    replacement: Uint8Array,
+    options: {
+      readonly unsavedAt: readonly string[]
+      readonly assertCanWrite?: () => void
+    },
+    signal?: AbortSignal,
+  ) => Promise<SpliceFileOutcome>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
     absolutePath: string,
@@ -616,6 +665,8 @@ const readFileArgs = z.object({
   path: z.string(),
   offset: z.optional(z.number()),
   limit: z.optional(z.number()),
+  byteOffset: z.optional(z.number()),
+  byteLength: z.optional(z.number()),
 })
 const writeFileArgs = z.object({ path: z.string(), content: z.string() })
 const editEntryArgs = z.object({ find: z.string(), replace: z.string() })
@@ -624,6 +675,8 @@ const editFileArgs = z.object({
   find: z.optional(z.string()),
   replace: z.optional(z.string()),
   edits: z.optional(z.array(editEntryArgs)),
+  byteOffset: z.optional(z.number()),
+  byteLength: z.optional(z.number()),
 })
 const OUTPUT_MODES = ['content', 'files_with_matches', 'count'] as const
 const searchArgs = z.object({
@@ -631,8 +684,13 @@ const searchArgs = z.object({
   glob: z.optional(z.string()),
   output_mode: z.optional(z.enum(OUTPUT_MODES)),
   max_results: z.optional(z.number()),
+  offset: z.optional(z.number()),
 })
-const listFilesArgs = z.object({ glob: z.optional(z.string()), limit: z.optional(z.number()) })
+const listFilesArgs = z.object({
+  glob: z.optional(z.string()),
+  limit: z.optional(z.number()),
+  offset: z.optional(z.number()),
+})
 const shellArgs = z.object({
   command: z.string(),
   description: z.optional(z.string()),
@@ -641,7 +699,7 @@ const shellArgs = z.object({
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
 export const readSkillArgs = z.object({ id: z.string() })
-export const webFetchArgs = z.object({ url: z.string() })
+export const webFetchArgs = z.object({ url: z.string(), offset: z.optional(z.number()) })
 export const todoWriteArgs = z.object({ items: z.array(todoItemSchema) })
 
 const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
@@ -743,18 +801,20 @@ export function toolDefinitions(
       })),
     define(
       MODEL_API_TOOLS.readFile,
-      'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.',
+      'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see. A file past the whole-read size is read by byte range instead: byteOffset (0-based first byte) with byteLength, window by window to the end.',
       {
         path: PATH_PROPERTY,
         offset: { type: 'integer', description: '1-based first line to return' },
         limit: { type: 'integer', description: 'Maximum lines to return' },
+        byteOffset: { type: 'integer', description: '0-based first byte of a byte-range read' },
+        byteLength: { type: 'integer', description: 'Bytes in a byte-range read' },
       },
       ['path'],
       ['path'],
     ),
     define(
       MODEL_API_TOOLS.editFile,
-      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is.',
+      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is. A file past the whole-read size is edited by byte range instead: read the window first, then pass the same byteOffset and byteLength with the change, matched inside that window.',
       {
         path: PATH_PROPERTY,
         find: { type: 'string', description: 'The exact text to replace' },
@@ -770,6 +830,14 @@ export function toolDefinitions(
             },
             required: ['find', 'replace'],
           },
+        },
+        byteOffset: {
+          type: 'integer',
+          description: '0-based first byte of the window the change is matched in',
+        },
+        byteLength: {
+          type: 'integer',
+          description: 'Bytes of the window the change is matched in',
         },
         ...thenRun,
       },
@@ -796,6 +864,11 @@ export function toolDefinitions(
             'content (default): matching lines; files_with_matches: paths; count: matches per file',
         },
         max_results: { type: 'integer' },
+        offset: {
+          type: 'integer',
+          description:
+            'Skip this many matches first; the note names the offset that fetches the rest',
+        },
       },
       ['pattern'],
       ['pattern'],
@@ -803,7 +876,15 @@ export function toolDefinitions(
     define(
       MODEL_API_TOOLS.listFiles,
       'List workspace files, optionally those matching a glob.',
-      { glob: { type: 'string' }, limit: { type: 'integer' } },
+      {
+        glob: { type: 'string' },
+        limit: { type: 'integer' },
+        offset: {
+          type: 'integer',
+          description:
+            'Skip this many files first; the note names the offset that fetches the rest',
+        },
+      },
       [],
     ),
     ...(options.hasShell
@@ -999,49 +1080,12 @@ export function readFileCharacterBudget(contextTokens: number | undefined): numb
       )
 }
 
-function clip(text: string): string {
-  // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
-  return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, codePointBoundary(text, TOOL_OUTPUT_MAX_CHARS))}${TOOL_OUTPUT_CLIP_MARKER}`
-    : text
-}
-
-const LAST_BMP_CODE_POINT = 0xff_ff
-// A shell result has two streams, each given half of the output budget; a
-// clipped stream keeps half of its share from each end.
-const SHELL_STREAMS = 2
-const HALVES = 2
-
-/** `index` moved back off the middle of a surrogate pair, so no character is split. */
-export function codePointBoundary(text: string, index: number): number {
-  // A code point past the Basic Multilingual Plane starts at `index - 1` and
-  // ends after `index`: cutting at `index` would split it.
-  return (text.codePointAt(index - 1) ?? 0) > LAST_BMP_CODE_POINT ? index - 1 : index
-}
-
-/** The text's beginning and end within `max` characters, the elision marked between (D27). */
-function clipMiddle(text: string, max: number): string {
-  if (text.length <= max) {
-    return text
-  }
-  const keep = Math.max(max - TOOL_OUTPUT_ELIDED_MARKER.length, 0)
-  const headEnd = codePointBoundary(text, Math.ceil(keep / HALVES))
-  const tailStart = codePointBoundary(text, text.length - Math.floor(keep / HALVES))
-  return `${text.slice(0, headEnd)}${TOOL_OUTPUT_ELIDED_MARKER}${text.slice(tailStart)}`
-}
-
-function failure(reason: string, visibleReason = reason): ToolOutcome {
-  return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
-}
-
 function argumentFailure(error: z.core.$ZodError): ToolOutcome {
   return failure(`invalid arguments: ${z.prettifyError(error)}`)
 }
 
 const LINE_BREAK = /\r?\n/
-const BOM = '\u{FEFF}'
-const CRLF = '\r\n'
-const LF = '\n'
+const SHELL_STREAMS = 2
 
 function splitLines(text: string): string[] {
   const lines = text.split(LINE_BREAK)
@@ -1051,19 +1095,12 @@ function splitLines(text: string): string[] {
   return lines
 }
 
-/** How a file's text is laid out, so an edit writes it back the same way (PLAN.md D27). */
-interface TextShape {
-  readonly hasBom: boolean
-  /** Every line break is CRLF; a file that mixes them is edited as it is. */
-  readonly isCrlf: boolean
-  readonly hasTrailingBreak: boolean
-}
-
 function occurrences(text: string, part: string): number {
   return text.split(part).length - 1
 }
 
-function shapeOf(raw: string): TextShape {
+/** Shared with the deferred byte-range execution, which builds its own bundle copy. */
+export function shapeOf(raw: string): TextShape {
   const hasBom = raw.startsWith(BOM)
   const body = hasBom ? raw.slice(BOM.length) : raw
   const breaks = occurrences(body, LF)
@@ -1072,23 +1109,6 @@ function shapeOf(raw: string): TextShape {
     isCrlf: breaks > 0 && occurrences(body, CRLF) === breaks,
     hasTrailingBreak: body.endsWith(LF),
   }
-}
-
-/** Every CRLF as LF. */
-function toLf(text: string): string {
-  return text.split(CRLF).join(LF)
-}
-
-/** The text as the model reads it: no BOM, and LF breaks where the file is all CRLF. */
-function modelText(raw: string, shape: TextShape): string {
-  const body = shape.hasBom ? raw.slice(BOM.length) : raw
-  return shape.isCrlf ? toLf(body) : body
-}
-
-/** The model's text (either break) as the file holds text: its BOM and its line breaks. */
-function fileText(text: string, shape: TextShape): string {
-  const body = shape.isCrlf ? toLf(text).split(LF).join(CRLF) : text
-  return shape.hasBom ? `${BOM}${body}` : body
 }
 
 /**
@@ -1158,36 +1178,6 @@ async function formatWritten(
 /** The model's result line, and the note when the formatter changed the file. */
 function editedLine(line: string, isFormatted: boolean): string {
   return isFormatted ? `${line}. ${MODEL_API_MODEL_TEXT.formattedAfterEdit}` : line
-}
-
-/**
-An edit's row and patch. The hunk is the changed lines (common prefix and
-suffix trimmed) with their context, in unified-diff numbering (PLAN.md
-D27, `changeHunk`, shared with M67's rename): an insertion's `oldStart` is
-the line it follows, never a marker of a created file, and a Revert checks
-the context, so it refuses a file that has moved on.
-*/
-function patchOutcome(
-  relativePath: string,
-  before: string | undefined,
-  after: string,
-  visibleOutput: string,
-  output: string,
-): ToolOutcome {
-  const hunk = changeHunk(before ?? '', after)
-  const hunks = hunk === undefined ? [] : [hunk]
-  // Said outright (D27): a Revert trashes only a file this edit created.
-  const file: PatchFile = { path: relativePath, hunks, created: before === undefined }
-  const lines = hunk?.lines ?? []
-  const added = lines.filter((line) => line.startsWith(ADD_MARKER)).length
-  const removed = lines.filter((line) => line.startsWith(REMOVE_MARKER)).length
-  const diff =
-    hunk === undefined ? '' : `\n--- original\n+++ updated\n@@\n${hunk.lines.join('\n')}\n`
-  return {
-    output,
-    visibleOutput: `${visibleOutput}${diff}`,
-    patch: { document: JSON.stringify({ files: [file] }), summary: { files: 1, added, removed } },
-  }
 }
 
 // --- executors ---
@@ -1406,13 +1396,6 @@ async function readVisual(
 }
 
 /** Whether the permission settings deny the tools this confined path (M78). */
-function isDenied(
-  resolved: { readonly relative: string; readonly canonical: string },
-  context: ToolContext,
-): boolean {
-  return context.files?.isDenied([resolved.relative, resolved.canonical]) === true
-}
-
 /**
 The path `read_file` reads: in the workspace, or given absolute under an
 extra root of the permission profile (M78), confined to that root as the
@@ -1444,10 +1427,117 @@ async function readablePath(
   return inWorkspace
 }
 
+/**
+The byte-range execution, loaded with the deferred tools chunk the first
+range addressed call needs: whole-file turns never carry it. A chunk that
+cannot load refuses the call that needed it, with the chunk named. A load
+that failed is not kept, so the next range call tries again.
+*/
+interface RangeCalls {
+  readFileByRange(
+    args: {
+      readonly path: string
+      readonly offset?: number | undefined
+      readonly limit?: number | undefined
+      readonly byteOffset?: number | undefined
+      readonly byteLength?: number | undefined
+    },
+    context: ToolContext,
+  ): Promise<ToolOutcome>
+  editFileByRange(
+    args: {
+      readonly path: string
+      readonly byteOffset?: number | undefined
+      readonly byteLength?: number | undefined
+    },
+    singles: readonly { readonly find: string; readonly replace: string }[],
+    hasEdits: boolean,
+    context: ToolContext,
+  ): Promise<ToolOutcome>
+}
+/**
+A deferred helpers chunk that never arrived: the one absence a dispatch
+reports as a retryable failure instead of throwing (the loader below
+already forgot the attempt, so the next call tries again). Anything else
+a load throws is a broken bundle, and it propagates as one.
+*/
+const ABSENT_CHUNK_CODES = new Set(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'ENOENT'])
+function isAbsentChunk(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    ABSENT_CHUNK_CODES.has(error.code)
+  )
+}
+
+/**
+A deferred helpers chunk for a tool call: the loaded calls, or the
+refusal naming the call when the chunk never arrived. Anything else a
+load throws is a broken bundle, and it propagates as one.
+*/
+async function chunkCalls<T>(
+  load: () => Promise<T>,
+  refused: string,
+): Promise<{ ok: true; calls: T } | { ok: false; outcome: ToolOutcome }> {
+  try {
+    return { ok: true, calls: await load() }
+  } catch (error: unknown) {
+    if (!isAbsentChunk(error)) throw error
+    return { ok: false, outcome: failure(refused) }
+  }
+}
+const fileRangeToolsLoad: { promise: Promise<RangeCalls> | undefined } = {
+  promise: undefined,
+}
+async function loadFileRangeTools(): Promise<RangeCalls> {
+  fileRangeToolsLoad.promise ??= (async (): Promise<RangeCalls> => {
+    const entry = await import('./modelApiFileRangeEntry.js')
+    return { readFileByRange: entry.readFileByRange, editFileByRange: entry.editFileByRange }
+  })()
+  try {
+    return await fileRangeToolsLoad.promise
+  } catch (error) {
+    fileRangeToolsLoad.promise = undefined
+    throw error
+  }
+}
+
+interface SearchCalls {
+  search(args: SearchCallArgs, context: ToolContext): Promise<ToolOutcome>
+  listFiles(args: ListFilesCallArgs, context: ToolContext): Promise<ToolOutcome>
+}
+const searchCallsLoad: { promise: Promise<SearchCalls> | undefined } = {
+  promise: undefined,
+}
+async function loadSearchCalls(): Promise<SearchCalls> {
+  searchCallsLoad.promise ??= (async (): Promise<SearchCalls> => {
+    const entry = await import('./modelApiToolsEntry.js')
+    return { search: entry.search, listFiles: entry.listFiles }
+  })()
+  try {
+    return await searchCallsLoad.promise
+  } catch (error) {
+    searchCallsLoad.promise = undefined
+    throw error
+  }
+}
+
 async function readFile(
   args: z.infer<typeof readFileArgs>,
   context: ToolContext,
 ): Promise<ToolOutcome> {
+  const hasByteRange = args.byteOffset !== undefined || args.byteLength !== undefined
+  if (hasByteRange) {
+    // The byte-range execution loads with the deferred file-range chunk,
+    // so whole-file turns never carry it.
+    const loaded = await chunkCalls(
+      loadFileRangeTools,
+      `${MODEL_API_TOOLS.readFile} needs byte addressing for \`${args.path}\`, but its helpers (dist/modelApiFileRange.js) could not be loaded; try the call again`,
+    )
+    return loaded.ok ? await loaded.calls.readFileByRange(args, context) : loaded.outcome
+  }
   const resolved = await readablePath(args.path, context)
   context.signal?.throwIfAborted()
   if (!resolved.ok) {
@@ -1467,6 +1557,19 @@ async function readFile(
     return { ...(await readMediaFile(resolved, context)), touched }
   if (visual !== undefined) {
     return { ...(await readVisual(resolved, visual, context)), touched }
+  }
+  // Past the whole-read size the refusal says why and names the byte window
+  // that reads the file instead.
+  if (context.io.fileSize !== undefined && context.io.readFileRange !== undefined) {
+    const size = await context.io.fileSize(resolved.checkedAbsolute, resolved.checkedAbsolute)
+    if (size !== undefined && size > TOOL_FILE_MAX_BYTES) {
+      return {
+        ...failure(
+          `${resolved.relative} is ${String(size)} bytes, over the ${String(TOOL_FILE_MAX_BYTES)}-byte whole-read limit: call read_file again with byteOffset 0 and byteLength ${String(TOOL_OUTPUT_MAX_CHARS)} for the first window`,
+        ),
+        touched,
+      }
+    }
   }
   const raw = await context.io.readFile(
     resolved.checkedAbsolute,
@@ -1542,66 +1645,12 @@ async function located(
     }
   | { readonly ok: false; readonly outcome: ToolOutcome }
 > {
-  const resolved = await confineWorkspacePath(
-    context.workspaceRoot,
-    given,
-    context.platform,
-    context.io,
-  )
-  if (!resolved.ok) {
-    return { ok: false, outcome: failure(resolved.reason) }
+  const head = await locateHead(given, context)
+  if (!head.ok) {
+    return head
   }
-  if (isDenied(resolved, context)) {
-    return {
-      ok: false,
-      outcome: failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`),
-    }
-  }
-  if (
-    context.approvedTarget !== undefined &&
-    (resolved.absolute !== context.approvedTarget.absolute ||
-      resolved.checkedAbsolute !== context.approvedTarget.checkedAbsolute)
-  ) {
-    return { ok: false, outcome: failure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval) }
-  }
-  const before = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
-  return {
-    ok: true,
-    relative: resolved.relative,
-    canonical: resolved.canonical,
-    absolute: resolved.absolute,
-    checkedAbsolute: resolved.checkedAbsolute,
-    before,
-  }
-}
-
-/** A file an edit wrote, as the dispatcher's fence judges it (M78). */
-function touchedBy(file: { readonly relative: string; readonly canonical: string }): TouchedFiles {
-  return { names: [file.relative, file.canonical], complete: true }
-}
-
-/** Why an edit must not touch this file now, or undefined (D27). */
-function editRefusal(
-  file: { readonly relative: string; readonly absolute: string; readonly checkedAbsolute: string },
-  context: ToolContext,
-): ToolOutcome | undefined {
-  // Writing under an editor's unsaved changes makes VS Code ask which to keep.
-  return context.io.hasUnsavedChanges(file.absolute) ||
-    context.io.hasUnsavedChanges(file.checkedAbsolute)
-    ? failure(`${file.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
-    : undefined
-}
-
-function writeAdmission(target: FormatTarget, context: ToolContext): () => void {
-  return () => {
-    context.signal?.throwIfAborted()
-    if (
-      context.io.hasUnsavedChanges(target.absolute) ||
-      context.io.hasUnsavedChanges(target.checkedAbsolute)
-    )
-      throw new Error(`${target.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
-    context.assertCanWrite?.(target)
-  }
+  const before = await context.io.readFile(head.checkedAbsolute, head.checkedAbsolute)
+  return { ...head, before }
 }
 
 async function publishText(
@@ -1676,100 +1725,66 @@ async function writeFile(
 }
 
 /**
-One line for fuzzy matching (M101, Pi's edit-diff): NFKC, Unicode spaces
-as spaces, curly quotes and dashes as their plain forms, no trailing
-whitespace.
+The single edits an `edit_file` call carries, validated before anything
+runs: one call edits once (`find`/`replace`) or several times (`edits`),
+never both. Shared by the whole-file execution and the deferred byte-range
+execution, so both refuse the same malformed calls the same way.
 */
-function fuzzyLine(line: string): string {
-  return line
-    .normalize('NFKC')
-    .replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
-    .replaceAll(/[\u{2018}\u{2019}\u{201A}\u{201B}]/gu, "'")
-    .replaceAll(/[\u{201C}\u{201D}\u{201E}\u{201F}]/gu, '"')
-    .replaceAll(/[\u{2013}\u{2014}\u{2212}]/gu, '-')
-    .trimEnd()
-}
-
-/**
-The character range a `find` uniquely matches, exact first, then the
-normalised line fallback (M101): at most one run of normalised lines may
-match, and the untouched lines are copied back from the original, so only
-the matched range changes. Undefined with the refusal when it does not.
-*/
-async function matchRange(
-  current: string,
-  find: string,
-  signal: AbortSignal | undefined,
-): Promise<
-  { readonly start: number; readonly end: number } | { readonly refusal: 'notFound' | 'ambiguous' }
-> {
-  const first = current.indexOf(find)
-  if (first !== -1) {
-    // Several exact matches stay refused: the model adds context. The
-    // normalised fallback is only for formatting the exact text missed.
-    return current.includes(find, first + 1)
-      ? {
-          refusal: 'ambiguous',
-        }
-      : { start: first, end: first + find.length }
-  }
-  const lines = current.split('\n')
-  const starts: number[] = []
-  const normalized: string[] = []
-  for (const [index, line] of lines.entries()) {
-    if (index % EDIT_MATCH_YIELD_LINES === 0) {
-      await yieldToHost(undefined, { signal })
+export function editSinglesOf(args: z.infer<typeof editFileArgs>):
+  | {
+      readonly singles: readonly { readonly find: string; readonly replace: string }[]
+      readonly hasEdits: boolean
     }
-    starts.push(index === 0 ? 0 : (starts[index - 1] ?? 0) + (lines[index - 1]?.length ?? 0) + 1)
-    normalized.push(fuzzyLine(line))
+  | { readonly outcome: ToolOutcome } {
+  // An empty `edits` edits nothing and is refused outright.
+  if (args.edits?.length === 0) {
+    return { outcome: failure(MODEL_API_MODEL_TEXT.editEmptyList, UI_TEXT.toolEditInvalid) }
   }
-  const want = find.split('\n').map((line) => fuzzyLine(line))
-  const hasTrailingBreak = find.endsWith('\n')
-  if (hasTrailingBreak) want.pop()
-  // KMP prefix lengths: each normalized line is compared a bounded number
-  // of times, including repeated-line near misses (M101 review finding 4).
-  const prefixLengths: number[] = [0]
-  for (let index = 1, matched = 0; index < want.length; index += 1) {
-    while (matched > 0 && want[index] !== want[matched]) matched = prefixLengths[matched - 1] ?? 0
-    if (want[index] === want[matched]) matched += 1
-    prefixLengths.push(matched)
+  const hasEdits = args.edits !== undefined
+  if (hasEdits && (args.find !== undefined || args.replace !== undefined)) {
+    return { outcome: failure(MODEL_API_MODEL_TEXT.editMixedShape, UI_TEXT.toolEditInvalid) }
   }
-  const matches: number[] = []
-  if (want.some((line) => line !== '')) {
-    for (let index = 0, matched = 0; index < normalized.length; index += 1) {
-      if (index % EDIT_MATCH_YIELD_LINES === 0) await yieldToHost(undefined, { signal })
-      while (matched > 0 && normalized[index] !== want[matched])
-        matched = prefixLengths[matched - 1] ?? 0
-      if (normalized[index] === want[matched]) matched += 1
-      if (matched !== want.length) {
-        continue
-      }
-
-      if (!hasTrailingBreak || index + 1 < lines.length) matches.push(index - want.length + 1)
-      if (matches.length > 1) break
-      matched = prefixLengths[matched - 1] ?? 0
+  const singles =
+    args.edits ??
+    (args.find !== undefined && args.replace !== undefined
+      ? [{ find: args.find, replace: args.replace }]
+      : undefined)
+  if (singles === undefined) {
+    return { outcome: failure(MODEL_API_MODEL_TEXT.editPairRequired, UI_TEXT.toolEditInvalid) }
+  }
+  for (const entry of singles) {
+    if (entry.find === '') {
+      return { outcome: failure(MODEL_API_MODEL_TEXT.editFindEmpty, UI_TEXT.toolEditInvalid) }
+    }
+    // A no-op edit writes the file for nothing; refuse it (M101).
+    if (entry.find === entry.replace) {
+      return { outcome: failure(MODEL_API_MODEL_TEXT.editNoChange, UI_TEXT.toolEditNoChange) }
     }
   }
-  if (matches.length === 1) {
-    const at = matches[0] ?? 0
-    const end = at + want.length
-    return {
-      start: starts[at] ?? 0,
-      end:
-        end < lines.length
-          ? (starts[end] ?? current.length) - (hasTrailingBreak ? 0 : 1)
-          : current.length,
-    }
-  }
-  return {
-    refusal: matches.length === 0 ? 'notFound' : 'ambiguous',
-  }
+  return { singles, hasEdits }
 }
 
 async function editFile(
   args: z.infer<typeof editFileArgs>,
   context: ToolContext,
 ): Promise<ToolOutcome> {
+  const parsed = editSinglesOf(args)
+  if ('outcome' in parsed) {
+    return parsed.outcome
+  }
+  const { singles, hasEdits } = parsed
+  const hasByteRange = args.byteOffset !== undefined || args.byteLength !== undefined
+  if (hasByteRange) {
+    // The byte-range execution loads with the deferred file-range chunk,
+    // so whole-file turns never carry it.
+    const loaded = await chunkCalls(
+      loadFileRangeTools,
+      `${MODEL_API_TOOLS.editFile} needs byte addressing for \`${args.path}\`, but its helpers (dist/modelApiFileRange.js) could not be loaded; try the call again`,
+    )
+    return loaded.ok
+      ? await loaded.calls.editFileByRange(args, singles, hasEdits, context)
+      : loaded.outcome
+  }
   const file = await located(args.path, context)
   if (!file.ok) {
     return file.outcome
@@ -1782,32 +1797,6 @@ async function editFile(
   if (refusal !== undefined) {
     return refusal
   }
-  // One call edits once (`find`/`replace`) or several times (`edits`),
-  // never both; an empty `edits` edits nothing and is refused outright.
-  if (args.edits?.length === 0) {
-    return failure(MODEL_API_MODEL_TEXT.editEmptyList, UI_TEXT.toolEditInvalid)
-  }
-  const hasEdits = args.edits !== undefined
-  if (hasEdits && (args.find !== undefined || args.replace !== undefined)) {
-    return failure(MODEL_API_MODEL_TEXT.editMixedShape, UI_TEXT.toolEditInvalid)
-  }
-  const singles =
-    args.edits ??
-    (args.find !== undefined && args.replace !== undefined
-      ? [{ find: args.find, replace: args.replace }]
-      : undefined)
-  if (singles === undefined) {
-    return failure(MODEL_API_MODEL_TEXT.editPairRequired, UI_TEXT.toolEditInvalid)
-  }
-  for (const entry of singles) {
-    if (entry.find === '') {
-      return failure(MODEL_API_MODEL_TEXT.editFindEmpty, UI_TEXT.toolEditInvalid)
-    }
-    // A no-op edit writes the file for nothing; refuse it (M101).
-    if (entry.find === entry.replace) {
-      return failure(MODEL_API_MODEL_TEXT.editNoChange, UI_TEXT.toolEditNoChange)
-    }
-  }
   // The model reads LF lines without the BOM: the match runs on that text,
   // and the file gets its own BOM and line breaks back (D27).
   const shape = shapeOf(before)
@@ -1815,36 +1804,28 @@ async function editFile(
   // Every entry resolved against the original text first (M101): overlaps
   // are refused and one write applies all of them, so either all land or
   // none does.
-  const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
-  for (const [index, entry] of singles.entries()) {
-    const find = shape.isCrlf ? toLf(entry.find) : entry.find
-    const matched = await matchRange(current, find, context.signal)
-    if ('refusal' in matched) {
-      const prefix = hasEdits ? `edits[${String(index)}]: ` : ''
-      const model =
-        matched.refusal === 'notFound'
-          ? MODEL_API_MODEL_TEXT.editNotFound
-          : MODEL_API_MODEL_TEXT.editAmbiguous
-      const visible =
-        matched.refusal === 'notFound' ? UI_TEXT.toolEditNotFound : UI_TEXT.toolEditAmbiguous
+  // Every single resolved against the original text first (M101): overlaps
+  // are refused and one write applies all of them, so either all land or
+  // none does.
+  const resolved = await resolveEditRanges(
+    current,
+    shape,
+    singles,
+    hasEdits,
+    context.signal,
+    (prefix, isRepeated) => {
+      const model = isRepeated
+        ? MODEL_API_MODEL_TEXT.editAmbiguous
+        : MODEL_API_MODEL_TEXT.editNotFound
+      const visible = isRepeated ? UI_TEXT.toolEditAmbiguous : UI_TEXT.toolEditNotFound
       return failure(
         `${prefix}${fill(model, { path: relative })}`,
         `${prefix}${fill(visible, { path: relative })}`,
       )
-    }
-    ranges.push({
-      start: matched.start,
-      end: matched.end,
-      replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
-    })
-  }
-  const ordered = ranges.toSorted((a, b) => a.start - b.start)
-  for (const [index, range] of ordered.entries()) {
-    const previous = ordered[index - 1]
-    if (previous !== undefined && range.start < previous.end) {
-      return failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap)
-    }
-  }
+    },
+  )
+  if (!resolved.ok) return resolved.outcome
+  const ordered = resolved.ranges
   let updated = ''
   let at = 0
   for (const range of ordered) {
@@ -1866,126 +1847,6 @@ async function editFile(
       ),
     ),
     touched: touchedBy(file),
-  }
-}
-
-async function listMatching(
-  context: ToolContext,
-  glob: string | undefined,
-): Promise<readonly string[]> {
-  // Compiled before the listing, so a refused glob costs no file walk.
-  const matches = glob === undefined ? undefined : compileGlob(glob)
-  const files = await context.io.listFiles(context.signal)
-  context.signal?.throwIfAborted()
-  // What the permission settings deny is neither listed nor searched (M78).
-  return files.filter(
-    (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
-  )
-}
-
-/** The lines a search reports for its mode, capped at `limit`. */
-function searchLines(
-  hits: readonly SearchHit[],
-  mode: (typeof OUTPUT_MODES)[number],
-  limit: number,
-): readonly string[] {
-  if (mode === 'content') {
-    return hits.slice(0, limit).map((hit) => `${hit.file}:${String(hit.line)}: ${hit.text}`)
-  }
-  const perFile = new Map<string, number>()
-  for (const hit of hits) {
-    perFile.set(hit.file, (perFile.get(hit.file) ?? 0) + 1)
-  }
-  return Array.from(perFile, ([file, count]) =>
-    mode === 'count' ? `${file}: ${String(count)}` : file,
-  ).slice(0, limit)
-}
-
-async function search(
-  args: z.infer<typeof searchArgs>,
-  context: ToolContext,
-): Promise<ToolOutcome> {
-  if (args.pattern.length > SEARCH_PATTERN_MAX_LENGTH) {
-    return failure(`pattern longer than ${String(SEARCH_PATTERN_MAX_LENGTH)} characters`)
-  }
-  const mode = args.output_mode ?? 'content'
-  const limit = Math.max(Math.min(args.max_results ?? SEARCH_MAX_RESULTS, SEARCH_MAX_RESULTS), 1)
-  const p = context.platform === 'win32' ? path.win32 : path.posix
-  let candidates: readonly string[]
-  try {
-    candidates = await listMatching(context, args.glob)
-  } catch (error: unknown) {
-    context.signal?.throwIfAborted()
-    return failure(error instanceof Error ? error.message : String(error))
-  }
-  // A workspace too large to search in the budget is searched in part, and
-  // the model is told so rather than handed a silent subset (D27).
-  const searched = candidates.slice(0, SEARCH_MAX_CANDIDATES)
-  const outcome = await context.io.searchFiles(
-    {
-      pattern: args.pattern,
-      root: context.workspaceRoot,
-      maxFileBytes: SEARCH_MAX_FILE_BYTES,
-      maxHits: SEARCH_MAX_HITS,
-      maxHitChars: SEARCH_HIT_MAX_CHARS,
-      denyRead: context.files?.denyGlobs ?? [],
-      globLimits: GLOB_LIMITS,
-      files: searched.map((relative) => ({
-        relative,
-        absolute: p.join(context.workspaceRoot, ...relative.split('/')),
-      })),
-    },
-    context.signal,
-  )
-  context.signal?.throwIfAborted()
-  // Every candidate, searched or not: its name may be in a hit or a count.
-  const touched: TouchedFiles = { names: candidates, complete: true }
-  if (!outcome.ok) {
-    return { ...failure(outcome.reason), touched }
-  }
-  const results = searchLines(outcome.hits, mode, limit)
-  const notes = [
-    ...(searched.length < candidates.length
-      ? [
-          `[searched the first ${String(searched.length)} of ${String(candidates.length)} files; narrow the search with glob]`,
-        ]
-      : []),
-    ...(outcome.isPartial === true
-      ? [
-          `[the search stopped after ${String(SEARCH_TIMEOUT_MS)} ms; these results are partial, narrow the pattern or the glob]`,
-        ]
-      : []),
-  ]
-  const found = results.length === 0 ? 'No matches.' : results.join('\n')
-  const body = [found, ...notes].join('\n')
-  // D121: no trimming of ours — the matches ride whole; the row keeps the
-  // display clip, and the host's one bound cuts with a spill downstream.
-  return { output: body, visibleOutput: clip(body), touched }
-}
-
-async function listFiles(
-  args: z.infer<typeof listFilesArgs>,
-  context: ToolContext,
-): Promise<ToolOutcome> {
-  const limit = Math.max(args.limit ?? LIST_FILES_DEFAULT_LIMIT, 1)
-  let files: readonly string[]
-  try {
-    files = await listMatching(context, args.glob)
-  } catch (error: unknown) {
-    context.signal?.throwIfAborted()
-    return failure(error instanceof Error ? error.message : String(error))
-  }
-  const shown = files.slice(0, limit)
-  const tail =
-    files.length > shown.length ? `\n[${String(files.length - shown.length)} more files]` : ''
-  const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
-  // Every file listed, shown or counted.
-  // D121: no trimming of ours — the listing rides whole; the row keeps the
-  // display clip, and the host's one bound cuts with a spill downstream.
-  return {
-    output: body,
-    visibleOutput: clip(body),
-    touched: { names: files, complete: true },
   }
 }
 
@@ -2171,11 +2032,21 @@ export async function executeTool(
     }
     case MODEL_API_TOOLS.search: {
       const parsed = searchArgs.safeParse(raw)
-      return parsed.success ? await search(parsed.data, context) : argumentFailure(parsed.error)
+      if (!parsed.success) return argumentFailure(parsed.error)
+      const loaded = await chunkCalls(
+        loadSearchCalls,
+        `${MODEL_API_TOOLS.search} needs its execution helpers, but its helpers (dist/modelApiTools.js) could not be loaded; try the call again`,
+      )
+      return loaded.ok ? await loaded.calls.search(parsed.data, context) : loaded.outcome
     }
     case MODEL_API_TOOLS.listFiles: {
       const parsed = listFilesArgs.safeParse(raw)
-      return parsed.success ? await listFiles(parsed.data, context) : argumentFailure(parsed.error)
+      if (!parsed.success) return argumentFailure(parsed.error)
+      const loaded = await chunkCalls(
+        loadSearchCalls,
+        `${MODEL_API_TOOLS.listFiles} needs its execution helpers, but its helpers (dist/modelApiTools.js) could not be loaded; try the call again`,
+      )
+      return loaded.ok ? await loaded.calls.listFiles(parsed.data, context) : loaded.outcome
     }
     case MODEL_API_TOOLS.bash:
     case MODEL_API_TOOLS.powershell: {

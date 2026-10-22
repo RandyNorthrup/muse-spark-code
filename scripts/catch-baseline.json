@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 266,
+      "GENERIC": 262,
       "CLEANUP": 235
     },
     "host": {
@@ -676,16 +676,6 @@
     {
       "file": "src/core/backends/modelapi/tools.ts",
       "identity": "aef56e1af16e6a76cf52ef9305df276b5e2c89c8c9b8bc2e98892cd84b204790",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/tools.ts",
-      "identity": "8f91c20d53f46a974ad10ef253ee1eabbafd7ab2483ac90247d67da466189244",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/tools.ts",
-      "identity": "7555d6fd295eb348e0b2c6f75fc99a9d2ed1ff164698a52078072e0c631ced05",
       "class": "GENERIC"
     },
     {
@@ -1687,11 +1677,6 @@
       "file": "src/core/providers/accounts.ts",
       "identity": "254159591ed1187edd659762bb8521f3a287d2008b3267039f2a4b66943cc871",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/providers/configured.ts",
-      "identity": "4df3a5eff00461cea7083bd8d61b962c5dad6d98599c007ccb2b5b7b75049967",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/providers/configured.ts",
@@ -3031,11 +3016,6 @@
     {
       "file": "src/core/web/webFetch.ts",
       "identity": "287458935b3471f1e9d77fc134c322a13a98bf36dab0db0ad5066916a016b39f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/web/webFetch.ts",
-      "identity": "ec9147062570628473882906d02b16880a9502a4e7805ca254adcde4ebc3d3d8",
       "class": "GENERIC"
     },
     {

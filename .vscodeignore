@@ -82,6 +82,7 @@
 !dist/recorder.js
 !dist/media.js
 !dist/mediaHost.js
+!dist/toolRange.js
 !dist/screenRecord.js
 !dist/uiTextMedia.js
 !dist/reference.js
@@ -130,6 +131,7 @@
 !dist/productionAudio.js
 !dist/runtimeMedia.js
 !dist/modelApiTools.js
+!dist/modelApiFileRange.js
 !dist/modelApiVerify.js
 !dist/modelApiImage.js
 

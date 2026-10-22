@@ -12,7 +12,10 @@ import {
   type PinnedResponse,
   type WebFetchDeps,
 } from '../../src/core/web/webFetch'
-import { WEB_FETCH_BUFFER_WINDOW_BYTES } from '../../src/shared/constants'
+import {
+  WEB_FETCH_BUFFER_WINDOW_BYTES,
+  WEB_FETCH_MAX_CONTENT_CHARS,
+} from '../../src/shared/constants'
 import { recordedPinnedResponse } from './helpers/webfetchRecord'
 
 const FIXTURES = path.join(
@@ -108,7 +111,9 @@ describe('web fetch decompression window', () => {
     // Only the window is ever buffered, however far the gzip expands.
     expect(result.page.bytes).toBe(WEB_FETCH_BUFFER_WINDOW_BYTES)
     expect(result.text).toContain('Project Gutenberg')
-    expect(result.text).toContain('the page has more')
+    expect(result.text).toContain(
+      `Showing characters 1–${String(WEB_FETCH_MAX_CONTENT_CHARS)} of ${String(WEB_FETCH_BUFFER_WINDOW_BYTES)}+; fetch https://www.norvig.com/big.txt again with offset ${String(WEB_FETCH_MAX_CONTENT_CHARS)} for the rest.`,
+    )
   })
 
   it('still reads a real small page whole, HTML converted', async () => {

@@ -147,7 +147,7 @@ export function createWebFetcher(
   nat64Lookups: Nat64Lookups = NAT64_LOOKUPS,
   rawTextLimit?: number,
 ): WebFetcher {
-  return async (url, signal, isStillAllowed) => {
+  return async (url, signal, isStillAllowed, offset) => {
     const result = await fetchWebPage(
       url,
       {
@@ -164,6 +164,7 @@ export function createWebFetcher(
       },
       signal,
       isStillAllowed,
+      offset,
     )
     log.info(`Web fetch from ${hostOf(url)}: ${outcomeOf(result)}`)
     return result

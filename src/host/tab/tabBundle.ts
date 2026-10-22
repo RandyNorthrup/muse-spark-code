@@ -25,6 +25,7 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_PRICES_VERIFIED_ON,
   UI_TEXT,
+  VSCODE_COMMANDS,
 } from '../../shared/constants'
 import { modelApiPaidTier } from '../../shared/paidBoundary'
 import type { UiText } from '../../shared/l10n/en'
@@ -703,6 +704,8 @@ export interface TabServicesDeps {
   readonly onUsage: (model: string, usage: TabReportedUsage) => void
   /** Today's total moved: the status bar redraws. */
   readonly onTotalChanged: () => void
+  /** Hitting the daily budget is never silent: called at most once per local day. */
+  readonly onBudgetReached?: (spent: UsdAmount, budget: UsdAmount) => void
   readonly log: Logger
 }
 
@@ -1163,6 +1166,27 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       onTotalChanged: () => {
         status?.refresh()
         deps.onTodayTotalChanged?.()
+      },
+      // Hitting the daily budget is never silent: one notice per day
+      // naming the spend, the budget and how to raise it, with a direct
+      // way into Settings.
+      onBudgetReached: (spent, budget) => {
+        void (async () => {
+          const table = deps.table()
+          const answer = await vscode.window.showWarningMessage(
+            fill(table.tabBudgetReachedDetail, {
+              spent: formatUsd(spent),
+              budget: formatUsd(budget),
+            }),
+            table.openSettings,
+          )
+          if (answer === table.openSettings) {
+            await vscode.commands.executeCommand(
+              VSCODE_COMMANDS.openSettings,
+              'museSpark.tabDailyBudgetUsd',
+            )
+          }
+        })()
       },
       log: deps.log,
     })

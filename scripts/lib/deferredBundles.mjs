@@ -116,7 +116,12 @@ export const MODEL_API_TOOLS_ONLY = [
   'modelCallHooks.ts',
   'argumentPreview.ts',
   'observationPacking.ts',
+  'searchPaging.ts',
 ]
+// The byte-range file execution (reads and edits of one byte window),
+// loaded on the first range addressed call, off the per-call helpers'
+// budget.
+export const MODEL_API_FILE_RANGE_ONLY = ['modelApiFileRangeEntry.ts', 'fileRangeTools.ts']
 // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
 // reads addressFamily for every request's SNI.
 export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fetchFailure.ts']
@@ -446,6 +451,11 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/modelApiFileRange.js',
+    metafile: 'dist/meta/modelApiFileRange.json',
+    files: [...MODEL_API_FILE_RANGE_ONLY.map((name) => `${MODEL_API_DIR}/${name}`)],
+  },
+  {
     output: 'dist/modelApiVerify.js',
     metafile: 'dist/meta/modelApiVerify.json',
     files: [
@@ -664,6 +674,13 @@ export const ON_FIRST_USE = [
     use: 'the first backend question deferral',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
     files: ['src/core/questions/deferralEntry.ts'],
+  },
+  {
+    output: 'dist/toolRange.js',
+    metafile: 'dist/meta/toolRange.json',
+    use: 'the first byte-range file read or edit',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/host/backend/toolRangeEntry.ts', 'src/host/backend/toolRangeIo.ts'],
   },
   {
     output: 'dist/approvalModes.js',
@@ -1331,6 +1348,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/host/backend/toolRangeEntry.ts'), 'dist/toolRange.js'],
   [path.resolve('src/core/backends/musecode/approvalModesEntry.ts'), 'dist/approvalModes.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
@@ -1359,6 +1377,10 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/productionAudioEntry.ts'), 'dist/productionAudio.js'],
   [path.resolve('src/runtime/runtimeMediaEntry.ts'), 'dist/runtimeMedia.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
+  [
+    path.resolve('src/core/backends/modelapi/modelApiFileRangeEntry.ts'),
+    'dist/modelApiFileRange.js',
+  ],
   [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
   [path.resolve('src/core/backends/modelapi/modelApiImageEntry.ts'), 'dist/modelApiImage.js'],
   [path.resolve('src/core/legal/legalFixEntry.ts'), 'dist/legalFix.js'],
@@ -1411,7 +1433,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

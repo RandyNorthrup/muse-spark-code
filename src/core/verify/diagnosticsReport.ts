@@ -11,14 +11,21 @@
 // caller commits the report, once the model has it. Pure.
 
 import {
+  IDE_MCP_TOOL_DIAGNOSTICS,
   TOOL_OUTPUT_CLIP_MARKER,
   type UncheckedReason,
   VERIFY_DIAGNOSTICS_MAX_ENTRIES,
   VERIFY_MODEL_TEXT,
   VERIFY_SHOWN_FILES_MAX,
+  VERIFY_UNSHOWN_FILES_NAMED,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { type DiagnosticEntry, formatDiagnostics, type WorkspaceDiagnostic } from '../diagnostics'
+import {
+  type DiagnosticEntry,
+  formatDiagnostics,
+  sortWorkspaceDiagnostics,
+  type WorkspaceDiagnostic,
+} from '../diagnostics'
 
 /**
 A file an edit tool wrote, as confinement found it at the edit (links and
@@ -191,8 +198,27 @@ export class DiagnosticsHistory {
       )
       listed.push(...reported.map((entry) => ({ ...entry, path: file.relative })))
     }
+    // Entries past the page are pageable, not dropped. The overflow names
+    // come from the same worst-first sorted snapshot the page shows (not
+    // input order), each file readable on its own through the diagnostics
+    // tool, which pages by offset.
     if (listed.length > 0) {
-      lines.push(formatDiagnostics(listed, VERIFY_DIAGNOSTICS_MAX_ENTRIES))
+      const sorted = sortWorkspaceDiagnostics(listed)
+      const unshown = sorted.slice(VERIFY_DIAGNOSTICS_MAX_ENTRIES)
+      const unshownFiles = [...new Set(unshown.map((entry) => entry.path))]
+      const namedFiles = unshownFiles.slice(0, VERIFY_UNSHOWN_FILES_NAMED)
+      const named = namedFiles.join(', ')
+      const moreFiles = unshownFiles.length - namedFiles.length
+      lines.push(
+        formatDiagnostics(
+          sorted,
+          VERIFY_DIAGNOSTICS_MAX_ENTRIES,
+          0,
+          unshown.length === 0
+            ? undefined
+            : `call ${IDE_MCP_TOOL_DIAGNOSTICS} for ${named}${moreFiles > 0 ? ` and ${String(moreFiles)} more files` : ''} to read the rest`,
+        ),
+      )
     }
     const isAnyRead = reads.size > 0
     return {

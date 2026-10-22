@@ -7,6 +7,25 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Highlights
+
+- **Big files open a window at a time.** `read_file` and `edit_file` take
+  `byteOffset` and `byteLength` for files past the whole-read size: one
+  byte window is shown, edits land inside the window that was read, and a
+  refusal names the valid range, all without loading the whole file.
+- **Paged results say how to get the rest.** `search`, `list_files`,
+  diagnostics and web fetches page by offset; every page names what is
+  left and the offset that fetches it, and a past-end offset is refused
+  with the valid range.
+- **Six silences now say what happened.** A dropped judge advisory, an
+  elicitation or question that timed out, a clipped subagent result, a
+  provider send that may have arrived, and a spent tab budget each arrive
+  with their reason and the way back.
+- **An interrupted draft is kept.** When a transcript is omitted, the
+  message you had written is still there as a draft after the restore.
+- **Damage markers are never trimmed.** Every conversation-damage marker
+  is kept, so none of the record is silently sliced away.
+
 ### Added
 
 - Best-of-N shows each attempt's reported tokens in the side-by-side

@@ -54,6 +54,52 @@ describe('formatDiagnostics', () => {
     expect(text.endsWith('… 7 more not shown')).toBe(true)
   })
 
+  it('pages one long diagnostic message without discarding its tail', () => {
+    const diagnostic = { ...entries[0]!, message: 'x'.repeat(1000) + 'important tail' }
+    const first = formatDiagnostics(
+      [diagnostic],
+      1,
+      0,
+      undefined,
+      0,
+      (entryOffset, messageOffset) =>
+        `offset ${String(entryOffset)} messageOffset ${String(messageOffset)}`,
+    )
+    expect(first).toContain('offset 0 messageOffset 1000')
+    expect(formatDiagnostics([diagnostic], 1, 0, undefined, 1000)).toContain('important tail')
+  })
+
+  it('pages entries by offset and names the offset that fetches the rest', () => {
+    const flood = Array.from({ length: DIAGNOSTICS_MAX_ENTRIES + 7 }, (_, index) => ({
+      ...entries[1]!,
+      line: index + 1,
+    }))
+    const next = `call getDiagnostics again with offset ${String(DIAGNOSTICS_MAX_ENTRIES)} for the rest`
+    const first = formatDiagnostics(flood, DIAGNOSTICS_MAX_ENTRIES, 0, next)
+    expect(first.split('\n')).toHaveLength(DIAGNOSTICS_MAX_ENTRIES + 1)
+    expect(
+      first.endsWith(
+        `[diagnostics 1-${String(DIAGNOSTICS_MAX_ENTRIES)} of ${String(DIAGNOSTICS_MAX_ENTRIES + 7)}; ${next}]`,
+      ),
+    ).toBe(true)
+    const second = formatDiagnostics(
+      flood,
+      DIAGNOSTICS_MAX_ENTRIES,
+      DIAGNOSTICS_MAX_ENTRIES,
+      'call getDiagnostics again with offset 207 for the rest',
+    )
+    expect(second.split('\n')).toHaveLength(7)
+    expect(second).not.toContain('more not shown')
+  })
+
+  it('refuses a past-end offset with the valid range', () => {
+    const few = [entries[1]!, entries[2]!, entries[0]!]
+    expect(() => formatDiagnostics(few, DIAGNOSTICS_MAX_ENTRIES, 3)).toThrow(RangeError)
+    expect(() => formatDiagnostics(few, DIAGNOSTICS_MAX_ENTRIES, 3)).toThrow(
+      'offset 3 is past the last of 3 diagnostics; use an offset from 0 to 2',
+    )
+  })
+
   it('clips a long message with a count, never inside a surrogate pair (D27)', () => {
     const long = { ...entries[1]!, message: 'x'.repeat(DIAGNOSTIC_MESSAGE_MAX_CHARS + 500) }
     expect(formatDiagnostics([long])).toBe(
@@ -145,6 +191,28 @@ describe('diagnosticsTool (Windows root)', () => {
   it('never matches by suffix: a.ts is the root file, not src/a.ts', async () => {
     expect(await tool.call({ uri: 'a.ts' }, NOT_STOPPED)).toBe('a.ts:1:1: error: root a')
     expect(await tool.call({ uri: 'x.ts' }, NOT_STOPPED)).toBe('No diagnostics.')
+  })
+
+  it('pages a flood by offset and refuses a past-end offset with the range', async () => {
+    const flood = Array.from({ length: DIAGNOSTICS_MAX_ENTRIES + 7 }, (_, index) =>
+      at(`src/f${String(index)}.ts`, `problem ${String(index)}`),
+    )
+    const paging = diagnosticsTool({
+      getDiagnostics: () => flood,
+      workspaceRoot: String.raw`C:\ws`,
+      platform: 'win32',
+      relativeInRoot: relativeIn(String.raw`C:\ws`, 'win32'),
+    })
+    const first = await paging.call({}, NOT_STOPPED)
+    expect(first.split('\n')).toHaveLength(DIAGNOSTICS_MAX_ENTRIES + 1)
+    expect(first).toContain(
+      `[diagnostics 1-${String(DIAGNOSTICS_MAX_ENTRIES)} of ${String(DIAGNOSTICS_MAX_ENTRIES + 7)}; call getDiagnostics again with offset ${String(DIAGNOSTICS_MAX_ENTRIES)} for the rest]`,
+    )
+    const rest = await paging.call({ offset: DIAGNOSTICS_MAX_ENTRIES }, NOT_STOPPED)
+    expect(rest.split('\n')).toHaveLength(7)
+    await expect(paging.call({ offset: DIAGNOSTICS_MAX_ENTRIES + 7 }, NOT_STOPPED)).rejects.toThrow(
+      `offset ${String(DIAGNOSTICS_MAX_ENTRIES + 7)} is past the last of ${String(DIAGNOSTICS_MAX_ENTRIES + 7)} diagnostics`,
+    )
   })
 
   it('answers a malformed URI or a file outside the workspace with an error', async () => {

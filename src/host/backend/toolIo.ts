@@ -27,6 +27,7 @@ import type {
   ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
+import { wireWordForLog } from '../../core/logging'
 import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../core/timeouts'
 import type { ToolImageIo } from '../../core/toolImages'
 import {
@@ -79,7 +80,12 @@ import { withoutCredentials } from '../../core/credentialEnvironment'
 import { powerShellQuoted } from '../../core/shellQuote'
 import { fill, uiLocale } from '../../shared/l10n/text'
 import { canonicalPath } from '../canonicalPath'
-import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
+import {
+  foldersMade,
+  renameReplacing,
+  writeFileAtomically,
+  writeFileIfUnchanged,
+} from '../fsAtomic'
 import { spawnMcpJob } from './mcpJobLaunch'
 import { joinStatement, newShellJob } from './shellJob'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
@@ -636,6 +642,41 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
   )
   const hasUnsavedChanges = (absolutePath: string) =>
     deps.unsavedFiles().some((open) => isSamePath(open, absolutePath, deps.platform))
+  // The byte-range file execution (dist/toolRange.js, D6): the windowed
+  // reader and the streaming splice live in their own chunk, loaded on the
+  // first range addressed call, so whole-file turns never carry them. Each
+  // caller fails its own safe way: a bundle that cannot load refuses the
+  // call that needed it with the chunk named, never a silent fallback.
+  // Loaded once per ToolIo: a load that failed is not kept, so the next
+  // range call tries again.
+  let rangeLoad: Promise<Required<Pick<ToolIo, 'readFileRange' | 'spliceFileRange'>>> | undefined
+  async function fileRangeIo(): Promise<
+    Required<Pick<ToolIo, 'readFileRange' | 'spliceFileRange'>>
+  > {
+    rangeLoad ??= (async () => {
+      const entry = await import('./toolRangeEntry.js')
+      return entry.createFileRangeIo({
+        uiText: UI_TEXT,
+        uiLocale: uiLocale(),
+        platform: deps.platform,
+        sleep: pause,
+        checkOpenedFile: (absolutePath, file, expectedCanonicalPath) =>
+          checkedOpenedFile(absolutePath, file, expectedCanonicalPath, deps.platform),
+        isMissingFile,
+        renameReplacing,
+        hasUnsavedChanges,
+        assertWorkspaceCurrent: deps.assertWorkspaceCurrent,
+      })
+    })()
+    try {
+      return await rangeLoad
+    } catch (error) {
+      rangeLoad = undefined
+      const name = error instanceof Error ? wireWordForLog(error.name) : 'unknown'
+      deps.log(`toolRange.js failed (${name})`)
+      throw new Error(UI_TEXT.toolRangeUnavailable, { cause: error })
+    }
+  }
   const configuredHookShell = deps.env()['SHELL']
   const hookProgram = hookProgramFor(deps, configuredHookShell, lookupWorkspace)
   // Each call's child environment is guarded for the workspace it runs in.
@@ -805,6 +846,61 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
       return decodeText(bytes, absolutePath)
+    },
+    // The size without the bytes, for range addressing.
+    async fileSize(absolutePath, expectedCanonicalPath) {
+      let file: FileHandle
+      try {
+        file = await open(absolutePath, 'r')
+      } catch (error: unknown) {
+        if (isMissingFile(error)) {
+          return
+        }
+        throw error
+      }
+      try {
+        await checkedOpenedFile(absolutePath, file, expectedCanonicalPath, deps.platform)
+        const metadata = await file.stat()
+        return metadata.size
+      } finally {
+        await file.close()
+      }
+    },
+    // One byte window of a file of any size, with the file's size, mtime
+    // and text shape, so reads and edits reach past the whole-read cap by
+    // range. The implementation loads with dist/toolRange.js on the first
+    // range addressed call; a bundle that cannot load refuses this call
+    // with the chunk named.
+    async readFileRange(absolutePath, expectedCanonicalPath, range, signal) {
+      const rangeIo = await fileRangeIo()
+      return await rangeIo.readFileRange(absolutePath, expectedCanonicalPath, range, signal)
+    },
+    // Replace bytes `[start, end)` of the file with `replacement`,
+    // streaming the rest through a temporary file so a range edit never
+    // loads the whole file. The implementation loads with dist/toolRange.js
+    // on the first range addressed call; a bundle that cannot load refuses
+    // this call with the chunk named.
+    async spliceFileRange(
+      absolutePath,
+      expectedCanonicalPath,
+      expected,
+      start,
+      end,
+      replacement,
+      options,
+      signal,
+    ) {
+      const rangeIo = await fileRangeIo()
+      return await rangeIo.spliceFileRange(
+        absolutePath,
+        expectedCanonicalPath,
+        expected,
+        start,
+        end,
+        replacement,
+        options,
+        signal,
+      )
     },
     async readBytes(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
       try {
