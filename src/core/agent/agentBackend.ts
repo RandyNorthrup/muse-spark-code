@@ -450,6 +450,61 @@ export interface ComputerUseSetup {
   readonly refused?: string | undefined
 }
 
+/** A `session/leave` handoff's settlement (M127, 1.4.11): open vocabularies. */
+export interface SessionLeave {
+  readonly outcome: string
+  readonly reason?: string | undefined
+}
+
+/** One skill activation to apply (M127, `skill/setActivation`). */
+export interface SkillActivationChange {
+  readonly selector: string
+  readonly scope: string
+  readonly activation: string
+}
+
+/** The activation in force after the write, plus what it replaced. */
+export interface SkillActivation {
+  readonly selector: string
+  readonly scope: string
+  readonly activation: string
+  readonly previous: string
+  readonly status: string
+}
+
+/** Skip or retry one workflow child (M127, `workflow/childControl`). */
+export interface WorkflowChildControl {
+  readonly workflowRunId: string
+  readonly childId: string
+  readonly attempt: number
+  readonly action: string
+}
+
+/** One row of the Settings apps list (M127, `computerUseSettings/read`). */
+export interface ComputerUseAppRow {
+  readonly bundleId: string
+  readonly choice: string
+  readonly lastAskedAt?: string | undefined
+  readonly locked?: boolean | undefined
+  readonly lockedBy?: string | undefined
+  readonly name?: string | undefined
+}
+
+/** One row of the Settings blocked-apps list. */
+export interface ComputerUseBlockedAppRow {
+  readonly bundleId: string
+  readonly locked: boolean
+  readonly prefix?: boolean | undefined
+}
+
+/** The host's computer-use settings (M127, `computerUseSettings/read`). */
+export interface ComputerUseSettingsInfo {
+  readonly blockedApps: readonly ComputerUseBlockedAppRow[]
+  readonly computerControl: string
+  readonly screenshots: string
+  readonly apps?: readonly ComputerUseAppRow[] | undefined
+}
+
 /**
 One `skill/import` candidate that could neither install nor quarantine:
 `id` is null when the candidate never yielded one (present-but-null,
@@ -986,6 +1041,33 @@ export interface AgentSession {
   it offers no Send: the controller refuses before dispatch.
   */
   readonly submitFeedback?: (input: FeedbackRequest) => Promise<string>
+  /**
+  Apply a skill activation (M127, MSP `skill/setActivation`): the
+  selector names a skill from the session's catalog, the scope its
+  source. Absent where the backend keeps no skills.
+  */
+  readonly setSkillActivation?: (change: SkillActivationChange) => Promise<SkillActivation>
+  /**
+  Pause a live workflow run (M127, MSP `workflow/pause`). Absent where
+  the backend runs no workflows.
+  */
+  readonly pauseWorkflowRun?: (workflowRunId: string) => Promise<string>
+  /**
+  Cancel a workflow run (M127, MSP `workflow/cancel`). Absent where the
+  backend runs no workflows.
+  */
+  readonly cancelWorkflowRun?: (workflowRunId: string) => Promise<string>
+  /**
+  Skip or retry one workflow child (M127, MSP `workflow/childControl`),
+  keyed by the `(childId, attempt)` pair the run's `children[]` carries.
+  Absent where the backend runs no workflows.
+  */
+  readonly controlWorkflowChild?: (control: WorkflowChildControl) => Promise<string>
+  /**
+  The session's computer-use setup state (M127, MSP
+  `computerUseSetup/read`). Absent where the backend has no such setup.
+  */
+  readonly readComputerUseSetup?: () => Promise<ComputerUseSetup>
   dispose(): void
 }
 
@@ -1072,6 +1154,25 @@ export interface AgentHost {
   setup.
   */
   readonly checkComputerUseSetup?: () => Promise<ComputerUseSetup>
+  /**
+  Hand a loaded session to another host (M127, MSP `session/leave`,
+  1.4.11): the ack admits, then the handoff settles on
+  `session/leaveCompleted` matched by commandId. Absent where the
+  backend keeps no sessions to hand off.
+  */
+  readonly leaveSession?: (
+    sessionId: string,
+    options?: { readonly stop?: boolean },
+  ) => Promise<SessionLeave>
+  /**
+  The host's computer-use settings (M127, MSP
+  `computerUseSettings/read`). Absent where the backend has no such
+  settings.
+  */
+  readonly readComputerUseSettings?: (options?: {
+    readonly installed?: boolean
+    readonly showBuiltIns?: boolean
+  }) => Promise<ComputerUseSettingsInfo>
   readonly sessionCount: number
   close(): Promise<void>
 }

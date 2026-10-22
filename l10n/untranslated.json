@@ -223,7 +223,8 @@
       "teamUsageTitle",
       "gitPullRequestFormLabel",
       "agentsCount.one",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "sessionListsHooks"
     ],
     "es": [
       "hooksItem",
@@ -241,7 +242,9 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "sessionListsHooks",
+      "sessionListsPlugins"
     ],
     "pt-br": [
       "agentTokens",
@@ -287,7 +290,8 @@
       "teamSetupSteps.pools",
       "teamTemplateSolo",
       "teamIntensityLevels.minimal",
-      "reportLabels.total"
+      "reportLabels.total",
+      "sessionListsHooks"
     ],
     "it": [
       "usageAccount",

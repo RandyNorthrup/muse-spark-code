@@ -100,6 +100,12 @@ happened, not what was planned; superseded entries are kept.
   Model API session is kept past `museSpark.cleanupPeriodDays`, and
   bookmarks sync per workspace only with `museSpark.syncPromptsAndBookmarks`
   on.
+- Tab completions take a maximum output length you set.
+  `museSpark.tabMaxOutputTokens` caps each request and its worst-case
+  cost reservation; 0 leaves the provider's own maximum for the model.
+- The session's background tasks, hooks and plugins open as a read-only
+  dialog with Refresh, and the History dialog offers a Recap button
+  where the backend can recap sessions.
 
 ### Changed
 

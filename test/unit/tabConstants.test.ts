@@ -15,7 +15,6 @@ import {
   TAB_DEBOUNCE_MS,
   TAB_EDIT_HOOK_QUEUE,
   TAB_FAST_MAX_LINES,
-  TAB_FAST_MAX_OUTPUT_TOKENS,
   TAB_FAST_PREFIX_CHARS,
   TAB_FAST_SUFFIX_CHARS,
   TAB_FILE_MAX_BYTES,
@@ -23,12 +22,9 @@ import {
   TAB_HOOK_TIMEOUT_MS,
   TAB_HOOK_VERDICT_CACHE,
   TAB_MAX_COMPLETION_CHARS,
-  TAB_MAX_IN_FLIGHT,
-  TAB_MAX_REQUESTS_PER_MINUTE,
   TAB_MODEL_TEXT,
   TAB_MODELS,
   TAB_MULTILINE_MAX_LINES,
-  TAB_MULTILINE_MAX_OUTPUT_TOKENS,
   TAB_MULTILINE_MODES,
   TAB_MULTILINE_PREFIX_CHARS,
   TAB_MULTILINE_SUFFIX_CHARS,
@@ -36,7 +32,6 @@ import {
   TAB_PROMPT_CACHE_KEY_PREFIX,
   TAB_REPLY_CLOSE_TAG,
   TAB_REPLY_OPEN_TAG,
-  TAB_REQUEST_TIMEOUT_MS,
   TAB_SNOOZE_LONG_MINUTES,
   TAB_SNOOZE_SHORT_MINUTES,
   TAB_TRIGGER_MODES,
@@ -59,17 +54,20 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
     expect(TAB_MAX_COMPLETION_CHARS).toBe(2000)
   })
 
-  it('keeps the debounce, output caps and request bounds the probe retunes', () => {
+  it('keeps the debounce and request bounds the probe retunes', () => {
     // The probe's values (docs/certification/m94.md, "Probe", 2026-10-04).
+    // Acceptance 9 (D121): no count of ours paces requests — the in-flight
+    // and per-minute caps are gone, and pacing is the debounce plus the
+    // shared client's provider-driven pacing.
+    // Acceptance 7: a sent request is never aborted — the request timeout
+    // is gone with them.
+    // M94 goal (D121): output tokens are the provider's maximum for the
+    // model unless the person sets `museSpark.tabMaxOutputTokens` lower —
+    // the mode output caps are gone with them.
     expect(TAB_DEBOUNCE_MS).toBe(350)
-    expect(TAB_FAST_MAX_OUTPUT_TOKENS).toBe(608)
-    expect(TAB_MULTILINE_MAX_OUTPUT_TOKENS).toBe(1536)
-    expect(TAB_REQUEST_TIMEOUT_MS).toBe(67_000)
     expect(TAB_CACHE_ENTRIES).toBe(64)
     expect(TAB_HOOK_VERDICT_CACHE).toBe(128)
     expect(TAB_AUTOMATIC_LATENCY_CEILING_MS).toBe(1500)
-    expect(TAB_MAX_IN_FLIGHT).toBe(2)
-    expect(TAB_MAX_REQUESTS_PER_MINUTE).toBe(20)
   })
 
   it('keeps no default budget and no ceiling, with the dust floor for a set budget', () => {
@@ -119,10 +117,11 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
     expect(PAID_FEATURE_SETTINGS.tab).toBe('modelApiTab')
   })
 
-  it('keeps the seven Tab settings on their decided defaults', () => {
+  it('keeps the eight Tab settings on their decided defaults', () => {
     expect(SETTING_DEFAULTS.modelApiTab).toBe(true)
     expect(SETTING_DEFAULTS.tabModel).toBe('muse-spark-1.3')
     expect(SETTING_DEFAULTS.tabDailyBudgetUsd).toBe(TAB_NO_BUDGET_USD)
+    expect(SETTING_DEFAULTS.tabMaxOutputTokens).toBe(0)
     expect(SETTING_DEFAULTS.tabLanguages).toEqual({
       '*': true,
       plaintext: false,
@@ -140,6 +139,7 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
       'modelApiTab',
       'tabModel',
       'tabDailyBudgetUsd',
+      'tabMaxOutputTokens',
       'tabLanguages',
       'tabMultiline',
       'tabTrigger',

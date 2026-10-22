@@ -848,6 +848,10 @@ export const SETTING_DEFAULTS = {
   // The daily budget in US dollars: 0 is no budget (nothing reserved or
   // locked); only a budget the person sets caps the local day.
   tabDailyBudgetUsd: 0,
+  // The person's output cap per Tab request: 0 is the provider's maximum
+  // for the model (M94 goal, D121); anything else caps the request and
+  // its worst-case reservation at what the person set.
+  tabMaxOutputTokens: 0,
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
@@ -983,6 +987,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiTab',
   'tabModel',
   'tabDailyBudgetUsd',
+  'tabMaxOutputTokens',
   'tabLanguages',
   'tabMultiline',
   'tabTrigger',
@@ -1733,6 +1738,11 @@ export const VIDEOS_FOLDER_NAME = 'Videos'
 export const WINDOWS_SCREEN_RECORDINGS_FOLDER = 'Screen Recordings'
 export const WINDOWS_CAPTURES_FOLDER = 'Captures'
 export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
+// The recorder launch port's per-line bound (M105 R2): the helper's frames
+// are short JSON lines, and a line past this is corruption — the port stops
+// delivering rather than feed it to the driver. A bound on untrusted child
+// bytes, not on a person's value (HOOK_OUTPUT_MAX_BYTES' precedent).
+export const SCREEN_RECORDING_LINE_MAX_BYTES = 16 * 1024
 
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
 // API reads for inference, sent inline as `input_file`, never uploaded.
@@ -2975,27 +2985,10 @@ export const TAB_MAX_COMPLETION_CHARS = 2000
 // the 1.5 s ceiling by itself, so a shorter wait would only bill more
 // never-aborted requests (docs/certification/m94.md, "Probe").
 export const TAB_DEBOUNCE_MS = 350
-// Fast mode's output cap, reasoning included (*). The probe (2026-10-04):
-// p99 reasoning at `minimal` 485 tokens, plus 3 lines at 32 tokens each,
-// rounded up to 32. The planned 128 would have cut most replies short.
-export const TAB_FAST_MAX_OUTPUT_TOKENS = 608
-// Multi-line mode's output cap (*). The probe (2026-10-04) put p99 reasoning
-// at 2,045 tokens, but that p99 was one runaway reply that reasoned past the
-// probe's cap and showed no text. Lead decision: 1,536 ends runaways sooner
-// and spends less, at the cost of about one multi-line reply in ten.
-export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 1536
-// Provider-side backstop only, never UX: a stale answer is dropped by the
-// token. Twice the probe's p99 total time (33.0 s, 2026-10-04), rounded up
-// to a second, so it never cuts a request that would still report usage.
-export const TAB_REQUEST_TIMEOUT_MS = 67_000
 // Typing-through LRU windows (Continue's design, research §4).
 export const TAB_CACHE_ENTRIES = 64
 // The latency gate: a slower median first text defaults the trigger to onInvoke.
 export const TAB_AUTOMATIC_LATENCY_CEILING_MS = 1500
-// Open requests at once (Zed's cap, L22).
-export const TAB_MAX_IN_FLIGHT = 2
-// Starts per window, under the contributor tier's 150 RPM team limit (A8).
-export const TAB_MAX_REQUESTS_PER_MINUTE = 20
 // Tab's own cache-key prefix, never a conversation's (SoL-Pi, A7).
 export const TAB_PROMPT_CACHE_KEY_PREFIX = 'muse-spark-tab-'
 // The fixed hole marker in the user message (Continue's hole-filler, L8).
@@ -5223,10 +5216,11 @@ export const MODEL_API_SUBAGENT_TOOLS = {
 // (NOLIMITSSET: the removed 1–64 range was ours, M127). The 8-at-once queue
 // is C6, owned by the integration branch.
 export const SUBAGENT_CAPACITY = 0
-// A `recap/request` settles exactly once on `recap/completed` with a
+// An MSP admission settles exactly once on its `*Completed` notice with a
 // host-enforced 45 s timeout (ADR 45447): waiting past it keeps the late
-// settlement a notice instead of a hang.
-export const RECAP_SETTLE_TIMEOUT_MS = 60_000
+// settlement a notice instead of a hang. Shared by `recap/request` and
+// `session/leave` (M127, RLFINISH).
+export const MSP_SETTLE_TIMEOUT_MS = 60_000
 export const SUBAGENT_DEPTH = 1
 export const SUBAGENT_ID_PREFIX = 'subagent-'
 export const SUBAGENT_WAIT_DEFAULT_MS = 60_000

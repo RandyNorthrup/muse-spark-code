@@ -1,16 +1,16 @@
 // Tab's completion engine (M94, PLAN.md D73): lane C's pure pieces composed
 // for one window. The typing-through cache answers first; otherwise the
-// scheduler debounces an Automatic trigger (Invoke goes at once), caps the
-// open and per-minute requests, and the request body goes to the injected
-// key-client stream. The suggestion is published as soon as the closing
-// tag arrives, while the request runs on to its end so its usage settles
-// the reservation (the probe: text at 2.9 s, usage at 15 s). A sent request
-// is never aborted by the editor; only the provider-side timeout ends it,
-// and then it reports no usage and its reservation stands (M82).
+// scheduler debounces an Automatic trigger (Invoke goes at once), and the
+// request body goes to the injected key-client stream. The suggestion is
+// published as soon as the closing tag arrives, while the request runs on
+// to its end so its usage settles the reservation (the probe: text at
+// 2.9 s, usage at 15 s). A sent request is never aborted, by the editor
+// or by a timeout of ours (acceptance 7); it runs to the provider's
+// answer or failure. A request that ends without usage reports none, and
+// its reservation stands (M82).
 // Pure: no `vscode` import. The stream is the activation bundle's key
 // client, handed across the bundle boundary (PLAN.md D6).
 
-import { TAB_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import type { ResponseAttemptGuard, RetryBudget } from '../backends/modelapi/client'
 import { noRetryBudget } from '../backends/modelapi/transport'
 import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
@@ -41,6 +41,8 @@ export interface TabEngineRequest {
   /** Ordered, bounded, redacted related-file excerpts. */
   readonly snippets: string
   readonly mode: TabMode
+  /** The request's output cap, resolved by the provider (acceptance 6). */
+  readonly maxOutputTokens: number
   readonly isInvoke: boolean
   /** The cursor line's text before the cursor (whitespace normalization). */
   readonly cursorLineBefore: string
@@ -85,7 +87,6 @@ export interface TabEngineDeps {
   readonly onSent: (model: string) => void
   /** A request reported its usage (PaidUsage prices it). */
   readonly onUsage: (model: string, usage: TabEngineUsage) => void
-  readonly now?: () => number
 }
 
 export interface TabEngine {
@@ -116,7 +117,7 @@ function asError(error: unknown): Error {
 
 export function createTabEngine(deps: TabEngineDeps): TabEngine {
   const cache = new TabCache()
-  const scheduler = new TabScheduler(deps.now === undefined ? {} : { now: deps.now })
+  const scheduler = new TabScheduler()
   // The trigger the scheduler holds unsent: a newer one replaces it there,
   // and this answers it with no suggestion and zero usage.
   let dropWaiting: (() => void) | undefined
@@ -135,6 +136,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
       suffix: request.suffix,
       snippets: request.snippets,
       mode: request.mode,
+      maxOutputTokens: request.maxOutputTokens,
     })
     const filter = {
       mode: request.mode,
@@ -209,26 +211,35 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
         deps.onSent(request.model)
       },
     })
-    /** Reads the stream to its end; resolves its usage, rejects without one. */
-    const drain = async (): Promise<TabEngineUsage> => {
-      // A backstop only (D73): the editor never aborts a sent request.
-      const timeout = new AbortController()
-      const timer = setTimeout(() => {
-        timeout.abort()
-      }, TAB_REQUEST_TIMEOUT_MS)
+    /**
+    Reads the stream to its end. A failure comes back as an outcome, not
+    a throw: the settlement below still owes a refused request its unsent
+    answer and a settled one its usage.
+    */
+    const readStream = async (): Promise<{ ok: true } | { ok: false; cause: unknown }> => {
+      // Acceptance 7: no timeout of ours — the request runs until the
+      // stream ends. The signal never aborts; only the provider's answer,
+      // a network failure, or the usage settling below ends the read.
+      const neverAborted = AbortSignal.any([])
       try {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
         const budget: RetryBudget = noRetryBudget()
-        for await (const event of deps.stream(body, timeout.signal, budget, admit)) {
+        for await (const event of deps.stream(body, neverAborted, budget, admit)) {
           if (shouldStopAt(event)) {
             break
           }
         }
       } catch (error: unknown) {
-        progress.failure = asError(error)
-      } finally {
-        clearTimeout(timer)
+        return { ok: false, cause: error }
+      }
+      return { ok: true }
+    }
+    /** Reads the stream to its end; resolves its usage, rejects without one. */
+    const drain = async (): Promise<TabEngineUsage> => {
+      const read = await readStream()
+      if (!read.ok) {
+        progress.failure = asError(read.cause)
       }
       if (gate.isRefused && !gate.isSent) {
         // Nothing was POSTed: no suggestion and no usage (the reply is empty).
@@ -302,6 +313,11 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
               } catch (error: unknown) {
                 reject(asError(error))
               }
+            },
+            // The run settles through send; this only fires if the run
+            // itself crashes first, so the trigger still settles.
+            report: (error: unknown) => {
+              reject(asError(error))
             },
           },
           { immediate: request.isInvoke },

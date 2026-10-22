@@ -595,6 +595,7 @@ export const DEFERRED_WEBVIEW_SURFACES = [
   'BestOfNDialog',
   'ReviewPane',
   'HistoryDialog',
+  'SessionListsDialog',
   'ReportDialog',
   'ServiceStatusRow',
 ]

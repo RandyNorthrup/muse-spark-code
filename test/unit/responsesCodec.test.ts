@@ -20,6 +20,7 @@ import {
   restoredToolText,
   type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
+import { makeTurnBody } from './helpers/turnBodies'
 
 const encoder = new TextEncoder()
 const withRetention: ResponsesCodecQuirks = {
@@ -76,7 +77,7 @@ function collect(
 }
 
 function firstTurnBody(model = 'gpt-5.6-luna'): CreateResponseBody {
-  return {
+  return makeTurnBody({
     model,
     input: [
       {
@@ -86,24 +87,12 @@ function firstTurnBody(model = 'gpt-5.6-luna'): CreateResponseBody {
       },
     ],
     instructions: 'You are a coding agent.',
-    tools: [
-      {
-        type: 'function',
-        name: 'read',
-        description: 'Read a file',
-        parameters: { type: 'object', properties: { path: { type: 'string' } } },
-        strict: false,
-      },
-    ],
-    tool_choice: 'auto',
-    reasoning: { effort: 'medium', summary: 'auto' },
-    stream: true,
-    store: false,
+    toolName: 'read',
+    effort: 'medium',
     include: ['reasoning.encrypted_content'],
-    max_output_tokens: 8192,
-    prompt_cache_key: 'prefix-1',
-    prompt_cache_retention: 'in_memory',
-  }
+    maxOutputTokens: 8192,
+    promptCacheKey: 'prefix-1',
+  })
 }
 
 function scenarioBody(scenario: string, model: string): CreateResponseBody {

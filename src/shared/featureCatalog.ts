@@ -1305,6 +1305,7 @@ export function featureCatalog(): readonly Feature[] {
         'modelApiTab',
         'tabModel',
         'tabDailyBudgetUsd',
+        'tabMaxOutputTokens',
         'tabLanguages',
         'tabMultiline',
         'tabTrigger',

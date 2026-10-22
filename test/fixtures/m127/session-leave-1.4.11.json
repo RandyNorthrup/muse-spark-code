@@ -1,0 +1,11 @@
+{
+  "method": "session/leave",
+  "params": {
+    "commandId": "01a1631b-572a-7000-b992-cc5457febad9",
+    "sessionId": "01a1631b-563d-7691-a84b-b48adf3444ec"
+  },
+  "result": {
+    "commandId": "01a1631b-572a-7000-b992-cc5457febad9",
+    "status": "accepted"
+  }
+}

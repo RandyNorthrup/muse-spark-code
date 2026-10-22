@@ -1602,7 +1602,7 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, `museSpark.tabMenu`, `museSpark.tabLanguages`. Settings: `museSpark.modelApiTab`, `museSpark.tabModel`, `museSpark.tabDailyBudgetUsd`, `museSpark.tabLanguages`, `museSpark.tabMultiline`, `museSpark.tabTrigger`, `museSpark.tabWithCopilot`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)
+Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, `museSpark.tabMenu`, `museSpark.tabLanguages`. Settings: `museSpark.modelApiTab`, `museSpark.tabModel`, `museSpark.tabDailyBudgetUsd`, `museSpark.tabMaxOutputTokens`, `museSpark.tabLanguages`, `museSpark.tabMultiline`, `museSpark.tabTrigger`, `museSpark.tabWithCopilot`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)
 
 ### Judge
 
@@ -3157,6 +3157,20 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 ```json
 {
   "type": "number",
+  "minimum": 0,
+  "default": 0
+}
+```
+
+### museSpark.tabMaxOutputTokens
+
+Maximum output tokens for each Tab completion request; 0 is the provider's maximum for the model. A set cap sizes the request and its worst-case cost reservation.
+
+Type: `"integer"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
   "minimum": 0,
   "default": 0
 }

@@ -15106,13 +15106,16 @@ resolved against the plan's user-visible promise, not against the tag:
 
 ### D109 — Model-call turn limits preserve the answer (TOOLROUNDS, 2026-10-11; renumbered from D108 at merge, main took D108 for the test overhaul)
 
-The Model API turn cap is a limit, not a loop detector: default 200 model
-calls: ordinary reviews and coding jobs need more than fifty calls, while
-existing money caps protect spending. An existing caller request cap replaces that default with its remaining
-allowance. Reserve the last permitted call for a tools-disabled wrap-up; retain
-its answer and report a translated, typed request-limit stop in every host.
-Existing money caps, compaction accounting and queued-input promotion remain
-in force. Certification: [toolrounds](docs/certification/toolrounds.md).
+The Model API turn cap is a limit, not a loop detector: no round count of ours
+ends a turn (2026-10-17, D121/D208: the 200-call default no longer exists;
+ordinary reviews and coding jobs need more than fifty calls, and only a
+provider's documented limit or a value the person set may stop anything).
+A caller allowance bounds the run — exec's `--max-requests`, a best-of-N
+attempt ceiling, or another caller bound — and an existing caller request cap
+is read with its remaining allowance. Reserve the last permitted call for a
+tools-disabled wrap-up; retain its answer and report a translated, typed
+request-limit stop in every host. Person-set money caps, compaction accounting
+and queued-input promotion remain in force. Certification: [toolrounds](docs/certification/toolrounds.md).
 
 ### D208 — No spending check without a limit the person set (spend-simple, owner 2026-10-17; numbered D121 until the 0.19.0 join, when that number was found shared with D121 limits-only-on-models)
 
@@ -16672,6 +16675,12 @@ suites never ran on this PC per the lane rules; hosted CI owns them.
 wrap-up second; caller-aware default of 200 third. Certification and dependent
 suites: [toolrounds](docs/certification/toolrounds.md). Next slice: release-train
 integration and cross-platform certification after these three pieces pass.
+**Status 2026-10-22 (RLFINISH): building.** The three pieces ship on main in
+0.19.0 with no default (D109 corrected: the 200 default was removed under
+D121/D208). The Windows leg of cross-platform certification ran green
+(round 9 in the record above; two symlinked-directory cases hit this
+account's EPERM limit and stay with hosted CI). The Linux and browser legs
+stay hosted-CI-owned; the milestone flips when they report.
 **LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair). Superseded
 2026-10-17 by D208:** the versioned ledger, its atomic admission and its
 journal files are removed; spending is checked only against a limit the
@@ -16704,6 +16713,16 @@ cannot start D-Bus, so the Secret Service proof runs outside it.
   and no reset is needed.
 
 ### M127 — Muse Code at its latest release (2026-10-17)
+
+**Status 2026-10-22 (RLFINISH): building.** The SDK rides 1.4.11
+(installed under a one-shot minimum-age override; `.npmrc` untouched),
+and the remaining wraps landed with capture tests: session/leave,
+skill activation, workflow controls and the computer-use reads. The UI
+for the new reads landed too: the task, hook and plugin panels and the
+History recap. The lane's duplication pass folds the list-row schemas
+onto the shared tables and the setup reads onto one mapper. What the
+brief's live rows still need (hosted matrices, owner-device runs)
+stays with the lead. Record: `docs/certification/rlfinish.md`.
 
 **Status 2026-10-17: building.** Lane `feat/muse-code-latest`. The owner's
 standing rule: the product tracks each model, provider and CLI at its latest
@@ -19506,6 +19525,13 @@ converting the project plan is outside this lane.
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M80 — Headless and CI (D49, D65)
+
+**Status 2026-10-22 (RLFINISH): building.** The packaged-CLI rehearsal
+ran green from a clean install: `test/hosts/exec.sh` 18/18 and the
+secret scanner on both builds (its silent second case is the by-design
+exit-only refusal). Status evidence: `docs/certification/rlfinish.md`.
+The hosted matrices and the L/LA/LR receipts stay open: they need CI
+runs and owner dispatch, which no worktree can do.
 
 **Status 2026-10-17: building.** Status evidence: `docs/certification/msm80.md`.
 
@@ -24701,6 +24727,15 @@ live check remains with the lead. W also moves the small status item into the
 activation shim, translates the multi-line picker, and wires recent-edit
 and definition snippets through the same privacy checks as the current file.
 
+**Status 2026-10-22 (RLFINISH): building.** The output cap is the
+person's setting or the record maximum (acceptance 6), with spend-gate
+and hook real-code suites beside it. The lane's catch pass turns the
+engine's stream read into a failure outcome and a crashing scheduled
+run into a report through the work's own channel (GENERIC and CLEANUP
+each down one; baseline regenerated). The live check, the remaining
+acceptance rows and the shim-size note stay with the lead and the
+owner's key. Record: `docs/certification/rlfinish.md`.
+
 **RVM94KR3G follow-up (2026-10-09, kubuntu).** The shared window-once
 revocation counter is replaced with per-feature generations, retaining every
 Tab revocation and the global Ask again fence. Regressions prove Tab's Allow
@@ -25270,6 +25305,13 @@ Emacs, Neovim and JupyterLab by hand and in `hosts.yml` jobs deleted on
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
+
+**Status 2026-10-22 (RLFINISH): building.** Lanes C2, O, T and E and
+the three signature and replay blockers landed with real-code tests;
+the lane's duplication pass folds the codec tests' first-turn bodies
+onto one shared builder. Record: `docs/certification/rlfinish.md`.
+Anything the brief still needs beyond that (hosted rows, live model
+rows) stays with the lead.
 
 **CM1013R4 review repair plan (2026-10-11, kubuntu).** Fix all three
 RVCM1013C P2 classes offline. Every one of the sixteen frozen verifiers
@@ -26571,6 +26613,15 @@ accepted video/audio. Recording drivers, companion/native-editor factories,
 uncaptured vendors/MSP media and uploaded-file management retain their holds.
 The milestone stays open: next slice is lead gating, Windows/Linux native
 qualification and owner device receipts before recording-driver binding.
+
+**Status 2026-10-22 (RLFINISH): building.** The Windows side of that
+native qualification is ready but unbound: the R2 host-deps factory
+compiles the shipped helper with the inbox compiler into locked
+storage, revalidates it before each launch and spawns it directly,
+proven by an 8-case real-code suite against the real helper (the
+rig's own `--probe` answers ready, exit 0). No entry point wires it:
+binding, macOS/Linux drivers and owner-device receipts stay lead and
+owner steps. Record: `docs/certification/rlfinish.md`.
 
 **MSM105 finish lane (2026-10-17, macmini).** Merged the codec-refusal line
 (`cand/MSM105/3`), the production-composition line (`cand/MSM105/2`) and the
@@ -31453,6 +31504,12 @@ was not run, and the live model checks, installed-editor runs and
 native-host/TUI/Desktop rows remain with the lead and their owning lanes.
 The milestone stays provisional until those recorded checks exist.
 Record: `docs/certification/msm112.md`.
+
+**Status 2026-10-22 (RLFINISH): building.** The extension-host test ran
+green on both VS Code versions (the M112 panel green in both; the
+minimum-version failures are the activation/focus cases, measured
+pre-existing on the untouched base). The two live checks stay with the
+lead and the owner's key. Record: `docs/certification/rlfinish.md`.
 Small: about 48 lane-hours in lane 0 and
 three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
 ready together). Lanes Q, U and A start together once lane 0's contracts
@@ -37322,6 +37379,7 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | ------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/core/developer/developerOptions.ts`, `serialize`               | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
 | `src/core/backends/musecode/MuseCodeHost.ts`, `requestSessionRecap` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the recap waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern). Remove if the minimum host gains `withResolvers`.                                  | 2026-10-17 |
+| `src/core/backends/musecode/MuseCodeHost.ts`, `leaveSession`        | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the leave waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern, as in `requestSessionRecap`). Remove if the minimum host gains `withResolvers`.     | 2026-10-22 |
 
 **INT0170 chat startup ratchet (lead decision, 2026-10-08).** The FIXDIET1
 review ratchet in `test/unit/webviewBundle.test.mjs` moves from 733.8 KiB
