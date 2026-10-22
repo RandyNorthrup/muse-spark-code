@@ -106,6 +106,9 @@ async function complete(root: string, action: string, key: Buffer) {
 // The shared cross-process writer lease (owner-death-only takeover) recovers
 // SIGKILL at every reset/restore stage and never takes over a live writer.
 describe('POSIX production writer crash recovery (CM109JOINA)', () => {
+  // The native helper builds and broker starts take as long as the machine
+  // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
+  // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
     // macOS spells its temporary root through /var (a symlink to
     // /private/var), and the vault refuses roots under a symlinked
@@ -120,7 +123,7 @@ describe('POSIX production writer crash recovery (CM109JOINA)', () => {
       format: 'cjs',
     })
     await prebuildWindowsPipeHelper()
-  })
+  }, 0)
   afterAll(async () => {
     await rm(fixture.directory, { recursive: true, force: true })
   })

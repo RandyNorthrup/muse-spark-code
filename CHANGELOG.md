@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
+## [Unreleased]
+
+### Release infrastructure
+
+- The release's Open VSX check reads the universal package at its own
+  address. Once a version has packages for each platform, Open VSX's
+  plain version address can name any one of them, and 0.19.0's check
+  compared the universal package with another platform's (every package
+  was published and matched when checked by its own address).
+
 ## [0.19.0] - 2026-10-21
 
 ### Highlights

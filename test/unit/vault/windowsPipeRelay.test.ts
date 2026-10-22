@@ -91,6 +91,9 @@ const resultsSchema = z.strictObject({
 const fixture = { root: '', ownerSid: '' }
 const children = new Set<ChildProcess>()
 describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the real helper', () => {
+  // The native helper builds and broker starts take as long as the machine
+  // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
+  // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
     fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-piperelay-'))
     const bundle = path.join(fixture.root, 'pipeRelayChild.cjs')
@@ -126,7 +129,7 @@ describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the re
       throw new Error(`relay fixture exited while building: ${built.diagnostics}`)
     const report = builtSchema.parse(built.message[0])
     fixture.ownerSid = report.ownerSid
-  })
+  }, 0)
   afterAll(() => sweepFixtureChildren(children, fixture.root))
 
   it('relays a connection, echoes bytes and answers file and identity queries', async () => {
