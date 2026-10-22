@@ -3952,6 +3952,8 @@
   "execBudgetStartBytes": "Limitovaný běh: strop {cap}, zbývá {remaining}. Každý požadavek rezervuje svůj vstup omezený byty plus až {output} výstupních tokenů.",
   "execBudgetStillReading": "Rozpočet běh zastavil, když ještě četl, takže zatím neexistuje žádná odpověď.",
   "execCountBytesFallback": "Počet vstupních tokenů u poskytovatele selhal, takže tento požadavek rezervuje bajtový odhad.",
+  "execCountBytesFailed": "Počet vstupních tokenů u poskytovatele selhal (HTTP {status}, {type}), takže tento požadavek rezervuje bajtový odhad.",
+  "execCountBytesOverLength": "Počet vstupních tokenů u poskytovatele překročil velikost požadavku, takže tento požadavek rezervuje bajtový odhad.",
   "execOutputCapExceeded": "--max-output-tokens překračuje limit výstupu {cap} tokenů.",
   "execUnpricedProvider": "Tento model nemá známý tarif, takže limitovaný běh pro {model} nemůže rezervovat. Přidejte cenu tohoto modelu do {file}, nebo zvolte oceněný model.",
   "execUnpricedModel": "Tento model nemá známý tarif, takže limitovaný běh nemůže rezervovat. Zvolte oceněný model.",

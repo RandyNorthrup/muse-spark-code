@@ -3952,6 +3952,8 @@
   "execBudgetStartBytes": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Każde żądanie rezerwuje wejście ograniczone bajtami plus maksymalnie {output} tokenów wyjściowych.",
   "execBudgetStillReading": "Budżet zatrzymał uruchomienie, gdy wciąż czytało, więc odpowiedź jeszcze nie istnieje.",
   "execCountBytesFallback": "Liczenie wejścia dostawcy nie powiodło się, więc to żądanie rezerwuje ograniczenie bajtowe.",
+  "execCountBytesFailed": "Liczenie wejścia dostawcy nie powiodło się (HTTP {status}, {type}), więc to żądanie rezerwuje ograniczenie bajtowe.",
+  "execCountBytesOverLength": "Liczenie wejścia dostawcy przekroczyło rozmiar żądania, więc to żądanie rezerwuje ograniczenie bajtowe.",
   "execOutputCapExceeded": "--max-output-tokens przekracza limit wyjścia {cap} tokenów.",
   "execUnpricedProvider": "Ten model nie ma znanej taryfy, więc uruchomienie z limitem nie może zarezerwować dla {model}. Dodaj cenę tego modelu w {file} albo wybierz model z ceną.",
   "execUnpricedModel": "Ten model nie ma znanej taryfy, więc uruchomienie z limitem nie może zarezerwować. Wybierz model z ceną.",

@@ -37,6 +37,11 @@ export function nativeCapabilityEvidence(
   const flag = (isSupported: boolean) =>
     isSupported ? yes<true>(true) : { state: 'no' as const, source }
   const fields: CapabilityOverrides = {}
+  const identity: {
+    lifecycle?: 'active' | 'deprecated' | 'retired'
+    deprecatedAt?: string
+    retiresAt?: string
+  } = {}
   const tools: NonNullable<CapabilityOverrides['tools']> = {}
   const reasoning: NonNullable<CapabilityOverrides['reasoning']> = {}
   const output: NonNullable<CapabilityOverrides['output']> = {}
@@ -175,12 +180,31 @@ export function nativeCapabilityEvidence(
     const supported = read(z.boolean(), 'capabilities', 'thinking', 'supported')
     if (supported !== undefined) reasoning.supported = flag(supported)
     // Whether `thinking: {type: "disabled"}` is accepted (lane
-    // REASONSHAPESR2, GAPANTH-G02): the thinking table answers 400 for it
-    // on Opus 5.5, Sonnet 5.5, Fable 5.1, Mythos 5.1, Fable 5 and Mythos 5.
-    // Sonnet 5.5 turns off up-front thinking with `between_tools` instead
-    // (a preset fact, not this flag).
+    // REASONSHAPESR2, GAPANTH-G02): the Models API reports it per model
+    // (`capabilities.thinking.types.disabled`, 2026-10-05;
+    // platform.claude.com/docs/en/api/models/list). Sonnet 5.5 turns off
+    // up-front thinking with `between_tools` instead, reported the same
+    // way since 2026-10-15: a live `true` sets the record's off switch,
+    // and the live list wins over the preset facts where it speaks.
     const disabled = read(z.boolean(), 'capabilities', 'thinking', 'types', 'disabled', 'supported')
     if (disabled !== undefined) reasoning.canDisable = flag(disabled)
+    if (
+      read(z.boolean(), 'capabilities', 'thinking', 'types', 'between_tools', 'supported') === true
+    )
+      reasoning.offSwitch = 'between_tools'
+    // The model's lifecycle (AC3): `active`, `deprecated` or `retired`,
+    // with the deprecation and scheduled-retirement instants where the
+    // list carries them (RFC 3339; `null` while active). The dates ride
+    // the record's identity beside the served version.
+    const lifecycle = read(z.enum(['active', 'deprecated', 'retired']), 'lifecycle')
+    if (lifecycle !== undefined) identity.lifecycle = lifecycle
+    for (const [field, nativeKey] of [
+      ['deprecatedAt', 'deprecated_at'],
+      ['retiresAt', 'retires_at'],
+    ] as const) {
+      const at = read(z.nullable(z.string()), nativeKey)
+      if (typeof at === 'string' && at !== '') identity[field] = at
+    }
     const modes: ('off' | 'manual' | 'adaptive')[] = []
     if (read(z.boolean(), 'capabilities', 'thinking', 'types', 'enabled', 'supported') === true)
       modes.push('manual')
@@ -221,6 +245,7 @@ export function nativeCapabilityEvidence(
     source,
     fields: {
       ...fields,
+      ...identity,
       tools,
       reasoning,
       output,

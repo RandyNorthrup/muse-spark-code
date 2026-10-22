@@ -3798,6 +3798,8 @@
   "execBudgetStartBytes": "Tavanlı çalıştırma: tavan {cap}, kalan {remaining}. Her istek bayt sınırlı girdisine ek olarak en fazla {output} çıktı jetonu ayırır.",
   "execBudgetStillReading": "Bütçe çalıştırmayı henüz okurken durdurdu, bu yüzden henüz bir yanıt yok.",
   "execCountBytesFallback": "Sağlayıcı girdi sayımı başarısız oldu, bu yüzden bu istek bayt sınırını ayırır.",
+  "execCountBytesFailed": "Sağlayıcı girdi sayımı başarısız oldu (HTTP {status}, {type}), bu yüzden bu istek bayt sınırını ayırır.",
+  "execCountBytesOverLength": "Sağlayıcı girdi sayımı istek boyutunu aştı, bu yüzden bu istek bayt sınırını ayırır.",
   "execOutputCapExceeded": "--max-output-tokens, {cap} jetonluk çıktı sınırını aşıyor.",
   "execUnpricedProvider": "Bu modelin bilinen tarifesi yok, bu nedenle sınırlı çalıştırma {model} için rezervasyon yapamaz. {file} içine bu model için fiyat ekleyin veya fiyatlı bir model seçin.",
   "execUnpricedModel": "Bu modelin bilinen tarifesi yok, bu nedenle sınırlı çalıştırma rezervasyon yapamaz. Fiyatlı bir model seçin.",

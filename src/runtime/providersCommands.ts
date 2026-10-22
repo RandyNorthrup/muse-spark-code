@@ -564,8 +564,9 @@ async function getProviderJson(
 function providerListHeaders(provider: ResolvedProvider): Record<string, string> {
   const headers: Record<string, string> = { ...attributionHeaders(provider.preset) }
   if ((provider.entry.format ?? provider.preset.format) === 'anthropic') {
-    // Both captured Anthropic list requests carry this exact version.
-    headers['anthropic-version'] = '2023-06-01'
+    // The 2026-10-04 captured list requests carry 2023-06-01; the current
+    // version is 2026-10-21 (platform.claude.com/docs/en/api/versioning).
+    headers['anthropic-version'] = '2026-10-21'
   }
   return headers
 }

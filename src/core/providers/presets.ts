@@ -601,10 +601,12 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   // 2026-10-13; GAPANTH-G02): the four models below answer 400 to
   // `thinking: {type: "disabled"}` (Sonnet 5.5 takes `between_tools`
   // instead), while Opus 5 and Haiku 5.5 take `disabled` at high effort
-  // or below. The pinned catalogue carries no toggle for these rows, so
-  // without the facts Thinking off would send nothing and thinking
-  // would stay on, billed. Re-check on each catalogue sync; the live
-  // list wins where it speaks.
+  // or below. The Models API reports both toggles per model since
+  // 2026-10-15 (`capabilities.thinking.types.disabled`,
+  // `between_tools`; the live list wins where it speaks), but the
+  // pinned catalogue carries no toggle for these rows, so without the
+  // facts file-based entries would send nothing for Thinking off and
+  // thinking would stay on, billed. Re-check on each catalogue sync.
   reasoningFacts: [
     {
       modelId: 'claude-opus-5',

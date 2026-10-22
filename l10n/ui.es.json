@@ -3875,6 +3875,8 @@
   "execBudgetStartBytes": "Ejecución con límite: tope {cap}, quedan {remaining}. Cada solicitud reserva su entrada limitada por bytes más hasta {output} tokens de salida.",
   "execBudgetStillReading": "El presupuesto detuvo la ejecución mientras aún leía, así que todavía no hay respuesta.",
   "execCountBytesFallback": "El recuento de entrada del proveedor falló, así que esta solicitud reserva la cota de bytes.",
+  "execCountBytesFailed": "El recuento de entrada del proveedor falló (HTTP {status}, {type}), así que esta solicitud reserva la cota de bytes.",
+  "execCountBytesOverLength": "El recuento de entrada del proveedor superó el tamaño de la solicitud, así que esta solicitud reserva la cota de bytes.",
   "execOutputCapExceeded": "--max-output-tokens supera el límite de salida de {cap} tokens.",
   "execUnpricedProvider": "Este modelo no tiene una tarifa conocida, por lo que una ejecución con límite no puede reservar para {model}. Agregue un precio para este modelo en {file} o elija un modelo con precio.",
   "execUnpricedModel": "Este modelo no tiene una tarifa conocida, por lo que una ejecución con límite no puede reservar. Elija un modelo con precio.",

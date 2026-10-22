@@ -487,7 +487,7 @@ export class ModelApiClient implements TransportProviderClient {
     // any, ends it, else the provider's answer or a network failure.
     const result = await this.transport.request(
       '/responses/input_tokens',
-      { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
+      { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE, countRequest: true },
       signal,
     )
     return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)

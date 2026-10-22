@@ -27,6 +27,7 @@ import { assertConfirmedAllowed } from '../core/backends/modelapi/transport'
 import type { SpendClaim } from '../core/paid/spendClaim'
 import { SpendLedgerError, isSpendLedgerError } from '../core/paid/spendLedgerError'
 import { UserRefusalError, isPaidStop, isRequestNotSent } from '../core/refusal'
+import { wireWordForLog } from '../core/logging'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import { isPlanModelRef } from '../shared/providerRouting'
 import {
@@ -44,13 +45,14 @@ import {
 } from '../shared/constants'
 import { isStoreErrorCode, storeErrorCode } from '../host/backend/storeErrors'
 import {
+  type CountFailureDetail,
   type RunLedger,
   type ResponseInputBound,
   type ResponseTicket,
   type SettlementResult,
 } from './exec/runLedger'
 import type { ExecBudgetRefusal, LastResponse, Refusal, LedgerTotals } from './exec/execProtocol'
-import { fill, formatDateTime, plural } from '../shared/l10n/text'
+import { fill, formatDateTime, formatPercent, plural } from '../shared/l10n/text'
 import { formatUsd } from '../shared/l10n/exactUsd'
 
 const settingsSchema = z.strictObject({
@@ -93,6 +95,63 @@ async function countExactInput(
         ? undefined
         : Usd.from(counted.costUsd).ceiling(EXEC_USD_DECIMALS).toAmount(),
   }
+}
+
+/**
+A failed exact count's redacted HTTP facts: its status and the envelope's
+`error.type`, never content. Only a provider answer carries both (a
+`ModelApiError` with a real status and kind); a validation or parse
+failure reads as no detail and keeps the generic fallback line.
+*/
+export function countFailureDetail(error: unknown): CountFailureDetail | undefined {
+  return !isModelApiError(error) || error.status <= 0 || error.kind === undefined
+    ? undefined
+    : { status: error.status, kind: wireWordForLog(error.kind) }
+}
+
+/**
+One exact same-body input count as an outcome, never a throw (except
+Stop): the count, or the failure's redacted kind for the byte-bound
+fallback line. The catch carries that kind on `cause`, so the inventory
+reads it REPORTED; the provider's content never escapes.
+*/
+async function tryExactCount(
+  detailed: NonNullable<ModelClient['countInputTokensDetailed']>,
+  body: Parameters<NonNullable<ModelClient['countInputTokensDetailed']>>[0],
+  signal: AbortSignal,
+): Promise<
+  | { readonly ok: true; readonly counted: Awaited<ReturnType<typeof countExactInput>> }
+  | { readonly ok: false; readonly cause: CountFailureDetail | undefined }
+> {
+  try {
+    return { ok: true as const, counted: await countExactInput(detailed, body, signal) }
+  } catch (error: unknown) {
+    signal.throwIfAborted()
+    return { ok: false as const, cause: countFailureDetail(error) }
+  }
+}
+
+/**
+The start line for a ticket's input bound, or undefined when it needs
+none: the estimate names its margin, a failed count names the redacted
+HTTP failure where one was captured, and a rejected over-length count
+says so instead of sharing the failure's line.
+*/
+export function inputBoundInfoLine(ticket: {
+  readonly inputBound?: ResponseInputBound | undefined
+  readonly countFailure?: CountFailureDetail | undefined
+}): string | undefined {
+  if (ticket.inputBound === 'estimate')
+    return fill(UI_TEXT.execEstimateBound, {
+      margin: formatPercent(SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT),
+    })
+  if (ticket.inputBound === 'bytes-over-length') return UI_TEXT.execCountBytesOverLength
+  if (ticket.inputBound !== 'bytes-after-failure') return undefined
+  const failure = ticket.countFailure
+  if (failure === undefined) return UI_TEXT.execCountBytesFallback
+  // The status is a protocol identifier, not a quantity: plain digits, so
+  // no locale's grouping or digits can corrupt a line the person pastes back.
+  return fill(UI_TEXT.execCountBytesFailed, { status: String(failure.status), type: failure.kind })
 }
 
 /** The machine-local day scope, the same calendar the usage page buckets by. */
@@ -456,16 +515,19 @@ export function withRuntimeAccounting(
         let counted:
           | { tokens: number; costUsd: UsdAmount | undefined; accuracy?: 'exact' | 'estimate' }
           | undefined
-        try {
-          counted =
-            detailed === undefined ? undefined : await countExactInput(detailed, body, signal)
-        } catch {
-          signal.throwIfAborted()
-          counted = undefined
+        let countFailure: CountFailureDetail | undefined
+        let isOverLength = false
+        if (detailed !== undefined) {
+          const outcome = await tryExactCount(detailed, body, signal)
+          if (outcome.ok) counted = outcome.counted
+          else countFailure = outcome.cause
         }
         if (counted !== undefined) {
           const byteTokens = Buffer.byteLength(JSON.stringify(body))
-          if (counted.tokens > byteTokens) counted = undefined
+          if (counted.tokens > byteTokens) {
+            counted = undefined
+            isOverLength = true
+          }
         }
         const isExactFailed = counted === undefined && detailed !== undefined
         const byteBound = Buffer.byteLength(JSON.stringify(body))
@@ -662,6 +724,7 @@ export function withRuntimeAccounting(
               let inputBound: ResponseInputBound | undefined
               if (counted !== undefined)
                 inputBound = counted.accuracy === 'estimate' ? 'estimate' : 'exact'
+              else if (isOverLength) inputBound = 'bytes-over-length'
               else if (isExactFailed) inputBound = 'bytes-after-failure'
               try {
                 signal.throwIfAborted()
@@ -672,6 +735,7 @@ export function withRuntimeAccounting(
                   reserveUsd: ceilUsd(reserveUsd),
                   price,
                   inputBound,
+                  countFailure,
                 })
               } catch (error: unknown) {
                 await settle()

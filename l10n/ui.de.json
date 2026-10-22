@@ -3798,6 +3798,8 @@
   "execBudgetStartBytes": "Gedeckelter Lauf: Limit {cap}, {remaining} übrig. Jede Anfrage reserviert ihre Byte-begrenzte Eingabe plus bis zu {output} Ausgabe-Token.",
   "execBudgetStillReading": "Das Budget hat den Lauf beim Lesen gestoppt, daher gibt es noch keine Antwort.",
   "execCountBytesFallback": "Die Eingabezählung des Anbieters ist fehlgeschlagen, daher reserviert diese Anfrage die Byte-Schranke.",
+  "execCountBytesFailed": "Die Eingabezählung des Anbieters ist fehlgeschlagen (HTTP {status}, {type}), daher reserviert diese Anfrage die Byte-Schranke.",
+  "execCountBytesOverLength": "Die Eingabezählung des Anbieters hat die Anfragengröße überschritten, daher reserviert diese Anfrage die Byte-Schranke.",
   "execOutputCapExceeded": "--max-output-tokens überschreitet die Ausgabeobergrenze von {cap} Token.",
   "execUnpricedProvider": "Für dieses Modell ist kein Tarif bekannt, daher kann ein budgetierter Lauf für {model} nichts reservieren. Fügen Sie einen Preis für dieses Modell in {file} hinzu oder wählen Sie ein bepreistes Modell.",
   "execUnpricedModel": "Für dieses Modell ist kein Tarif bekannt, daher kann ein budgetierter Lauf nichts reservieren. Wählen Sie ein bepreistes Modell.",
