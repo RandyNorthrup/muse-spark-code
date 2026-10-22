@@ -98,6 +98,7 @@ import {
 } from '../backends/modelapi/providerRefusal'
 import { isConnectionFailure, networkFailureCodes } from '../networkFailure'
 import type { CoreLogger } from '../logging'
+import { wireWordForLog } from '../logging'
 import { withDeadline, unlessAborted } from '../timeouts'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -431,6 +432,38 @@ export function providerFailureReader(
   }
 }
 
+/**
+A pinned send may have arrived: name its code, never retry ambiguously.
+Said in words on every surface the error reaches, instead of an unrelated
+panel text.
+*/
+/**
+An injected send reports no dispatch, so a failure after it was called may
+have reached the provider: the ambiguous retry is refused as `not_sent`
+(its ticket stays), with the refusal's own message when the user refused
+and the unreachable-probe sentence otherwise.
+*/
+function injectedSendRefusal(error: unknown): UserRefusalError {
+  return new UserRefusalError(
+    isUserRefusal(error) ? error.message : UI_TEXT.providerProbeUnreachable,
+    'not_sent',
+    error,
+  )
+}
+
+export function providerSendFailure(error: unknown): ModelApiError {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : 'unknown'
+  return new ModelApiError(
+    fill(UI_TEXT.modelApiSendFailed, { detail: wireWordForLog(code) }),
+    0,
+    undefined,
+    undefined,
+  )
+}
+
 function ignoreTransportLog(): void {
   // This adapter reports fixed failures through its caller, without retaining
   // per-request diagnostics or forwarding arbitrary provider text to a log.
@@ -759,15 +792,11 @@ export function createConfiguredProviderServices(
             // liability below instead of `not_sent`, which would release
             // the run's ticket and record zero.
             if (!connection.isConnected && options.send === undefined)
-              throw new UserRefusalError(
-                isUserRefusal(error) ? error.message : UI_TEXT.providerProbeUnreachable,
-                'not_sent',
-                error,
-              )
+              throw injectedSendRefusal(error)
             if (isUserRefusal(error) || signal.aborted) throw error
             // A pinned send can have reached the provider; retain its liability
-            // and refuse an ambiguous retry, with no echoed diagnostic text.
-            throw new ModelApiError(UI_TEXT.modelsPanelUnavailable, 0, undefined, undefined)
+            // and refuse an ambiguous retry, while saying the real cause.
+            throw providerSendFailure(error)
           }
           const iterator = chunks(response, idleMs, providerDisplayName(entry, preset))[
             Symbol.asyncIterator

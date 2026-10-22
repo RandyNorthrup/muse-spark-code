@@ -140,15 +140,28 @@ describe('the saved conversation (M25)', () => {
     const updated = { ...shown, attachmentEpoch: 4 }
     expect(restoredUiState(throughJson(webviewStateOf(updated, true))).attachmentEpoch).toBe(4)
     const omitted = throughJson(webviewStateOf(updated, true, 100))
-    expect(omitted).toEqual({ sessionId: 's1', attachmentEpoch: 4, omittedSessionId: 's1' })
+    // An omitted transcript still keeps the unsent draft.
+    expect(omitted).toEqual({
+      sessionId: 's1',
+      attachmentEpoch: 4,
+      omittedSessionId: 's1',
+      draftRevision: shown.draftRevision,
+      draft: 'and then',
+    })
     expect(restoredUiState(omitted).attachmentEpoch).toBe(4)
   })
 
-  it('keeps only the session id past the size cap, and says so once the host confirms it', () => {
+  it('keeps the session id and the unsent text past the size cap, and says so once the host confirms it', () => {
     const saved = throughJson(webviewStateOf(shown, true, 100))
-    expect(saved).toEqual({ sessionId: 's1', omittedSessionId: 's1' })
+    expect(saved).toEqual({
+      sessionId: 's1',
+      omittedSessionId: 's1',
+      draftRevision: shown.draftRevision,
+      draft: 'and then',
+    })
     const restored = restoredUiState(saved)
     expect(restored.transcript).toEqual([])
+    expect(restored.draft).toBe('and then')
     const confirmed = fromHost(restored, { type: 'surfaceState', sessionId: 's1' })
     expect(confirmed.transcript).toMatchObject([{ kind: 'notice', text: UI_TEXT.snapshotTooLong }])
     expect(webviewStateOf({ ...shown, sessionId: undefined }, true, 100)).toEqual({})

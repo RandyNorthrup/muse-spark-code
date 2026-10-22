@@ -106,6 +106,7 @@ import {
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
   MODEL_API_TOOLS_ONLY,
+  MODEL_API_FILE_RANGE_ONLY,
   MODEL_API_VERIFY_ONLY,
   MODEL_API_IMAGE_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
@@ -304,6 +305,7 @@ for (const name of onDisk) {
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
     Number(MODEL_API_TOOLS_ONLY.includes(name)) +
+    Number(MODEL_API_FILE_RANGE_ONLY.includes(name)) +
     Number(MODEL_API_VERIFY_ONLY.includes(name)) +
     Number(MODEL_API_IMAGE_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
@@ -327,6 +329,7 @@ for (const name of [
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
   ...MODEL_API_TOOLS_ONLY,
+  ...MODEL_API_FILE_RANGE_ONLY,
   ...MODEL_API_VERIFY_ONLY,
   ...MODEL_API_IMAGE_ONLY,
   ...TYPES_ONLY,
@@ -1412,6 +1415,9 @@ const TEXT_BLOCKS = [
       'dist/modelApiMcp.js',
       'dist/modelApiVerify.js',
       'dist/productionMedia.js',
+      // The byte-range execution reads the refusal and window keys of this
+      // block, so it carries the block whole (one object is carried whole, D6).
+      'dist/modelApiFileRange.js',
     ],
   },
   // The verify loop's own words (M68): the loop, its ledger and the

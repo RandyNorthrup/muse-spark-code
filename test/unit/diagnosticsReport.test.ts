@@ -142,7 +142,11 @@ describe('DiagnosticsHistory', () => {
     )
     const { report } = new DiagnosticsHistory().report([{ file: A, entries: flood }], OPTIONS)
     expect(report.errors).toBe(VERIFY_DIAGNOSTICS_MAX_ENTRIES + 3)
-    expect(report.text.endsWith('… 3 more not shown')).toBe(true)
+    expect(
+      report.text.endsWith(
+        `[diagnostics 1-${String(VERIFY_DIAGNOSTICS_MAX_ENTRIES)} of ${String(VERIFY_DIAGNOSTICS_MAX_ENTRIES + 3)}; call getDiagnostics for src/a.ts to read the rest]`,
+      ),
+    ).toBe(true)
     const share = 200
     const clipped = new DiagnosticsHistory().report([{ file: A, entries: flood }], {
       maxChars: share,

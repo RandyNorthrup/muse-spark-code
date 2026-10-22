@@ -1968,7 +1968,8 @@
       "details": [
         { "ui": "structuredOutputRepair" },
         { "ui": "structuredOutputRetry" },
-        { "ui": "structuredOutputFallback" }
+        { "ui": "structuredOutputFallback" },
+        { "ui": "judgeAdvisoryMissing" }
       ],
       "facts": {
         "paidFeature": "judge",
@@ -2035,7 +2036,7 @@
       "backends": ["museCode"],
       "paid": false,
       "surfaces": ["vscode:museCode"],
-      "details": [],
+      "details": [{ "ui": "judgeAdvisoryMissing" }],
       "facts": {},
       "editors": ["vscode"]
     },

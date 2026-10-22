@@ -1566,6 +1566,8 @@ The structured request failed. Trying again (attempt {count})…
 
 The structured answer could not be validated. Using the text fallback.
 
+The background safety check did not finish, so no advisory is attached to this approval.
+
 ```json
 {
   "paidFeature": "judge",
@@ -1638,6 +1640,8 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 ### Judge
 
 Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.
+
+The background safety check did not finish, so no advisory is attached to this approval.
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 

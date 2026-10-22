@@ -59,6 +59,13 @@ const webviewStateSchema = z.object({
   snapshot: z.optional(z.unknown()),
   /** The session whose transcript was too long to save (WEBVIEW_STATE_MAX_CHARS). */
   omittedSessionId: z.optional(z.string()),
+  // The composer's unsent text and pending send: small, so they ride
+  // along even when the transcript is omitted rather than forgotten.
+  draft: z.optional(z.string()),
+  draftRevision: z.optional(z.number()),
+  pendingSendDraft: z.optional(
+    z.object({ localId: z.string(), text: z.string(), revision: z.number() }),
+  ),
 })
 export type WebviewState = z.infer<typeof webviewStateSchema>
 
@@ -113,10 +120,30 @@ export function webviewStateOf(
     return base
   }
   const snapshot = snapshotOf(state)
-  if (JSON.stringify(snapshot).length <= maxChars) {
+  if (
+    state.pendingRestore?.isTranscriptOmitted !== true &&
+    JSON.stringify(snapshot).length <= maxChars
+  ) {
     return { ...base, snapshot }
   }
-  return state.sessionId === undefined ? base : { ...base, omittedSessionId: state.sessionId }
+  if (sessionId === undefined) {
+    return base
+  }
+  // The transcript stays with the host (History reopens it); the unsent
+  // text is small and the person's own, so it is kept, not forgotten.
+  return {
+    ...base,
+    omittedSessionId: sessionId,
+    draftRevision: state.draftRevision,
+    ...(state.draft !== '' && { draft: redactSecrets(state.draft) }),
+    ...(state.pendingSendDraft !== undefined && {
+      pendingSendDraft: {
+        localId: state.pendingSendDraft.localId,
+        text: redactSecrets(state.pendingSendDraft.text),
+        revision: state.pendingSendDraft.revision,
+      },
+    }),
+  }
 }
 
 /** Which child transcript holds each row (the reducer's delta index). */
@@ -139,7 +166,16 @@ export function restoredUiState(raw: unknown): UiState {
   if (!persisted.success) {
     return initialUiState
   }
-  const { sessionId, snapshot, omittedSessionId, sideChat, attachmentEpoch = 0 } = persisted.data
+  const {
+    sessionId,
+    snapshot,
+    omittedSessionId,
+    sideChat,
+    attachmentEpoch = 0,
+    draft,
+    draftRevision = 0,
+    pendingSendDraft,
+  } = persisted.data
   const base: UiState = {
     ...initialUiState,
     restoredSessionId: sessionId,
@@ -180,7 +216,22 @@ export function restoredUiState(raw: unknown): UiState {
       pendingRestore: { sessionId: saved.sessionId, isTranscriptOmitted: false },
     }
   }
-  return omittedSessionId === undefined
-    ? base
-    : { ...base, pendingRestore: { sessionId: omittedSessionId, isTranscriptOmitted: true } }
+  if (omittedSessionId === undefined) {
+    return base
+  }
+  // An omitted transcript still brings the unsent text back: the notice
+  // names History for the conversation, and the composer keeps what the
+  // person had typed.
+  return {
+    ...base,
+    ...(draft !== undefined && { draft: redactSecrets(draft) }),
+    draftRevision,
+    ...(pendingSendDraft !== undefined && {
+      pendingSendDraft: {
+        ...pendingSendDraft,
+        text: redactSecrets(pendingSendDraft.text),
+      },
+    }),
+    pendingRestore: { sessionId: omittedSessionId, isTranscriptOmitted: true },
+  }
 }

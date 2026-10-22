@@ -254,6 +254,10 @@ const MEDIA_OUTFILE = 'dist/media.js'
 // attach binding, required on the first attach beside dist/media.js.
 const MEDIA_HOST_ENTRY = 'src/host/media/mediaHostEntry.ts'
 const MEDIA_HOST_OUTFILE = 'dist/mediaHost.js'
+// The host side of byte-range file reads and edits, loaded on the first
+// range addressed call.
+const TOOL_RANGE_ENTRY = 'src/host/backend/toolRangeEntry.ts'
+const TOOL_RANGE_OUTFILE = 'dist/toolRange.js'
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
 const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
@@ -655,6 +659,19 @@ const modelApiToolsOptions = {
   ...modelApiOptions,
   entryPoints: [MODEL_API_TOOLS_ENTRY],
   outfile: MODEL_API_TOOLS_OUTFILE,
+}
+
+// The byte-range file execution (reads and edits of one byte window at any
+// file size), loaded on the first range addressed call, off the per-call
+// helpers' budget.
+const MODEL_API_FILE_RANGE_ENTRY = 'src/core/backends/modelapi/modelApiFileRangeEntry.ts'
+const MODEL_API_FILE_RANGE_OUTFILE = 'dist/modelApiFileRange.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiFileRangeOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_FILE_RANGE_ENTRY],
+  outfile: MODEL_API_FILE_RANGE_OUTFILE,
 }
 
 // The verify loop's session side (M68: the loop, its ledger and the
@@ -1250,6 +1267,17 @@ const mediaHostOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const toolRangeOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [TOOL_RANGE_ENTRY],
+  outfile: TOOL_RANGE_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const screenRecordOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, sharedWire],
@@ -1744,6 +1772,7 @@ if (isWatch) {
     }),
     esbuild.context(hookRuntimeOptions),
     esbuild.context(modelApiToolsOptions),
+    esbuild.context(modelApiFileRangeOptions),
     esbuild.context(modelApiVerifyOptions),
     esbuild.context(modelApiImageOptions),
     esbuild.context({
@@ -1761,6 +1790,7 @@ if (isWatch) {
     esbuild.context(checkpointStoreOptions),
     esbuild.context(mediaOptions),
     esbuild.context(mediaHostOptions),
+    esbuild.context(toolRangeOptions),
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
@@ -1914,11 +1944,13 @@ if (isWatch) {
     hookRuntime: recorded('hookRuntime', hookRuntimeOptions),
     pluginHooks: recorded('pluginHooks', pluginHooksOptions),
     modelApiTools: recorded('modelApiTools', modelApiToolsOptions),
+    modelApiFileRange: recorded('modelApiFileRange', modelApiFileRangeOptions),
     modelApiVerify: recorded('modelApiVerify', modelApiVerifyOptions),
     modelApiImage: recorded('modelApiImage', modelApiImageOptions),
     planMarkdown: recorded('planMarkdown', planMarkdownOptions),
     checkpointStore: recorded('checkpointStore', checkpointStoreOptions),
     media: recorded('media', mediaOptions),
+    toolRange: recorded('toolRange', toolRangeOptions),
     screenRecord: recorded('screenRecord', screenRecordOptions),
     agentImport: recorded('agentImport', agentImportOptions),
     conversationGit: recorded('conversationGit', conversationGitOptions),
