@@ -19709,6 +19709,28 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
+  /**
+  Permanently remove a stored session (ACP `session/delete`, stabilized
+  2026-06-05): a live one is let go first, the stored snapshot and its
+  file follow once no save is in flight, and listeners hear it closed.
+  Unknown ids succeed silently; the file remove itself is forced.
+  */
+  public async deleteSession(sessionId: string): Promise<void> {
+    await this.requireAccountId()
+    this.sessions.get(sessionId)?.dispose()
+    this.sessions.delete(sessionId)
+    this.stored.delete(sessionId)
+    this.lastSaved.delete(sessionId)
+    await this.saving
+    await this.deps.store?.remove(sessionId)
+    notify<SessionListEvent>(
+      this.listListeners,
+      { type: 'closed', sessionId, reason: 'deleted' },
+      this.deps.log,
+      'modelApi.list',
+    )
+  }
+
   /** A conversation or one of its private child transcripts (M48). */
   public async readSession(sessionId: string): Promise<SessionHistoryOutcome> {
     await this.requireAccountId()

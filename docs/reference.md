@@ -610,6 +610,7 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
   "operations": [
     "initialize",
     "authenticate",
+    "logout",
     "session/new",
     "session/load",
     "session/resume",
@@ -626,7 +627,9 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
     "model": "model",
     "effort": "effort",
     "fast": "fast",
-    "account": "account"
+    "account": "account",
+    "mode": "mode",
+    "paidAllowAlways": "paidAllowAlways"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",
