@@ -33195,6 +33195,85 @@ Regressions and byte-exact red drills are recorded in `docs/certification/m117.m
 No dependency, cap, hook, paid/live call, merge or push changes. Aggregate quality
 remains lead-owned under the rig brief.
 
+**C-M117-3R5 owned-fact redesign (2026-10-11, Kubuntu; RVCM1173D).**
+All seven findings are in scope. One validated, structured fact represents
+machine thresholds and every normalized account source: owner identity and
+authentication generation, unit, independently unknown used/limit/remaining,
+UTC window instants and captured period, observer and observation instant.
+Source translators retain partial facts for every vendor. Current allowance
+constrains work without inventing future renewal. Live observations are fenced
+by account and sign-in generation, including reads that overlap a switch.
+Forecast inputs and simulation contain no localized explanations or ambient
+zone dates; presentation renders labels and dates only after forecasting.
+Typed fleet, scheduling and engine refusals survive every existing surface;
+invalid owner fields refuse with their source rather than escaping conversion.
+No dependency, guard widening, panel-byte increase, merge, push or paid/live
+call. Table regressions and byte-exact red drills are recorded in
+`docs/certification/m117-fleet.md`; five typechecks, localization, production
+build and all non-hub dependent suites run locally at repository deadlines.
+The available c/m117-1 tip predates its round-7 typed diagnostic contract;
+this lane supplies a plain typed code plus parameters for the semantic join.
+
+**C-M117-3R4 review repair (2026-10-11, Kubuntu; RVCM1173C).**
+Fix all eight P2 and four P3 findings as classes within the fleet lane.
+Bind the existing backend usage reader and usage/changed recording on the
+panel and ACP; standalone CLI names registry-only limits when no live owner
+exists. Preserve current bucket allowance without inventing refill cadence,
+retain captured full-window periods, combine simultaneous blocks by latest
+reset, and refuse a full window with unknown reset. Validate raw owner
+snapshots and propagate named source diagnostics. Scope fleet/pool snapshots
+to each estimate invocation, and qualify missing CI only for CI demand.
+Carry default/configured provenance and localize every explanatory sentence
+in all fourteen tables. Remove panel overage without changing its cap.
+Write regressions before fixes, record byte-exact red drills and exact bundle
+bytes in docs/certification/m117-fleet.md; run five typechecks and all related
+suites at repository deadlines. No merge, push, dependency, paid/live call or
+aggregate quality (lead-owned under the rig brief).
+R4 panel budget repair also deduplicates shared validation and panel date/setup
+rendering without changing DOM/styles. The real host-to-panel refusal bridge
+retains safe source/reset diagnostics and hides raw I/O failures. Hub files
+follow the common brief's identifier-suite/integration exception; exact final
+build and related-test receipts live in docs/certification/m117-fleet.md.
+
+**C-M117-3R3 redesign on the real contracts (2026-10-11, Kubuntu; review
+RVCM1173B).** Third round, so the binding is redesigned, not patched: the
+estimator never computes a fleet number (`fleetSlotsForCaps` deleted with
+every test that pinned its invented counts). Machine parallelism is the
+certified one serial slot on every surface — the teams runner slots govern
+team agents, not estimate lanes, and no lane-concurrency setting exists, so no
+configured cap binds; M107's thresholds ride the local row's caps as facts
+(the schedule never reads them for admission) and vanish with the governor
+off. CLI `estimate` and ACP `/estimate` read `resources.json` through the
+headless governor's own `resourceMachineStore` (missing file carries the
+schema defaults; the ACP agent's `resources` object and the estimate share
+the agent data folder). M108's account row carries only read values: the
+runtime registry names the account with limits unknown, R3 left the editor usage/read and shared usage/changed readers unbound.
+MuseCodeAccountHomes is not constructed in production, but those existing
+readers do not require it; R4 binds them. The standalone headless registry
+gives identity, not live limits. A plan window
+with a captured duration shapes a fixed rolling window over that period (the
+short window's `windowDurationMins`, now carried by `accountHomes.read`); any
+other percent window is stated, never converted, and the schedule states a
+percent window with unknown lane demand instead of throwing `unknown-demand`.
+A full window with no read rate refuses as `fleet-account-blocked` naming the
+reset; with a read rate the forecast waits for the reset behind a
+zero-remaining window and names the account rate as its bottleneck. Each
+source re-parses on its own (`fleet-caps-invalid`, `fleet-account-invalid`,
+`fleet-ci-invalid`; broken structure is `fleet-binding-invalid`), and one
+estimate reads the fleet once (fleet and candidate pool share the snapshot).
+`requestsPerMinute` is optional in the fleet schema: unread rates record
+`unknown` instead of passing against demand. CI is `ci unknown: not read` on
+every surface (no captured shape; no repository CI-concurrency reader found —
+the CI templates carry no concurrent-job or occupied-count field). Receipts
+(24 binding tests with 5 red drills, CLI/ACP composition tests through the
+production assemblies, accountHomes duration test) in
+`docs/certification/m117-fleet.md`. R3 mistakenly treated new explanatory sentences as technical splices;
+R4 registers and translates them. No commands, settings, dependencies or
+cap changes. R3 production build: panel 25,908 B against 25,600 B, including
+258 B inherited and 50 B added by R3 shared account validation; `dist/extension.js` 556.8 KiB (budget 600),
+`dist/estimator.js` 67.9 KiB (budget 75), `dist/acp.js` 245.4 KiB (budget
+850), `dist/modelApi.js` 515.8 KiB (budget 525).
+
 **C-M117-1R3 strict redesign (2026-10-10, macmini; review RVCM1171B).**
 Repair all thirteen P2 and two P3 findings within the snapshot lane. Validate
 all declared lane prerequisites, milestone references, release members and

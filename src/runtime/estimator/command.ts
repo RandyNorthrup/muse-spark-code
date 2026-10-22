@@ -3,6 +3,7 @@ import {
   EstimateDiagnosticError,
   estimateFailureText,
 } from '../../core/estimator/diagnostic'
+import { renderLimitNote } from '../../core/estimator/limitText'
 import { escapeHtml } from '../../core/htmlText'
 import { ESTIMATE_OPTIONS } from './options'
 import {
@@ -214,13 +215,13 @@ export function estimateDrift(next: EstimateSection, previous: EstimateSection):
   })
 }
 
-/** UTC makes terminal/report bytes independent of the process TZ. */
+/** Dates are formatted only for the requesting surface, in the user's zone. */
 function date(value: string): string {
   const options: Intl.DateTimeFormatOptions = {
     dateStyle: 'medium',
-    timeZone: 'UTC',
   }
   if (value.includes('T')) options.timeStyle = 'short'
+  else options.timeZone = 'UTC'
   return new Intl.DateTimeFormat(uiLocale(), options).format(Date.parse(value))
 }
 function setupLabel(kind: EstimateSection['setups'][number]['kind']): string {
@@ -268,14 +269,28 @@ function escapeMarkdown(text: string): string {
   return text.replaceAll(/([\\`*_{}[\]<>#+.!|])/g, String.raw`\$1`).replaceAll('\n', ' ')
 }
 
+/** Presentation-only copy: raw forecasts and seeds remain locale/zone independent. */
+export function presentEstimate(section: EstimateSection): EstimateSection {
+  return {
+    ...section,
+    ...(section.qualifications !== undefined && {
+      qualifications: section.qualifications.map((row) => ({
+        ...row,
+        unknownLimits: row.unknownLimits.map((note) => renderLimitNote(note)),
+      })),
+    }),
+  }
+}
+
 /** Complete evidence travels in every format, not just the appealing forecast. */
 export function renderEstimate(
   input: unknown,
   format: EstimateCommandOptions['format'],
   money: EstimateFormatPort,
 ): string {
-  const section = parseEstimate(estimateSectionSchema, input)
-  if (format === 'json') return `${JSON.stringify(section, null, 2)}\n`
+  const parsed = parseEstimate(estimateSectionSchema, input)
+  if (format === 'json') return `${JSON.stringify(parsed, null, 2)}\n`
+  const section = presentEstimate(parsed)
   const paragraphs = [
     [UI_TEXT.estimateP50, date(section.p50)],
     [UI_TEXT.estimateP90, date(section.p90)],

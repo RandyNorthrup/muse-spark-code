@@ -3,6 +3,10 @@ import {
   EstimateDiagnosticError,
   asEstimateDiagnostic,
 } from '../../core/estimator/diagnostic'
+import {
+  estimateLimitContextSchema,
+  type EstimateLimitContext,
+} from '../../core/estimator/limitContext'
 import { parseEstimateComposer, type EstimateContext } from '../../runtime/estimator/command'
 // The capacity estimator's lazy bundle (M117, PLAN.md D6, D97): esbuild
 // builds this file into dist/estimator.js, which the extension, the CLI and
@@ -66,10 +70,11 @@ export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
   /** This estimate's lanes ride along so the fleet can offer them capacity.
   The fleet is stamped with the request's asOf, never a second clock. */
   fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
+  limitContext?(lanes: readonly EstimateLane[], asOf: string): Promise<EstimateLimitContext>
   history(): Promise<unknown>
   candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   /** Invocation-owned supply snapshot; independent estimates never share a memo. */
-  beginEstimate?(): Pick<EstimatorSourcePorts, 'fleet' | 'candidatePool'>
+  beginEstimate?(): Pick<EstimatorSourcePorts, 'fleet' | 'candidatePool' | 'limitContext'>
   board(): EstimateStartPort
   prices(): EstimatePricePort
   priceLookup(): Omit<EstimatePriceLookup, 'asOf'>
@@ -145,6 +150,10 @@ export function createEstimatorRun(
       })
       signal.throwIfAborted()
       const fleet = parseEstimate(fleetSnapshotSchema, await supply.fleet(lanes, parsed.asOf))
+      const limitContext = parseEstimate(
+        estimateLimitContextSchema,
+        (await supply.limitContext?.(lanes, parsed.asOf)) ?? { facts: [], labels: [] },
+      )
       const history = parseEstimate(z.array(historyRecordSchema), await ports.history())
       signal.throwIfAborted()
       const inputs = parseEstimate(estimateInputsSchema, {
@@ -211,7 +220,7 @@ export function createEstimatorRun(
         try {
           return {
             status: 'feasible' as const,
-            simulation: simulateEstimate(variant, durationPort),
+            simulation: simulateEstimate(variant, durationPort, limitContext),
           }
         } catch (error: unknown) {
           if (error instanceof EstimateSchedulingError)
@@ -257,7 +266,12 @@ export function createEstimatorRun(
       const simulation = selected.forecast.simulation
       const forecastInputs = { ...inputs, fleet: selected.fleet }
       const durations = estimateDurationMap(simulation.durationSamples)
-      const limitingResource = findEstimateBottleneck(inputs.lanes, selected.fleet, durations)
+      const limitingResource = findEstimateBottleneck(
+        inputs.lanes,
+        selected.fleet,
+        durations,
+        limitContext,
+      )
       const qualifications: NonNullable<EstimateSection['qualifications']> = []
       for (const selection of recommendation.selections) {
         const evaluation = recommendation.evaluations[selection.evaluation]

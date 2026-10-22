@@ -2589,7 +2589,14 @@ class AcpSession {
             this.deps.estimate.isAvailable !== false &&
             parsed.parts.length === 1
           )
-            text = await this.deps.estimate.run(typed, this.cwd, controller.signal)
+            text = await this.deps.estimate.run(
+              typed,
+              this.cwd,
+              controller.signal,
+              this.deps.backend.kind === 'museCode' || !this.modelId.includes('/')
+                ? 'meta'
+                : this.modelId.split('/', 1)[0],
+            )
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })

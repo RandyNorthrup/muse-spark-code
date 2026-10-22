@@ -36,6 +36,7 @@ import { reportCommandArguments } from '../reporting/reportCommand'
 // (permission mode, effort, thinking) and for the images waiting to be sent.
 
 import type { EstimateSection } from '../../shared/estimate'
+import { presentEstimate } from '../../runtime/estimator/command'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
@@ -1001,6 +1002,12 @@ function turnEndLine(
 
 function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+}
+
+/** The account provider a validated model reference reads its limits from. */
+function providerOfModel(modelId: string): string {
+  const slash = modelId.indexOf('/')
+  return slash === -1 ? 'meta' : modelId.slice(0, slash)
 }
 
 /**
@@ -9064,6 +9071,7 @@ export class ConversationController {
         if (appliedModel !== modelId && this.session.fireExtensionHook !== undefined) {
           this.modelId = appliedModel
           this.postSessionInfo(appliedModel)
+          this.invalidateEstimateOnProviderSwitch(previous)
           return
         }
       } catch (error: unknown) {
@@ -9073,6 +9081,7 @@ export class ConversationController {
         return
       }
     }
+    this.invalidateEstimateOnProviderSwitch(previous)
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
     // (muse-spark-1.2 has no `max`); drop to the model's own default where
@@ -10345,6 +10354,16 @@ export class ConversationController {
     this.lastEstimateSection = undefined
   }
 
+  /**
+  A provider switch retires the pending and the displayed estimate: the
+  old forecast was read under another owner and must never be delivered
+  here.
+  */
+  private invalidateEstimateOnProviderSwitch(previousModelId: string): void {
+    if (providerOfModel(this.modelId) !== providerOfModel(previousModelId))
+      this.invalidateEstimate()
+  }
+
   private async handleEstimateMessage(
     message: Extract<
       WebviewToHostMessage,
@@ -10353,6 +10372,9 @@ export class ConversationController {
   ): Promise<void> {
     const estimator = this.deps.estimator
     const generation = this.sendInvalidationEpoch
+    // The owner this request was read under: a provider switch meanwhile
+    // retires it, so a late forecast is never delivered to another owner.
+    const provider = this.estimateProviderId
     const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
     if (message.type !== 'estimateSpinUp') {
       this.invalidateEstimate()
@@ -10366,11 +10388,16 @@ export class ConversationController {
             : estimator.parseCommand?.(message.command, message.context)
         if (request === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
         const section = await estimator.estimate(request, pending.signal)
-        if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
+        if (
+          pending.signal.aborted ||
+          generation !== this.sendInvalidationEpoch ||
+          provider !== this.estimateProviderId ||
+          this.isDisposed
+        )
           return
         this.lastEstimateInputs = section.inputs
         this.lastEstimateSection = section
-        this.post({ type: 'estimatorSection', ...correlation, section })
+        this.post({ type: 'estimatorSection', ...correlation, section: presentEstimate(section) })
       } catch (error: unknown) {
         this.deps.log.error(`The estimate failed: ${failureForLog(error)}`)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
@@ -11947,6 +11974,11 @@ export class ConversationController {
     capture: (session: AgentSession) => WorkspaceEditRecorder | undefined,
   ): WorkspaceEditRecorder | undefined {
     return this.isDisposed || this.session === undefined ? undefined : capture(this.session)
+  }
+
+  /** The account provider selected by this composer's validated model reference. */
+  public get estimateProviderId(): string {
+    return providerOfModel(this.modelId)
   }
 
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */

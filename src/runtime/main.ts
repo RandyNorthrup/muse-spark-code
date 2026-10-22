@@ -121,10 +121,12 @@ import { lazyUsageAdapter, usageCompanionUrl, type UsageAdapter } from './usage/
 
 import {
   createUsageRecording,
+  currentOwnedLimitSnapshots,
   isUsageWriterBundle,
   type UsageRecording,
 } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
+import { USAGE_CLI_CLIENT_ID } from '../shared/usageJournal'
 import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -934,6 +936,7 @@ function usageFor(
   recording?: UsageRecording,
   runtime?: Pick<Awaited<ReturnType<typeof runtimeFor>>, 'readUsageBudgets'>,
   isHistoryEnabled = true,
+  generation?: () => string,
 ): UsageAdapter {
   return lazyUsageAdapter({
     dataFolder: agentDataFolder({
@@ -956,7 +959,18 @@ function usageFor(
         recording === undefined
           ? () => Promise.resolve([])
           : (runtime?.readUsageBudgets ?? (() => Promise.resolve([]))),
-      readLiveLimits: () => Promise.resolve(recording?.limits?.() ?? []),
+      // Account & usage reads only owned observations of the live owner:
+      // a retired generation's rows never show as the current limit.
+      readLiveLimits: () =>
+        Promise.resolve(
+          recording === undefined
+            ? []
+            : currentOwnedLimitSnapshots(
+                recording.ownedLimits?.() ?? [],
+                { accountId: ACCOUNT_DEFAULT_ID, generation: generation?.() ?? 'unknown' },
+                { at: Date.now(), newId: () => randomUUID(), client: USAGE_CLI_CLIENT_ID },
+              ),
+        ),
       providerConsoles: () => [],
       currentCredentialId: currentProviderCredentialId,
     },
@@ -1033,7 +1047,19 @@ async function serve(
   )
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
-  const restoreRecording = engine.installUsageRecording(recording)
+  let limitGeneration = randomUUID()
+  const limitScope = (): { accountId: string; generation: string } => ({
+    accountId: ACCOUNT_DEFAULT_ID,
+    generation: limitGeneration,
+  })
+  let restoreRecording = engine.installUsageRecording(
+    recording.scopeLimits?.({
+      accountId: ACCOUNT_DEFAULT_ID,
+      generation: limitGeneration,
+      backend: options.backend,
+    }) ?? recording,
+    limitScope,
+  )
   try {
     const directory = path.join(
       agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
@@ -1082,7 +1108,7 @@ async function serve(
       scheduleEngine,
     )
     let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
-    const usage = usageFor(log, recording, runtime, isUsageHistoryOn)
+    const usage = usageFor(log, recording, runtime, isUsageHistoryOn, () => limitGeneration)
     const journal = await reportJournal(log)
     await journal.startup()
     // A proxy the Model API backend's requests will not use is said at once (Q66).
@@ -1184,7 +1210,27 @@ async function serve(
       onClientName: (name) => {
         clientName = name
       },
-      backend: runtime.backend,
+      backend: {
+        ...runtime.backend,
+        readiness: async (isRecheck) => {
+          if (isRecheck) {
+            // The generation retires: surviving backend managers and hosts
+            // read the live owner per observation, so nothing keeps
+            // publishing under the retired generation.
+            restoreRecording()
+            limitGeneration = randomUUID()
+            restoreRecording = engine.installUsageRecording(
+              recording.scopeLimits?.({
+                accountId: ACCOUNT_DEFAULT_ID,
+                generation: limitGeneration,
+                backend: options.backend,
+              }) ?? recording,
+              limitScope,
+            )
+          }
+          return await runtime.backend.readiness(isRecheck)
+        },
+      },
       // Lane V seam 5: `/attach`, resource links and embedded media, bound
       // to the same registry the Model API sessions resolve.
       ...(runtime.media !== undefined && { media: runtime.media }),
@@ -1237,8 +1283,11 @@ async function serve(
           env: process.env,
           homeDir: homedir(),
         }),
-        readLiveLimits: () =>
-          (recording.limits?.() ?? []).filter((row) => row.backend === options.backend),
+        currentOwner: () => ({ accountId: ACCOUNT_DEFAULT_ID, generation: limitGeneration }),
+        readOwnedLimits: () =>
+          (recording.ownedLimits?.() ?? []).filter(
+            (row) => row.snapshot.backend === options.backend,
+          ),
         accounts: {
           list: async (provider: string) => {
             const owner = loadAccounts()

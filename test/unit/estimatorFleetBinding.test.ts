@@ -1,3 +1,5 @@
+import { isLimitContextEvidence } from '../../src/core/estimator/limitContext'
+import { renderLimitNote } from '../../src/core/estimator/limitText'
 // M117 C-M117-3R3: the fleet binding reads every fleet value from the
 // component that owns it and never computes one. Machine parallelism stays
 // the certified one serial slot; M107's settings ride the caps as threshold
@@ -193,6 +195,7 @@ describe('M117 fleet binding', () => {
           settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
           activeAccount: () => ({
             kind: 'limits',
+            generation: '1',
             providerId: 'meta',
             accountId: '!!!',
             snapshot: {},
@@ -245,7 +248,9 @@ describe('M117 fleet binding', () => {
         ci: () => [],
       }),
     ).run(undefined)
-    expect(trial.unknownLimits).not.toContain('CI capacity unknown: no reader.')
+    expect(trial.unknownLimits.map((note) => renderLimitNote(note))).not.toContain(
+      'CI capacity unknown: no reader.',
+    )
   })
   it('reads unknown limits with the no-reader seam, never a demand rate', async () => {
     for (const surface of ['editor', 'runtime'] as const) {
@@ -253,31 +258,48 @@ describe('M117 fleet binding', () => {
       const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
         activeAccount: () => ({ kind: 'no-reader', surface }),
       })
-      expect(fleet.accounts).toEqual([
+      expect(
+        fleet.accounts.map((account) => ({
+          ...account,
+          statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
+        })),
+      ).toEqual([
         {
           id: 'local',
           providerId: 'local',
-          statedLimits: [`Unknown account limits on ${surface}.`],
+          statedLimits: [`estimate-no-account-reader:${surface}`],
         },
       ])
       expect(fleet.slots.map((slot) => slot.accountId)).toEqual(['local'])
       const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
-      expect(trial.unknownLimits).toContain(`Unknown account limits on ${surface}.`)
-      expect(trial.unknownLimits).toContain('local:requestsPerMinute')
-      expect(trial.unknownLimits).toContain('local:tokensPerMinute')
-      expect(trial.unknownLimits).toContain('local:usageLimits')
+      expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
+        `Unknown account limits on ${surface}.`,
+      )
+      expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
+        'local:requestsPerMinute',
+      )
+      expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
+        'local:tokensPerMinute',
+      )
+      expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
+        'local:usageLimits',
+      )
       expect(trial.finishHours).toBe(1)
     }
   })
   it('reads the active account limits through the panel reader', async () => {
     const sources = extensionFleetSources({
       inspect: () => undefined,
+      currentOwner: () => ({ accountId: 'default', generation: '1' }),
       readUsage: () =>
         Promise.resolve({
-          observedAtMs: NOW_MS,
-          tier: 'captured',
-          window: { usedPercent: 100, resetsAtMs: NOW_MS + 3_600_000, windowDurationMins: 300 },
-          weekly: { usedPercent: 25, resetsAtMs: NOW_MS + 86_400_000 },
+          owner: { kind: 'account', id: 'default', providerId: 'meta', generation: '1' },
+          snapshot: {
+            observedAtMs: NOW_MS,
+            tier: 'captured',
+            window: { usedPercent: 100, resetsAtMs: NOW_MS + 3_600_000, windowDurationMins: 300 },
+            weekly: { usedPercent: 25, resetsAtMs: NOW_MS + 86_400_000 },
+          },
         }),
     })
     const lane = scheduleLane('A')
@@ -292,19 +314,33 @@ describe('M117 fleet binding', () => {
   it('names a registry account with unknown limits', async () => {
     const lanes = [scheduleLane('A')]
     const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
-      activeAccount: () => ({ kind: 'registry', providerId: 'meta', accountId: 'shop' }),
+      activeAccount: () => ({
+        kind: 'registry',
+        providerId: 'meta',
+        accountId: 'shop',
+        label: 'Shop',
+      }),
     })
-    expect(fleet.accounts).toEqual([
+    expect(
+      fleet.accounts.map((account) => ({
+        ...account,
+        statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
+      })),
+    ).toEqual([
       {
         id: 'shop',
         providerId: 'meta',
-        statedLimits: ['Unknown: limits unread for meta/shop.'],
+        statedLimits: ['estimate-limits-unread'],
       },
     ])
     expect(fleet.slots.map((slot) => slot.accountId)).toEqual(['shop'])
     const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
-    expect(trial.unknownLimits).toContain('Unknown: limits unread for meta/shop.')
-    expect(trial.unknownLimits).toContain('shop:requestsPerMinute')
+    expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
+      'Unknown: limits unread for Shop.',
+    )
+    expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
+      'Shop:requestsPerMinute',
+    )
   })
   it('selects the active account across zero, one and several rows', () => {
     expect(selectFleetAccount([], null)).toBeUndefined()
@@ -315,8 +351,9 @@ describe('M117 fleet binding', () => {
   })
   it('preserves current buckets without inventing a sustainable rate', () => {
     const row = fleetAccountFromLimits({
+      generation: '1',
       providerId: 'meta',
-      account: { id: 'work' },
+      account: { id: 'work', label: 'Work' },
       limits: {
         rateLimits: {
           requests: { limit: 120, remaining: 60, resetAt: '2026-10-06T13:00:00.000Z' },
@@ -334,12 +371,13 @@ describe('M117 fleet binding', () => {
       remaining: 60,
       allowance: 120,
     })
-    expect(row?.statedLimits).toHaveLength(2)
+    expect(row?.statedLimits).toEqual([])
   })
   it('shapes a plan window only from its captured duration and states the rest', () => {
     const row = fleetAccountFromLimits({
+      generation: '1',
       providerId: 'meta',
-      account: { id: 'work' },
+      account: { id: 'work', label: 'Work' },
       limits: {
         planWindows: {
           window: {
@@ -365,23 +403,28 @@ describe('M117 fleet binding', () => {
         resetsAt: '2026-10-06T13:00:00.000Z',
         timeZone: 'UTC',
       },
+      {
+        id: 'work-weekly',
+        kind: 'current',
+        unit: 'percent',
+        remaining: 75,
+        allowance: 100,
+        resetsAt: '2026-10-13T00:00:00.000Z',
+        timeZone: 'UTC',
+      },
     ])
-    // The weekly window reports no period, so it is stated, never shaped.
-    expect(row?.statedLimits).toEqual([
-      fill(UI_TEXT.estimatePlanWindowUnknown, {
-        source: 'meta/work/weekly',
-        percent: '25%',
-        reset: formatDateTime(Date.parse('2026-10-13T00:00:00.000Z')),
-      }),
-    ])
+    // Current weekly allowance remains enforced; no recurrence is invented.
+    expect(row?.statedLimits).toEqual([])
   })
   it('states an unconvertible percent window instead of throwing unknown-demand', async () => {
     const lanes = [scheduleLane('A')]
     const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
       activeAccount: () => ({
         kind: 'limits',
+        generation: '1',
         providerId: 'meta',
         accountId: 'work',
+        label: 'Work',
         snapshot: {
           planWindows: {
             window: {
@@ -399,16 +442,15 @@ describe('M117 fleet binding', () => {
     // stated and the forecast continues with what it knows.
     const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
     expect(trial.finishHours).toBe(1)
-    expect(trial.unknownLimits).toContain(
+    expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
       fill(UI_TEXT.estimatePercentDemandUnknown, {
-        source: 'work/work-window',
+        source: 'Work/percent',
         reset: formatDateTime(Date.parse('2026-10-06T13:00:00.000Z')),
       }),
     )
-    expect(trial.unknownLimits).toContain(
-      fill(UI_TEXT.estimatePlanWindowUnknown, {
-        source: 'meta/work/weekly',
-        percent: '25%',
+    expect(trial.unknownLimits.map((note) => renderLimitNote(note))).toContain(
+      fill(UI_TEXT.estimatePercentDemandUnknown, {
+        source: 'Work/percent',
         reset: formatDateTime(Date.parse('2026-10-13T00:00:00.000Z')),
       }),
     )
@@ -419,8 +461,10 @@ describe('M117 fleet binding', () => {
     const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, [lane], AS_OF), {
       activeAccount: () => ({
         kind: 'limits',
+        generation: '1',
         providerId: 'meta',
         accountId: 'work',
+        label: 'Work',
         snapshot: {
           planWindows: {
             window: {
@@ -442,8 +486,9 @@ describe('M117 fleet binding', () => {
   })
   it('drops expired buckets and keeps nothing when no limit is usable', () => {
     const row = fleetAccountFromLimits({
+      generation: '1',
       providerId: 'meta',
-      account: { id: 'work' },
+      account: { id: 'work', label: 'Work' },
       limits: {
         rateLimits: {
           requests: { limit: 120, remaining: 0, resetAt: '2026-10-06T11:00:00.000Z' },
@@ -452,11 +497,13 @@ describe('M117 fleet binding', () => {
       },
       nowMs: NOW_MS,
     })
-    expect(row?.statedLimits).toHaveLength(1)
+    expect(row?.statedLimits).toEqual([])
+    expect(row?.usageLimits).toBeUndefined()
     expect(
       fleetAccountFromLimits({
+        generation: '1',
         providerId: 'meta',
-        account: { id: 'work' },
+        account: { id: 'work', label: 'Work' },
         limits: {},
         nowMs: NOW_MS,
       }),
@@ -467,8 +514,10 @@ describe('M117 fleet binding', () => {
     const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
       activeAccount: () => ({
         kind: 'limits',
+        generation: '1',
         providerId: 'meta',
         accountId: 'work',
+        label: 'Work',
         snapshot: {
           rateLimits: {
             requests: { limit: 120, remaining: 0, resetAt: '2026-10-07T00:00:00.000Z' },
@@ -497,8 +546,10 @@ describe('M117 fleet binding', () => {
           settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
           activeAccount: () => ({
             kind: 'limits',
+            generation: '1',
             providerId: 'meta',
             accountId: 'work',
+            label: 'Work',
             snapshot,
             nowMs: NOW_MS,
           }),
@@ -516,17 +567,19 @@ describe('M117 fleet binding', () => {
     // A vendor block with no reset refuses without a date to wait for.
     expect(() =>
       fleetAccountFromLimits({
+        generation: '1',
         providerId: 'meta',
-        account: { id: 'work' },
+        account: { id: 'work', label: 'Work' },
         limits: { blocked: { reason: 'rateLimited', resetAt: null } },
         nowMs: NOW_MS,
       }),
-    ).toThrow(/fleet-account-blocked: meta work reset unknown/)
+    ).toThrow(/fleet-account-blocked: Work reset unknown/)
     await expect(blocked({ planWindows: {} })).resolves.toBeDefined()
     expect(() =>
       fleetAccountFromLimits({
+        generation: '1',
         providerId: 'meta',
-        account: { id: 'work' },
+        account: { id: 'work', label: 'Work' },
         limits: {},
         nowMs: NaN,
       }),
@@ -571,11 +624,16 @@ describe('M117 fleet binding', () => {
     })
     expect(bound.machines[0]?.governorSlots).toBe(1)
     expect(bound.slots).toHaveLength(1)
-    expect(bound.accounts).toEqual([
+    expect(
+      bound.accounts.map((account) => ({
+        ...account,
+        statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
+      })),
+    ).toEqual([
       {
         id: 'local',
         providerId: 'local',
-        statedLimits: ['Unknown account limits on editor.'],
+        statedLimits: ['estimate-no-account-reader:editor'],
       },
     ])
     // A governor that is off states no threshold row.
@@ -640,11 +698,16 @@ describe('M117 fleet binding', () => {
         productionIo(owners({ list: () => [{ id: 'shop' }] })),
       )
       expect(configured.machines[0]?.caps).toMatchObject({ cpuPercent: 40 })
-      expect(configured.accounts).toEqual([
+      expect(
+        configured.accounts.map((account) => ({
+          ...account,
+          statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
+        })),
+      ).toEqual([
         {
           id: 'shop',
           providerId: 'meta',
-          statedLimits: ['Unknown: limits unread for meta/shop.'],
+          statedLimits: ['estimate-limits-unread'],
         },
       ])
       // A governor that is off states no threshold row.

@@ -1,4 +1,4 @@
-import type { UsageRecording } from '../../usage/recording'
+import type { UsageRecording, UsageScopeReader } from '../../usage/recording'
 // One `muse serve` process and the MSP sessions multiplexed over it.
 //
 // Built on the SDK's raw `Connection` rather than its `MuseClient` facade:
@@ -2542,6 +2542,13 @@ export class MuseCodeHost implements AgentHost {
   session. Unset outside the editor (unit tests drive the writers directly).
   */
   public static usageNotesLoader: (() => UsageNotesBundle) | undefined
+  /**
+  Where this host reads its current owner for every usage observation: a
+  reauthentication retires the old generation, and surviving hosts publish
+  under the new one instead of the retired one. Undefined publishes
+  nothing; an observation without an owner cannot exist.
+  */
+  public static usageScope: UsageScopeReader | undefined
   private readonly observedUsage = new Set<number>()
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
@@ -2849,7 +2856,33 @@ export class MuseCodeHost implements AgentHost {
         const usage = parsed.data
         if (!this.observedUsage.has(usage.observedAtMs)) {
           this.observedUsage.add(usage.observedAtMs)
-          this.recordLimitSnapshot(usage)
+          // The owner is bound per observation through the live scope, so a
+          // host that survives a reauthentication publishes under the new
+          // generation, never the retired one.
+          const scope = MuseCodeHost.usageScope?.()
+          const producer =
+            scope === undefined
+              ? undefined
+              : this.usageRecording?.scopeLimits?.({ ...scope, backend: 'museCode' })
+          producer?.limit({
+            backend: 'museCode',
+            provider: 'museCode',
+            source: 'museCode',
+            observedAt: usage.observedAtMs,
+            windows: [
+              {
+                id: 'window',
+                usedPercent: usage.window.usedPercent,
+                resetsAt: usage.window.resetsAtMs,
+                windowMins: usage.window.windowDurationMins,
+              },
+              {
+                id: 'weekly',
+                usedPercent: usage.weekly.usedPercent,
+                resetsAt: usage.weekly.resetsAtMs,
+              },
+            ],
+          })
         }
         this.accountHome?.assertCurrent()
         this.accountHome?.observeUsage(parsed.data)
@@ -2893,12 +2926,6 @@ export class MuseCodeHost implements AgentHost {
       this.log.warn('Usage notes bundle unavailable; usage is not recorded for this session')
       return undefined
     }
-  }
-
-  /** One `usage/changed` meter reading, journaled through the deferred writers. */
-  private recordLimitSnapshot(usage: SubscriptionUsage): void {
-    const input = this.usageNotes()?.museCodeLimitInput(usage)
-    if (input !== undefined) this.usageRecording?.limit(input)
   }
 
   /** The session's journal writers, loaded with the service bundle on first use. */

@@ -1,5 +1,10 @@
 import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import {
+  isLimitContextEvidence,
+  resolveLimitContext,
+  type EstimateLimitContext,
+} from './limitContext'
+import {
   fleetSnapshotSchema,
   estimateLaneSchema,
   type EstimateLane,
@@ -14,7 +19,7 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill, formatDateTime } from '../../shared/l10n/text'
+import { limitNote } from './limitText'
 import { buildEstimateDag, isEstimateDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { compareEstimateIds } from './goal'
 
@@ -78,6 +83,60 @@ function schedulingRefusal(detail: string): never {
 function known(quantity: Quantity, detail: string): number {
   if (quantity.status === 'unknown') refuse(`unknown-demand:${detail}`)
   return quantity.value
+}
+
+/**
+Exact decimal arithmetic for money admission: binary numbers get a
+boundary wrong (`0.1 * 3 = 0.30000000000000004` refuses against `0.3`),
+so usd demand and allowance compare on their canonical decimal spellings
+with BigInt, never as doubles.
+*/
+interface ExactDecimal {
+  readonly coefficient: bigint
+  readonly places: number
+}
+/** The decimal base and zero as BigInts; the linter takes no BigInt literals inline. */
+const DECIMAL_BASE = 10n
+const DECIMAL_ZERO = 0n
+function exactDecimal(value: number | string): ExactDecimal {
+  const match = /^(-?\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(String(value).trim())
+  if (match === null) refuse(`invalid-decimal:${String(value)}`)
+  const whole = match[1] ?? '0'
+  const fraction = match[2] ?? ''
+  const places = fraction.length - Number(match[3] ?? 0)
+  const digits = `${whole.startsWith('-') ? '-' : ''}${whole.replace('-', '')}${fraction}`
+  const coefficient = digits === '' || digits === '-' ? DECIMAL_ZERO : BigInt(digits)
+  return places < 0
+    ? { coefficient: coefficient * DECIMAL_BASE ** BigInt(-places), places: 0 }
+    : { coefficient, places }
+}
+function addExact(first: ExactDecimal, second: ExactDecimal): ExactDecimal {
+  const places = Math.max(first.places, second.places)
+  const align = (value: ExactDecimal): bigint =>
+    value.coefficient * DECIMAL_BASE ** BigInt(places - value.places)
+  return { coefficient: align(first) + align(second), places }
+}
+function multiplyExact(first: ExactDecimal, second: ExactDecimal): ExactDecimal {
+  return {
+    coefficient: first.coefficient * second.coefficient,
+    places: first.places + second.places,
+  }
+}
+/** Positive when the accumulated usd demand exceeds the stated allowance. */
+function compareExactDemand(demand: ExactDecimal, allowance: ExactDecimal): number {
+  const places = Math.max(demand.places, allowance.places)
+  const difference =
+    demand.coefficient * DECIMAL_BASE ** BigInt(places - demand.places) -
+    allowance.coefficient * DECIMAL_BASE ** BigInt(places - allowance.places)
+  if (difference === DECIMAL_ZERO) return 0
+  return difference < DECIMAL_ZERO ? -1 : 1
+}
+/** This lane's usd spend on one account: rate x slot share x hours, exactly. */
+function usdSpend(ratePerHour: number, share: number, hours: number): ExactDecimal {
+  return multiplyExact(
+    multiplyExact(exactDecimal(ratePerHour), exactDecimal(share)),
+    exactDecimal(hours),
+  )
 }
 
 export function canEstimateMachineRun(lane: EstimateLane, machine: Machine): boolean {
@@ -207,7 +266,13 @@ export function prepareEstimateSchedule(
   input: readonly EstimateLane[],
   fleetInput: FleetSnapshot,
   relaxation?: EstimateRelaxation,
+  limitContext?: EstimateLimitContext,
 ): EstimateScheduler {
+  const context = resolveLimitContext(fleetInput, limitContext)
+  const accountLabel = (account: Account): string =>
+    context.labels.find(
+      (row) => row.accountId === account.id && row.providerId === account.providerId,
+    )?.label ?? account.providerId
   const dag = buildEstimateDag(input)
   const fleet = parseEstimate(fleetSnapshotSchema, fleetInput)
   const asOf = Date.parse(fleet.asOf)
@@ -354,14 +419,23 @@ export function prepareEstimateSchedule(
         ) > ci.concurrentJobs,
   )
   for (const account of accounts) {
-    if (account.usageLimits === undefined) unknownLimits.add(`${account.id}:usageLimits`)
+    if (account.usageLimits === undefined) unknownLimits.add(`${accountLabel(account)}:usageLimits`)
     if (account.requestsPerMinute === undefined)
-      unknownLimits.add(`${account.id}:requestsPerMinute`)
-    if (account.tokensPerMinute === undefined) unknownLimits.add(`${account.id}:tokensPerMinute`)
+      unknownLimits.add(`${accountLabel(account)}:requestsPerMinute`)
+    if (account.tokensPerMinute === undefined)
+      unknownLimits.add(`${accountLabel(account)}:tokensPerMinute`)
     // Stated limits travel verbatim: the owner said them, the schedule
     // cannot convert them, and dropping them would hide them.
+    const currentWindows = account.usageLimits ?? []
+    for (const window of currentWindows)
+      if (window.kind === 'current')
+        unknownLimits.add(limitNote('refill', `${accountLabel(account)}/${window.unit}`))
     const stated = account.statedLimits ?? []
-    for (const note of stated) unknownLimits.add(note)
+    for (const note of stated)
+      if (!isLimitContextEvidence(note))
+        unknownLimits.add(
+          note === 'estimate-limits-unread' ? limitNote('unread', accountLabel(account)) : note,
+        )
   }
   for (const ci of fleet.ci)
     if (
@@ -385,8 +459,18 @@ export function prepareEstimateSchedule(
           known(lane.resources.ciMinutes, `${lane.id}:ciMinutes`) > 0),
     )
   )
-    unknownLimits.add(UI_TEXT.estimateCiUnread)
+    unknownLimits.add(limitNote('ci', ''))
 
+  for (const fact of context.facts) {
+    if (fact.owner.kind !== 'account') continue
+    const account = accounts.find(
+      (row) => row.id === fact.owner.id && row.providerId === fact.owner.providerId,
+    )
+    if (account === undefined) continue
+    if (fact.window.periodSeconds === null)
+      unknownLimits.add(limitNote('refill', `${accountLabel(account)}/${fact.unit ?? fact.metric}`))
+    if (fact.remaining === null) unknownLimits.add(limitNote('unread', accountLabel(account)))
+  }
   let quotaHints: number[] = []
   function isFeasible(
     all: Reservation[],
@@ -523,6 +607,51 @@ export function prepareEstimateSchedule(
     if (relaxation !== 'accountRate') {
       const horizon = Math.max(...all.map((entry) => entry.end))
       for (const account of accounts) {
+        for (const fact of context.facts) {
+          if (
+            fact.owner.kind !== 'account' ||
+            fact.owner.id !== account.id ||
+            fact.owner.providerId !== account.providerId ||
+            fact.remaining === null ||
+            fact.unit === null ||
+            fact.window.resetsAt !== null
+          )
+            continue
+          const users = all.filter((entry) => accountShare(entry, account.id) > 0)
+          if (
+            fact.unit === 'percent' &&
+            users.some((entry) => entry.lane.resources.accountPercentPerHour.status === 'unknown')
+          )
+            continue
+          const unit = fact.unit
+          if (unit === 'usd') {
+            // Money admits on exact decimals, never doubles: a three-hour
+            // lane at USD 0.1/hour with USD 0.3 remaining is admitted.
+            const allowance = exactDecimal(fact.remaining)
+            let demand: ExactDecimal = { coefficient: DECIMAL_ZERO, places: 0 }
+            for (const entry of users)
+              demand = addExact(
+                demand,
+                usdSpend(
+                  laneRate(entry.lane, unit),
+                  accountShare(entry, account.id),
+                  entry.end - entry.start,
+                ),
+              )
+            if (compareExactDemand(demand, allowance) > 0) return false
+            continue
+          }
+          const total = users.reduce(
+            (sum, entry) =>
+              sum +
+              laneRate(entry.lane, unit) *
+                accountShare(entry, account.id) *
+                (entry.end - entry.start),
+            0,
+          )
+          if (typeof fact.remaining === 'number' && total > fact.remaining) return false
+          if (typeof fact.remaining === 'string' && total > Number(fact.remaining)) return false
+        }
         const windows = windowsByAccount.get(account) ?? []
         if (windows.length === 0) continue
         const users = all.filter((entry) => accountShare(entry, account.id) > 0)
@@ -654,10 +783,7 @@ export function prepareEstimateSchedule(
             users.some((lane) => !isDemandKnown(lane, window.unit))
           ) {
             unknownLimits.add(
-              fill(UI_TEXT.estimatePercentDemandUnknown, {
-                source: `${account.id}/${window.id}`,
-                reset: formatDateTime(Date.parse(window.resetsAt)),
-              }),
+              limitNote('demand', `${accountLabel(account)}/${window.unit}`, window.resetsAt),
             )
             return false
           }
