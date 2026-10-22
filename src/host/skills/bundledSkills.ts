@@ -12,7 +12,10 @@ import type { NoticeAction } from '../../shared/protocol'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as Entry from './bundledSkillsEntry'
-import type { BundledSkillsPaths, BundledSkillsStatus } from './bundledSkillsInstall'
+import type {
+  BundledSkillsPaths,
+  BundledSkillsStatus,
+} from '../../core/skills/bundledSkillsInstall'
 
 export type { BundledSkillsCommandDeps } from './bundledSkillsCommands'
 

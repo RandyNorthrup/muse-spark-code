@@ -20,7 +20,7 @@ import { createHash, type Hash } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { redactSecrets } from '../../core/redact'
+import { redactSecrets } from '../redact'
 import * as z from 'zod/mini'
 import {
   BUNDLED_SKILLS_ARCHIVE_FILE,
@@ -38,10 +38,19 @@ import {
   FIRST_PARTY_SKILLS_DIR,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
+  NODE_DIGEST_PATTERN,
 } from '../../shared/constants'
-import { parseSolidTextArchive, solidMemberBytes } from '../../core/archives/solidTextArchive'
+import { parseSolidTextArchive, solidMemberBytes } from '../archives/solidTextArchive'
+import { failureForLog } from '../backends/musecode/logText'
+
+/** Where install failures are recorded: the caller's log, in fixed words. */
+export interface BundledSkillsLog {
+  readonly warn: (message: string) => void
+}
 
 export interface BundledSkillsPaths {
+  /** Failures are warned here as well as returned as data. */
+  readonly log: BundledSkillsLog
   /** The vendored package inside the installed extension. */
   readonly vendorRoot: string
   /** Muse Code's personal skills folder, `<config home>/muse/skills`. */
@@ -119,6 +128,8 @@ interface VendoredPackage {
   readonly skillIds: readonly string[]
   readonly firstPartyRoot: string
   readonly firstPartyIds: readonly string[]
+  /** Every listed path with its SHA-256, for the staged-copy check (H17). */
+  readonly fileHashes: ReadonlyMap<string, string>
 }
 
 type CopyState =
@@ -127,11 +138,16 @@ type CopyState =
   | { readonly kind: 'notOurs' }
 
 // VENDOR.json: the release's tag and path/hash records (`skills/<id>/SKILL.md`
-// among them), relative, with forward slashes; hashes are checked by the vendor
-// suite. The installer needs only the paths to discover the bundled skill ids.
+// among them), relative, with forward slashes. Verify the staged copy against
+// every hash before publication, including the scripts a skill may execute.
 const vendorSchema = z.object({
   tag: z.string().check(z.minLength(1)),
-  files: z.array(z.object({ path: z.string() })),
+  files: z.array(
+    z.object({
+      path: z.string().check(z.regex(/^[\w.-]+(?:\/[\w.-]+)*$/)),
+      sha256: z.string().check(z.regex(new RegExp(NODE_DIGEST_PATTERN))),
+    }),
+  ),
 })
 const markerSchema = z.object({ tag: z.string().check(z.minLength(1)), installedAt: z.string() })
 const VENDOR_PATH_SEPARATOR = '/'
@@ -208,7 +224,18 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   if (!parsed.success) {
     throw new Error(`${file} is not a vendor record: ${z.prettifyError(parsed.error)}`)
   }
-  const listed = parsed.data.files.map(({ path: relative }) => relative.replaceAll('\\', '/'))
+  const listed = parsed.data.files.map(({ path: relative }) => relative)
+  const names = listed.map((name) => name.toLowerCase())
+  if (
+    new Set(names).size !== names.length ||
+    names.some(
+      (name) =>
+        name === BUNDLED_SKILLS_VENDOR_FILE.toLowerCase() ||
+        name.split('/').some((part) => part === '.' || part === '..' || part.endsWith('.')),
+    )
+  ) {
+    throw new Error(`${file} lists unsafe or duplicate files`)
+  }
   const skillIds = listed.flatMap((relative) => {
     const parts = relative.split(VENDOR_PATH_SEPARATOR)
     const [dir, id, file] = parts
@@ -248,6 +275,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
     ],
     firstPartyRoot,
     firstPartyIds,
+    fileHashes: new Map(parsed.data.files.map((file) => [file.path, file.sha256])),
   }
 }
 
@@ -437,6 +465,33 @@ async function stageVendorTree(
   }
 }
 
+/** Verify all staged bytes and refuse files absent from the release record (H17). */
+async function verifyCopy(folder: string, vendor: VendoredPackage): Promise<void> {
+  const expected = new Map(vendor.fileHashes)
+  const visit = async (directory: string, prefix: string): Promise<void> => {
+    const entries = await fs.readdir(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      const relative = `${prefix}${entry.name}`
+      const target = path.join(directory, entry.name)
+      if (entry.isDirectory()) {
+        await visit(target, `${relative}/`)
+      } else if (relative !== BUNDLED_SKILLS_VENDOR_FILE) {
+        const digest = createHash('sha256')
+          .update(await fs.readFile(target))
+          .digest('hex')
+        if (digest !== expected.get(relative)) {
+          throw new Error(`${relative}: vendor SHA-256 mismatch`)
+        }
+        expected.delete(relative)
+      }
+    }
+  }
+  await visit(folder, '')
+  if (expected.size > 0) {
+    throw new Error('Vendor files missing from staged copy')
+  }
+}
+
 /** Whether `staging` holds `relative` as a real file; anything else reads absent. */
 async function isStagedFile(staging: string, relative: string): Promise<boolean> {
   try {
@@ -533,6 +588,7 @@ export async function installBundledSkills(
   try {
     vendor = await readVendor(deps.vendorRoot)
   } catch (error: unknown) {
+    deps.log.warn(`Bundled skills vendor record unreadable: ${failureForLog(error)}`)
     return { tag: undefined, ...nothing, failure: failed(deps.vendorRoot, error) }
   }
   const folder = copyFolder(deps)
@@ -560,6 +616,7 @@ export async function installBundledSkills(
     at = staging
     try {
       await stageVendorTree(deps.vendorRoot, vendor, staging)
+      await verifyCopy(staging, vendor)
       for (const id of vendor.firstPartyIds) {
         const target = path.join(staging, BUNDLED_SKILLS_DIR, id)
         // First-party precedence matches the Model API's bundled roots.
@@ -645,6 +702,7 @@ export async function installBundledSkills(
     }
     return { tag: vendor.tag, installed, skipped, removed, failure: undefined }
   } catch (error: unknown) {
+    deps.log.warn(`Bundled skills install failed: ${failureForLog(error)}`)
     const failure = failed(at, error)
     const undoFailure = await undo(made)
     return {
@@ -710,6 +768,7 @@ export async function removeBundledSkills(
     await fs.rm(folder, { recursive: true })
     return { removed, hadCopy: true, failure: undefined }
   } catch (error: unknown) {
+    paths.log.warn(`Bundled skills removal failed: ${failureForLog(error)}`)
     return { removed, hadCopy: true, failure: failed(at, error) }
   }
 }

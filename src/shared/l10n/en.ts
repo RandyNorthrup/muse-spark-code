@@ -2904,7 +2904,7 @@ export const EN = {
   browserCheckRuntimeMissing:
     'The browser check’s browser is not installed and could not be downloaded now. Check the connection and try again.',
   browserCheckRuntimeUnsupported:
-    'The browser check is not available on this computer. It supports Windows x64, Linux x64 and macOS.',
+    'The browser check is not available on this computer. It supports Windows x64, Linux x64/ARM64 and macOS.',
   browserCheckRuntimeOutdated:
     'The browser check’s browser is more than 45 days old. Update Muse Spark Code to use the browser check again.',
   browserCheckRuntimeIntegrity:

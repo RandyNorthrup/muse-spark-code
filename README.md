@@ -3122,8 +3122,9 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   page still loading after 15 seconds is read as it stands.
 - **The browser.** Google's Chrome for Testing headless shell, one exact
   version pinned by each extension release (now 156.0.8078.47), on Windows
-  x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
-  has not yet been run by this project's own checks). The first check asks
+  x64, Linux x64/ARM64 and macOS (Intel and Apple silicon; the Linux ARM64
+  and Apple silicon builds have not yet been run by this project's own
+  browser checks). The first check asks
   before downloading it, about 100 to 120 MB from Google's
   `storage.googleapis.com`, into the extension's own storage; with
   `museSpark.browserCheckRuntime` (machine-scoped) set to `download` it
@@ -3171,6 +3172,7 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   | Platform    | Archive bytes | Archive SHA-256                                                    |
   | ----------- | ------------- | ------------------------------------------------------------------ |
   | Linux x64   | 125,799,226   | `0d5acc62c3e213f8c87d3c298d66ffcf9a236d12ea4b9f85318bf85dbc279daa` |
+  | Linux ARM64 | 125,696,256   | `955059fa7020d7be85eb503e21339fd4d718f51f5996d3b60633fbf908bda132` |
   | macOS arm64 | 103,927,850   | `2fd1c09a3e1ebde9e69e6aba92f1dd3f21ad247b55d9bf66e39213ff4205436d` |
   | macOS x64   | 109,256,749   | `5e230044c6ac989597f4a4e301a0a710d257e07d6f7754754da2bf62ea3d272c` |
   | Windows x64 | 126,051,683   | `e0af9b23f8051cca4f37ca49cd425e8055701bfc0383c198d67f8d5cc5884249` |
@@ -5754,6 +5756,12 @@ The unbound features include:
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault
 
+The M110 base agent toolset layer pins all development tools for amd64 and
+arm64, stages verified artifacts for an offline build, and measures the
+base and separate compiler pack against their budgets. See the
+[toolset build commands and integration limits](deploy/toolset/README.md);
+this layer is groundwork for the node and sandbox editions.
+
 ## Development
 
 The internal B1 confinement build is `npm run build:confine` on Linux.
@@ -6753,3 +6761,9 @@ bindings/receipts pass. No companion
 dictation command is advertised as supported. Existing editor dictation is
 unchanged. [The certification record](docs/certification/m35-companion.md)
 tracks the Linux fake-device tests and the remaining platform checks.
+
+The bundled workflow-skills copy/link installer is shared by editor and node
+adapters. It verifies the complete staged copy against the vendored release
+hashes before publication and preserves user-owned skill folders. Node image
+and first-boot integration remains in progress (see
+[the B0 certification record](docs/certification/m110-b0-base-agent-toolset.md)).

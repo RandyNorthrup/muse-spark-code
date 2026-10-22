@@ -53,6 +53,19 @@ const notFound: RuntimeStoreDeps['fetch'] = () =>
   Promise.resolve(new Response('gone', { status: 404 }))
 
 describe('prepareRuntime failures', () => {
+  it('reads a platform the pin has no record for as unsupported, before any download', async () => {
+    const area = await storage()
+    try {
+      const preparation: RuntimePreparation = await prepareRuntime(
+        request(area.dir),
+        deps(notFound, { arch: 'ia32' }),
+      )
+      expect(preparation).toEqual({ ok: false, reason: 'runtimeUnsupported' })
+    } finally {
+      await area.cleanup()
+    }
+  })
+
   it('reads a refused download as missing, in closed words', async () => {
     const area = await storage()
     try {

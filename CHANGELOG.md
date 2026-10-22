@@ -7,7 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+
+
 ### Added
+
+- Added a pinned amd64/arm64 base agent toolset layer with offline builds,
+  verified artifact staging, bundled skill assets, an unprivileged smoke
+  fixture and measured base/compiler-pack budgets. Deployment and native
+  ARM64 qualification remain integration work.
+
+- Added portable default-on first-boot toolset preparation with explicit-off
+  settings preserved, and a verified Chrome for Testing Linux ARM64 pin
+  through the existing runtime store. Native ARM64 execution qualification
+  remains pending.
 
 - Prepared home-node labels, messages and errors in all 14 display languages;
   this groundwork enables no node command or listener.
@@ -40,6 +52,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Offline toolset installation now verifies image-owned manifest pins and
+  installs only their named Debian packages. Failed installer or bundled-skill
+  staging removes the fresh incomplete build context so the command can retry.
+- The bundled workflow-skills installer is shared portable core logic for
+  node and editor adapters. It verifies every staged file against the
+  vendored release before replacing a working copy, and refuses unsafe or
+  case-aliased release paths.
 - Home-node workspace requests ride one runner with a request id and
   AbortController per kind: a new search aborts its pending Show more page,
   clearing the results or the query retires it, late or superseded pages are

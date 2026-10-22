@@ -3,7 +3,7 @@ import {
   createBundledSkillsOffer,
   type BundledSkillsOfferDeps,
 } from '../../src/host/skills/bundledSkills'
-import type { BundledSkillsStatus } from '../../src/host/skills/bundledSkillsInstall'
+import type { BundledSkillsStatus } from '../../src/core/skills/bundledSkillsInstall'
 
 const KEYS = { installDeclined: 'install', updateDeclined: 'update' }
 

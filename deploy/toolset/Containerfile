@@ -1,0 +1,18 @@
+FROM docker.io/library/debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS artifacts
+COPY artifacts /artifacts
+
+FROM docker.io/library/debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS base
+COPY install.sh /usr/local/lib/muse-toolset/install.sh
+COPY base.json /usr/local/share/muse-toolset/base.json
+COPY checksums /usr/local/share/muse-toolset/checksums
+COPY assets /usr/local/share/muse-toolset/
+RUN --mount=type=bind,from=artifacts,source=/artifacts/base,target=/tmp/muse-toolset /bin/sh /usr/local/lib/muse-toolset/install.sh base
+USER 10001:10001
+ENV HOME=/home/muse-tools
+WORKDIR /home/muse-tools
+CMD ["bash"]
+
+FROM base AS build
+USER 0:0
+RUN --mount=type=bind,from=artifacts,source=/artifacts/build,target=/tmp/muse-toolset /bin/sh /usr/local/lib/muse-toolset/install.sh build
+USER 10001:10001

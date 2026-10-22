@@ -14,7 +14,7 @@ import {
   runBundledSkillsRemove as runRemove,
 } from './bundledSkillsCommands'
 
-export { bundledSkillsStatus } from './bundledSkillsInstall'
+export { bundledSkillsStatus } from '../../core/skills/bundledSkillsInstall'
 
 export { playbookReviewerCharter } from './playbookReviewerCharter'
 
@@ -35,3 +35,6 @@ export function runBundledSkillsRemove(
   setUiText(table, locale)
   return runRemove(deps)
 }
+
+// First-boot callers supply M81's lazy store and real consent surface.
+export { createBaseAgentToolset } from '../../core/context/baseAgentToolset'

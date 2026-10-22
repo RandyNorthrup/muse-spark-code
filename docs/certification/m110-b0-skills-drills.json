@@ -1,0 +1,42 @@
+[
+  {
+    "id": "B0-SKILLS-INTEGRITY",
+    "exitCode": 1,
+    "testFile": "test/unit/bundledSkillsInstall.test.ts",
+    "failures": [
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses changed release bytes before replacing an installed copy",
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses extra release bytes before replacing an installed copy",
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses missing release bytes before replacing an installed copy"
+    ],
+    "restoredSha256": "fad4677b7b7793587c8545cb5751c5525eefb40da25e09a7516500a0ad43a3fc"
+  },
+  {
+    "id": "B0-SKILLS-MISSING",
+    "exitCode": 1,
+    "testFile": "test/unit/bundledSkillsInstall.test.ts",
+    "failures": [
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses missing release bytes before replacing an installed copy"
+    ],
+    "restoredSha256": "fad4677b7b7793587c8545cb5751c5525eefb40da25e09a7516500a0ad43a3fc"
+  },
+  {
+    "id": "B0-SKILLS-PATH",
+    "exitCode": 1,
+    "testFile": "test/unit/bundledSkillsInstall.test.ts",
+    "failures": [
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses unsafe or duplicate vendor path README.md before writing"
+    ],
+    "restoredSha256": "fad4677b7b7793587c8545cb5751c5525eefb40da25e09a7516500a0ad43a3fc"
+  },
+  {
+    "id": "B0-SKILLS-TRAVERSAL",
+    "exitCode": 1,
+    "testFile": "test/unit/bundledSkillsInstall.test.ts",
+    "failures": [
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses unsafe or duplicate vendor path ../outside before writing",
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses unsafe or duplicate vendor path skills/../outside before writing",
+      "FAIL  test/unit/bundledSkillsInstall.test.ts > installBundledSkills > refuses unsafe or duplicate vendor path README.md. before writing"
+    ],
+    "restoredSha256": "fad4677b7b7793587c8545cb5751c5525eefb40da25e09a7516500a0ad43a3fc"
+  }
+]

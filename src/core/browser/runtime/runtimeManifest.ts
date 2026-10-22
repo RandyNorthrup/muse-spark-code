@@ -1,7 +1,7 @@
 // The browser check's runtime pin (M81 A1, design spec v4 §4.2), in the
 // runtime bundle only: each extension release ships browserRuntime.json,
 // validated here before use. It names one exact Chrome-for-Testing version
-// and revision, and for each of the four supported platforms the pinned
+// and revision, and for each supported platform the pinned
 // HTTPS archive, its exact length and SHA-256, the executable's relative
 // path, length and SHA-256, the entries that may be executable, and the
 // archive's entry count and extracted total, all taken from the archives
@@ -69,6 +69,8 @@ const manifestSchema = z.strictObject({
     linux64: platformSchema,
     'mac-x64': platformSchema,
     'mac-arm64': platformSchema,
+    // Older pins explicitly refuse Linux ARM64 until an archive has been captured.
+    'linux-arm64': z.optional(platformSchema),
   }),
 })
 
@@ -94,6 +96,7 @@ export function parseRuntimeManifest(raw: unknown): RuntimeManifest | undefined 
     publication.publishedAtMs === earliest &&
     new Date(earliest).toISOString() === publication.publishedAt
   const isStored = Object.values(manifest.platforms).every((record) => {
+    if (record === undefined) return true
     const url = new URL(record.url)
     return (
       url.origin === storage.origin &&
@@ -121,8 +124,11 @@ export function runtimePlatform(
     if (platform === 'darwin') {
       return 'mac-x64'
     }
+  } else if (arch === 'arm64') {
+    if (platform === 'linux') return 'linux-arm64'
+    return platform === 'darwin' ? 'mac-arm64' : undefined
   }
-  return platform === 'darwin' && arch === 'arm64' ? 'mac-arm64' : undefined
+  return undefined
 }
 
 /**

@@ -1054,8 +1054,9 @@ for (const file of RULES_FILE_ONLY) {
 // loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
-  'src/host/skills/bundledSkillsInstall.ts',
+  'src/core/skills/bundledSkillsInstall.ts',
   'src/host/skills/bundledSkillsCommands.ts',
+  'src/core/context/baseAgentToolset.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {
