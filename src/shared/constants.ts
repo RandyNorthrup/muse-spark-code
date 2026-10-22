@@ -6205,10 +6205,6 @@ export const REPORT_SOURCE_FRESH_MS = 5000
 // bound (which A30 had renamed from the session-export cap) was invented.
 // Row and text bounds elsewhere (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`)
 // still refuse what they bound.
-// A handed deadline aborts the read's signal and then waits for the
-// reader's own settlement instead of abandoning it mid-flight; a reader
-// that ignores the signal cannot outlive this grace (RVREPORTJOIN P2-3).
-export const REPORT_SOURCE_SETTLE_MS = 1000
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
