@@ -4,12 +4,11 @@
 // vault or starts a broker. After the vault unlocks, every stored key is
 // copied, decrypted back and compared by SHA-256 (the engine verifies), the
 // old entry stays in place and mirrored, and a half-migrated store recovers
-// on the next unlock through the engine's journal. Only apiKey-shaped
-// records migrate here: opaque records (oauth, subscription) become `secret`
-// items whose material the channel's private path never serves, so their
-// copy/verify/retain binding waits on the in-broker lane; they stay in
-// SecretStorage, working, with the reason logged. Retire and undo ride the
-// engine once their surface lands and are not triggered here.
+// on the next unlock through the engine's journal. Installed opaque
+// provider/account records stay whole in hidden, first-party `secret`
+// items, read only through the authenticated host's private channel.
+// Retire and undo ride the engine once their authoritative read surface
+// lands and are not triggered here.
 import { createHash } from 'node:crypto'
 import { VaultMigration } from '../../core/vault/migrate/migrate'
 import { modelApiMigrationCredential } from '../../core/vault/migrate/modelApi'
@@ -24,7 +23,7 @@ import {
   VaultMigrationFault,
   migrationRecordSchema,
 } from '../../core/vault/migrate/ports'
-import { eraseItem, validateMigrationItem } from '../../core/vault/migrate/material'
+import { validateMigrationItem } from '../../core/vault/migrate/material'
 import { type VaultItem, type VaultItemMetadata } from '../../shared/vault'
 import { VAULT_KEY_BYTES, VAULT_PROTOCOL_VERSION, SECRET_KEYS } from '../../shared/constants'
 import { vaultPrivateReadSchema } from '../../shared/vaultProtocol'
@@ -174,7 +173,7 @@ class SharedMigrationOwner implements MigrationOwnerPort {
         })
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
-        throw new VaultMigrationFault('storage')
+        throw new VaultMigrationFault('storage', { cause: error })
       }
     })
   }
@@ -184,7 +183,6 @@ const sharedMigrationOwner = new SharedMigrationOwner()
 
 export class CredentialMigrationController implements MigrationMirror {
   private readonly owner = sharedMigrationOwner
-  private readonly skippedOpaque = new Set<string>()
   constructor(private readonly deps: CredentialMigrationDeps) {}
 
   private journal(now: number) {
@@ -209,9 +207,6 @@ export class CredentialMigrationController implements MigrationMirror {
         const isEdit = snapshot.items.some((entry) => entry.id === journalItemId(parsed.key))
         await ports.write(journalItem(parsed.key, parsed, now, label), isEdit, authorize)
       },
-      async remove(key: string): Promise<void> {
-        await ports.remove(journalItemId(key))
-      },
     }
   }
 
@@ -228,10 +223,10 @@ export class CredentialMigrationController implements MigrationMirror {
         const snapshot = await ports.snapshot()
         const meta = snapshot.items.find((entry) => entry.id === id)
         const [binding] = meta?.bindings ?? []
-        // Only first-party apiKey rows are servable here; anything else is
-        // refused before the channel can misreport it.
+        // The authenticated private route serves only the credential's
+        // hidden first-party apiKey or opaque record, bound to its origin.
         if (
-          meta?.kind !== 'apiKey' ||
+          (meta?.kind !== 'apiKey' && meta?.kind !== 'secret') ||
           meta.bindings.length !== 1 ||
           binding?.kind !== 'origin' ||
           !byId.has(id)
@@ -254,12 +249,15 @@ export class CredentialMigrationController implements MigrationMirror {
             metadata: meta,
             // The digest covers the auth: the model API key's is `bearer`,
             // every provider codec's is `apiKey`, exactly as decoded.
-            material: {
-              kind: 'apiKey',
-              value,
-              auth: id === apiKeyId ? 'bearer' : 'apiKey',
-              origin: binding.origin,
-            },
+            material:
+              meta.kind === 'secret'
+                ? { kind: 'secret', value }
+                : {
+                    kind: 'apiKey',
+                    value,
+                    auth: id === apiKeyId ? 'bearer' : 'apiKey',
+                    origin: binding.origin,
+                  },
           }
           validateMigrationItem(item, id)
           // Valid: the engine erases the material when it is done with it.
@@ -271,8 +269,20 @@ export class CredentialMigrationController implements MigrationMirror {
       },
       async write(item: VaultItem, authorize: () => void): Promise<void> {
         const snapshot = await ports.snapshot()
-        const isEdit = snapshot.items.some((entry) => entry.id === item.metadata.id)
-        await ports.write(item, isEdit, authorize)
+        const current = snapshot.items.find((entry) => entry.id === item.metadata.id)
+        if (current !== undefined && current.kind !== item.metadata.kind) {
+          // Ordinary edits cannot change kind. The engine already committed
+          // its writing intent and retained the legacy record, so replacing
+          // this migration-owned row is recoverable even if Lock lands
+          // between removal and publication. Never replace an ordinary item.
+          validateMigrationItem(item, item.metadata.id)
+          if (!current.firstParty || !current.hidden || current.policy.mode !== 'never')
+            throw new VaultMigrationFault('conflict')
+          await ports.remove(item.metadata.id, authorize)
+          await ports.write(item, false, authorize)
+          return
+        }
+        await ports.write(item, current !== undefined, authorize)
       },
       async remove(id: string, authorize: () => void): Promise<void> {
         await ports.remove(id, authorize)
@@ -317,30 +327,6 @@ export class CredentialMigrationController implements MigrationMirror {
     return { migration: new VaultMigration(deps, credentials), credentials, providerIds }
   }
 
-  /** Whether the stored record already decodes to an apiKey row. */
-  private async isApiKeyRecord(
-    key: string,
-    credentials: readonly MigrationCredential[],
-  ): Promise<boolean> {
-    const entry = credentials.find((candidate) => candidate.key === key)
-    if (entry === undefined) return false
-    let bytes: Uint8Array | null = null
-    let decoded: VaultItem | undefined
-    try {
-      const value = await this.deps.secrets.get(key)
-      if (value === undefined) return true
-      bytes = Buffer.from(value, 'utf8')
-      decoded = entry.decode(bytes)
-      return decoded.material.kind === 'apiKey'
-    } catch {
-      // A damaged record stays the engine's to report; never skip it here.
-      return true
-    } finally {
-      eraseItem(decoded)
-      bytes?.fill(0)
-    }
-  }
-
   /**
   Copy every stored key (idempotent; safe to run on every unlock). Never
   throws: a key that cannot migrate stays in SecretStorage, working, with
@@ -372,33 +358,15 @@ export class CredentialMigrationController implements MigrationMirror {
     try {
       engine = await this.engine()
     } catch (error: unknown) {
-      this.deps.log.warn(`Credential migration unavailable: ${describeFault(error)}`)
+      const code = error instanceof VaultMigrationFault ? error.code : 'unavailable'
+      this.deps.log.warn(`Credential migration unavailable: ${code}`)
       return
     }
-    const { migration, credentials, providerIds } = engine
+    const { migration, providerIds } = engine
     const keys = listMigrationKeys(providerIds)
     for (const key of keys) {
       try {
         const phase = await migration.journalPhase(key)
-        // A save that predates the apiKey gate may have stranded a `copying`
-        // or `writing` row with a `secret` item the skip below used to leave
-        // behind before `resume` ever saw it: roll it back first, so the
-        // opaque record is the only thing left to skip.
-        if (phase === 'copying' || phase === 'writing') await migration.rollbackCopy(key)
-        if (!(await this.isApiKeyRecord(key, credentials))) {
-          // A non-apiKey record saved over a migrated slot orphans the old
-          // vault copy: drop that item (finishing its journal row) while the
-          // new record keeps working in SecretStorage. Never the engine's
-          // `delete`, which would take the live record with it.
-          await migration.removeStaleVaultCopy(key)
-          if (!this.skippedOpaque.has(key)) {
-            this.skippedOpaque.add(key)
-            this.deps.log.info(
-              `Credential migration leaves ${key} in SecretStorage: opaque records migrate with the in-broker binding`,
-            )
-          }
-          continue
-        }
         // A signed-out slot whose journal still says `deleted`: a live
         // SecretStorage value is the sign-in's new key, and the vault copy
         // is gone, so copy it again instead of asking `migrate`, which
@@ -424,27 +392,15 @@ export class CredentialMigrationController implements MigrationMirror {
             `Credential migration found ${key} deleted behind the vault; its vault copy waits for an answer`,
           )
       } catch (error: unknown) {
-        this.deps.log.warn(`Credential migration paused for ${key}: ${describeFault(error)}`)
+        const code = error instanceof VaultMigrationFault ? error.code : 'unavailable'
+        this.deps.log.warn(`Credential migration paused for ${key}: ${code}`)
       }
     }
   }
 
   async mirrorWrite(key: string, value: string): Promise<void> {
-    const { migration, credentials, providerIds } = await this.engine()
+    const { migration, providerIds } = await this.engine()
     if (!listMigrationKeys(providerIds).includes(key)) return
-    // Only apiKey records ever migrate, here as on unlock: an oauth,
-    // subscription or account record stays in SecretStorage, working, and
-    // the next unlock logs why. Without this check a save of one called
-    // `migrate`, which stranded a `copying` row with a `secret` item the
-    // unlock then skipped forever. A save of one over a migrated slot also
-    // orphans the old vault copy: drop that item (finishing its journal
-    // row) while leaving the new record in place. A refused removal
-    // propagates to the shell, whose save already succeeded and heals it at
-    // the next unlock.
-    if (!(await this.isApiKeyRecord(key, credentials))) {
-      await migration.removeStaleVaultCopy(key)
-      return
-    }
     const bytes = Buffer.from(value, 'utf8')
     try {
       // The journal phase decides, not `resolve`: provider codecs carry no
@@ -492,9 +448,4 @@ export class CredentialMigrationController implements MigrationMirror {
     await migration.delete(key, { destroyLastCopyConfirmed: true, legacyDeletionConfirmed: true })
     return true
   }
-}
-
-function describeFault(error: unknown): string {
-  if (error instanceof VaultMigrationFault) return error.code
-  return error instanceof Error ? error.message : 'unavailable'
 }
