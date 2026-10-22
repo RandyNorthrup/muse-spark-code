@@ -104,5 +104,12 @@ baseline`.
 
 ## Open
 
-Hosted CI is the release gate and runs on merge; SAST and the secrets
-scan run there. The vault suites were not run (no vault change).
+Hosted CI is the release gate and runs on merge. SAST locally: 533
+rules on 4001 files, 0 findings. `npm run security:audit`: 4 advisories
+covered by the 2 tracked exceptions, no dependency change this lane.
+`security:secrets` (gitleaks over history) reports 3 redacted
+`generic-api-key` hits, all outside this lane: two in base-history vault
+migration tests, one in another lane's move-snapshot ref; the lane
+touches no vault or voice file, and the pre-commit hook's scan of the
+lane's staged patch found no leaks. The vault suites were not run (no
+vault change).
