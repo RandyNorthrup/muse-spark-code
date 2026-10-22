@@ -408,7 +408,7 @@ export function featureCatalog(): readonly Feature[] {
       // client survives sign-out); "Use a Different ChatGPT Account" (the
       // panel, the ACP sign-in method, `providers add chatgpt --new-account`)
       // registers another account instead.
-      ['suggestedProvider', 'modelApiSessionBudgetUsd'],
+      ['suggestedProvider', 'modelApiSessionBudgetUsd', 'grokClientId'],
       'backends',
       ['museCode', 'modelApi'],
       false,

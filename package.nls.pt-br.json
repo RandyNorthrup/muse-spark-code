@@ -191,6 +191,7 @@
   "command.modelsAndAgents.title": "Modelos e agentes",
   "command.addModelProvider.title": "Adicionar um provedor de modelos…",
   "config.suggestedProvider.description": "Um workspace pode sugerir um preset de provedor de modelos pelo id; o painel oferece abrir Modelos e agentes com esse preset. Vazio não sugere nada. Um workspace não pode definir um endereço nem uma credencial.",
+  "config.grokClientId.description": "O id de cliente OAuth da xAI próprio deste aplicativo para o login com assinatura Grok (Continue With Grok). Vazio até a xAI emitir um; o login é recusado até que seja definido. Um id de cliente é um identificador público, não um segredo.",
   "walkthrough.gettingStarted.step.ownModel.title": "Comece com seu próprio modelo",
   "walkthrough.gettingStarted.step.ownModel.description": "Sem assinatura Muse nem chave API da Meta? Adicione seu próprio provedor de modelos — OpenRouter, Anthropic, OpenAI ou um servidor local — e escolha um modelo.\n[Começar com seu próprio modelo](command:museSpark.startWithOwnModel)",
   "config.modelApiAutoCompaction.description": "Ativada por padrão. Compacta conversas longas da API de modelos em um limite estável de ferramentas; cada resumo é uma chamada paga ao modelo. O aviso de consentimento de uso pago informa o preço e o orçamento diário antes da primeira cobrança. O agente ACP pergunta uma vez por meio da solicitação de permissão do editor e permanece desativado onde o cliente não pode perguntar; o exec headless a executa somente com --auto-compaction sob --max-budget-usd.",

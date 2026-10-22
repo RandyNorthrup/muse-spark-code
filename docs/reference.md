@@ -53,7 +53,7 @@ Enter the context window loaded on the local server. Manual values override scan
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
+Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.grokClientId`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
 ### Show Report…
 
@@ -3348,6 +3348,19 @@ Type: `"integer"`. Default: `0`. Scope: `machine`.
 A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.
 
 Type: `"string"`. Default: `""`. Scope: `window`.
+
+```json
+{
+  "type": "string",
+  "default": ""
+}
+```
+
+### museSpark.grokClientId
+
+This app's own xAI OAuth client id for Grok subscription sign-in (Continue With Grok). Empty until xAI issues one; sign-in refuses until it is set. A client id is a public identifier, not a secret.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
 
 ```json
 {

@@ -850,6 +850,12 @@ export const SETTING_DEFAULTS = {
   // Display only (the panel offers the preset); a workspace may set it, so
   // it is not machine scoped. Lane W owns the setting's wiring.
   suggestedProvider: '',
+  // Grok subscription sign-in (RLGROKAUTH): this app's own xAI OAuth client
+  // id (`museSpark.grokClientId`), empty until xAI issues one. Machine
+  // scoped, since a repository must not choose the OAuth client; a client
+  // id is a public identifier, not a secret. Sign-in refuses until it is
+  // set, before any request goes out.
+  grokClientId: '',
   // Inline completions (M94, PLAN.md D73): the paid feature's own setting,
   // on by default (owner, 2026-10-04). The first request waits for D48's
   // paid-use answer naming the price and daily budget; no dispatch before it.

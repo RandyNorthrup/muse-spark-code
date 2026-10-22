@@ -51,7 +51,11 @@
         "museSpark.connectChatGpt",
         "museSpark.connectCopilot"
       ],
-      "settings": ["museSpark.suggestedProvider", "museSpark.modelApiSessionBudgetUsd"],
+      "settings": [
+        "museSpark.suggestedProvider",
+        "museSpark.modelApiSessionBudgetUsd",
+        "museSpark.grokClientId"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#backends",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -4217,6 +4221,17 @@
       "type": "string",
       "default": "",
       "scope": "window",
+      "refinements": [],
+      "schema": { "type": "string", "default": "" }
+    },
+    {
+      "id": "museSpark.grokClientId",
+      "name": "museSpark.grokClientId",
+      "description": "This app's own xAI OAuth client id for Grok subscription sign-in (Continue With Grok). Empty until xAI issues one; sign-in refuses until it is set. A client id is a public identifier, not a secret.",
+      "descriptionKey": "config.grokClientId.description",
+      "type": "string",
+      "default": "",
+      "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "default": "" }
     },
