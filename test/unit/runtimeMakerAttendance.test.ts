@@ -14,7 +14,7 @@ import { createHash, randomUUID } from 'node:crypto'
 
 const roots: string[] = []
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 async function fixture() {
   const root = await mkdtemp(path.join(makerTempRoot(), 'maker-presence-'))

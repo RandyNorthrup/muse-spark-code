@@ -2,7 +2,6 @@ import { Buffer } from 'node:buffer'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import * as z from 'zod/mini'
-import { UI_TEXT } from '../../../src/shared/constants'
 
 export const makerLimits = {
   travel: { min: { x: 0, y: 0, z: 0 }, max: { x: 200, y: 200, z: 200 } },
@@ -177,26 +176,4 @@ export async function machineSimulator() {
       })
     },
   }
-}
-/** RVM103W2 P2: a loopback Stop endpoint answering every request with one fixed status. */
-export async function stopSimulator(status: number) {
-  const requests: string[] = []
-  const server = createServer((request, response) => {
-    requests.push(`${String(request.method)} ${String(request.url)}`)
-    response
-      .writeHead(status, status === 302 ? { Location: '/login' } : {})
-      .end(status === 204 ? undefined : 'fake body')
-  })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const { port } = server.address() as AddressInfo
-  return {
-    address: `http://127.0.0.1:${String(port)}`,
-    requests,
-    close: () => new Promise((resolve) => server.close(resolve)),
-  }
-}
-export const stopUnconfirmedNotice = {
-  type: 'backendNotice',
-  level: 'error',
-  text: UI_TEXT.hardwareStopUnconfirmed,
 }

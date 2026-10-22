@@ -12,7 +12,6 @@ import { fetchWebPage, type WebFetcher, type WebFetchResult } from '../../core/w
 import { WEB_FETCH_MARKER_BYTES } from '../../shared/constants'
 import type { Logger } from '../logger'
 import { discoverNat64, NAT64_LOOKUPS, type Nat64Lookups } from './nat64'
-export { discoverNat64, type Nat64Lookups } from './nat64'
 import { pinnedHttpsRequest } from './pinnedRequest'
 
 /**

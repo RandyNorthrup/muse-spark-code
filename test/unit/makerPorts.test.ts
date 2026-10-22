@@ -34,6 +34,15 @@ function runEmptyCim(_file: string, args: readonly string[]): Promise<string> {
   ])
 }
 
+function recordingRun() {
+  const calls: [string, readonly string[]][] = []
+  const run = (file: string, args: readonly string[]) => {
+    calls.push([file, args])
+    return runMetadataCommand(file, args)
+  }
+  return { calls, run }
+}
+
 describe('serial metadata parsers', () => {
   it('uses the actual Windows port property and only a final COM suffix as fallback', () => {
     const rows = parseCimPorts(
@@ -223,11 +232,7 @@ describe('serial metadata parsers', () => {
   it('refuses unavailable discovery without opening a device', async () => {
     // The recording wrapper observes the real runner; the refusals below
     // throw before any command runs, so the record stays empty.
-    const calls: [string, readonly string[]][] = []
-    const run = (file: string, args: readonly string[]) => {
-      calls.push([file, args])
-      return runMetadataCommand(file, args)
-    }
+    const { calls, run } = recordingRun()
     await expect(listSerialPorts({ ...LIMITS, platform: 'win32', run })).rejects.toThrow(
       'serial-powershell-unavailable',
     )
@@ -240,11 +245,7 @@ describe('serial metadata parsers', () => {
   it.runIf(process.platform === 'darwin')(
     'asks ioreg only for the USB plane and the serial-client class',
     async () => {
-      const calls: [string, readonly string[]][] = []
-      const run = (file: string, args: readonly string[]) => {
-        calls.push([file, args])
-        return runMetadataCommand(file, args)
-      }
+      const { calls, run } = recordingRun()
       await listSerialPorts({ ...LIMITS, maxBytes: 1024 * 1024, platform: 'darwin', run })
       expect(calls).toEqual([
         ['/usr/sbin/ioreg', ['-p', 'IOUSB', '-l', '-w', '0']],

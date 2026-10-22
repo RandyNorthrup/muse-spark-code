@@ -16,7 +16,6 @@ import {
 } from './constants'
 import { checkCommandSchema } from './checkCommandSchema'
 import { makerMeshMessageSchema } from './makerProtocolPreview'
-export { makerMeshMessageSchema } from './makerProtocolPreview'
 
 const uuid = z.uuid()
 const boolean = z.boolean()
