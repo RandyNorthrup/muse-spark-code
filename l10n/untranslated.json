@@ -115,7 +115,14 @@
       "vault.daysHint",
       "vault.startHourHint",
       "vault.endHourHint",
-      "vault.ceilingHint"
+      "vault.ceilingHint",
+      "trafficSuggestAddReviewer",
+      "trafficSuggestRaiseIntensity",
+      "trafficSuggestAddProviderEntry",
+      "trafficSuggestDeclareSharedFile",
+      "trafficSuggestAddRunner",
+      "trafficSuggestLowerIntensity",
+      "trafficSuggestUserWaiters"
     ],
     "cs": [
       "groupModel",

@@ -4982,6 +4982,27 @@
   "teamSuggestFreeLocal": "{model} は無料かつローカルで、{role} 作業ができます",
   "teamSuggestFallbackDetail": "{role} にはエントリが1つだけです。フォールバックとして {model} を追加してください",
   "teamSuggestBudget": "残りの日次予算から {role} の日次上限 {amount}",
+  "trafficSuggestAddReviewer": {
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "other": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "テスト付きの機能",
   "teamPreviewResearchLibrary": "ライブラリを調査する",
   "teamPreviewReviewBranch": "自分のブランチをレビューする",
