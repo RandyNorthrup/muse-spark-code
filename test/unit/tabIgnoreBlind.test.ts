@@ -95,4 +95,77 @@ describe('TabIgnoreCache with real git', () => {
       }
     })
   })
+
+  it('refuses a tracked file Cursor ignores where git allows it', async () => {
+    await usingTempDir('muse-tab-ignore-', async (root) => {
+      await realGitRepo(root)
+      writeFileSync(path.join(root, '.cursorignore'), 'secret-notes.txt\n', 'utf8')
+      writeFileSync(path.join(root, 'secret-notes.txt'), 'cursor says no', 'utf8')
+      await realGit(['add', 'secret-notes.txt'], root)
+      const cache = new TabIgnoreCache(depsFor(root))
+      try {
+        await expect(cache.isIgnored(root, 'secret-notes.txt')).resolves.toBe(true)
+      } finally {
+        cache.dispose()
+      }
+    })
+  })
+
+  it('asks git again after an ignore file changes', async () => {
+    await usingTempDir('muse-tab-ignore-', async (root) => {
+      await realGitRepo(root)
+      let gitCalls = 0
+      const counting: TabIgnoreDeps['runGit'] = (args, cwd) => {
+        gitCalls += 1
+        return realGit(args, cwd)
+      }
+      let clear: (() => void) | undefined
+      const cache = new TabIgnoreCache({
+        ...depsFor(root, counting),
+        onIgnoreFilesChanged: (notify) => {
+          clear = notify
+          return { dispose: () => undefined }
+        },
+      })
+      try {
+        await expect(cache.isIgnored(root, 'notes.txt')).resolves.toBe(false)
+        const asked = gitCalls
+        expect(asked).toBeGreaterThan(0)
+        // The cached verdict answers without git.
+        await expect(cache.isIgnored(root, 'notes.txt')).resolves.toBe(false)
+        expect(gitCalls).toBe(asked)
+        // An ignore file changed: the verdict is asked again.
+        clear?.()
+        await expect(cache.isIgnored(root, 'notes.txt')).resolves.toBe(false)
+        expect(gitCalls).toBeGreaterThan(asked)
+      } finally {
+        cache.dispose()
+      }
+    })
+  })
+
+  it('refuses a read the ignore files keep changing under', async () => {
+    await usingTempDir('muse-tab-ignore-', async (root) => {
+      await realGitRepo(root)
+      let clear: (() => void) | undefined
+      const churning: TabIgnoreDeps['runGit'] = (args, cwd) => {
+        const answer = realGit(args, cwd)
+        // An ignore file changes under every answer.
+        clear?.()
+        return answer
+      }
+      const cache = new TabIgnoreCache({
+        ...depsFor(root, churning),
+        onIgnoreFilesChanged: (notify) => {
+          clear = notify
+          return { dispose: () => undefined }
+        },
+      })
+      try {
+        await expect(cache.isIgnored(root, 'notes.txt')).resolves.toBe(true)
+      } finally {
+        cache.dispose()
+      }
+    })
+  })
 })
