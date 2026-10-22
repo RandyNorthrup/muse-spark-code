@@ -164,6 +164,7 @@
 !dist/estimateContracts.js
 !dist/planSnapshot.js
 !dist/estimatePrices.js
+!dist/estimateHistory.js
 !dist/native/darwin/muse-vault-arm64
 !dist/native/darwin/muse-vault-x64
 !native/windows/MuseSparkVault.cs

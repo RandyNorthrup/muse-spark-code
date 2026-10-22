@@ -437,6 +437,11 @@ const BUDGETS = [
   // first price lookup: the report reader and cache over the pinned catalogs.
   // 58.0 KiB when split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/estimatePrices.js', budgetKiB: 75 },
+  // The estimator history's journal (M117 C-M117-2, PLAN.md D6), loaded on
+  // an estimate's first history read: the journal, its record rules and the
+  // history contracts. 21.7 KiB when split out, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/estimateHistory.js', budgetKiB: 25 },
   // The flight recorder's journal (M93), loaded just after activation or at
   // the first failure: 51.3 KiB when split out (the journal, its policy and
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB

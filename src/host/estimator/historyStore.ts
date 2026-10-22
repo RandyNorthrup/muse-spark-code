@@ -3,14 +3,9 @@
 // lane kind calibrates across workspaces. The caller supplies trusted
 // application storage, never a workspace or a credential directory. History
 // records hold lane ids, hours and counts, never content.
-import path from 'node:path'
 import { EstimateHistoryJournal } from '../../core/estimator/calibration/journal'
-import { ESTIMATE_HISTORY_DIRECTORY } from '../../shared/constants'
 
-/** The journal directory under a host's agent data folder. */
-export function estimateHistoryDirectory(dataFolder: string): string {
-  return path.join(dataFolder, ESTIMATE_HISTORY_DIRECTORY)
-}
+export { estimateHistoryDirectory } from './historyDirectory'
 
 export interface FileHistoryPorts {
   /** The journal's records for calibration. */

@@ -1068,6 +1068,19 @@ export const ON_FIRST_USE = [
       'src/core/estimator/planSnapshot.ts',
     ],
   },
+  // The estimator history's journal (M117 C-M117-2, PLAN.md D6): the
+  // window requires it the first time an estimate reads its history, so the
+  // journal and its record rules never ride in activation.
+  {
+    output: 'dist/estimateHistory.js',
+    metafile: 'dist/meta/estimateHistory.json',
+    use: "an estimate's first history read",
+    files: [
+      'src/host/estimator/historyEntry.ts',
+      'src/host/estimator/historyStore.ts',
+      'src/core/estimator/calibration/journal.ts',
+    ],
+  },
   // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
   // only the front that answers and queues; the journal, its policy and the
   // frame mapping load just after activation or at the first failure.

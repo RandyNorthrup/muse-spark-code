@@ -361,6 +361,11 @@ const PLAN_SNAPSHOT_OUTFILE = 'dist/planSnapshot.js'
 // `vscode`, so a stray import fails this build.
 const ESTIMATE_PRICES_ENTRY = 'src/host/estimator/priceCatalogEntry.ts'
 const ESTIMATE_PRICES_OUTFILE = 'dist/estimatePrices.js'
+// M117 C-M117-2: the estimator history's journal, loaded the first time an
+// estimate reads its history; it reads no `vscode`, so a stray import fails
+// this build.
+const ESTIMATE_HISTORY_ENTRY = 'src/host/estimator/historyEntry.ts'
+const ESTIMATE_HISTORY_OUTFILE = 'dist/estimateHistory.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
@@ -866,6 +871,17 @@ const planSnapshotOptions = {
 // time an estimate looks prices up; it reads no `vscode`, so a stray import
 // fails this build. The report redaction it scrubs with is shared with the
 // reporting bundles rather than copied in.
+/** @type {import('esbuild').BuildOptions} */
+const estimateHistoryOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [ESTIMATE_HISTORY_ENTRY],
+  outfile: ESTIMATE_HISTORY_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const estimatePricesOptions = {
   ...common,
@@ -1977,6 +1993,7 @@ if (isWatch) {
     esbuild.context(estimatorOptions),
     esbuild.context(planSnapshotOptions),
     esbuild.context(estimatePricesOptions),
+    esbuild.context(estimateHistoryOptions),
     esbuild.context(recorderOptions),
     esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
@@ -2175,6 +2192,7 @@ if (isWatch) {
     voiceCompanionWebview: recorded('voiceCompanionWebview', voiceCompanionWebviewOptions),
     planSnapshot: recorded('planSnapshot', planSnapshotOptions),
     estimatePrices: recorded('estimatePrices', estimatePricesOptions),
+    estimateHistory: recorded('estimateHistory', estimateHistoryOptions),
     credentialLease: recorded('credentialLease', credentialLeaseOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -2355,6 +2373,7 @@ if (isWatch) {
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(ESTIMATE_PRICES_OUTFILE)
+  reportSize(ESTIMATE_HISTORY_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(CREDENTIAL_LEASE_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)

@@ -173,6 +173,9 @@
     // The estimator's price port (M117 C-M117-4, PLAN.md D6), required by
     // path the first time an estimate looks up prices.
     "src/host/estimator/priceCatalogEntry.ts",
+    // The estimator history's journal (M117 C-M117-2, PLAN.md D6), required
+    // by path the first time an estimate reads its history.
+    "src/host/estimator/historyEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.

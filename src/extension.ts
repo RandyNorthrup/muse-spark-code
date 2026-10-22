@@ -56,6 +56,7 @@ import {
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   ESTIMATE_PRICES_BUNDLE_FILE,
+  ESTIMATE_HISTORY_BUNDLE_FILE,
   ESTIMATE_PRICE_CATALOG_URLS,
   ESTIMATE_PRICE_MAX_AGE_MS,
   ESTIMATOR_BUNDLE_FILE,
@@ -371,7 +372,9 @@ import {
   ownedSubscriptionUsage,
 } from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
-import { estimateHistoryDirectory, fileHistoryPorts } from './host/estimator/historyStore'
+import { estimateHistoryDirectory } from './host/estimator/historyDirectory'
+import type { FileHistoryPorts } from './host/estimator/historyStore'
+import { lazyHistoryPorts } from './host/estimator/historyBundle'
 import { estimatorNetworkPolicy, lazyPriceCatalog } from './host/estimator/priceCatalogBundle'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { createProviderGenerationTracker } from './host/auth/providerGeneration'
@@ -2769,7 +2772,27 @@ async function activateWindow(
   // An estimate requested by one conversation is delivered only to that
   // conversation: each surface reads the fleet through its own controller's
   // provider, never the focused pane's, with the live credential generation.
-  const estimatorPortsFor = (readProviderId?: () => string): EstimatorSourcePorts => {
+  // The history journal in the agent data folder (M117 C-M117-2): it loads
+  // from dist/estimateHistory.js on an estimate's first history read, so
+  // neither the journal nor its record rules ride in activation (PLAN.md D6).
+  // Each estimator gets its own ports, so each reads through one journal.
+  const estimatorHistory = (): FileHistoryPorts =>
+    lazyHistoryPorts({
+      bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATE_HISTORY_BUNDLE_FILE)
+        .fsPath,
+      log,
+      directory: estimateHistoryDirectory(
+        agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+      ),
+    })
+  const estimatorPortsFor = (
+    history: FileHistoryPorts,
+    readProviderId?: () => string,
+  ): EstimatorSourcePorts => {
     let signedInRevision = -1
     const networkPolicy = estimatorNetworkPolicy({
       settings: currentSettings,
@@ -2834,16 +2857,7 @@ async function activateWindow(
           },
         }),
       ),
-      // The history journal in the agent data folder (M117 C-M117-2).
-      fileHistoryPorts(
-        estimateHistoryDirectory(
-          agentDataFolder({
-            platform: process.platform,
-            env: process.env,
-            homeDir: homedir(),
-          }),
-        ),
-      ),
+      history,
       () =>
         priceCatalog.createEstimatePricePort({
           storageRoot: context.globalStorageUri.fsPath,
@@ -2857,7 +2871,10 @@ async function activateWindow(
       bundlePath: estimatorBundlePath,
       log,
       ports: () =>
-        estimatorPortsFor(() => controllers.get(surface.id)?.estimateProviderId ?? 'meta'),
+        estimatorPortsFor(
+          estimatorHistory(),
+          () => controllers.get(surface.id)?.estimateProviderId ?? 'meta',
+        ),
     })
   // A window report has no conversation and names no provider: its owner
   // carries the window account and generation, and the binding reads the
@@ -2865,7 +2882,7 @@ async function activateWindow(
   const windowEstimator = lazyEstimator({
     bundlePath: estimatorBundlePath,
     log,
-    ports: () => estimatorPortsFor(),
+    ports: () => estimatorPortsFor(estimatorHistory()),
   })
 
   const mentions = new MentionIndex({
