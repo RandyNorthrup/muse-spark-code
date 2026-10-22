@@ -5,7 +5,7 @@
 // dist/usageService.js on the first session.
 import type { AgentEvent, TokenUsageCompletion } from '../../../shared/agentEvents'
 import type { SubscriptionUsage } from '../../../shared/usage'
-import type { UsageRecording } from '../../usage/recording'
+import type { OwnedLimitInput, UsageRecording } from '../../usage/recording'
 
 /** What dist/usageService.js serves the activation bundle for live journaling. */
 export interface UsageNotesBundle {
@@ -16,9 +16,7 @@ export interface UsageNotesBundle {
 /** The journal's limit snapshot for one `usage/changed` meter reading: the
 meter's tier names the subscription plan, except an empty tier, which the
 label reader falls back from. Exported for the exact-assertion test. */
-export function museCodeLimitInput(
-  usage: SubscriptionUsage,
-): Parameters<UsageRecording['limit']>[0] {
+export function museCodeLimitInput(usage: SubscriptionUsage): OwnedLimitInput {
   return {
     backend: 'museCode',
     provider: 'museCode',

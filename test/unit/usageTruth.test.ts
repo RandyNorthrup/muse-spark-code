@@ -148,7 +148,7 @@ async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
     deltas.receive(tokenUsageEvent(sessionId, frame))
   }
   deltas.receive({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
-  recording.limit({
+  recording.scopeLimits?.({ accountId: 'default', generation: '1', backend: 'museCode' }).limit({
     backend: 'museCode',
     provider: 'museCode',
     source: 'museCode',

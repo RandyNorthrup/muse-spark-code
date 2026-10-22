@@ -2537,13 +2537,19 @@ standalone syntax without starting a model or asking for credentials.
   partial forecast; per-lane metered demands the plan never carries are
   disclosed zero-sample assumptions until calibration replaces them per kind.
   Issue and label goals resolve once their lane associations land with M113 N.
-- **Owner observations.** The panel and ACP read the existing subscription
-  usage feed. Full plan windows and vendor blocks wait for the latest known
-  reset; a full window with no reset refuses and names the account. Current
-  request/token allowance never implies a refill period or future rate.
-  Unreported limits stay unknown with their source; corrupt sources refuse.
-  Machine thresholds say whether each value is default or configured.
-  Standalone CLI has no running usage feed and names registry-only limits.
+- **Owner observations.** Panel and ACP use structured account and machine
+  facts from the existing usage owners, including Model API account balances
+  for every normalized source. Each measurement may independently be unknown.
+  Observations belong to their account and sign-in generation; switching either
+  leaves limits unknown until a new observation arrives. Current request, token,
+  percentage and money allowances constrain work even without a renewal period.
+  Future renewal remains unknown; simultaneous full windows wait for their
+  latest known reset. Corrupt fields refuse naming their source. Explanations
+  and refusals use account labels. Forecasts keep UTC instants and canonical
+  facts; only display adapters format dates and translated explanations.
+  Machine thresholds retain default/configured provenance. Standalone CLI has
+  no running usage feed and names registry-only limits. Scheduling refusals
+  retain their typed reason on every surface; raw I/O details remain hidden.
 - **Existing fleet.** The panel sends an audited, contract-first first-wave
   request independently of rental readiness. Production dispatch still
   refuses with `M117-W-M96-board`. Finished-lane history updates and automatic

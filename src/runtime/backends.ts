@@ -33,7 +33,15 @@ import {
   paidExtraAdmission,
   passthroughSpendClaim,
 } from '../core/paid/spendClaim'
-import type { UsageRecording } from '../core/usage/recording'
+import { withLoopbackBypass } from '../core/backends/musecode/launch'
+import { personalSkillsRoot } from '../core/context/skills'
+import { personalAgentsRoot } from '../core/context/customAgents'
+import { memoryDataRoot } from '../core/memory/memoryLocation'
+import { MemoryStore } from '../core/memory/memoryStore'
+import { WorkspaceEdits } from '../core/verify/workspaceEdits'
+import { redactSecrets } from '../core/redact'
+import { recordPaidUse } from '../core/paid/paidFeatures'
+import type { UsageRecording, UsageScopeReader } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
 import type { Logger } from '../host/logger'
 import {
@@ -74,7 +82,6 @@ import { providersFile } from '../host/backend/providersEntry'
 
 import type { AssembledProviderRun } from './exec/providerExec'
 import { type GuardedChildEnv, NO_WORKSPACE } from '../core/executables'
-import { withLoopbackBypass } from '../core/backends/musecode/launch'
 import { buildChildEnvironment, environmentValue } from '../core/execGuard'
 import { createToolIo } from '../host/backend/toolIo'
 import { resolveExecOutputCap } from './exec/runLedger'
@@ -83,13 +90,6 @@ import { loadLegalScanner } from './legal/legalScanner'
 import { existsSync, realpathSync } from 'node:fs'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
-import { personalSkillsRoot } from '../core/context/skills'
-import { personalAgentsRoot } from '../core/context/customAgents'
-import { memoryDataRoot } from '../core/memory/memoryLocation'
-import { MemoryStore } from '../core/memory/memoryStore'
-import { WorkspaceEdits } from '../core/verify/workspaceEdits'
-import { redactSecrets } from '../core/redact'
-import { recordPaidUse } from '../core/paid/paidFeatures'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -132,6 +132,7 @@ export interface ExecRuntimeOptions {
 
 export interface RuntimeBackendDeps {
   readonly usageRecording?: UsageRecording | undefined
+  readonly usageScope?: UsageScopeReader | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
@@ -517,6 +518,7 @@ function modelApiManager(
     // ACP/exec keep their existing flag-controlled transcription default.
     mediaAudioAction: undefined,
     usageRecording: deps.usageRecording,
+    usageScope: deps.usageScope,
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: async () => {
       const key = await credentials.getApiKey()

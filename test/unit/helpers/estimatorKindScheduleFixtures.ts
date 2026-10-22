@@ -1,8 +1,10 @@
 import {
   fleetSnapshotSchema,
+  type EstimateInputs,
   type EstimateLane,
   type FleetSnapshot,
 } from '../../../src/shared/estimate'
+import type { EstimateDurationPort } from '../../../src/core/estimator/simulate'
 import { goalLane } from './estimatorKindGoalFixtures'
 export const amount = (
   value: number,
@@ -71,3 +73,47 @@ export function scheduleFleet(slots = 2): FleetSnapshot {
 }
 
 /** Exact durations and fitted parameters below are test assumptions. */
+export function simulationInputs(
+  lanes = [scheduleLane('A')],
+  fleet = scheduleFleet(),
+): EstimateInputs {
+  return {
+    request: {
+      goal: { kind: 'milestone', milestoneId: 'M117' },
+      asOf: fleet.asOf,
+      fleet: 'current',
+      optimize: 'cost',
+      seed: 'golden-schedule',
+    },
+    lanes,
+    fleet,
+    history: [],
+  }
+}
+
+/** Exact durations below are test assumptions: every lane runs its estimate. */
+export const fixedDurationPort: EstimateDurationPort = {
+  model: (lane) => ({
+    kind: 'fixed',
+    hours: amount(lane.estimatedHours),
+  }),
+}
+
+/** An uncalibrated prior: zero samples, so the band stays assumption-based. */
+export const lognormalPort: EstimateDurationPort = {
+  model: (lane, machineClassId) => ({
+    kind: 'lognormal',
+    calibration: {
+      kind: lane.kind,
+      machineClassId,
+      samples: 0,
+      basis: 'uncalibratedPrior',
+      mu: 0,
+      sigma: 0.5,
+      reviewRoundRate: 0.2,
+      redesignRisk: 0.1,
+    },
+    reviewHours: amount(0.25),
+    redesignHours: amount(2),
+  }),
+}

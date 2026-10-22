@@ -230,6 +230,7 @@
   "estimateDenied": "Vytvoření serveru bylo zamítnuto.",
   "estimateWaiting": "Čekání na {dependency}.",
   "estimateRunning": "Probíhá odhad…",
+  "referenceEstimateFacts": "Prognózy zachovávají zjištěná blokování účtů, označují nenačtenou kapacitu a rozlišují výchozí a nastavené prahy. Budoucí rychlosti doplňování zůstávají neznámé, dokud nejsou oznámeny. Pozorování patří svému účtu a generaci přihlášení; známé zůstatky a procentní limity omezují aktuální práci i při neznámém obnovení.",
   "estimateFailed": "Odhad selhal: {detail}",
   "estimateMissingMore": {
     "one": "a {count} další",
@@ -237,6 +238,15 @@
     "many": "a {count} dalšího",
     "other": "a {count} dalších"
   },
+  "estimateNoAccountReader": "Neznámé limity účtu na {source}.",
+  "estimateLimitsUnread": "Neznámé: limity pro {source} nebyly načteny.",
+  "estimateRefillUnknown": "Budoucí období a rychlost doplňování neznámé: {source}.",
+  "estimatePlanWindowUnknown": "{source}: využito {percent}; {reset}; období okna a poptávka úloh neznámé.",
+  "estimatePercentDemandUnknown": "Procentní poptávka těchto úloh neznámá: {source}; obnovení {reset}.",
+  "estimateResetUnknown": "čas obnovení neznámý",
+  "estimateCiUnread": "Kapacita CI neznámá: není čtečka.",
+  "estimateSettingsDefault": "Výchozí nastavení: {source}.",
+  "estimateSettingsConfigured": "Nakonfigurovaná nastavení: {source}.",
   "estimateSchedule": "Harmonogram pracovních větví",
   "estimateGantt": "Harmonogram pro {goal} s kritickou cestou a značkami dokončení P50 a P90.",
   "estimateOptimizeDescription": "Vyberte nejlevnější sestavu splňující termín při P90, nebo nejrychlejší s dostatečnou dodatečnou úsporou času.",
@@ -6240,15 +6250,5 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  },
-  "estimateNoAccountReader": "Neznámé limity účtu na {source}.",
-  "estimateLimitsUnread": "Neznámé: limity pro {source} nebyly načteny.",
-  "estimateRefillUnknown": "Budoucí období a rychlost doplňování neznámé: {source}.",
-  "estimatePlanWindowUnknown": "{source}: využito {percent}; {reset}; období okna a poptávka úloh neznámé.",
-  "estimatePercentDemandUnknown": "Procentní poptávka těchto úloh neznámá: {source}; obnovení {reset}.",
-  "estimateResetUnknown": "čas obnovení neznámý",
-  "estimateCiUnread": "Kapacita CI neznámá: není čtečka.",
-  "estimateSettingsDefault": "Výchozí nastavení: {source}.",
-  "estimateSettingsConfigured": "Nakonfigurovaná nastavení: {source}.",
-  "referenceEstimateFacts": "Prognózy zachovávají zjištěná blokování účtů, označují nenačtenou kapacitu a rozlišují výchozí a nastavené prahy. Budoucí rychlosti doplňování zůstávají neznámé, dokud nejsou oznámeny."
+  }
 }

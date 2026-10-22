@@ -230,12 +230,22 @@
   "estimateDenied": "A criação do servidor foi negada.",
   "estimateWaiting": "Aguardando {dependency}.",
   "estimateRunning": "Estimando…",
+  "referenceEstimateFacts": "As previsões mantêm os bloqueios de contas observados, indicam a capacidade não lida e distinguem os limites padrão dos configurados. As taxas futuras de reposição permanecem desconhecidas até serem informadas. As observações pertencem à sua conta e geração de login; os saldos e cotas percentuais conhecidos limitam o trabalho atual mesmo quando a renovação é desconhecida.",
   "estimateFailed": "A estimativa falhou: {detail}",
   "estimateMissingMore": {
     "one": "e {count} outro",
     "many": "e {count} outros",
     "other": "e {count} outros"
   },
+  "estimateNoAccountReader": "Limites de conta desconhecidos em {source}.",
+  "estimateLimitsUnread": "Desconhecido: limites não lidos para {source}.",
+  "estimateRefillUnknown": "Período e taxa de reposição futuros desconhecidos: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} usado; {reset}; período da janela e demanda das tarefas desconhecidos.",
+  "estimatePercentDemandUnknown": "Demanda percentual destas tarefas desconhecida: {source}; redefinição {reset}.",
+  "estimateResetUnknown": "redefinição desconhecida",
+  "estimateCiUnread": "Capacidade de CI desconhecida: não há leitor.",
+  "estimateSettingsDefault": "Configurações padrão: {source}.",
+  "estimateSettingsConfigured": "Configurações definidas: {source}.",
   "estimateSchedule": "Cronograma das frentes de trabalho",
   "estimateGantt": "Cronograma de {goal}, com o caminho crítico e as marcas de conclusão P50 e P90.",
   "estimateOptimizeDescription": "Escolha a configuração mais barata que cumpra o prazo em P90 ou a mais rápida com economia marginal suficiente.",
@@ -6080,15 +6090,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "estimateNoAccountReader": "Limites de conta desconhecidos em {source}.",
-  "estimateLimitsUnread": "Desconhecido: limites não lidos para {source}.",
-  "estimateRefillUnknown": "Período e taxa de reposição futuros desconhecidos: {source}.",
-  "estimatePlanWindowUnknown": "{source}: {percent} usado; {reset}; período da janela e demanda das tarefas desconhecidos.",
-  "estimatePercentDemandUnknown": "Demanda percentual destas tarefas desconhecida: {source}; redefinição {reset}.",
-  "estimateResetUnknown": "redefinição desconhecida",
-  "estimateCiUnread": "Capacidade de CI desconhecida: não há leitor.",
-  "estimateSettingsDefault": "Configurações padrão: {source}.",
-  "estimateSettingsConfigured": "Configurações definidas: {source}.",
-  "referenceEstimateFacts": "As previsões mantêm os bloqueios de contas observados, indicam a capacidade não lida e distinguem os limites padrão dos configurados. As taxas futuras de reposição permanecem desconhecidas até serem informadas."
+  }
 }

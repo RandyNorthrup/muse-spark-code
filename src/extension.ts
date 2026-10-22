@@ -38,6 +38,7 @@ import {
   OPTIONAL_RUNTIME_AVAILABILITY,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
+  ACCOUNT_DEFAULT_ID,
   EXTENSION_NAME,
   EXTENSION_QUALIFIED_ID,
   DICTATION_HELPER_DIR,
@@ -131,6 +132,7 @@ import { Usd, sumUsd, type UsdAmount } from './shared/usd'
 
 import {
   createUsageRecording,
+  currentOwnedLimitSnapshots,
   isUsageWriterBundle,
   type UsageRecording,
 } from './core/usage/recording'
@@ -283,6 +285,7 @@ import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { isValidModelApiKey } from './host/auth/credentialStore'
 import type { DamagedChoiceNotice } from './runtime/resources/history'
+import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import {
   createFileScheduleMigrationSource,
@@ -346,8 +349,16 @@ import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
-import { lazyEstimator } from './host/estimator/estimatorBundle'
-import { extensionFleetSources, fleetIoFromSources } from './host/estimator/fleetBinding'
+import {
+  lazyEstimator,
+  type EstimatorRun,
+  type EstimatorSourcePorts,
+} from './host/estimator/estimatorBundle'
+import {
+  extensionFleetSources,
+  fleetIoFromSources,
+  ownedSubscriptionUsage,
+} from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
@@ -2171,6 +2182,16 @@ async function activateWindow(
         if (message.type !== 'authState') {
           return
         }
+        if (message.backend !== undefined) {
+          const scoped =
+            usageRecording.scopeLimits?.({
+              accountId: ACCOUNT_DEFAULT_ID,
+              generation: estimatorOwnerGeneration(),
+              backend: message.backend,
+            }) ?? usageRecording
+          MuseCodeHost.usageRecording = scoped
+          ModelApiBackendManager.usageRecording = scoped
+        }
         paidBackend = message.backend
         broadcastPaidState()
         // A key pasted or signed out of changes what the Muse Code backend offers (M44).
@@ -2226,6 +2247,27 @@ async function activateWindow(
     markBackendError: (detail) => loadAuth().markBackendError(detail),
     stopSignIn: () => loadAuth().stopSignIn(),
   }
+  let estimatorProviderGeneration = 0
+  const estimatorOwnerGeneration = () =>
+    `${String(auth.admissionGeneration)}.${String(estimatorProviderGeneration)}`
+  // Where surviving observation producers read their current owner for every
+  // observation: a credential change retires the old generation, and live
+  // producers publish under the new one without being replaced.
+  const estimatorUsageScope = (): { accountId: string; generation: string } => ({
+    accountId: ACCOUNT_DEFAULT_ID,
+    generation: estimatorOwnerGeneration(),
+  })
+  MuseCodeHost.usageScope = estimatorUsageScope
+  ModelApiBackendManager.usageScope = estimatorUsageScope
+  // A credential saved in another window retires this window's ownership
+  // generation too: producers read it live, so nothing keeps publishing or
+  // admitting under the replaced credential. Refreshing here would loop on
+  // our own saves; the next save or broadcast re-reads the state.
+  context.subscriptions.push(
+    context.secrets.onDidChange(() => {
+      estimatorProviderGeneration += 1
+    }),
+  )
   // The window closing ends the account hosts, then the browser sign-in
   // (awaited, so its host is closed too), then the backends (the review of
   // PR #49).
@@ -2679,73 +2721,107 @@ async function activateWindow(
       if (event.provider.id === GITHUB_AUTH_PROVIDER) estimatorAuthenticationRevision += 1
     }),
   )
-  const estimator = lazyEstimator({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATOR_BUNDLE_FILE).fsPath,
-    log,
-    ports: () => {
-      let signedInRevision = -1
-      const snapshot = planSnapshotLoader({
-        bundlePath: snapshotBundlePath,
-        log,
-        root: firstFolderPath() ?? '',
-        networkPolicy: async () => {
-          const revision = estimatorAuthenticationRevision
-          const session =
-            currentSettings()['reports.network'] === 'off'
+  const estimatorBundlePath = vscode.Uri.joinPath(
+    context.extensionUri,
+    'dist',
+    ESTIMATOR_BUNDLE_FILE,
+  ).fsPath
+  // An estimate requested by one conversation is delivered only to that
+  // conversation: each surface reads the fleet through its own controller's
+  // provider, never the focused pane's, with the live credential generation.
+  const estimatorPortsFor = (readProviderId?: () => string): EstimatorSourcePorts => {
+    let signedInRevision = -1
+    const snapshot = planSnapshotLoader({
+      bundlePath: snapshotBundlePath,
+      log,
+      root: firstFolderPath() ?? '',
+      networkPolicy: async () => {
+        const revision = estimatorAuthenticationRevision
+        const session =
+          currentSettings()['reports.network'] === 'off'
+            ? undefined
+            : await vscode.authentication.getSession(
+                GITHUB_AUTH_PROVIDER,
+                [...GITHUB_AUTH_SCOPES],
+                { silent: true },
+              )
+        signedInRevision = session === undefined ? -1 : revision
+        return {
+          surface: 'editor',
+          get mode() {
+            return currentSettings()['reports.network']
+          },
+          get githubSignedIn() {
+            return session !== undefined && revision === estimatorAuthenticationRevision
+          },
+          allowEgress: () =>
+            Promise.resolve(
+              vscode.workspace.isTrusted &&
+                currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+            ),
+        }
+      },
+    })
+    return estimatorSourcePorts(
+      () => ({
+        // No catalogs are pinned until M113 merges its Reports catalogs.
+        enabled: currentSettings()['estimator.priceLookup'],
+        networkAllowed:
+          vscode.workspace.isTrusted &&
+          currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED &&
+          (currentSettings()['reports.network'] === 'always' ||
+            (currentSettings()['reports.network'] === 'whenSignedIn' &&
+              signedInRevision === estimatorAuthenticationRevision)),
+        maxAgeMs: 0,
+        catalogUrls: [],
+      }),
+      snapshot,
+      // M117: bind the usage owners already used by Account & usage.
+      fleetIoFromSources(
+        extensionFleetSources({
+          inspect: (key) => vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(key),
+          currentOwner: () => {
+            const providerId = readProviderId?.()
+            return {
+              accountId: ACCOUNT_DEFAULT_ID,
+              generation: estimatorOwnerGeneration(),
+              ...(providerId !== undefined && { providerId }),
+            }
+          },
+          readOwnedLimits: () =>
+            (usageRecording.ownedLimits?.() ?? []).filter(
+              (row) => row.snapshot.backend === auth.current.backend,
+            ),
+          readUsage: async () => {
+            if (!backend.isRunning || auth.current.backend !== 'museCode') return
+            const scope = {
+              accountId: ACCOUNT_DEFAULT_ID,
+              generation: estimatorOwnerGeneration(),
+            }
+            const host = await backend.ensureHost()
+            const usage = await host.readUsage()
+            return usage === undefined
               ? undefined
-              : await vscode.authentication.getSession(
-                  GITHUB_AUTH_PROVIDER,
-                  [...GITHUB_AUTH_SCOPES],
-                  { silent: true },
-                )
-          signedInRevision = session === undefined ? -1 : revision
-          return {
-            surface: 'editor',
-            get mode() {
-              return currentSettings()['reports.network']
-            },
-            get githubSignedIn() {
-              return session !== undefined && revision === estimatorAuthenticationRevision
-            },
-            allowEgress: () =>
-              Promise.resolve(
-                vscode.workspace.isTrusted &&
-                  currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED,
-              ),
-          }
-        },
-      })
-      return estimatorSourcePorts(
-        () => ({
-          // No catalogs are pinned until M113 merges its Reports catalogs.
-          enabled: currentSettings()['estimator.priceLookup'],
-          networkAllowed:
-            vscode.workspace.isTrusted &&
-            currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED &&
-            (currentSettings()['reports.network'] === 'always' ||
-              (currentSettings()['reports.network'] === 'whenSignedIn' &&
-                signedInRevision === estimatorAuthenticationRevision)),
-          maxAgeMs: 0,
-          catalogUrls: [],
+              : ownedSubscriptionUsage(usage, usageRecording.ownedLimits?.() ?? [], scope)
+          },
         }),
-        snapshot,
-        // M117: bind the usage owners already used by Account & usage.
-        fleetIoFromSources(
-          extensionFleetSources({
-            inspect: (key) => vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(key),
-            readLiveLimits: () =>
-              (usageRecording.limits?.() ?? []).filter(
-                (row) => row.backend === auth.current.backend,
-              ),
-            readUsage: async () => {
-              if (!backend.isRunning || auth.current.backend !== 'museCode') return
-              const host = await backend.ensureHost()
-              return await host.readUsage()
-            },
-          }),
-        ),
-      )
-    },
+      ),
+    )
+  }
+  const estimatorForSurface = (surface: ChatSurface): EstimatorRun =>
+    lazyEstimator({
+      bundlePath: estimatorBundlePath,
+      log,
+      ports: () =>
+        estimatorPortsFor(() => controllers.get(surface.id)?.estimateProviderId ?? 'meta'),
+    })
+  // A window report has no conversation and names no provider: its owner
+  // carries the window account and generation, and the binding reads the
+  // rows published under the default provider (the binding's own fallback).
+  const windowEstimator = lazyEstimator({
+    bundlePath: estimatorBundlePath,
+    log,
+    ports: () => estimatorPortsFor(),
   })
 
   const mentions = new MentionIndex({
@@ -3891,7 +3967,11 @@ async function activateWindow(
           // M113 C-M113-4: the estimate report runs M117's engine for the
           // validated request through the lazy estimator bundle, in every
           // window. The bundle loads on the first estimate report only.
-          reportEstimateRun: (request, signal) => estimator.estimate(request, signal),
+          reportEstimateRun: (request, signal) =>
+            (surface === undefined ? windowEstimator : estimatorForSurface(surface)).estimate(
+              request,
+              signal,
+            ),
           ...(context.storageUri !== undefined && {
             reportStoredSessionDir: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
           }),
@@ -4439,7 +4519,9 @@ async function activateWindow(
           },
           editReview: review.editReview,
           review,
-          estimator,
+          // Each conversation estimates through its own provider owner:
+          // a held estimate never adopts the focused pane's provider.
+          estimator: estimatorForSurface(surface),
           openDocument,
           openFile,
           readToolImage: async (imagePath) =>
@@ -5076,8 +5158,10 @@ async function activateWindow(
     log,
   })
   let modelsFeatures: ModelsPanelFeatures | undefined
+  let modelsFeaturesGeneration: string | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
-    if (modelsFeatures === undefined) {
+    if (modelsFeatures === undefined || modelsFeaturesGeneration !== estimatorOwnerGeneration()) {
+      modelsFeaturesGeneration = estimatorOwnerGeneration()
       const bundle = modelsPanelBundle()
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
@@ -5112,7 +5196,15 @@ async function activateWindow(
           vault,
           vaultDir,
           onKeyUsage: (snapshot) => {
-            usageRecording.limit({
+            // The owner is bound per observation through the live generation:
+            // a balance that arrives after a credential change constrains the
+            // new owner instead of reviving the retired one.
+            const producer = usageRecording.scopeLimits?.({
+              accountId: ACCOUNT_DEFAULT_ID,
+              generation: estimatorOwnerGeneration(),
+              backend: 'modelApi',
+            })
+            producer?.limit({
               backend: 'modelApi',
               provider: snapshot.providerId,
               source: 'openRouter',
@@ -5134,6 +5226,7 @@ async function activateWindow(
             })
           },
           onWizardSaved: async (outcome) => {
+            estimatorProviderGeneration += 1
             await auth.refresh()
             const surface = registry.active
             if (surface !== undefined) {
@@ -5189,7 +5282,25 @@ async function activateWindow(
             ...(await dailyPaid.readToday()),
             ...(await modelApi.readUsageBudgets()),
           ],
-          readLiveLimits: () => Promise.resolve(usageRecording.limits?.() ?? []),
+          // Account & usage reads only owned observations: another account's
+          // live rows never show as this window's current limit. A provider
+          // with no live row from the current owner reads as explicit
+          // unknown, never as a resurrected limit.
+          readLiveLimits: () =>
+            Promise.resolve(
+              currentOwnedLimitSnapshots(
+                usageRecording.ownedLimits?.() ?? [],
+                {
+                  accountId: ACCOUNT_DEFAULT_ID,
+                  generation: estimatorOwnerGeneration(),
+                },
+                {
+                  at: Date.now(),
+                  newId: () => crypto.randomUUID(),
+                  client: vscode.env.appName,
+                },
+              ),
+            ),
           providerConsoles: () => [],
           // The stored credential's identity selects the budgets the usage
           // page shows: a rotated or removed key's numbers disappear. The

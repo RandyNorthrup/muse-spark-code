@@ -1406,7 +1406,8 @@ const REFERENCE_DETAILS: Readonly<
     'localContextWindowHint',
   ],
   acp: ['referenceBriefHelp'],
-  // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
+  // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS;
+  // owned facts and authentication fences are documented with the lazy estimator help.
   estimator: ['estimateDiagnosticHelp', 'estimateCliHelp', 'referenceEstimateFacts'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],

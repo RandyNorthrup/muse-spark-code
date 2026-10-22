@@ -297,7 +297,7 @@ export const EN = {
   estimateWaiting: 'Waiting for {dependency}.',
   estimateRunning: 'Estimating…',
   referenceEstimateFacts:
-    'Forecasts retain observed account blocks, name unread capacity and distinguish default from configured thresholds. Future refill rates remain unknown unless reported.',
+    'Forecasts retain observed account blocks, name unread capacity and distinguish default from configured thresholds. Future refill rates remain unknown unless reported. Observations belong to their account and sign-in generation; known balances and percentage allowances constrain current work with unknown renewal.',
   estimateFailed: 'Estimate failed: {detail}',
   // A refused estimate's omitted lanes: {count} is the lanes the estimator
   // did not name, rendered in the report's language from that number.

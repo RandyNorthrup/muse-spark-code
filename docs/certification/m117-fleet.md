@@ -527,3 +527,81 @@ rasterization fingerprint matches the stored manifest. Uses captureMatrix,
 manifest coverage/hash validation and comparePixels with the production
 tolerance; no baseline updates. This is the complete estimator subset, not
 the full 9,792-image visual gate. `node dist/acp.js estimate --help` exits 0.
+
+# Round 5 (2026-10-11, kubuntu): RVCM1173D owned facts
+
+The redesign begins with a single strict fact schema and one translator table
+for normalized account limits, subscription usage, all four usage observation
+sources and machine thresholds. Every amount may independently be unknown;
+owner identity/generation, UTC instants and observer remain structured. No
+credential, live model attempt, install, dependency or wire parser was added.
+
+Initial table suite: estimatorLimitFacts, 13 passed at repository deadlines.
+The following deliberate mutations each exited 1 and restored
+limitFacts.ts byte-exact, SHA-256
+`703b33333c8d11972bc9267caf6a7e7744ad743c261505869d2f81e3a5db0070`:
+
+- R5-D1: replacing remaining percent with 100 failed `keeps known percentage
+allowance with an unknown period`.
+- R5-D2: dropping every account balance failed all four `retains a partial
+account balance` source cases.
+- R5-D7: bypassing timestamp validation failed the source-refusal tests.
+
+Source contracts are the existing captured SubscriptionUsage,
+UsageLimitSnapshot and AccountLimitsSnapshot; model attempts: zero.
+The available c/m117-1 tip is 5b952fa3c and has no round-7 shared diagnostic
+contract. The join must unify its code/parameters schema with this lane's
+fleet, scheduling and engine diagnostics and retain presentation-only labels.
+
+Translator-stage final verification: all five typecheck projects pass; the
+restored table suite passes 13 tests; localization reports zero problems;
+production build exits 0 through every unchanged size/split/global gate.
+Panel remains 25,568 B. Aggregate quality remains lead-owned under the brief.
+
+# Round 5 continued (2026-10-11 evening, kubuntu): finding drills
+
+Each guard below was broken on purpose, the named suite failed, and the file
+was restored byte-exact (SHA-256 verified after each restore). Red runs
+used `-t` name filtering except F2 (five matched tests) and F7 (whole
+table file); every run used repository deadlines.
+
+- R5-F1 (schedule keeps known percentage allowance, unknown period):
+  `fleetBinding.ts` window `remaining: fact.remaining` replaced with
+  `fact.limit ?? fact.remaining`: `delays known percentage demand with unknown
+renewal period` failed. Restored `6ee3a928d1d46d43d5f99ed6aafdb265a9d09eec32c67a7357272064fed90d2f`.
+- R5-F2 (every vendor balance binds): `(before.providerId ?? 'meta')`
+  narrowed to `'meta'`: the three non-Muse `enforces a known exhausted balance`
+  cases plus the `carries exhausted balances` port case failed; the Muse case
+  still passed. Restored to
+  the same hash. A blanket-restore over-match briefly rewrote three genuine
+  `'meta'` defaults; repaired by line and re-verified byte-exact before
+  proceeding.
+- R5-F3 (no locale in forecast data or seed): `limitNote` gained a
+  time-zone field: `returns byte-identical bound forecasts in two ambient time
+zones without a seed` failed. Restored
+  `efbf05ebc9539c78abb74eb0370afcc9b3ccecc47055c8f42f3aa61dcba46620`.
+- R5-F4 (observations fenced by account and generation): dropped
+  `row.owner.generation === before.generation`: `does not reuse account A
+observations after switching account or sign-in generation` failed. Restored
+  to the F1 hash.
+- R5-F5 (typed scheduling refusals survive): `EstimateSchedulingError`
+  re-based on `Error`: `preserves typed scheduling refusals and hides raw I/O
+errors` failed with `estimate-unavailable`. Restored
+  `a412fea2af820167c4fd6d69ba98820580037cce2c8a4b6c5225f2597203f86b`.
+  A first drill attempt against the schedule fallback text did not fire: every
+  review test supplies labels, so the fallback never triggers. The recorded
+  drill breaks the real guard instead.
+- R5-F6 (labels only): removed `context.labels.push`: `uses labels in
+unknowns and blocked diagnostics, never account ids` failed, expecting
+  `Work`. Restored to the F1 hash. A restore of the schedule fallback dropped
+  its indent; repaired and re-verified to the F5 hash.
+- R5-F7 sibling (account-limits timestamp sweep): with both the snapshot
+  schema gate and the plan-window `checked()` bypassed, all three new
+  `refuses invalid account-limits timestamps` cases failed; either layer alone
+  still refuses. Restored
+  `8dcc104292ee3ae149f9d7646489002519561dfec6181ab78e4e886aa93774c5`;
+  the table suite passes 17.
+
+Round 5 evening verification (kubuntu, repository deadlines throughout, no raised timeout): estimator, schedule, simulate, entry, bottleneck, localFleet and recommend suites green (80 + 43 tests; 712 controller/command/ports tests; facts-review 17 and table 17 green after every restore); `vitest related` over all changed non-hub sources in three runs: 44 files with 1,544 passed and 19 files with 1,184 passed fully green; the 61-file core run passed 1,917 with only the two environmental items below; hub files (`estimateFacts`, `en`, catalog, reference, l10n) covered transitively plus `check:l10n` (14 UI + 14 usage tables, 0 problems) and `check:reference` (current). All five typecheck projects pass with zero errors. ESLint at max-warnings 0 and Prettier pass on every changed file (five inherited style errors in the uncommitted translator/binding/formatter/probe code were rewritten, not suppressed). Production build exits 0: panel sources untouched, so the aggregate stays at the reviewed 25,568 of 25,600 bytes with `dist/webview estimator panel: 25.0 KiB (budget 25 KiB)` passing; extension.js 587,184 bytes (573.4 KiB, 600 KiB cap); estimator.js 71.7 KiB (75 KiB cap); modelApi.js 515.8 KiB.
+
+Not run here, lead-owned: `test/e2e/estimator.e2e.test.ts` cannot launch Chrome in this sandbox (`socketpair: Operation not permitted` at `chromium.launch`, before any test logic); `test/unit/usageIntegration.test.ts:212` times out at 5 s as RVCM1173D already recorded on HEAD. A different appearance of that file (401 vs proxy 502 on `/usage.js`) traced to this sandbox's proxy (`NODE_USE_ENV_PROXY=1` with empty `no_proxy` intercepting loopback HTTP; body `upstream connection failed`); with a loopback bypass the file returns to its known `:212` inherited timeout. No browser, server, or daemon of mine is left running.

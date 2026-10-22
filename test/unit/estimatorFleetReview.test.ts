@@ -1,9 +1,10 @@
 // RVCM1173C owner constraints, without stand-ins: every fleet value comes
 // from an owner (the usage recording, the workspace configuration, the
 // headless governor's own resources.json, the runtime registry shape) or
-// from the milestone's own schemas; the plan snapshot reads a real plan
-// workspace through the real git binary. Repository default timeout.
+// from the milestone's own schemas; the plan snapshot is built pure from
+// plan text. Repository default timeout.
 import { beforeEach, describe, expect, it } from 'vitest'
+import { renderLimitNote } from '../../src/core/estimator/limitText'
 import {
   applyFleetBinding,
   extensionFleetSources,
@@ -19,7 +20,11 @@ import { findEstimateBottleneck } from '../../src/core/estimator/bottleneck'
 import { prepareEstimateSchedule } from '../../src/core/estimator/schedule'
 import { createUsageRecording } from '../../src/core/usage/recording'
 import { EstimateWaveStarter } from '../../src/core/estimator/provision/start'
-import { estimateFailureText, runEstimateCommand } from '../../src/runtime/estimator/command'
+import {
+  estimateFailureText,
+  presentEstimate,
+  runEstimateCommand,
+} from '../../src/runtime/estimator/command'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { resourceSettingsSchema } from '../../src/shared/resources'
@@ -89,8 +94,10 @@ const bind = (snapshot: AccountLimitsSnapshot, lane = scheduleLane('A')) =>
   applyFleetBinding(fleetFromHost(HOST, [lane], AS_OF), {
     activeAccount: () => ({
       kind: 'limits',
+      generation: '1',
       providerId: 'meta',
       accountId: 'work',
+      label: 'Work',
       snapshot,
       nowMs: NOW,
     }),
@@ -106,7 +113,7 @@ describe('RVCM1173C owner constraints', () => {
       log,
       writer: () => Promise.reject(new Error('history disabled')),
     })
-    recording.limit({
+    recording.scopeLimits?.({ accountId: 'default', generation: '1', backend: 'museCode' }).limit({
       backend: 'museCode',
       provider: 'museCode',
       source: 'museCode',
@@ -116,12 +123,14 @@ describe('RVCM1173C owner constraints', () => {
     for (const sources of [
       extensionFleetSources({
         inspect: () => undefined,
-        readLiveLimits: () => recording.limits?.() ?? [],
+        currentOwner: () => ({ accountId: 'default', generation: '1' }),
+        readOwnedLimits: () => recording.ownedLimits?.() ?? [],
       }),
       headlessFleetSources({
         readSettings: () => Promise.resolve(resourceSettingsSchema.parse({})),
         listAccounts: () => Promise.resolve([]),
-        readLiveLimits: () => recording.limits?.() ?? [],
+        currentOwner: () => ({ accountId: 'default', generation: '1' }),
+        readOwnedLimits: () => recording.ownedLimits?.() ?? [],
       }),
     ]) {
       const fleet = await applyFleetBinding(
@@ -138,6 +147,7 @@ describe('RVCM1173C owner constraints', () => {
       rateLimits: { requests: { limit: 120, remaining: 120, resetAt: '2026-10-06T13:00:00.000Z' } },
     }
     const row = fleetAccountFromLimits({
+      generation: '1',
       providerId: 'meta',
       account: { id: 'work' },
       limits: snapshot,
@@ -154,7 +164,7 @@ describe('RVCM1173C owner constraints', () => {
     const lane = scheduleLane('A')
     lane.resources.accountRequestsPerHour = amount(600)
     const trial = prepareEstimateSchedule([lane], await bind(snapshot, lane)).run()
-    expect(trial.unknownLimits).toContain('work:requestsPerMinute')
+    expect(trial.unknownLimits).toContain('Work:requestsPerMinute')
     expect(trial.schedule[0]?.start).toBe('2026-10-06T12:48:00.000Z')
   })
   const cases = [40, 100].flatMap((usedPercent) =>
@@ -177,7 +187,7 @@ describe('RVCM1173C owner constraints', () => {
       lane.resources.accountPercentPerHour = amount(60)
       if (vendor === null || (usedPercent === 100 && resetAt === null)) {
         await expect(bind(snapshot, lane)).rejects.toThrow(
-          /fleet-account-blocked: meta work reset unknown/,
+          /fleet-account-blocked: Work reset unknown/,
         )
         return
       }
@@ -309,7 +319,7 @@ describe('RVCM1173C owner constraints', () => {
       if (!(error_ instanceof Error)) throw error_
       error = error_
     }
-    expect(estimateFailureText(error)).toContain('meta work')
+    expect(estimateFailureText(error)).toContain('Work')
     expect(estimateFailureText(error)).toContain('reset unknown')
     const output: string[] = []
     expect(
@@ -362,7 +372,7 @@ describe('RVCM1173C owner constraints', () => {
       new AbortController().signal,
     )
     expect(
-      section.qualifications?.some((row) =>
+      presentEstimate(section).qualifications?.some((row) =>
         row.unknownLimits.some((note) =>
           note.startsWith('Default settings: configuration/cpuPercent'),
         ),
@@ -382,7 +392,11 @@ describe('RVCM1173C owner constraints', () => {
     const fleet = await applyFleetBinding(fleetFromHost(HOST, [lane], AS_OF), {
       activeAccount: () => ({ kind: 'no-reader', surface: 'editor' }),
     })
-    expect(fleet.accounts[0]?.statedLimits).toEqual(['LECTEUR ABSENT editor'])
+    expect(
+      fleet.accounts[0]?.statedLimits
+        ?.filter((note) => !note.startsWith('estimate-limit-context:'))
+        .map((note) => renderLimitNote(note)),
+    ).toEqual(['LECTEUR ABSENT editor'])
     const percentFleet = await bind({
       planWindows: {
         window: { usedPercent: 40, resetAt: '2026-10-06T13:00:00.000Z', windowDurationMins: 300 },
@@ -391,7 +405,8 @@ describe('RVCM1173C owner constraints', () => {
     expect(
       prepareEstimateSchedule([lane], percentFleet)
         .run()
-        .unknownLimits.some((note) => note.startsWith('DEMANDE INCONNUE')),
+        .unknownLimits.map((note) => renderLimitNote(note))
+        .some((note) => note.startsWith('DEMANDE INCONNUE')),
     ).toBe(true)
   })
 })
