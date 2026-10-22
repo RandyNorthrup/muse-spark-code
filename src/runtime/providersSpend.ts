@@ -11,7 +11,7 @@ import type {
   SpendPage,
 } from '../core/providers/providerSpend'
 import type { SpendFailure } from '../core/providers/providerSpendKeyUsage'
-import { isUnreachableSend } from '../core/providers/providerSpend'
+import { isUnreachableSend } from '../core/unreachableSend'
 import {
   ACCOUNT_DAY_MS,
   CREDENTIAL_RECORD_VERSION,
