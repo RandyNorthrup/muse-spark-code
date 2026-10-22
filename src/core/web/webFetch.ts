@@ -45,6 +45,7 @@ import {
   WEB_FETCH_DETAIL_MAX_CHARS,
   WEB_FETCH_HTML_TYPES,
   WEB_FETCH_BUFFER_WINDOW_BYTES,
+  WEB_FETCH_MAX_CONTENT_CHARS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_TEXT_TYPES,
@@ -163,6 +164,7 @@ export type WebFetcher = (
   url: string,
   signal: AbortSignal,
   isStillAllowed?: () => boolean,
+  offset?: number,
 ) => Promise<WebFetchResult>
 
 const MEDIA_TYPE_SEPARATOR = ';'
@@ -655,17 +657,51 @@ async function readCapped(
 
 /**
 The facts line, the notice and the marked content, as the model receives
-them. D121: the page reaches the model whole — no char slice of ours.
-The truncation notice names only a genuinely truncated page (past the
-buffer window, or a conversion the worker stopped); past the model's real
-context window the TOOLCAP spill carries the full text instead.
+them. One page window: `offset` skips that many characters first, so a
+long page is pageable end to end; the note names the characters shown,
+the total, and the offset that fetches the rest.
 */
-function pageText(
+export function pageText(
   page: WebPage,
   content: string,
   flags: { readonly isHtml: boolean; readonly hasMore: boolean },
   marker: string,
+  offset = 0,
 ): string {
+  const start = Math.max(Math.floor(offset), 0)
+  const isPastEnd = content.length > 0 && start >= content.length
+  const end = isPastEnd ? start : Math.min(start + WEB_FETCH_MAX_CONTENT_CHARS, content.length)
+  const shown = isPastEnd ? '' : content.slice(start, end)
+  const windowNote = (): string => {
+    if (isPastEnd) {
+      return fill(WEB_FETCH_MODEL_TEXT.webFetchPastEnd, {
+        offset: String(start),
+        total: String(content.length),
+        last: String(content.length - 1),
+        url: page.url,
+      })
+    }
+    if (end >= content.length && !flags.hasMore) {
+      return ''
+    }
+    if (end >= content.length) {
+      return fill(WEB_FETCH_MODEL_TEXT.webFetchConvertStopped, {
+        start: String(start + 1),
+        end: String(end),
+        total: String(content.length),
+        url: page.url,
+      })
+    }
+    return fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, {
+      start: String(start + 1),
+      end: String(end),
+      total: String(content.length),
+      more: flags.hasMore ? '+' : '',
+      url: page.url,
+      next: String(end),
+    })
+  }
+  const note = windowNote()
   const facts = [
     fill(WEB_FETCH_MODEL_TEXT.webFetchHeader, {
       url: page.url,
@@ -674,15 +710,13 @@ function pageText(
       bytes: String(page.bytes),
     }),
     flags.isHtml ? WEB_FETCH_MODEL_TEXT.webFetchConverted : WEB_FETCH_MODEL_TEXT.webFetchAsText,
-    ...(flags.hasMore
-      ? [fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(content.length) })]
-      : []),
+    ...(note === '' ? [] : [note]),
   ].join(' ')
   return [
     facts,
     WEB_FETCH_MODEL_TEXT.webFetchUntrusted,
     fill(WEB_FETCH_MODEL_TEXT.webFetchOpen, { marker }),
-    content,
+    shown,
     fill(WEB_FETCH_MODEL_TEXT.webFetchClose, { marker }),
   ].join('\n')
 }
@@ -760,6 +794,7 @@ async function readPage(
   urls: { readonly requested: URL; readonly final: URL },
   deps: WebFetchDeps,
   signal: AbortSignal,
+  offset = 0,
 ): Promise<WebFetchResult> {
   const { status } = response
   if (status < HTTP_SUCCESS_MIN || status > HTTP_SUCCESS_MAX) {
@@ -814,7 +849,7 @@ async function readPage(
   return {
     kind: 'page',
     page,
-    text: pageText(page, content, { isHtml, hasMore }, deps.newMarker()),
+    text: pageText(page, content, { isHtml, hasMore }, deps.newMarker(), offset),
   }
 }
 
@@ -874,6 +909,7 @@ async function fetchHops(
   deps: WebFetchDeps,
   signal: AbortSignal,
   isStillAllowed: () => boolean,
+  offset = 0,
 ): Promise<WebFetchResult> {
   // What allowed the fetch (trust, the mode, the setting) may change while a
   // lookup or a connection is awaited: it is asked again before each sends
@@ -891,7 +927,13 @@ async function fetchHops(
     const response = await requestPinned(targets, deps, signal, ensureAllowed)
     try {
       if (!HTTP_REDIRECT_STATUSES.has(response.status)) {
-        return await readPage(response, { requested: first.url, final: current.url }, deps, signal)
+        return await readPage(
+          response,
+          { requested: first.url, final: current.url },
+          deps,
+          signal,
+          offset,
+        )
       }
       // No count of its own: a loop of same-host redirects ends at Stop;
       // another host is handed back, never followed, so no loop can hide
@@ -922,6 +964,7 @@ export async function fetchWebPage(
   deps: WebFetchDeps,
   turn: AbortSignal,
   isStillAllowed: () => boolean = isAlwaysAllowed,
+  offset = 0,
 ): Promise<WebFetchResult> {
   const first = checkPageUrl(rawUrl)
   if (!first.ok) {
@@ -938,7 +981,7 @@ export async function fetchWebPage(
           tell(stillWaitingText({ key: 'webFetch' }, elapsedMs))
         }, deps.noticeMs)
   try {
-    return await fetchHops(first, deps, turn, isStillAllowed)
+    return await fetchHops(first, deps, turn, isStillAllowed, offset)
   } catch (error: unknown) {
     if (turn.aborted) {
       throw error

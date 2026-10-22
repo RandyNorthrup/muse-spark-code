@@ -70,16 +70,22 @@ function isInWorkspace(entry: DiagnosticEntry): entry is WorkspaceDiagnostic {
   return entry.path !== undefined
 }
 
-/** At most `DIAGNOSTIC_MESSAGE_MAX_CHARS`, never splitting a surrogate pair, with the rest counted. */
-function clipMessage(message: string): string {
-  if (message.length <= DIAGNOSTIC_MESSAGE_MAX_CHARS) {
-    return message
+/**
+At most `DIAGNOSTIC_MESSAGE_MAX_CHARS` from `offset`, never splitting a
+surrogate pair, with the rest counted. `next` names the fetch for the
+rest and is appended to the clip note; every product path passes one.
+*/
+function clipMessage(message: string, offset = 0, next?: (offset: number) => string): string {
+  const start = HIGH_SURROGATE.test(message.slice(0, offset)) ? Math.max(offset - 1, 0) : offset
+  if (message.length - start <= DIAGNOSTIC_MESSAGE_MAX_CHARS) {
+    return message.slice(start)
   }
-  let kept = message.slice(0, DIAGNOSTIC_MESSAGE_MAX_CHARS)
+  let kept = message.slice(start, start + DIAGNOSTIC_MESSAGE_MAX_CHARS)
   if (HIGH_SURROGATE.test(kept)) {
     kept = kept.slice(0, -1)
   }
-  return `${kept}… [${String(message.length - kept.length)} characters clipped]`
+  const end = start + kept.length
+  return `${kept}… [${String(message.length - end)} characters clipped${next === undefined ? '' : `; ${next(end)}`}]`
 }
 
 type PathRequest =
@@ -110,31 +116,77 @@ function requestedPath(given: string, deps: DiagnosticsToolDeps): PathRequest {
     : { ok: true, path: relative, fsPath }
 }
 
-function formatEntry(entry: WorkspaceDiagnostic): string {
+function formatEntry(
+  entry: WorkspaceDiagnostic,
+  messageOffset = 0,
+  next?: (offset: number) => string,
+): string {
   const source = entry.source === undefined ? '' : ` [${entry.source}]`
-  return `${entry.path}:${String(entry.line)}:${String(entry.column)}: ${entry.severity}: ${clipMessage(entry.message)}${source}`
+  return `${entry.path}:${String(entry.line)}:${String(entry.column)}: ${entry.severity}: ${clipMessage(entry.message, messageOffset, next)}${source}`
 }
 
 /**
-The tool's text for `entries`, worst first, capped at `max` with a count
-(the verify loop sends fewer than the tool, M68).
+Worst-first order (severity, then path, then line). Shared with the
+verify report so its overflow names come from the same sorted snapshot
+the page shows, not input order.
 */
-export function formatDiagnostics(
+export function sortWorkspaceDiagnostics(
   entries: readonly WorkspaceDiagnostic[],
-  max: number = DIAGNOSTICS_MAX_ENTRIES,
-): string {
-  if (entries.length === 0) {
-    return NO_DIAGNOSTICS
-  }
-  const sorted = entries.toSorted(
+): WorkspaceDiagnostic[] {
+  return entries.toSorted(
     (a, b) =>
       SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
       a.path.localeCompare(b.path) ||
       a.line - b.line,
   )
-  const shown = sorted.slice(0, max).map((entry) => formatEntry(entry))
-  if (sorted.length > max) {
-    shown.push(`… ${String(sorted.length - max)} more not shown`)
+}
+
+/**
+One page of the tool's text for `entries`, worst first. `offset` skips
+that many sorted entries first, so entries past the first page are
+pageable, not dropped. `nextPage` names the fetch for the rest and is
+appended to the overflow note; every product path passes one.
+*/
+export function formatDiagnostics(
+  entries: readonly WorkspaceDiagnostic[],
+  max: number = DIAGNOSTICS_MAX_ENTRIES,
+  offset = 0,
+  nextPage?: string,
+  messageOffset = 0,
+  messagePage?: (entryOffset: number, messageOffset: number) => string,
+): string {
+  if (entries.length === 0) {
+    return NO_DIAGNOSTICS
+  }
+  const sorted = sortWorkspaceDiagnostics(entries)
+  const skip = Math.max(Math.floor(offset), 0)
+  if (skip >= sorted.length) {
+    throw new RangeError(
+      `offset ${String(skip)} is past the last of ${String(sorted.length)} diagnostics; use an offset from 0 to ${String(sorted.length - 1)}`,
+    )
+  }
+  const messageLength = sorted[skip]?.message.length ?? 1
+  if (
+    messageOffset !== 0 &&
+    (messageOffset < 0 || messageOffset >= messageLength || !Number.isSafeInteger(messageOffset))
+  )
+    throw new RangeError('messageOffset is past the diagnostic message')
+  const shown = sorted
+    .slice(skip, skip + max)
+    .map((entry, index) =>
+      formatEntry(
+        entry,
+        index === 0 ? messageOffset : 0,
+        messagePage === undefined ? undefined : (next) => messagePage(skip + index, next),
+      ),
+    )
+  const rest = sorted.length - skip - shown.length
+  if (rest > 0) {
+    shown.push(
+      nextPage === undefined
+        ? `… ${String(rest)} more not shown`
+        : `[diagnostics ${String(skip + 1)}-${String(skip + shown.length)} of ${String(sorted.length)}; ${nextPage}]`,
+    )
   }
   return shown.join('\n')
 }
@@ -163,6 +215,12 @@ function pathKey(relativePath: string, platform: NodeJS.Platform): string {
   return platform === 'win32' ? relativePath.toLowerCase() : relativePath
 }
 
+/** `offset` as a page start: a number floors at zero, anything else starts over. */
+function readOffset(args: Readonly<Record<string, unknown>>): number {
+  const offset = args['offset']
+  return typeof offset === 'number' ? Math.max(Math.floor(offset), 0) : 0
+}
+
 export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
   const call = async (
     args: Readonly<Record<string, unknown>>,
@@ -171,11 +229,24 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
   ) => {
     const uri = args[URI_ARGUMENT]
     const { platform } = deps
-    const checked = async (entries: readonly WorkspaceDiagnostic[]) => {
-      for (const entry of entries) await run?.checkFile(entry.path)
+    const offset = readOffset(args)
+    const messageOffset = typeof args['messageOffset'] === 'number' ? args['messageOffset'] : 0
+    // Every page names the offset that fetches the rest.
+    const page = async (list: readonly WorkspaceDiagnostic[]): Promise<string> => {
+      for (const entry of list) await run?.checkFile(entry.path)
       signal.throwIfAborted()
-      return formatDiagnostics(entries)
+      const next = offset + Math.min(DIAGNOSTICS_MAX_ENTRIES, Math.max(list.length - offset, 0))
+      return formatDiagnostics(
+        list,
+        DIAGNOSTICS_MAX_ENTRIES,
+        offset,
+        `call ${IDE_MCP_TOOL_DIAGNOSTICS} again with offset ${String(next)}${typeof uri === 'string' ? ` and uri ${JSON.stringify(uri)}` : ''} for the rest`,
+        messageOffset,
+        (entryOffset, nextMessageOffset) =>
+          `call ${IDE_MCP_TOOL_DIAGNOSTICS} with offset ${String(entryOffset)} and messageOffset ${String(nextMessageOffset)}${typeof uri === 'string' ? ` and uri ${JSON.stringify(uri)}` : ''} for the rest`,
+      )
     }
+    const checked = async (entries: readonly WorkspaceDiagnostic[]) => await page(entries)
     const inWorkspace = () => deps.getDiagnostics().filter((entry) => isInWorkspace(entry))
     if (typeof uri !== 'string' || uri === '') return await checked(inWorkspace())
     const request = requestedPath(uri, deps)
@@ -194,13 +265,22 @@ export function diagnosticsTool(deps: DiagnosticsToolDeps): McpTool {
   return {
     name: IDE_MCP_TOOL_DIAGNOSTICS,
     description:
-      "Language-server diagnostics: the errors and warnings in VS Code's Problems panel for the files in the workspace, worst first. Optionally scoped to one file, which is then shown in an editor so its language server reports on it.",
+      "Language-server diagnostics: the errors and warnings in VS Code's Problems panel for the files in the workspace, worst first. Optionally scoped to one file, which is then shown in an editor so its language server reports on it. Long lists are pages: the note names the offset that fetches the rest.",
     inputSchema: {
       type: 'object',
       properties: {
         [URI_ARGUMENT]: {
           type: 'string',
           description: 'A file:// URI or workspace-relative path; omit for the whole workspace.',
+        },
+        offset: {
+          type: 'integer',
+          description: 'Skip this many diagnostics before returning entries.',
+        },
+        messageOffset: {
+          type: 'integer',
+          description:
+            'Characters to skip in the first diagnostic message; its clip note gives the next offset.',
         },
       },
     },
