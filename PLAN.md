@@ -24000,6 +24000,8 @@ is deferred; all five fix drills fired and restored SHA-256-exact source.
 
 **Status 2026-10-17 (lane MSM95, macmini): lane MSM95 complete on ms/msm95; lead certification pending.** Merged the most-complete candidate (C-M95-4: llama.cpp/LM Studio captures, local context windows, read-at-use-time resolver) and `main-now` through `3d30a7321`. Every listed behaviour is connected on every named surface — panel (Providers/Models sections, wizard, quick pick, scan), terminal (`providers add --context-window`, `connect openrouter`, `usage`, `exec --provider`), editor protocol (configured registry, output-cap minimum, windowed refusal) and ACP/CLI (`auth set --provider`, `providers`, `exec --provider`) — with Help reference and README entries. Panel lists exactly what the transport admits (D205); uncaptured presets refuse with no dispatch. M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain separate milestones. Evidence: `docs/certification/msm95.md`.
 
+**Status 2026-10-22 (lane RLM95, macmini): recovery complete on `rec/rlm95`; lead integration pending.** Landed the four provider lanes in order (subscription key source, provider spend, usage and price fields, Files API) with every conflict resolved for current main, repaired fresh sessions missing from History (ownership is recorded at the first owned save), and closed the msm95 gaps that current provider documentation settles: xAI per-second request budgets, Anthropic per-request image counts (100/600 by window), session-refresh proof, and the Azure waiting-state proof. Per-attempt pool admission still waits for the profile broker; DeepSeek concurrency and Azure burst sub-windows are documented but unenforced (no admission machinery). No live turns on this lane: no provider credential on the rig. Evidence: `docs/certification/rlm95.md`.
+
 Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the
@@ -34302,6 +34304,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**RLM95 plan-archive deferral (2026-10-22, macmini).** `npm run check:plan`
+fails on this lane's tree: PLAN.md is 3,575,112 bytes, 9,954 over the 85%
+early-warning tripwire (the reader's own 4 MiB bound still has 11%
+headroom). The lane's four merges added the overage. The prescribed fix —
+`npm run plan:archive` — stays with the lead at integration: its proofs
+need every open branch's PLAN.md diff and a merge of each onto the new
+file, and this rig holds 1,171 branches with no open/stale record, so a
+lane-side move risks modify/delete conflicts on work the lane cannot see.
+No threshold or rule is changed.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
