@@ -1177,6 +1177,11 @@ export function checkDeferredBundles(inputsOf) {
             (file) => source === `src/core/providers/${file}`,
           )
         ) &&
+        // RLM95B (2026-10-22): the editor-chat provider validates the
+        // editor's model ref with the shared parse, like providerPolicy.
+        // The ref must not fork validation, and the bundle must not wait
+        // on the providers bundle: the tiny module rides along.
+        !(source === 'src/core/providers/modelRef.ts' && bundle.output === 'dist/editorChat.js') &&
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
         ) &&

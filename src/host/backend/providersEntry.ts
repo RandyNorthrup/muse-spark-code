@@ -32,6 +32,8 @@ export { createModelsPanelSeam } from '../../core/providers/panelSeam'
 // record across the seam instead of carrying a copy of it.
 export { metaCapabilityRecord } from '../../core/providers/capabilityRecord'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
+export { parsePlanLimitHeaders } from '../../core/providers/subscriptions/planUsage'
+export * as planRefusals from '../../core/providers/subscriptions/planRefusals'
 export {
   connectOpenRouterAccount,
   createOpenRouterPanelUsage,

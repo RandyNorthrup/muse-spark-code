@@ -18,6 +18,8 @@
 import * as z from 'zod/mini'
 import { unlessAborted } from '../../core/timeouts'
 import { UI_TEXT } from '../../shared/constants'
+import type { Logger } from '../logger'
+import { exchangeCodeForStoredKey } from './codeExchange'
 import type { CredentialRecord } from './credentialRecords'
 import type { OAuthLoopback } from './oauthLoopback'
 import type { CodeExchanger, PkceSource } from './providerPorts'
@@ -71,6 +73,7 @@ export type HuggingfaceToken = z.infer<typeof huggingfaceTokenSchema>
 
 export interface HuggingFaceConnectDeps {
   readonly clientId: string
+  readonly log: Logger
   readonly pkce: PkceSource
   readonly exchange: CodeExchanger
   /** Opens the authorize page in the system browser. */
@@ -131,7 +134,8 @@ export async function connectHuggingFaceAccount(
     // Listen before opening the browser; a fast callback must not be lost.
     const waited = server.waitForCode()
     void waited.catch(() => {
-      /* The awaited promise below reports this failure. */
+      // The await below still rejects with this failure; the record keeps that it happened.
+      deps.log.warn('Hugging Face loopback callback failed before it was awaited')
     })
     await unlessAborted(
       deps.openBrowser(
@@ -150,18 +154,14 @@ export async function connectHuggingFaceAccount(
     server.close()
     deps.signal?.removeEventListener('abort', close)
   }
-  deps.signal?.throwIfAborted()
-  const key = await deps.exchange.exchange({
+  return await exchangeCodeForStoredKey({
+    exchange: deps.exchange,
     code,
     verifier: pair.verifier,
     redirectUri: server.redirectUri,
+    origin: HF_ORIGIN,
+    connectFailed: UI_TEXT.huggingfaceConnectFailed,
     ...(deps.signal !== undefined && { signal: deps.signal }),
+    ...(deps.onDiscardedKey !== undefined && { onDiscardedKey: deps.onDiscardedKey }),
   })
-  if (deps.signal?.aborted && key.trim() !== '') deps.onDiscardedKey?.()
-  deps.signal?.throwIfAborted()
-  if (key.trim() === '') {
-    throw new Error(UI_TEXT.huggingfaceConnectFailed)
-  }
-  const secret = key.trim()
-  return { key: secret, record: { v: 1, auth: 'apiKey', origin: HF_ORIGIN, secret } }
 }

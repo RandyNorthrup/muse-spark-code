@@ -355,6 +355,7 @@ export function createModelsPanelFeatures(
       },
     )
   const providers: ProvidersHost = createProvidersHost({
+    log: host.log,
     credentials,
     secrets: host.secrets,
     store: seam.store,

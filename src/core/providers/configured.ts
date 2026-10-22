@@ -1859,9 +1859,9 @@ export function createConfiguredProviderServices(
         const key = token.access_token.trim()
         if (key === '') throw new Error(UI_TEXT.huggingfaceConnectFailed)
         return key
-      } catch {
+      } catch (error) {
         // Never expose a response body, authorization code, verifier or returned token.
-        throw new Error(UI_TEXT.huggingfaceConnectFailed)
+        throw new Error(UI_TEXT.huggingfaceConnectFailed, { cause: error })
       }
     },
     openRouterUsage: async (
