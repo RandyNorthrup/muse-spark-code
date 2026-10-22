@@ -1,42 +1,57 @@
-// One MCP client session over a transport (M50, PLAN.md D42): the handshake
-// (`initialize`, then `notifications/initialized`), the tool list page by
-// page, and tool calls, each request with the entry's own deadline when it
-// names one — otherwise waited on until the server answers, the connection
-// closes or a Stop tells the server it was cancelled
-// (`notifications/cancelled`), saying so out loud while it waits. What the server
-// asks of the client is answered: `ping` with an empty result,
-// `elicitation/create` with the form's answer when the host offers one
-// (M91, form mode only), anything else as a method this client does not
-// offer. Its log lines go to the extension's log, and a changed tool list
-// is announced. A transport that closes rejects every request still waiting
-// and stops every waiting elicitation. Pure over the transport (stdio.ts,
-// http.ts).
+// One MCP client session over a transport (M50, PLAN.md D42; both eras,
+// PLAN.md D213): the handshake (`initialize`, then
+// `notifications/initialized`) with a legacy server, or the version on
+// every request with a modern one, the tool list page by page, and tool
+// calls, each request with the entry's own deadline when it names one —
+// otherwise waited on until the server answers, the connection closes or
+// a Stop tells the server it was cancelled (`notifications/cancelled`),
+// saying so out loud while it waits. What the server asks of the client
+// is answered: `ping` with an empty result, `elicitation/create` with the
+// form's answer when the host offers one (M91, form mode only), anything
+// else as a method this client does not offer; on a modern server the
+// form is gathered through the multi-round-trip loop instead, the server
+// never sending requests of its own. Its log lines go to the extension's
+// log, and a changed tool list is announced. A transport that closes
+// rejects every request still waiting and stops every waiting
+// elicitation. Pure over the transport (stdio.ts, http.ts).
 
 import {
   JSON_RPC_ERRORS,
   MCP_CLIENT_NAME,
+  MCP_META_CLIENT_CAPABILITIES,
+  MCP_META_CLIENT_INFO,
+  MCP_META_PROTOCOL_VERSION,
   MCP_PROTOCOL_VERSION,
   MCP_ELICITATION_TIMEOUT_MS,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
+  MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
+import { failureForLog } from '../../musecode/logText'
 import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../../timeouts'
 import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
 import {
   type CallToolResult,
   callToolResultSchema,
+  type DiscoverResult,
+  discoverResultSchema,
   type IncomingMessage,
   incomingMessageSchema,
   initializeResultSchema,
+  inputRequiredResultSchema,
+  inputRequestSchema,
   JSON_RPC_VERSION,
   listToolsResultSchema,
   logMessageSchema,
   McpError,
   type McpToolInfo,
+  newestMutualModern,
   type OutgoingMessage,
   type RequestId,
+  resultTypeOf,
   toolInfoSchema,
+  unsupportedVersions,
 } from './protocol'
 
 /** How messages travel to and from one server. */
@@ -69,9 +84,15 @@ export interface McpConnectionOptions {
   readonly clientVersion: string
   readonly log: CoreLogger
   /**
+  Which transport this connection runs on: cancellation on modern HTTP is
+  the request's stream closing, never a `notifications/cancelled` message.
+  */
+  readonly transport: (typeof MCP_TRANSPORTS)[keyof typeof MCP_TRANSPORTS]
+  /**
   Answers a server's `elicitation/create` (M91, form mode only). When set,
-  the handshake declares the `elicitation` capability; when absent, such a
-  request is refused as an unoffered method, as before.
+  the handshake declares the `elicitation` capability, and a modern
+  request declares it in its envelope; when absent, such a request is
+  refused as an unoffered method, as before.
   */
   readonly elicitation?: McpElicitationHandler
 }
@@ -92,8 +113,20 @@ interface Waiting {
 }
 
 const METHOD_INITIALIZE = 'initialize'
+const METHOD_DISCOVER = 'server/discover'
 const METHOD_PING = 'ping'
 const METHOD_ELICITATION = 'elicitation/create'
+const METHOD_SAMPLING = 'sampling/createMessage'
+const METHOD_ROOTS = 'roots/list'
+/** What an `inputRequests` method the client never offers is called in the refusal. */
+const UNOFFERED_NEEDS: Readonly<Record<string, string>> = {
+  [METHOD_SAMPLING]: 'a model completion',
+  [METHOD_ROOTS]: 'the workspace roots',
+}
+const METHOD_TOOLS_LIST = 'tools/list'
+const METHOD_TOOLS_CALL = 'tools/call'
+const RESULT_COMPLETE = 'complete'
+const RESULT_INPUT_REQUIRED = 'input_required'
 const NOTIFICATION_INITIALIZED = 'notifications/initialized'
 const NOTIFICATION_CANCELLED = 'notifications/cancelled'
 const NOTIFICATION_TOOLS_CHANGED = 'notifications/tools/list_changed'
@@ -127,6 +160,8 @@ export class McpConnection {
   private nextId = 0
   private closedReason: string | undefined
   private hasTools = false
+  /** The modern revision every request carries, once the era is adopted. */
+  private modernVersion: string | undefined
   /** The tool calls still waiting: stopping one stops its elicitation too. */
   private readonly liveSignals = new Set<AbortSignal>()
   /** What stops a waiting elicitation when the connection closes. */
@@ -208,10 +243,11 @@ export class McpConnection {
   }
 
   /**
-  A signal for one elicitation: it ends when the connection closes, or
-  when a tool call still waiting stops (a Stop ends the form as a cancel).
+  A signal for one elicitation: it ends when the connection closes, when
+  a tool call still waiting stops (a Stop ends the form as a cancel), or
+  when the caller's own signal ends (the modern loop passes its call's).
   */
-  private elicitationSignal(): {
+  private elicitationSignal(extra?: AbortSignal): {
     readonly signal: AbortSignal
     readonly cancel: () => void
     readonly release: () => void
@@ -238,7 +274,9 @@ export class McpConnection {
         this.elicitationClosers.delete(stop)
       },
     ]
-    for (const live of this.liveSignals) {
+    const stoppers: readonly AbortSignal[] =
+      extra === undefined ? [...this.liveSignals] : [...this.liveSignals, extra]
+    for (const live of stoppers) {
       if (live.aborted) {
         stop()
         break
@@ -260,22 +298,26 @@ export class McpConnection {
     }
   }
 
-  /** The form's answer back to the server; a refusal carries its reason. */
-  private async answerElicitation(
-    id: RequestId,
+  /**
+  One elicitation's answer, shared by the legacy wire answer and the
+  modern multi-round-trip loop: parsed, schema-checked (an unsupported
+  schema declines, as before), asked of the host, and checked back into
+  shape. Throws the refusal, which never contains request values.
+  */
+  private async resolveElicitation(
     elicit: McpElicitationHandler,
     params: unknown,
-  ): Promise<void> {
-    const { signal, cancel, release } = this.elicitationSignal()
+    signal?: AbortSignal,
+  ): Promise<ElicitationOutcome> {
+    const { signal: stop, cancel, release } = this.elicitationSignal(signal)
     const stopped = new Promise<ElicitationOutcome>((resolve) => {
       const onStop = () => {
         resolve({ action: 'cancel' })
       }
-      signal.addEventListener('abort', onStop, { once: true })
-      if (signal.aborted) onStop()
+      stop.addEventListener('abort', onStop, { once: true })
+      if (stop.aborted) onStop()
     })
     const timer = setTimeout(cancel, MCP_ELICITATION_TIMEOUT_MS)
-    let refusal = 'the elicitation handler failed'
     try {
       // The params crossed the wire parsed (rule 7); the answer is checked
       // into shape before it goes back the same way. The checks load with the
@@ -287,43 +329,61 @@ export class McpConnection {
         validateElicitationSchema,
         validateElicitationValues,
       } = await import('../hookRuntimeEntry.js')
-      let parsed
-      try {
-        parsed = parseElicitationParams(params)
-      } catch (error: unknown) {
-        // The parser's fixed diagnostic never contains request values.
-        refusal = error instanceof McpError ? error.message : 'invalid elicitation parameters'
-        throw error
-      }
+      // The parser throws only its fixed diagnostics, which never contain
+      // request values.
+      const parsed = parseElicitationParams(params)
       const schema = validateElicitationSchema(parsed.requestedSchema)
       if (!schema.ok) {
         this.options.log.warn(
           `MCP server ${this.options.name} elicitation declined: ${schema.reason}`,
         )
-        await this.sendQuietly({ jsonrpc: JSON_RPC_VERSION, id, result: { action: 'decline' } })
-        return
+        return { action: 'decline' }
       }
-      const outcome = checkElicitationOutcome(
-        await Promise.race([elicit({ params, signal }), stopped]),
-      )
+      let outcome: ElicitationOutcome
+      try {
+        outcome = checkElicitationOutcome(
+          await Promise.race([elicit({ params, signal: stop }), stopped]),
+        )
+      } catch (error: unknown) {
+        // The host's failure keeps its kind in the log; the refusal stays fixed.
+        this.options.log.warn(
+          `MCP server ${this.options.name} elicitation handler failed: ${failureForLog(error)}`,
+        )
+        throw new McpError('the elicitation handler failed')
+      }
       if (outcome.action === 'accept') {
         const checked = validateElicitationValues(schema.fields, outcome.content ?? {})
         if (!checked.ok) {
-          refusal = 'the elicitation answer does not fit the requested schema'
-          throw new McpError(refusal)
+          throw new McpError('the elicitation answer does not fit the requested schema')
         }
       }
-      await this.sendQuietly({ jsonrpc: JSON_RPC_VERSION, id, result: outcome })
-    } catch {
+      return outcome
+    } finally {
+      clearTimeout(timer)
+      release()
+    }
+  }
+
+  /** The form's answer back to the server; a refusal carries its reason. */
+  private async answerElicitation(
+    id: RequestId,
+    elicit: McpElicitationHandler,
+    params: unknown,
+  ): Promise<void> {
+    try {
+      await this.sendQuietly({
+        jsonrpc: JSON_RPC_VERSION,
+        id,
+        result: await this.resolveElicitation(elicit, params),
+      })
+    } catch (error: unknown) {
+      const refusal = error instanceof McpError ? error.message : 'the elicitation handler failed'
       this.options.log.warn(`MCP server ${this.options.name} elicitation was refused: ${refusal}`)
       await this.sendQuietly({
         jsonrpc: JSON_RPC_VERSION,
         id,
         error: { code: JSON_RPC_ERRORS.invalidParams, message: refusal },
       })
-    } finally {
-      clearTimeout(timer)
-      release()
     }
   }
 
@@ -344,6 +404,7 @@ export class McpConnection {
       new McpError(
         `MCP error ${String(message.error.code)}: ${message.error.message}`,
         message.error.code,
+        message.error.data,
       ),
     )
   }
@@ -391,7 +452,61 @@ export class McpConnection {
     }
   }
 
+  /**
+  The modern per-request envelope (spec `basic/index#meta`): the version,
+  the client identity and the capabilities relevant to the request. A
+  legacy request passes through untouched.
+  */
+  private envelope(params: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+    const version = this.modernVersion
+    if (version === undefined) {
+      return params
+    }
+    const existing: unknown = params['_meta']
+    const kept = typeof existing === 'object' && existing !== null && existing
+    return {
+      ...params,
+      _meta: {
+        ...kept,
+        [MCP_META_PROTOCOL_VERSION]: version,
+        [MCP_META_CLIENT_INFO]: { name: MCP_CLIENT_NAME, version: this.options.clientVersion },
+        [MCP_META_CLIENT_CAPABILITIES]:
+          this.options.elicitation === undefined ? {} : { elicitation: {} },
+      },
+    }
+  }
+
   private async request(
+    method: string,
+    params: Readonly<Record<string, unknown>>,
+    options: RequestOptions,
+  ): Promise<unknown> {
+    let retryVersion: string | undefined
+    try {
+      return await this.attempt(method, params, options)
+    } catch (error: unknown) {
+      // A modern server names the versions it serves in a `-32022`; the
+      // request goes again once at a mutual one (the spec's corrective
+      // continuation), never to the version already in use. The probe
+      // itself never retries: its answer is the era verdict.
+      const versions = error instanceof McpError ? unsupportedVersions(error) : undefined
+      const mutual = versions === undefined ? undefined : newestMutualModern(versions.supported)
+      if (method === METHOD_DISCOVER || this.modernVersion === undefined) {
+        throw error
+      }
+      if (mutual === undefined || mutual === this.modernVersion) {
+        throw error
+      }
+      this.options.log.info(
+        `MCP server ${this.options.name} does not speak MCP ${this.modernVersion}; trying MCP ${mutual}`,
+      )
+      retryVersion = mutual
+    }
+    this.modernVersion = retryVersion
+    return await this.attempt(method, params, options)
+  }
+
+  private async attempt(
     method: string,
     params: Readonly<Record<string, unknown>>,
     options: RequestOptions,
@@ -450,14 +565,26 @@ export class McpConnection {
     options.signal?.addEventListener('abort', onStop, { once: true })
     try {
       await Promise.race([
-        this.sendRenewing({ jsonrpc: JSON_RPC_VERSION, id, method, params }, controller.signal),
+        this.sendRenewing(
+          { jsonrpc: JSON_RPC_VERSION, id, method, params: this.envelope(params) },
+          controller.signal,
+        ),
         aborted,
       ])
       return await Promise.race([answered, aborted])
     } catch (error: unknown) {
       // The server is told a request it may still be working on is off;
-      // `initialize` is never cancelled (the specification).
-      if (method !== METHOD_INITIALIZE && error instanceof RequestAbort) {
+      // `initialize` and `server/discover` are never cancelled (the
+      // specification), and on modern HTTP closing the request's stream
+      // is the signal, so no message is sent there either.
+      const isModernHttp =
+        this.modernVersion !== undefined && this.options.transport === MCP_TRANSPORTS.streamableHttp
+      if (
+        method !== METHOD_INITIALIZE &&
+        method !== METHOD_DISCOVER &&
+        !isModernHttp &&
+        error instanceof RequestAbort
+      ) {
         void this.sendQuietly({
           jsonrpc: JSON_RPC_VERSION,
           method: NOTIFICATION_CANCELLED,
@@ -475,7 +602,7 @@ export class McpConnection {
     }
   }
 
-  private async handshake(timeoutMs: number | undefined): Promise<void> {
+  private async handshake(timeoutMs: number | undefined): Promise<string> {
     const raw = await this.request(
       METHOD_INITIALIZE,
       {
@@ -504,12 +631,134 @@ export class McpConnection {
       { jsonrpc: JSON_RPC_VERSION, method: NOTIFICATION_INITIALIZED },
       new AbortController().signal,
     )
+    return protocolVersion
   }
 
-  /** The handshake; rejects when the server cannot be spoken to. */
-  public async initialize(timeoutMs: number | undefined): Promise<void> {
+  /**
+  One multi-round-trip round (spec `basic/patterns/mrtr`): the
+  `inputRequests` answered through the host, the opaque `requestState`
+  echoed back untouched, and the retry's params. A repeated state means
+  the server is not advancing: the call stops and says so instead of
+  looping, like a repeated page cursor.
+  */
+  private async fulfillInput(
+    name: string,
+    args: Readonly<Record<string, unknown>>,
+    raw: unknown,
+    options: RequestOptions,
+    seenStates: Set<string>,
+  ): Promise<Readonly<Record<string, unknown>>> {
+    const parsed = inputRequiredResultSchema.safeParse(raw)
+    if (!parsed.success) {
+      throw new McpError('tools/call asked for input it did not describe')
+    }
+    const { inputRequests, requestState } = parsed.data
+    if (inputRequests === undefined && requestState === undefined) {
+      throw new McpError('tools/call asked for input with neither requests nor state')
+    }
+    if (requestState !== undefined) {
+      if (seenStates.has(requestState)) {
+        throw new McpError(`tools/call for ${name} repeated its request state instead of advancing`)
+      }
+      seenStates.add(requestState)
+    }
+    const elicit = this.options.elicitation
+    const responses: Record<string, ElicitationOutcome> = {}
+    const requests = Object.entries(inputRequests ?? {})
+    for (const [key, candidate] of requests) {
+      const entry = inputRequestSchema.safeParse(candidate)
+      if (!entry.success) {
+        throw new McpError(`tools/call for ${name} asked for input through a malformed request`)
+      }
+      const { method, params } = entry.data
+      if (method !== METHOD_ELICITATION) {
+        const need = UNOFFERED_NEEDS[method] ?? 'an input'
+        throw new McpError(`tools/call for ${name} needs ${need}, which this client does not offer`)
+      }
+      if (elicit === undefined) {
+        throw new McpError(
+          `tools/call for ${name} asked for an answer the client did not offer to give`,
+        )
+      }
+      try {
+        responses[key] = await this.resolveElicitation(elicit, params, options.signal)
+      } catch (error: unknown) {
+        const refusal = error instanceof McpError ? error.message : 'the elicitation handler failed'
+        if (error instanceof McpError) {
+          this.options.log.warn(
+            `MCP server ${this.options.name} elicitation was refused: ${refusal}`,
+          )
+          throw error
+        }
+        this.options.log.warn(
+          `MCP server ${this.options.name} elicitation handler failed: ${failureForLog(error)}`,
+        )
+        throw new McpError(refusal)
+      }
+    }
+    return {
+      name,
+      arguments: args,
+      ...(inputRequests !== undefined && { inputResponses: responses }),
+      ...(requestState !== undefined && { requestState }),
+    }
+  }
+
+  /**
+  The modern era, adopted from a `server/discover` verdict: every request
+  from now on carries the version, and the tools capability is the
+  verdict's.
+  */
+  public adoptModern(version: string, hasTools: boolean): void {
+    this.modernVersion = version
+    this.hasTools = hasTools
+  }
+
+  /** One `server/discover` at the adopted version; the raw verdict, parsed. */
+  public async discover(
+    timeoutMs: number | undefined,
+    signal?: AbortSignal,
+  ): Promise<DiscoverResult> {
+    const raw = await this.request(
+      METHOD_DISCOVER,
+      {},
+      signal === undefined ? { timeoutMs } : { timeoutMs, signal },
+    )
+    const parsed = discoverResultSchema.safeParse(raw)
+    if (!parsed.success) {
+      throw new McpError('server/discover was answered without a discovery result')
+    }
+    return parsed.data
+  }
+
+  /** The handshake; resolves with the settled revision, rejects when the server cannot be spoken to. */
+  public async initialize(timeoutMs: number | undefined): Promise<string> {
     this.handshakeTimeoutMs = timeoutMs
-    await this.handshake(timeoutMs)
+    let corrective: { mutual: string; failure: unknown } | undefined
+    try {
+      return await this.handshake(timeoutMs)
+    } catch (error: unknown) {
+      // The probe may have timed out client-side while the server was
+      // still starting; a `-32022` naming a mutual modern version is
+      // positive modern evidence, so the session goes modern instead of
+      // failing (the official Python client's corrective step).
+      const versions = error instanceof McpError ? unsupportedVersions(error) : undefined
+      const mutual = versions === undefined ? undefined : newestMutualModern(versions.supported)
+      if (mutual === undefined) {
+        throw error
+      }
+      this.options.log.info(
+        `MCP server ${this.options.name} speaks modern MCP; adopting ${mutual} after all`,
+      )
+      corrective = { mutual, failure: error }
+    }
+    this.adoptModern(corrective.mutual, true)
+    const discover = await this.discover(timeoutMs)
+    if (newestMutualModern(discover.supportedVersions) === undefined) {
+      throw corrective.failure
+    }
+    this.hasTools = discover.capabilities.tools !== undefined
+    return corrective.mutual
   }
 
   /** Every tool the server lists, page by page; a malformed tool is skipped and logged. */
@@ -521,9 +770,19 @@ export class McpConnection {
     const seenCursors = new Set<string>()
     let cursor: string | undefined
     for (;;) {
-      const raw = await this.request('tools/list', cursor === undefined ? {} : { cursor }, {
+      const raw = await this.request(METHOD_TOOLS_LIST, cursor === undefined ? {} : { cursor }, {
         timeoutMs,
       })
+      // A modern answer names its `resultType`; a legacy one names none
+      // and reads as complete. `input_required` never answers a list.
+      const resultType = resultTypeOf(raw)
+      if (resultType !== undefined && resultType !== RESULT_COMPLETE) {
+        throw new McpError(
+          resultType === RESULT_INPUT_REQUIRED
+            ? 'tools/list was answered asking for input, which a list never does'
+            : 'tools/list was answered with an unrecognized result type',
+        )
+      }
       const parsed = listToolsResultSchema.safeParse(raw)
       if (!parsed.success) {
         throw new McpError('tools/list was answered without a list of tools')
@@ -560,12 +819,30 @@ export class McpConnection {
     args: Readonly<Record<string, unknown>>,
     options: RequestOptions,
   ): Promise<CallToolResult> {
-    const raw = await this.request('tools/call', { name, arguments: args }, options)
-    const parsed = callToolResultSchema.safeParse(raw)
-    if (!parsed.success) {
-      throw new McpError('tools/call was answered with something that is not a tool result')
+    // A modern call may come back `input_required`: the rounds run with
+    // the host's answers until the tool completes. A legacy call answers
+    // once; it names no `resultType` and reads as complete.
+    let params: Readonly<Record<string, unknown>> = { name, arguments: args }
+    const seenStates = new Set<string>()
+    for (;;) {
+      const raw = await this.request(METHOD_TOOLS_CALL, params, options)
+      const resultType = resultTypeOf(raw)
+      if (
+        resultType !== undefined &&
+        resultType !== RESULT_COMPLETE &&
+        resultType !== RESULT_INPUT_REQUIRED
+      ) {
+        throw new McpError('tools/call was answered with an unrecognized result type')
+      }
+      if (resultType !== RESULT_INPUT_REQUIRED) {
+        const parsed = callToolResultSchema.safeParse(raw)
+        if (!parsed.success) {
+          throw new McpError('tools/call was answered with something that is not a tool result')
+        }
+        return parsed.data
+      }
+      params = await this.fulfillInput(name, args, raw, options, seenStates)
     }
-    return parsed.data
   }
 
   /** The server said its tool list changed (`notifications/tools/list_changed`). */

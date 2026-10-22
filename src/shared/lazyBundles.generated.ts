@@ -320,7 +320,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       {
         importer: 'src/core/backends/modelapi/mcp/connection.ts',
-        symbol: 'McpConnection.answerElicitation',
+        symbol: 'McpConnection.resolveElicitation',
         side: ['acp', 'vscode'],
       },
       {
