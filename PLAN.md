@@ -34147,6 +34147,21 @@ lane A's first step.
         count first, use an empty workspace, count from the trace log.
   - [ ] Codex review in one pass per lane class before push.
 
+### RLGROKAUTH — Grok subscription sign-in (xAI OAuth), pending xAI's registration (2026-10-22)
+
+**Status 2026-10-22: building.** Lane `rec/rlgrokauth` on rig `linuxlt`,
+base 0.19.0. A Grok account sign-in in Models & Agents and the CLI, like
+Continue With ChatGPT: browser PKCE flow plus RFC 8628 device flow for
+SSH/remote hosts, against the published `https://auth.x.ai` discovery
+document (fixture `test/fixtures/grok/discovery.json`, captured
+2026-10-22); tokens in the credential store, refreshed in the background;
+usage tallied against the subscription. xAI publishes no self-serve
+client registration, so the route reads this app's own client id from
+configuration and refuses plainly until xAI issues it (never another
+application's client id or scope). Research:
+`docs/research/providers/xai-grok-oauth.md`. Evidence:
+`docs/certification/rlgrokauth.md`.
+
 ---
 
 ## 7. Gates
