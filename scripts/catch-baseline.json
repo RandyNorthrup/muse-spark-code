@@ -7,13 +7,13 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 72,
+      "SWALLOW": 71,
       "GENERIC": 270,
       "CLEANUP": 241
     },
     "host": {
       "SWALLOW": 19,
-      "GENERIC": 109,
+      "GENERIC": 105,
       "CLEANUP": 92
     },
     "root": {
@@ -2855,7 +2855,7 @@
     },
     {
       "file": "src/core/vault/broker/state.ts",
-      "identity": "3ffc96df0c281b72cee34c5dccfa07991a9031a01ded106c2676205014fcc72d",
+      "identity": "552e55401784f1b77b921b9d1bcde0e534e6ecafbeccec64f20d4c98c16cdec9",
       "class": "GENERIC"
     },
     {
@@ -2922,11 +2922,6 @@
       "file": "src/core/vault/migrate/importFile.ts",
       "identity": "1f1491824680805cf27cea60d45cc687f7f6fa56ac4597de4fae58760f1c8c25",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/vault/migrate/migrate.ts",
-      "identity": "66b08930ae5a26a80abe834070042ee2b70bdbdf48b6b9c3563652c350ba9667",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/vault/remote.ts",
@@ -4101,26 +4096,6 @@
     {
       "file": "src/host/vault/brokerProcess.ts",
       "identity": "5c3b7a3c3275ea0d56b8102150db933f15e94e49c9801327d0aea112e1eaac3d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vault/migrateCredentials.ts",
-      "identity": "d0330b3bc78efff6045a60b09abe202f7d358f78ce5e6d8501217cc170ac3d73",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vault/migrateCredentials.ts",
-      "identity": "670dbbc326a80280ef33bd81f7b0fe6592a8f8fe3a4c12fb3e590e8a86c42b9b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vault/migrateCredentials.ts",
-      "identity": "2d61180de4d311077eb1c12dc27e70fc11d3a368b361e993c39b5c3e03b2167f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/vault/migrateCredentials.ts",
-      "identity": "9906e80e4fe1e863d17d60dada5a13707e5d42129819899a10ca9cb7cc12b47d",
       "class": "GENERIC"
     },
     {
