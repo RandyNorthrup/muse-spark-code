@@ -1299,6 +1299,28 @@ export const EN = {
     // {reason}: this app's own word for what it could not build or read.
     requestNotBuilt:
       'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
+    // OPENAI-G27: one true sentence per documented plan refusal.
+    chatGptNotEligible:
+      'Your ChatGPT plan cannot be used for this account. Sign in with an eligible account, or choose an API-key model.',
+    chatGptUsageUnavailable:
+      'ChatGPT could not check plan usage. Your sign-in is kept. Try again later.',
+    // {detail}: the provider's error.param (or message), a technical name.
+    chatGptUnsupportedCapability:
+      'ChatGPT refused this request ({detail}). Change the request and try again.',
+    chatGptRouteNotSupported:
+      'This ChatGPT request used an unsupported route. Try again, and report it if it persists.',
+    chatGptInvalidUser: 'ChatGPT could not confirm this account. Sign in again.',
+    chatGptGrantNotAuthorized:
+      'ChatGPT did not permit this request for the current sign-in. Sign in again, or choose an API-key model.',
+    // OPENAI-G28: the plan's reported limit windows; absent when unreported.
+    planPrimaryWindow: 'Primary window',
+    planSecondaryWindow: 'Secondary window',
+    // {percent}: the used share, already formatted.
+    planLimitUsed: '{percent} used',
+    // {minutes}: the window length, already formatted.
+    planLimitWindow: '{minutes}-minute window',
+    // {when}: the reset moment, already formatted.
+    planLimitResets: 'Resets {when}',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
