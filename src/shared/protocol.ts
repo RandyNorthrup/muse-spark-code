@@ -957,7 +957,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('sharingResult'),
     id: z.string(),
-    value: z.unknown(),
+    // Optional: the host answers undefined for a failure and for actions
+    // with no result, and the JSON transport drops the key (RLWINFIX).
+    value: z.optional(z.unknown()),
     error: z.optional(z.string()),
   }),
   z.strictObject({ type: z.literal('openSharing'), surface: z.enum(['prompts', 'chat']) }),
