@@ -33422,7 +33422,7 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
   - [ ] The goldens, including this repository's M103 and M104 history
   - [ ] Determinism across processes, time zones and languages
   - [ ] The bottleneck, calibration and recommendation drills
-  - [ ] The fake provider's flow, the cap, and the never-pays and
+  - [x] The fake provider's flow, the cap, and the never-pays and
         never-creates-accounts drills
   - [x] P's parts with M96, M109, M110d and M110f, or each named as waiting
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
