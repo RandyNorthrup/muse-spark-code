@@ -293,21 +293,21 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /**
- * Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
- * (PROVSPEND): an admin key can read a whole organisation, so it is never
- * stored where an inference read looks, and removing the provider removes it.
- */
+Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
+(PROVSPEND): an admin key can read a whole organisation, so it is never
+stored where an inference read looks, and removing the provider removes it.
+*/
 export const PROVIDER_ADMIN_SECRET_PREFIX = 'museSpark.providerAdmin.'
 /** `providers usage` reports this many days back unless `--days n` says otherwise. */
 export const PROVIDER_SPEND_DAYS_DEFAULT = 30
 /** A spend report never spans more than a year plus a day. */
 export const PROVIDER_SPEND_DAYS_MAX = 366
 /**
- * The vendored models.dev price snapshot's date (PROVSPEND): the spend
- * reconciliation names it as the catalogue our estimate's prices come
- * from. Pinned by test against `vendor/models-dev/VENDOR.json`
- * (`fetchedAt`); bump both together when the snapshot refreshes.
- */
+The vendored models.dev price snapshot's date (PROVSPEND): the spend
+reconciliation names it as the catalogue our estimate's prices come
+from. Pinned by test against `vendor/models-dev/VENDOR.json`
+(`fetchedAt`); bump both together when the snapshot refreshes.
+*/
 export const MODELS_DEV_CATALOGUE_DATE = '2026-10-05'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
@@ -1545,6 +1545,11 @@ export const PIXELS_PER_MEGAPIXEL = 1_000_000
 // Documented Anthropic image limit: 10 MB
 // (docs/certification/m95-research.md §1.5, A-vi).
 export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
+// Documented xAI image-understanding bounds: jpg/jpeg or png only, 20 MiB
+// (docs.x.ai image-understanding, "Image input general limits", read
+// 2026-10-13; XAI-G11). Anything else is refused before sending.
+export const XAI_IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg'] as const
+export const XAI_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
 // M105 / D85: portable media contracts. These are our bounds and defaults,
 // not evidence that a model supports a modality or that storage is free.
@@ -1644,6 +1649,10 @@ export const MEDIA_CONVERTER_SHIM_PATTERNS = [
 // seconds, honoured as set — the provider refuses what it cannot keep, and
 // the upload receipt still verifies what it honoured. The removed
 // 3600–2,592,000 s wire range was ours (no documented provider range).
+// Anthropic documents 3600 to 7776000 seconds for `expires_in_seconds`
+// (platform.claude.com file guide, read 2026-10-13; GAPANTH-G16).
+export const ANTHROPIC_FILE_EXPIRY_MIN_S = 3600
+export const ANTHROPIC_FILE_EXPIRY_MAX_S = 7_776_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
 export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
 export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
@@ -7561,6 +7570,8 @@ export const MODEL_API_MODEL_TEXT = {
   pdfLeftOut:
     '[The PDF {name}, attached earlier, is left out of this request because newer media fill the request limit.]',
   mediaLeftOut: '[Media is left out of this request because {reason}.]',
+  mediaSourceUnavailable:
+    '[The attachment {name} is unavailable in this request; attach the file again to use it.]',
   mediaSupportRefused: 'the selected model does not have established support for this media',
   mediaMimeRefused: 'the selected model does not support this image MIME type',
   mediaLimitExceeded: 'the media exceeds the selected model media limits',

@@ -10,7 +10,10 @@ import {
   CHATGPT_PLAN_RETRYABLE_CODES,
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  HTTP_STATUS,
+  MODEL_API_MODEL_TEXT,
 } from '../../../../shared/constants'
+import { isModelApiError } from '../transport'
 export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
   type CreateResponseBody,
@@ -36,7 +39,7 @@ import {
 } from '../schemas'
 import { parseSse } from '../sse'
 import { fixedHarnessText } from '../toolResultBound'
-import { fill, UI_TEXT } from '../../../../shared/l10n/text'
+import { fill, formatBytes, formatUnit, UI_TEXT } from '../../../../shared/l10n/text'
 import { ChatCodecError, cleanWireText, hasHeldVideo, isBlankWireText } from './shared'
 
 export type ResponsesCodecQuirks =
@@ -645,4 +648,63 @@ export interface ResponsesMediaCodec {
   ): InputContentPart
   /** A captured, file-specific missing-upload failure; a generic HTTP 404 is insufficient. */
   isMissingFile(error: unknown, fileIds: readonly string[]): boolean
+}
+
+/**
+The Responses media codec (OPENAI-G15, GAPANTH-G16): an uploaded file
+rides the request as its provider-minted id, never as bytes again.
+Reference shapes are the providers' documented ones (UNVERIFIED until the
+capture plan's requests confirm each wire); anything else is refused here,
+never sent blind. Pure.
+*/
+export const responsesMediaCodec: ResponsesMediaCodec = {
+  metadataText: (media) => {
+    const duration =
+      'durationSeconds' in media.info && media.info.durationSeconds !== null
+        ? formatUnit(media.info.durationSeconds, 'second')
+        : UI_TEXT.media.durationUnknown
+    return fill(UI_TEXT.media.replayMetadata, {
+      name: media.name,
+      duration,
+      size: formatBytes(media.info.sizeBytes),
+    })
+  },
+  omittedText: (media, _model, reason) => {
+    if (reason === 'source')
+      return fill(MODEL_API_MODEL_TEXT.mediaSourceUnavailable, { name: media.name })
+    if (reason === 'files')
+      return fill(MODEL_API_MODEL_TEXT.mediaLeftOut, {
+        reason: MODEL_API_MODEL_TEXT.mediaSupportRefused,
+      })
+    if (media.info.kind === 'image') return MODEL_API_MODEL_TEXT.imageLeftOut
+    if (media.info.kind === 'document')
+      return fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: media.name })
+    return fill(MODEL_API_MODEL_TEXT.mediaLeftOut, {
+      reason: MODEL_API_MODEL_TEXT.mediaSupportRefused,
+    })
+  },
+  encodeInline: (media, inline, _model) => {
+    if (media.info.kind === 'image') {
+      if (inline.type !== 'input_image' || !('image_url' in inline))
+        throw new Error('Responses codec: an image encodes inline only as an image URL')
+      return { part: inline, encodedChars: inline.image_url.length }
+    }
+    if (media.info.kind === 'document') {
+      if (inline.type !== 'input_file' || !('file_data' in inline))
+        throw new Error('Responses codec: a document encodes inline only as file data')
+      return { part: inline, encodedChars: inline.file_data.length }
+    }
+    if (inline.type !== 'input_text')
+      throw new Error('Responses codec: this media encodes inline only as text')
+    return { part: inline, encodedChars: inline.text.length }
+  },
+  encodeUploaded: (media) => {
+    return media.info.kind === 'image'
+      ? { type: 'input_image', file_id: media.file.fileId, detail: 'auto' }
+      : { type: 'input_file', file_id: media.file.fileId, filename: media.name }
+  },
+  isMissingFile: (error, fileIds) =>
+    isModelApiError(error) &&
+    error.status === HTTP_STATUS.notFound &&
+    fileIds.some((fileId) => error.message.includes(fileId)),
 }

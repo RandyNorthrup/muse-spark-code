@@ -1,7 +1,12 @@
 // Reinterpret captured native metadata without discarding its JSON fields.
 // A field absent from a list stays unknown; a price never proves a feature.
 import * as z from 'zod/mini'
-import { ANTHROPIC_MAX_IMAGE_BYTES, IMAGE_MEDIA_TYPES } from '../../shared/constants'
+import {
+  ANTHROPIC_MAX_IMAGE_BYTES,
+  IMAGE_MEDIA_TYPES,
+  XAI_IMAGE_MEDIA_TYPES,
+  XAI_MAX_IMAGE_BYTES,
+} from '../../shared/constants'
 import type { CapabilityEvidence, CapabilityOverrides, CapabilitySource } from './capabilityRecord'
 
 export const nativeModelMetadataSchema = z.record(z.string(), z.json())
@@ -44,12 +49,17 @@ export function nativeCapabilityEvidence(
   const limits: NonNullable<CapabilityOverrides['limits']> = {}
   const modalities: NonNullable<CapabilityOverrides['modalities']> = {}
   const sampling: NonNullable<CapabilityOverrides['sampling']> = {}
-  // Native support is required. Research supplies Anthropic's documented
-  // provider bound; other providers state no image byte bound here, so none
-  // is enforced locally for them (D121) — the provider's own refusal reaches
+  // Native support is required. Research supplies the documented provider
+  // bounds (Anthropic's byte bound, xAI's jpg/jpeg/png formats up to 20
+  // MiB, XAI-G11); other providers state no image bound here, so none is
+  // enforced locally for them (D121) — the provider's own refusal reaches
   // the caller in words.
   const imagePolicy: { mimes: string[]; maxBytes?: number } = { mimes: [...IMAGE_MEDIA_TYPES] }
   if (preset === 'anthropic') imagePolicy.maxBytes = ANTHROPIC_MAX_IMAGE_BYTES
+  else if (preset === 'xai') {
+    imagePolicy.mimes = [...XAI_IMAGE_MEDIA_TYPES]
+    imagePolicy.maxBytes = XAI_MAX_IMAGE_BYTES
+  }
   const context =
     read(numeric, 'limit', 'context') ??
     read(numeric, 'context_length') ??
@@ -276,6 +286,41 @@ export function nativeCapabilityEvidence(
       ...(typeof native['version'] === 'string' && { servedVersion: native['version'] }),
     },
   }
+}
+
+/**
+A preset's Files API facts (OPENAI-G15, GAPANTH-G16): which upload dialect
+a file takes. OpenAI and xAI speak the OpenAI multipart dialect (`file`
+plus `purpose`); Anthropic takes `file` with an optional
+`expires_in_seconds` (3600 to 7776000 seconds) and 500 MB per file
+(platform.claude.com file guide, read 2026-10-13), and our uploads always
+set an expiry. Retention for OpenAI and xAI is not documented, so it stays
+unknown and the uploader deletes explicitly. Every value stays UNVERIFIED
+until the capture plan's requests confirm it; anything else stays unknown
+and uploads nothing.
+*/
+export function presetFilesEvidence(preset: string): CapabilityEvidence[] {
+  const source: CapabilitySource = { kind: 'preset', ref: preset }
+  const yes = <T>(value: T) => ({ state: 'yes' as const, value, source })
+  if (preset === 'openai' || preset === 'xai')
+    return [
+      {
+        source,
+        fields: { files: { upload: yes({ wire: 'openai-files' }) } },
+      },
+    ]
+  if (preset === 'anthropic')
+    return [
+      {
+        source,
+        fields: {
+          files: {
+            upload: yes({ wire: 'anthropic-files', maxBytes: 500_000_000, retention: 'expiring' }),
+          },
+        },
+      },
+    ]
+  return []
 }
 
 /** OpenAI/xAI and chat servers share captured id-bearing data/model envelopes. */

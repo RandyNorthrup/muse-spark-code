@@ -984,10 +984,13 @@ export function createConfiguredProviderServices(
         const documented = (preset.reasoningFacts ?? []).filter(
           (fact) => fact.modelId === nativeModel,
         )
-        const evidence: capabilities.CapabilityEvidence[] = documented.map((fact) => ({
-          source: { kind: 'preset', ref: `${fact.docUrl} (read ${fact.readOn})` },
-          fields: fact.fields,
-        }))
+        const evidence: capabilities.CapabilityEvidence[] = [
+          ...modelMetadata.presetFilesEvidence(preset.id),
+          ...documented.map((fact): capabilities.CapabilityEvidence => ({
+            source: { kind: 'preset', ref: `${fact.docUrl} (read ${fact.readOn})` },
+            fields: fact.fields,
+          })),
+        ]
         if (native !== undefined)
           evidence.push(
             modelMetadata.nativeCapabilityEvidence(
@@ -1845,6 +1848,7 @@ export function createConfiguredProviderServices(
         const record = capabilities.resolveModelCapabilities(
           { provider: entry.id, nativeModel: id, format: entry.format ?? preset.format },
           [
+            ...modelMetadata.presetFilesEvidence(preset.id),
             ...(known === undefined
               ? []
               : [
