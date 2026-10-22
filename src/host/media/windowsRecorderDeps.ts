@@ -5,7 +5,6 @@
 // directly with a credential-free environment, reserve its private
 // directories, and inspect its finished file with M1's bounded sniffer.
 // Nothing here records on its own.
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { lstat, mkdir, open, rm } from 'node:fs/promises'
@@ -13,6 +12,7 @@ import path from 'node:path'
 import type { WindowsRecorderDeps, WindowsRecorderProcess } from '../../core/media/record/windows'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { withoutCredentials } from '../../core/credentialEnvironment'
+import { spawnGuarded } from '../../core/guardedChildProcess'
 import { sniffMedia } from '../../core/media/limits'
 import { runProgram, type RunProgram } from '../processTree'
 import { converterTrustedPath } from '../../runtime/converterTrust'
@@ -127,17 +127,19 @@ export function createWindowsRecorderDeps(
     // governed runner needs admission the host has not granted this early.
     run,
   })
+  // The helper's child env: SystemRoot only, credential-free, absolute PATH
+  // entries only (the guarded child env spawnGuarded takes).
   const childEnv = noWorkspaceChildEnvironment(
     'win32',
-    { SystemRoot: host.systemRoot },
+    withoutCredentials({ SystemRoot: host.systemRoot }),
     realpathSync,
   )
 
   const launch: WindowsRecorderDeps['launch'] = (executable, args) => {
-    const child = spawn(executable, [...args], {
+    const child = spawnGuarded(executable, args, {
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: withoutCredentials(childEnv),
+      env: childEnv,
     })
     const framer = createHelperLineFramer()
     let lineListener: ((line: string) => void) | undefined

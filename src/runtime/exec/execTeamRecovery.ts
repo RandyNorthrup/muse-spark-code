@@ -1,12 +1,15 @@
 // M96b headless-run recovery (RVCM96B2 P2 findings 4-6): the run's durable
 // clean-up ledger, the stale-run sweep, denied-merge hold refs and the merge
 // marker gate. Loads only for --team, beside execTeamEntry; never at activation.
-import { execFile } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { open, readdir, readFile, realpath, rename, rm, rmdir, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { isErrno } from '../../core/fs/errno'
+import { execFileGuarded } from '../../core/guardedChildProcess'
+import { processStartTime } from '../../core/locks/processOwner'
 import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
 import { isTeamRefError, teamAgentsRef, teamBranchName } from '../../core/team/refFence'
 import {
@@ -221,9 +224,6 @@ const PROCESS_BIRTH_SKEW_MS = 60_000
 const LINUX_DEFAULT_CLOCK_TICKS = 100
 /** `starttime` field index after `pid (comm)` in `/proc/<pid>/stat`. */
 const PROC_STAT_STARTTIME_INDEX = 19
-/** Windows file time: 100 ns ticks, and the 1601-to-1970 epoch gap in ms. */
-const WINDOWS_TICKS_PER_MS = 10_000
-const WINDOWS_EPOCH_GAP_MS = 11_644_473_600_000
 
 /**
 A platform helper that could not run or exited non-zero (never a read
@@ -237,9 +237,15 @@ class HelperFailedError extends Error {
   }
 }
 
+/** A fixed absolute system program: absolute PATH entries only, links followed. */
 function runCapture(command: string, args: readonly string[]): Promise<string> {
+  const env = noWorkspaceChildEnvironment(
+    process.platform,
+    { ...process.env, LC_ALL: 'C' },
+    realpathSync,
+  )
   return new Promise<string>((resolve, reject) => {
-    execFile(command, [...args], { encoding: 'utf8' }, (error, stdout) => {
+    execFileGuarded(command, args, { encoding: 'utf8', env }, (error, stdout) => {
       if (error === null) resolve(stdout)
       else reject(new HelperFailedError(command, { cause: error }))
     })
@@ -251,7 +257,7 @@ const clockTicksCache: { ticks: number | undefined } = { ticks: undefined }
 async function linuxClockTicks(): Promise<number> {
   if (clockTicksCache.ticks !== undefined) return clockTicksCache.ticks
   try {
-    const captured = await runCapture('getconf', ['CLK_TCK'])
+    const captured = await runCapture('/usr/bin/getconf', ['CLK_TCK'])
     const parsed = Number(captured.trim())
     clockTicksCache.ticks =
       Number.isSafeInteger(parsed) && parsed > 0 ? parsed : LINUX_DEFAULT_CLOCK_TICKS
@@ -279,24 +285,6 @@ async function linuxProcessStart(pid: number): Promise<number | undefined> {
     : Number(bootSeconds) * MS_PER_SECOND + (startTicks / ticks) * MS_PER_SECOND
 }
 
-async function darwinProcessStart(pid: number): Promise<number | undefined> {
-  const captured = await runCapture('ps', ['-o', 'lstart=', '-p', String(pid)])
-  const parsed = new Date(captured.trim()).getTime()
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
-async function windowsProcessStart(pid: number): Promise<number | undefined> {
-  const captured = await runCapture('powershell', [
-    '-NoProfile',
-    '-Command',
-    `(Get-Process -Id ${String(pid)} -ErrorAction SilentlyContinue).StartTime.ToFileTimeUtc()`,
-  ])
-  const fileTime = Number(captured.trim())
-  return Number.isFinite(fileTime)
-    ? fileTime / WINDOWS_TICKS_PER_MS - WINDOWS_EPOCH_GAP_MS
-    : undefined
-}
-
 /**
 A live process's start (epoch ms), or undefined when the platform cannot
 say (RVCM96B2D P2-10). Callers treat unknown as pid-alive: the direction
@@ -308,8 +296,9 @@ async function processStartTimeMs(
 ): Promise<number | undefined> {
   try {
     if (platform === 'linux') return await linuxProcessStart(pid)
-    if (platform === 'darwin') return await darwinProcessStart(pid)
-    if (platform === 'win32') return await windowsProcessStart(pid)
+    // macOS and Windows: the guarded reader process-owner records use
+    // (fixed /bin/ps, the system root's own PowerShell), in epoch ms.
+    if (platform === 'darwin' || platform === 'win32') return await processStartTime(pid, platform)
   } catch (error: unknown) {
     // A birth that cannot be read proves nothing (P2-10): the OS refused
     // the read, or the platform helper failed. Anything else is unexpected

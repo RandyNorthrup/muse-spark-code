@@ -20,6 +20,7 @@ import {
 import type { UiText } from '../../../shared/l10n/en'
 import { fill, setUiText } from '../../../shared/l10n/text'
 import { execResourceFile, execResourceFileBytes } from '../../resources/launcher'
+import { windowsPowerShellEnvironment } from '../../execGuard'
 import { resourceWindowsJob } from '../../resources/admission'
 import { scrubWorkerEnv } from './workerEnv'
 import { TeamGitError, type TeamGit } from '../teamGit'
@@ -92,7 +93,9 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
       throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
     await job.verify()
     file = path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
-    env = { SystemRoot: systemRoot }
+    // Windows PowerShell 5.1 with its own module path, whatever shell
+    // started the host (windowsPowerShellEnvironment's one rule).
+    env = windowsPowerShellEnvironment({ SystemRoot: systemRoot }, systemRoot)
     command = workerWindowsCommand(job.assemblyPath, args)
   } else if (process.platform === 'darwin') {
     file = path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate')
