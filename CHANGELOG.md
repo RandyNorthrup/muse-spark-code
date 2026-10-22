@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Vault
+
+- Stored sign-ins that are not plain API keys (OAuth and subscription
+  records, and the default account saved over a provider slot) now move
+  into the vault with everything else on unlock, and stay working there
+  through rotation, lock and sign-out.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
