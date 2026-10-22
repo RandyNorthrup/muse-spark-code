@@ -9,7 +9,24 @@ import { readFileSync } from 'node:fs'
 function methodSpan(source, startMarker) {
   const start = source.indexOf(startMarker)
   if (start === -1) return
-  const open = source.indexOf('{', start)
+  // Skip the parameter list first: an object-typed parameter carries its
+  // own braces, and the body brace is the first one past the params.
+  const paramsOpen = source.indexOf('(', start)
+  if (paramsOpen === -1) return
+  let parens = 0
+  let paramsEnd = -1
+  for (let at = paramsOpen; at < source.length; at += 1) {
+    if (source[at] === '(') parens += 1
+    else if (source[at] === ')') {
+      parens -= 1
+      if (parens === 0) {
+        paramsEnd = at
+        break
+      }
+    }
+  }
+  if (paramsEnd === -1) return
+  const open = source.indexOf('{', paramsEnd)
   if (open === -1) return
   let depth = 0
   let offset = 0

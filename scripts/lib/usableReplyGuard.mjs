@@ -54,6 +54,16 @@ const ALLOW_LIST = new Map([
     'src/core/backends/modelapi/ModelApiHost.ts:judgeConnection',
     'the judge stream completeness check: without a completed response it throws instead of judging',
   ],
+  // RVCM1082B split the judge send in two; both halves keep the same
+  // presence check with the same throw-instead-of-judging contract.
+  [
+    'src/core/backends/modelapi/ModelApiHost.ts:judgeDirectSend',
+    'the direct judge send completeness check: without a completed response it throws instead of judging',
+  ],
+  [
+    'src/core/backends/modelapi/ModelApiHost.ts:judgeLeasedSend',
+    'the leased judge send completeness check: without a completed response it throws instead of judging',
+  ],
   // The codecs translate the wire's own statuses into stream events and
   // enforce the hosted-search invariant; none takes a reply as an answer.
   [
