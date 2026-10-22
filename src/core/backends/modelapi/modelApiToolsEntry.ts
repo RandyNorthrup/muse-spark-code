@@ -7,5 +7,6 @@
 export { preModelCallFields, postModelCallFields } from './modelCallHooks'
 export { ArgumentPreview } from './argumentPreview'
 export { checkPageUrl } from '../../web/pageUrl'
+export { decodeWindow, editFileRange, readFileWindow } from './fileRangeTools'
 export { setUiText } from '../../../shared/l10n/text'
 export { ObservationPack, pageRecalledText } from './observationPacking'

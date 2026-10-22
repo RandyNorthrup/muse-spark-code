@@ -91,7 +91,9 @@ export interface AtomicWriteOptions {
 }
 
 // The bits `chmod` sets: setuid, setgid, sticky and the three rwx triads.
-const PERMISSION_BITS = 0o7777
+// Exported for the byte-range splice, which keeps the target's permission
+// bits exactly as the atomic whole-file write does.
+export const PERMISSION_BITS = 0o7777
 const EXECUTE_BITS = 0o111
 const READ_BITS = 0o444
 // A read bit two places left of its triad's execute bit.

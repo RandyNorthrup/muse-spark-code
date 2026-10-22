@@ -50,6 +50,7 @@
     "src/core/resources/resourceProcessEntry.ts",
     "src/host/backend/fileSessionStoreEntry.ts",
     "src/host/backend/mcpVaultEntry.ts",
+    "src/host/backend/toolRangeEntry.ts",
     "src/host/backend/mcpJobLaunch.ts",
     "src/runtime/resources/resourceJournalEntry.ts",
     "src/core/usage/insights.ts",

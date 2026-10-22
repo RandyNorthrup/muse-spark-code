@@ -1587,6 +1587,7 @@
   "extensionHooksUnavailable": "Les hooks de l’extension n’ont pas pu être chargés : aucun hook ne s’est exécuté ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "modelApiToolsUnavailable": "Les assistants d’appel du modèle n’ont pas pu être chargés : les champs d’appel de hook ne sont pas disponibles ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "modelApiToolsPreviewUnavailable": "Les assistants d’appel du modèle n’ont pas pu être chargés : les aperçus d’arguments ne sont pas disponibles ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
+  "toolRangeUnavailable": "Les utilitaires de plages de fichiers n’ont pas pu être chargés, donc les fichiers ne peuvent pas être lus ou modifiés par plage d’octets ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "shellDirectory": "Dans {path}",
   "shellDirectoryReset": "Le shell est revenu à la racine de l’espace de travail : {path} est en dehors de l’espace de travail.",
   "elicitationTitle": "{server} demande des informations",
