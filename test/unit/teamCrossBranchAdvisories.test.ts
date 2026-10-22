@@ -47,16 +47,33 @@ function commitAll(root: string, message: string): string {
   return git(['rev-parse', 'HEAD'], root).trim()
 }
 
+/**
+Version reads are pure over the suite's fixed revisions: each
+(root, revision, path) reads once, and every repeat shares a copy
+of its bytes. No test mutates a repo after its reports are built.
+*/
+const versionCache = new Map<string, MergeVersion | null>()
+
 /** The real version at a revision, or null when the path is absent there. */
 function versionAt(root: string, rev: string, file: string): MergeVersion | null {
+  const key = `${root}\n${rev}\n${file}`
+  const hit = versionCache.get(key)
+  if (hit !== undefined) {
+    return hit === null ? null : { bytes: Buffer.from(hit.bytes), mode: hit.mode }
+  }
   const entry = git(['ls-tree', rev, '--', file], root).trim()
-  if (entry === '') return null
+  if (entry === '') {
+    versionCache.set(key, null)
+    return null
+  }
   const match = /^(\d+) \w+ ([0-9a-f]+)\t/.exec(entry)
   const mode = match?.[1]
   const sha = match?.[2]
   if (sha === undefined || (mode !== '100644' && mode !== '100755' && mode !== '120000'))
     throw new Error(`unexpected ls-tree for ${file}: ${entry}`)
-  return { bytes: gitBytes(['cat-file', '-p', sha], root), mode }
+  const version: MergeVersion = { bytes: gitBytes(['cat-file', '-p', sha], root), mode }
+  versionCache.set(key, version)
+  return { bytes: Buffer.from(version.bytes), mode: version.mode }
 }
 
 function exitStatusOf(error: unknown): number | undefined {
@@ -214,10 +231,17 @@ describe('M96d cross-branch advisories on real branches', () => {
     const repo = adviseRepo()
     const shared = new SharedFiles()
     const seen: CrossBranchAdvisory[] = []
+    const mergeBases = new Map<string, string>()
     const advisor = new CrossBranchAdvisor({
       base: (repository, branches, file) => {
         expect(repository).toBe('repo')
-        const mergeBase = git(['merge-base', branches[0], branches[1]], repo.root).trim()
+        const [first, second] = branches
+        const pair = first < second ? `${first}\n${second}` : `${second}\n${first}`
+        let mergeBase = mergeBases.get(pair)
+        if (mergeBase === undefined) {
+          mergeBase = git(['merge-base', branches[0], branches[1]], repo.root).trim()
+          mergeBases.set(pair, mergeBase)
+        }
         return Promise.resolve(versionAt(repo.root, mergeBase, file))
       },
       routine: realRoutine(repo.scratch),
