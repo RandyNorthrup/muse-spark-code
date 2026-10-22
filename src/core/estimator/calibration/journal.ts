@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import { ESTIMATE_LABEL_MAX_CHARS, ESTIMATE_MAX_ITEMS } from '../../../shared/constants'
 import {
   historyRecordSchema,
@@ -24,7 +24,7 @@ const PRIVATE_FILE_MODE = constants.S_IRUSR | constants.S_IWUSR
 const PRIVATE_DIR_MODE = PRIVATE_FILE_MODE | constants.S_IXUSR
 const basisTagSchema = z.object({ durationBasis: z.string() })
 const envelopeSchema = z.strictObject({
-  version: z.number().int(),
+  version: z.int(),
   durationBasis: z.string(),
   record: z.unknown(),
 })

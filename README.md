@@ -2528,7 +2528,7 @@ ACP, CLI and TUI preserve the named refusal so the plan or source can be repaire
 `muse-spark-code-acp estimate --help` shows the
 standalone syntax without starting a model or asking for credentials.
 
-- **Verified against real plans.** The engine returns P50/P90 dates,
+- **Verified against real plans.** The engine returns quantile finish dates,
   critical-path schedules, limiting resources and current/minimum/optimum setups. Figures
   carry parameter-specific evidence and sample sizes; unknown capacity and
   approximate placement stay qualified. Below 20 samples, fitted parameters

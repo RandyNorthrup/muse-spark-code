@@ -22,11 +22,15 @@ import {
   type PriceCatalogSourceDeps,
 } from '../../src/host/estimator/priceCatalogSource'
 import type { ReportNetworkTransport } from '../../src/core/reporting/sources/cache'
+import type { Logger } from '../../src/host/logger'
 import { ESTIMATE_PRICE_CATALOG_URLS, ESTIMATE_PRICE_MAX_AGE_MS } from '../../src/shared/constants'
-import { estimatorNetworkPolicy } from '../../src/host/estimator/priceCatalogBundle'
+import {
+  estimatorNetworkPolicy,
+  lazyPriceCatalog,
+} from '../../src/host/estimator/priceCatalogBundle'
 import { createEstimatorRun } from '../../src/host/estimator/estimatorEntry'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { recordingTransport } from './helpers/reportKindNetwork'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { fleetSnapshotSchema, parseEstimateGoal } from '../../src/shared/estimate'
@@ -571,5 +575,26 @@ describe('M117 bounded public transport', () => {
     await expect(
       port(root, () => Promise.resolve(big)).fetchPublic(CATALOG, undefined),
     ).rejects.toThrow()
+  })
+})
+
+describe('price catalog loader fallback', () => {
+  it('refuses a corrupt bundle with the installed failure sentence', () => {
+    setUiText(EN, BASE_LOCALE)
+    const log: Logger = {
+      trace: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    }
+    const loader = lazyPriceCatalog({ bundlePath: 'missing.js', log, loadBundle: () => ({}) })
+    const policy = estimatorNetworkPolicy({
+      settings: () => ({ 'reports.network': 'off' as const, sandboxNetwork: 'enabled' as const }),
+      isTrusted: () => true,
+      isSignedIn: () => false,
+    })
+    expect(() =>
+      loader.createEstimatePricePort({ storageRoot: '', workspaceRoot: '', policy }),
+    ).toThrow(fill(UI_TEXT.estimateFailed, { detail: 'price-catalog-bundle-unavailable' }))
   })
 })

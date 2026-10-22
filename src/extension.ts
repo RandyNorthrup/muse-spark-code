@@ -289,7 +289,6 @@ import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { isValidModelApiKey } from './host/auth/credentialStore'
 import type { DamagedChoiceNotice } from './runtime/resources/history'
-import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import {
   createFileScheduleMigrationSource,
@@ -2196,7 +2195,7 @@ async function activateWindow(
               generation: estimatorOwnerGeneration(),
               backend: message.backend,
             }) ?? usageRecording
-          MuseCodeHost.usageRecording = scoped
+          MuseCodeBackendManager.usageRecording = scoped
           ModelApiBackendManager.usageRecording = scoped
         }
         paidBackend = message.backend
@@ -2264,7 +2263,7 @@ async function activateWindow(
     accountId: ACCOUNT_DEFAULT_ID,
     generation: estimatorOwnerGeneration(),
   })
-  MuseCodeHost.usageScope = estimatorUsageScope
+  MuseCodeBackendManager.usageScope = estimatorUsageScope
   ModelApiBackendManager.usageScope = estimatorUsageScope
   // Edge 3: the generation answers "who pays", not "which bytes". Any
   // secret write reaches this listener, so it compares the identity behind
