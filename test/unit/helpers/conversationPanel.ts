@@ -46,7 +46,9 @@ import { Usd } from '../../../src/shared/usd'
 // The spend ledger only serves key-digest accounts (`ACCOUNT_ID` in the
 // journal is 64 hex chars), so the test account is the real SHA-256 digest
 // of its name — a well-formed nobody, never a credential.
-const TEST_ACCOUNT_ID = createHash('sha256').update('session-delete-test-account').digest('hex')
+export const TEST_ACCOUNT_ID = createHash('sha256')
+  .update('session-delete-test-account')
+  .digest('hex')
 
 export interface ModelApiRig {
   readonly host: ModelApiHost

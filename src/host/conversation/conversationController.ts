@@ -54,6 +54,7 @@ import {
   type HostExit,
   isDecisionNotAppliedError,
   isGoalRefusedError,
+  pageSessionsUntilFound,
   isModeKeptError,
   isMuseCodeFaultError,
   isPermissionReviewerError,
@@ -5142,6 +5143,47 @@ export class ConversationController implements DeferredSend {
         cursor = result.nextCursor
         if (cursor === undefined) {
           break
+        }
+      }
+      // Bookmarked sessions older than the loaded pages (M88, D67): further
+      // pages until every bookmarked id is found or the list ends. A
+      // bookmark failure never breaks History: the stored titles stand in.
+      if (cursor !== undefined && this.deps.bookmarks !== undefined) {
+        const port = this.deps.bookmarks
+        const workspaceRoot = this.deps.workspaceRoot
+        const missing = new Set<string>()
+        try {
+          const known = new Set(records.map((record) => record.sessionId))
+          const bookmarks = await port.list()
+          for (const bookmark of bookmarks) {
+            if (bookmark.backend === host.info.kind && !known.has(bookmark.sessionId)) {
+              missing.add(bookmark.sessionId)
+            }
+          }
+        } catch (error: unknown) {
+          this.deps.log.info(`Bookmarks refused: ${failureForLog(error)}`)
+        }
+        if (missing.size > 0) {
+          try {
+            records.push(
+              ...(await pageSessionsUntilFound(
+                (next) =>
+                  host.listSessions({
+                    workspaceRoot,
+                    limit: SESSION_LIST_LIMIT,
+                    ...(next !== undefined && { cursor: next }),
+                  }),
+                missing,
+                cursor,
+                () => generation !== this.sendInvalidationEpoch || this.isDisposed,
+              )),
+            )
+          } catch (error: unknown) {
+            this.deps.log.info(`Bookmark pages refused: ${failureForLog(error)}`)
+          }
+          if (generation !== this.sendInvalidationEpoch) {
+            return
+          }
         }
       }
       this.sessionRecords = new Map(records.map((record) => [record.sessionId, record]))
