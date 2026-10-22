@@ -30,10 +30,18 @@ function ceilingDivide(numerator: bigint, denominator: bigint): bigint {
   )
 }
 
+/** A value that is not an exact decimal amount; malformed figures are unreadable, never zero. */
+export class UsdParseError extends Error {
+  public constructor() {
+    super('USD amount must be a finite decimal')
+    this.name = 'UsdParseError'
+  }
+}
+
 export class Usd {
   public static from(amount: number | string): Usd {
     const match = DECIMAL.exec(String(amount))
-    if (match === null) throw new Error('USD amount must be a finite decimal')
+    if (match === null) throw new UsdParseError()
     const whole = match[1] ?? '0'
     const fraction = match[2] ?? ''
     const places = fraction.length - Number(match[3] ?? 0)

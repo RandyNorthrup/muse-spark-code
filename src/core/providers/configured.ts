@@ -57,6 +57,7 @@ import {
   isModelApiError,
 } from '../backends/modelapi/transport'
 import { isUserRefusal, UserRefusalError } from '../refusal'
+import { failureForLog } from '../backends/musecode/logText'
 import {
   anthropicPacingLimits,
   openaiPacingLimits,
@@ -1984,6 +1985,7 @@ export function createConfiguredProviderServices(
             )
             return { ok: true, modelCount: undefined }
           } catch (error: unknown) {
+            options.log?.warn(`Provider key test failed (${failureForLog(error)})`)
             return {
               ok: false,
               paid: false,

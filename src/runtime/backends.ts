@@ -5,6 +5,7 @@ import { runtimeConverterPath } from './runtimeConverterPath'
 import { sumUsd } from '../shared/usd'
 import { providersFilePath } from './providerPaths'
 import { ModelApiClient } from '../core/backends/modelapi/client'
+import { failureForLog } from '../core/backends/musecode/logText'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import type { ProviderClient } from '../core/backends/modelapi/client'
@@ -542,7 +543,8 @@ function modelApiManager(
       try {
         const stored = await deps.secrets.get(SECRET_KEYS.modelApiKey)
         return stored === undefined || stored === '' ? undefined : stored
-      } catch {
+      } catch (error: unknown) {
+        log.warn(`Paid key read failed (${failureForLog(error)}); reading as no paid key`)
         return
       }
     },
@@ -1049,9 +1051,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           })
           if ((await factory.accountId()) !== undefined) return { state: 'ready' }
         }
-      } catch {
+      } catch (error: unknown) {
         // An unreadable providers file reads as no default: the key gate
         // below still refuses, and the run surfaces the file's own error.
+        deps.log.warn(`Plan model probe failed (${failureForLog(error)}); no default plan model`)
       }
       const chatGpt = await chatGptFactory()
       if (chatGpt !== undefined) {
@@ -1062,6 +1065,9 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           // its own words, never all of them as the store. The file's refusal
           // carries its own sentence (unparseable or invalid); anything else
           // is not this account read's answer to give.
+          deps.log.warn(
+            `ChatGPT account probe failed (${failureForLog(error)}); answering unavailable`,
+          )
           if (isInvalidProvidersFileError(error))
             return { state: 'unavailable', message: error.message }
           const grantWords = chatGpt.failureOf(error)

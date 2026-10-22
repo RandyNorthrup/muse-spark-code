@@ -3,6 +3,7 @@ import * as z from 'zod/mini'
 import { resolveAttemptBillingRoute } from '../core/backends/modelapi/billingRoute'
 import { ApiKeyAuthSource, NoAuthSource } from '../core/backends/modelapi/authSource'
 import type { ProviderPreset } from '../core/providers/presets'
+import { isUnreachableSend } from '../core/providers/providerSpend'
 import { presets } from '../host/backend/providersEntry'
 const { OPENROUTER_ATTRIBUTION } = presets
 import {
@@ -147,6 +148,9 @@ export async function probeProvider(
       if (error instanceof shared.ModelApiError && error.status !== 0) {
         return { status: error.status, body: undefined }
       }
+      // A send that never got an answer reads as unreachable (or the
+      // pin's rebinding); anything else is not this probe's answer to give.
+      if (!isUnreachableSend(error)) throw error
       failureReason =
         error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable'
       return undefined
@@ -156,7 +160,10 @@ export async function probeProvider(
         status: result.response.status,
         body: await shared.parseJsonResponse(result, (value) => value),
       }
-    } catch {
+    } catch (error: unknown) {
+      // The transport wraps a damaged body as its own error; anything
+      // else is not this probe's answer to give.
+      if (!(error instanceof shared.ModelApiError)) throw error
       return { status: result.response.status, body: undefined }
     }
   }

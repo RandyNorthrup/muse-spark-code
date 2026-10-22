@@ -9,6 +9,7 @@ import { redactSecrets } from '../../src/shared/redact'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
 import { memorySubscriptionFile } from './helpers/subscriptionFile'
 import { CredentialStore } from '../../src/host/auth/credentialStore'
+import { StoreUnavailableError } from '../../src/runtime/keyStore'
 import { UI_TEXT } from '../../src/shared/constants'
 
 // Opaque values no shape pattern matches: only the exact tracked literal
@@ -164,7 +165,7 @@ describe('SubscriptionCredential redaction', () => {
     await expect(refusing.redactionKeys()).resolves.toEqual([PASTED])
     const failing = new SubscriptionCredential({
       credentials: {
-        getApiKey: () => Promise.reject(new Error('store down')),
+        getApiKey: () => Promise.reject(new StoreUnavailableError()),
       },
       isEnabled: () => true,
       platform: 'linux',

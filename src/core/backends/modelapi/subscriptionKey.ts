@@ -64,7 +64,8 @@ export function readSubscriptionKeyText(text: string): SubscriptionKeyRead {
   let raw: unknown
   try {
     raw = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { status: 'unreadable', key: undefined }
   }
   if (!isRecord(raw)) return { status: 'unreadable', key: undefined }
@@ -121,6 +122,17 @@ export function isMissing(error: unknown): boolean {
   )
 }
 
+/**
+A coded filesystem failure (EACCES, EPERM, ELOOP, …): the file is there
+but cannot be used. Every real filesystem error carries a code; only a
+codeless throw is not this read's answer to give.
+*/
+export function isFsError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+  )
+}
+
 /** The subscription key, read fresh on every call: nothing is retained. */
 export class SubscriptionKeySource {
   private readonly readFile: (path: string) => Promise<string>
@@ -158,7 +170,9 @@ export class SubscriptionKeySource {
     } catch (error: unknown) {
       // Only a file that is not there reads as missing; one that cannot
       // be statted (EACCES) names the access fix instead.
-      return { status: isMissing(error) ? 'missing' : 'unreadable', key: undefined }
+      if (isMissing(error)) return { status: 'missing', key: undefined }
+      if (!isFsError(error)) throw error
+      return { status: 'unreadable', key: undefined }
     }
     if (size > MUSE_CREDENTIAL_FILE_MAX_BYTES) {
       return { status: 'unreadable', key: undefined }
@@ -167,7 +181,9 @@ export class SubscriptionKeySource {
     try {
       text = await this.readFile(file)
     } catch (error: unknown) {
-      return { status: isMissing(error) ? 'missing' : 'unreadable', key: undefined }
+      if (isMissing(error)) return { status: 'missing', key: undefined }
+      if (!isFsError(error)) throw error
+      return { status: 'unreadable', key: undefined }
     }
     return readSubscriptionKeyText(text)
   }

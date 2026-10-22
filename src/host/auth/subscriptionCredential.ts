@@ -101,14 +101,16 @@ export class SubscriptionCredential {
     try {
       const pasted = await this.deps.credentials.getApiKey()
       if (pasted !== undefined) keys.push(pasted)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof Error) || error.name !== 'StoreUnavailableError') throw error
       // An unreadable store contributes no literal here; availability and
       // turn paths report it where it matters.
     }
     try {
       const resolved = await this.resolved()
       if (resolved.kind === 'key' && !keys.includes(resolved.key)) keys.push(resolved.key)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof Error) || error.name !== 'StoreUnavailableError') throw error
       // A refusal or an unreadable sign-in contributes no literal here;
       // the turn path surfaces the refusal itself.
     }

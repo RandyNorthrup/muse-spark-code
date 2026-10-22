@@ -11,6 +11,7 @@ import type {
   SpendPage,
 } from '../core/providers/providerSpend'
 import type { SpendFailure } from '../core/providers/providerSpendKeyUsage'
+import { isUnreachableSend } from '../core/providers/providerSpend'
 import {
   ACCOUNT_DAY_MS,
   CREDENTIAL_RECORD_VERSION,
@@ -20,7 +21,7 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill, uiLocale } from '../shared/l10n/text'
-import { Usd } from '../shared/usd'
+import { Usd, UsdParseError } from '../shared/usd'
 import {
   pinProviderFetch,
   resolveProvider,
@@ -176,7 +177,8 @@ async function spendStoredKey(
   let value: unknown
   try {
     value = JSON.parse(stored)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return {
       ok: false,
       missing: false,
@@ -238,7 +240,8 @@ export function spendEstimateFromBreakdown(
   let total = Usd.from(0)
   try {
     for (const amount of amounts) total = total.add(Usd.from(amount))
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof UsdParseError)) throw error
     return undefined
   }
   const { input, output } = row.totals.tokens
@@ -344,7 +347,8 @@ export async function providersUsage(
     let answer: SpendPage
     try {
       answer = await fetch(openRouterSpendRequest({ origin: provider.origin, key: stored.key }))
-    } catch {
+    } catch (error: unknown) {
+      if (!isUnreachableSend(error)) throw error
       return failed(deps, spendFailureText({ kind: 'unreachable' }, provider.preset.label))
     }
     if (answer.status !== HTTP_STATUS.ok) {
@@ -370,12 +374,9 @@ export async function providersUsage(
   if (isSpendFailure(report)) {
     return failed(deps, spendFailureText(report, provider.preset.label))
   }
-  let estimate: SpendEstimate | undefined
-  try {
-    estimate = await deps.readSpendEstimate?.(provider.entry.id, start, now)
-  } catch {
-    estimate = undefined
-  }
+  // The estimate reader never throws: a journal failure resolves
+  // undefined, so the provider's figures show alone.
+  const estimate = await deps.readSpendEstimate?.(provider.entry.id, start, now)
   if (options.json) {
     deps.print(
       JSON.stringify({

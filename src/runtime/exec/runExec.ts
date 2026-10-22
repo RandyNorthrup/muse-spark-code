@@ -55,6 +55,7 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import {
+  isFsError,
   isMissing,
   readSubscriptionKeyText,
   subscriptionKeyRefusal,
@@ -812,7 +813,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           text = new TextDecoder().decode(bytes)
         } catch (readError: unknown) {
           status = 'auth_required'
-          error = subscriptionKeyRefusal(isMissing(readError) ? 'missing' : 'unreadable')
+          if (isMissing(readError)) error = subscriptionKeyRefusal('missing')
+          else {
+            // A coded filesystem failure reads as unreadable; a codeless
+            // throw is not this preflight's answer to give.
+            if (!isFsError(readError)) throw readError
+            error = subscriptionKeyRefusal('unreadable')
+          }
           return await finish()
         }
         const read = readSubscriptionKeyText(text)
@@ -1454,6 +1461,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw error_
     }
   } catch (error_: unknown) {
+    // The run's own failure record: the kind here, the mapped status and
+    // redacted message below through finish().
+    log.error(`Exec run failed (${failureForLog(error_)})`)
     if (
       error_ instanceof Error &&
       'code' in error_ &&
