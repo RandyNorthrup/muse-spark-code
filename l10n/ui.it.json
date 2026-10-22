@@ -3114,6 +3114,18 @@
     "checkSlots": "Slot per i controlli",
     "perCopy": "Ogni copia di lavoro"
   },
+  "coordinatorStoreTooLarge": "Il registro del coordinatore della macchina è troppo grande per essere letto in sicurezza, quindi questa finestra mantiene il proprio scheduler.",
+  "coordinatorStoreAmbiguous": "Il registro del coordinatore della macchina è danneggiato o poco chiaro, quindi questa finestra mantiene il proprio scheduler. Nulla è stato eliminato.",
+  "coordinatorStoreIdentity": "Il registro del coordinatore della macchina appartiene a un altro archivio, quindi questa finestra mantiene il proprio scheduler.",
+  "coordinatorEpochReused": "Il coordinatore della macchina ha rifiutato una sessione riutilizzata, quindi questa finestra mantiene il proprio scheduler.",
+  "coordinatorLedgerOwned": "Un altro processo coordina già questa macchina, quindi questa finestra mantiene il proprio scheduler.",
+  "coordinatorLedgerOwnerUncertain": "Il coordinatore della macchina non può stabilire se un altro processo coordina ancora questa macchina, quindi questa finestra mantiene il proprio scheduler.",
+  "coordinatorSyncFailed": "Il coordinatore della macchina non ha potuto salvare il proprio registro, quindi questa finestra mantiene il proprio scheduler.",
+  "coordinatorModeWindowStorage": "Il coordinamento della macchina è disattivato: questo archivio non può contenerlo. Questa finestra mantiene il proprio scheduler.",
+  "coordinatorModeWindowNative": "Il coordinamento della macchina è disattivato: il controllo dei processi di questa macchina non è ancora qualificato. Questa finestra mantiene il proprio scheduler.",
+  "coordinatorModeWindowScope": "Il coordinamento della macchina è disattivato: il contenimento completo dei processi non è provato qui. Questa finestra mantiene il proprio scheduler.",
+  "coordinatorModeBlockedGrants": "Il coordinamento della macchina è bloccato: concessioni precedenti sono ancora aperte. Questa finestra mantiene il proprio scheduler finché non vengono regolate.",
+  "coordinatorEndpointPathTooLong": "Il coordinatore della macchina non può restare in ascolto qui: l’indirizzo è troppo lungo. Questa finestra mantiene il proprio scheduler.",
   "teamTrafficMetrics": {
     "utilisation": "Utilizzo degli slot",
     "queueDepth": "Lunghezza della coda",

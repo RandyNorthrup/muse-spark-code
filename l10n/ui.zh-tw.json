@@ -2994,6 +2994,18 @@
     "checkSlots": "檢查槽位",
     "perCopy": "每個工作副本"
   },
+  "coordinatorStoreTooLarge": "機器協調器的記錄太大，無法安全讀取，因此此視窗繼續使用自己的排程器。",
+  "coordinatorStoreAmbiguous": "機器協調器的記錄已損壞或不明確，因此此視窗繼續使用自己的排程器。未刪除任何內容。",
+  "coordinatorStoreIdentity": "機器協調器的記錄屬於另一個儲存區，因此此視窗繼續使用自己的排程器。",
+  "coordinatorEpochReused": "機器協調器拒絕了一個重複使用的作業階段，因此此視窗繼續使用自己的排程器。",
+  "coordinatorLedgerOwned": "另一個處理程序已在協調本機，因此此視窗繼續使用自己的排程器。",
+  "coordinatorLedgerOwnerUncertain": "機器協調器無法判斷另一個處理程序是否仍在協調本機，因此此視窗繼續使用自己的排程器。",
+  "coordinatorSyncFailed": "機器協調器無法儲存其記錄，因此此視窗繼續使用自己的排程器。",
+  "coordinatorModeWindowStorage": "整機協調已關閉：此儲存區無法承載，因此此視窗繼續使用自己的排程器。",
+  "coordinatorModeWindowNative": "整機協調已關閉：本機的處理程序控制尚未合格，因此此視窗繼續使用自己的排程器。",
+  "coordinatorModeWindowScope": "整機協調已關閉：完整的處理程序隔離在此處尚未得到證明，因此此視窗繼續使用自己的排程器。",
+  "coordinatorModeBlockedGrants": "整機協調已封鎖：早期的授權仍處於開放狀態。此視窗繼續使用自己的排程器，直到它們完成結算。",
+  "coordinatorEndpointPathTooLong": "機器協調器無法在此處接聽：位址太長。此視窗繼續使用自己的排程器。",
   "teamTrafficMetrics": {
     "utilisation": "通道使用率",
     "queueDepth": "佇列深度",
