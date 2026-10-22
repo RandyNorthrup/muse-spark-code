@@ -4251,6 +4251,8 @@
   "referenceLsp": "Server linguistico stdio con Tab a pagamento facoltativo e consenso nell’editor.",
   "referenceSupervise": "Avviare il runtime con controllo Stop indipendente e autenticato.",
   "referenceStop": "Arrestare i proprietari verificati del runtime in questo spazio di lavoro.",
+  "superviseUsage": "{command} supervise [argomenti agente]\nEsegue i suoi argomenti come runtime supervisionato; Stop resta disponibile tramite il registro autenticato.",
+  "stopUsage": "{command} stop [opzioni serve]\nFerma i runtime verificati di questo spazio di lavoro; i suoi flag sono convalidati come flag serve.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nServer linguistico: Tab a pagamento richiede attivazione esplicita, un’area di lavoro attendibile e consenso.",
   "acpStopUnverified": "Impossibile verificare l’arresto — i processi potrebbero essere ancora in esecuzione. PID osservati: {pids}",
   "acpSupervisorSignal": "Il processo supervisionato è stato terminato da {signal}.",

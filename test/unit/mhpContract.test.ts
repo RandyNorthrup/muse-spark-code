@@ -303,6 +303,7 @@ describe('MHP 1.5 boundary and native export', () => {
     ).toEqualTypeOf<MhpResult<'documents/list'>>()
   })
 
+  // 30 s: shells the schema generator, which esbuild-bundles src before its guard runs.
   it('refuses silent re-adoption of the frozen version and preserves all snapshot bytes', async () => {
     const files = [
       'src/shared/hostApi/mhp-v1.schema.json',
@@ -319,8 +320,9 @@ describe('MHP 1.5 boundary and native export', () => {
       ),
     ).rejects.toThrow('MHP_VERSION_ALREADY_ADOPTED')
     expect(await Promise.all(files.map((file) => readFile(file, 'utf8')))).toEqual(before)
-  })
+  }, 30_000)
 
+  // 30 s: shells the schema generator's full check (esbuild bundle plus format).
   it('exports current JSON Schemas for the native plugins', async () => {
     const { stdout } = await promisify(execFile)(
       process.execPath,
@@ -354,7 +356,7 @@ describe('MHP 1.5 boundary and native export', () => {
         },
       },
     })
-  })
+  }, 30_000)
 })
 
 describe('MHP negotiation and feature skeleton', () => {

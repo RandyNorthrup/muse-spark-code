@@ -4160,6 +4160,8 @@
   "referenceLsp": "Stdio dil sunucusu; ücretli Tab açık onay ve düzenleyici izniyle kullanılır.",
   "referenceSupervise": "Çalışma ortamını bağımsız kimliği doğrulanmış Stop denetimiyle çalıştırın.",
   "referenceStop": "Bu çalışma alanındaki doğrulanmış çalışma ortamı sahiplerini durdurun.",
+  "superviseUsage": "{command} supervise [aracı bağımsız değişkenleri]\nBağımsız değişkenlerini gözetimli çalışma olarak çalıştırır; Stop, kimliği doğrulanmış kayıt üzerinden kullanılabilir kalır.",
+  "stopUsage": "{command} stop [serve seçenekleri]\nBu çalışma alanının doğrulanmış çalışmalarını durdurur; bayrakları serve bayrakları olarak doğrulanır.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nDil sunucusu: ücretli Tab açıkça etkinleştirme, güvenilir bir çalışma alanı ve onay gerektirir.",
   "acpStopUnverified": "Durdurma doğrulanamıyor — işlemler hâlâ çalışıyor olabilir. Gözlemlenen PID’ler: {pids}",
   "acpSupervisorSignal": "Denetlenen işlem {signal} sinyaliyle sonlandırıldı.",
