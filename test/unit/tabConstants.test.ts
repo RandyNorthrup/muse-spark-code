@@ -34,7 +34,6 @@ import {
   TAB_PROMPT_CACHE_KEY_PREFIX,
   TAB_REPLY_CLOSE_TAG,
   TAB_REPLY_OPEN_TAG,
-  TAB_REQUEST_TIMEOUT_MS,
   TAB_SNOOZE_LONG_MINUTES,
   TAB_SNOOZE_SHORT_MINUTES,
   TAB_TRIGGER_MODES,
@@ -62,10 +61,11 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
     // Acceptance 9 (D121): no count of ours paces requests — the in-flight
     // and per-minute caps are gone, and pacing is the debounce plus the
     // shared client's provider-driven pacing.
+    // Acceptance 7: a sent request is never aborted — the request timeout
+    // is gone with them.
     expect(TAB_DEBOUNCE_MS).toBe(350)
     expect(TAB_FAST_MAX_OUTPUT_TOKENS).toBe(608)
     expect(TAB_MULTILINE_MAX_OUTPUT_TOKENS).toBe(1536)
-    expect(TAB_REQUEST_TIMEOUT_MS).toBe(67_000)
     expect(TAB_CACHE_ENTRIES).toBe(64)
     expect(TAB_HOOK_VERDICT_CACHE).toBe(128)
     expect(TAB_AUTOMATIC_LATENCY_CEILING_MS).toBe(1500)
