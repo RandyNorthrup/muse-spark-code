@@ -140,11 +140,17 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
   }
 }
 
-/** G calls this on the first governed spawn, then owns its RESOURCE_SAMPLE_MS timer. */
+/**
+G calls this on the first governed spawn, then owns its RESOURCE_SAMPLE_MS
+timer. A caller that owns the helper child's lifetime (its own binary, its
+own retirement watch) passes its reader; the sampler samples and retires it
+like its own.
+*/
 export function createMachineResourceSampler(
   settings: () => ResourceSettings,
   limits: ResourceProbeLimits,
   disks?: ResourceDiskSampler,
+  darwinMemory?: DarwinMemoryReader,
 ): ResourceSampler {
   const io = createSamplerIo(limits)
   // Before libuv 1.52 Darwin's API returns free pages alone; use the signed helper.
@@ -153,14 +159,15 @@ export function createMachineResourceSampler(
   const hasDarwinHeadroom =
     hasUvVersion &&
     (uvMajor > 1 || (uvMajor === 1 && uvMinor >= RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR))
-  const darwinMemory =
-    hasUvVersion &&
+  const helperMemory =
+    darwinMemory ??
+    (hasUvVersion &&
     uvMajor === 1 &&
     uvMinor >= 0 &&
     uvMinor < RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR &&
     process.platform === 'darwin'
       ? new DarwinMemoryReader(limits)
-      : undefined
+      : undefined)
   const compatibleProcess: { availableMemory?: () => number } = process
   return new MachineResourceSampler(
     {
@@ -170,13 +177,13 @@ export function createMachineResourceSampler(
       totalMemory: () => os.totalmem(),
       freeMemory: () => os.freemem(),
       availableMemory: () => {
-        if (darwinMemory !== undefined) return darwinMemory.read()
+        if (helperMemory !== undefined) return helperMemory.read()
         return hasDarwinHeadroom || process.platform !== 'darwin'
           ? (compatibleProcess.availableMemory?.() ?? null)
           : null
       },
       dispose: () => {
-        darwinMemory?.dispose()
+        helperMemory?.dispose()
       },
       read: io.read,
       loadOptionalProbes: async () => {

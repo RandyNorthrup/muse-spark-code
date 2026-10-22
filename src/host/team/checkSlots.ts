@@ -17,7 +17,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { cp, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { CheckJob, CheckResult } from '../../core/runners/routing'
+import { RunnerTestFailedError, type CheckJob, type CheckResult } from '../../core/runners/routing'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
 import { isSamePath } from '../../core/paths'
 import { GIT_METADATA_OPTIONS, UI_TEXT } from '../../shared/constants'
@@ -82,7 +82,7 @@ export async function captureCheckSnapshot(
       timeoutMs,
     })
     if (!result.descendantsEnded) throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
-    if (result.exitCode !== 0) throw new Error(UI_TEXT.teamRunners.testFailed)
+    if (result.exitCode !== 0) throw new RunnerTestFailedError()
     return result.output.trim()
   }
   try {

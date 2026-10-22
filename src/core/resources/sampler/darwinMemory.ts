@@ -8,6 +8,7 @@ import {
   RESOURCE_PROBE_EMPTY_ENV_KEYS,
   darwinDictationHelperSegments,
 } from '../../../shared/constants'
+import { isErrno } from '../../fs/errno'
 import type { ResourceProbeLimits } from './system'
 
 const responseSchema = z.strictObject({
@@ -99,7 +100,15 @@ export class DarwinMemoryReader {
         const result = responseSchema.safeParse(frame)
         if (result.success) this.finish(result.data.availableBytes)
         else this.fail()
-      } catch {
+      } catch (error) {
+        // A frame that is not UTF-8 or not JSON reads as unknown: the fatal
+        // decoder throws TypeError and JSON.parse throws SyntaxError, and
+        // neither is memory pressure. Anything else is not a frame outcome.
+        if (error instanceof SyntaxError) {
+          this.fail()
+          return
+        }
+        if (!(error instanceof TypeError)) throw error
         this.fail()
       }
     })
@@ -129,7 +138,11 @@ export class DarwinMemoryReader {
     try {
       const child = this.child ?? this.start()
       child.stdin.write('sample\n')
-    } catch {
+    } catch (error) {
+      // Sampling infrastructure only: a spawn or write that the system
+      // refused reads as unknown, never as memory pressure. Only system
+      // failures read that way.
+      if (!isErrno(error)) throw error
       this.fail()
     }
     return pending

@@ -18,10 +18,15 @@ import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { isErrno } from '../../core/fs/errno'
 import { runnerHealthSchema, type RunnerHealth, RunnerHealthStore } from '../../core/runners/health'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
 import {
+  RunnerOfflineError,
   RunnerPolicyRefusedError,
+  RunnerTestFailedError,
+  RunnerUntrustedError,
+  WindowsCommandTooLongError,
   type CheckJob,
   type RunnerDispatch,
 } from '../../core/runners/routing'
@@ -55,10 +60,19 @@ export interface SshRunnerDeps extends CheckGit {
   readonly wait: (ms: number) => Promise<void>
 }
 
-class WindowsCommandTooLongError extends Error {
-  public constructor() {
-    super(UI_TEXT.teamRunners.commandTooLong)
-  }
+/**
+A transport failure, never a bug: the machine, the network or the cancelled
+wait failed, not the check. System errors, cancel and the transport's own
+offline sentence read this way; anything else stays loud. Routine hangs
+surface this way too: OpenSSH's own ConnectTimeout exits first, so a wait
+that outlives it is already one of these.
+*/
+function isTransportError(error: unknown): boolean {
+  return (
+    isErrno(error) ||
+    (error instanceof DOMException && error.name === 'AbortError') ||
+    (error instanceof Error && error.message === UI_TEXT.teamRunners.offline)
+  )
 }
 
 /** The same fixed policy is used by health, upload, run, end checks and Git's SSH. */
@@ -150,7 +164,7 @@ export class SshRunner {
   }
   private admit(signal?: AbortSignal): void {
     signal?.throwIfAborted()
-    if (!this.deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+    if (!this.deps.isTrusted()) throw new RunnerUntrustedError()
   }
   private async ssh(
     runner: Runner,
@@ -187,7 +201,7 @@ export class SshRunner {
       // receiver answered and forbade the helper, so it says so.
       if (runner.os === 'win32' && isRunnerPolicyRefusal(result.stderr))
         throw new RunnerPolicyRefusedError()
-      throw new Error(UI_TEXT.teamRunners.offline)
+      throw new RunnerOfflineError()
     }
     return result.output
   }
@@ -267,16 +281,19 @@ export class SshRunner {
             this.invocation(runner, helper, 'selftest', [String(RUNNER_SELFTEST_TIMEOUT_MS)]),
           ),
         )
-        z.strictObject({ inputReady: z.literal(true) }).parse(answer)
+        if (!z.strictObject({ inputReady: z.literal(true) }).safeParse(answer).success)
+          return { ok: false, notice: UI_TEXT.teamRunners.inputHangNotice }
       } catch (error: unknown) {
         this.admit()
-        return {
-          ok: false,
-          notice:
-            error instanceof RunnerPolicyRefusedError
-              ? UI_TEXT.teamRunners.executionPolicy
-              : UI_TEXT.teamRunners.inputHangNotice,
-        }
+        // A proved policy refusal says policy. Anything else that never
+        // proved input readiness reads as a hang: only transport failures
+        // and an unreadable answer read that way.
+        if (error instanceof RunnerPolicyRefusedError)
+          return { ok: false, notice: UI_TEXT.teamRunners.executionPolicy }
+        if (error instanceof SyntaxError)
+          return { ok: false, notice: UI_TEXT.teamRunners.inputHangNotice }
+        if (!isTransportError(error)) throw error
+        return { ok: false, notice: UI_TEXT.teamRunners.inputHangNotice }
       }
     }
     let health: RunnerHealth | undefined
@@ -309,12 +326,17 @@ export class SshRunner {
         this.invocation(runner, helper, 'health', [String(runner.maxJobs)]),
       )
       const value: unknown = JSON.parse(text)
-      return this.health.record(runner.id, runnerHealthSchema.parse(value))
+      const parsed = runnerHealthSchema.safeParse(value)
+      return this.health.record(runner.id, parsed.success ? parsed.data : undefined)
     } catch (error: unknown) {
       this.admit()
       // A proved policy refusal is not an unreachable runner: it propagates
       // so the router reports the policy sentence instead of going silent.
       if (error instanceof RunnerPolicyRefusedError) throw error
+      // Every other health failure reads as unknown health: only transport
+      // failures and an unreadable answer read that way.
+      if (error instanceof SyntaxError) return this.health.record(runner.id, undefined)
+      if (!isTransportError(error)) throw error
       return this.health.record(runner.id, undefined)
     }
   }
@@ -330,7 +352,7 @@ export class SshRunner {
       await this.ssh(runner, this.invocation(runner, helper, 'status', [runId])),
     )
     const result = runStateSchema.parse(value)
-    if (result.runId !== runId) throw new Error(UI_TEXT.teamRunners.testFailed)
+    if (result.runId !== runId) throw new RunnerTestFailedError()
     return result
   }
   public async run(runnerValue: Runner, job: CheckJob): Promise<RunnerDispatch> {
@@ -349,15 +371,26 @@ export class SshRunner {
     try {
       const helper = await this.install(runner, job.signal)
       await this.ssh(runner, this.invocation(runner, helper, 'init', []), job.signal)
-      const snapshot = await captureCheckSnapshot(
-        job.cwd,
-        this.deps.scratch,
-        this.deps,
-        () => {
-          this.admit(job.signal)
-        },
-        job.timeoutMs,
-      )
+      let snapshot: string
+      try {
+        snapshot = await captureCheckSnapshot(
+          job.cwd,
+          this.deps.scratch,
+          this.deps,
+          () => {
+            this.admit(job.signal)
+          },
+          job.timeoutMs,
+        )
+      } catch (error) {
+        // A snapshot without descendants proof reads as a failed check,
+        // never a lost one.
+        if (!(
+          error instanceof Error && error.message === UI_TEXT.teamTrafficNotices.uncertainAttempt
+        ))
+          throw error
+        throw new RunnerTestFailedError({ cause: error })
+      }
       // A source repository's url.*.insteadOf must never redirect a runner push.
       pushCopy = await mkdtemp(path.join(this.deps.scratch, 'push-'))
       const gitEnvironment = {
@@ -387,7 +420,7 @@ export class SshRunner {
         signal: job.signal,
       })
       hasPushProof = cloned.descendantsEnded
-      if (!hasPushProof || cloned.exitCode !== 0) throw new Error(UI_TEXT.teamRunners.testFailed)
+      if (!hasPushProof || cloned.exitCode !== 0) throw new RunnerTestFailedError()
       const sshCommand = [this.deps.ssh, ...runnerSshArgs(runner).slice(1, -1)]
         .map((value) => posixQuoted(value))
         .join(' ')
@@ -424,7 +457,7 @@ export class SshRunner {
         .update(runner.setupCommand)
       for (const file of job.lockfiles) {
         if (path.isAbsolute(file) || file.split(/[\\/]/u).includes('..'))
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         this.admit(job.signal)
         const blob = await this.deps.run({
           file: this.deps.file,
@@ -435,8 +468,7 @@ export class SshRunner {
           timeoutMs: job.timeoutMs,
           signal: job.signal,
         })
-        if (!blob.descendantsEnded || blob.exitCode !== 0)
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+        if (!blob.descendantsEnded || blob.exitCode !== 0) throw new RunnerTestFailedError()
         key.update('\0').update(file).update(blob.output)
       }
       const environment = runnerEnvironment(this.deps.env, runner.environmentNames)
@@ -463,16 +495,30 @@ export class SshRunner {
       const started: unknown = JSON.parse(
         await this.ssh(runner, start, job.signal, () => {
           sendState.sent = true
-          job.onSent?.()
+          try {
+            job.onSent?.()
+          } catch (error) {
+            // A broken sent observer reads as a failed run, never a lost one.
+            throw new RunnerTestFailedError({ cause: error })
+          }
         }),
       )
-      const initial = runStateSchema.parse(started)
-      if (initial.runId !== job.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
+      const startedParsed = runStateSchema.safeParse(started)
+      if (!startedParsed.success) throw new RunnerTestFailedError()
+      const initial = startedParsed.data
+      if (initial.runId !== job.runId) throw new RunnerTestFailedError()
       if (initial.state === 'busy') return { kind: 'busy' }
       // The receiver got the start and proved it admitted nothing: run locally
       // once, keeping the true refusal reason so the source can say why.
       if (initial.state === 'refused') return { kind: 'busy', reason: initial.reason }
-      if (initial.state === 'running' || initial.state === 'ended') job.onAdmitted?.()
+      if (initial.state === 'running' || initial.state === 'ended') {
+        try {
+          job.onAdmitted?.()
+        } catch (error) {
+          // A broken admission observer reads as a failed run, never a lost one.
+          throw new RunnerTestFailedError({ cause: error })
+        }
+      }
       const deadline = this.deps.now() + job.timeoutMs + RUNNER_CONNECT_TIMEOUT_MS
       let output = ''
       let bytes = Buffer.alloc(0)
@@ -486,18 +532,27 @@ export class SshRunner {
           job.signal,
         )
         const value: unknown = JSON.parse(text)
-        const encoded = z.strictObject({ bytes: z.string() }).parse(value).bytes
+        const encodedParsed = z.strictObject({ bytes: z.string() }).safeParse(value)
+        if (!encodedParsed.success) throw new RunnerTestFailedError()
+        const encoded = encodedParsed.data.bytes
         if (Buffer.byteLength(encoded, 'base64') > GIT_OUTPUT_MAX_BYTES)
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         const next = Buffer.from(encoded, 'base64')
         if (next.toString('base64') !== encoded || next.length > GIT_OUTPUT_MAX_BYTES)
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         if (next.length < bytes.length || !next.subarray(0, bytes.length).equals(bytes))
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         const appended = decoder.decode(next.subarray(bytes.length), {
           stream: state.state !== 'ended',
         })
-        if (appended !== '') job.onOutput(appended)
+        if (appended !== '') {
+          try {
+            job.onOutput(appended)
+          } catch (error) {
+            // A broken output observer reads as a failed run, never a lost one.
+            throw new RunnerTestFailedError({ cause: error })
+          }
+        }
         output += appended
         bytes = next
         if (state.state === 'ended' && state.reason === 'cacheBusy') return { kind: 'busy' }
@@ -513,16 +568,29 @@ export class SshRunner {
     } catch (error: unknown) {
       if (!sendState.sent) {
         // Nothing left this machine: cancel and the length refusal propagate
-        // with their own sentences; every other pre-send failure reads offline.
+        // with their own sentences; every other pre-send failure reads
+        // offline. Only transport failures, untrusted receivers and proved
+        // lockfile sentences read that way.
         if (error instanceof WindowsCommandTooLongError) throw error
         // The receiver refused the helper by policy before anything was
         // sent: a proved refusal with its own reason, never offline.
         if (error instanceof RunnerPolicyRefusedError)
           return { kind: 'busy', reason: 'executionPolicy' }
+        if (error instanceof RunnerUntrustedError) return { kind: 'offline' }
         this.admit(job.signal)
+        if (error instanceof RunnerOfflineError) return { kind: 'offline' }
+        if (error instanceof RunnerTestFailedError) return { kind: 'offline' }
+        if (!isTransportError(error)) throw error
         return { kind: 'offline' }
       }
-      // The start command went onto the wire, or its proof was lost: never local.
+      // The start command went onto the wire, or its proof was lost: never
+      // local. Only policy, proved protocol sentences, untrusted receivers,
+      // transport failures and an unreadable answer read that way.
+      if (error instanceof RunnerPolicyRefusedError) return { kind: 'uncertain' }
+      if (error instanceof RunnerTestFailedError) return { kind: 'uncertain' }
+      if (error instanceof RunnerUntrustedError) return { kind: 'uncertain' }
+      if (error instanceof SyntaxError) return { kind: 'uncertain' }
+      if (!isTransportError(error)) throw error
       return { kind: 'uncertain' }
     } finally {
       this.active.delete(job.runId)

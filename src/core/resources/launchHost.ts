@@ -228,8 +228,11 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     if (this.disposed) return
     try {
       this.options.onWorkChanged?.()
-    } catch {
-      this.options.onError()
+    } catch (error) {
+      // The occupancy re-read is best-effort: the next registry change wakes
+      // the queue again. Only the queue's own capacity errors read that way.
+      if (!(error instanceof RangeError)) throw error
+      this.options.onError(error)
     }
   }
 

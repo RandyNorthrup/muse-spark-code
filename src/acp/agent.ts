@@ -2898,7 +2898,10 @@ class AcpSession {
       await this.releaseAnswers(pending)
       if (this.pending === pending) this.pending = undefined
       if (this.isDisposed) {
-        // Let go while starting: a close cancels; a host exit fails.
+        // Let go while starting: a close cancels; a host exit fails. Only a
+        // cancel lets the turn's failure supersede the submit failure;
+        // anything else propagates like the undisposed path below.
+        if (!(error instanceof DOMException && error.name === 'AbortError')) throw error
         const outcome = await finished
         if ('error' in outcome) {
           throw outcome.error

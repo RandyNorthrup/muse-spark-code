@@ -1,6 +1,7 @@
 import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { isErrno } from '../core/fs/errno'
 import { abortableSleep } from '../core/backends/modelapi/transport'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
@@ -112,7 +113,7 @@ import { type LogLevel, stderrLogger } from './stderrLog'
 import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
-import { crashTextForLog, createExecLogger, redactWhole } from './exec/execOutput'
+import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
@@ -144,7 +145,11 @@ import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
-import { lazyRuntimeResources, type ProcessResources } from './resources/load'
+import {
+  ResourceUnavailableError,
+  lazyRuntimeResources,
+  type ProcessResources,
+} from './resources/load'
 import { execAccountSelection } from './exec/execAccounts'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
 import { runtimeAccountsLoader, type RuntimeAccountsBundle } from './providers/accountsBundle'
@@ -1581,7 +1586,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       )
       return headlessCode
     } catch (error: unknown) {
-      log.error(error instanceof Error ? (error.stack ?? error.message) : String(error))
+      log.error(`Run failed: ${failureForLog(error)}`)
       await stderr.flush(lifecycle.remainingGraceMs())
       headlessCode =
         command.command === 'exec' ? EXEC_EXIT.internal : HEADLESS_WIRING_EXIT[command.command]
@@ -1656,14 +1661,21 @@ async function main(processResources: ProcessResources): Promise<number> {
       try {
         writeLine(process.stdout, await processResources.command(command.action, command.json))
         return 0
-      } catch {
-        // An unreadable journal is named as such; it is never printed as empty history.
-        writeLine(
-          process.stderr,
-          command.action === 'history'
-            ? UI_TEXT.resourceHistoryInvalid
-            : UI_TEXT.resourceUnavailable,
-        )
+      } catch (error: unknown) {
+        // An unreadable journal is named as such; it is never printed as
+        // empty history. Only a corrupt or missing journal reads that way.
+        if (command.action === 'history') {
+          if (error instanceof SyntaxError) {
+            writeLine(process.stderr, UI_TEXT.resourceHistoryInvalid)
+            return EXIT_FAILED
+          }
+          if (!isErrno(error)) throw error
+          writeLine(process.stderr, UI_TEXT.resourceHistoryInvalid)
+          return EXIT_FAILED
+        }
+        // Any other reading names itself unavailable only when it is.
+        if (!(error instanceof ResourceUnavailableError)) throw error
+        writeLine(process.stderr, UI_TEXT.resourceUnavailable)
         return EXIT_FAILED
       } finally {
         processResources.dispose()
@@ -2334,17 +2346,18 @@ async function main(processResources: ProcessResources): Promise<number> {
   }
 }
 
-/** The process's exit code is the command's; a crash prints its stack and fails. */
+/** The process's exit code is the command's; a crash prints its failure word and fails. */
 async function run(): Promise<void> {
-  const processResources = resourcesFor(
-    stderrLogger((line) => {
-      writeLine(process.stderr, line)
-    }, 'warn'),
-  )
+  const log = stderrLogger((line) => {
+    writeLine(process.stderr, line)
+  }, 'warn')
+  const processResources = resourcesFor(log)
   try {
     process.exitCode = await main(processResources)
   } catch (error: unknown) {
-    writeLine(process.stderr, redactWhole(crashTextForLog(error), []))
+    // A crash names its failure word, never its text: raw stacks stay out
+    // of the log.
+    log.error(`Run failed: ${failureForLog(error)}`)
     process.exitCode = EXIT_FAILED
   } finally {
     processResources.dispose()

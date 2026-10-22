@@ -85,6 +85,34 @@ export class RunnerPolicyRefusedError extends Error {
   }
 }
 
+/** The runner never answered: the run reports the offline sentence, never silent. */
+export class RunnerOfflineError extends Error {
+  public constructor() {
+    super(UI_TEXT.teamRunners.offline)
+  }
+}
+
+/** The runner answered wrong: a self-test, snapshot or protocol reply the runner does not recognise. */
+export class RunnerTestFailedError extends Error {
+  public constructor(options?: ErrorOptions) {
+    super(UI_TEXT.teamRunners.testFailed, options)
+  }
+}
+
+/** The receiver is not trusted: the run never reaches it. */
+export class RunnerUntrustedError extends Error {
+  public constructor() {
+    super(UI_TEXT.teamRunners.trustNotice)
+  }
+}
+
+/** A Windows transport command proved too long before anything was sent. */
+export class WindowsCommandTooLongError extends Error {
+  public constructor() {
+    super(UI_TEXT.teamRunners.commandTooLong)
+  }
+}
+
 /** The source observer's sentence for a proved receiver refusal, else the busy sentence. */
 function refusalSentence(reason: RunnerRefusalReason | undefined): string {
   if (reason === 'commandTooLong') return UI_TEXT.teamRunners.commandTooLong
@@ -304,7 +332,7 @@ export class ResourceRunnerRouter {
             throw error
           }
           const parsed = runnerHealthSchema.safeParse(health)
-          if (!parsed.success) throw new Error(UI_TEXT.teamRunners.offline)
+          if (!parsed.success) throw new RunnerOfflineError()
           const isReady =
             parsed.data.inputReady &&
             parsed.data.freeSlots > 0 &&
@@ -467,8 +495,19 @@ export class ResourceRunnerRouter {
       return answer
     } catch (error: unknown) {
       receipt(sendState.sent ? 'uncertain' : 'refused')
-      this.options.onError(error)
-      return { kind: sendState.sent ? 'uncertain' : 'offline' }
+      // The length refusal is always pre-send: refused, reported, offline.
+      if (error instanceof WindowsCommandTooLongError) {
+        this.options.onError(error)
+        return { kind: 'offline' }
+      }
+      // Cancel reads refused before sending, uncertain after.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        this.options.onError(error)
+        return { kind: sendState.sent ? 'uncertain' : 'offline' }
+      }
+      // The transport proves only the above by throw; anything else is not
+      // a dispatch outcome.
+      throw error
     } finally {
       detach()
     }

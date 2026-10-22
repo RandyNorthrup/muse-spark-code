@@ -290,9 +290,11 @@ export class ResourceRelocator {
       if (result === 'admitted') this.report(target, work.kind, metadata.level)
       return result
     } catch (error) {
+      // A failed move reports and settles uncertain, then stays loud: the
+      // caller decides what a dispatch failure means, not the outcome.
       if (result !== 'admitted' && state.isDispatched) result = 'uncertain'
       this.options.onError(error)
-      return result
+      throw error
     } finally {
       if (isClaimed) work.settle(result)
     }
