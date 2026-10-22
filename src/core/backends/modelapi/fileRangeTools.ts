@@ -396,6 +396,7 @@ export async function editFileRange(
             `${prefix}find text not found in ${scope}; read the window that holds it and pass that range`,
             `${prefix}Find text was not found in this window; read the window that holds it and pass that range.`,
           ),
+    MODEL_API_MODEL_TEXT.editOverlap,
   )
   if (!resolved.ok) return resolved.outcome
   const ordered = resolved.ranges
@@ -519,7 +520,7 @@ export async function readFileByRange(
     )
   }
   // The path is confined first, exactly as the inline version did.
-  const head = await locateHead(args.path, context)
+  const head = await locateHead(args.path, context, MODEL_API_MODEL_TEXT.pathDeniedByPolicy)
   return head.ok ? await readFileWindow(head, args, context) : head.outcome
 }
 
@@ -531,6 +532,6 @@ export async function editFileByRange(
   context: ToolContext,
 ): Promise<ToolOutcome> {
   // The path is confined first, exactly as the inline version did.
-  const head = await locateHead(args.path, context)
+  const head = await locateHead(args.path, context, MODEL_API_MODEL_TEXT.pathDeniedByPolicy)
   return head.ok ? await editFileRange(head, args, singles, hasEdits, context) : head.outcome
 }

@@ -289,6 +289,8 @@ export const DEFERRED = [
       'src/core/vault/taint.ts',
       'src/core/vault/exec/schema.ts',
       'src/core/vault/exec/toolSchema.ts',
+      'src/core/vault/ssh/wire.ts',
+      'src/core/vault/ssh/openSshFile.ts',
     ],
   },
   {
@@ -309,6 +311,7 @@ export const DEFERRED = [
       'src/shared/usd.ts',
       'src/shared/legal.ts',
       'src/core/backends/modelapi/legalScanTool.ts',
+      'src/core/toolEdit.ts',
     ],
   },
   {
@@ -1787,6 +1790,10 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   'src/shared/usdSchema.ts',
   'src/shared/legal.ts',
   'src/core/backends/modelapi/legalScanTool.ts',
+  // RLINTFIX: file-tool execution, once per process; the backend and the
+  // byte-range, tools and verify chunks read it from here instead of each
+  // carrying a copy.
+  'src/core/toolEdit.ts',
 ]
 
 // The guarded process-start layer (PLAN.md D24), once per process: every
@@ -1823,7 +1830,7 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidBoundary|usd|legal|legalScanTool|toolEdit|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history|wire|openSshFile)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
@@ -1858,6 +1865,10 @@ export const sharedModelApiBoundaries = {
             'src/core/vault/taint.ts',
             'src/core/vault/exec/schema.ts',
             'src/core/vault/exec/toolSchema.ts',
+            // RLINTFIX: the SSH wire format, once per process (see the
+            // vault boundary entry); key operations stay local.
+            'src/core/vault/ssh/wire.ts',
+            'src/core/vault/ssh/openSshFile.ts',
           ].some((file) => source === path.resolve(file))
         ) {
           return path.resolve(build.initialOptions.outfile ?? '') ===

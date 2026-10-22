@@ -1,15 +1,17 @@
 // File-tool execution shared by the Model API backend and its deferred
 // byte-range helpers: outcome builders, edit matching, and the text shapes
-// reads and edits agree on. Both dist/modelApi.js and dist/modelApiTools.js
-// carry their own copy (the tools chunk cannot import the backend's module
-// scope without dragging it whole); type-only imports back stay erased.
+// reads and edits agree on. Every Node bundle reads this module from
+// dist/modelApiBoundaries.js (its entry re-exports it; the build points the
+// import there), so the backend and the deferred chunks carry one copy;
+// type-only imports back stay erased. The caller's own model words arrive
+// as arguments (overlap, policy denial): the boundary carries no
+// MODEL_API_MODEL_TEXT block of its own.
 
 import { setImmediate as yieldToHost } from 'node:timers/promises'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../shared/patchDocument'
 import {
   EDIT_MATCH_YIELD_LINES,
   FILE_REFUSAL_MODEL_TEXT,
-  MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -24,7 +26,7 @@ import type {
   TouchedFiles,
 } from './backends/modelapi/tools'
 
-/** Shared with the deferred byte-range execution, which builds its own bundle copy. */
+/** Shared with the deferred byte-range execution through dist/modelApiBoundaries.js. */
 export function failure(reason: string, visibleReason = reason): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
@@ -166,9 +168,9 @@ export interface EditRange {
 /**
 Every single resolved against the text first (M101): overlaps are refused
 and the ordered ranges come back together, so either all land or none
-does. A miss or repeat refuses through the caller's own words: the whole
-file names its path, a byte window names its window. Shared with the
-deferred byte-range execution, which builds its own bundle copy.
+does. A miss, repeat or overlap refuses through the caller's own words:
+the whole file names its path, a byte window names its window. Shared
+with the deferred byte-range execution through dist/modelApiBoundaries.js.
 */
 export async function resolveEditRanges(
   current: string,
@@ -177,6 +179,7 @@ export async function resolveEditRanges(
   hasEdits: boolean,
   signal: AbortSignal | undefined,
   miss: (prefix: string, isRepeated: boolean) => ToolOutcome,
+  overlapModelText: string,
 ): Promise<{ ok: true; ranges: EditRange[] } | { ok: false; outcome: ToolOutcome }> {
   const ranges: EditRange[] = []
   for (const [index, entry] of singles.entries()) {
@@ -197,7 +200,7 @@ export async function resolveEditRanges(
     if (previous !== undefined && range.start < previous.end) {
       return {
         ok: false,
-        outcome: failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap),
+        outcome: failure(overlapModelText, UI_TEXT.toolEditOverlap),
       }
     }
   }
@@ -210,7 +213,7 @@ suffix trimmed) with their context, in unified-diff numbering (PLAN.md
 D27, `changeHunk`, shared with M67's rename): an insertion's `oldStart` is
 the line it follows, never a marker of a created file, and a Revert checks
 the context, so it refuses a file that has moved on. Shared with the
-deferred byte-range execution, which builds its own bundle copy.
+deferred byte-range execution through dist/modelApiBoundaries.js.
 */
 export function patchOutcome(
   relativePath: string,
@@ -267,11 +270,13 @@ export function isDenied(
 A path confined, policy-checked and approval-checked, without reading the
 file: range reads and edits work from here, and the whole-file execution
 reads from here too, so files of any size stay reachable without loading
-them whole.
+them whole. The policy denial refuses through the caller's own model
+words, like an overlap does.
 */
 export async function locateHead(
   given: string,
   context: ToolContext,
+  deniedModelText: string,
 ): Promise<
   | {
       readonly ok: true
@@ -294,7 +299,7 @@ export async function locateHead(
   if (isDenied(resolved, context)) {
     return {
       ok: false,
-      outcome: failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`),
+      outcome: failure(`${resolved.relative} ${deniedModelText}`),
     }
   }
   if (
@@ -313,7 +318,7 @@ export async function locateHead(
   }
 }
 
-/** Shared with the deferred byte-range execution, which builds its own bundle copy. */
+/** Shared with the deferred byte-range execution through dist/modelApiBoundaries.js. */
 export function clip(text: string): string {
   // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
   return text.length > TOOL_OUTPUT_MAX_CHARS
