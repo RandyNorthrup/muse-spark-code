@@ -30,7 +30,17 @@ beforeAll(async () => {
       '-o',
       fixture.helper,
     ],
-    { env: { PATH: '/usr/bin:/bin', TMPDIR: fixture.folder } },
+    {
+      env: {
+        PATH: '/usr/bin:/bin',
+        TMPDIR: fixture.folder,
+        // The toolchain lookup (not the helper) may need this: without it a
+        // machine whose xcode-select names a missing Xcode cannot drive cc.
+        ...(process.env['DEVELOPER_DIR'] !== undefined && {
+          DEVELOPER_DIR: process.env['DEVELOPER_DIR'],
+        }),
+      },
+    },
   )
   execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', fixture.helper], { env: {} })
 })
