@@ -84,16 +84,18 @@ export type ProvisionConfirm = (message: string, quote: ProvisionQuote) => Promi
 /** The caller drives every notice: this module keeps no timers. */
 export type ProvisionIdleCheck = (server: ProvisionedServer) => boolean | Promise<boolean>
 
-function refusedBudget(): never {
-  throw new Error(UI_TEXT.estimateBudgetRequired)
+function refusedBudget(cause: unknown): Error {
+  throw new Error(UI_TEXT.estimateBudgetRequired, { cause })
 }
 
 function refusedCap(): never {
   throw new Error(UI_TEXT.estimateCapExceeded)
 }
 
-function denied(): never {
-  throw new Error(UI_TEXT.estimateDenied)
+function denied(cause?: unknown): Error {
+  throw cause === undefined
+    ? new Error(UI_TEXT.estimateDenied)
+    : new Error(UI_TEXT.estimateDenied, { cause })
 }
 
 function unknownServer(id: string): never {
@@ -162,18 +164,20 @@ export class EstimateProvisioner {
   ) {
     try {
       this.budget = nonnegativeUsdSchema.parse(budget)
-    } catch {
-      refusedBudget()
+    } catch (error) {
+      throw refusedBudget(error)
     }
     try {
       this.budgetNanos = {
         numerator: Usd.from(this.budget).units(USD_LIABILITY_DECIMALS),
         denominator: ONE,
       }
-    } catch {
+    } catch (error) {
       // The budget parsed but is not representable at liability precision.
       // That is a different failure from a missing budget: say so honestly.
-      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'budget-unrepresentable' }))
+      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'budget-unrepresentable' }), {
+        cause: error,
+      })
     }
   }
 
@@ -304,11 +308,11 @@ export class EstimateProvisioner {
           total: String(preview.totalUsd),
           budget: this.budget,
         })
-        let isConfirmed = false
+        let isConfirmed: boolean
         try {
           isConfirmed = await this.isSpendConfirmed(message, snapshot)
-        } catch {
-          denied()
+        } catch (error) {
+          throw denied(error)
         }
         if (!isConfirmed) denied()
         created.push(await this.owner.run(() => this.admit(snapshot, cloudInit)))
@@ -364,6 +368,27 @@ function fail(detail: string): never {
 }
 function key(providerId: string, serverId: string): string {
   return JSON.stringify([providerId, serverId])
+}
+
+/** A lease step that failed with the step's own error: the sweep ends the
+lease failed naming the step instead of dropping the error. */
+export class LeaseStepFailed extends Error {
+  readonly step: NonNullable<EstimateServerLease['failure']>
+  constructor(step: NonNullable<EstimateServerLease['failure']>, cause: unknown) {
+    super(`lease ${step} failed`, { cause })
+    this.step = step
+  }
+}
+
+export function isLeaseStepFailed(error: unknown): error is LeaseStepFailed {
+  return error instanceof LeaseStepFailed
+}
+
+function leaseStepFailed(
+  step: NonNullable<EstimateServerLease['failure']>,
+  cause: unknown,
+): LeaseStepFailed {
+  return new LeaseStepFailed(step, cause)
 }
 
 /** One owner for notices/wipe/delete. Synchronous activity invalidates an
@@ -434,17 +459,39 @@ export class EstimateServerLifecycle {
       if (receipt.state !== 'deleted' && receipt.state !== 'deleting') fail('deletion-unconfirmed')
       lease.server = receipt
       lease.state = receipt.state
-    } catch {
+    } catch (error) {
+      throw leaseStepFailed(phase, error)
+    }
+  }
+
+  /** A destroy that ends the lease failed naming the step instead of
+  dropping the error; anything else rethrows. */
+  private async destroyLease(lease: Lease): Promise<void> {
+    try {
+      await this.destroy(lease)
+    } catch (error) {
+      if (!isLeaseStepFailed(error)) throw error
       lease.state = 'failed'
-      lease.failure = phase
+      lease.failure = error.step
+    }
+  }
+
+  /** The person's answer, malformed answers included: a rejected ask ends
+  the notice failed instead of dropping the error. */
+  private async ask(lease: Lease): Promise<'keep' | 'teardown'> {
+    try {
+      return z.enum(['keep', 'teardown']).parse(await this.bindings.notice(this.snapshot(lease)))
+    } catch (error) {
+      throw leaseStepFailed('notice', error)
     }
   }
 
   private async notice(lease: Lease, version: number): Promise<void> {
     let answer: 'keep' | 'teardown' | 'failed'
     try {
-      answer = z.enum(['keep', 'teardown']).parse(await this.bindings.notice(this.snapshot(lease)))
-    } catch {
+      answer = await this.ask(lease)
+    } catch (error) {
+      if (!isLeaseStepFailed(error)) throw error
       answer = 'failed'
     }
     // A slow user answer owns no cleanup lock. Other sweeps may expire this
@@ -454,7 +501,7 @@ export class EstimateServerLifecycle {
       lease.state = 'active'
       const now = this.clock.now()
       if (now >= lease.expiresAt) {
-        await this.destroy(lease)
+        await this.destroyLease(lease)
         return
       }
       if (answer === 'failed') {
@@ -466,7 +513,7 @@ export class EstimateServerLifecycle {
         lease.lastActiveAt = now
         return
       }
-      await this.destroy(lease)
+      await this.destroyLease(lease)
     })
   }
 
@@ -510,7 +557,7 @@ export class EstimateServerLifecycle {
     return this.owner.run(async () => {
       const lease = this.leases.get(key(providerId, serverId))
       if (!lease) fail('unknown-server')
-      if (lease.state !== 'deleted') await this.destroy(lease)
+      if (lease.state !== 'deleted') await this.destroyLease(lease)
     })
   }
 
@@ -521,7 +568,7 @@ export class EstimateServerLifecycle {
         if (lease.state === 'deleted') continue
         const now = this.clock.now()
         if (now >= lease.expiresAt || lease.state === 'deleting' || lease.state === 'failed') {
-          await this.destroy(lease)
+          await this.destroyLease(lease)
           continue
         }
         if (lease.state === 'notice' || lease.busy || now - lease.lastActiveAt < IDLE_MS) continue

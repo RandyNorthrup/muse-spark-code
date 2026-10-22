@@ -30,8 +30,9 @@ export function renderLimitNote(value: string): string {
   let input: unknown
   try {
     input = JSON.parse(value)
-  } catch {
-    return value
+  } catch (error) {
+    if (error instanceof SyntaxError) return value
+    throw error
   }
   const parsed = noteSchema.safeParse(input)
   if (!parsed.success) return value

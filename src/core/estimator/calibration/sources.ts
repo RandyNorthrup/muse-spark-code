@@ -31,6 +31,15 @@ const runFile = promisify(execFile)
 const shaPattern = /^[a-f\d]+$/i
 const branchPattern = /^[\w./-]+$/
 
+/** The machine git ran and exited nonzero: no repository, no ref, no
+ancestry. A missing binary or a broken probe rethrows for buildHistory to
+report with its cause. */
+function isGitProbeFailure(error: unknown): error is { code: number } {
+  return (
+    error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'number'
+  )
+}
+
 /** A git invocation with no credential in the environment, a timeout and no console window. */
 export function historyGitIo(root: string): {
   runGit: (args: readonly string[]) => Promise<string>
@@ -113,8 +122,9 @@ export function gitDurationSource(deps: HistoryGitDeps): {
         branches = outputLines(
           await runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads']),
         )
-      } catch {
-        return
+      } catch (error) {
+        if (isGitProbeFailure(error)) return
+        throw error
       }
       if (branches.length > ESTIMATE_MAX_ITEMS) throw calibrationFailure('invalidHistorySource')
       const branch = matchLaneBranch(branches, laneId)
@@ -126,8 +136,9 @@ export function gitDurationSource(deps: HistoryGitDeps): {
           outputLines(await runGit(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']))[0] ??
           ''
         tip = await laneTip(runGit, branch)
-      } catch {
-        return
+      } catch (error) {
+        if (isGitProbeFailure(error)) return
+        throw error
       }
       if (tip === undefined || !/^refs\/remotes\/origin\/[\w./-]+$/.test(defaultRef)) return
       const machineClassId = deps.machineClassFor(laneId)
@@ -164,8 +175,9 @@ export function gitDurationSource(deps: HistoryGitDeps): {
                   `${mergeCommit}^1..${tip}`,
                 ]),
               )[0]
-      } catch {
-        return
+      } catch (error) {
+        if (isGitProbeFailure(error)) return
+        throw error
       }
       return first === undefined ||
         merged === undefined ||
@@ -200,8 +212,8 @@ export function playbookReviewSource(deps: HistoryPlaybookDeps): {
       let records: ReturnType<typeof validatedRecords>
       try {
         records = validatedRecords(deps.read())
-      } catch {
-        return Promise.reject(calibrationFailure('historySourceUnavailable'))
+      } catch (error) {
+        return Promise.reject(calibrationFailure('historySourceUnavailable', error))
       }
       const target = deps.playbookLaneIdFor?.(laneId) ?? laneId
       const asOfMs = Date.parse(asOf)
@@ -337,16 +349,18 @@ export function ciDurationSource(deps: HistoryCiDeps): {
         branches = outputLines(
           await runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads']),
         )
-      } catch {
-        return
+      } catch (error) {
+        if (isGitProbeFailure(error)) return
+        throw error
       }
       const branch = matchLaneBranch(branches, laneId)
       if (branch === undefined) return
       let tip: string | undefined
       try {
         tip = await laneTip(runGit, branch)
-      } catch {
-        return
+      } catch (error) {
+        if (isGitProbeFailure(error)) return
+        throw error
       }
       if (tip === undefined) return
       let totalMs = 0
@@ -358,10 +372,10 @@ export function ciDurationSource(deps: HistoryCiDeps): {
           await runGit(['merge-base', '--is-ancestor', run.commit, tip])
           isAncestor = true
         } catch (error: unknown) {
-          if (error !== null && typeof error === 'object' && 'code' in error && error.code === 1) {
+          if (isGitProbeFailure(error) && error.code === 1) {
             isAncestor = false
           } else {
-            return
+            throw error
           }
         }
         if (!isAncestor) continue
