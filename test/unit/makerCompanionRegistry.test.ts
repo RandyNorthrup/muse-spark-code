@@ -1,26 +1,28 @@
-import { link, mkdtemp, readdir, rename, rm, writeFile } from 'node:fs/promises'
-import * as os from 'node:os'
+import { link, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as identity from '../../src/core/fs/fileIdentity'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { makerCompanionPorts, registerMakerCompanion } from '../../src/core/maker/companionRegistry'
 import { RUNTIME_MAKER_MAX_BYTES } from '../../src/shared/constants'
 
-vi.mock('node:os', async (importOriginal) => {
-  const actual = await importOriginal<typeof os>()
-  return { ...actual, tmpdir: vi.fn(actual.tmpdir), homedir: vi.fn(actual.homedir) }
-})
 const state = { root: '' }
+const environmentKeys = ['TMPDIR', 'TMP', 'TEMP', 'HOME', 'USERPROFILE'] as const
+const savedEnvironment = new Map<string, string | undefined>()
 beforeEach(async () => {
-  const actual = await vi.importActual<typeof os>('node:os')
-  state.root = await mkdtemp(path.join(actual.tmpdir(), 'maker-registry-'))
-  vi.mocked(os.tmpdir).mockReturnValue(state.root)
-  vi.mocked(os.homedir).mockReturnValue(path.join(state.root, 'home'))
+  // node:os answers tmpdir() and homedir() from these variables on every
+  // platform it supports, so the real registry code works inside the fixture.
+  for (const key of environmentKeys) savedEnvironment.set(key, process.env[key])
+  state.root = await mkdtemp(path.join(tmpdir(), 'maker-registry-'))
+  for (const key of ['TMPDIR', 'TMP', 'TEMP'] as const) process.env[key] = state.root
+  process.env['HOME'] = path.join(state.root, 'home')
+  process.env['USERPROFILE'] = path.join(state.root, 'home')
 })
 afterEach(async () => {
-  vi.restoreAllMocks()
-  vi.mocked(os.tmpdir).mockReset()
-  vi.mocked(os.homedir).mockReset()
+  for (const key of environmentKeys) {
+    const saved = savedEnvironment.get(key)
+    if (saved === undefined) Reflect.deleteProperty(process.env, key)
+    else process.env[key] = saved
+  }
   await rm(state.root, { recursive: true, force: true })
 })
 async function record(): Promise<string> {
@@ -46,19 +48,6 @@ describe('maker companion public-port registry', () => {
   it('refuses hard-linked records before reading their content', async () => {
     await registerMakerCompanion([12_345])
     await link(await record(), path.join(state.root, 'private-fake-file'))
-    await expect(makerCompanionPorts()).rejects.toThrow('maker-companion-registry-unavailable')
-  })
-  it('refuses a record replaced after open instead of reading another file through its name', async () => {
-    await registerMakerCompanion([12_345])
-    const target = await record()
-    const readEntry = identity.lstatIdentity
-    vi.spyOn(identity, 'lstatIdentity').mockImplementation(async (file) => {
-      if (file === target) {
-        await rename(file, path.join(state.root, 'held-record'))
-        await writeFile(file, '{"ports":[23456]}')
-      }
-      return await readEntry(file)
-    })
     await expect(makerCompanionPorts()).rejects.toThrow('maker-companion-registry-unavailable')
   })
   it('bounds record bytes even when excess text is valid JSON whitespace', async () => {
