@@ -8,10 +8,11 @@
 // the macOS helper the CI builds before the unit step. Knip does not trace
 // the esbuild bundle, so this file is a declared entry in knip.jsonc.
 import { setTimeout as delay } from 'node:timers/promises'
-import { CreatedRegistry, type CreatedPathProof } from '../../src/core/resources/createdRegistry'
+import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
 import { createdPathCommands } from '../../src/core/resources/resourceGovernorEntry'
 import { configureResources } from '../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
+import { createdRegistryProof } from './helpers/resources/registryProof'
 
 interface RacePlan {
   readonly manifest: string
@@ -80,15 +81,7 @@ export async function runWorker(planJson: string): Promise<string> {
     })
     try {
       const commands = createdPathCommands(plan.nativeRoot, windowsJob)
-      const files = (args: readonly string[]): Promise<string> => commands(args)
-      const proof: CreatedPathProof = {
-        files,
-        directories: process.platform === 'linux' ? undefined : files,
-        exited: () => Promise.resolve(false),
-        createdByTree: () => Promise.resolve(false),
-        archivedAndClean: () => Promise.reject(new Error('Archive/clean proof is not installed')),
-        freeBytes: () => Promise.resolve(null),
-      }
+      const proof = createdRegistryProof((args) => commands(args))
       const registry = await CreatedRegistry.open(plan.manifest, Date.now, proof, plan.base)
       for (let round = 0; round < plan.rounds; round += 1) {
         const wait = plan.startAt + round * plan.gapMs - Date.now()

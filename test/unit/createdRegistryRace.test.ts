@@ -8,8 +8,6 @@
 // platform; every created entry must survive in the live manifest and no
 // save may fail. The driver (test/hosts/created-registry-race.mjs) is a
 // plain node script, so the lead can also run it by hand on any machine.
-import { spawn } from 'node:child_process'
-import { once } from 'node:events'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -18,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { configureResources } from '../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { buildLinuxHelper } from '../../scripts/build-linux-helper.mjs'
+import { runDriverScript } from './helpers/spawnDriver'
 
 const scratch: {
   folder: string
@@ -93,10 +92,9 @@ interface Summary {
 
 describe('the created registry under a race (RLWINFIX2 item 1)', () => {
   it('shares the manifest between two processes started together, losing nothing', async () => {
-    const driver = spawn(
-      process.execPath,
+    const { code, output } = await runDriverScript(
+      path.resolve('test/hosts/created-registry-race.mjs'),
       [
-        path.resolve('test/hosts/created-registry-race.mjs'),
         scratch.bundle,
         path.join(scratch.folder, 'work'),
         scratch.storage,
@@ -106,13 +104,7 @@ describe('the created registry under a race (RLWINFIX2 item 1)', () => {
         String(ROUNDS),
         String(CREATES),
       ],
-      { stdio: ['ignore', 'pipe', 'inherit'] },
     )
-    let output = ''
-    driver.stdout.on('data', (chunk: Buffer) => {
-      output += chunk.toString()
-    })
-    const [code] = await once(driver, 'exit')
     const summary = JSON.parse(output) as Summary
     expect(summary.crashed).toBe(0)
     expect(summary.failures).toEqual([])
