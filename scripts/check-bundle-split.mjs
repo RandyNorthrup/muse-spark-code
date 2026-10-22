@@ -1353,13 +1353,8 @@ const TEXT_BLOCKS = [
   {
     block: 'TEAM_MODEL_TEXT',
     sentinels: ['toolTheRoleToRunEG'],
-    readers: [
-      'dist/team.js',
-      'dist/teamScheduler.js',
-      'dist/teamHost.js',
-      'dist/teamPanel.js',
-      'dist/teamEngine.js',
-    ],
+    // M120CAP: the scheduler reads team.js's teamTools, so it no longer carries the block.
+    readers: ['dist/team.js', 'dist/teamHost.js', 'dist/teamPanel.js', 'dist/teamEngine.js'],
   },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
