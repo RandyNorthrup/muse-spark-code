@@ -457,7 +457,16 @@ describe('reports CLI subprocess', () => {
       stdout: '',
       stderr: 'The report could not be generated.\n',
     })
-    await symlink(path.join(state.root, 'fixture.json'), path.join(state.root, 'linked.json'))
+    // A linked `--from` file is refused before a byte is read. Where this
+    // account cannot create symlinks (Windows without the privilege), a
+    // junction trips the same `isSymbolicLink` refusal.
+    if (process.platform === 'win32') {
+      const target = path.join(state.root, 'linked-target')
+      await mkdir(target)
+      await symlink(target, path.join(state.root, 'linked.json'), 'junction')
+    } else {
+      await symlink(path.join(state.root, 'fixture.json'), path.join(state.root, 'linked.json'))
+    }
     expect(await cli(['--from', 'linked.json'])).toMatchObject({ code: 1 })
   })
 

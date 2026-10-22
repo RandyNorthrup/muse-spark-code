@@ -2,7 +2,7 @@
 // malformed steps inputs are refused, the exec shape is fixed, the verdict
 // holds file and no-request expectations, the leak scan catches embedded
 // keys, and the keyless check exits nonzero on a planted violation, on
-// missing input, and when a result path escapes through a symlinked
+// missing input, and when a result path escapes through a linked
 // directory. No key, no network: the live dispatch is the check's remaining
 // proof.
 import { spawnSync } from 'node:child_process'
@@ -441,7 +441,7 @@ describe('keyless check as a child process', () => {
     expect(outcome.status).not.toBe(0)
   })
 
-  it('refuses a result path through a symlinked directory', () => {
+  it('refuses a result path through a linked directory', () => {
     const root = scratch()
     const runDir = path.join(root, 'out')
     const trapsDir = path.join(root, 'traps')
@@ -450,9 +450,15 @@ describe('keyless check as a child process', () => {
     mkdirSync(trapsDir, { recursive: true })
     mkdirSync(outside, { recursive: true })
     writeFileSync(path.join(outside, 'result.json'), '{"version":1}')
-    // A symlink inside the run folder pointing outside: the transcript's
-    // result path must not resolve through it.
-    symlinkSync(outside, path.join(runDir, 'evil'), 'dir')
+    // A link inside the run folder pointing outside: the transcript's
+    // result path must not resolve through it. A junction where this
+    // account cannot create symlinks (Windows without the privilege),
+    // which realpath resolves exactly like a symlink.
+    symlinkSync(
+      outside,
+      path.join(runDir, 'evil'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
     const provenance = measuredProvenance()
     const transcript = baseTranscript(provenance)
     transcript.steps = [
