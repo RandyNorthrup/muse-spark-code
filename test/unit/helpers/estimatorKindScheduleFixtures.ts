@@ -72,6 +72,23 @@ export function scheduleFleet(slots = 2): FleetSnapshot {
   })
 }
 
+/** A pool admitting one lane kind on the schedule machine: a pricing
+fixture, not a policy statement about the lane. */
+export function schedulePool(laneKind: string, slots = 1): FleetSnapshot {
+  const base = scheduleFleet()
+  return fleetSnapshotSchema.parse({
+    ...base,
+    roles: [{ id: 'schedule-role', laneKinds: [laneKind] }],
+    machines: [
+      {
+        ...fleetMachine('schedule-machine', 'linux-x64-schedule', 2),
+        id: 'schedule-machine',
+        capacityByKind: [{ kind: laneKind, slots }],
+      },
+    ],
+  })
+}
+
 /** Exact durations and fitted parameters below are test assumptions. */
 export function simulationInputs(
   lanes = [scheduleLane('A')],

@@ -33080,6 +33080,39 @@ W owns product docs/reference, lazy wiring/budgets, the full quality gate
 and browser/all-editor certification. P records each new guard's named red
 drill and byte-exact restoration; final tests use repository timeouts.
 
+**P status:** portable provisioning and first-wave core implemented.
+The RLM117 port replaced the fake-certified suites with real tests
+(tripwire ports, exact money math, the real clock, real journal and
+repository reads); live M96/M116 board/playbook, M109 captured
+broker/provider, M110f install/wipe/funded-deadline and M110d pairing
+bindings remain named as waiting in the P certificate. W owns their
+integration, product docs/reference, lazy budgets and aggregate/editor
+gates; real rented setups remain advice-only until bound.
+
+**Lane-R review repair (FIXM117R, 2026-10-06).** Fix all three RVM117R
+P2 findings within the recommendation lane: exact nano-USD cost arithmetic
+through the explicitly requested `src/shared/usd.ts`, zero incremental rental
+cost for every existing machine, and speed expansion through additional
+slots on existing machines within unchanged governor/user/account limits.
+Preserve missing-price refusal for new rentals, all existing resource and
+four-hour marginal guards, and the public result shape. Each finding gets a
+regression and a deliberate failure with byte-exact SHA-256 restoration in
+`docs/certification/m117-r-recommendations.md`. No dependency or product
+surface is added; W retains shipping, product documentation and reference
+bindings.
+
+**S review repair (FIXM117S, 2026-10-06).** Fix all four RVM117S P2s:
+search feasible account allocations with deterministic, bounded selection;
+qualify only selected lanes with unknown required disk headroom and prefer
+measured placements on equal finish times; search renewals only on accounts
+usable by remaining lanes; precompute resource data and avoid repeated work
+so forty-lane chain, independent and fan-out simulations plus paired
+bottleneck comparisons meet the unchanged two-second operation budget.
+Each fix has an owning regression and a byte-exact red drill in
+`docs/certification/m117-s-schedule-and-simulation.md`. No dependency,
+resource guard, bundle cap or CLI timeout is changed. The rig brief forbids
+aggregate quality and merges; W retains those integration checks.
+
 **FIXM117C review repair (2026-10-06).** RVM117C's one P2 is in scope:
 prevent same-lane kind/machine-class conflicts across duration bases with an
 exclusive, durable lane-identity claim before publishing an observation.
@@ -33458,9 +33491,9 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
   - [ ] The goldens, including this repository's M103 and M104 history
   - [ ] Determinism across processes, time zones and languages
   - [ ] The bottleneck, calibration and recommendation drills
-  - [ ] The fake provider's flow, the cap, and the never-pays and
+  - [x] The fake provider's flow, the cap, and the never-pays and
         never-creates-accounts drills
-  - [ ] P's parts with M96, M109, M110d and M110f, or each named as waiting
+  - [x] P's parts with M96, M109, M110d and M110f, or each named as waiting
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
@@ -33514,7 +33547,17 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-### M97 — Read-only legal scan, then selected fixes (D76, integrated candidate; certification incomplete)
+P final scoped checks on the RLM117 port pass with the real suites above;
+the generated compatibility record belongs to W and its refresh stays
+deferred to integration. No gate is weakened or ignored. Aggregate quality
+stays with W/lead.
+
+**FIXM117R scoped rig certification (2026-10-06).** The lane/shared brief
+prohibits aggregate `npm run quality`; the lead owns that gate. Run owning
+recommendation, price and exact-money tests with the default timeout, red
+drills, all five typechecks, scoped lint/format, deadcode, duplication,
+localization, reference, host API and production build directly on Mac mini.
+Keep hooks on; no merge, rebase, push or weakened gate is authorized.
 
 **Status 2026-10-17: built.** MSM97 lane merged to the test-overhaul main
 with runnable gates green and the packed-product proof in

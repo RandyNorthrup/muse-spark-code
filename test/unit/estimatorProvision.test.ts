@@ -18,6 +18,7 @@ import type {
   ProviderImage,
   ProviderSize,
 } from '../../src/shared/estimate'
+import { tripwireNode, tripwireProvider } from './helpers/provisionTripwires'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 
@@ -31,47 +32,12 @@ const REQUEST: ProvisionRequest = {
   maxBilledHours: 3,
 }
 
-function unreachable(what: string): Error {
-  return new Error(`under test without a provider: ${what} must never be contacted`)
-}
-
 /** Ports that fail loudly on contact: the paths under test make no port calls. */
 function tripwires(): {
   provider: EstimateProviderPort
   node: EstimateNodePort
 } {
-  const provider: EstimateProviderPort = {
-    id: 'tripwire',
-    apiOrigin: 'https://provider.invalid',
-    endpoints: [],
-    sizes: () => {
-      throw unreachable('sizes')
-    },
-    images: () => {
-      throw unreachable('images')
-    },
-    create: () => {
-      throw unreachable('create')
-    },
-    status: () => {
-      throw unreachable('status')
-    },
-    delete: () => {
-      throw unreachable('delete')
-    },
-  }
-  const node: EstimateNodePort = {
-    install: () => {
-      throw unreachable('install')
-    },
-    pair: () => {
-      throw unreachable('pair')
-    },
-    teardownAndWipe: () => {
-      throw unreachable('teardownAndWipe')
-    },
-  }
-  return { provider, node }
+  return { provider: tripwireProvider(), node: tripwireNode() }
 }
 
 function provisioner(

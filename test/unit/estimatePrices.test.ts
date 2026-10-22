@@ -25,6 +25,22 @@ async function removeFolder(directory: string): Promise<void> {
   await rm(directory, { recursive: true, force: true })
 }
 
+/** A port that counts cache reads and never touches the network. */
+function countingPort(): { port: EstimatePricePort; contactsOf: () => number } {
+  let contacts = 0
+  return {
+    port: {
+      cached: () => {
+        contacts += 1
+        return Promise.resolve(undefined)
+      },
+      store: () => Promise.resolve(),
+      fetchPublic: () => Promise.reject(new Error('network must stay off')),
+    },
+    contactsOf: () => contacts,
+  }
+}
+
 describe('estimate price catalog cache', () => {
   it('reads a missing cache entry as a cold cache, not a failure', async () => {
     setUiText(EN, BASE_LOCALE)
@@ -77,15 +93,7 @@ describe('estimate price catalog cache', () => {
 
   it('refuses invalid lookup options before any cache or network access', async () => {
     setUiText(EN, BASE_LOCALE)
-    let contacts = 0
-    const port: EstimatePricePort = {
-      cached: () => {
-        contacts += 1
-        return Promise.resolve(undefined)
-      },
-      store: () => Promise.resolve(),
-      fetchPublic: () => Promise.reject(new Error('network must stay off')),
-    }
+    const { port, contactsOf } = countingPort()
     const base = {
       asOf: AS_OF,
       enabled: true,
@@ -101,19 +109,11 @@ describe('estimate price catalog cache', () => {
     ]) {
       await expect(lookupEstimatePrices(options, port)).rejects.toThrow('catalog-options')
     }
-    expect(contacts).toBe(0)
+    expect(contactsOf()).toBe(0)
   })
   it('reads no port when the lookup is off, and names an offline cache miss', async () => {
     setUiText(EN, BASE_LOCALE)
-    let contacts = 0
-    const port: EstimatePricePort = {
-      cached: () => {
-        contacts += 1
-        return Promise.resolve(undefined)
-      },
-      store: () => Promise.resolve(),
-      fetchPublic: () => Promise.reject(new Error('network must stay off')),
-    }
+    const { port, contactsOf } = countingPort()
     const off = await lookupEstimatePrices(
       {
         asOf: AS_OF,
@@ -137,7 +137,7 @@ describe('estimate price catalog cache', () => {
     )
     expect(miss.rows).toEqual([])
     expect(miss.unavailable).toEqual([{ catalogUrl: CATALOG_URL, reason: 'networkOff' }])
-    expect(contacts).toBe(1)
+    expect(contactsOf()).toBe(1)
   })
   it('never stores an invalid catalog', async () => {
     setUiText(EN, BASE_LOCALE)

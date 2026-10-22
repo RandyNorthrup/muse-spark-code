@@ -30,7 +30,7 @@ import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { recordingTransport } from './helpers/reportKindNetwork'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { fleetSnapshotSchema, parseEstimateGoal } from '../../src/shared/estimate'
-import { fleetMachine, scheduleFleet } from './helpers/estimatorKindScheduleFixtures'
+import { fleetMachine, schedulePool } from './helpers/estimatorKindScheduleFixtures'
 
 const CATALOG = ESTIMATE_PRICE_CATALOG_URLS[0]!
 // A real fetch returns the WHATWG serialization (`%27` where the pinned URL
@@ -470,18 +470,13 @@ describe('M117 dated prices in the estimate', () => {
     const snapshot = buildPlanSnapshot(RENTAL_PLAN, goal, AS_OF, { branches: [] })
     const laneKind = snapshot.lanes[0]?.lane.kind
     if (laneKind === undefined) throw new Error('plan snapshot has no lanes')
-    const base = scheduleFleet()
+    // The role and the machines admit the snapshot lane's own kind: the
+    // pool is a pricing fixture, not a policy statement about the lane.
+    const base = schedulePool(laneKind, 2)
     const pool = fleetSnapshotSchema.parse({
       ...base,
-      // The role and the machines admit the snapshot lane's own kind: the
-      // pool is a pricing fixture, not a policy statement about the lane.
-      roles: [{ id: 'schedule-role', laneKinds: [laneKind] }],
       machines: [
-        {
-          ...fleetMachine('schedule-machine', 'linux-x64-schedule', 2),
-          id: 'schedule-machine',
-          capacityByKind: [{ kind: laneKind, slots: 2 }],
-        },
+        ...base.machines,
         {
           ...fleetMachine('rental-0', 'linux-x64-small', 1),
           id: 'rental-0',

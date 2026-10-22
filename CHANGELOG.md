@@ -20,7 +20,10 @@ happened, not what was planned; superseded entries are kept.
   provider id keeps both liabilities, confirmations and idle checks run
   without holding the serial lock so they can call back into the
   provisioner, deletion receipts must name the torn-down server, and an
-  unrepresentable budget reports honestly. Rented provisioning stays
+  unrepresentable budget reports honestly. The confirmed run seals
+  connected-provider tariffs (advising while providers or node bindings are
+  missing), and server leases track activity, funded expiry and deletion
+  receipts with wipe before delete. Rented provisioning stays
   advice-only until the M109 broker and M110d/M110f bindings land; no new
   command or surface.
 - **Estimator owned limit facts** (M117 C-M117-3R5). Account and machine

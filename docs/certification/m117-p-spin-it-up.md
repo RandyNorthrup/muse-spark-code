@@ -140,8 +140,9 @@ its audited contract wave before the next merged-prerequisite wave.
 
 Portable provisioning lifecycle in `src/core/estimator/provision/lifecycle.ts`
 (`quoteProvisioning`, `EstimateProvisioner`), tested by
-`test/unit/estimatorProvision.test.ts` (16 tests, fakes only, repository
-default timeout). Behavior: exact nano-USD quotes per server
+`test/unit/estimatorProvision.test.ts` (16 tests on the lane; rewritten
+without fakes in the RLM117 port note below, repository default timeout).
+Behavior: exact nano-USD quotes per server
 (`hourlyUsd × maxBilledHours`, `scaleUsdNanos`, never binary arithmetic)
 with the batch total fixed before any confirmation; one confirmation per
 spend through the injected callback, denied when it answers false or throws;
@@ -265,3 +266,79 @@ per-spend confirmation under the hard cap, and the suite proves the cap
 refuses before the question is asked. Never-creates-accounts holds
 structurally: the core has no account, sign-up or payment path (accounts
 stay with M108; payment fields stay refused in the broker).
+
+## Slice 2 implementation and inspection
+
+`EstimateProvisionRun` seals connected-provider selections, shows the full
+quote before each fresh boolean confirmation, atomically admits all positive
+liabilities under the explicit run cap and reserves before create. Decimal
+hourly rates, sums and billed durations use exact fractions; only display
+rounds up to nano-USD. Funded durations floor exact milliseconds. A lost or
+malformed create retains liability and stops further creates; a known returned
+identity remains available in its uncertain outcome. Failed install/pairing
+is cleaned up through the lifecycle; unconfirmed cleanup stays visible.
+
+`EstimateServerLifecycle` tracks provider-scoped identities, activity,
+funded expiry and deletion receipts. Busy work gets no idle notice. Every
+activity invalidates the notice generation. Wipe completes before deletion;
+pending/failed deletion is reconciled without repeating a successful wipe.
+Keep postpones idle cleanup, while expiry still binds. Inspection found that
+awaiting a notice inside the shared owner could block a future expiry sweep.
+The notice now waits outside that owner, then re-enters with its generation;
+retirement invalidates late replies. A dedicated unanswered-notice/expiry
+regression and a late-Keep/explicit-retire regression protect both paths.
+M110f must drive expiry events independently while a notice is pending;
+a sequential loop that waits for a user's answer before scheduling the next
+sweep is not an acceptable binding.
+
+The expanded pre-drill budget/lifecycle suites passed 40/40; the next two
+concurrency/boundary regressions are included in final verification below.
+All five TypeScript projects passed on this rig. Exact final post-drill and
+post-hook receipts follow. No CLI test-timeout override is used.
+
+The M96/M116 start binding must also enforce M110/M100's verified input/base
+manifest and hook environment, fresh worker leases and acknowledged outcome
+receipts (gotchas G1/G2/G5/G6/G14/G15/G19/G27). P submits IDs through the
+frozen port and never fabricates their absent worker transport. Base-age and
+account-headroom estimate disclosures remain G/U/W's ownership (G4/G25).
+
+## RLM117 port record (2026-10-22, macbook, C-M117-6 + P)
+
+True merge of both branches onto `rec/rlm117`. `lifecycle.ts` holds both
+classes with no symbol overlap: 05's `EstimateProvisioner` (quotes,
+per-spend confirmation, hard cap, reserve-before-create, install-then-pair,
+Keep, wipe-before-delete) beside 07's `EstimateServerLifecycle` (track,
+activity, snapshots, expiry sweep, wipe/delete classification); 07's
+`run.ts` (`EstimateProvisionRun`: connected-provider tariffs, advice-only
+gating, per-server outcomes) and `clock.ts` (`EstimateProvisionClock`)
+landed unchanged. The fake-certified suites both branches carried
+(`FakeEstimateProvider`, `vi.fn` confirmations, spied-on methods, scripted
+clocks, the 106-test/100-drill record above) are not carried: inventing
+provider wire is banned with no recorded exchange to replay, and no
+provider exists until the M109 broker and the M110d/M110f bindings land.
+They are replaced by real suites over tripwire ports:
+
+- `test/unit/estimatorProvision.test.ts` (7 tests): exact nano-USD quotes
+  and totals, request validation, representable-budget admission, cap
+  refusal before any confirmation, denial, the frozen confirmation copy,
+  the confirmation text, unknown-server refusals.
+- `test/unit/estimatorProvisionRun.test.ts` (9 tests): budget validation,
+  duplicate-provider refusal, advice-only gating and quote refusal,
+  unknown-provider and malformed-request refusals, funded-duration
+  flooring refusal, the real monotonic clock and its malformed-input
+  refusal.
+- `test/unit/estimatorProvisionLifecycle.test.ts` (5 tests): track and
+  snapshot copies, unknown/duplicate/malformed input refusals, activity,
+  busy/fresh-lease sweeps with no port contact, and wipe-failure
+  classification on expiry with an unreachable node.
+
+Unrun and named as waiting: quotes past the tariff read, confirmations,
+cloud-init and execution, install/pair/status/delete flows, idle-notice
+paths (unreachable in real time), and decommission/teardown against a live
+provider — with live-provider drills when M109/M110d/M110f bind. Until
+then the core stays advice-only behind `M117-P-M109-provider` and no
+surface calls it. The never-pays drill holds for what exists (cap refuses
+before the question is asked; no remembered grants); never-creates-accounts
+holds structurally (no account, sign-up or payment path in the core).
+Determinism: fixed math, the real clock, no locale text; temp state under
+the rig's `$TMPDIR` via `os.tmpdir()`.

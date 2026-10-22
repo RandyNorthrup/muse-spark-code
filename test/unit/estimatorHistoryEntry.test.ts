@@ -9,14 +9,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { createEstimatorRun } from '../../src/host/estimator/estimatorEntry'
 import { fileHistoryPorts } from '../../src/host/estimator/historyStore'
-import {
-  estimateSectionSchema,
-  fleetSnapshotSchema,
-  parseEstimateGoal,
-} from '../../src/shared/estimate'
+import { estimateSectionSchema, parseEstimateGoal } from '../../src/shared/estimate'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
-import { fleetMachine, scheduleFleet } from './helpers/estimatorKindScheduleFixtures'
+import { schedulePool } from './helpers/estimatorKindScheduleFixtures'
 
 const AS_OF = '2026-10-06T12:00:00.000Z'
 const PLAN = `## 6. Milestones
@@ -67,18 +63,7 @@ async function sectionFor(directory: string) {
   const snapshot = buildPlanSnapshot(PLAN, goal, AS_OF, { branches: [] })
   const laneKind = snapshot.lanes[0]?.lane.kind
   if (laneKind === undefined) throw new Error('plan snapshot has no lanes')
-  const base = scheduleFleet()
-  const pool = fleetSnapshotSchema.parse({
-    ...base,
-    roles: [{ id: 'schedule-role', laneKinds: [laneKind] }],
-    machines: [
-      {
-        ...fleetMachine('schedule-machine', 'linux-x64-schedule', 2),
-        id: 'schedule-machine',
-        capacityByKind: [{ kind: laneKind, slots: 1 }],
-      },
-    ],
-  })
+  const pool = schedulePool(laneKind)
   const history = fileHistoryPorts(directory)
   return await createEstimatorRun(
     {
