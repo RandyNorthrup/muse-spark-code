@@ -15276,6 +15276,29 @@ restore paths are proven by live probes. Manual's words stand unchanged;
 they hold on Muse Code 1.4.7 and later. Record:
 `docs/certification/manualmode.md`.
 
+### D212 — Judge fast path: `stat` is reported by the helper, not started (M125 F1a, 2026-10-12; numbered D108 on its branch, D108 taken by the test overhaul)
+
+**Decision (lead, records the M125 F1a stat follow-up; design
+`docs/design/judge-fast-path.md`, evidence
+`docs/certification/m125-f1a.md`).** The confinement helper answers
+`stat` itself from the walked operands — `statx` on the
+walk-verified descriptor (`AT_EMPTY_PATH`, never resolving the path
+again), re-applying the device, file-type and link-count predicates —
+and prints the default report with numeric owners and UTC times. No
+program is verified or executed for `stat`, and no grant beyond the
+walked operands is needed, so the result cannot depend on which
+coreutils implementation a distribution ships. The boundary grants
+strictly less than starting the system binary did. The stat path keeps
+every operand descriptor open until the report; operand opens that fail
+with `EMFILE`/`ENFILE` refuse with `limits`, and a started program
+killed by a signal is never read as the helper's verdict (`du`, which
+dies asking for a thread the boundary denies, reports `processCreation`).
+The lane-sandbox per-program table is labelled as a sandbox measurement
+and decides nothing about a real desktop; the real-machine capture is
+produced with `node scripts/inspect-capture.mjs` and lands by the lead's
+commit. No user-facing strings: F1a refusals stay typed internal
+protocol words.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>

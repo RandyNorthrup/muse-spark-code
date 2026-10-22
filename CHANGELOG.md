@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Judge fast path: the confinement helper answers `stat` itself instead of
+  starting the system `stat`, so the report cannot depend on which
+  coreutils a machine ships. The report comes from the walked files, prints
+  the full device number, refuses recursive runs and mismatched tool
+  arguments, accepts only the helper's own refusal lines (never a started
+  program's output), and prints a dash for any detail the filesystem does
+  not supply. A `du` killed for asking for a thread reports process
+  creation refused instead of a generic refusal.
+
 - **M98 phase 2 judge redesign.** Each judge run is planned once: one
   immutable plan holds the resolved mode, the dispatched sides with their
   techniques, profiles and tariffs, the embedding route and its tariff, the
