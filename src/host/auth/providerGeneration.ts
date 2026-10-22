@@ -32,10 +32,12 @@ export function providerCredentialIdentity(stored: string | undefined): string {
   let parsed: unknown
   try {
     parsed = JSON.parse(stored)
-  } catch {
-    // A raw key (Meta's original entry): the bytes are the identity, so a
-    // replaced key is a new owner while a re-saved one is not.
-    return `value:${digest(stored)}`
+  } catch (error) {
+    // A raw key (Meta's original entry) is not JSON, and JSON.parse only
+    // throws SyntaxError: the bytes are the identity, so a replaced key is
+    // a new owner while a re-saved one is not. Anything else rethrows.
+    if (error instanceof SyntaxError) return `value:${digest(stored)}`
+    throw error
   }
   if (typeof parsed !== 'object' || parsed === null) return `value:${digest(stored)}`
   const record = parsed as Record<string, unknown>
