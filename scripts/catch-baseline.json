@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 19,
-      "GENERIC": 113,
+      "GENERIC": 114,
       "CLEANUP": 90
     },
     "root": {
@@ -90,7 +90,7 @@
     },
     {
       "file": "src/acp/agent.ts",
-      "identity": "c473bf8024c6695b09c5e9b4c525bffc1b29091292c01f6e556e4412af36fa57",
+      "identity": "2dfdfffaa611fd7ae736211e87669e2236903abf55bd6a6e9ec4aa825e33379c",
       "class": "GENERIC"
     },
     {
@@ -115,7 +115,7 @@
     },
     {
       "file": "src/acp/estimate.ts",
-      "identity": "05b544bb9b2dc0acb1d8299a6f6e728461ad69a1bef988c2292d4b27622217e5",
+      "identity": "97060229b48e6b2baa7df5dc6775b7897afd215045811a293fcb6152a2d0c094",
       "class": "GENERIC"
     },
     {
@@ -2520,7 +2520,7 @@
     },
     {
       "file": "src/core/usage/recording.ts",
-      "identity": "d382eba008b7ae12cfd2bc5e363b9de9068d54965890b554c406dc2752ab9698",
+      "identity": "591a7c23cb36b0d58264a371e551365f65cadc083583ca11780a6d949fa3099f",
       "class": "CLEANUP"
     },
     {
@@ -3081,6 +3081,11 @@
     {
       "file": "src/host/auth/credentialRead.ts",
       "identity": "83ceb2949cf57e5acfd7a5955af8c74387de87a22b9c0a7530461e00c84c8fb7",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/auth/providerGeneration.ts",
+      "identity": "ac6803adb62fbff23e36c11e9633a93737f2ca4ef02e702d158a7f3f8fde1cbd",
       "class": "GENERIC"
     },
     {
@@ -4500,7 +4505,7 @@
     },
     {
       "file": "src/runtime/exec/runExec.ts",
-      "identity": "213f8c5ce4dd5a272f110d7ed9b90740223b7dc06dedf21e5f2c04a34f5f3ab9",
+      "identity": "0379d305a58635fdb44ba47960573faeb66f4b97d7f92af5958926085e66cb46",
       "class": "GENERIC"
     },
     {
