@@ -126,4 +126,20 @@ D10–D12 35 passed.
 
 ## Gates
 
-Run on this rig; exit codes in the LANE DONE message.
+Run on this rig; exit codes in the LANE DONE message. Fixes the gates
+required: ten new catch sites rewritten to NARROW/REPORTED (the
+editor-chat refusal brand, carried causes, fixed warns; the catch
+baseline regenerated lowered, core GENERIC 267→266); the plan usage
+and refusal modules required across the providers seam instead of
+carried by the subscriptions bundle, with a reasoned editorChat
+`modelRef` split exception beside providerPolicy's; the shared OAuth
+exchange tail factored out of OpenRouter/Hugging Face (0 clones); the
+four new routes added to the media route guard; the reference,
+host-api, roadmap and lazy-registry records regenerated; a reasoned
+usable-reply allow-list entry for the editor-chat provider's own
+outcome check (progressive stream, no reply taken). Full unit suite:
+23103 passed; every failing file verified solo and against the base
+commit — all remaining red is pre-existing on this rig (vault store,
+`macRss`, native git/schedule/vsix timing, schedule journals,
+`crashMarker`, `lintStagedBatching`) or single-victim 5 s timeouts
+that pass solo.

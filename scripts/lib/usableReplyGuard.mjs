@@ -281,6 +281,14 @@ const ALLOW_LIST = new Map([
     'src/webview/usage/UsageApp.tsx:receive',
     'the usage panel notices its own export/delete message outcome',
   ],
+  // RLM95B: the editor-chat provider's own outcome union decides only
+  // whether the finished stream throws the refusal. The reply (if any)
+  // already streamed to the editor progressively through the vscode.lm
+  // progress callback, and no reply text is taken as a result here.
+  [
+    'src/host/models/lmProvider.ts:provideLanguageModelChatResponse',
+    'the editor-chat provider refuses failed/cancelled streams; the streamed reply is progressive, never taken as a result',
+  ],
 ])
 
 const ACCESSOR = 'src/core/turns/usableReply.ts'
