@@ -153,7 +153,7 @@ namespace MuseSpark.VisualStudio.Protocol
 
       if (frame["mhp"] != null)
       {
-        if (ProtocolVersion != "mhp/1.1.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
+        if (ProtocolVersion != "mhp/1.5.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
         var kind = frame["kind"]?.Type == JTokenType.String ? frame.Value<string>("kind") : null;
         var receiver = PanelReceiverAsync;
         var surface = frame["surface"]?.Type == JTokenType.String ? frame.Value<string>("surface") : null;
@@ -174,7 +174,7 @@ namespace MuseSpark.VisualStudio.Protocol
           return;
         }
         var code = kind == "surface" ? "MHP_PANEL_WRONG_DIRECTION" : "MHP_PANEL_INVALID_ENVELOPE";
-        await WritePanelAsync(new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = code }).ConfigureAwait(false);
+        await WritePanelAsync(new JObject { ["mhp"] = "1.5", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = code }).ConfigureAwait(false);
         return;
       }
       if (frame["method"] == null) { ReceiveResult(frame); return; }
@@ -362,8 +362,7 @@ namespace MuseSpark.VisualStudio.Protocol
         var range = parameters["protocolRange"] ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
         var minimum = range.Value<string>("minimum") ?? "";
         var maximum = range.Value<string>("maximumExclusive") ?? "";
-        var versions = contract.Version == "mhp/1.1.0" && CompareVersion(maximum, "mhp/1.2.0") <= 0 ? new[] { "mhp/1.1.0", "mhp/1.0.0" } : new[] { "mhp/1.0.0" };
-        ProtocolVersion = versions.FirstOrDefault(v => CompareVersion(minimum, v) <= 0 && CompareVersion(v, maximum) < 0) ?? throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
+        ProtocolVersion = contract.Version == "mhp/1.5.0" && CompareVersion(minimum, "mhp/1.5.0") <= 0 && CompareVersion("mhp/1.5.0", maximum) < 0 ? "mhp/1.5.0" : throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
         var offered = parameters["capabilities"] as JArray ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
         if (!new HashSet<string>(offered.Values<string>().OfType<string>()).SetEquals(services.Capabilities)) throw new MhpException("invalidParams", "MHP_CAPABILITY_MISMATCH");
         initializing = true;
@@ -382,8 +381,7 @@ namespace MuseSpark.VisualStudio.Protocol
         var range = parameters["protocolRange"] ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
         var minimum = range.Value<string>("minimum") ?? "";
         var maximum = range.Value<string>("maximumExclusive") ?? "";
-        var versions = contract.Version == "mhp/1.1.0" && CompareVersion(maximum, "mhp/1.2.0") <= 0 ? new[] { "mhp/1.1.0", "mhp/1.0.0" } : new[] { "mhp/1.0.0" };
-        ProtocolVersion = versions.FirstOrDefault(v => CompareVersion(minimum, v) <= 0 && CompareVersion(v, maximum) < 0) ?? throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
+        ProtocolVersion = contract.Version == "mhp/1.5.0" && CompareVersion(minimum, "mhp/1.5.0") <= 0 && CompareVersion("mhp/1.5.0", maximum) < 0 ? "mhp/1.5.0" : throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
         var offered = parameters["capabilities"] as JArray ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
         foreach (var capability in services.Capabilities) if (offered.Values<string>().Contains(capability)) negotiated.Add(capability);
         initialized = true;
@@ -520,7 +518,7 @@ namespace MuseSpark.VisualStudio.Protocol
     public Task WritePanelAsync(JObject frame)
     {
       RequireReady("lifecycle");
-      if (ProtocolVersion != "mhp/1.1.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
+      if (ProtocolVersion != "mhp/1.5.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
       var kind = frame.Value<string>("kind");
       var schema = kind == "surface" ? "lifecycle" : kind == "panelError" ? "error" : kind == "panel" ? "envelope" : throw new MhpException("invalidParams", "MHP_PANEL_INVALID_ENVELOPE");
       SchemaContract.Validate(frame, contract.Export["panel"]?[schema] ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR"));

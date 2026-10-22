@@ -54,7 +54,7 @@ namespace MuseSpark.VisualStudio.Panel
     private JObject Lifecycle(string name)
     {
       var frame = binding.DeepClone() as JObject ?? throw Invalid();
-      frame["mhp"] = "1.1"; frame["kind"] = "surface"; frame["event"] = name;
+      frame["mhp"] = "1.5"; frame["kind"] = "surface"; frame["event"] = name;
       return frame;
     }
     public Task OpenAsync() => peer.WritePanelAsync(Lifecycle("opened"));
@@ -180,7 +180,7 @@ namespace MuseSpark.VisualStudio.Panel
       {
         var surface = frame["surface"]?.Type == JTokenType.String && !string.IsNullOrEmpty(frame.Value<string>("surface")) ? frame["surface"] : JValue.CreateNull();
         var seq = frame["seq"]?.Type == JTokenType.Integer && frame.Value<double>("seq") >= 0 && frame.Value<double>("seq") <= 9007199254740991 ? frame["seq"] : JValue.CreateNull();
-        var refusal = new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = surface, ["seq"] = seq, ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" };
+        var refusal = new JObject { ["mhp"] = "1.5", ["kind"] = "panelError", ["surface"] = surface, ["seq"] = seq, ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" };
         return peer.WritePanelAsync(refusal);
       }
     }

@@ -114,7 +114,7 @@ namespace MuseSpark.VisualStudio.Panel
         catch (Protocol.MhpException error)
         {
           await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
-          browser.CoreWebView2.PostWebMessageAsJson(new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" }.ToString(Formatting.None));
+          browser.CoreWebView2.PostWebMessageAsJson(new JObject { ["mhp"] = "1.5", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" }.ToString(Formatting.None));
         }
       }).FileAndForget("MuseSpark/PanelMessage");
     }

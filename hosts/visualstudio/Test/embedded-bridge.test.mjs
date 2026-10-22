@@ -52,7 +52,7 @@ function fixture(kind = 'chat', overrides = {}) {
   return { api, page, posted, errors, events, receive: (data) => receive({ data }) }
 }
 const envelope = (seq = 1, payload, fields = {}) => ({
-  mhp: '1.1',
+  mhp: '1.5',
   kind: 'panel',
   surface: 'surface',
   direction: 'toPanel',
@@ -173,7 +173,7 @@ test('isolates Tasks vocabulary and handles remote errors without exposing them 
   f.receive(envelope())
   assert.equal(received.length, 0)
   f.receive({
-    mhp: '1.1',
+    mhp: '1.5',
     kind: 'panelError',
     surface: 'surface',
     seq: 1,
