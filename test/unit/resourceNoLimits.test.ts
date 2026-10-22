@@ -20,57 +20,20 @@ import {
   resourceDiskVolumeSchema,
   resourceMemoryFloorBytes,
   resourceSettingsSchema,
-  type ResourceClock,
   type ResourceSettings,
 } from '../../src/shared/resources'
 import { RESOURCE_GIB_BYTES } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { resourceStatusText } from '../../src/runtime/resources/text'
+import { granted, manualClock } from './resourceHarness'
 
 setUiText(EN, 'en')
 
 const PROBE_LIMITS = { timeoutMs: 1000, maxOutputBytes: 64 * 1024 }
 
-function manualClock() {
-  let nowMs = 0
-  const timers = new Set<ReturnType<typeof setTimeout>>()
-  const clock: ResourceClock = {
-    now: () => nowMs,
-    setTimeout: (callback, delayMs) => {
-      const timer = setTimeout(callback, delayMs)
-      timers.add(timer)
-      return () => {
-        clearTimeout(timer)
-        timers.delete(timer)
-      }
-    },
-  }
-  return {
-    clock,
-    advance: (ms: number) => {
-      nowMs += ms
-    },
-    clear: () => {
-      for (const timer of timers) clearTimeout(timer)
-      timers.clear()
-    },
-  }
-}
-
 function liveSampler(settings: () => ResourceSettings, disks?: ResourceDiskSampler) {
   return createMachineResourceSampler(settings, PROBE_LIMITS, disks)
-}
-
-function granted<T>(promise: Promise<T>, what: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_resolve, reject) => {
-      setTimeout(() => {
-        reject(new Error(`resource ${what} was held with no limit set`))
-      }, 2000)
-    }),
-  ])
 }
 
 describe('resource governor without person-set limits', () => {
@@ -160,9 +123,9 @@ describe('resource governor without person-set limits', () => {
       expect(governor.capacity('worker')).toBeNull()
       expect(governor.diskBlocked()).toBe(false)
       const background = queue.request({ kind: 'check', class: 'background', priority: 0 })
-      await granted(background.ready, 'background admission')
+      await granted(background.ready, 'background admission', 'was held with no limit set')
       const foreground = queue.request({ kind: 'check', class: 'foreground', priority: 0 })
-      await granted(foreground.ready, 'foreground admission')
+      await granted(foreground.ready, 'foreground admission', 'was held with no limit set')
       // The status shows readings with no limit behind them.
       expect(resourceStatusText(governor.status(queue.counts()))).not.toContain('(')
       expect(errors).toEqual([])

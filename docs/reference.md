@@ -10,6 +10,10 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 Resource, service and transport pressure reduce admission. Each job has observed process and birth limits; cleanup removes only recorded temp roots.
 
+Ask before moving queued work.
+
+Keep work on this machine.
+
 On macOS, memory headroom includes free, inactive and purgeable pages. Older runtimes use the signed helper; a failed reading stays unknown.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
@@ -1912,17 +1916,17 @@ Available when: `workspaceFolderCount > 0`.
 
 `museSpark.openHelp` — Commands, settings and features, with descriptions and documentation.
 
-### Muse Spark: Next Open Question
+### Muse Spark: Next open question
 
 `museSpark.nextOpenQuestion` — Next Open Question
 
-### Muse Spark: Previous Open Question
+### Muse Spark: Previous open question
 
 `museSpark.previousOpenQuestion` — Previous Open Question
 
-### Muse Spark: Start With Your Own Model
+### Muse Spark: Start with Your Own Model
 
-`museSpark.startWithOwnModel` — Start With Your Own Model
+`museSpark.startWithOwnModel` — Start with Your Own Model
 
 ### Muse Spark: Models & Agents
 
@@ -3302,7 +3306,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ### museSpark.resourceDiskMinFreeGiB
 
-resourceDiskThreshold: Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.
+resourceDiskThreshold: Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.
 
 Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
@@ -3315,7 +3319,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ### museSpark.resourceRelocate
 
-resourceRelocation: Controls the missing-route note on resource pauses. No relocation route is bound; work stays on this machine.
+resourceRelocation: Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.
 
 Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 
@@ -3327,13 +3331,13 @@ Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 }
 ```
 
-- `"paired"`: resourceRelocation=noRoute: Show the missing-route note when resource pressure pauses work; no paired-device route is bound.
-- `"ask"`: resourceRelocation=noRoute: Show the missing-route note when resource pressure pauses work; no relocation question or transfer runs.
-- `"off"`: resourceRelocation=off: Hide the missing-route note on resource pauses; work stays on this machine.
+- `"paired"`: resourceRelocation=noRoute: Use an approved paired device with normal resource load once relocation is available.
+- `"ask"`: resourceRelocation=noRoute: Ask before moving queued work.
+- `"off"`: resourceRelocation=off: Keep work on this machine.
 
 ### museSpark.questions.deferAfterSeconds
 
-Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; any other whole number of seconds is used as you set it. The question stays open and can be answered later. Only this machine’s setting is used.
+Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
 
 Type: `"integer"`. Default: `0`. Scope: `machine`.
 

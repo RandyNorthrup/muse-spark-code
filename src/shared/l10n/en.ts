@@ -49,7 +49,7 @@ export const EN = {
   resourceOverrideNotice: 'Work resumed until {time}.',
   resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
   resourceRelocationNoRoute:
-    'Relocation is not available yet: it needs a paired device or runner route. Work stays on this machine.',
+    'Relocation requires a paired device or runner route. Work stays on this machine.',
   resourceRelocationNoTarget:
     'No approved runner route is active. Work stays on this machine. Paired-device relocation is unavailable.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
@@ -126,7 +126,7 @@ export const EN = {
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',
   resourceRelocateDescription:
-    'Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.',
+    'Relocation requires a paired device or runner route. Work stays on this machine.',
   resourceRelocatePairedDescription:
     'Use an approved paired device with normal resource load once relocation is available.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',

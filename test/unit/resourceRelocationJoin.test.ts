@@ -15,41 +15,12 @@ import { ResourceGovernor } from '../../src/core/resources/governor'
 import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorEntry'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import { RESOURCE_ESCALATE_MS, RESOURCE_MIN_DWELL_MS } from '../../src/shared/constants'
-import {
-  resourceSettingsSchema,
-  type ResourceClock,
-  type ResourceSettings,
-} from '../../src/shared/resources'
+import { resourceSettingsSchema, type ResourceSettings } from '../../src/shared/resources'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
+import { manualClock } from './resourceHarness'
 
 setUiText(EN, 'en')
-
-function manualClock() {
-  let nowMs = 0
-  const timers = new Set<ReturnType<typeof setTimeout>>()
-  const clock: ResourceClock = {
-    now: () => nowMs,
-    setTimeout: (callback, delayMs) => {
-      const timer = setTimeout(callback, delayMs)
-      timers.add(timer)
-      return () => {
-        clearTimeout(timer)
-        timers.delete(timer)
-      }
-    },
-  }
-  return {
-    clock,
-    clear: () => {
-      for (const timer of timers) clearTimeout(timer)
-      timers.clear()
-    },
-    advance: (ms: number) => {
-      nowMs += ms
-    },
-  }
-}
 
 function liveSampler(settings: () => ResourceSettings) {
   return createMachineResourceSampler(settings, { timeoutMs: 1000, maxOutputBytes: 64 * 1024 })
