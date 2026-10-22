@@ -150,6 +150,15 @@ export function isConnectionFailure(error: unknown): boolean {
   return chainOf(error).some((link) => link.code !== undefined)
 }
 
+/**
+The string codes in the error's causes, oldest first (M110r Y1): codes are
+Node's own words, so unlike messages they are safe to decide on. Empty for
+a failure that names none.
+*/
+export function connectionFailureCodes(error: unknown): readonly string[] {
+  return chainOf(error).flatMap((link) => link.code ?? [])
+}
+
 /** The advice for a kind, read when shown (PLAN.md D33); none for an unrecognised failure. */
 function adviceFor(failure: NetworkFailure, advice: NetworkAdvice): string | undefined {
   const isAgent = advice === 'agent'
