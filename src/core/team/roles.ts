@@ -283,8 +283,8 @@ function isConfinedWriteGlob(pattern: string): boolean {
   }
 }
 
-/** One inclusion proof, shared by project validation and the permission meet. */
-function isWritePathSubsetOf(
+/** One inclusion proof, shared by project validation, the permission meet and steals. */
+export function isWritePathSubsetOf(
   project: readonly string[] | undefined,
   shadow: readonly string[] | undefined,
 ): boolean {
