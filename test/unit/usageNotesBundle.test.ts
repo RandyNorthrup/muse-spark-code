@@ -11,6 +11,7 @@ import { createRequire } from 'node:module'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
+import { toEpochMs } from '../../src/shared/epochMs'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { createTestRecording } from './helpers/testRecording'
@@ -72,7 +73,7 @@ function recordingInto(root: string, warnings: string[]): UsageRecording {
       root,
       writerId: 'notes-bundle-writer',
       client: 'test',
-      now: () => NOW_MS,
+      now: () => toEpochMs(NOW_MS),
       newId: (() => {
         let next = 0
         return () => `note-${String((next += 1))}`

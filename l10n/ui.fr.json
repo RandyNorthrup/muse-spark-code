@@ -3364,6 +3364,7 @@
   "usageInsightsBehindNote": "Ces chiffres sont peut-être en retard : un journal de trace n’a pas pu être lu, un décompte antérieur est donc affiché.",
   "usageInsightsUnavailableNote": "Les journaux de trace n’ont pas pu être lus, aucune activité CLI n’est donc affichée.",
   "usageInsightTotals": "{attempts} réparties sur {sessions}",
+  "usageNotRecorded": "L’usage de cette exécution n’a pas été enregistré ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} tentative du modèle",
     "other": "{count} tentatives du modèle",

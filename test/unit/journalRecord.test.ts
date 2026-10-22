@@ -9,6 +9,7 @@ import {
   usageLocalDay,
   type UsageRecordContext,
 } from '../../src/core/usage/journalRecord'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { isValidUsage, settleUsageUsd, type PriceCard } from '../../src/core/providers/priceCard'
 import { decodeAnthropicStream } from '../../src/core/backends/modelapi/codecs/anthropic'
 import { decodeChatStream } from '../../src/core/backends/modelapi/codecs/chat'
@@ -19,8 +20,8 @@ import type { StreamEvent, Usage } from '../../src/core/backends/modelapi/schema
 
 const context: UsageRecordContext = {
   id: 'call-1',
-  at: 1_791_205_200_000,
-  startedAt: 1_791_205_199_000,
+  at: toEpochMs(1_791_205_200_000),
+  startedAt: toEpochMs(1_791_205_199_000),
   client: 'Zed',
   backend: 'modelApi',
   provider: 'custom',
@@ -307,7 +308,7 @@ describe('journal records', () => {
     ).toEqual({ certainty: 'uncertain', usd: '0.000616667' })
   })
   it('uses the original local day and offset and validates privacy fields', () => {
-    const at = new Date(2026, 9, 5, 23, 59).getTime()
+    const at = toEpochMs(new Date(2026, 9, 5, 23, 59).getTime())
     expect(usageLocalDay(at)).toBe('2026-10-05')
     expect(
       createUsageRecord(usage, {

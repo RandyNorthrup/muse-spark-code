@@ -16,6 +16,7 @@ import { mapNotification } from '../../src/core/backends/musecode/mapNotificatio
 import { MuseUsageDeltas, museCodeLimitInput } from '../../src/core/backends/musecode/usageDeltas'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { readTraceAttemptSummary } from '../../src/runtime/usage/traceLogs'
 import { createTestRecording } from './helpers/testRecording'
@@ -126,7 +127,7 @@ async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
       root,
       writerId: 'usage-truth-writer',
       client: 'test',
-      now: () => nowMs,
+      now: () => toEpochMs(nowMs),
       newId: (() => {
         let next = 0
         return () => `id-${String((next += 1))}`
@@ -154,7 +155,7 @@ async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
     backend: 'museCode',
     provider: 'museCode',
     source: 'museCode',
-    observedAt: nowMs,
+    observedAt: toEpochMs(nowMs),
     windows: [{ id: 'window', usedPercent: 12, resetsAt: nowMs + 3_600_000, windowMins: 300 }],
     plan: PLAN_NAME,
   })
@@ -357,7 +358,7 @@ describe('usage says what really happened (F20-F24)', () => {
     const warnings: string[] = []
     const store = new UsageJournalStore(new NodeUsageFs(root), {
       writerId: 'usage-truth-t7',
-      now: () => at,
+      now: () => toEpochMs(at),
       isEnabled: () => true,
       onWriteError: () => {
         warnings.push('usageWriteFailed')

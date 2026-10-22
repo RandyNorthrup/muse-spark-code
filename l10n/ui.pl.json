@@ -3429,6 +3429,7 @@
   "usageInsightsBehindNote": "Te liczby mogą być nieaktualne: nie udało się odczytać dziennika śledzenia, więc widnieje wcześniejsza liczba.",
   "usageInsightsUnavailableNote": "Nie udało się odczytać dzienników śledzenia, więc nie pokazano aktywności CLI.",
   "usageInsightTotals": "{sessions}: {attempts}",
+  "usageNotRecorded": "Użycie w tym przebiegu nie zostało zapisane ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} próba modelu",
     "other": "{count} próby modelu",

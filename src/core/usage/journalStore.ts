@@ -37,7 +37,8 @@ import {
   type UsageRecord,
   type UsageLimitSnapshot,
 } from '../../shared/usageJournal'
-import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
+import type { EpochMs } from '../../shared/epochMs'
+import { tryCreateUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
 import type { Usage } from '../backends/modelapi/schemas'
 import { emptyUsageMeasurements, type UsageAggregateRow } from './aggregate'
 import { Usd } from '../../shared/usd'
@@ -282,9 +283,53 @@ export interface UsageJournalRead {
 export interface UsageJournalOptions {
   readonly writerId: string
   readonly isEnabled: () => boolean
-  readonly now: () => number
-  /** A fixed diagnostic code, never error text, paths or record content. */
-  readonly onWriteError: (code: 'usageWriteFailed') => void
+  readonly now: () => EpochMs
+  // A fixed diagnostic code plus the true reason: which field failed and
+  // what shape it had, never error text, values, paths or record content.
+  readonly onWriteError: (code: 'usageWriteFailed', reason: string) => void
+}
+
+interface UsageIssueShape {
+  readonly path: readonly (string | number)[]
+  readonly code: string
+  readonly expected?: unknown
+}
+
+function isUsageIssue(value: unknown): value is UsageIssueShape {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'code' in value &&
+    typeof value.code === 'string' &&
+    'path' in value &&
+    Array.isArray(value.path) &&
+    value.path.every((part: unknown) => typeof part === 'string' || typeof part === 'number')
+  )
+}
+
+function isIssueList(value: unknown): value is readonly UsageIssueShape[] {
+  return Array.isArray(value) && value.every(isUsageIssue)
+}
+
+// A defect's address, not its content: every failing field and the shape
+// each one wanted. Values, paths and record content never leave here.
+function usageWriteReason(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'issues' in error &&
+    isIssueList(error.issues)
+  ) {
+    const fields = error.issues.map((issue) => {
+      const field = issue.path.length === 0 ? 'record' : issue.path.join('.')
+      const expected = typeof issue.expected === 'string' ? `, expected ${issue.expected}` : ''
+      return `${field} (${issue.code}${expected})`
+    })
+    if (fields.length > 0) return `record rejected: ${fields.join('; ')}`
+  }
+  return error instanceof Error && error.message === 'invalidUsage'
+    ? 'usage counters invalid'
+    : 'record rejected'
 }
 function isNewer(value: unknown): boolean {
   const version = versionSchema.safeParse(value)
@@ -454,11 +499,11 @@ export class UsageJournalStore {
   ) {
     usageIdSchema.parse(options.writerId)
   }
-  private logWriteError(): void {
+  private logWriteError(reason: string): void {
     if (writeDiagnosticState.hasLogged) return
     writeDiagnosticState.hasLogged = true
     try {
-      this.options.onWriteError('usageWriteFailed')
+      this.options.onWriteError('usageWriteFailed', reason)
     } catch {
       /* Diagnostics cannot fail a model call. */
     }
@@ -469,7 +514,7 @@ export class UsageJournalStore {
       if (this.options.isEnabled()) await this.fs.append(file, line)
     } catch {
       // Diagnostics cannot fail a model call: the once-only write error stands in.
-      this.logWriteError()
+      this.logWriteError('journal append failed')
     }
   }
   private async readFile(file: string): Promise<FileCache> {
@@ -661,25 +706,30 @@ export class UsageJournalStore {
   }
   /** Keeps normalisation, settlement and validation inside the non-failing tap. */
   public noteUsage(usage: Partial<Usage> | undefined, context: UsageRecordContext): void {
-    try {
-      if (!this.options.isEnabled()) return
-      this.append(createUsageRecord(usage, context))
-    } catch {
-      // Diagnostics cannot fail a model call: the once-only write error stands in.
-      this.logWriteError()
+    if (!this.options.isEnabled()) return
+    const built = tryCreateUsageRecord(usage, context)
+    if ('cause' in built) {
+      this.logWriteError(usageWriteReason(built.cause))
+      return
     }
+    this.append(built.record)
   }
   /** Fire-and-forget at the model boundary. flush() is for shutdown/tests. */
   public append(input: unknown): void {
+    if (!this.options.isEnabled()) return
+    const parsed = usageJournalEntrySchema.safeParse(input)
+    if (!parsed.success) {
+      this.logWriteError(usageWriteReason(parsed.error))
+      return
+    }
+    const entry = parsed.data
     try {
-      if (!this.options.isEnabled()) return
-      const entry = usageJournalEntrySchema.parse(input)
       const file = `${DAYS_ROOT}/${entry.day}/${this.options.writerId}.jsonl`
       const line = `${JSON.stringify(entry)}\n`
       this.queue = this.write(this.queue, file, line)
     } catch {
       // Diagnostics cannot fail a model call: the once-only write error stands in.
-      this.logWriteError()
+      this.logWriteError('journal append failed')
     }
   }
   public async flush(): Promise<void> {

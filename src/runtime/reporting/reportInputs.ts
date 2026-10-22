@@ -30,6 +30,7 @@ import {
   REPORT_MAX_ROWS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { epochNow } from '../../shared/epochMs'
 import type { BackendKind } from '../../shared/protocol'
 import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
@@ -216,7 +217,7 @@ export async function readUsageReportJournal(
 ): Promise<UsageReportJournal> {
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder), {
     writerId: randomUUID(),
-    now: Date.now,
+    now: epochNow,
     isEnabled: () => false,
     onWriteError: () => {
       // Reads never write; a missing journal reads empty, never an error.

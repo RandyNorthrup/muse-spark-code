@@ -3299,6 +3299,7 @@
   "usageInsightsBehindNote": "Ezek a számok elavultak lehetnek: egy nyomkövetési naplót nem sikerült beolvasni, ezért egy korábbi szám szerepel.",
   "usageInsightsUnavailableNote": "A nyomkövetési naplókat nem sikerült beolvasni, ezért nem látható CLI-tevékenység.",
   "usageInsightTotals": "{attempts}, {sessions} során",
+  "usageNotRecorded": "A futtatás használata nem lett rögzítve ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} modellkísérlet",
     "other": "{count} modellkísérlet"

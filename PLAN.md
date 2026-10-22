@@ -25987,9 +25987,14 @@ byte, age or retry ceiling, and journal and trace reads settle
 independently with their own notices. The export encoders ride new
 `dist/usageExport.js` (36 KiB budget, D6 measured +15%), required on the
 first export; `dist/usageService.js` is 97.9 KiB against its unchanged 100
-KiB. Proven by real-code suites, red/green drills, the production build
-chain and a dist-level export proof. Exec usage, headless BYO accounting,
-packed use and checklist reconciliation remain. Receipts:
+KiB. Source 02 (exec usage clock) is landed too: stored times are whole
+milliseconds by construction through the `EpochMs` brand, so the terminal
+agent's turns journal again, and a rejected record names its failing
+fields; the journal schemas ride the shared boundaries chunk, holding
+`dist/reportInputs.js` at 82.8 KiB against its unchanged 100 KiB while
+the service sits at 98.9 KiB. Proven by real-code suites, red/green
+drills and the production build chain. Headless BYO accounting, packed
+use and checklist reconciliation remain. Receipts:
 `docs/certification/rlusage.md`.
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff
@@ -36298,6 +36303,8 @@ No new escape hatch is introduced.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 5 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
 | `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                     | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
+
+| `src/shared/epochMs.ts` (`toEpochMs`) | `Math.round(value) as EpochMs`, 1 site | The single brand constructor: `Math.round` guarantees a whole number the compiler cannot verify, so the brand is attached here and nowhere else; every other site receives `EpochMs` without casting. Inline-reasoned; no rule change. | 2026-10-22 |
 
 ## 9. Security assumptions and accepted residual risk
 

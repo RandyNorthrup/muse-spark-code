@@ -3429,6 +3429,7 @@
   "usageInsightsBehindNote": "Эти числа могут быть устаревшими: один журнал трассировки не удалось прочитать, поэтому показано более раннее значение.",
   "usageInsightsUnavailableNote": "Журналы трассировки не удалось прочитать, поэтому активность CLI не показана.",
   "usageInsightTotals": "{attempts} за {sessions}",
+  "usageNotRecorded": "Использование за этот запуск не записано ({reason}).",
   "modelAttemptsCount": {
     "one": "{count} попытка модели",
     "other": "{count} попытки модели",

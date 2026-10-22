@@ -18,6 +18,7 @@ import { sharedResourceAdmission } from '../../scripts/lib/deferredBundles.mjs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { writeDeveloperAudit } from '../unit/helpers/reporting/tempDir'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
@@ -209,7 +210,7 @@ beforeAll(async () => {
   )
   const journal = new UsageJournalStore(new NodeUsageFs(agentDataFolder(input)), {
     writerId: 'e2e-writer',
-    now: () => Date.parse(LIVE_AS_OF),
+    now: () => toEpochMs(Date.parse(LIVE_AS_OF)),
     isEnabled: () => true,
     onWriteError: () => {
       throw new Error('e2e journal write failed')

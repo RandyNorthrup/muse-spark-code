@@ -7,6 +7,7 @@ import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
 import type * as ModelApiTools from './modelApiToolsEntry'
 import { Usd, type UsdAmount, sumUsd, multiplyUsd, isPositiveUsd } from '../../../shared/usd'
+import { toEpochMs, type EpochMs } from '../../../shared/epochMs'
 import {
   freezePaidQuote,
   isSamePaidQuote,
@@ -4677,7 +4678,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       provider: this.sendingModel.policy.identity.provider,
       model: body.model,
       session: this.sessionId,
-      startedAt: this.deps.now(),
+      startedAt: toEpochMs(this.deps.now()),
       kind,
       pricing:
         this.sendingModel.policy.identity.provider === 'meta'
@@ -5831,7 +5832,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               backend: 'modelApi',
               provider: this.recordedCall.provider,
               source: 'headers',
-              observedAt: this.deps.now(),
+              observedAt: toEpochMs(this.deps.now()),
               windows: [],
               raw: observation.headers,
             },
@@ -9050,7 +9051,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const goalRevision = this.goalCommandRevision
       const isTrusted = this.deps.isWorkspaceTrusted()
       const imageState = { isSent: false, billedCount: 0 }
-      let startedAt: number | undefined
+      let startedAt: EpochMs | undefined
       let isRefused = false
       let hasReturned = false
       let egressRefusal: ToolOutcome | undefined
@@ -9094,7 +9095,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             {
               onRequestStarted: () => {
                 imageState.isSent = true
-                startedAt ??= this.deps.now()
+                startedAt ??= toEpochMs(this.deps.now())
               },
             },
           ),
@@ -16758,7 +16759,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     try {
       const resolved = await unlessStopped(this.resolveModel(), signal)
       const { stream: _stream, ...countable } = this.body(resolved)
-      const startedAt = this.deps.now()
+      const startedAt = toEpochMs(this.deps.now())
       let counted: number | undefined
       try {
         counted = await unlessStopped(resolved.client.countInputTokens(countable, signal), signal)

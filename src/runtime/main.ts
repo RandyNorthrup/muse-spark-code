@@ -125,6 +125,7 @@ import {
   type UsageRecording,
 } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
+import { epochNow } from '../shared/epochMs'
 import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -985,7 +986,7 @@ function runtimeRecording(
 ): UsageRecording {
   return createUsageRecording({
     client,
-    now: Date.now,
+    now: epochNow,
     newId: randomUUID,
     isEnabled,
     log,
@@ -999,7 +1000,7 @@ function runtimeRecording(
           homeDir: homedir(),
         }),
         writerId: randomUUID(),
-        now: Date.now,
+        now: epochNow,
         isEnabled,
         onWriteError,
         onInvalidSettings: () => {
@@ -1422,6 +1423,11 @@ async function main(): Promise<number> {
     }
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
+    // The headless clock measures spans on a monotonic base anchored at
+    // the epoch, so the timeout counts from the process start and a wall
+    // clock step cannot move a deadline. Stored times derive from it
+    // through the EpochMs boundary where a record is written (runExec);
+    // this clock itself stays fractional and span-typed.
     const now = () => performance.timeOrigin + performance.now()
     // Only `exec` (its own option) and `scan-secrets` (its `--timeout` flag)
     // name a deadline; without one — and the `legal` scan always — the run

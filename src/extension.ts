@@ -128,6 +128,7 @@ import {
   TAB_CONTEXT_FILES,
 } from './shared/constants'
 import { Usd, sumUsd, type UsdAmount } from './shared/usd'
+import { epochNow } from './shared/epochMs'
 
 import {
   createUsageRecording,
@@ -839,7 +840,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   const usageRecording = createUsageRecording({
     client: vscode.env.appName,
-    now: Date.now,
+    now: epochNow,
     newId: () => crypto.randomUUID(),
     isEnabled: () =>
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
@@ -854,7 +855,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           homeDir: homedir(),
         }),
         writerId: crypto.randomUUID(),
-        now: Date.now,
+        now: epochNow,
         isEnabled: () =>
           vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
         onWriteError,
@@ -5102,7 +5103,7 @@ async function activateWindow(
               source: 'openRouter',
               credentialId: snapshot.credentialId,
               observationId: snapshot.observationId,
-              observedAt: Date.now(),
+              observedAt: epochNow(),
               windows: [],
               // OpenRouter's `/key` numbers become exact decimals here (M121).
               account: {

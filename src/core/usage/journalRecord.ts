@@ -19,6 +19,7 @@ import {
   type UsageRecord,
   type UsageTokens,
 } from '../../shared/usageJournal'
+import type { EpochMs } from '../../shared/epochMs'
 import type { Usage } from '../backends/modelapi/schemas'
 import {
   isValidUsage,
@@ -36,6 +37,9 @@ export type UsageRecordContext = Omit<
   UsageRecord,
   'v' | 'type' | 'tokens' | 'cost' | 'day' | 'timezoneOffsetMins'
 > & {
+  /** Stored times are whole milliseconds since the epoch; durations below are rounded on write. */
+  readonly at: EpochMs
+  readonly startedAt: EpochMs
   readonly pricing?: ModelPricing
   /** The same model's list card only; never an alias or a user override. */
   readonly apiEquivalentCard?: PriceCard
@@ -242,6 +246,28 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
   }
 }
 
+/** A measured span is stored whole: the schema reads milliseconds, not fractions of one. */
+function wholeMs(value: number | undefined): number | undefined {
+  return value === undefined ? undefined : Math.round(value)
+}
+
+// A built record, or the validation failure as data: never a throw.
+export type UsageRecordBuild = { record: UsageRecord } | { cause: unknown }
+
+// Builds a record without throwing: the journal reports a rejection with
+// its failing fields and keeps recording, so a bad note never fails the
+// model call it came from. The handler returns the cause it caught.
+export function tryCreateUsageRecord(
+  usage: Partial<Usage> | undefined,
+  context: UsageRecordContext,
+): UsageRecordBuild {
+  try {
+    return { record: createUsageRecord(usage, context) }
+  } catch (error: unknown) {
+    return { cause: error }
+  }
+}
+
 /** Copies only the journal's allow-listed fields; context cannot smuggle content. */
 export function createUsageRecord(
   usage: Partial<Usage> | undefined,
@@ -266,11 +292,11 @@ export function createUsageRecord(
     units: context.units,
     cost: settleCost(context, tokens),
     outcome: context.outcome,
-    durationMs: context.durationMs,
-    firstTokenMs: context.firstTokenMs,
+    durationMs: wholeMs(context.durationMs),
+    firstTokenMs: wholeMs(context.firstTokenMs),
     retries: context.retries,
     rateLimited: context.rateLimited,
-    retryDelayMs: context.retryDelayMs,
+    retryDelayMs: wholeMs(context.retryDelayMs),
     session: context.session,
     packedAvoided: context.packedAvoided,
     headers: context.headers,
