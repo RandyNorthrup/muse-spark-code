@@ -810,3 +810,11 @@ signal. This can happen when the runner service is stopped, or a manually
 started runner is canceled." and "The operation was canceled." No test
 failed; every other job passed. A rerun on the same commit is refused
 (AGENTS.md rule 2), so this record is the new commit.
+
+PR #258's third run, head `a6f4767c97` (CI run 39725758843, capacity run
+39725813062): Windows shard 9 only, `windowsBrokerClient.test.ts`: "Hook
+timed out in 30000ms" in the `beforeAll` that builds the native helpers with
+the person's own C# compiler, another time limit of ours on a slow hosted
+Windows runner. The seven vault suites whose setup builds or stages native
+helpers or starts a broker now run that setup with no time limit (owner
+2026-10-16); here the five Windows ones pass (14 tests, 59.7 s).
