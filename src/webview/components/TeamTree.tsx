@@ -19,6 +19,12 @@ import { isRunningTeamWorker, teamTaskCount, teamWorkerStatusLabel } from '../st
 
 /** What the tree's buttons ask the host to do (lanes T/A/W answer). */
 export interface TeamTreeActions {
+  readonly labels?: {
+    readonly transcript: string
+    readonly diff: string
+    readonly editRole: string
+    readonly stopAll: string
+  }
   readonly onOpenTranscript: (taskId: string) => void
   readonly onStopTask: (taskId: string) => void
   readonly onReviewDiff: (taskId: string) => void
@@ -108,7 +114,7 @@ function WorkerNode({
               actions.onOpenTranscript(worker.taskId)
             }}
           >
-            {UI_TEXT.teamOpenTranscript}
+            {actions.labels?.transcript ?? UI_TEXT.teamOpenTranscript}
           </button>
           {isRunning ? (
             <button
@@ -131,7 +137,7 @@ function WorkerNode({
                 actions.onReviewDiff(worker.taskId)
               }}
             >
-              {UI_TEXT.teamReviewDiff}
+              {actions.labels?.diff ?? UI_TEXT.teamReviewDiff}
             </button>
           ) : null}
           {canMerge && group !== 'queued' && group !== 'interrupted' ? (
@@ -349,7 +355,7 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
                   actions.onStopAll()
                 }}
               >
-                {UI_TEXT.teamStopAll}
+                {actions.labels?.stopAll ?? UI_TEXT.teamStopAll}
               </button>
             </div>
           )}
@@ -387,7 +393,7 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
                   actions.onEditRole(role.id)
                 }}
               >
-                {UI_TEXT.teamEditRole}
+                {actions.labels?.editRole ?? UI_TEXT.teamEditRole}
               </button>
             </div>
           )}

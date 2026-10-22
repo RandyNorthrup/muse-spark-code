@@ -25,6 +25,7 @@ import {
 } from './workerFence'
 import { scrubWorkerEnv } from './workerEnv'
 import {
+  extractReviewFindings,
   extractTeamReport,
   parseReportJson,
   reportForStop,
@@ -251,10 +252,18 @@ export function resolveWorkerReport(input: {
   if (input.reportedText !== undefined) {
     const direct = parseReportJson(input.reportedText)
     if (direct !== undefined) {
-      return { ok: true, report: direct }
+      const findings = direct.findings ?? extractReviewFindings(input.lastMessage ?? '')
+      return {
+        ok: true,
+        report: { ...direct, ...(findings !== undefined && { findings: [...findings] }) },
+      }
     }
   }
-  return extractTeamReport(input.lastMessage ?? '')
+  const result = extractTeamReport(input.lastMessage ?? '')
+  const findings = extractReviewFindings(input.lastMessage ?? '')
+  return findings !== undefined && result.ok && result.report.findings === undefined
+    ? { ...result, report: { ...result.report, findings: [...findings] } }
+    : result
 }
 
 /** A limit error's handoff: lane A's marks, per agent (acceptances 8–9). */
@@ -324,7 +333,6 @@ charter, the body, the rules and the task and nothing else; the host
 confines every path to the task's folder; approvals and questions are
 declined (no surface can ask); and a limit error marks the agent before
 the failure reaches the caller.
-@unwired M96 engine worker runner
 */
 export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWorkerResult> {
   if (!deps.isTrusted) {

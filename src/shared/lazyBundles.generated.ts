@@ -799,6 +799,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
       {
         importer: 'src/core/resources/launcher.ts',
+        symbol: 'execResourceFileBytes',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/resources/launcher.ts',
         symbol: 'handoffResourceFile',
         side: ['acp', 'vscode'],
       },
@@ -1042,7 +1047,63 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'paidUseQuestion',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/host/conversation/conversationController.ts',
+        symbol: 'ConversationController.openSession',
+        side: ['vscode'],
+      },
       { importer: 'src/host/teamViewBundle.ts', symbol: 'schemas', side: ['acp', 'vscode'] },
+    ],
+  },
+  {
+    file: 'teamCreate.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/core/team/workers/workerFence.ts',
+        symbol: 'withWorkerFile',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
+    file: 'teamEngine.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/host/team/teamHostEntry.ts', symbol: 'createTeamHost', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'teamFileIo.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/host/team/teamEnginePorts.ts', symbol: 'runWorkerTask', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'teamHost.js',
+    side: 'vscode',
+    requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
+  },
+  {
+    file: 'teamMerge.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/core/team/teamHost.ts', symbol: 'beginMerge', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'teamPanel.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'controllerFor', side: ['vscode'] },
+      { importer: 'src/extension.ts', symbol: 'ensureModelsFeatures', side: ['vscode'] },
+      { importer: 'src/extension.ts', symbol: 'teamCapabilitiesForModel', side: ['vscode'] },
+      {
+        importer: 'src/host/models/modelsPanelEntry.ts',
+        symbol: 'createTeamPanelHost',
+        side: ['vscode'],
+      },
     ],
   },
   {
@@ -1067,6 +1128,30 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'teamWorkerOps.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/core/team/workers/workerCreateEntry.ts',
+        symbol: 'createWorkerFile',
+        side: ['vscode'],
+      },
+      { importer: 'src/host/team/teamEnginePorts.ts', symbol: 'defaultTeamGit', side: ['vscode'] },
+    ],
+  },
+  { file: 'test/integration/backgroundNotice.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/codeIntel.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/extension.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/legal.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/pageWorker.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/questions.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/scheduleBackground.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/sessionBudget.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/teamPanelAvailability.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/unsavedRefusal.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/verifyEditor.test.js', side: 'unreached', requestedBy: [] },
+  { file: 'test/integration/webFetch.test.js', side: 'unreached', requestedBy: [] },
   { file: 'uiText.js', side: 'both', requestedBy: [] },
   { file: 'uiTextHooks.js', side: 'both', requestedBy: [] },
   { file: 'uiTextMedia.js', side: 'both', requestedBy: [] },

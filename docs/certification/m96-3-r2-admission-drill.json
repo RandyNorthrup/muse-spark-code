@@ -1,0 +1,7 @@
+{
+  "exitCode": 1,
+  "file": "src/host/conversation/conversationController.ts",
+  "before": "8d31181d773e7cd150c5b225fe0efcc2ea80df45ae8751f838b3864dfcf2053e",
+  "after": "8d31181d773e7cd150c5b225fe0efcc2ea80df45ae8751f838b3864dfcf2053e",
+  "exact": true
+}

@@ -97,6 +97,8 @@ export interface TeamToolContext {
   readonly sessionId: string
   readonly approvalMode: string
   readonly signal: AbortSignal
+  /** The calling conversation's own model: Default resolves to it (D75). */
+  readonly orchestratorModelId?: string | undefined
 }
 
 /**

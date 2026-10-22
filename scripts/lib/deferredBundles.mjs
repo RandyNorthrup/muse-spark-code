@@ -312,6 +312,45 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/teamFileIo.js',
+    metafile: 'dist/meta/teamFileIo.json',
+    files: ['src/core/team/workers/workerToolIoEntry.ts', 'src/core/team/workers/workerToolIo.ts'],
+  },
+  {
+    output: 'dist/teamCreate.js',
+    metafile: 'dist/meta/teamCreate.json',
+    files: ['src/core/team/workers/workerCreateEntry.ts'],
+  },
+  {
+    output: 'dist/teamWorkerOps.js',
+    metafile: 'dist/meta/teamWorkerOps.json',
+    files: ['src/core/team/workers/workerOpsEntry.ts', 'src/core/team/workers/workerOps.ts'],
+  },
+  {
+    output: 'dist/teamMerge.js',
+    metafile: 'dist/meta/teamMerge.json',
+    files: ['src/core/team/teamMergeFlow.ts'],
+  },
+  {
+    output: 'dist/teamHost.js',
+    metafile: 'dist/meta/teamHost.json',
+    files: ['src/host/team/teamHostEntry.ts', 'src/core/team/teamHost.ts'],
+  },
+  {
+    output: 'dist/teamEngine.js',
+    metafile: 'dist/meta/teamEngine.json',
+    files: ['src/host/team/teamEngineEntry.ts', 'src/host/team/teamEnginePorts.ts'],
+  },
+  {
+    output: 'dist/teamPanel.js',
+    metafile: 'dist/meta/teamPanel.json',
+    files: [
+      'src/core/team/teamPanelEntry.ts',
+      'src/core/team/teamPanel.ts',
+      'src/core/team/teamPanelViews.ts',
+    ],
+  },
+  {
     output: 'dist/team.js',
     metafile: 'dist/meta/team.json',
     files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
@@ -1344,9 +1383,16 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/core/credentialLeaseEntry.ts'), 'dist/credentialLease.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
+  [path.resolve('src/core/team/teamPanelEntry.ts'), 'dist/teamPanel.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
+  [path.resolve('src/host/team/teamHostEntry.ts'), 'dist/teamHost.js'],
+  [path.resolve('src/host/team/teamEngineEntry.ts'), 'dist/teamEngine.js'],
+  [path.resolve('src/core/team/workers/workerToolIoEntry.ts'), 'dist/teamFileIo.js'],
+  [path.resolve('src/core/team/workers/workerCreateEntry.ts'), 'dist/teamCreate.js'],
+  [path.resolve('src/core/team/workers/workerOpsEntry.ts'), 'dist/teamWorkerOps.js'],
+  [path.resolve('src/core/team/teamMergeFlow.ts'), 'dist/teamMerge.js'],
   [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
   [path.resolve('src/host/schedules/scheduleDeliveryEntry.ts'), 'dist/scheduleDelivery.js'],
   [path.resolve('src/host/conversation/scheduleSurfacesEntry.ts'), 'dist/scheduleSurfaces.js'],
@@ -1375,6 +1421,14 @@ export const DEFERRED_OUTFILES = new Map([
 export const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
+    // The file adapter must reuse the host's retained-grant WeakMap.
+    build.onResolve({ filter: /\/workerFence(?:\.ts)?$/ }, (args) => {
+      if (
+        path.resolve(args.importer) === path.resolve('src/core/team/workers/workerToolIo.ts') ||
+        path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/teamEngine.js')
+      )
+        return { path: './teamHost.js', external: true }
+    })
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
     // The refusal classifier rides the lazy provider bundle: the Model API
@@ -1411,7 +1465,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

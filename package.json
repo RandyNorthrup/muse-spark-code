@@ -1884,6 +1884,7 @@
     "watch": "node scripts/build.mjs --watch",
     "ui:look": "node scripts/ui-look.mjs",
     "harness:playbook": "node test/harness/playbook-axe.mjs",
+    "harness:team": "node test/harness/team-roles-check.mjs",
     "harness:pseudo": "node scripts/pseudo-l10n.mjs",
     "readme:shots": "node scripts/readme-shots.mjs",
     "test:a11y": "node scripts/a11y.mjs",

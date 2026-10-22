@@ -1,0 +1,144 @@
+{
+  "review": "RVCM962B",
+  "rig": "kubuntu",
+  "date": "2026-10-10",
+  "repositoryTimeout": true,
+  "drills": [
+    {
+      "drill": "1-composites",
+      "finding": "1",
+      "source": "src/webview/models/sections/roles/propDraft.ts",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 U1 Roles UI keeps pending settings through unrelated and partial host replies",
+        "M96 U1 Roles UI keeps pending cap measures through unrelated and other-entry replies",
+        "M96 U1 Roles UI keeps pending tool ticks through unrelated host replies",
+        "M96 U1 Roles UI retains more than sixteen outstanding setting edits until their echoes arrive"
+      ],
+      "sha256Before": "55237fe31e38c134e5738bbd8a0620e162e2a57a6e17fe57e0bfe20b8dc5efbe",
+      "sha256Restored": "55237fe31e38c134e5738bbd8a0620e162e2a57a6e17fe57e0bfe20b8dc5efbe"
+    },
+    {
+      "drill": "1-history",
+      "finding": "1",
+      "source": "src/webview/models/sections/roles/propDraft.ts",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 U1 Roles UI retains more than sixteen outstanding setting edits until their echoes arrive"
+      ],
+      "sha256Before": "55237fe31e38c134e5738bbd8a0620e162e2a57a6e17fe57e0bfe20b8dc5efbe",
+      "sha256Restored": "55237fe31e38c134e5738bbd8a0620e162e2a57a6e17fe57e0bfe20b8dc5efbe"
+    },
+    {
+      "drill": "1-cap-fields",
+      "finding": "1",
+      "source": "src/webview/models/sections/roles/propDraft.ts",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 U1 Roles UI keeps pending cap measures through unrelated and other-entry replies"
+      ],
+      "sha256Before": "55237fe31e38c134e5738bbd8a0620e162e2a57a6e17fe57e0bfe20b8dc5efbe",
+      "sha256Restored": "55237fe31e38c134e5738bbd8a0620e162e2a57a6e17fe57e0bfe20b8dc5efbe"
+    },
+    {
+      "drill": "2-custom-concurrency",
+      "finding": "2",
+      "source": "src/core/team/teamPanel.ts",
+      "command": "npx vitest run test/unit/teamPanel.test.ts --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 U1 portable panel preserves manual Default concurrency through orchestrator settings and model changes"
+      ],
+      "sha256Before": "73311eb8ed25735b55a947e76776cf1961b44c2fbf19de7b7b0aa51674713266",
+      "sha256Restored": "73311eb8ed25735b55a947e76776cf1961b44c2fbf19de7b7b0aa51674713266"
+    },
+    {
+      "drill": "3-translated-search",
+      "finding": "3",
+      "source": "src/webview/models/sections/roles/RoleEditor.tsx",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 U1 Roles UI filters the allowed tools without changing the selected tool set",
+        "M96 U1 localized role labels renders report and tool labels from the installed table"
+      ],
+      "sha256Before": "62fba054b3c29c8746920017b447655930fbdf23e00940a7770ca6ed77a02e7f",
+      "sha256Restored": "62fba054b3c29c8746920017b447655930fbdf23e00940a7770ca6ed77a02e7f"
+    },
+    {
+      "drill": "4-navigation-english",
+      "finding": "4",
+      "source": "src/webview/models/panel.tsx",
+      "command": "npx vitest run test/unit/teamModelsFirstPaint.test.mjs --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 models first paint loads enabled-team navigation and sections with an absent embedded table",
+        "M96 models first paint loads enabled-team navigation and sections with an invalid embedded table",
+        "M96 models first paint reports an enabled-team English load failure with Retry before navigation",
+        "M96 models first paint submits Save Team in Chrome with a fractional models-filter-max-input filter",
+        "M96 models first paint submits Save Team in Chrome with a fractional models-filter-max-output filter",
+        "M96 models first paint submits Save Team in Chrome with a fractional models-filter-max-cached filter"
+      ],
+      "sha256Before": "3934dc898153072f67255f251319ca5005580da5ea191cdd9d28ee8d8c7ea019",
+      "sha256Restored": "3934dc898153072f67255f251319ca5005580da5ea191cdd9d28ee8d8c7ea019"
+    },
+    {
+      "drill": "5-surface-partition",
+      "finding": "5",
+      "source": "scripts/lib/uiTextRegions.mjs",
+      "command": "npx vitest run test/unit/teamModelsFirstPaint.test.mjs --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 models first paint keeps U1-only English in the team chunk under the surface budget"
+      ],
+      "sha256Before": "483f9a3ca04b6e07a013f173346be660641006220a215fade1702cffa63218ac",
+      "sha256Restored": "483f9a3ca04b6e07a013f173346be660641006220a215fade1702cffa63218ac"
+    },
+    {
+      "drill": "6-price-validation",
+      "finding": "6",
+      "source": "src/webview/models/components/FilterBar.tsx",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx test/unit/teamModelsFirstPaint.test.mjs --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 models first paint submits Save Team in Chrome with a fractional models-filter-max-input filter",
+        "M96 models first paint submits Save Team in Chrome with a fractional models-filter-max-output filter",
+        "M96 models first paint submits Save Team in Chrome with a fractional models-filter-max-cached filter",
+        "M96 U1 pool catalogue filters saves a valid team with a fractional maxInput price filter",
+        "M96 U1 pool catalogue filters saves a valid team with a fractional maxOutput price filter",
+        "M96 U1 pool catalogue filters saves a valid team with a fractional maxCached price filter"
+      ],
+      "sha256Before": "f518f30946b26769526bb9a027ba026c7dc478579eba3853aa148c42c28c4b62",
+      "sha256Restored": "f518f30946b26769526bb9a027ba026c7dc478579eba3853aa148c42c28c4b62"
+    },
+    {
+      "drill": "7-family",
+      "finding": "7",
+      "source": "src/webview/models/sections/roles/PoolEditor.tsx",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 U1 pool catalogue filters matches the main fixture offer {\"family\":\"qwen3\"} as false",
+        "M96 U1 pool catalogue filters offers derived families and filters the picker while keeping Default"
+      ],
+      "sha256Before": "18290dc3d6dd49e6efd05ade35514dcb3e3d51a1a811f41dec974543307f3973",
+      "sha256Restored": "18290dc3d6dd49e6efd05ade35514dcb3e3d51a1a811f41dec974543307f3973"
+    },
+    {
+      "drill": "8-currency",
+      "finding": "8",
+      "source": "src/webview/models/sections/roles/PoolEditor.tsx",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx --maxWorkers=3 --reporter=json (local JSON receipt)",
+      "exit": 1,
+      "failures": [
+        "M96 U1 pool catalogue filters formats pool prices with the installed French currency rules",
+        "M96 U1 pool catalogue filters describes offers with context and price to compare"
+      ],
+      "sha256Before": "18290dc3d6dd49e6efd05ade35514dcb3e3d51a1a811f41dec974543307f3973",
+      "sha256Restored": "18290dc3d6dd49e6efd05ade35514dcb3e3d51a1a811f41dec974543307f3973"
+    }
+  ]
+}

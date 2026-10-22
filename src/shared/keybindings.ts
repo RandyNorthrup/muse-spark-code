@@ -23,6 +23,16 @@ const DIRECTION_KEYS = {
 } as const satisfies Readonly<Record<string, KeyBinding>>
 
 export const WEBVIEW_KEYBINDINGS = {
+  'team.pool': {
+    previous: {
+      keys: [{ key: 'ArrowUp', alt: true, primary: false, shift: false }],
+      text: { ui: 'referenceTeamPoolKeys' },
+    },
+    next: {
+      keys: [{ key: 'ArrowDown', alt: true, primary: false, shift: false }],
+      text: { ui: 'referenceTeamPoolKeys' },
+    },
+  },
   'team.tree': {
     next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'teamTreeKeyboardHint' } },
     previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'teamTreeKeyboardHint' } },

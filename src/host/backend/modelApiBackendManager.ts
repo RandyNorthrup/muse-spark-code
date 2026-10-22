@@ -40,7 +40,9 @@ import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
 import type { BrowserCheckHost } from '../../core/browser/browserTool'
 import type { SubagentUsage } from '../../shared/paid'
+import type { TeamHostSeams } from '../../core/team/teamHostService'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
+import { restampTeamQuota, teamQuotaStash } from '../../core/usage/quotaStamp'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
 import { isCredentialStoreDown } from '../auth/credentialStore'
@@ -48,6 +50,8 @@ import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import { unstartedShell } from '../../core/shellResult'
 import {
   MODEL_API_BASE_URL,
+  MODEL_API_MAX_OUTPUT_TOKENS,
+  TEAM_TRY_MAX_OUTPUT_TOKENS,
   MODEL_TEXT,
   type PromptCacheRetention,
   type PaidFeature,
@@ -66,6 +70,8 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  /** M96 lane X: the window's team host seams; the window's host only, never an attempt's. */
+  readonly team?: TeamHostSeams | undefined
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
@@ -246,6 +252,10 @@ const MANAGER_DISPOSED = 'The Model API backend was stopped while it was startin
 
 /** What differs between the window's host and a best-of-N attempt's host. */
 interface HostVariant {
+  readonly outputCap?: number | undefined
+  readonly ownsPaidBudget?: boolean | undefined
+  readonly toolAllowlist?: readonly string[] | undefined
+
   readonly verify: ModelApiBackendManagerDeps['verify']
   readonly workspaceEdits: WorkspaceEdits
   readonly sessionWorkspaceRoot: string | undefined
@@ -257,6 +267,7 @@ interface HostVariant {
   readonly io: ToolIo
   readonly budgetScope?: OwnedSessionBudgetScope | undefined
   readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
+  readonly usageRecording?: UsageRecording | undefined
   readonly noteResponseUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
   readonly usageKind?: ModelApiHostDeps['usageKind']
   readonly workspaceRoot: string
@@ -275,6 +286,7 @@ interface HostVariant {
   readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
   readonly afterTurnRuns: ModelApiBackendManagerDeps['afterTurnRuns']
   readonly createMcpServers: ModelApiBundleDeps['createMcpServers']
+  readonly team?: TeamHostSeams | undefined
   readonly readyMessage: string
 }
 
@@ -379,9 +391,10 @@ export class ModelApiBackendManager {
       }),
       client: {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
-        ...(this.deps.reservePaidRequest !== undefined && {
-          reservePaidRequest: this.deps.reservePaidRequest,
-        }),
+        ...(!variant.ownsPaidBudget &&
+          this.deps.reservePaidRequest !== undefined && {
+            reservePaidRequest: this.deps.reservePaidRequest,
+          }),
         pacingOwner: this.deps.pacingOwner ?? this,
         ...(this.deps.isRetryableFailure !== undefined && {
           isRetryableFailure: this.deps.isRetryableFailure,
@@ -412,6 +425,7 @@ export class ModelApiBackendManager {
         ...(this.deps.networkAdvice !== undefined && { networkAdvice: this.deps.networkAdvice }),
       },
       host: {
+        toolAllowlist: variant.toolAllowlist,
         judge: this.deps.judge,
         workspaceRoot: variant.workspaceRoot,
         platform: process.platform,
@@ -464,7 +478,10 @@ export class ModelApiBackendManager {
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
-        usageRecording: this.deps.usageRecording ?? ModelApiBackendManager.usageRecording,
+        usageRecording:
+          variant.usageRecording ??
+          this.deps.usageRecording ??
+          ModelApiBackendManager.usageRecording,
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
@@ -498,8 +515,15 @@ export class ModelApiBackendManager {
         ...(this.deps.argumentPreviewCapabilities !== undefined && {
           argumentPreviewCapabilities: this.deps.argumentPreviewCapabilities,
         }),
-        ...(this.deps.modelOutputMaxTokens !== undefined && {
-          modelOutputMaxTokens: this.deps.modelOutputMaxTokens,
+        ...((variant.outputCap !== undefined ||
+          variant.ownsPaidBudget === true ||
+          this.deps.modelOutputMaxTokens !== undefined) && {
+          modelOutputMaxTokens: (modelId, resolved) =>
+            variant.outputCap ??
+            (variant.ownsPaidBudget
+              ? TEAM_TRY_MAX_OUTPUT_TOKENS
+              : (this.deps.modelOutputMaxTokens?.(modelId, resolved) ??
+                MODEL_API_MAX_OUTPUT_TOKENS)),
         }),
         ...(this.deps.sideCallFormats !== undefined && {
           sideCallFormats: this.deps.sideCallFormats,
@@ -542,6 +566,12 @@ export class ModelApiBackendManager {
         verify: variant.verify,
         workspaceEdits: variant.workspaceEdits,
         sessionWorkspaceRoot: variant.sessionWorkspaceRoot,
+        ...(variant.team !== undefined && {
+          teamDecisionSource: variant.team.teamDecisionSource,
+          teamRosterData: variant.team.teamRosterData,
+          teamRunner: variant.team.teamRunner,
+          isTeamInPlaceActive: variant.team.isTeamInPlaceActive,
+        }),
       },
       autoCompaction: this.deps,
       hookSettingsPath: this.deps.hookSettingsPath,
@@ -584,8 +614,121 @@ export class ModelApiBackendManager {
         createMcpServers === undefined
           ? undefined
           : (newPool) => createMcpServers(workspaceRoot, newPool),
+      team: this.deps.team,
       readyMessage: 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)',
     })
+  }
+
+  private async worktreeHost(
+    worktreeRoot: string,
+    admitRequest: ResponseAttemptGuard,
+    noteUsage: ((modelId: string, usage: SubagentUsage) => void) | undefined,
+    budgetScope: OwnedSessionBudgetScope | undefined,
+    kind: {
+      readonly outputCap?: number | undefined
+      readonly isIndependentPreview?: boolean
+      /** Re-stamp this host's rows with the credential the attempt used (P2-4, teams only). */
+      readonly restampQuota?: boolean | undefined
+      readonly toolAllowlist?: readonly string[] | undefined
+      readonly usageKind: 'bestOfN' | 'worker'
+      readonly paidFeature: 'bestOfN' | 'teamWorkers'
+      readonly budgetUnavailable: () => string
+      readonly shellRefusal: string
+      readonly readyMessage: string
+      /** A team worker's file calls go through its task's root grant and role (RVCM963 1). */
+      readonly fenceIo?: (io: ToolIo) => ToolIo
+    },
+  ): Promise<ModelApiHost> {
+    // A finite cap requires the parent's owned journal; a temporary host
+    // cannot create another allowance or save its transcript under the parent ID.
+    if (
+      budgetScope === undefined &&
+      !kind.isIndependentPreview &&
+      Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0
+    ) {
+      throw new Error(kind.budgetUnavailable())
+    }
+    const generation = this.generation
+    const attemptVerify = this.deps.createAttemptVerify?.(worktreeRoot)
+    // The credential the attempts use, carried from final admission (P2-4):
+    // the recorder wrapper below re-stamps a bring-your-own model's rows
+    // with it, never re-read after the response. One session per host, so
+    // one stash per host is exact.
+    const quota = teamQuotaStash()
+    const attemptRecording = this.deps.usageRecording ?? ModelApiBackendManager.usageRecording
+    const verify =
+      attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
+    try {
+      return await this.createHost({
+        outputCap: kind.outputCap,
+        ownsPaidBudget: kind.isIndependentPreview,
+        toolAllowlist: kind.toolAllowlist,
+        verify,
+        workspaceEdits: new WorkspaceEdits(),
+        sessionWorkspaceRoot: undefined,
+        budgetScope,
+        permissionSettings: this.deps.permissionSettings,
+        webFetch: undefined,
+        browserCheck: undefined,
+        codeIntel: undefined,
+        isRepoMapInPrompt: undefined,
+        io: (kind.fenceIo ?? ((io: ToolIo) => io))({
+          ...this.deps.io,
+          listFiles: (signal) => this.deps.listAttemptFiles(worktreeRoot, signal),
+          runShell: () => Promise.resolve(unstartedShell(kind.shellRefusal)),
+        }),
+        usageKind: kind.usageKind,
+        noteResponseUsage: (modelId, usage) => {
+          if (generation === this.generation) noteUsage?.(modelId, usage)
+        },
+        usageRecording:
+          kind.restampQuota === true ? restampTeamQuota(attemptRecording, quota) : attemptRecording,
+        admitResponseAttempt: Object.assign(
+          (keyDigest: string | undefined) => {
+            quota.noteAttempt(keyDigest)
+            if (
+              generation !== this.generation ||
+              (budgetScope === undefined &&
+                !kind.isIndependentPreview &&
+                Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
+              budgetScope?.isStillAllowed(keyDigest) === false
+            ) {
+              throw new Error(kind.budgetUnavailable())
+            }
+            admitRequest(keyDigest)
+          },
+          {
+            paidFeature: kind.paidFeature,
+            ...(admitRequest.prepare !== undefined && { prepare: admitRequest.prepare }),
+            ...(admitRequest.reserveUsage !== undefined && {
+              reserveUsage: admitRequest.reserveUsage,
+            }),
+            onRequestStarted: () => {
+              admitRequest.onRequestStarted?.()
+            },
+          },
+        ),
+        workspaceRoot: worktreeRoot,
+        store: undefined,
+        scheduleStore: undefined,
+        describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
+        isPaidFeatureOn: () => false,
+        legalScan: undefined,
+        ideTools: undefined,
+        allowsPaidUse: () => Promise.resolve(false),
+        isPaidUseRemembered: () => false,
+        isHooksEnabled: () => false,
+        hookHttpAllowedHosts: undefined,
+        memory: undefined,
+        beforeTurnRuns: undefined,
+        afterTurnRuns: undefined,
+        createMcpServers: undefined,
+        readyMessage: kind.readyMessage,
+      })
+    } catch (error: unknown) {
+      verify?.dispose?.()
+      throw error
+    }
   }
 
   public judgeConnection(sessionId: string, turnId: string) {
@@ -634,78 +777,52 @@ export class ModelApiBackendManager {
     noteUsage?: (modelId: string, usage: SubagentUsage) => void,
     budgetScope?: OwnedSessionBudgetScope,
   ): Promise<ModelApiHost> {
-    // A limit is the parent conversation's, checked and charged through its
-    // scope (D208); a temporary host never gets an allowance of its own.
-    if (
-      budgetScope === undefined &&
-      Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0
-    ) {
-      throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
-    }
-    const generation = this.generation
-    const attemptVerify = this.deps.createAttemptVerify?.(worktreeRoot)
-    const verify =
-      attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
-    try {
-      return await this.createHost({
-        verify,
-        workspaceEdits: new WorkspaceEdits(),
-        sessionWorkspaceRoot: undefined,
-        budgetScope,
-        permissionSettings: this.deps.permissionSettings,
-        webFetch: undefined,
-        browserCheck: undefined,
-        codeIntel: undefined,
-        isRepoMapInPrompt: undefined,
-        io: {
-          ...this.deps.io,
-          listFiles: (signal) => this.deps.listAttemptFiles(worktreeRoot, signal),
-          runShell: () => Promise.resolve(unstartedShell(MODEL_TEXT.shellBestOfNAttempt)),
-        },
-        usageKind: 'bestOfN',
-        noteResponseUsage: (modelId, usage) => {
-          if (generation === this.generation) noteUsage?.(modelId, usage)
-        },
-        admitResponseAttempt: Object.assign(
-          (keyDigest: string | undefined) => {
-            if (
-              generation !== this.generation ||
-              (budgetScope === undefined &&
-                Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
-              budgetScope?.isStillAllowed(keyDigest) === false
-            ) {
-              throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
-            }
-            admitRequest(keyDigest)
-          },
-          {
-            paidFeature: 'bestOfN' as const,
-            onRequestStarted: () => {
-              admitRequest.onRequestStarted?.()
-            },
-          },
-        ),
-        workspaceRoot: worktreeRoot,
-        store: undefined,
-        scheduleStore: undefined,
-        describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
-        isPaidFeatureOn: () => false,
-        legalScan: undefined,
-        ideTools: undefined,
-        allowsPaidUse: () => Promise.resolve(false),
-        isPaidUseRemembered: () => false,
-        isHooksEnabled: () => false,
-        hookHttpAllowedHosts: undefined,
-        memory: undefined,
-        beforeTurnRuns: undefined,
-        afterTurnRuns: undefined,
-        createMcpServers: undefined,
-        readyMessage: 'Model API attempt host ready in its worktree',
-      })
-    } catch (error: unknown) {
-      verify?.dispose?.()
-      throw error
-    }
+    return await this.worktreeHost(worktreeRoot, admitRequest, noteUsage, budgetScope, {
+      usageKind: 'bestOfN',
+      paidFeature: 'bestOfN',
+      budgetUnavailable: () => UI_TEXT.bestOfNBudgetUnavailable,
+      shellRefusal: MODEL_TEXT.shellBestOfNAttempt,
+      readyMessage: 'Model API attempt host ready in its worktree',
+    })
+  }
+
+  /**
+  A team worker's host (M96 lane W, C-M96-3): the same confinement as a
+  best-of-N attempt (files only, rooted in the task's own copy), billed and
+  recorded as the paid feature `teamWorkers`.
+  */
+  public async buildTeamWorkerHost(
+    worktreeRoot: string,
+    admitRequest: ResponseAttemptGuard,
+    noteUsage: (modelId: string, usage: SubagentUsage) => void,
+    budgetScope: OwnedSessionBudgetScope | undefined,
+    fenceIo: (io: ToolIo) => ToolIo,
+    outputCap?: number,
+  ): Promise<ModelApiHost> {
+    return await this.worktreeHost(worktreeRoot, admitRequest, noteUsage, budgetScope, {
+      usageKind: 'worker',
+      paidFeature: 'teamWorkers',
+      budgetUnavailable: () => UI_TEXT.teamBudgetUnavailable,
+      shellRefusal: MODEL_TEXT.shellTeamWorker,
+      readyMessage: 'Model API team worker host ready in its working copy',
+      fenceIo,
+      outputCap,
+      restampQuota: true,
+    })
+  }
+
+  /** One paid planning turn, without tools or any worker dispatch. */
+  public async buildTeamTryHost(root: string, guard: ResponseAttemptGuard): Promise<ModelApiHost> {
+    return await this.worktreeHost(root, guard, undefined, undefined, {
+      isIndependentPreview: true,
+      toolAllowlist: [],
+      usageKind: 'worker',
+      paidFeature: 'teamWorkers',
+      budgetUnavailable: () => UI_TEXT.teamBudgetUnavailable,
+      shellRefusal: MODEL_TEXT.shellTeamWorker,
+      readyMessage: 'Model API team planning preview ready',
+      restampQuota: true,
+    })
   }
 
   public async bestOfNBudgetScope(

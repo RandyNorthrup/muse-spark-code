@@ -68,6 +68,7 @@
     "src/core/team/teamEntry.ts",
     "src/core/team/teamSchedulerEntry.ts",
     "src/host/runners/teamRunnersEntry.ts",
+    "src/host/team/teamHostEntry.ts",
     "src/core/legal/entry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
