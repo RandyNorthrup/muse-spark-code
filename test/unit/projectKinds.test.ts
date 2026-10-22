@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { detectProjectKinds, type ProjectDetectIo } from '../../src/core/maker/detect/projectKinds'
 import { nodeProjectDetectIo } from '../../src/core/maker/detect/projectIo'
@@ -26,10 +26,12 @@ const roots: string[] = []
 async function workspace(files: Record<string, string>): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'm103-d-'))
   roots.push(root)
-  for (const [name, text] of Object.entries(files)) {
-    await mkdir(path.dirname(path.join(root, name)), { recursive: true })
-    await writeFile(path.join(root, name), text)
-  }
+  await Promise.all(
+    Object.entries(files).map(async ([name, text]) => {
+      await mkdir(path.dirname(path.join(root, name)), { recursive: true })
+      await writeFile(path.join(root, name), text)
+    }),
+  )
   return root
 }
 
@@ -51,7 +53,11 @@ describe('maker project detection on fixture workspaces', () => {
       'CIRCUITPY/settings.toml': '# excluded',
       'CIRCUITPY/secrets.yaml': '# excluded',
     })
-    const read = vi.fn(nodeProjectDetectIo.read)
+    const reads: string[] = []
+    const read: typeof nodeProjectDetectIo.read = (root, name, maxBytes) => {
+      reads.push(name)
+      return nodeProjectDetectIo.read(root, name, maxBytes)
+    }
     const result = await detectProjectKinds(path.join(parent, 'CIRCUITPY'), process.platform, {
       ...nodeProjectDetectIo,
       read,
@@ -61,7 +67,7 @@ describe('maker project detection on fixture workspaces', () => {
       skillIds: ['maker_micropython'],
       isCircuitPyRoot: true,
     })
-    expect(read).not.toHaveBeenCalled()
+    expect(reads).toEqual([])
   })
 
   it('adds nothing for ordinary code, comments and ROS 1, and does not sniff sdkconfig', async () => {
@@ -72,7 +78,11 @@ describe('maker project detection on fixture workspaces', () => {
       'config.yaml': 'name: web\n',
       sdkconfig: '# uninspected',
     })
-    const read = vi.fn(nodeProjectDetectIo.read)
+    const reads: string[] = []
+    const read: typeof nodeProjectDetectIo.read = (root, name, maxBytes) => {
+      reads.push(name)
+      return nodeProjectDetectIo.read(root, name, maxBytes)
+    }
     expect(
       await detectProjectKinds(root, process.platform, { ...nodeProjectDetectIo, read }),
     ).toEqual({
@@ -82,7 +92,7 @@ describe('maker project detection on fixture workspaces', () => {
       isCircuitPyRoot: false,
       hasMachineConfig: false,
     })
-    expect(read.mock.calls.some((call) => call[1] === 'sdkconfig')).toBe(false)
+    expect(reads).not.toContain('sdkconfig')
   })
 
   it('does not follow linked marker files or directories, even within the workspace', async () => {
@@ -139,6 +149,7 @@ describe('maker project detection on fixture workspaces', () => {
 
   it('consumes at most the name cap even if an injected listing ignores its contract', async () => {
     let names = 0
+    let reads = 0
     const io: ProjectDetectIo = {
       async *files() {
         await Promise.resolve()
@@ -147,12 +158,15 @@ describe('maker project detection on fixture workspaces', () => {
           yield i === MAKER_DETECT_MAX_FILES ? 'hidden.scad' : `${String(i)}.txt`
         }
       },
-      read: vi.fn(),
+      read: () => {
+        reads += 1
+        return Promise.resolve(undefined)
+      },
     }
     const result = await detectProjectKinds('/ws', 'linux', io)
     expect(result.kinds).toEqual([])
     expect(names).toBe(MAKER_DETECT_MAX_FILES)
-    expect(io.read).not.toHaveBeenCalled()
+    expect(reads).toBe(0)
   })
 
   it('reads only the byte cap, cannot detect a marker after it, and rejects malformed text', async () => {
@@ -169,20 +183,24 @@ describe('maker project detection on fixture workspaces', () => {
   })
 
   it('refuses escaped, absolute, option-like and Windows device names before reading', async () => {
+    const readNames: string[] = []
     const io: ProjectDetectIo = {
       async *files() {
         await Promise.resolve()
         yield '../out/CMakeLists.txt'
         yield 'C:/ws/absolute.py'
-        yield 'COM1.py'
+        yield 'nul/package.xml'
         yield '-option.py'
         yield 'line\nbreak.py'
       },
-      read: vi.fn(),
+      read: (_root, name) => {
+        readNames.push(name)
+        return Promise.resolve(undefined)
+      },
     }
     const result = await detectProjectKinds('C:/ws', 'win32', io)
     expect(result.kinds).toEqual([])
-    expect(io.read).not.toHaveBeenCalled()
+    expect(readNames).toEqual([])
   })
 
   it('refuses a directory and a special file without opening them', async () => {

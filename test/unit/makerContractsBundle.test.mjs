@@ -1,6 +1,8 @@
 import { build } from 'esbuild'
 import { runInNewContext } from 'node:vm'
-import { expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
+
+const lookup = (root) => ({ root })
 import { sharedMakerContracts } from '../../scripts/lib/deferredBundles.mjs'
 import { hardwareGuardSplit } from '../../scripts/lib/hardwareGuardSplit.mjs'
 
@@ -40,15 +42,25 @@ it('PORTM103 defers the context factory until its first workspace lookup', async
     format: 'cjs',
     plugins: [hardwareGuardSplit],
   })
-  const lookup = vi.fn((root) => ({ root }))
-  const guard = { createHardwareContexts: vi.fn(() => lookup), setHardwareText: vi.fn() }
-  const load = vi.fn(() => guard)
+  let creations = 0
+  const guard = {
+    createHardwareContexts: () => {
+      creations += 1
+      return lookup
+    },
+    setHardwareText: () => undefined,
+  }
+  let loads = 0
+  const load = () => {
+    loads += 1
+    return guard
+  }
   const module = { exports: {} }
   runInNewContext(result.outputFiles[0].text, { module, exports: module.exports, require: load })
   const contexts = module.exports.createHardwareContexts()
-  expect(load).not.toHaveBeenCalled()
+  expect(loads).toBe(0)
   expect(contexts('first')).toEqual({ root: 'first' })
   expect(contexts('second')).toEqual({ root: 'second' })
-  expect(load).toHaveBeenCalledTimes(1)
-  expect(guard.createHardwareContexts).toHaveBeenCalledTimes(1)
+  expect(loads).toBe(1)
+  expect(creations).toBe(1)
 })

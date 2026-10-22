@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   MakerApproval,
   isSameMakerTarget,
@@ -115,6 +115,8 @@ it('completed review recomputes outgoing bytes and resets on a mismatched digest
   ).toBe(false)
   expect(valid.answer(answer(input))).toBeUndefined()
 })
+
+const unavailable = () => Promise.reject(new Error('not used in this fake'))
 
 describe('one target-bound maker approval', () => {
   it.each(['id', 'digest', 'expiresAt', 'confirm'])(
@@ -284,8 +286,12 @@ describe('one target-bound maker approval', () => {
     else expect(approval.answer(answer(input))).toBeUndefined()
   })
   it('implements the full host port without allowing permission to gate Stop controls', async () => {
-    const stopControls = vi.fn()
-    const unavailable = vi.fn(() => Promise.reject(new Error('not used in this fake')))
+    let stopCalls = 0
+    const stopControls = () => {
+      stopCalls += 1
+      return Promise.resolve()
+    }
+    let confirmCalls = 0
     const storage = {
       directory: '/outside/workspace',
       get: unavailable,
@@ -293,8 +299,11 @@ describe('one target-bound maker approval', () => {
       delete: unavailable,
     }
     const host: MakerHost = {
-      confirm: unavailable,
-      notify: vi.fn(),
+      confirm: () => {
+        confirmCalls += 1
+        return Promise.reject(new Error('not used in this fake'))
+      },
+      notify: () => undefined,
       stopControls,
       openPreview: unavailable,
       storage: { workspace: storage, machine: storage },
@@ -304,7 +313,7 @@ describe('one target-bound maker approval', () => {
       isInteractive: () => false,
     }
     await host.stopControls([])
-    expect(stopControls).toHaveBeenCalledOnce()
-    expect(host.confirm).not.toHaveBeenCalled()
+    expect(stopCalls).toBe(1)
+    expect(confirmCalls).toBe(0)
   })
 })

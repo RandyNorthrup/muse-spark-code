@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { readArduinoSelection, type ArduinoApiSource } from '../../src/host/arduino/boardContext'
 
 // Arduino IDE 2.3.10's bundled toApiPort shape (provider 0.1.2).
@@ -11,23 +11,31 @@ const port = {
   properties: { vid: '2e8a', pid: '000a', serialNumber: 'fixture' },
 }
 function provider(api: unknown, isActive = true) {
-  const activate = vi.fn(() => Promise.resolve(api))
+  let activations = 0
+  const activate = () => {
+    activations += 1
+    return Promise.resolve(api)
+  }
   const extension = { exports: api, isActive, activate }
-  const source: ArduinoApiSource = { getExtension: vi.fn(() => extension) }
-  return { source, extension, activate }
+  const source: ArduinoApiSource = { getExtension: () => extension }
+  return { source, extension, activations: () => activations }
 }
 
 describe('Arduino IDE board selection', () => {
   it('leaves ordinary editors unchanged when the optional provider is absent', async () => {
-    const getExtension = vi.fn(() => undefined)
+    const asked: string[] = []
+    const getExtension = (id: string) => {
+      asked.push(id)
+      return undefined
+    }
     expect(await readArduinoSelection({ getExtension })).toBeUndefined()
-    expect(getExtension).toHaveBeenCalledExactlyOnceWith('dankeboy36.vscode-arduino-api')
+    expect(asked).toEqual(['dankeboy36.vscode-arduino-api'])
   })
   it('activates only an inactive provider and reads its selected board and port', async () => {
     const selection = { sketchPath: '/fixture/sketch', fqbn: 'rp2040:rp2040:rpipico', port }
-    const { source, activate } = provider(selection, false)
+    const { source, activations } = provider(selection, false)
     expect(await readArduinoSelection(source)).toEqual(selection)
-    expect(activate).toHaveBeenCalledOnce()
+    expect(activations()).toBe(1)
   })
   it('reads getters afresh and returns a detached snapshot without unrelated fields', async () => {
     const state = { fqbn: 'arduino:avr:uno', port }
@@ -40,7 +48,7 @@ describe('Arduino IDE board selection', () => {
       },
       compileSummary: { buildPath: '/unused' },
     }
-    const { source, activate } = provider(api)
+    const { source, activations } = provider(api)
     const first = await readArduinoSelection(source)
     expect(first).toEqual({ fqbn: 'arduino:avr:uno', port })
     expect(first?.port).not.toBe(port)
@@ -48,7 +56,7 @@ describe('Arduino IDE board selection', () => {
     state.port = { ...port, address: '/dev/cu.other' }
     expect(await readArduinoSelection(source)).toEqual(state)
     expect(first?.fqbn).toBe('arduino:avr:uno')
-    expect(activate).not.toHaveBeenCalled()
+    expect(activations()).toBe(0)
   })
   it('preserves the IDE state with no sketch, board or port selected', async () => {
     expect(
@@ -70,8 +78,13 @@ describe('Arduino IDE board selection', () => {
     await expect(readArduinoSelection(provider(api).source)).rejects.toThrow()
   })
   it('propagates provider failures rather than returning an empty success', async () => {
-    const broken = provider({}, false)
-    broken.activate.mockRejectedValueOnce(new Error('provider failed'))
-    await expect(readArduinoSelection(broken.source)).rejects.toThrow('provider failed')
+    const source: ArduinoApiSource = {
+      getExtension: () => ({
+        exports: {},
+        isActive: false,
+        activate: () => Promise.reject(new Error('provider failed')),
+      }),
+    }
+    await expect(readArduinoSelection(source)).rejects.toThrow('provider failed')
   })
 })
