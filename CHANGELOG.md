@@ -41,8 +41,7 @@ happened, not what was planned; superseded entries are kept.
 
 - `/compact` in an editor session now answers instead of ending in
   silence: it says how many turns it folded (and the size before and
-  after), or why nothing was done. The terminal and the panel say the
-  same thing in their own form.
+  after), or why nothing was done. The panel shows the same sentence.
 - Product notices (such as the automatic-compaction status) no longer
   open the model's answer in editor sessions; where the editor shows
   notices they arrive on the protocol's own notice channel, otherwise
