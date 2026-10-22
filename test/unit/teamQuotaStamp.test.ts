@@ -3,29 +3,15 @@
 // observations with it, never re-read after the response.
 import { describe, expect, it } from 'vitest'
 import { restampTeamQuota, stampQuotaRow, teamQuotaStash } from '../../src/core/usage/quotaStamp'
-import type { UsageRecording } from '../../src/core/usage/recording'
-import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
+import type { OwnedLimitInput, UsageRecording } from '../../src/core/usage/recording'
+import { ownedRecording } from './helpers/ownedRecording'
 
-type LimitContext = Omit<
-  UsageLimitSnapshot,
-  'v' | 'id' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'type'
->
+const SCOPE = { accountId: 'account', generation: 'generation-1', backend: 'modelApi' } as const
 
-function blankRecording(): { readonly rows: LimitContext[]; readonly fake: UsageRecording } {
-  const rows: LimitContext[] = []
-  const fake: UsageRecording = {
-    limits: () => [],
-    note: () => undefined,
-    limit: (context) => {
-      rows.push({ ...context })
-    },
-    today: () => Promise.resolve([]),
-    flush: () => Promise.resolve(),
-  }
-  return { rows, fake }
-}
+/** The reservation's budget identity every row arrives stamped with. */
+const RESERVATION = 'budget-account'
 
-function limitRow(provider: string, observedAccount: string | undefined): LimitContext {
+function limitRow(provider: string): OwnedLimitInput {
   return {
     backend: 'modelApi',
     provider,
@@ -33,8 +19,13 @@ function limitRow(provider: string, observedAccount: string | undefined): LimitC
     observedAt: 1,
     windows: [],
     raw: {},
-    observedAccount,
+    observedAccount: RESERVATION,
   }
+}
+
+/** The stamps the real recording kept, in observation order. */
+function stamps(port: UsageRecording): (string | undefined)[] {
+  return (port.ownedLimits?.() ?? []).map((row) => row.snapshot.observedAccount)
 }
 
 describe('team quota stash', () => {
@@ -94,30 +85,52 @@ describe('stampQuotaRow', () => {
 })
 
 describe('restampTeamQuota', () => {
-  const recording = blankRecording
-  const row = limitRow
-  it('re-stamps rows through a team stash, leaving other rows alone', () => {
+  // Producers publish through the owner scope (M117), so the team stamp
+  // must hold there, on a re-scope, and on the raw owned constructor; the
+  // real recording keeps the stamp in the row team offers read.
+  it('re-stamps scoped rows through a team stash, leaving Meta rows alone', () => {
     const quota = teamQuotaStash()
     quota.noteAttempt('transport-digest')
-    const inner = recording()
-    const wrapped = restampTeamQuota(inner.fake, quota)
+    const { port } = ownedRecording(1)
+    const scoped = restampTeamQuota(port, quota)?.scopeLimits?.(SCOPE)
+    if (scoped === undefined) throw new Error('Expected a scoped recording')
+    scoped.limit(limitRow('openai'))
+    scoped.limit(limitRow('meta'))
+    expect(stamps(port)).toEqual(['transport-digest', 'budget-account'])
+  })
+  it('re-stamps a producer re-scoped to a new owner generation', () => {
+    const quota = teamQuotaStash()
+    quota.noteAttempt('transport-digest')
+    const { port } = ownedRecording(1)
+    const rescoped = restampTeamQuota(port, quota)
+      ?.scopeLimits?.(SCOPE)
+      .scopeLimits?.({ ...SCOPE, generation: 'generation-2' })
+    if (rescoped === undefined) throw new Error('Expected a re-scoped recording')
+    rescoped.limit(limitRow('openai'))
+    expect(stamps(port)).toEqual(['transport-digest'])
+  })
+  it('re-stamps the raw owned constructor', () => {
+    const quota = teamQuotaStash()
+    quota.noteAttempt('transport-digest')
+    const { port } = ownedRecording(1)
+    const wrapped = restampTeamQuota(port, quota)
     if (wrapped === undefined) throw new Error('Expected a wrapped recording')
-    wrapped.limit(row('openai', 'budget-account'))
-    wrapped.limit(row('meta', 'budget-account'))
-    expect(inner.rows.map((entry) => entry.observedAccount)).toEqual([
-      'transport-digest',
-      'budget-account',
-    ])
+    wrapped.limit({
+      ...limitRow('openai'),
+      owner: { kind: 'account', id: 'account', providerId: 'openai', generation: 'generation-1' },
+      sequence: 0,
+    })
+    expect(stamps(port)).toEqual(['transport-digest'])
   })
   it('records exactly what the session stamped without a team stash', () => {
-    const inner = recording()
-    expect(restampTeamQuota(inner.fake, undefined)).toBe(inner.fake)
+    const { port } = ownedRecording(1)
+    expect(restampTeamQuota(port, undefined)).toBe(port)
   })
   it('keeps the reservation when nothing was admitted yet', () => {
-    const inner = recording()
-    const wrapped = restampTeamQuota(inner.fake, teamQuotaStash())
-    if (wrapped === undefined) throw new Error('Expected a wrapped recording')
-    wrapped.limit(row('openai', 'budget-account'))
-    expect(inner.rows.map((entry) => entry.observedAccount)).toEqual(['budget-account'])
+    const { port } = ownedRecording(1)
+    const scoped = restampTeamQuota(port, teamQuotaStash())?.scopeLimits?.(SCOPE)
+    if (scoped === undefined) throw new Error('Expected a scoped recording')
+    scoped.limit(limitRow('openai'))
+    expect(stamps(port)).toEqual(['budget-account'])
   })
 })

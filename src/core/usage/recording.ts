@@ -273,6 +273,9 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         ...(context.plan !== undefined && { plan: context.plan }),
         ...(context.credentialId !== undefined && { credentialId: context.credentialId }),
         ...(context.observationId !== undefined && { observationId: context.observationId }),
+        // The credential identity the observation arrived under: team offers
+        // drop a row stamped for another account (RVCM963J 7).
+        ...(context.observedAccount !== undefined && { observedAccount: context.observedAccount }),
         account,
         v: USAGE_JOURNAL_VERSION,
         type: 'limit',
