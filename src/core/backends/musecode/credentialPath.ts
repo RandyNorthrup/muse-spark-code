@@ -12,11 +12,11 @@ export interface CredentialPathInput {
 }
 
 /**
- * Where the CLI stores its browser-login credential. The binary honours
- * `XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
- * `~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
- * is deliberately not consulted here.
- */
+Where the CLI stores its browser-login credential. The binary honours
+`XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
+`~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
+is deliberately not consulted here.
+*/
 export function credentialFilePath(input: CredentialPathInput): string {
   const p = input.platform === 'win32' ? path.win32 : path.posix
   const configHome = input.xdgConfigHome ?? p.join(input.homeDir, '.config')

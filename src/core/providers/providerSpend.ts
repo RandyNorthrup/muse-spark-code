@@ -41,11 +41,11 @@ export const SPEND_PAGE_BOUND = 20
 export const SPEND_POLL_FLOOR_MS = 60_000
 
 /**
- * One read-only GET the caller sends over its pinned transport. The key
- * rides the transport's auth source (`auth`), never a caller header: the
- * transport strips credential headers from caller input and only the pin
- * decides the origin, so the key goes nowhere else.
- */
+One read-only GET the caller sends over its pinned transport. The key
+rides the transport's auth source (`auth`), never a caller header: the
+transport strips credential headers from caller input and only the pin
+decides the origin, so the key goes nowhere else.
+*/
 export interface SpendHttpRequest {
   readonly url: string
   readonly method: 'GET'
@@ -78,12 +78,12 @@ export function spendFailureText(failure: SpendFailure, provider: string): strin
 }
 
 /**
- * The documented request lines (UNVERIFIED shapes, see the header).
- * Anthropic: `GET {origin}/v1/organizations/usage_report/messages` and
- * `GET {origin}/v1/organizations/cost_report` with
- * `anthropic-version: 2023-06-01`; the key rides the `x-api-key` auth
- * source (the transport strips credential headers from caller input).
- */
+The documented request lines (UNVERIFIED shapes, see the header).
+Anthropic: `GET {origin}/v1/organizations/usage_report/messages` and
+`GET {origin}/v1/organizations/cost_report` with
+`anthropic-version: 2023-06-01`; the key rides the `x-api-key` auth
+source (the transport strips credential headers from caller input).
+*/
 export function anthropicSpendRequests(input: {
   readonly origin: string
   readonly key: string
@@ -113,10 +113,10 @@ export function anthropicSpendRequests(input: {
 }
 
 /**
- * OpenAI: `GET {origin}/v1/organization/usage/completions` and
- * `GET {origin}/v1/organization/costs` with a bearer auth source.
- * Costs bucket by day only; both pages carry a page cursor (UNVERIFIED).
- */
+OpenAI: `GET {origin}/v1/organization/usage/completions` and
+`GET {origin}/v1/organization/costs` with a bearer auth source.
+Costs bucket by day only; both pages carry a page cursor (UNVERIFIED).
+*/
 export function openAiSpendRequests(input: {
   readonly origin: string
   readonly key: string
@@ -209,10 +209,10 @@ export interface SpendDayRow {
 }
 
 /**
- * The shared shape every capability renders through (display and
- * reconciliation only: it carries no threshold, cap or budget field, so no
- * budget decision can read it).
- */
+The shared shape every capability renders through (display and
+reconciliation only: it carries no threshold, cap or budget field, so no
+budget decision can read it).
+*/
 export type ProviderSpendReport =
   | {
       readonly capability: 'key-usage'
@@ -326,10 +326,10 @@ const openRouterKeyBody = z.object({
 })
 
 /**
- * Parse an OpenRouter key body into the validated key-usage snapshot the
- * existing read produces. Unknown fields are ignored; a missing or
- * non-numeric amount is unreadable.
- */
+Parse an OpenRouter key body into the validated key-usage snapshot the
+existing read produces. Unknown fields are ignored; a missing or
+non-numeric amount is unreadable.
+*/
 export function parseOpenRouterKeyBody(body: unknown):
   | SpendFailure
   | {
@@ -539,11 +539,11 @@ export interface SpendPage {
 export type SpendFetcher = (request: SpendHttpRequest) => Promise<SpendPage>
 
 /**
- * Map an HTTP answer to a failure. A 403 names the plan only when the body
- * says the account cannot offer the report API (UNVERIFIED signal: the
- * documented "Admin API is unavailable for individual accounts"); any other
- * refusal stays "refused". Nothing here guesses beyond the response.
- */
+Map an HTTP answer to a failure. A 403 names the plan only when the body
+says the account cannot offer the report API (UNVERIFIED signal: the
+documented "Admin API is unavailable for individual accounts"); any other
+refusal stays "refused". Nothing here guesses beyond the response.
+*/
 export function spendHttpFailure(status: number, body: unknown): SpendFailure {
   return {
     kind:
@@ -569,17 +569,17 @@ function sumRows(rows: readonly SpendModelRow[]): { input: number; output: numbe
     input += row.inputTokens
     output += row.outputTokens
     if (!Number.isSafeInteger(input) || !Number.isSafeInteger(output))
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new TypeError(UI_TEXT.sessionBudgetStoreUnavailable)
   }
   return { input, output }
 }
 
 /**
- * Fetch a full admin report: usage pages then cost pages, each to
- * `SPEND_PAGE_BOUND`. Returns the report or the first failure. The key-kind
- * gate runs before any request: an inference key never reaches an admin
- * endpoint and an admin key never rides a key-usage or balance request.
- */
+Fetch a full admin report: usage pages then cost pages, each to
+`SPEND_PAGE_BOUND`. Returns the report or the first failure. The key-kind
+gate runs before any request: an inference key never reaches an admin
+endpoint and an admin key never rides a key-usage or balance request.
+*/
 export async function fetchAdminSpendReport(input: {
   readonly fetch: SpendFetcher
   readonly provider: 'anthropic' | 'openai'
@@ -674,10 +674,10 @@ export async function fetchAdminSpendReport(input: {
 }
 
 /**
- * Fetch an OpenRouter key-usage report through the existing validated read:
- * the inference key reads its own usage, and an admin key is refused before
- * any request. The validated snapshot becomes the first shared-shape report.
- */
+Fetch an OpenRouter key-usage report through the existing validated read:
+the inference key reads its own usage, and an admin key is refused before
+any request. The validated snapshot becomes the first shared-shape report.
+*/
 export async function fetchKeyUsageSpendReport(input: {
   readonly read: (key: string) => Promise<{
     readonly usedToday: number
@@ -727,10 +727,10 @@ export async function fetchBalanceSpendReport(input: {
 }
 
 /**
- * The once-a-minute floor: at most one report fetch per account per floor,
- * across every surface (a manual refresh obeys the same floor). The clock is
- * injected so tests own time.
- */
+The once-a-minute floor: at most one report fetch per account per floor,
+across every surface (a manual refresh obeys the same floor). The clock is
+injected so tests own time.
+*/
 export class SpendThrottle {
   private readonly lastFetch = new Map<string, number>()
   public constructor(private readonly now: () => number = Date.now) {}
@@ -747,10 +747,10 @@ export class SpendThrottle {
 // --- Reconciliation text (display only; the two figures are never blended)
 
 /**
- * Our own estimate for the same period the provider reported on. Token
- * counts stay absent when the journal did not record them: the comparison
- * then covers dollars only, never a zero.
- */
+Our own estimate for the same period the provider reported on. Token
+counts stay absent when the journal did not record them: the comparison
+then covers dollars only, never a zero.
+*/
 export interface SpendEstimate {
   readonly usd: string
   readonly inputTokens?: number | undefined
@@ -765,11 +765,11 @@ function money(value: string): string {
 }
 
 /**
- * The provider's own figures for the period, labelled with the reporter and
- * the time, next to our estimate and the difference. Balance providers show
- * the balance with no comparison (there is no period to compare). A
- * `key-usage` report shows cumulative spend with no per-day dollars.
- */
+The provider's own figures for the period, labelled with the reporter and
+the time, next to our estimate and the difference. Balance providers show
+the balance with no comparison (there is no period to compare). A
+`key-usage` report shows cumulative spend with no per-day dollars.
+*/
 export function spendReportLines(
   report: ProviderSpendReport,
   estimate: SpendEstimate | undefined,

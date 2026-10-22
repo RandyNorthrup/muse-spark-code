@@ -111,15 +111,15 @@ export async function runProviderKeyTest(
 export type ListPriceSource = 'list' | 'catalogue' | 'user' | 'none-local'
 
 /**
- * What a provider's own API offers about spend (PROVSPEND, 2026-10-12; shapes
- * from the providers' documented report APIs, UNVERIFIED against a live
- * account until the lead's capture): `none` (no account spend endpoint found:
- * Gemini, Groq, Mistral, Together, Fireworks, Hugging Face, Z.ai, xAI, Azure
- * and every local/custom server), `key-usage` (the inference key reads its
- * own usage: OpenRouter `GET /api/v1/key`), `balance` (the inference key
- * reads a balance: DeepSeek `GET /user/balance`), `admin-report` (a separate
- * admin key reads organisation reports: Anthropic, OpenAI).
- */
+What a provider's own API offers about spend (PROVSPEND, 2026-10-12; shapes
+from the providers' documented report APIs, UNVERIFIED against a live
+account until the lead's capture): `none` (no account spend endpoint found:
+Gemini, Groq, Mistral, Together, Fireworks, Hugging Face, Z.ai, xAI, Azure
+and every local/custom server), `key-usage` (the inference key reads its
+own usage: OpenRouter `GET /api/v1/key`), `balance` (the inference key
+reads a balance: DeepSeek `GET /user/balance`), `admin-report` (a separate
+admin key reads organisation reports: Anthropic, OpenAI).
+*/
 export type ProviderSpendCapability = 'none' | 'key-usage' | 'balance' | 'admin-report'
 
 export interface ModelsListSpec {

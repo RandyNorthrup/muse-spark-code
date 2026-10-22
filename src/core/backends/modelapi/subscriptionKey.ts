@@ -49,17 +49,17 @@ function cleanKey(value: unknown): string | undefined {
 }
 
 /**
- * The CLI's subscription key at rest. Only a browser or device-code
- * sign-in speaks for the subscription: its `access_token` (the captured
- * `accountLogin` shape, `DEVICE_LOGIN_FILE` in sign-in-detection.md). A
- * `muse auth set` file holds `api_key` alone (the captured `apiKey`
- * shape): a pay-as-you-go key, never the subscription, so it reads as
- * `unsigned` and the turn refuses instead of billing the card as plan.
- * A macOS Keychain pointer file holds no key here, so it reads as
- * `keychain`, never as a value. Only the subscription credential string
- * is picked; every other field is dropped, so no account name, label or
- * token besides the key itself is ever retained.
- */
+The CLI's subscription key at rest. Only a browser or device-code
+sign-in speaks for the subscription: its `access_token` (the captured
+`accountLogin` shape, `DEVICE_LOGIN_FILE` in sign-in-detection.md). A
+`muse auth set` file holds `api_key` alone (the captured `apiKey`
+shape): a pay-as-you-go key, never the subscription, so it reads as
+`unsigned` and the turn refuses instead of billing the card as plan.
+A macOS Keychain pointer file holds no key here, so it reads as
+`keychain`, never as a value. Only the subscription credential string
+is picked; every other field is dropped, so no account name, label or
+token besides the key itself is ever retained.
+*/
 export function readSubscriptionKeyText(text: string): SubscriptionKeyRead {
   let raw: unknown
   try {
@@ -108,10 +108,10 @@ export class SubscriptionKeyError extends Error {
 }
 
 /**
- * No file, as opposed to one that is there and cannot be used. Shared
- * with the headless preflight, which reads through the run's own bounded
- * reader instead of the source.
- */
+No file, as opposed to one that is there and cannot be used. Shared
+with the headless preflight, which reads through the run's own bounded
+reader instead of the source.
+*/
 export function isMissing(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -137,10 +137,10 @@ export class SubscriptionKeySource {
   }
 
   /**
-   * The CLI's auth file on this OS: `XDG_CONFIG_HOME` honoured on every
-   * platform (Windows included), else `~/.config` — the same path `muse
-   * serve` reads, shared here instead of reimplemented per OS.
-   */
+  The CLI's auth file on this OS: `XDG_CONFIG_HOME` honoured on every
+  platform (Windows included), else `~/.config` — the same path `muse
+  serve` reads, shared here instead of reimplemented per OS.
+  */
   public path(): string {
     return credentialFilePath({
       platform: this.deps.platform,
@@ -196,10 +196,10 @@ export interface ModelApiCredentialDeps {
 }
 
 /**
- * The effective Model API credential. With the opt-in on, the subscription
- * key wins and anything else refuses with the fix: falling back to a pasted
- * key would bill the user's card for calls they asked to put on their plan.
- */
+The effective Model API credential. With the opt-in on, the subscription
+key wins and anything else refuses with the fix: falling back to a pasted
+key would bill the user's card for calls they asked to put on their plan.
+*/
 export async function resolveModelApiCredential(
   deps: ModelApiCredentialDeps,
 ): Promise<ResolvedModelApiCredential> {

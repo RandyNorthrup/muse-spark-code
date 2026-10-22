@@ -46,11 +46,11 @@ const certaintyTotalSchema = /* @__PURE__ */ z.strictObject({
   usd: z.optional(usageUsdSchema),
   apiEquivalentUsd: z.optional(usageUsdSchema),
   /**
-   * C-M95-SUB: set only on plan-certainty rows, naming the provider whose
-   * plan billed them, so a Meta plan row reads "Muse Code plan" while any
-   * other plan row keeps the shared "Plan". Absent on older rows, which
-   * keep the shared label.
-   */
+  C-M95-SUB: set only on plan-certainty rows, naming the provider whose
+  plan billed them, so a Meta plan row reads "Muse Code plan" while any
+  other plan row keeps the shared "Plan". Absent on older rows, which
+  keep the shared label.
+  */
   provider: z.optional(usageLabelSchema),
 })
 export const usageTotalsSchema = /* @__PURE__ */ z.strictObject({
