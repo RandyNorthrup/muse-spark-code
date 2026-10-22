@@ -2,21 +2,26 @@
 // broker -> encrypted vault, including rotation and sign-out. A unique
 // service owns only this run's generated entries; no person's key is read.
 // No file/Map store, anchor, broker or editor substitute participates.
-import { AsyncEntry } from '@napi-rs/keyring'
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
 import { VaultFirstPartyReader } from '../../../src/core/vault/broker/firstParty'
 import { encodeVaultMaterial } from '../../../src/core/vault/crypto'
-import { eraseItem } from '../../../src/core/vault/migrate/material'
+import { chatgptSubscriptionMigrationCredential } from '../../../src/core/vault/migrate/chatgptSubscription'
 import { providerCredentialMigrationCredential } from '../../../src/core/vault/migrate/providerCredentials'
 import { CredentialMigrationController } from '../../../src/host/vault/migrateCredentials'
 import { createMigrationShell } from '../../../src/host/vault/migrationShell'
 import { saveProviderCredential } from '../../../src/host/providers/credentialRecords'
 import { secretStorageAccountVault } from '../../../src/host/providers/accountSecrets'
-import { keyringSecretStore } from '../../../src/runtime/keyStore'
-import { UI_TEXT, VAULT_PROTOCOL_VERSION } from '../../../src/shared/constants'
+import { UI_TEXT } from '../../../src/shared/constants'
 import { recordingLogger } from '../helpers/recordingLogger'
+import {
+  assertMigratedSlot,
+  confirmBrokerSetup,
+  driveSubscriptionMigration,
+  expectOriginRefused,
+  uniqueKeyringStore,
+} from '../helpers/vault/subscriptionMigrationFlow'
 import {
   startWindowsBrokerFixture,
   type WindowsBrokerFixture,
@@ -24,6 +29,7 @@ import {
 
 const ORIGIN = 'https://openrouter.ai'
 const PROVIDER = 'openrouter'
+const CHATGPT_ORIGIN = 'https://api.openai.com'
 const fixture = { current: undefined as WindowsBrokerFixture | undefined }
 // The same complete real-helper flow deadline as windowsVaultPanelFlow.
 const FLOW_TIMEOUT_MS = 300_000
@@ -49,17 +55,8 @@ describe.skipIf(process.platform !== 'win32')(
       async () => {
         const current = currentFixture()
         const session = new VaultManageSession(current.connect, encodeVaultMaterial)
-        const setup = await session.setup()
-        try {
-          await session.confirmSetup(setup.setupId)
-        } finally {
-          setup.code.fill(0)
-        }
-        const service = `Muse RLM109 ${randomBytes(16).toString('hex')}`
-        const secrets = keyringSecretStore(
-          (_service, account) => new AsyncEntry(service, account),
-          { lockScope: current.hostId },
-        )
+        await confirmBrokerSetup(session)
+        const secrets = uniqueKeyringStore(current.hostId)
         const reader = new VaultFirstPartyReader(current.connect)
         const { log, logged } = recordingLogger()
         let shouldLockAfterRemoval = false
@@ -88,33 +85,8 @@ describe.skipIf(process.platform !== 'win32')(
         const shell = createMigrationShell(secrets)
         shell.bind(active)
         const codec = providerCredentialMigrationCredential(PROVIDER, Date.now)
-        const readBack = () =>
-          reader.read({
-            v: VAULT_PROTOCOL_VERSION,
-            kind: 'firstPartyRead',
-            itemId: codec.itemId,
-            origin: ORIGIN,
-            client: 'provider',
-          })
-        const assertMigrated = async (expected: string): Promise<void> => {
-          const bytes = await readBack()
-          const item = codec.decode(Buffer.from(expected))
-          try {
-            if (item.material.kind !== 'apiKey' && item.material.kind !== 'secret')
-              throw new Error('the installed codec returned a different material kind')
-            expect(Buffer.from(item.material.value).equals(bytes)).toBe(true)
-            expect((await secrets.get(codec.key)) === expected).toBe(true)
-            const snapshot = await session.snapshot()
-            const metadata = snapshot.items.find((entry) => entry.id === codec.itemId)
-            expect(metadata?.kind).toBe(item.material.kind)
-            expect(metadata?.hidden).toBe(true)
-            expect(metadata?.firstParty).toBe(true)
-            expect(metadata?.policy.mode).toBe('never')
-          } finally {
-            bytes.fill(0)
-            eraseItem(item)
-          }
-        }
+        const assertMigrated = (expected: string) =>
+          assertMigratedSlot({ reader, session, codec, secrets, origin: ORIGIN, expected })
         try {
           const apiKey = {
             v: 1 as const,
@@ -163,21 +135,12 @@ describe.skipIf(process.platform !== 'win32')(
           await session.unlock(null)
           await active.ensureMigrated()
           await assertMigrated(JSON.stringify(account))
-          let isOriginRefused = false
-          try {
-            const unexpected = await reader.read({
-              v: VAULT_PROTOCOL_VERSION,
-              kind: 'firstPartyRead',
-              itemId: codec.itemId,
-              origin: 'https://api.meta.ai',
-              client: 'provider',
-            })
-            unexpected.fill(0)
-          } catch (error: unknown) {
-            if (!(error instanceof Error)) throw error
-            isOriginRefused = true
-          }
-          expect(isOriginRefused, 'a different origin must not read the opaque record').toBe(true)
+          await expectOriginRefused({
+            reader,
+            itemId: codec.itemId,
+            origin: 'https://api.meta.ai',
+            message: 'a different origin must not read the opaque record',
+          })
 
           await shell.store.delete(codec.key)
           expect((await secrets.get(codec.key)) === undefined).toBe(true)
@@ -189,6 +152,37 @@ describe.skipIf(process.platform !== 'win32')(
         } finally {
           await secrets.delete(codec.key)
         }
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'probes the chatgpt slot, migrates its tokens, rotates them and removes both copies',
+      async () => {
+        const current = currentFixture()
+        const session = new VaultManageSession(current.connect, encodeVaultMaterial)
+        // The earlier case leaves the vault set up; a lone run meets a
+        // fresh broker, so set up or unlock only what the state needs.
+        const before = await session.snapshot()
+        const state = before.status.state
+        if (state === 'uncreated') {
+          await confirmBrokerSetup(session)
+        } else if (state === 'locked') {
+          await session.unlock(null)
+        }
+        const secrets = uniqueKeyringStore(current.hostId)
+        const reader = new VaultFirstPartyReader(current.connect)
+        const { log, logged } = recordingLogger()
+        const codec = chatgptSubscriptionMigrationCredential(Date.now)
+        await driveSubscriptionMigration({
+          secrets,
+          session,
+          reader,
+          log,
+          logged,
+          codec,
+          origin: CHATGPT_ORIGIN,
+        })
       },
       FLOW_TIMEOUT_MS,
     )
