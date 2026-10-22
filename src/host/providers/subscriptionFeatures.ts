@@ -13,8 +13,8 @@ import {
   recordPlanUsage,
   OPENROUTER_ORIGIN,
 } from '../backend/providersEntry'
+import { ChatGptSignInError } from '../backend/subscriptionsEntry'
 import {
-  ChatGptSignInError,
   createSubscriptionClient,
   chatGptModels,
   chatGptAccountId,
@@ -23,7 +23,7 @@ import {
   grokAccountId,
   grokPlanAccount,
   setUiText as setSubscriptionUiText,
-} from '../backend/subscriptionsEntry'
+} from '../backend/subscriptionCommandsEntry'
 import type { CoreLogger } from '../../core/logging'
 import type { SecretStore } from '../auth/credentialStore'
 import type { UiTable } from '../l10n'

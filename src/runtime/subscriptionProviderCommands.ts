@@ -15,10 +15,11 @@ const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = prov
 const { parseModelRef } = modelRef
 import { createRuntimeChatGptHost, type RuntimeChatGptOptions } from './chatGptHost'
 import { createRuntimeGrokHost } from './grokHost'
-import { ChatGptSignIn } from '../core/providers/subscriptions/chatgpt'
 import type { ChatGptHostPort } from '../core/providers/subscriptions/chatgpt'
-import { GrokSignIn } from '../core/providers/subscriptions/grok'
 import type { GrokHostPort } from '../core/providers/subscriptions/grok'
+// The sign-in cores stay in dist/subscriptions.js; this bundle reads them
+// through subscriptionsEntry (one `instanceof` across the boundary).
+import { ChatGptSignIn, GrokSignIn } from '../host/backend/subscriptionsEntry'
 import {
   createSubscriptionClient,
   chatGptAccountId,

@@ -57,12 +57,8 @@ import { distinctProviderLabels } from '../../shared/providerLabels'
 import { redactSecrets } from '../../shared/redact'
 import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
-import {
-  ChatGptSignInError,
-  GrokSignInError,
-  chatGptFailureText,
-  grokFailureText,
-} from '../backend/subscriptionsEntry'
+import { ChatGptSignInError, GrokSignInError } from '../backend/subscriptionsEntry'
+import { chatGptFailureText, grokFailureText } from '../backend/subscriptionCommandsEntry'
 
 export interface ModelsPanelDeps {
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */

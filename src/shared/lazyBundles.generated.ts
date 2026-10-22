@@ -164,21 +164,21 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['vscode'],
       },
       { importer: 'src/runtime/backends.ts', symbol: 'modelApiManager', side: ['acp'] },
-      {
-        importer: 'src/runtime/chatGptProviderCommands.ts',
-        symbol: 'accountId',
-        side: ['acp', 'vscode'],
-      },
-      {
-        importer: 'src/runtime/chatGptProviderCommands.ts',
-        symbol: 'runtimeSubscriptionClient',
-        side: ['acp', 'vscode'],
-      },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'readProviderJson', side: ['acp'] },
+      {
+        importer: 'src/runtime/subscriptionProviderCommands.ts',
+        symbol: 'accountId',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/runtime/subscriptionProviderCommands.ts',
+        symbol: 'runtimeSubscriptionClient',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
@@ -1008,14 +1008,16 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   { file: 'structuredSchema.js', side: 'both', requestedBy: [] },
   {
-    file: 'subscriptions.js',
+    file: 'subscriptionCommands.js',
     side: 'both',
     requestedBy: [
       { importer: 'src/runtime/backends.ts', symbol: 'chatGptFactory', side: ['acp'] },
       { importer: 'src/runtime/backends.ts', symbol: 'subscriptionClient', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'chatGptDeps', side: ['acp'] },
+      { importer: 'src/runtime/main.ts', symbol: 'grokDeps', side: ['acp'] },
     ],
   },
+  { file: 'subscriptions.js', side: 'both', requestedBy: [] },
   {
     file: 'tab.js',
     side: 'vscode',

@@ -16,8 +16,9 @@ import {
   OAUTH_CODE_TTL_MS,
 } from '../shared/constants'
 import { failureCodeNames } from '../core/networkFailure'
-import { ChatGptSignInError } from '../core/providers/subscriptions/chatgpt'
-import { GrokSignInError } from '../core/providers/subscriptions/grok'
+// The sign-in cores stay in dist/subscriptions.js; this bundle reads them
+// through subscriptionsEntry (one `instanceof` across the boundary).
+import { ChatGptSignInError, GrokSignInError } from '../host/backend/subscriptionsEntry'
 import { StoreUnavailableError } from './keyStore'
 import { NamedLockError, personScope, withNamedLock, type NamedLockOptions } from './namedLock'
 
