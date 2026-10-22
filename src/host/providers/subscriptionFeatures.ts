@@ -273,9 +273,13 @@ export function createSubscriptionFeatures(options: {
             },
           })
         : meta
-      if (entries.every((row) => row.auth === 'subscription')) return subscribed
       const services = await configured(subscribed)
-      return services.client
+      return entries.length > 0 && entries.every((row) => row.auth === 'subscription')
+        ? {
+            ...subscribed,
+            ...(services.client.models !== undefined && { models: services.client.models }),
+          }
+        : services.client
     },
     /**
     Connect ChatGPT. A saved registration is reused; `isNewAccount` registers

@@ -139,6 +139,9 @@ const BUDGETS = [
   // panel bundle; 22,917 B measured +15%, rounded up to the next 25 KiB
   // multiple (PLAN.md D6).
   { path: 'dist/modelsSubscriptions.js', budgetKiB: 50 },
+  // M95c: editor chat's lazy provider bundle; 28.2 KiB measured on the
+  // branch, budget re-measured on this tree (RLM95B).
+  { path: 'dist/editorChat.js', budgetKiB: 30 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
@@ -558,6 +561,23 @@ for (const { name, budgetKiB, outputs } of modelsSectionGroups) {
   console.log(
     `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
   )
+}
+// M95c: the optional row control has its own first-use chunk and budget.
+const editorChatMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+const editorChatControls = Object.entries(editorChatMeta.outputs).filter(
+  ([, output]) =>
+    output.entryPoint?.replaceAll('\\', '/') === 'src/webview/models/EditorChatToggle.tsx',
+)
+if (editorChatControls.length === 1) {
+  const EDITOR_CHAT_CONTROL_BUDGET_KIB = 2
+  const sizeKiB = statSync(editorChatControls[0][0]).size / BYTES_PER_KIB
+  if (sizeKiB > EDITOR_CHAT_CONTROL_BUDGET_KIB) hasFailure = true
+  console.log(
+    `${sizeKiB <= EDITOR_CHAT_CONTROL_BUDGET_KIB ? 'ok  ' : 'OVER'} editor chat controls: ${sizeKiB.toFixed(1)} KiB (budget ${EDITOR_CHAT_CONTROL_BUDGET_KIB} KiB)`,
+  )
+} else {
+  console.error('Missing or duplicated editor chat control chunk')
+  hasFailure = true
 }
 for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
   for (const [file, output] of Object.entries(webview.outputs)) {

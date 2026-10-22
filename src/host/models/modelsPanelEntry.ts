@@ -6,7 +6,14 @@
 // suggestions) arrives as parameters, read from `dist/providers.js`.
 
 import * as vscode from 'vscode'
-import { GLOBAL_STATE_KEYS, SETTINGS_SECTION, UI_TEXT } from '../../shared/constants'
+import {
+  GLOBAL_STATE_KEYS,
+  MODEL_API_CONTEXT_WINDOW,
+  MODEL_API_PRICED_MODELS,
+  MODEL_API_PRICES_PER_MILLION,
+  SETTINGS_SECTION,
+  UI_TEXT,
+} from '../../shared/constants'
 import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
 import type { WebviewBundleResolution } from '../views/webviewBundle'
@@ -45,6 +52,9 @@ export interface ModelsPanelMemento {
 }
 
 export interface ModelsPanelHostDeps {
+  readonly editorChat?:
+    | { available(): boolean; selected(ref: string): boolean; toggle(ref: string): Promise<void> }
+    | undefined
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: (isNewAccount: boolean) => Promise<void>
   readonly connectCopilot?: () => Promise<void>
@@ -426,6 +436,24 @@ export function createModelsPanelFeatures(
         vault: vaultBindingFactory(host, seam),
         providers,
         sessionBudget,
+        editorChat: host.editorChat,
+        metaModels: async () =>
+          (await credentials.getApiKey()) === undefined
+            ? []
+            : MODEL_API_PRICED_MODELS.standard.map((id) => ({
+                id,
+                label: id,
+                toolCapable: true,
+                vision: true,
+                reasoning: true,
+                context: MODEL_API_CONTEXT_WINDOW,
+                inputPerMillion: Number(MODEL_API_PRICES_PER_MILLION.standard.input),
+                outputPerMillion: Number(MODEL_API_PRICES_PER_MILLION.standard.output),
+                cachedPerMillion: Number(MODEL_API_PRICES_PER_MILLION.standard.cachedInput),
+                isFree: false,
+                isLocal: false,
+                priceFingerprint: JSON.stringify(MODEL_API_PRICES_PER_MILLION.standard),
+              })),
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,
         removeSubscription: host.removeSubscription,

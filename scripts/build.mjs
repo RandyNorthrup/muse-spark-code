@@ -274,6 +274,8 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const EDITOR_CHAT_ENTRY = 'src/host/models/lmProviderEntry.ts'
+const EDITOR_CHAT_OUTFILE = 'dist/editorChat.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 // CIFIX161B: the sign-in gate and the three-valued credential read, loaded
@@ -994,6 +996,13 @@ const modelsSubscriptionsOptions = {
   external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const editorChatOptions = {
+  ...modelsPanelOptions,
+  entryPoints: [EDITOR_CHAT_ENTRY],
+  outfile: EDITOR_CHAT_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1783,6 +1792,7 @@ if (isWatch) {
     esbuild.context(paidOptions),
     esbuild.context(modelsSubscriptionsOptions),
     esbuild.context(commandsOptions),
+    esbuild.context(editorChatOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
@@ -1936,6 +1946,7 @@ if (isWatch) {
     mcpVault: recorded('mcpVault', mcpVaultOptions),
     museCodeReviewer: recorded('museCodeReviewer', museCodeReviewerOptions),
     modelsPanel: recorded('modelsPanel', modelsPanelOptions),
+    editorChat: recorded('editorChat', editorChatOptions),
     auth: recorded('auth', authOptions),
     paid: recorded('paid', paidOptions),
     modelsSubscriptions: recorded('modelsSubscriptions', modelsSubscriptionsOptions),

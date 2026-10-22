@@ -10,7 +10,7 @@
 // capture is recorded (`wireCapture`, AGENTS.md rule 13); the captures are
 // in `docs/certification/m95-captures.md`. Pure data plus pure helpers.
 
-import { PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
+import { HTTP_STATUS, PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import {
   PROVIDER_RETRY_LIMITS,
@@ -894,8 +894,69 @@ export interface PlanKeyPreset extends ProviderPreset {
   readonly limitsUrl: string
 }
 
+/** MiniMax M Plan (platform.minimax.io/docs/m-plan/faq, 2026-10-11). */
+const MINIMAX_PLAN_PRESET: PlanKeyPreset = {
+  id: 'minimax-plan',
+  label: 'MiniMax',
+  get description() {
+    return UI_TEXT.providerText.descriptions.minimaxPlan
+  },
+  category: 'cloud',
+  format: 'chat',
+  // OpenAI-compatible at `/v1`; the Subscription Key works in third-party
+  // tools. The usage page, not the list, states the limits.
+  origin: { kind: 'fixed', origin: 'https://api.minimax.io' },
+  auth: 'apiKey',
+  authHeader: 'bearer',
+  // The plan FAQ points key management at the console's plan page.
+  keyPage: 'https://platform.minimax.io/console/plan',
+  docsUrl: 'https://platform.minimax.io/docs/m-plan/faq',
+  keyShape: { kind: 'any', minLength: 16 },
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.site, { site: 'platform.minimax.io' })
+  },
+  keyTest: { kind: 'models-list' },
+  modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  quirks: {},
+  // No capture yet: defined but unlisted (rule 13).
+  wireCapture: false,
+  pricing: { kind: 'plan' },
+  limitsUrl: 'https://platform.minimax.io/console/usage',
+}
+
+/** Alibaba Model Studio Coding Plan (alibabacloud.com/help/en/model-studio, 2026-10-11). */
+const ALIBABA_PLAN_PRESET: PlanKeyPreset = {
+  id: 'alibaba-plan',
+  label: 'Alibaba',
+  get description() {
+    return UI_TEXT.providerText.descriptions.alibabaPlan
+  },
+  category: 'cloud',
+  format: 'chat',
+  // The Coding Plan's OpenAI base with its dedicated key; 6,000 requests
+  // per 5 hours, no token view. Host-only: `/v1` lives in the paths below,
+  // or the pin rejects every request and the URLs double to `/v1/v1/…`.
+  origin: { kind: 'fixed', origin: 'https://coding-intl.dashscope.aliyuncs.com' },
+  auth: 'apiKey',
+  authHeader: 'bearer',
+  keyPage: 'https://modelstudio.console.alibabacloud.com/ap-southeast-1/subscription/coding-plan',
+  keyShape: { kind: 'any', minLength: 16 },
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.site, { site: 'modelstudio.console.alibabacloud.com' })
+  },
+  keyTest: { kind: 'models-list' },
+  modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  quirks: {},
+  // No capture yet: defined but unlisted (rule 13).
+  wireCapture: false,
+  pricing: { kind: 'plan' },
+  limitsUrl: 'https://www.alibabacloud.com/help/en/model-studio/coding-plan-faq',
+}
+
 /** Mistral uses the captured API endpoint and the same keys for plan credits. */
 export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
+  MINIMAX_PLAN_PRESET,
+  ALIBABA_PLAN_PRESET,
   {
     id: 'mistral-plan',
     get label() {
@@ -926,6 +987,11 @@ export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
 /** Captured plan-key data only; names/model slugs are never fabricated. */
 export function planKeyPresetById(id: string): PlanKeyPreset | undefined {
   return PLAN_KEY_PRESETS.find((preset) => preset.id === id)
+}
+
+/** The plan-key presets the panel lists: captured wires only (rule 13). */
+export function listedPlanKeyPresets(): PlanKeyPreset[] {
+  return PLAN_KEY_PRESETS.filter((preset) => preset.wireCapture)
 }
 
 const TOGETHER_PRESET: ProviderPreset = {
@@ -1085,6 +1151,57 @@ const ZAI_PRESET: ProviderPreset = {
   wireCapture: true,
 }
 
+const MOONSHOT_PRESET: ProviderPreset = {
+  id: 'moonshot',
+  label: 'Moonshot',
+  get description() {
+    return UI_TEXT.providerText.descriptions.moonshot
+  },
+  category: 'cloud',
+  format: 'chat',
+  // Kimi Open Platform (platform.kimi.ai/docs/api, 2026-10-11):
+  // OpenAI Chat Completions at `/v1`, Bearer, `/v1/models` list.
+  origin: { kind: 'fixed', origin: 'https://api.moonshot.ai' },
+  auth: 'apiKey',
+  authHeader: 'bearer',
+  keyPage: 'https://platform.kimi.ai/console/api-keys',
+  docsUrl: 'https://platform.kimi.ai/docs/api',
+  keyShape: { kind: 'any', minLength: 16 },
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.site, { site: 'platform.kimi.ai' })
+  },
+  keyTest: { kind: 'models-list' },
+  modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  quirks: {},
+  wireCapture: false,
+}
+
+const OLLAMA_CLOUD_PRESET: ProviderPreset = {
+  id: 'ollama-cloud',
+  label: 'Ollama Cloud',
+  get description() {
+    return UI_TEXT.providerText.descriptions.ollamaCloud
+  },
+  category: 'cloud',
+  format: 'chat',
+  // docs.ollama.com/api/authentication (2026-10-11): direct cloud
+  // inference at `https://ollama.com/v1`, Bearer, keys at /settings/keys.
+  origin: { kind: 'fixed', origin: 'https://ollama.com' },
+  auth: 'apiKey',
+  authHeader: 'bearer',
+  keyPage: 'https://ollama.com/settings/keys',
+  docsUrl: 'https://docs.ollama.com',
+  keyShape: { kind: 'any', minLength: 16 },
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.site, { site: 'ollama.com' })
+  },
+  keyTest: { kind: 'models-list' },
+  // Provisional until the lead's capture: the OpenAI-compat shim's list.
+  modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  quirks: {},
+  wireCapture: false,
+}
+
 const OLLAMA_PRESET: ProviderPreset = {
   id: 'ollama',
   label: 'Ollama',
@@ -1229,6 +1346,8 @@ export const PRESETS: readonly ProviderPreset[] = [
   FIREWORKS_PRESET,
   HUGGINGFACE_PRESET,
   ZAI_PRESET,
+  MOONSHOT_PRESET,
+  OLLAMA_CLOUD_PRESET,
   OLLAMA_PRESET,
   LMSTUDIO_PRESET,
   VLLM_PRESET,
@@ -1286,6 +1405,23 @@ export function wireModelFor(
   const deployment = entry.deployment
   if (deployment === undefined || deployment === '') throw new Error(UI_TEXT.actionFailed)
   return deployment
+}
+
+/**
+The Responses turn path under a preset's address. Every preset posts to
+`/v1/responses` except Azure, whose address already ends in `/openai/v1`.
+*/
+export function responsesTurnPath(preset: ProviderPreset): string {
+  return preset.origin.kind === 'azure-resource' ? '/responses' : '/v1/responses'
+}
+
+/**
+An Azure resource answers 404 for a deployment that is not there: refuse
+it in plain words. Anything else stays generic. A 404 is in no retry
+table, so the refusal is never retried.
+*/
+export function azureDeploymentRefusal(status: number): string | undefined {
+  return status === HTTP_STATUS.notFound ? UI_TEXT.azureDeploymentInvalid : undefined
 }
 
 // --- OpenRouter as a first-class provider (D74) ---

@@ -502,6 +502,12 @@ export const RESOURCE_PROCESS_BUNDLE = {
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/editorChat.js',
+    metafile: 'dist/meta/editorChat.json',
+    use: 'the first editor-chat opt-in action or model call',
+    files: ['src/host/models/lmProvider.ts', 'src/host/models/lmProviderEntry.ts'],
+  },
+  {
     output: 'dist/resourceGovernor.js',
     metafile: 'dist/meta/resourceGovernor.json',
     use: 'the first governed spawn',

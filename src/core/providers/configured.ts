@@ -416,10 +416,16 @@ runtime's `providers test` all read failures through this one reader.
 */
 export function providerFailureReader(
   entry: ProviderEntry,
-  preset: { readonly label: string; readonly category: string; readonly format: ProviderFormat },
+  preset: {
+    readonly label: string
+    readonly category: string
+    readonly format: ProviderFormat
+    readonly origin: { readonly kind: string }
+  },
 ) {
   return {
     parseError: (status: number, value: unknown): ModelApiError =>
+      azureDeploymentError(preset.origin.kind === 'azure-resource', status) ??
       parseFormatError(entry.format ?? preset.format, status, value),
     sendFailure: (error: unknown): string =>
       fill(UI_TEXT.providerUnreachable, {
@@ -429,6 +435,21 @@ export function providerFailureReader(
     refusal: (error: ModelApiError): string =>
       refusalSentence(refusalOf(error), providerDisplayName(entry, preset)),
   }
+}
+
+/**
+An Azure resource answers 404 for a deployment that is not there (C-M95-5):
+that one answer carries the product's own sentence, read here when the
+failure is handled so the installed language is the one shown, instead of
+the provider's words (so no key, path or account can leak). Anything else
+is parsed by the format's own reader below.
+*/
+const azureDeploymentError = (isAzure: boolean, status: number): ModelApiError | undefined => {
+  if (!isAzure) return undefined
+  const refusal = presets.azureDeploymentRefusal(status)
+  return refusal === undefined
+    ? undefined
+    : new ModelApiError(refusal, status, undefined, undefined)
 }
 
 function ignoreTransportLog(): void {
@@ -1273,10 +1294,17 @@ export function createConfiguredProviderServices(
       // Every wire format parses its own envelope: the table is keyed by
       // the closed ProviderFormat, so there is no `default:` branch that
       // could invent a product sentence, and a new member fails to typecheck
-      // until it gets its own parser.
-      parseError: (status, value) => parseFormatError(format, status, value),
+      // until it gets its own parser. Azure names a missing deployment
+      // with a 404 on the resource: that one answer carries the product's
+      // own sentence instead of the provider's words (C-M95-5, never
+      // retried: a 404 is in no retry table).
+      parseError: (status, value) =>
+        azureDeploymentError(preset.origin.kind === 'azure-resource', status) ??
+        parseFormatError(format, status, value),
       encode: (body) => {
-        let path = '/v1/responses'
+        // The deployment rides as the request's model, as the v1 API
+        // names it (research §1.2); the path is the preset's own.
+        let path = presets.responsesTurnPath(preset)
         let wire: unknown
         let extras: Readonly<Record<string, string>> = {}
         switch (format) {

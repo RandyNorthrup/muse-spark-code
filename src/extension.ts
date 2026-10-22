@@ -401,6 +401,7 @@ import type { askPaidUse as askPaidUseFn } from './host/paid/paidEntry'
 import type * as ScheduleSurfaces from './host/conversation/scheduleSurfacesEntry'
 import { authBundleLoader } from './host/auth/authBundle'
 import type { AuthPort, AuthService } from './host/auth/authService'
+import { registerEditorChat } from './host/models/lmProviderBundle'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import { BACKEND_KINDS, type HostAction } from './shared/protocol'
@@ -2369,6 +2370,22 @@ async function activateWindow(
       log,
     },
   })
+  const editorChat = registerEditorChat({
+    globalState: context.globalState,
+    extensionPath: context.extensionPath,
+    storagePath: context.globalStorageUri.fsPath,
+    windowId: crypto.randomUUID(),
+    table: l10n,
+    log,
+    recording: usageRecording,
+    allowed: () => !currentSettings().confidentialWorkspace,
+    models: async () => {
+      const client = await subscriptionFeatures().createClient(keyClient())
+      if (client.models === undefined) throw new Error(UI_TEXT.editorChatRefused)
+      return client.models
+    },
+  })
+  context.subscriptions.push(editorChat)
   const ideTools = [diagnostics]
   // Web fetch (M69, PLAN.md D49): resolved, checked and pinned here, for the
   // Model API backend's `web_fetch` and Muse Code's `mcp__ide__webFetch`.
@@ -5066,6 +5083,7 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
+          editorChat,
           connectChatGpt: (isNewAccount) => subscriptionFeatures().connectChatGpt(isNewAccount),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),

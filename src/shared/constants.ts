@@ -279,6 +279,9 @@ export const COMMAND_IDS = {
 // side and the quick pick build to dist/modelsPanel.js; activation keeps only
 // the command registrations and the loader.
 export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
+export const EDITOR_CHAT_VENDOR = 'muse-spark-code'
+export const EDITOR_CHAT_BUNDLE_FILE = 'editorChat.js'
+export const EDITOR_CHAT_PROMPT_CACHE_RETENTION = 'in_memory'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
 export const MODELS_SUBSCRIPTIONS_BUNDLE_FILE = 'modelsSubscriptions.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
@@ -382,6 +385,7 @@ export const GLOBAL_STATE_KEYS = {
   used, and turning a setting off removes its entry.
   */
   paidConfirmations: 'museSpark.paidConfirmations',
+  editorChatConfirmations: 'museSpark.editorChatConfirmations',
   subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
   /**
   Each paid feature's grant generation (M58): every change to its price
@@ -835,6 +839,8 @@ export const SETTING_DEFAULTS = {
   // The daily budget in US dollars: 0 is no budget (nothing reserved or
   // locked); only a budget the person sets caps the local day.
   tabDailyBudgetUsd: 0,
+  editorChatModels: [],
+  editorChatDailyBudgetUsd: 0,
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
@@ -970,6 +976,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   // settings cannot change what Tab spends.
   'modelApiTab',
   'tabModel',
+  'editorChatModels',
+  'editorChatDailyBudgetUsd',
   'tabDailyBudgetUsd',
   'tabLanguages',
   'tabMultiline',
