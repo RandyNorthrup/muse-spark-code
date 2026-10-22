@@ -128,7 +128,11 @@ export const providerEntrySchema = z
             (entry.id === 'copilot' &&
               entry.preset === 'copilot' &&
               entry.address === 'https://github.com/copilot' &&
-              entry.format === 'chat'))),
+              entry.format === 'chat') ||
+            (entry.id === 'grok' &&
+              entry.preset === 'grok' &&
+              entry.address === 'https://api.x.ai' &&
+              entry.format === 'responses'))),
       { error: () => UI_TEXT.actionFailed },
     ),
     z.refine(

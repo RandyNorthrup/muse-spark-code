@@ -36,6 +36,11 @@ export {
   chatGptAccountId,
   chatGptPlanAccount,
   chatGptFailureText,
+  grokCatalog,
+  grokModels,
+  grokAccountId,
+  grokPlanAccount,
+  grokFailureText,
 } from '../../core/providers/subscriptions/registry'
 // The Copilot adapter's failure, shared one copy with the host side exactly
 // like ChatGptSignInError above (PLAN.md D207): copilotClient.ts reads it
