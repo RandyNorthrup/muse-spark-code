@@ -2145,7 +2145,7 @@
     "missing": "Brakuje pliku źródłowego lub repozytorium.",
     "invalid": "Źródło ma nieobsługiwany format lub nieprawidłowe dane.",
     "limit": "Źródło przekracza limit odczytu raportu.",
-    "cancelled": "Odczyt źródła został anulowany lub przekroczył limit czasu.",
+    "cancelled": "Odczyt źródła został anulowany.",
     "failed": "Nie udało się odczytać całego źródła.",
     "refused": "Ścieżka źródła jest prywatna lub znajduje się poza dozwolonym folderem.",
     "disabled": "To źródło użycia agenta nie jest włączone.",

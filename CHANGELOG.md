@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Entries record what actually
 happened, not what was planned; superseded entries are kept.
 
-## [0.19.1] - 2026-10-21
+## [0.19.0] - 2026-10-21
 
 ### Highlights
 
@@ -388,6 +388,18 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   Windows PowerShell starts slowly (a fresh machine, heavy antivirus): the
   process identity a vault writer records is read by a small native reader
   instead, and nothing gives up after 10 seconds.
+- On Windows, steps that read or end processes through Windows PowerShell,
+  `taskkill` or the process table are no longer killed after 20 seconds. On
+  a slow machine Windows PowerShell's first start can take longer, and the
+  step it served (building a Windows helper, reading a process tree, ending
+  one) then failed. These steps, and their macOS and Linux counterparts, now
+  run until they end; Stop, or a deadline the caller sets, still ends them.
+- Reports no longer give up on a source after 5 seconds. A slow answer from
+  GitHub, the Marketplace, Open VSX, npm or a large repository's git history
+  used to make that part of the report read "unavailable"; each source now
+  waits for its answer, and Stop still ends the report. A source rate-limited
+  without saying until when is asked again on the next report instead of
+  being held back for 5 seconds.
 - On Windows as an elevated administrator (Windows Server's defaults), work
   the resource governor starts is no longer refused, and the private folder
   for a screen-recording preview is locked to its owner alone.
@@ -852,11 +864,19 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 
 ### Release infrastructure
 
-- 0.19.1 is the first published 0.19 release. Its first tag, `v0.19.0`,
-  was never published: the release stopped at its own checks, before
-  building anything, because the browser check's pinned Chrome for Testing
-  runtime had fallen more than 14 days behind Chrome's Stable channel. A
-  tag never moves, so the renewed pin ships as 0.19.1.
+- Two earlier release tags for this version stopped at the release's own
+  checks, before anything was built or published: first because the browser
+  check's pinned Chrome for Testing runtime had fallen more than 14 days
+  behind Chrome's Stable channel, then because the pin check, which had just
+  begun reading Google's version lists through a schema, could not load that
+  schema's library in a job that installed nothing. Both are fixed; the
+  unpublished tags were deleted and 0.19.0 was tagged again.
+- A new gate, `npm run check:workflow-scripts`, fails any workflow step
+  that runs one of the repository's scripts before its job installs the
+  dependencies that script imports.
+- The release checks every package's Linux helper pins (each VSIX's voice
+  bundle read from its runtime archive), and a release that reused its CI
+  packages can be recovered from like one that built them.
 - Every fake test is gone. Deleted: the tests that used stand-ins or
   invented data, the tests that only checked that some text, key or file
   exists, the editor host checks that drove the fake CLI, the fake-only

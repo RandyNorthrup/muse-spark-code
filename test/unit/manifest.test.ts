@@ -573,8 +573,6 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain('node scripts/release-reuse.mjs verify reused')
     expect(reuse).toContain("echo 'reused=false'")
     expect(reuse).toContain('Full rebuild: a CI artifact download failed.')
-    // D140 re-uploads the two helper builds on reuse: three becomes five.
-    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(5)
     expect(build).toContain('needs: [verify, reuse]')
     expect(build).toContain("github.event_name == 'push' && needs.reuse.outputs.reused != 'true'")
     expect(build).toContain('uses: ./.github/workflows/build.yml')

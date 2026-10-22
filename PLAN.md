@@ -417,7 +417,8 @@ all identity/lease assertions and every deadline. Restart the thirty idle and
 thirty loaded complete-file sequence and record this excluded failed attempt.
 
 **SPAWN017B follow-up (2026-10-08, win11).** Govern helper compilation in
-one bootstrap tier: heavy admission, PROCESS_TABLE_TIMEOUT_MS deadline,
+one bootstrap tier: heavy admission, PROCESS_TABLE_TIMEOUT_MS deadline
+(removed 2026-10-21 under D121: only the caller's cancel or deadline stops it),
 bounded output, whole-tree cancellation and observed exit before publication.
 The job builder cannot join a job made by its own not-yet-built helper.
 Bind runtime process admission to the existing runtime resource host and
@@ -12856,8 +12857,13 @@ Needs: <items>.`).
      rate-limited until {time}". Requests are conditional (ETags) into a
      cache under `<agentDataFolder>/reports/v1/cache/`, whose age is the
      source's freshness. Pages are bounded.
-   - **Timeouts** per source (`REPORT_SOURCE_TIMEOUT_MS`); the network
-     sources sit outside the local time budget (decision 14).
+   - **No timeout of ours** (D121/D208, 2026-10-21): a source read runs
+     until it settles or the caller's signal (the person's cancel) aborts;
+     the former `REPORT_SOURCE_TIMEOUT_MS` is gone, and its 5-second figure
+     survives only as `REPORT_SOURCE_FRESH_MS`, which labels a source
+     `fresh` or `stale` and stops nothing. A rate-limited origin is held
+     only until the server's own Retry-After or reset. The network sources
+     sit outside the local time budget (decision 14).
 
 7. **Four formats.**
    - **Markdown:** GitHub-flavoured tables, LF, one trailing newline.
@@ -15265,13 +15271,12 @@ they hold on Muse Code 1.4.7 and later. Record:
 
 - **Q-0191-LINUX-VAULT — the vault in VS Code on Linux (2026-10-20).**
   **Resolved by the owner: ship with the limitation documented, fix in the
-  next release** (the owner named it 0.19.1 before 0.19.0's tag was refused
-  and the release itself became 0.19.1). The .vsix carries no `@napi-rs/keyring` binding (about
+  next release** (0.19.1; the release itself is 0.19.0). The .vsix carries no `@napi-rs/keyring` binding (about
   3.4 MB unpacked against ~200 KB of package budget headroom), so the
   extension's Linux build has no Secret Service slot, and the TPM2 slot
   probes `/dev/tpmrm0` directly, which a user outside the `tss` group cannot
   open; on a stock Linux desktop the vault therefore cannot be set up in VS
-  Code (the terminal agent installs the binding and works). 0.19.1 makes the
+  Code (the terminal agent installs the binding and works). 0.19.0 makes the
   `storeUnavailable` sentence say this, and the CHANGELOG and README record
   it. Options for the next release: seal through `systemd-creds`' user scope (systemd
   256+, no device access), the Secret Service over D-Bus without a native
@@ -35913,10 +35918,10 @@ memory fixtures, and real ACP delivery uses a three-call caller allowance.
 | `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)        | `'NaN' as UsdAmount`                         | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                  |
 | `test/unit/vault/vaultPanelBinding.test.ts` (`pressedTitle`) | `value as never` for a dialog's pressed item | The vscode mock keeps the overloaded dialog type (its last overload resolves `MessageItem`), while `VaultPanelHost` compares the pressed title as a plain string. The cast carries only the literal titles the test itself passes (`Keep File`, `Delete the File`, `Continue`); the host still compares them against `UI_TEXT` before acting, so no foreign value can cross. Test-only. |
 
-| SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                   | Removal                                                                            |
-| --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| core/resources/bootstrap.ts | detect-child-process nosemgrep on spawn    | The shared compiler boundary holds heavy admission, strips credentials, caps output and deadline, and observes exit; it cannot use its not-yet-built containment helper. | Keep the bootstrap-tier boundary guarded by native tree and admission regressions. |
-| core/resources/bootstrap.ts | detect-child-process nosemgrep on taskkill | Fixed trusted OS terminator, owned numeric PID, empty credential environment and bounded output/deadline; termination must remain usable at pause.                       | Retain the native whole-tree drill; compiled payloads use jobs.                    |
+| SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                                                                                    | Removal                                                                            |
+| --------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| core/resources/bootstrap.ts | detect-child-process nosemgrep on spawn    | The shared compiler boundary holds heavy admission, strips credentials, caps output, stops only on the caller's own cancel or deadline (none of ours, 2026-10-21), and observes exit; it cannot use its not-yet-built containment helper. | Keep the bootstrap-tier boundary guarded by native tree and admission regressions. |
+| core/resources/bootstrap.ts | detect-child-process nosemgrep on taskkill | Fixed trusted OS terminator, owned numeric PID, empty credential environment and bounded output, with no deadline of ours (2026-10-21); termination must remain usable at pause.                                                          | Retain the native whole-tree drill; compiled payloads use jobs.                    |
 
 | 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -39921,24 +39926,7 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
-**0.19.1 preparation (2026-10-21).** `release/0.19.1` cut from `main` at
-`e48e8c6bce` (PR #237's merge): `package.json` and `package-lock.json` at
-0.19.1, the browser check's runtime pin renewed (Chrome for Testing 156.0.8078.47, r1706539, published 2026-10-20, from the new `scripts/pin-browser-runtime.mjs`), CHANGELOG's
-`[0.19.0]` section renamed `[0.19.1]` with the reason under Release
-infrastructure, the roadmap regenerated.
-
-**0.19.0 (2026-10-21, tag `v0.19.0` on main's release merge `e48e8c6bce`, PR #237, release run 39569020330: never published).**
-PR #237 (`release/0.19.0`, head `93fd23ec70`) merged after first-attempt
-green CI, Hosts, Forks and Browser check runs; the merge commit's Hosts run
-was green and `rule2-gate.mjs release --sha e48e8c6bce` read five green
-first runs. The release run stopped at its tag checks:
-`check-browser-runtime-pin.mjs` found Stable 156.0.8078.47 published 21.060
-days after the pinned 154.0.8037.92 (at most 14). Nothing was built or
-published, on any channel. A tag does not move (docs/RELEASING.md), so
-0.19.0 is spent and the release ships as 0.19.1 (above). PR #237's earlier
-runs and their fixes are in `docs/certification/cifinal0190.md` §12.
-
-**0.19.0 preparation (2026-10-17).** `release/0.19.0` cut from `main-now` at
+**0.19.0 preparation (2026-10-17; tagged again 2026-10-21).** `release/0.19.0` cut from `main-now` at
 `81dacaf5a7`, merging in order PR #185 (`fix/sandbox-say`: the Linux sandbox
 cannot-start notice), PR #189 (`ms/msm112`: the production build runs through
 a bounded pool of 8), PR #190 (`ms/msm56`: Muse Voice stays unavailable with
@@ -40132,6 +40120,33 @@ PR #232 (`ci/real-use`) merged onto the release as `Merge PR #232
 no conflicts, no generated-file changes.
 
 JOIN0190 (2026-10-19/20, lane `release/0.19.0-join0190`): 107 area candidates merged in order (PR/A/B/C areas, limits, deps, vault, standins, audits, tests, notes, bundles, activation, full-suite runs), carrying PR #154, #158, #159, #169, #194, #195, #207, #215, #218, #219, #220, #222, #231, #232, #233, #234, #245, #246, #247, #249, #250 and #251; closing fix jobs 179 (AREA C vault+limits+deps+standins), 180 (NOLIMITSFINAL2), 181 (REDFIX0190), 182 (GRVFIXB3), 183 (GRVFIXB1) and 184 (GRVFIXB2). PR #203 re-landed (`8c91573c0` reverts the hold `659d179ff1`, latest head merged). Release preparation on the lane: CHANGELOG `[0.19.0]` rewritten person-facing within 76,800 bytes (whatsNew 55/55 green); duplicate D119/D121/D123/D140 renumbered above D206; `check:catches` baseline regenerated green; PLAN archived below 85% of 4 MiB with `check:plan` green; jscpd duplication 0 tree-wide; surface-English split back to its 25 KiB budget; legalFix previews ride the fix chunk (scan 143.6/150 KiB, fix 70.6/75); playbook rename evidence out of the report chunk (54.7/59); modelApi capped at the measured 530 KiB (527.9 of authorized turn-path weight); activation budget holds with headroom; bundle-split gate cleared (probe environment beside the resolver, `$ZodError` exported, capability-record allowance in both its sites); §8 rows for the bundle-diet disables; fileLease and schedule-delivery suites green on the final tree. The universal .vsix packs in hosted CI (its Linux helpers build there); the 3,072,000-byte cap stands.
+
+On 2026-10-21, by the owner's order, the
+release ships as 0.19.0: a failed check never moves the version. Two tags
+stopped at the release's own tag checks before anything was built or
+published, and both are deleted before 0.19.0 is tagged again:
+
+- `v0.19.0` on `e48e8c6bce` (PR #237's merge, release run 39569020330):
+  `check-browser-runtime-pin.mjs` found Stable 156.0.8078.47 published
+  21.060 days after the pinned 154.0.8037.92 (at most 14). PR #255 renewed
+  the pin (Chrome for Testing 156.0.8078.47, r1706539, published 2026-10-20,
+  from the new `scripts/pin-browser-runtime.mjs`) and parsed its upstream
+  answers with zod; for that pull request the version read 0.19.1.
+- `v0.19.1` on `ff7c78d7a3` (PR #255's merge, release run 39667463849,
+  after first-attempt green CI, Hosts and Browser check runs and a green
+  `rule2-gate.mjs release`): `check-browser-runtime-pin.mjs` could not
+  load `zod`, because the tag-checks job installed nothing; no
+  pull-request run executes that job.
+
+PR #257 (`release/0.19.2`, cut from `main` at `ff7c78d7a3`): the tag
+checks and the weekly pin job install before the pin check; the new
+`check:workflow-scripts` gate; the release's Linux helper step reads each
+VSIX's voice bundle from its runtime archive and checks all seven; recovery
+accepts a release that reused verified CI artifacts (both found by
+reviewing every job after the tag checks); `package.json`,
+`package-lock.json` and the CHANGELOG section back at 0.19.0; the roadmap
+regenerated. Records and drills: `docs/certification/cifinal0190.md`
+§12–§18.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

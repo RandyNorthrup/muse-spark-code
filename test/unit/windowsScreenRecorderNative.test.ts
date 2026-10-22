@@ -12,11 +12,7 @@ import {
 import path from 'node:path'
 import { windowsPowerShell } from '../../src/core/execGuard'
 import { windowsTrustedPathVerifier } from '../../src/runtime/windowsTrustedPath'
-import {
-  MEDIA_FILE_ID_MIN_BYTES,
-  MEDIA_MAX_UPLOAD_MIB,
-  PROCESS_TABLE_TIMEOUT_MS,
-} from '../../src/shared/constants'
+import { MEDIA_FILE_ID_MIN_BYTES, MEDIA_MAX_UPLOAD_MIB } from '../../src/shared/constants'
 import {
   createWindowsLatestPort,
   resolveWindowsRecordingFolders,
@@ -229,7 +225,6 @@ describe.skipIf(process.platform !== 'win32')(
               {
                 env,
                 windowsHide: true,
-                timeout: PROCESS_TABLE_TIMEOUT_MS,
               },
               (error, stdout) => {
                 if (error === null) resolve(stdout)
@@ -283,7 +278,6 @@ describe.skipIf(process.platform !== 'win32')(
             {
               env,
               windowsHide: true,
-              timeout: PROCESS_TABLE_TIMEOUT_MS,
             },
             (error, stdout) => {
               resolve({ code: error?.code ?? 0, stdout })

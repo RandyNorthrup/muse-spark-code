@@ -69,6 +69,13 @@ jobs:
             echo "::error::tag ${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main" >&2
             exit 1
           fi
+      # The pin check parses its upstream answers with zod, so the
+      # dependencies are installed first (scripts/check-workflow-scripts.mjs
+      # holds every job to that).
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit
       # M81 A1: never ship an expired browser check runtime pin, or one more
       # than 14 days behind the newest Stable (design spec v4 §4.2).
       - name: the browser check runtime pin is current
@@ -213,6 +220,15 @@ jobs:
           path: reused/*.cdx.json
           if-no-files-found: error
           retention-days: 30
+      # The receipt travels with them, so a recovery from this run checks
+      # the same per-asset hashes (release-reuse.mjs findRecovery).
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.check.outputs.reused == 'true' && steps.lookup.outputs.legacy-recovery != 'true'
+        with:
+          name: source-tree-${{ steps.lookup.outputs.tree }}
+          path: reused/release-build.json
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check.outputs.reused == 'true' && hashFiles('reused-helpers/x64/**') != ''
         with:
@@ -341,18 +357,40 @@ jobs:
               staged=1
             fi
           done
+          # Every VSIX (the universal one and the six targets) carries the
+          # Linux voice bundle. Its dist/voiceLinux.js is only a loader: the
+          # code is that member of the VSIX's runtime archive.
+          voice_linux() {
+            unzip -p "$1" extension/dist/runtime.bundles.json.br > release/runtime.bundles.json.br
+            node scripts/runtime-archive-member.mjs release/runtime.bundles.json.br voiceLinux.js > release/voiceLinux.js
+            rm release/runtime.bundles.json.br
+          }
+          shopt -s nullglob
+          vsixes=(release/*.vsix)
+          if [ "${#vsixes[@]}" -eq 0 ]; then
+            echo '::error::no VSIX to check the helper pins of' >&2
+            exit 1
+          fi
           if [ "$staged" = 1 ]; then
             # The tagged source carries unset pins by design; measure the
             # staged helpers (and this tag) into the checker's own copy so
-            # it verifies the VSIX against real bytes, not empty pins.
+            # it verifies each VSIX against real bytes, not empty pins.
             node scripts/build-linux-helper-pins.mjs helpers/x64 helpers/arm64
-            unzip -p release/*.vsix extension/dist/voiceLinux.js > release/voiceLinux.js
-            node scripts/check-linux-helper-pins.mjs --bundle release/voiceLinux.js --assets release/helpers
-            rm release/voiceLinux.js
-          elif unzip -p release/*.vsix extension/dist/voiceLinux.js | grep -q 'linux-x64-muse-dictate'; then
-            echo '::error::this VSIX pins helper assets but none were staged' >&2
-            exit 1
+            for vsix in "${vsixes[@]}"; do
+              voice_linux "$vsix"
+              echo "${vsix##*/}:"
+              node scripts/check-linux-helper-pins.mjs --bundle release/voiceLinux.js --assets release/helpers
+              rm release/voiceLinux.js
+            done
           else
+            for vsix in "${vsixes[@]}"; do
+              voice_linux "$vsix"
+              if grep -q 'linux-x64-muse-dictate' release/voiceLinux.js; then
+                echo "::error::${vsix##*/} pins helper assets but none were staged" >&2
+                exit 1
+              fi
+              rm release/voiceLinux.js
+            done
             rmdir release/helpers
           fi
       - name: checksums for every release asset

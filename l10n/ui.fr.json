@@ -2116,7 +2116,7 @@
     "missing": "Le fichier source ou le dépôt est absent.",
     "invalid": "La source a un format non pris en charge ou des données invalides.",
     "limit": "La source dépasse la limite de lecture du rapport.",
-    "cancelled": "La lecture de la source a été annulée ou a dépassé le délai.",
+    "cancelled": "La lecture de la source a été annulée.",
     "failed": "La source n’a pas pu être lue entièrement.",
     "refused": "Le chemin de la source est privé ou hors du dossier autorisé.",
     "disabled": "Cette source d’utilisation de l’agent n’est pas activée.",

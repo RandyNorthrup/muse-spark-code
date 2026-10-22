@@ -593,3 +593,175 @@ Proof, on this PC against the live sources:
   string: must match pattern /^x$/ at channels.Stable.revision") and the
   generator exited 1 with the same message before any download. Restored:
   the check exits 0 and the schemas parse the live answers again.
+
+## 16. 0.19.1's tag refused: the tag checks could not load zod
+
+- `v0.19.1` on `ff7c78d7a3` (PR #255's merge; release run 39667463849): the
+  tag checks stopped the release before any build or publication.
+  `node scripts/check-browser-runtime-pin.mjs` exited 1 with
+  `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'zod' imported from
+.../scripts/check-browser-runtime-pin.mjs`. Section 15's commit
+  (`45796ee1e0`) made the pin check parse its upstream answers with zod; the
+  release's tag-checks job checks out the repository and runs the check
+  with no `npm ci`, and no pull-request run executes that job, so every
+  check on PR #255 was green. The weekly `browser-runtime-pin.yml` job had
+  the same gap. (The release was first moved to 0.19.2; by the owner's order
+  it stays 0.19.0: section 18.)
+- The fix: the tag-checks job sets up Node 22 and runs
+  `npm ci --ignore-scripts --no-audit` before the pin check (after the
+  cheap tag, version and ancestry checks); the weekly pin job installs too.
+- The gate: `scripts/check-workflow-scripts.mjs` (`npm run
+check:workflow-scripts`, in `quality:gates` and the hosted static gates)
+  reads every workflow, and for each `node scripts/...` step that runs
+  before its job's `npm ci` or `npm install`, bundles the script with
+  esbuild, every package external, and fails on any package its metafile
+  shows the script or a file it reaches importing.
+
+Drills, on this PC:
+
+- Red, the real defect: on `ff7c78d7a3`'s workflows the gate exited 1 with
+  four errors, two per job (`release.yml › tag checks › the browser check
+runtime pin is current` and `browser-runtime-pin.yml › pin is current ›
+the runtime pin is current`): `imports 'zod'
+(scripts/lib/browserRuntimeSources.mjs)` and `imports 'zod'
+(scripts/check-browser-runtime-pin.mjs)`.
+- Green with the fix: exit 0, "34 workflow steps run scripts/; the 2 before
+  their job's install import Node's built-in modules only".
+- Red on purpose: the new `npm ci` step removed from `release.yml`: exit 1,
+  the two tag-checks errors; restored: exit 0.
+
+## 17. The release jobs after the tag checks, reviewed before tagging again
+
+Both refused tags stopped in the first job, so no release job after it has
+run since 0.18.2. A read-only review of that path against PR #255's real CI
+artifacts (run 39663073396) found:
+
+- **The helper step could not pass (fixed).** `release.yml`'s "stage the
+  Linux helper release assets when present" ran `unzip -p release/*.vsix
+extension/dist/voiceLinux.js`; with seven VSIX files `unzip` read the
+  other six as entry names and exited 11, before the GitHub Release. Behind
+  it, `dist/voiceLinux.js` in a VSIX is a loader: the code is the
+  `voiceLinux.js` member of `dist/runtime.bundles.json.br`. The step now
+  reads that member from every VSIX with the new
+  `scripts/runtime-archive-member.mjs` and checks each against the staged
+  helpers.
+- **Recovery from a reused release could not work (fixed).** A release that
+  reuses verified CI artifacts skips its build and uploaded no source-tree
+  receipt, so `findRecovery` refused it ("recovery build did not pass"). The
+  reuse job now uploads the receipt with the packages, and `findRecovery`
+  accepts a run whose reuse job passed and whose build was skipped; the
+  artifact and receipt checks are unchanged.
+- **Universal plus six targeted packages on the registries (checked, no
+  change).** The Marketplace documents a package published without a target
+  as the fallback for platforms with no package of their own. Both
+  registries carry exactly this shape today for redhat.java 1.59.2026102108
+  (Marketplace: six targets and one with none; Open VSX: `universal` and six
+  targets). Open VSX `/api/redhat/java/1.59.2026102108` returns the
+  universal download and `/api/redhat/java/linux-x64/1.59.2026102108` the
+  linux-x64 one; the Marketplace `vspackage` returned 54,062,181 bytes with
+  no target and 137,877,667 with `?targetPlatform=linux-x64`. These are the
+  URLs `verifyPublished` reads for each artifact.
+- The full-build fallback has never run on a tag; it runs only when no CI
+  run matches the tag tree, so nothing merges into `main` between PR #257's
+  pull-request CI and its tag, and the tree match is confirmed before
+  tagging.
+
+Drills, on this PC, with the step's `run` text taken from the workflow and
+run under `bash --noprofile --norc -eo pipefail` on PR #255's seven VSIX
+files and both helper builds:
+
+- Red: the previous step text exited 11 ("caution: filename not matched:
+  release/muse-spark-code-darwin-arm64-0.19.1.vsix", one per extra VSIX).
+- Green: the new step exited 0, "Helper pins accepted" for all seven VSIX
+  files, 24 helper assets staged.
+- Red on purpose: one byte appended to the x64 `libggml.so`: exit 1, "Helper
+  pins rejected: x64/libggml.so: digest missing from the bundle"; restored:
+  exit 0, seven accepted.
+- No helpers staged with these VSIX files: exit 1, "muse-spark-code-0.19.1.vsix
+  pins helper assets but none were staged".
+- Recovery, against the real GitHub API: the previous `findRecovery`
+  refused the reused v0.18.2 release run 38329786779 ("recovery build did
+  not pass"); the new one accepted it (commit `898a26c5e3`, its three
+  package artifacts). It still refuses v0.19.1's failed run 39667463849
+  ("recovery build did not pass") and a run of another tag ("ineligible
+  recovery run").
+
+## 18. The release stays 0.19.0
+
+By the owner's order (2026-10-21), a failed check never moves the version:
+the release ships as 0.19.0. PR #257 had moved it to 0.19.2; its version,
+CHANGELOG section, PLAN record and roadmap are back at 0.19.0. The two
+refused tags, `v0.19.0` (`e48e8c6bce`) and `v0.19.1` (`ff7c78d7a3`),
+published nothing on any channel (no GitHub Release, no npm version, no
+Marketplace or Open VSX version), and are deleted before `v0.19.0` is
+created on PR #257's merge.
+
+## 19. PR #257's review findings
+
+- The manifest test's added count of `if: steps.check.outputs.reused ==
+'true'` lines, and the line checking the receipt step's name, only
+  checked workflow text (AGENTS.md: such checks are not tests). Both are
+  removed; the recovery fix's proof is the real-API run in section 17.
+- `check-workflow-scripts.mjs` read only `node <file>`, so a helper loaded
+  from inline code before an install (`node --input-type=module -e "import
+{ buildLinuxHelper } from './scripts/build-linux-helper.mjs'..."` in
+  build.yml, forks.yml and hosts.yml) went unchecked. The gate now also
+  reads inline `-e`, `--eval`, `-p` and `--print` code: each relative import
+  is followed like a file `node` runs, and a package import fails on its
+  own. It now sees 43 files, 8 of them loaded before their job's install.
+
+Drills, on this PC:
+
+- Red: `import 'zod'` added to `scripts/build-vault-peer.mjs`: exit 1, three
+  errors (build.yml `compile native helpers`, forks.yml and hosts.yml
+  `package helper`), each "node loads scripts/build-vault-peer.mjs, which
+  imports 'zod'". Restored: exit 0.
+- Red: `import { z } from 'zod';` added to build.yml's pre-install inline
+  helper build: exit 1, "inline node code imports 'zod', and the job installs
+  nothing before this step". Restored: exit 0. (The same edit to a hosts.yml
+  step that runs after its job's `npm ci` stayed green, as it should.)
+
+## 20. PR #257's third run: our own time limits on slow Windows runners
+
+PR #257 head `87753d1877` (CI run 39675615471, capacity run 39675898149):
+red on hosted Windows only, in code the pull request did not change, as on
+PR #255's second run and PR #257's first (capacity run 39672218426): a
+different set of cases each time, each one ended by a time limit of ours on
+a slow runner: `runnerHelperNative` past its 60 s, the schedule background
+entry past the integration runs' 20 s, the screen recorder's Windows
+PowerShell identity read killed by the process table's 20 s
+(`killed: true, SIGTERM`), and store reads `unavailable` after the report
+sources' 5 s. By the owner's decision (2026-10-21) the limits go in this
+release:
+
+- Report sources: no deadline of ours ends a read, a post or a rate-limit
+  hold (`docs/certification/lim-reports.md`).
+- Process queries and their stops: no deadline of ours on Windows
+  PowerShell, `taskkill` or process-table reads, the POSIX tree supervisor
+  arms a clock only for a caller's deadline and bounds none of its own
+  `ps` reads, and the media and vault stop paths wait for the process's own
+  exit (`docs/certification/nolimitsprocs0190.md`).
+- The two test cases wait however long the machine takes.
+- `callerStop` (`src/core/timeouts.ts`) reads 0 and Infinity as no
+  deadline, so the report reads' `timeout: Infinity` never reaches
+  `AbortSignal.timeout`, which throws on it (checked: `ERR_OUT_OF_RANGE`).
+- `resourceCreatedSweep`'s 5,000-file case took 7.5 to 13.6 s in fresh
+  worktrees on this PC and 15 to 16.2 s in this worktree (the same commit,
+  the same `node_modules`, the same disk speed by a 5,000-file write
+  benchmark), against the repository's 15 s Windows budget: it waits however
+  long it takes too (16.2 s here, passing).
+- PR #257 head `5366bc8d15` (CI run 39703467949, capacity run
+  39703535342), two Windows reds:
+  - Integration: `TypeError: Cannot read properties of undefined (reading
+'timeout')`. On Windows the wake test is registered with `test.skip`,
+    which in mocha's TDD interface returns nothing (`common.js`: `skip:
+function (title) { context.test(title); }`), and `.timeout(0)` was
+    chained on it. The no-limit timeout now goes on that test only where it
+    runs.
+  - `windowsVaultPanelFlow` (shard 6): the panel's first open settled on
+    `uncreated` with two "The vault operation failed. Try again." toasts.
+    It passes here alone and in the whole of shard 6
+    (`npx vitest run --shard=6/16`: the vault flow green; one symlink case
+    refused by this PC's account), and no vault path reaches the process
+    helpers whose deadlines changed. The toast check printed no log; it now
+    prints the panel's log with the toasts, so a repeat names its cause.

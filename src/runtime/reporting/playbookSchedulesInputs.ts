@@ -11,11 +11,7 @@ import {
   FilePlaybookJournal,
   PlaybookHistoryLostError,
 } from '../../core/orchestration/playbook/journal'
-import {
-  REPORT_SOURCE_TIMEOUT_MS,
-  SCHEDULE_FS_RETRY_ATTEMPTS,
-  SCHEDULE_LEASE_POLL_MS,
-} from '../../shared/constants'
+import { SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
@@ -101,15 +97,12 @@ export function createSchedulesReportReader(input: {
 }): SchedulesReportReader {
   return {
     read: async (context: SourceReadContext) => {
-      // A cancelled or timed-out source read stops, never abandons: the
-      // signal and this read's deadline travel through the store to the lock
-      // acquisition, which checks them on every turn and before every write
-      // and performs no read, write or publish after either fires. The window
-      // always starts at read start: fixture and refresh stamps stay out of
-      // it, so a late refresh still gets its full wait. Less one poll turn
-      // of settle budget, so this verdict precedes the source's own timeout
-      // and the race reports busy, never cancelled.
-      const deadlineMs = Date.now() + REPORT_SOURCE_TIMEOUT_MS - SCHEDULE_LEASE_POLL_MS
+      // A cancelled source read stops, never abandons: the caller's signal
+      // (the person's cancel) travels through the store to the lock
+      // acquisition, which checks it on every turn and before every write
+      // and performs no read, write or publish after it fires. No deadline
+      // of ours ends the wait for a held lease (D121/D208): the read takes
+      // the lease once its holder releases it or the lease expires.
       const { signal } = context
       const raw = createNodeScheduleFs(input.storeRoot)
       const fs: ScheduleFsPort = {
@@ -118,7 +111,7 @@ export function createSchedulesReportReader(input: {
         publish: (file, content, guard) => raw.publish(file, content, guard),
         replace: (file, content, guard) => raw.replace(file, content, guard),
         remove: (file, canRetryTransient) => raw.remove(file, canRetryTransient),
-        lock: (key, work) => raw.lock(key, work, { signal, deadlineMs }),
+        lock: (key, work) => raw.lock(key, work, { signal }),
       }
       const store = createScheduleStore(fs)
       for (let attempt = 0; attempt < SCHEDULE_FS_RETRY_ATTEMPTS; attempt += 1) {

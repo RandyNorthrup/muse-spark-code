@@ -4,7 +4,7 @@ import {
   ACP_WORKSPACE_HASH_CHARS,
   REPORT_SOURCE_SETTLE_MS,
   REPORT_MAX_TEXT_CHARS,
-  REPORT_SOURCE_TIMEOUT_MS,
+  REPORT_SOURCE_FRESH_MS,
 } from '../../../shared/constants'
 import { pathModule } from '../../workspaceRoot'
 import { reportSourceSchema } from '../../../shared/reportSchema'
@@ -185,13 +185,83 @@ export function sourceFreshness(
   if (observedAt === null) return { state: 'unknown', ageMs: null }
   const ageMs = Date.parse(asOf) - Date.parse(observedAt)
   if (!Number.isFinite(ageMs) || ageMs < 0) return { state: 'unknown', ageMs: null }
-  return { state: ageMs <= REPORT_SOURCE_TIMEOUT_MS ? 'fresh' : 'stale', ageMs }
+  return { state: ageMs <= REPORT_SOURCE_FRESH_MS ? 'fresh' : 'stale', ageMs }
 }
 export interface LocalObservation<T> {
   readonly data: T
   readonly observedAt?: string
   readonly partial?: string
 }
+
+/**
+A read raced against the deadline its caller handed in. The race is against
+that deadline only, never the abort: a cancelled cooperative read still
+settles through its own shutdown instead of being abandoned mid-flight.
+When the deadline fires the abort is already on the read's signal, so its
+settlement is awaited, bounded by the settle grace, before the cancellation
+returns (RVREPORTJOIN P2-3).
+*/
+async function readBeforeDeadline<T>(pending: Promise<T>, timeout: AbortSignal): Promise<T> {
+  // A settlement that lands after the bounded wait below has moved on
+  // must never surface as an unhandled rejection.
+  void pending.then(ignoreSettlement).catch(ignoreSettlement)
+  let stopTimeout: (() => void) | undefined
+  let stopGrace: (() => void) | undefined
+  try {
+    const expired = new Promise<never>((_resolve, reject) => {
+      const fire = () => {
+        reject(new LocalSourceError('cancelled'))
+      }
+      if (timeout.aborted) fire()
+      else {
+        timeout.addEventListener('abort', fire, { once: true })
+        stopTimeout = () => {
+          timeout.removeEventListener('abort', fire)
+        }
+      }
+    })
+    try {
+      return await Promise.race([pending, expired])
+    } catch (error) {
+      if (!timeout.aborted) throw error
+      // The handed deadline fired while the read was in flight: the
+      // abort is already on the read's signal, so a cooperative reader
+      // settles promptly. Wait for that settlement, bounded by the
+      // settle grace, instead of returning while it still runs.
+      const grace = AbortSignal.timeout(REPORT_SOURCE_SETTLE_MS)
+      const settled = new Promise<void>((resolve, reject) => {
+        const fire = (): void => {
+          reject(new LocalSourceError('cancelled'))
+        }
+        if (grace.aborted) fire()
+        else {
+          grace.addEventListener('abort', fire, { once: true })
+          stopGrace = () => {
+            grace.removeEventListener('abort', fire)
+          }
+        }
+        void pending
+          .then(function readSettled(): void {
+            resolve()
+          })
+          .catch(function readFailed(): void {
+            resolve()
+          })
+      })
+      try {
+        await settled
+      } catch {
+        // The grace expired while a wedged reader still runs: the outcome
+        // stays cancellation, and the late settlement stays silent above.
+      }
+      throw error
+    }
+  } finally {
+    stopTimeout?.()
+    stopGrace?.()
+  }
+}
+
 export function localSource<K extends ReportSourceKind>(
   kind: K,
   read: (context: SourceReadContext) => Promise<LocalObservation<ReportSourcePayloads[K]>>,
@@ -200,84 +270,35 @@ export function localSource<K extends ReportSourceKind>(
     kind,
     id: kind,
     async read(context): Promise<SourceResult<ReportSourcePayloads[K]>> {
-      // The engine hands every source its abort signal and its deadline; the
-      // timeout enforces the handed deadline, defaulting to the source
-      // timeout for older callers. The read's own settlement is awaited, so
-      // an abort settles the read instead of abandoning it mid-flight: after
-      // an abort the signal stays aborted and no further read, write or
-      // publish the source starts can succeed.
+      // The engine hands every source the caller's abort signal (the
+      // person's cancel). No deadline of ours ends a read (D121/D208): it
+      // runs until it settles or that signal aborts, and a deadline binds
+      // only when the caller hands one in. The read's own settlement is
+      // awaited, so an abort settles the read instead of abandoning it
+      // mid-flight: after an abort the signal stays aborted and no further
+      // read, write or publish the source starts can succeed.
       const startedAt = Date.now()
-      const deadlineMs = context.deadline ?? startedAt + REPORT_SOURCE_TIMEOUT_MS
+      const deadlineMs =
+        context.deadline !== undefined && Number.isFinite(context.deadline)
+          ? context.deadline
+          : undefined
       let signal: AbortSignal = context.signal
-      let stopTimeout: (() => void) | undefined
-      let stopGrace: (() => void) | undefined
       try {
         // An already-expired deadline starts nothing: this check is
         // synchronous, never reliant on a zero-millisecond timeout aborting
         // in time (RVREPORTJOIN P2-3).
         context.signal.throwIfAborted()
-        if (deadlineMs <= startedAt) throw new LocalSourceError('cancelled')
-        const timeout = AbortSignal.timeout(Math.max(0, deadlineMs - Date.now()))
-        signal = AbortSignal.any([context.signal, timeout])
+        if (deadlineMs !== undefined && deadlineMs <= startedAt)
+          throw new LocalSourceError('cancelled')
+        const timeout =
+          deadlineMs === undefined
+            ? undefined
+            : AbortSignal.timeout(Math.max(0, deadlineMs - Date.now()))
+        if (timeout !== undefined) signal = AbortSignal.any([context.signal, timeout])
         signal.throwIfAborted()
         const pending = read({ ...context, signal })
-        // A settlement that lands after the bounded wait below has moved on
-        // must never surface as an unhandled rejection.
-        void pending.then(ignoreSettlement).catch(ignoreSettlement)
-        // The race is against the handed deadline only, never the abort: a
-        // cancelled cooperative read still settles through its own shutdown
-        // instead of being abandoned mid-flight, while a reader that ignores
-        // the signal cannot outlive the per-source timeout.
-        const expired = new Promise<never>((_resolve, reject) => {
-          const fire = () => {
-            reject(new LocalSourceError('cancelled'))
-          }
-          if (timeout.aborted) fire()
-          else {
-            timeout.addEventListener('abort', fire, { once: true })
-            stopTimeout = () => {
-              timeout.removeEventListener('abort', fire)
-            }
-          }
-        })
-        let result: LocalObservation<ReportSourcePayloads[K]>
-        try {
-          result = await Promise.race([pending, expired])
-        } catch (error) {
-          if (!timeout.aborted) throw error
-          // The handed deadline fired while the read was in flight: the
-          // abort is already on the read's signal, so a cooperative reader
-          // settles promptly. Wait for that settlement, bounded by the
-          // settle grace, instead of returning while it still runs
-          // (RVREPORTJOIN P2-3).
-          const grace = AbortSignal.timeout(REPORT_SOURCE_SETTLE_MS)
-          const settled = new Promise<void>((resolve, reject) => {
-            const fire = (): void => {
-              reject(new LocalSourceError('cancelled'))
-            }
-            if (grace.aborted) fire()
-            else {
-              grace.addEventListener('abort', fire, { once: true })
-              stopGrace = () => {
-                grace.removeEventListener('abort', fire)
-              }
-            }
-            void pending
-              .then(function readSettled(): void {
-                resolve()
-              })
-              .catch(function readFailed(): void {
-                resolve()
-              })
-          })
-          try {
-            await settled
-          } catch {
-            // The grace expired while a wedged reader still runs: the outcome
-            // stays cancellation, and the late settlement stays silent above.
-          }
-          throw error
-        }
+        const result =
+          timeout === undefined ? await pending : await readBeforeDeadline(pending, timeout)
         signal.throwIfAborted()
         const observedAt = result.observedAt ?? context.asOf
         const freshness = sourceFreshness(context.asOf, observedAt)
@@ -316,9 +337,6 @@ export function localSource<K extends ReportSourceKind>(
           },
           data: null,
         }
-      } finally {
-        stopTimeout?.()
-        stopGrace?.()
       }
     },
   }

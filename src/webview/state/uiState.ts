@@ -2615,7 +2615,7 @@ The messages this panel sent that the host has not answered yet, carried
 after another conversation's history, numbered on from it. The host holds
 a message sent while a conversation opens and answers it in the one that
 opened, sent or refused, so its card and typed text never vanish with the
-transcript it was typed under (0.19.1).
+transcript it was typed under (0.19.0).
 */
 function unansweredCards(state: UiState, after: number): readonly UserEntry[] {
   return state.transcript
