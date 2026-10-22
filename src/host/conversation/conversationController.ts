@@ -258,7 +258,8 @@ import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 import type { BookmarkPort, SequencePort } from './featurePorts'
-import { safeBookmarkFailure } from './featurePorts'
+import { safeBookmarkFailure, safeSequenceFailure } from './featurePorts'
+import { SequenceRunner } from '../prompts/sequenceRunner'
 import type { DeferredSend, DeferredSendVerdict, TurnSettled } from './deferredSend'
 
 /** The controller's Git adapter contract, portable to hosts without VS Code. */
@@ -1574,10 +1575,10 @@ export class ConversationController implements DeferredSend {
   private readonly admittedEarly = new Set<string>()
   /** Cards whose withdrawal is in flight: a second Edit leaves the answer to the first. */
   private readonly withdrawals = new Set<string>()
-  /** A prompt sequence run's id while one is going in this conversation (M88); at most one. */
-  private sequenceRunId: string | undefined
   /** Deferred send's turn-end listeners (M88): the sequence runner waits on them. */
   private readonly turnSettledListeners = new Set<(settled: TurnSettled) => void>()
+  /** This conversation's prompt sequence runner (M88, lane A): at most one run. */
+  private readonly runner: SequenceRunner
   /** The conversation's name as the surface shows it; undefined while untitled. */
   private conversationName: string | undefined
   /** The last todo list a session's events or history gave (M87: the tasks tab's list). */
@@ -1636,6 +1637,18 @@ export class ConversationController implements DeferredSend {
       this.permissionMode = FALLBACK_MODE
       this.startupNotice = UI_TEXT.bypassRemoteStartedManual
     }
+    this.runner = new SequenceRunner({
+      deferred: this,
+      postState: (run) => {
+        this.post(run === undefined ? { type: 'sequenceState' } : { type: 'sequenceState', run })
+      },
+      notice: (level, text) => {
+        this.notice(level, text)
+      },
+      log: (failure) => {
+        this.deps.log.warn(`Sequence runner failed: ${failure}`)
+      },
+    })
     this.attachments = new AttachmentStore(deps.newAttachmentId)
     this.checkpoints = new ConversationCheckpoints({
       backend: (sessionId) =>
@@ -2076,9 +2089,8 @@ export class ConversationController implements DeferredSend {
         }
       })
       .catch((error: unknown) => {
-        if (!this.isDisposed) {
-          this.notice('warning', UI_TEXT.bookmarksUnavailable, undefined, error)
-        }
+        this.notice('warning', UI_TEXT.bookmarksUnavailable, undefined, error)
+        this.deps.log.info(`Bookmarks refused: ${failureForLog(error)}`)
       })
   }
 
@@ -2100,8 +2112,102 @@ export class ConversationController implements DeferredSend {
       })
       this.post({ type: 'bookmarks', bookmarks: [...bookmarks] })
     } catch (error: unknown) {
-      // Only the boundary's fixed words cross to the panel (M88).
+      // Only the boundary's fixed words cross to the panel (M88); the kind is logged.
       this.notice('warning', safeBookmarkFailure(error).message)
+      this.deps.log.info(`Bookmark refused: ${failureForLog(error)}`)
+    }
+  }
+
+  /** The prompt sequence library both scopes keep (M88, lane A). */
+  private async postSequenceLibrary(): Promise<void> {
+    const port = this.deps.sequences
+    if (port === undefined) {
+      this.notice('error', UI_TEXT.sequencesUnavailable)
+      return
+    }
+    try {
+      this.post({
+        type: 'sequenceLibrary',
+        sequences: [...(await port.library())],
+        hasWorkspace: port.hasWorkspace,
+      })
+    } catch (error: unknown) {
+      this.notice('warning', safeSequenceFailure(error).message)
+      this.deps.log.info(`Sequence refused: ${failureForLog(error)}`)
+    }
+  }
+
+  /** Save a new or edited sequence, then re-post the library (M88, lane A). */
+  private async saveSequence(
+    message: Extract<ConversationMessage, { type: 'sequenceSave' }>,
+  ): Promise<void> {
+    const port = this.deps.sequences
+    if (port === undefined) {
+      this.notice('error', UI_TEXT.sequencesUnavailable)
+      return
+    }
+    try {
+      await port.save(message.sequence)
+      await this.postSequenceLibrary()
+    } catch (error: unknown) {
+      this.notice('warning', safeSequenceFailure(error).message)
+      this.deps.log.info(`Sequence refused: ${failureForLog(error)}`)
+    }
+  }
+
+  /** Remove one sequence, then re-post the library (M88, lane A). */
+  private async deleteSequence(
+    message: Extract<ConversationMessage, { type: 'sequenceDelete' }>,
+  ): Promise<void> {
+    const port = this.deps.sequences
+    if (port === undefined) {
+      this.notice('error', UI_TEXT.sequencesUnavailable)
+      return
+    }
+    try {
+      await port.remove(message.scope, message.id)
+      await this.postSequenceLibrary()
+    } catch (error: unknown) {
+      this.notice('warning', safeSequenceFailure(error).message)
+      this.deps.log.info(`Sequence refused: ${failureForLog(error)}`)
+    }
+  }
+
+  /** Start a run of the sequence in this conversation (M88, lane A). */
+  private async startSequence(
+    message: Extract<ConversationMessage, { type: 'sequenceStart' }>,
+  ): Promise<void> {
+    const port = this.deps.sequences
+    if (port === undefined) {
+      this.notice('error', UI_TEXT.sequencesUnavailable)
+      return
+    }
+    const sessionId = this.session?.sessionId
+    if (sessionId === undefined) {
+      this.notice('warning', UI_TEXT.sequenceNoSession)
+      return
+    }
+    let library: Awaited<ReturnType<SequencePort['library']>>
+    try {
+      library = await port.library()
+    } catch (error: unknown) {
+      this.notice('warning', safeSequenceFailure(error).message)
+      this.deps.log.info(`Sequence refused: ${failureForLog(error)}`)
+      return
+    }
+    const sequence = library.find((row) => row.scope === message.scope && row.id === message.id)
+    if (sequence === undefined) {
+      // Removed meanwhile: the dialog re-lists what is there.
+      await this.postSequenceLibrary()
+      this.notice('warning', UI_TEXT.sequencesUnavailable)
+      return
+    }
+    try {
+      this.runner.start(sequence, sessionId)
+    } catch (error: unknown) {
+      // A second run, or blanks a hand edit got in: the fixed words say so.
+      this.notice('warning', safeSequenceFailure(error).message)
+      this.deps.log.info(`Sequence run refused: ${failureForLog(error)}`)
     }
   }
 
@@ -2221,6 +2327,9 @@ export class ConversationController implements DeferredSend {
   a dropped turn would otherwise run on, unwatched and billed.
   */
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
+    // The conversation changed under a sequence run: it ends, saying so
+    // (M88, lane A); on dispose the runner's own end stays silent.
+    this.runner.endOnSessionSwitch()
     this.shareDiffs.clear()
     this.shareDecisions.clear()
     this.invalidateEstimate()
@@ -11614,6 +11723,26 @@ export class ConversationController implements DeferredSend {
         await this.setBookmark(message)
         break
       }
+      case 'requestSequences': {
+        await this.postSequenceLibrary()
+        break
+      }
+      case 'sequenceSave': {
+        await this.saveSequence(message)
+        break
+      }
+      case 'sequenceDelete': {
+        await this.deleteSequence(message)
+        break
+      }
+      case 'sequenceStart': {
+        await this.startSequence(message)
+        break
+      }
+      case 'sequenceStop': {
+        this.runner.stop()
+        break
+      }
       case 'deleteSession': {
         await this.deleteSession(message.sessionId)
         break
@@ -11697,10 +11826,11 @@ export class ConversationController implements DeferredSend {
     if (this.session?.sessionId !== sessionId) {
       return 'notLoaded'
     }
+    const activeRunId = this.runner.activeRunId
     const isBusy =
       this.isTurnRunning() ||
       this.queuedMessages.size > 0 ||
-      (this.sequenceRunId !== undefined && this.sequenceRunId !== exceptRunId)
+      (activeRunId !== undefined && activeRunId !== exceptRunId)
     return isBusy ? 'busy' : 'ok'
   }
 
@@ -12584,6 +12714,7 @@ export class ConversationController implements DeferredSend {
     this.pendingIdeCaller?.dispose()
     this.pendingIdeCaller = undefined
     this.isDisposed = true
+    this.runner.dispose()
     this.bestOfNManager?.dispose()
     this.historyWatchEpoch += 1
     clearTimeout(this.deltaTimer)

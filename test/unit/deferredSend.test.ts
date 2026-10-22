@@ -5,17 +5,17 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { conversationPanel, modelApiRig } from './helpers/conversationPanel'
 import { removeFolder } from './helpers/temporaryFolders'
 
 describe('deferred send refusals', () => {
   let directory = ''
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     directory = await mkdtemp(path.join(tmpdir(), 'muse-deferred-send-'))
   })
-  afterAll(async () => {
+  afterEach(async () => {
     await removeFolder(directory)
   })
 

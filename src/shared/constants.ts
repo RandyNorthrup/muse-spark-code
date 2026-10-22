@@ -6177,6 +6177,8 @@ export const SLASH_COMMAND_NAMES = {
   report: 'report',
   // D203: the agent plays back its understanding from working memory only.
   playback: 'playback',
+  // M88: the prompt sequence library.
+  sequences: 'sequences',
 } as const
 
 // M113 / D93: deterministic reports, independent of M93's problem reports.

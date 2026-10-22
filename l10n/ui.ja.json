@@ -158,11 +158,15 @@
   "sequenceScope": "利用可能",
   "sequenceStep": "ステップ {index}",
   "sequenceSteps": "ステップ",
+  "sequenceStepCount": {
+    "other": "{count} ステップ"
+  },
   "sequenceAddStep": "ステップを追加",
   "sequenceRemoveStep": "ステップを削除",
   "sequenceRun": "実行",
   "sequenceStop": "停止",
   "sequenceStartTitle": "「{name}」を実行しますか？",
+  "sequenceStartConversation": "会話",
   "sequenceStartDetail": {
     "other": "{count} 件のメッセージがこの会話に送信されます。各メッセージは直前のターンが完了してから送信されます。"
   },
@@ -178,7 +182,7 @@
   "sequenceStepRequired": "すべてのステップにテキストが必要です。",
   "sequenceNeedsStep": "シーケンスには少なくとも1つのステップが必要です。",
   "sequenceAlreadyRunning": "この会話では既にプロンプトのシーケンスが実行中です。",
-  "sequenceConversationBusy": "ターンが実行中です。終了を待ってからシーケンスを実行してください。",
+  "sequenceNoSession": "シーケンスを実行する前に会話を開いてください。",
   "referenceSequences": "パレットから保存済みプロンプトを順番に実行します。各ステップは直前のターン完了後に送信されます。ターンの失敗、「停止」、会話の切り替えで実行は終了します。",
   "shareChat": "チャットを共有…",
   "sharePrompt": "プロンプトを共有…",

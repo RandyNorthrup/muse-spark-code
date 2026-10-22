@@ -158,11 +158,15 @@
   "sequenceScope": "사용 범위",
   "sequenceStep": "{index}단계",
   "sequenceSteps": "단계",
+  "sequenceStepCount": {
+    "other": "{count}단계"
+  },
   "sequenceAddStep": "단계 추가",
   "sequenceRemoveStep": "단계 제거",
   "sequenceRun": "실행",
   "sequenceStop": "중지",
   "sequenceStartTitle": "“{name}”을(를) 실행할까요?",
+  "sequenceStartConversation": "대화",
   "sequenceStartDetail": {
     "other": "{count}개의 메시지가 이 대화에 전송됩니다. 각 메시지는 이전 턴이 완료된 후에 전송됩니다."
   },
@@ -178,7 +182,7 @@
   "sequenceStepRequired": "모든 단계에 텍스트가 필요합니다.",
   "sequenceNeedsStep": "시퀀스에는 최소 하나의 단계가 필요합니다.",
   "sequenceAlreadyRunning": "이 대화에서는 이미 프롬프트 시퀀스가 실행 중입니다.",
-  "sequenceConversationBusy": "턴이 실행 중입니다. 끝날 때까지 기다렸다가 시퀀스를 실행하세요.",
+  "sequenceNoSession": "시퀀스를 실행하기 전에 대화를 여세요.",
   "referenceSequences": "팔레트에서 저장된 프롬프트를 순서대로 실행합니다. 각 단계는 이전 턴이 완료된 후에 전송됩니다. 턴 실패, 중지 또는 대화 변경 시 실행이 종료됩니다.",
   "shareChat": "채팅 공유…",
   "sharePrompt": "프롬프트 공유…",

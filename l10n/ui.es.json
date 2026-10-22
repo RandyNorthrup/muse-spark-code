@@ -158,11 +158,17 @@
   "sequenceScope": "Disponible en",
   "sequenceStep": "Paso {index}",
   "sequenceSteps": "Pasos",
+  "sequenceStepCount": {
+    "one": "{count} paso",
+    "other": "{count} pasos",
+    "many": "{count} pasos"
+  },
   "sequenceAddStep": "Añadir paso",
   "sequenceRemoveStep": "Quitar paso",
   "sequenceRun": "Ejecutar",
   "sequenceStop": "Detener",
   "sequenceStartTitle": "¿Ejecutar «{name}»?",
+  "sequenceStartConversation": "Conversación",
   "sequenceStartDetail": {
     "one": "{count} mensaje se envía a esta conversación, cada uno tras completarse el turno anterior.",
     "other": "{count} mensajes se envían a esta conversación, cada uno tras completarse el turno anterior.",
@@ -180,7 +186,7 @@
   "sequenceStepRequired": "Cada paso necesita texto.",
   "sequenceNeedsStep": "Una secuencia necesita al menos un paso.",
   "sequenceAlreadyRunning": "Ya hay una secuencia de prompts ejecutándose en esta conversación.",
-  "sequenceConversationBusy": "Un turno está en curso: espere a que termine y ejecute la secuencia.",
+  "sequenceNoSession": "Abra una conversación antes de ejecutar una secuencia.",
   "referenceSequences": "Ejecuta prompts guardados en orden desde la paleta: cada paso se envía tras completarse el turno anterior. Un turno fallido, Detener o un cambio de conversación termina la ejecución.",
   "shareChat": "Compartir chat…",
   "sharePrompt": "Compartir prompt…",

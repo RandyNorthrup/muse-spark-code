@@ -372,6 +372,14 @@ export function buildPalette(
               },
             ] satisfies readonly PaletteItem[])
           : []),
+        // Prompt sequences (M88, lane A): the controller answers, so no binding gates it.
+        {
+          id: 'sequenceLibrary',
+          label: UI_TEXT.sequenceLibrary,
+          tip: UI_TEXT.paletteTips.sequences,
+          slashName: SLASH_COMMAND_NAMES.sequences,
+          action: { type: 'openSequences' },
+        },
         // Saved plans (M79): the same on both backends.
         {
           id: 'plans',

@@ -30,8 +30,8 @@ export function parseSequenceFile(file: string): SavedSequence {
   let parsed: unknown
   try {
     parsed = JSON.parse(file)
-  } catch {
-    throw new Error(UI_TEXT.promptStoreDamaged)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.promptStoreDamaged, { cause: error })
   }
   return savedSequenceSchema.parse(parsed)
 }

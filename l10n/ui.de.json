@@ -158,11 +158,16 @@
   "sequenceScope": "Verfügbar in",
   "sequenceStep": "Schritt {index}",
   "sequenceSteps": "Schritte",
+  "sequenceStepCount": {
+    "one": "{count} Schritt",
+    "other": "{count} Schritte"
+  },
   "sequenceAddStep": "Schritt hinzufügen",
   "sequenceRemoveStep": "Schritt entfernen",
   "sequenceRun": "Ausführen",
   "sequenceStop": "Stopp",
   "sequenceStartTitle": "„{name}“ ausführen?",
+  "sequenceStartConversation": "Unterhaltung",
   "sequenceStartDetail": {
     "one": "{count} Nachricht wird nach Abschluss des vorherigen Durchgangs an diese Unterhaltung gesendet.",
     "other": "{count} Nachrichten werden nach Abschluss des vorherigen Durchgangs an diese Unterhaltung gesendet."
@@ -179,7 +184,7 @@
   "sequenceStepRequired": "Jeder Schritt braucht Text.",
   "sequenceNeedsStep": "Eine Sequenz braucht mindestens einen Schritt.",
   "sequenceAlreadyRunning": "In dieser Unterhaltung läuft bereits eine Prompt-Sequenz.",
-  "sequenceConversationBusy": "Ein Durchgang läuft: Warten Sie auf sein Ende und führen Sie die Sequenz dann aus.",
+  "sequenceNoSession": "Öffnen Sie eine Unterhaltung, bevor Sie eine Sequenz ausführen.",
   "referenceSequences": "Führt gespeicherte Prompts der Reihe nach aus der Palette aus: Jeder Schritt wird nach Abschluss des vorherigen Durchgangs gesendet. Ein fehlgeschlagener Durchgang, Stopp oder ein Unterhaltungswechsel beendet den Lauf.",
   "shareChat": "Chat teilen…",
   "sharePrompt": "Prompt teilen…",

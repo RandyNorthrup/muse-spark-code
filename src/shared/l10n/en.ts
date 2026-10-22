@@ -217,11 +217,13 @@ export const EN = {
   sequenceScope: 'Available in',
   sequenceStep: 'Step {index}',
   sequenceSteps: 'Steps',
+  sequenceStepCount: forms({ one: '{count} step', other: '{count} steps' }),
   sequenceAddStep: 'Add Step',
   sequenceRemoveStep: 'Remove Step',
   sequenceRun: 'Run',
   sequenceStop: 'Stop',
   sequenceStartTitle: 'Run “{name}”?',
+  sequenceStartConversation: 'Conversation',
   sequenceStartDetail: forms({
     one: '{count} message is sent to this conversation, each after the previous turn completes.',
     other:
@@ -239,7 +241,7 @@ export const EN = {
   sequenceStepRequired: 'Every step needs text.',
   sequenceNeedsStep: 'A sequence needs at least one step.',
   sequenceAlreadyRunning: 'A prompt sequence is already running in this conversation.',
-  sequenceConversationBusy: 'A turn is running: wait for it to end, then run the sequence.',
+  sequenceNoSession: 'Open a conversation before running a sequence.',
   referenceSequences:
     'Run saved prompts in order from the palette: each step is sent after the previous turn completes. A failed turn, Stop or a session switch ends the run.',
   shareChat: 'Share Chat…',

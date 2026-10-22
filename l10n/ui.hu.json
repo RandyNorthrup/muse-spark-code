@@ -158,11 +158,16 @@
   "sequenceScope": "Elérhető itt",
   "sequenceStep": "{index}. lépés",
   "sequenceSteps": "Lépések",
+  "sequenceStepCount": {
+    "one": "{count} lépés",
+    "other": "{count} lépés"
+  },
   "sequenceAddStep": "Lépés hozzáadása",
   "sequenceRemoveStep": "Lépés eltávolítása",
   "sequenceRun": "Futtatás",
   "sequenceStop": "Leállítás",
   "sequenceStartTitle": "Futtatja: „{name}“?",
+  "sequenceStartConversation": "Beszélgetés",
   "sequenceStartDetail": {
     "one": "{count} üzenet érkezik ebbe a beszélgetésbe, mindegyik az előző kör befejezése után.",
     "other": "{count} üzenet érkezik ebbe a beszélgetésbe, mindegyik az előző kör befejezése után."
@@ -179,7 +184,7 @@
   "sequenceStepRequired": "Minden lépéshez szöveg kell.",
   "sequenceNeedsStep": "Egy szekvenciához legalább egy lépés kell.",
   "sequenceAlreadyRunning": "Ebben a beszélgetésben már fut egy promptszekvencia.",
-  "sequenceConversationBusy": "Egy kör éppen fut: várja meg a végét, majd futtassa a szekvenciát.",
+  "sequenceNoSession": "Nyisson meg egy beszélgetést a szekvencia futtatása előtt.",
   "referenceSequences": "A palettáról sorban futtatja a mentett promptekat: minden lépés az előző kör befejezése után kerül elküldésre. Sikertelen kör, leállítás vagy beszélgetésváltás véget vet a futásnak.",
   "shareChat": "Csevegés megosztása…",
   "sharePrompt": "Prompt megosztása…",

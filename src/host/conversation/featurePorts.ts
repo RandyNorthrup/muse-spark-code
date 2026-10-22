@@ -64,6 +64,20 @@ export function safeBookmarkFailure(error: unknown): Error {
 }
 
 /**
+Whether a send's throw is a transient race the runner waits out (a
+handoff distilling, a conversation just dropped, a restart landing) and
+never an unexpected failure. Fixed send-refusal words only.
+*/
+export function isTransientSendRefusal(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    [UI_TEXT.handoffBusy, UI_TEXT.requestStaleTurn, UI_TEXT.turnStoppedByRestart].includes(
+      error.message,
+    )
+  )
+}
+
+/**
 The sequence failure the person may read: a message from the known fixed
 list, or the fixed unavailable words. Same boundary as above.
 */
@@ -72,6 +86,8 @@ export function safeSequenceFailure(error: unknown): Error {
     UI_TEXT.promptTitleRequired,
     UI_TEXT.sequenceStepRequired,
     UI_TEXT.sequenceNeedsStep,
+    UI_TEXT.sequenceAlreadyRunning,
+    UI_TEXT.sequenceNoSession,
     UI_TEXT.promptWorkspaceRequired,
     UI_TEXT.promptStoreDamaged,
     UI_TEXT.promptStoreBusy,
