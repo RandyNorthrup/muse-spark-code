@@ -1545,6 +1545,12 @@ export const PIXELS_PER_MEGAPIXEL = 1_000_000
 // Documented Anthropic image limit: 10 MB
 // (docs/certification/m95-research.md §1.5, A-vi).
 export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
+// Documented Anthropic per-request image counts
+// (platform.claude.com/docs/en/build-with-claude/vision, "Request limits",
+// read 2026-10-22): 100 for 200k-context models, 600 for all other models.
+export const ANTHROPIC_IMAGE_MAX_COUNT = 600
+export const ANTHROPIC_IMAGE_MAX_COUNT_200K = 100
+export const ANTHROPIC_IMAGE_200K_WINDOW_TOKENS = 200_000
 // Documented xAI image-understanding bounds: jpg/jpeg or png only, 20 MiB
 // (docs.x.ai image-understanding, "Image input general limits", read
 // 2026-10-13; XAI-G11). Anything else is refused before sending.

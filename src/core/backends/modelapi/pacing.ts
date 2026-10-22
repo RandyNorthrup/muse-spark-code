@@ -151,14 +151,16 @@ export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
 }
 
 /**
-xAI (captured 2026-10-04): request/token limits with no reset headers,
-so the default window stands.
+xAI (captured 2026-10-04; scopes from docs.x.ai/developers/rate-limits,
+read 2026-10-22): request/token limits with no reset headers. Every team
+holds per-model requests-per-second and tokens-per-minute budgets, so the
+request bucket refills per second and the token bucket per minute.
 */
 export function xaiPacingLimits(headers: Headers): PacingLimits | undefined {
   const pair = requestTokenPair(headers)
   return pair === undefined
     ? undefined
-    : pacingLimits(pair.requests, pair.tokens, undefined, undefined)
+    : pacingLimits(pair.requests, pair.tokens, MILLISECONDS_PER_SECOND, MILLISECONDS_PER_MINUTE)
 }
 
 /**

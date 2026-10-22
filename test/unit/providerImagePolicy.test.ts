@@ -87,3 +87,39 @@ describe('XAI-G11 provider image policy', () => {
     expect(refused.ok).toBe(false)
   })
 })
+
+const anthropicImageNative = (context: number) => ({
+  architecture: { input_modalities: ['text', 'image'] },
+  context_window: context,
+})
+
+function anthropicMaxCountFor(context: number | undefined) {
+  const native =
+    context === undefined
+      ? { architecture: { input_modalities: ['text', 'image'] } }
+      : anthropicImageNative(context)
+  const evidence = nativeCapabilityEvidence('anthropic', native, {
+    kind: 'preset',
+    ref: 'anthropic',
+  })
+  const record = resolveModelCapabilities(
+    { provider: 'anthropic', nativeModel: 'claude-test', format: 'anthropic' },
+    [evidence],
+  )
+  if (record.modalities.image.state !== 'yes') throw new Error('image support missing')
+  return record.modalities.image.value.maxCount
+}
+
+describe('Anthropic per-request image count', () => {
+  // platform.claude.com/docs/en/build-with-claude/vision, "Request
+  // limits", read 2026-10-22: 100 images per request for 200k-context
+  // models, 600 for all other models.
+  it('allows 100 images per request on a 200k-context model', () => {
+    expect(anthropicMaxCountFor(200_000)).toBe(100)
+  })
+
+  it('allows 600 images per request otherwise', () => {
+    expect(anthropicMaxCountFor(1_000_000)).toBe(600)
+    expect(anthropicMaxCountFor(undefined)).toBe(600)
+  })
+})

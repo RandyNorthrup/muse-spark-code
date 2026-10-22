@@ -2,6 +2,9 @@
 // A field absent from a list stays unknown; a price never proves a feature.
 import * as z from 'zod/mini'
 import {
+  ANTHROPIC_IMAGE_200K_WINDOW_TOKENS,
+  ANTHROPIC_IMAGE_MAX_COUNT,
+  ANTHROPIC_IMAGE_MAX_COUNT_200K,
   ANTHROPIC_MAX_IMAGE_BYTES,
   IMAGE_MEDIA_TYPES,
   XAI_IMAGE_MEDIA_TYPES,
@@ -54,7 +57,9 @@ export function nativeCapabilityEvidence(
   // MiB, XAI-G11); other providers state no image bound here, so none is
   // enforced locally for them (D121) — the provider's own refusal reaches
   // the caller in words.
-  const imagePolicy: { mimes: string[]; maxBytes?: number } = { mimes: [...IMAGE_MEDIA_TYPES] }
+  const imagePolicy: { mimes: string[]; maxBytes?: number; maxCount?: number } = {
+    mimes: [...IMAGE_MEDIA_TYPES],
+  }
   if (preset === 'anthropic') imagePolicy.maxBytes = ANTHROPIC_MAX_IMAGE_BYTES
   else if (preset === 'xai') {
     imagePolicy.mimes = [...XAI_IMAGE_MEDIA_TYPES]
@@ -90,6 +95,14 @@ export function nativeCapabilityEvidence(
     read(numeric, 'max_input_tokens') ??
     read(numeric, 'inputTokenLimit')
   if (context !== undefined && context > 0) limits.contextTokens = context
+  // Anthropic's per-request image count rides the model's own window (its
+  // vision doc, read 2026-10-22): 100 for 200k-context models, 600 where
+  // the window is anything else or unknown.
+  if (preset === 'anthropic')
+    imagePolicy.maxCount =
+      context === ANTHROPIC_IMAGE_200K_WINDOW_TOKENS
+        ? ANTHROPIC_IMAGE_MAX_COUNT_200K
+        : ANTHROPIC_IMAGE_MAX_COUNT
   if (maxInput !== undefined && maxInput > 0) limits.inputTokens = maxInput
   if (maxOutput !== undefined && maxOutput > 0) {
     output.maxTokens = maxOutput
