@@ -35,3 +35,6 @@ test/fixtures/m121/
 # SHA-256 hashes cover the bodies (test/unit/storeCaptures.test.ts). Prettier
 # would rewrite the bodies and break the receipt hashes.
 test/fixtures/m113/stores/
+# Lane RLMCPERA wire captures: the exact bytes the SDK servers sent
+# (test/unit/mcpEra.test.ts). Prettier would reflow them.
+test/fixtures/mcpEra/

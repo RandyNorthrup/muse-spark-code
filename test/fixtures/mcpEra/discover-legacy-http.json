@@ -1,0 +1,1 @@
+{"status":400,"body":"{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Bad Request: Server not initialized\"},\"id\":null}"}

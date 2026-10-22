@@ -1,29 +1,46 @@
-// The streamable-HTTP transport (M50, PLAN.md D42; MCP 2025-06-18,
-// "Transports"): every message is a POST to the server's one endpoint,
+// The streamable-HTTP transport (M50, PLAN.md D42; both eras, PLAN.md
+// D213; MCP 2025-06-18, "Transports"): every message is a POST to the
+// server's one endpoint,
 // accepting JSON or an event stream. A request's answer comes back in the
 // POST's own reply, as one JSON body or as server-sent events that may carry
 // the server's own requests and notifications first; a notification or an
 // answer is accepted with 202. The session the server names in
 // `Mcp-Session-Id` is sent back with every later message, and the agreed
 // revision in `MCP-Protocol-Version`; a 404 on a known session means it
-// expired (the connection starts a new one). Closing sends DELETE for the
-// session. The headers of the server's entry (a bearer token) go with every
-// message; a 401 or 403 says that sign-ins made with `muse mcp login` are
-// Muse Code's own, which this backend never reads. A redirect is refused, so
-// credentials never follow one elsewhere. Every reply is read up to
-// MCP_MESSAGE_MAX_BYTES. The server's own event stream (GET) is not opened:
-// a notification it would carry arrives with the next reply instead.
+// expired (the connection starts a new one). A modern request also carries
+// its envelope's version in `MCP-Protocol-Version`, its method in
+// `Mcp-Method` and its tool in `Mcp-Name`, and a modern refusal in a 400
+// or 404 body is read for its code and versions (never its text).
+// Closing sends DELETE for the session. The headers of the server's entry
+// (a bearer token) go with every message; a 401 or 403 says that sign-ins
+// made with `muse mcp login` are Muse Code's own, which this backend never
+// reads. A redirect is refused, so credentials never follow one elsewhere.
+// Every reply is read up to MCP_MESSAGE_MAX_BYTES. The server's own event
+// stream (GET) is not opened: a notification it would carry arrives with
+// the next reply instead.
 
+import { Buffer } from 'node:buffer'
 import {
   BYTES_PER_MIB,
   HTTP_STATUS,
+  MCP_ERROR_HEADER_MISMATCH,
+  MCP_ERROR_MISSING_CLIENT_CAPABILITY,
   MCP_HTTP_CLOSE_TIMEOUT_MS,
   MCP_MESSAGE_MAX_BYTES,
+  MCP_META_PROTOCOL_VERSION,
+  MCP_MODERN_ERROR_CODES,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { parseSse } from '../sse'
 import { type McpTransport, McpSessionExpiredError } from './connection'
-import { isRequest, McpError, type OutgoingMessage, type RequestId } from './protocol'
+import {
+  incomingMessageSchema,
+  isRequest,
+  McpError,
+  type OutgoingMessage,
+  type RequestId,
+  unsupportedVersionDataSchema,
+} from './protocol'
 
 export interface HttpTransportOptions {
   readonly name: string
@@ -36,6 +53,8 @@ export interface HttpTransportOptions {
 
 const SESSION_HEADER = 'mcp-session-id'
 const VERSION_HEADER = 'mcp-protocol-version'
+const METHOD_HEADER = 'mcp-method'
+const NAME_HEADER = 'mcp-name'
 const CONTENT_TYPE = 'content-type'
 const ACCEPT = 'accept'
 const JSON_MEDIA_TYPE = 'application/json'
@@ -43,6 +62,90 @@ const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
 const ACCEPTED_MEDIA_TYPES = `${JSON_MEDIA_TYPE}, ${EVENT_STREAM_MEDIA_TYPE}`
 const WWW_AUTHENTICATE = 'www-authenticate'
 const AUTH_SCHEME = /^[A-Za-z][A-Za-z0-9_-]*$/
+const TOOLS_CALL = 'tools/call'
+// The Base64 sentinel (spec `streamable-http#value-encoding`).
+const SENTINEL_START = '=?base64?'
+const SENTINEL_END = '?='
+// An HTTP field value (RFC 9110): visible ASCII, space and tab.
+const HEADER_SAFE = /^[\t \u{21}-\u{7E}]*$/u
+
+/**
+A tool name for the `Mcp-Name` header: as-is when it is plain header-safe
+ASCII, else the Base64 sentinel over its UTF-8 bytes (a value that
+already matches the sentinel is encoded too, so it cannot be mistaken).
+*/
+export function encodeHeaderValue(value: string): string {
+  const isSentinel = value.startsWith(SENTINEL_START) && value.endsWith(SENTINEL_END)
+  return !isSentinel && value === value.trim() && HEADER_SAFE.test(value)
+    ? value
+    : `${SENTINEL_START}${Buffer.from(value, 'utf8').toString('base64')}${SENTINEL_END}`
+}
+
+/** The modern revision a message carries in its envelope, if it carries one. */
+function modernVersionOf(message: OutgoingMessage): string | undefined {
+  if (!('method' in message) || message.params === undefined) {
+    return undefined
+  }
+  const meta: unknown = message.params['_meta']
+  if (typeof meta !== 'object' || meta === null) {
+    return undefined
+  }
+  for (const [key, value] of Object.entries(meta)) {
+    if (key === MCP_META_PROTOCOL_VERSION) {
+      return typeof value === 'string' ? value : undefined
+    }
+  }
+  return undefined
+}
+
+/**
+A 400 or 404 body read for a modern JSON-RPC error: the error with its
+code and versions, or undefined when the body carries anything else (a
+legacy error, prose, or nothing at all).
+*/
+export function modernRefusalError(text: string): McpError | undefined {
+  let body: unknown
+  try {
+    body = JSON.parse(text)
+  } catch (error: unknown) {
+    // Not JSON: not a modern refusal.
+    if (error instanceof SyntaxError) {
+      return undefined
+    }
+    throw error
+  }
+  const parsed = incomingMessageSchema.safeParse(body)
+  if (!parsed.success) {
+    return undefined
+  }
+  const code = parsed.data.error?.code
+  return code === undefined || !MCP_MODERN_ERROR_CODES.has(code)
+    ? undefined
+    : new McpError(
+        modernRefusalMessage(code, parsed.data.error?.data),
+        code,
+        parsed.data.error?.data,
+      )
+}
+
+/** A modern refusal's fixed sentence: its code, and the versions it names. Never the server's text. */
+function modernRefusalMessage(code: number, data: unknown): string {
+  if (code === MCP_ERROR_HEADER_MISMATCH) {
+    return `MCP error ${String(code)}: the request headers do not match the request body`
+  }
+  if (code === MCP_ERROR_MISSING_CLIENT_CAPABILITY) {
+    return `MCP error ${String(code)}: the request needs a client capability this client did not declare`
+  }
+  const versions = unsupportedVersionDataSchema.safeParse(data)
+  const supported = versions.success ? versions.data.supported : []
+  if (supported.length === 0) {
+    return `MCP error ${String(code)}: the server refused the protocol version`
+  }
+  const requested = versions.success ? versions.data.requested : undefined
+  return requested === undefined
+    ? `MCP error ${String(code)}: the server serves only MCP ${supported.join(', ')}`
+    : `MCP error ${String(code)}: the server does not speak MCP ${requested}; it serves ${supported.join(', ')}`
+}
 
 function tooLarge(): McpError {
   return new McpError(
@@ -95,15 +198,29 @@ export class McpHttpTransport implements McpTransport {
 
   public constructor(private readonly options: HttpTransportOptions) {}
 
-  private headers(): Headers {
+  private headers(message?: OutgoingMessage): Headers {
     const headers = new Headers(this.options.headers)
     headers.set(CONTENT_TYPE, JSON_MEDIA_TYPE)
     headers.set(ACCEPT, ACCEPTED_MEDIA_TYPES)
     if (this.sessionId !== undefined) {
       headers.set(SESSION_HEADER, this.sessionId)
     }
-    if (this.protocolVersion !== undefined) {
-      headers.set(VERSION_HEADER, this.protocolVersion)
+    // A modern message names its own revision in its envelope; the
+    // header mirrors that same value, so the two cannot mismatch. A
+    // legacy message carries the revision the handshake agreed on.
+    const modern = message === undefined ? undefined : modernVersionOf(message)
+    const version = modern ?? this.protocolVersion
+    if (version !== undefined) {
+      headers.set(VERSION_HEADER, version)
+    }
+    if (modern !== undefined && message !== undefined && isRequest(message)) {
+      headers.set(METHOD_HEADER, message.method)
+      if (message.method === TOOLS_CALL) {
+        const name: unknown = message.params?.['name']
+        if (typeof name === 'string') {
+          headers.set(NAME_HEADER, encodeHeaderValue(name))
+        }
+      }
     }
     return headers
   }
@@ -130,10 +247,37 @@ export class McpHttpTransport implements McpTransport {
         `HTTP ${String(response.status)}: the server refused the credentials${scheme === undefined ? '' : ` (it asks for ${scheme})`}. A sign-in made with muse mcp login is Muse Code's own; give this backend the credential as a header in the server's entry`,
       )
     }
+    // A modern refusal arrives in the body of a 400 (or a 404 for an
+    // unknown method): its code and versions are read, since the era
+    // verdict and the version retry need them. Anything else keeps the
+    // status-only refusal: a remote server may echo a credential in its
+    // error body, and the status is enough to diagnose the failure
+    // without handing that body to the log or model.
+    const modern = await this.modernRefusal(response)
+    if (modern !== undefined) {
+      return modern
+    }
     await response.body?.cancel()
-    // A remote server may echo a credential in its error body. The status is
-    // enough to diagnose the failure without handing that body to the log or model.
     return new McpError(`HTTP ${String(response.status)} ${response.statusText}`.trim())
+  }
+
+  /** A 400 or 404 body carrying a modern JSON-RPC error, read for its code and versions. */
+  private async modernRefusal(response: Response): Promise<McpError | undefined> {
+    if (response.status !== HTTP_STATUS.badRequest && response.status !== HTTP_STATUS.notFound) {
+      return undefined
+    }
+    let text: string
+    try {
+      text = await cappedText(response.body)
+    } catch (error: unknown) {
+      // A body that runs past the cap is not a modern refusal: the
+      // status-only refusal says enough.
+      if (error instanceof McpError) {
+        return undefined
+      }
+      throw error
+    }
+    return modernRefusalError(text)
   }
 
   /** Delivers the messages of an event stream until the answer to `id` has come. */
@@ -206,7 +350,7 @@ export class McpHttpTransport implements McpTransport {
     try {
       response = await this.options.fetch(this.options.url, {
         method: 'POST',
-        headers: this.headers(),
+        headers: this.headers(message),
         body: JSON.stringify(message),
         signal,
         redirect: 'error',

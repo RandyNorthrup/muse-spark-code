@@ -29,7 +29,11 @@ import { mcpSecretReferences } from '../../../vault/mcpReferences'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
 import type { FunctionToolDefinition } from '../schemas'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
-import type { ElicitationOutcome } from './elicitation'
+import type {
+  ElicitationOutcome,
+  McpElicitationHandler as ConnectionElicitationHandler,
+} from './elicitation'
+import { probeEra } from './era'
 import {
   type McpCallOutcome,
   mcpCallOutcome,
@@ -225,6 +229,13 @@ function startupWaitWhat(spec: McpServerSpec): StillWaitingSubject {
   return { key: 'mcpServerStartup', name: spec.name }
 }
 
+function unheard(): void {
+  // The era probe's chatter is discarded; the session's own start says
+  // anything worth saying, and the verdict is logged on the pool's log.
+}
+
+const SILENT_LOG: CoreLogger = { trace: unheard, info: unheard, warn: unheard, error: unheard }
+
 export class McpServerPool implements McpToolSource {
   private servers: LiveServer[] = []
   private fault: McpSettingsFault | undefined
@@ -301,6 +312,7 @@ export class McpServerPool implements McpToolSource {
     launch: McpLaunch,
     isCancelled: () => boolean,
     signal: AbortSignal,
+    log: CoreLogger = this.deps.log,
   ): Promise<McpTransport> {
     const references = mcpSecretReferences(launch)
     if (references.size > 0 && this.deps.vault === undefined) {
@@ -320,7 +332,7 @@ export class McpServerPool implements McpToolSource {
       return new McpStdioTransport(child, {
         name: spec.name,
         framing: launch.framing,
-        log: this.deps.log,
+        log,
       })
     }
     const guardedFetch = this.deps.vault?.fetchFor(spec.name, launch.url, launch.headers)
@@ -331,7 +343,7 @@ export class McpServerPool implements McpToolSource {
       url: launch.url,
       headers: launch.headers,
       fetch: guardedFetch ?? this.deps.fetch,
-      log: this.deps.log,
+      log,
     })
   }
 
@@ -376,7 +388,31 @@ export class McpServerPool implements McpToolSource {
     const { spec } = server
     const isCancelled = () => this.isClosed || server.state.status !== 'starting'
     server.resourceStop = new AbortController()
-    const transport = await this.transportFor(spec, launch, isCancelled, server.resourceStop.signal)
+    const signal = server.resourceStop.signal
+    // Declared at init while the default handler stands, so the tool
+    // list stays stable within the session (M91 lane M).
+    const elicitation: ConnectionElicitationHandler | undefined =
+      this.elicitationHandler === undefined
+        ? undefined
+        : (request) => this.answerElicitation(spec.name, request)
+    // The era first, on a disposable probe: a sibling process on stdio,
+    // its own transport instance on HTTP. The session opens in the
+    // verdict's era.
+    const verdict = await probeEra({
+      name: spec.name,
+      transport: launch.transport,
+      openProbe: () => this.transportFor(spec, launch, isCancelled, signal, SILENT_LOG),
+      clientVersion: this.deps.clientVersion,
+      ...(elicitation !== undefined && { elicitation }),
+      log: this.deps.log,
+      probeLog: SILENT_LOG,
+      startupTimeoutMs: spec.startupTimeoutMs,
+      signal,
+    })
+    if (isCancelled()) {
+      throw new McpError('the servers were closed while it started')
+    }
+    const transport = await this.transportFor(spec, launch, isCancelled, signal)
     if (isCancelled()) {
       await transport.close()
       throw new McpError('the servers were closed while it started')
@@ -385,11 +421,8 @@ export class McpServerPool implements McpToolSource {
       name: spec.name,
       clientVersion: this.deps.clientVersion,
       log: this.deps.log,
-      // Declared at init while the default handler stands, so the tool
-      // list stays stable within the session (M91 lane M).
-      ...(this.elicitationHandler !== undefined && {
-        elicitation: (request) => this.answerElicitation(spec.name, request),
-      }),
+      transport: launch.transport,
+      ...(elicitation !== undefined && { elicitation }),
     })
     server.connection = connection
     connection.onClose((reason) => {
@@ -398,14 +431,20 @@ export class McpServerPool implements McpToolSource {
     connection.onToolsChanged(() => {
       void this.relist(server, connection)
     })
-    await connection.initialize(spec.startupTimeoutMs)
+    let version: string
+    if (verdict.era === 'modern') {
+      connection.adoptModern(verdict.version, verdict.hasTools)
+      version = verdict.version
+    } else {
+      version = await connection.initialize(spec.startupTimeoutMs)
+    }
     const tools = await connection.listTools(spec.startupTimeoutMs)
     if (this.isClosed || server.connection !== connection) {
       throw new McpError('the servers were closed while it started')
     }
     this.offer(server, tools)
     this.deps.log.info(
-      `MCP server ${spec.name} connected (${launch.transport}): ${String(server.tools.length)} tools offered`,
+      `MCP server ${spec.name} connected (${launch.transport}, MCP ${version}): ${String(server.tools.length)} tools offered`,
     )
   }
 
