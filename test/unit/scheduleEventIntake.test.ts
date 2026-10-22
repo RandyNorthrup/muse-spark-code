@@ -327,10 +327,12 @@ describe('production event intake', () => {
       workspaceKey: 'workspace-1',
       trigger: eventTrigger('agents', 'turnFinished'),
     })
-    const { intake, fired, advance, hub } = await harness(root, [job])
+    const { intake, fired, advance } = await harness(root, [job])
     try {
       await intake.poll()
-      hub.publish(turnFinished('run-3', 'schedule-b'))
+      // Awaited directly: the skip-or-enqueue decision is complete before
+      // the clock advances, so the assertion cannot pass vacuously.
+      await intake.offerPublished(turnFinished('run-3', 'schedule-b'))
       await intake.poll()
       advance(120_000)
       await intake.poll()
