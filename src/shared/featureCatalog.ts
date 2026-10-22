@@ -1423,7 +1423,13 @@ const REFERENCE_DETAILS: Readonly<
   images: ['referencePaidContexts'],
   search: ['referencePaidContexts'],
   git: ['structuredOutputRepair', 'structuredOutputRetry', 'structuredOutputFallback'],
-  judge: ['structuredOutputRepair', 'structuredOutputRetry', 'structuredOutputFallback'],
+  judge: [
+    'structuredOutputRepair',
+    'structuredOutputRetry',
+    'structuredOutputFallback',
+    'judgeAdvisoryMissing',
+  ],
+  'judge-subscription': ['judgeAdvisoryMissing'],
   'structured-side-calls': [
     'structuredOutputRepair',
     'structuredOutputRetry',

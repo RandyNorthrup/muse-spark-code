@@ -2785,6 +2785,9 @@ export class ConversationController {
       }
       case 'approvalResolved': {
         this.questionApprovals.delete(event.approvalId)
+        if (this.judgeCards.get(event.approvalId)?.dropped() === true) {
+          this.notice('warning', UI_TEXT.judgeAdvisoryMissing)
+        }
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
@@ -3455,6 +3458,17 @@ export class ConversationController {
               snapshot.questions.filter((entry) => entry.state === 'open').length,
             )
             surface.post({ type: 'openQuestions', snapshot })
+          }
+        },
+        // Crowded out past the open cap: one warning naming the count;
+        // the expired cards keep their text below.
+        onExpired: (expired, max) => {
+          const text = plural(UI_TEXT.questionsExpiredNotice, expired.length, {
+            max,
+          })
+          const surfaces = sessionSurfaces.get(session) ?? []
+          for (const surface of surfaces) {
+            if (!surface.isDisposed) surface.notice('warning', text)
           }
         },
         failed: () => {
@@ -11095,6 +11109,9 @@ export class ConversationController {
         break
       }
       case 'decideApproval': {
+        if (this.judgeCards.get(message.approvalId)?.dropped() === true) {
+          this.notice('warning', UI_TEXT.judgeAdvisoryMissing)
+        }
         this.judgeCards.get(message.approvalId)?.discard()
         this.judgeCards.delete(message.approvalId)
         await this.decideApproval(message)

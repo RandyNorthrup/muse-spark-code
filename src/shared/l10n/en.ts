@@ -157,6 +157,8 @@ export const EN = {
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
+  modelApiSendFailed:
+    'The model request failed before a response arrived ({detail}). It was not sent again: a request over a pinned connection may already have reached the provider.',
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
@@ -2000,6 +2002,8 @@ export const EN = {
   elicitationDeclinedByHook: 'A hook declined this request from {server}: {reason}',
   elicitationAnsweredByHook: 'One of your hooks answered this request from {server}.',
   elicitationExpired: 'The request from {server} is no longer waiting.',
+  mcpElicitationTimedOut:
+    'The request from {server} went unanswered for {seconds} seconds, so it settled as cancelled. No answer was sent.',
   // The http and mcp_tool hook handlers. {host}: a host name; {tool}: a tool name.
   hookHttpHostRefused: 'An http hook was refused: {host} is not an allowed host.',
   hookHttpSchemeRefused: 'An http hook was refused: only HTTPS is allowed.',
@@ -2914,6 +2918,11 @@ export const EN = {
   questionDeclined: 'Declined',
   questionDismissed: 'Dismissed',
   questionExpired: 'Expired',
+  questionsExpiredNotice: forms({
+    one: 'One older question expired unanswered: only the newest {max} questions stay open. Its text is kept on its card.',
+    other:
+      '{count} older questions expired unanswered: only the newest {max} questions stay open. Their text is kept on their cards.',
+  }),
   questionAnswer: 'Answer',
   questionDismiss: 'Dismiss',
   questionExpand: 'Expand Question',
@@ -5235,6 +5244,10 @@ export const EN = {
   // Each state D73 names; {left} is the snooze's remaining time.
   tabStatusSnoozed: 'Tab snoozed ({left} left)',
   tabStatusBudget: 'Tab daily budget reached',
+  // Hitting the Tab daily budget is never silent: the notice names both the
+  // spend and the budget and how to raise it.
+  tabBudgetReachedDetail:
+    'Today’s Tab spend of {spent} has reached the daily budget of {budget}, so completions pause until tomorrow. To continue today, raise museSpark.tabDailyBudgetUsd in Settings.',
   tabStatusNoKey: 'Tab: no key',
   tabStatusUntrusted: 'Tab off in an untrusted workspace',
   tabStatusLanguageOff: 'Tab off for {language}',
@@ -5407,6 +5420,8 @@ export const EN = {
   agentUnloaded:
     'The agent “{id}” did not start: {path} could not be loaded, and a definition there would take precedence. Fix or remove it, then start a new conversation.',
   subagentConsentDeclined: 'The paid child task was not approved.',
+  subagentResultClipped:
+    'This result was clipped to the first {kept} of {total} characters; the full result is kept in the child transcript.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
   subagentKeyChanged:
@@ -5661,6 +5676,8 @@ export const EN = {
     'Your own chat model judges each risky Auto action that no rule settles, and can only add caution: a ready caution turns an allow into a question, or into a note on the approval card. Each judgment is billed to your Model API key at the conversation model’s token rates:\n{price}\nThe judge asks once before the first charge, with these prices and the shared daily budget: {budget}. Switching from a free source to a paid one asks again. On Muse Code the same calls run on your subscription instead.',
   usagePaidJudgeCalls: forms({ one: '{count} judgment', other: '{count} judgments' }),
   judgeCaution: 'Muse Judge suggests caution. You decide; it cannot approve this action.',
+  judgeAdvisoryMissing:
+    'The background safety check did not finish, so no advisory is attached to this approval.',
   judgeSubscriptionNotice:
     'Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.',
   judgeStatusSame: 'Same Model',

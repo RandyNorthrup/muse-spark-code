@@ -62,6 +62,8 @@ export type AcpQuestionRegistryFactory = (input: {
   readonly session: AgentSession
   readonly clock: QuestionClock
   readonly deliver: (message: QuestionDelivery) => Promise<QuestionDeliveryOutcome>
+  /** Runtime expiry is announced at the transition, including load/settle/turn-end. */
+  readonly notice?: (text: string) => void
 }) => AcpQuestionRegistry
 
 interface Form {

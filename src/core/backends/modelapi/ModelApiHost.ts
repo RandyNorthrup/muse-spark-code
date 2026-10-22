@@ -113,6 +113,7 @@ import {
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
   MCP_ELICITATION_TIMEOUT_MS,
+  MILLISECONDS_PER_SECOND,
   MEMORY_INDEX_FILE,
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
@@ -2285,6 +2286,38 @@ function previewFieldsOfOfferedTool(tool: FunctionToolDefinition): readonly stri
       : undefined
   }
   return declaredPreviewFields(tool)
+}
+
+/**
+The person-facing child result: the summary, plus where the full text lives
+when the shown text is clipped. Read when it runs, never at load.
+*/
+export function visibleChildResultText(
+  result: ChildRecord['result'],
+  kept = result?.summary.length ?? 0,
+): string | undefined {
+  if (result === undefined) {
+    return undefined
+  }
+  const total = result.text?.length ?? result.summary.length
+  return total <= kept
+    ? result.summary
+    : `${result.summary} ${fill(UI_TEXT.subagentResultClipped, { kept, total })}`
+}
+
+/** A transcript row's bounded copy of one child's result: listings stay bounded. */
+export function listedChildResult(
+  result: NonNullable<ChildRecord['result']>,
+): NonNullable<ChildRecord['result']> {
+  if (result.text === undefined || result.text.length <= SUBAGENT_RESULT_TEXT_MAX_CHARS) {
+    return result
+  }
+  const { text, ...rest } = result
+  return {
+    ...rest,
+    summary: `${rest.summary} ${fill(UI_TEXT.subagentResultClipped, { kept: SUBAGENT_RESULT_TEXT_MAX_CHARS, total: text.length })}`,
+    text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS),
+  }
 }
 
 function childStateLabel(state: SubagentState): string {
@@ -7704,6 +7737,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         })
       })
     } finally {
+      if (!signal.aborted && caution?.dropped() === true) {
+        this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.judgeAdvisoryMissing })
+      }
       caution?.discard()
       this.judgeCardFences.delete(approvalId)
       this.pendingApprovalEvents.delete(approvalId)
@@ -7932,6 +7968,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         throw error
       }
       const hasJudgeCaution = caution?.read() === 'caution'
+      if (caution?.dropped() === true) {
+        this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.judgeAdvisoryMissing })
+      }
       return hasJudgeCaution
         ? {
             decision: 'ask',
@@ -8221,9 +8260,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     fields: readonly ElicitationField[],
     signal: AbortSignal,
   ): Promise<ElicitationContent> {
+    const timeoutMs = this.deps.elicitationTimeoutMs ?? MCP_ELICITATION_TIMEOUT_MS
     const timer = setTimeout(() => {
       this.pendingElicitations.get(elicitationId)?.pending.resolve({ kind: 'cancelled' })
-    }, this.deps.elicitationTimeoutMs ?? MCP_ELICITATION_TIMEOUT_MS)
+      // A form that waited out its deadline settles as cancel, never as
+      // accept: the person is told, with the server that asked.
+      this.noticeElicitationTimeout(server, timeoutMs)
+    }, timeoutMs)
     try {
       // Pending before it is shown, as an approval card is: an answer given
       // as the form arrives must find it (the live sweep, 2026-09-27).
@@ -8243,6 +8286,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     } finally {
       clearTimeout(timer)
     }
+  }
+
+  /**
+  A form's deadline passed: one warning on every surface the backend notice
+  reaches (panel, ACP, terminal), naming what settled, why, and that the
+  tool call continued without its answer.
+  */
+  private noticeElicitationTimeout(server: string, timeoutMs: number): void {
+    this.emit({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.mcpElicitationTimedOut, {
+        server,
+        seconds: Math.round(timeoutMs / MILLISECONDS_PER_SECOND),
+      }),
+    })
   }
 
   /**
@@ -9947,7 +10006,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(isDone && { durationMs: this.deps.now() - child.startedAt }),
       usage: child.usage,
       paid: 'subagents',
-      ...(child.result !== undefined && { result: child.result }),
+      ...(child.result !== undefined && { result: listedChildResult(child.result) }),
     }
   }
 
@@ -10061,8 +10120,20 @@ export class ModelApiSession implements ScheduledAgentSession {
       const modelText = isTaskRefusal ? (modelChildFailure(event.errorKind, text) ?? text) : text
       child.result = {
         summary: text.slice(0, SUBAGENT_SUMMARY_MAX_CHARS),
-        ...(text !== '' && { text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }),
+        // The full text stays on the result: the push below clips it with a
+        // notice, and `subagent_read_result` returns it whole.
+        ...(text !== '' && { text }),
         ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
+      }
+      if (text.length > SUBAGENT_RESULT_TEXT_MAX_CHARS) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: `${child.id}: ${fill(UI_TEXT.subagentResultClipped, {
+            kept: SUBAGENT_RESULT_TEXT_MAX_CHARS,
+            total: text.length,
+          })}`,
+        })
       }
       if (child.state === 'interrupted') {
         child.evidence = { ...child.evidence, inFlight: false, waiting: 'interrupted' }
@@ -10094,12 +10165,26 @@ export class ModelApiSession implements ScheduledAgentSession {
           ],
         }
       }
+      // The automatic push of one child's result to the parent model: the
+      // full text stays on the result (readable through
+      // `subagent_read_result` and the child's transcript); the push
+      // carries the bounded slice and says so, with both counts, instead
+      // of slicing silently.
+      const isPushClipped = modelText.length > SUBAGENT_RESULT_TEXT_MAX_CHARS
+      const envelope = JSON.stringify({
+        ...child.result,
+        summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS),
+        text: isPushClipped ? modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) : modelText,
+      })
+      const pushed = `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${envelope}`
       this.pendingChildResults.push({
         childId: child.id,
         // TOOLCAP: the reply enters through the bound; a cut keeps its spill.
         text: this.noteChildCut(
           child.id,
-          `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
+          isPushClipped
+            ? `${pushed} ${fill(MODEL_API_MODEL_TEXT.subagentResultClipped, { kept: SUBAGENT_RESULT_TEXT_MAX_CHARS, total: modelText.length })}`
+            : pushed,
         ),
         revision: child.policyRevision,
       })
@@ -10912,7 +10997,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (CHILD_RESULT_STATES.has(child.state)) {
       return {
         output: JSON.stringify({ subagent_id: child.id, state: child.state, result: child.result }),
-        visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+        visibleOutput: visibleChildResultText(child.result) ?? childStateLabel(child.state),
         touched: childResultsTouched([child]),
       }
     }
@@ -10948,7 +11033,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         timed_out: state === 'timeout',
         result: child.result,
       }),
-      visibleOutput: child.result?.summary ?? childStateLabel(child.state),
+      visibleOutput: visibleChildResultText(child.result) ?? childStateLabel(child.state),
       touched: childResultsTouched([child]),
     }
   }
@@ -11074,7 +11159,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.updateChild(child)
       return {
         output: JSON.stringify({ subagent_id: child.id, result: child.result }),
-        visibleOutput: child.result?.summary ?? '',
+        visibleOutput: visibleChildResultText(child.result) ?? '',
         touched: childResultsTouched([child]),
       }
     }
@@ -18374,7 +18459,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           startedAt: child.startedAt,
           evidence: child.evidence,
           state: child.state,
-          ...(child.result !== undefined && { result: child.result }),
+          ...(child.result !== undefined && { result: listedChildResult(child.result) }),
           ...(child.terminal !== undefined && { terminal: child.terminal }),
           ...(child.policyRevision !== undefined && { policyRevision: child.policyRevision }),
           pendingMessages: [...child.pendingMessages],

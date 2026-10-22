@@ -21,6 +21,8 @@ export interface TabSpendGateDeps {
   readonly now: () => number
   /** The status bar redraws after the total moves. */
   readonly onTotalChanged: () => void
+  /** Hitting the budget is never silent: called at most once per local day. */
+  readonly onBudgetReached?: (spent: UsdAmount, budget: UsdAmount) => void
   readonly log: Logger
 }
 
@@ -28,6 +30,7 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
   let totalUsd = Usd.from(0).toAmount()
   let requestsDay = tabDayKey(deps.now())
   let requests = 0
+  let notifiedDay: string | undefined
 
   const refreshTotal = async (): Promise<void> => {
     const total = await deps.ledger.todayTotal()
@@ -59,6 +62,15 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
           totalUsd = admission.totalUsd
         }
         deps.onTotalChanged()
+        // Hitting the budget is never silent: one notice per local day,
+        // naming the spend, the budget and how to raise it.
+        if (admission.reason === 'budgetReached') {
+          const day = tabDayKey(deps.now())
+          if (notifiedDay !== day) {
+            notifiedDay = day
+            deps.onBudgetReached?.(totalUsd, deps.budgetUsd())
+          }
+        }
         return undefined
       }
       totalUsd = admission.totalUsd
