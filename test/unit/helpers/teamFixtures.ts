@@ -17,7 +17,6 @@ import {
   type TeamPreferenceList,
 } from '../../../src/shared/teamPreference'
 import type { PickContext, SchedulerEntry } from '../../../src/core/team/scheduler/pick'
-import type { SlotRequest } from '../../../src/core/team/scheduler/slots'
 import type { TeamAttempt, TeamBoardTask } from '../../../src/shared/team'
 import { TEAM_SIZE_MINUTES } from '../../../src/shared/constants'
 import { Usd } from '../../../src/shared/usd'
@@ -241,19 +240,6 @@ export function readyTask(id: string, patch: Partial<TeamBoardTask> = {}): TeamB
     attempts: [],
     reassignments: 0,
     reviewRounds: 0,
-    ...patch,
-  }
-}
-
-export function slotRequest(taskId: string, patch: Partial<SlotRequest> = {}): SlotRequest {
-  return {
-    taskId,
-    attempt: 1,
-    workspaceId: 'workspace',
-    roleId: 'engineering',
-    entryId: 'entry',
-    agentProfileId: 'agent',
-    kind: 'engine',
     ...patch,
   }
 }

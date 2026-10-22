@@ -11,12 +11,12 @@ import { UI_TEXT } from '../../shared/l10n/text'
 import { fill } from '../../shared/l10n/text'
 import type { TeamAreaHints, TeamPreferenceList } from '../../shared/teamPreference'
 
-/** The coding roles M120 routes between; any other list id routes as a specialization. */
-export const CODING_ROLE_IDS = ['frontend', 'backend', 'engineering'] as const
-export type CodingRoleId = (typeof CODING_ROLE_IDS)[number]
-
-/** D212's out-of-the-box secondary roles: frontend and backend help each other
-and engineering; code review helps engineering. */
+/**
+D212's out-of-the-box secondary roles for the coding roles M120 routes
+between (`frontend`, `backend`, `engineering`; any other list id routes as
+a specialization): frontend and backend help each other and engineering;
+code review helps engineering.
+*/
 export function defaultSecondaryRoles(roleId: string): readonly string[] {
   switch (roleId) {
     case 'frontend': {
