@@ -23,15 +23,55 @@ if (process.argv.includes('--child')) {
   const send = (method, params) => {
     process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: next++, method, params })}\n`)
   }
+  send('initialize', {
+    host: { id: 'visual-studio', version: '17.14' },
+    protocolRange: { minimum: 'mhp/1.0.0', maximumExclusive: 'mhp/1.2.0' },
+    capabilities: ['lifecycle', 'documents'],
+    locale: 'en',
+    theme: { kind: 'dark', tokens: {} },
+    folders: [],
+    trusted: false,
+  })
   const lines = createInterface({ input: process.stdin })
+  let binding
+  let panelSequence = 1
+  let toHostSequence = 1
+  const lifecycle = []
   lines.on('line', (line) => {
     const reply = JSON.parse(line)
     if (reply.method === 'initialize') {
       process.stdout.write(
         `${JSON.stringify({ jsonrpc: '2.0', id: reply.id, result: { protocolVersion: 'mhp/1.5.0', capabilities: ['lifecycle'] } })}\n`,
       )
+    } else if (reply.kind === 'surface') {
+      if (reply.event === 'opened')
+        binding = {
+          surface: reply.surface,
+          sessionId: reply.sessionId,
+          surfaceKind: reply.surfaceKind,
+        }
+      if (!binding || reply.surface !== binding.surface || reply.sessionId !== binding.sessionId)
+        throw new Error('FAKE_BINDING_MISMATCH')
+      lifecycle.push(reply)
+      if (reply.event === 'ready')
+        process.stdout.write(
+          `${JSON.stringify({ mhp: '1.1', kind: 'panel', surface: binding.surface, direction: 'toPanel', seq: panelSequence++, payload: { type: 'focusInput' } })}\n`,
+        )
+      else if (reply.event === 'closed')
+        writeFileSync(`${marker}.closed`, JSON.stringify(lifecycle))
+    } else if (reply.kind === 'panel') {
+      if (
+        reply.direction !== 'toHost' ||
+        reply.surface !== binding?.surface ||
+        reply.seq !== toHostSequence++
+      )
+        throw new Error('FAKE_PANEL_ORDER_MISMATCH')
+      writeFileSync(`${marker}.panel`, JSON.stringify(reply))
+    } else if (reply.id === 1) {
+      if (reply.result?.protocolVersion !== 'mhp/1.1.0')
+        throw new Error('FAKE_PANEL_MINOR_NOT_SELECTED')
       send('documents/list', {})
-    } else if (reply.id === 1) writeFileSync(marker, JSON.stringify(reply))
+    } else if (reply.id === 2) writeFileSync(marker, JSON.stringify(reply))
   })
   lines.on('close', () => process.exit(0))
   process.stderr.write('fixture-private-account-and-path\n')

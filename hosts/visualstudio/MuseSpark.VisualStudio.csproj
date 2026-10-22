@@ -28,6 +28,7 @@
     <Reference Include="WindowsBase" />
     <Reference Include="System.ComponentModel.Composition" />
     <Compile Remove="Test\**" />
+    <EmbeddedResource Include="..\..\src\shared\hostApi\mhp-v1.schema.json" Link="Protocol\mhp-v1.schema.json" />
     <EmbeddedResource Include="..\..\src\shared\hostApi\mhp-v1.1.schema.json" Link="Protocol\mhp-v1.1.schema.json" />
     <None Include="source.extension.vsixmanifest"><SubType>Designer</SubType></None>
     <VSCTCompile Include="Menus.vsct"><ResourceName>Menus.ctmenu</ResourceName></VSCTCompile>

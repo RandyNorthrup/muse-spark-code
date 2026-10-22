@@ -19,16 +19,16 @@ namespace MuseSpark.VisualStudio.Panel
     private readonly IPanelChannel channel;
     private readonly JoinableTaskFactory taskFactory;
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
-    private readonly PanelInbox inbox;
     private string? bootstrapId;
     private bool disposed;
     private bool loaded;
+    private bool navigatingAgain;
 
     public PanelView(IPanelChannel channel, JoinableTaskFactory taskFactory)
     {
       this.channel = channel; this.taskFactory = taskFactory;
-      inbox = new PanelInbox(channel.ParseRuntimeMessage, json => browser.CoreWebView2.PostWebMessageAsJson(json));
       Children.Add(browser);
+      IsVisibleChanged += VisibilityChanged;
     }
 
     public async Task InitializeAsync(string assets, UiText text, string kind = "chat")
@@ -47,7 +47,7 @@ namespace MuseSpark.VisualStudio.Panel
       core.Settings.IsGeneralAutofillEnabled = false;
       core.SetVirtualHostNameToFolderMapping(AssetPolicy.VirtualHost, assets, CoreWebView2HostResourceAccessKind.DenyCors);
       core.NavigationStarting += Navigating;
-      core.FrameNavigationStarting += Navigating;
+      core.FrameNavigationStarting += FrameNavigating;
       core.NewWindowRequested += NewWindow;
       core.PermissionRequested += Permission;
       core.DownloadStarting += Download;
@@ -64,9 +64,23 @@ namespace MuseSpark.VisualStudio.Panel
     private void Navigating(object? sender, CoreWebView2NavigationStartingEventArgs args)
     {
       if (!AssetPolicy.IsAssetUri(args.Uri)) { args.Cancel = true; return; }
-      inbox.Navigating();
-      if (loaded && channel is PanelChannel relay)
-        taskFactory.RunAsync(async () => { await relay.ReloadAsync(); }).FileAndForget("MuseSpark/PanelReload");
+
+      if (!loaded || navigatingAgain) { navigatingAgain = false; return; }
+      args.Cancel = true;
+      taskFactory.RunAsync(async () =>
+      {
+        await channel.ReloadAsync();
+        await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
+        if (bootstrapId != null) browser.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(bootstrapId);
+        bootstrapId = await browser.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(channel.DocumentBootstrap);
+        navigatingAgain = true;
+        browser.CoreWebView2.Navigate(args.Uri);
+      }).FileAndForget("MuseSpark/PanelReload");
+    }
+    private static void FrameNavigating(object? sender, CoreWebView2NavigationStartingEventArgs args) { args.Cancel = true; }
+    private void VisibilityChanged(object sender, DependencyPropertyChangedEventArgs args)
+    {
+      if (loaded && !IsVisible) taskFactory.RunAsync(() => channel.HiddenAsync()).FileAndForget("MuseSpark/PanelHidden");
     }
     private static void NewWindow(object? sender, CoreWebView2NewWindowRequestedEventArgs args) { args.Handled = true; }
     private static void Permission(object? sender, CoreWebView2PermissionRequestedEventArgs args) { args.State = CoreWebView2PermissionState.Deny; }
@@ -78,7 +92,6 @@ namespace MuseSpark.VisualStudio.Panel
     }
     private void NavigationComplete(object? sender, CoreWebView2NavigationCompletedEventArgs args)
     {
-      inbox.Loaded(args.IsSuccess);
       loaded = args.IsSuccess;
     }
 
@@ -87,26 +100,38 @@ namespace MuseSpark.VisualStudio.Panel
       if (!AssetPolicy.IsAssetUri(args.Source)) return;
       taskFactory.RunAsync(async () =>
       {
-        try { await channel.PostAsync(channel.ParseWebviewMessage(args.WebMessageAsJson), lifetime.Token); }
+        try
+        {
+          var frame = channel.ParseWebviewMessage(args.WebMessageAsJson);
+          if (frame.Value<string>("bridge") == "subscribed") { await channel.ReadyAsync(); return; }
+          if (frame.Value<string>("bridge") == "state") { channel.SaveState(frame["state"] ?? throw new Protocol.MhpException("invalidParams", "MHP_PANEL_INVALID_PAYLOAD")); return; }
+          await channel.PostAsync(frame, lifetime.Token);
+          await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
+          browser.CoreWebView2.PostWebMessageAsJson(new JObject { ["bridge"] = "drained", ["surface"] = frame["surface"], ["seq"] = frame["seq"] }.ToString(Formatting.None));
+        }
         catch (OperationCanceledException) { }
         catch (JsonException) { /* Reject malformed browser input without logging it. */ }
-        catch (Protocol.MhpException) { /* The injected zod boundary rejected this message. */ }
+        catch (Protocol.MhpException error)
+        {
+          await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
+          browser.CoreWebView2.PostWebMessageAsJson(new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" }.ToString(Formatting.None));
+        }
       }).FileAndForget("MuseSpark/PanelMessage");
     }
 
     private void RuntimeMessage(object sender, JToken message)
     {
-      taskFactory.RunAsync(async () =>
+      taskFactory.Run(async () =>
       {
         try
         {
           await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
-          inbox.Receive(message);
+          browser.CoreWebView2.PostWebMessageAsJson(channel.ParseRuntimeMessage(message).ToString(Formatting.None));
         }
         catch (OperationCanceledException) { }
         catch (JsonException) { /* Reject malformed runtime input without logging it. */ }
         catch (Protocol.MhpException) { /* A channel or page boundary rejected this message. */ }
-      }).FileAndForget("MuseSpark/PanelRuntimeMessage");
+      });
     }
 
     public void Dispose()
@@ -114,13 +139,23 @@ namespace MuseSpark.VisualStudio.Panel
       ThreadHelper.ThrowIfNotOnUIThread();
       if (disposed) return; disposed = true;
       lifetime.Cancel();
-      inbox.Clear();
+      try
+      {
+        taskFactory.Run(async () =>
+        {
+          using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            await channel.CloseAsync().WithCancellation(deadline.Token);
+        });
+      }
+      catch (OperationCanceledException) { ActivityLog.LogWarning("Muse Spark Code (Unofficial)", "MHP_PANEL_CLOSE_FAILED"); }
+      catch (Protocol.MhpException) { ActivityLog.LogWarning("Muse Spark Code (Unofficial)", "MHP_PANEL_CLOSE_FAILED"); }
+      IsVisibleChanged -= VisibilityChanged;
       channel.MessageReceived -= RuntimeMessage;
       channel.Dispose();
       var core = browser.CoreWebView2;
       if (core != null)
       {
-        core.NavigationStarting -= Navigating; core.FrameNavigationStarting -= Navigating;
+        core.NavigationStarting -= Navigating; core.FrameNavigationStarting -= FrameNavigating;
         core.NewWindowRequested -= NewWindow; core.PermissionRequested -= Permission; core.DownloadStarting -= Download;
         core.WebResourceRequested -= Resource; core.WebMessageReceived -= WebMessage; core.NavigationCompleted -= NavigationComplete;
         if (bootstrapId != null) core.RemoveScriptToExecuteOnDocumentCreated(bootstrapId);

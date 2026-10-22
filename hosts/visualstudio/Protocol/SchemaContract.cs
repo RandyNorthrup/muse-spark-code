@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -11,22 +12,22 @@ namespace MuseSpark.VisualStudio.Protocol
   // Validate the committed export itself: no hand-maintained copy of wire types.
   public sealed class SchemaContract
   {
-    // MHP 1.5's panel envelopes carry attachments; the frozen byte cap is authoritative.
-    public const int MaximumFrameChars = 16777216;
+    public const int MaximumFrameBytes = 16777216;
     public const int MaximumJsonDepth = 64;
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(1);
-    private static readonly Lazy<SchemaContract> Installed = new Lazy<SchemaContract>(ReadInstalled);
+    private static readonly Lazy<SchemaContract> Installed = new Lazy<SchemaContract>(() => ReadInstalled(false));
+    private static readonly Lazy<SchemaContract> InstalledPanel = new Lazy<SchemaContract>(() => ReadInstalled(true));
     public JObject Export { get; }
     public string Version => Export.Value<string>("protocol") ?? throw Invalid();
     public JObject Methods => Export["methods"] as JObject ?? throw Invalid();
 
     public SchemaContract(JObject export) { Export = export; }
 
-    public static SchemaContract Load() => Installed.Value;
-    private static SchemaContract ReadInstalled()
+    public static SchemaContract Load(bool panel = false) => (panel ? InstalledPanel : Installed).Value;
+    private static SchemaContract ReadInstalled(bool panel)
     {
       var assembly = Assembly.GetExecutingAssembly();
-      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("mhp-v1.1.schema.json", StringComparison.Ordinal));
+      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith(panel ? "mhp-v1.1.schema.json" : "mhp-v1.schema.json", StringComparison.Ordinal));
       using (var stream = assembly.GetManifestResourceStream(name) ?? throw Invalid())
       using (var reader = new StreamReader(stream))
         return new SchemaContract(ParseObject(reader.ReadToEnd()));
@@ -34,8 +35,7 @@ namespace MuseSpark.VisualStudio.Protocol
 
     public static JObject ParseObject(string json)
     {
-      if (json.Length > MaximumFrameChars) throw Invalid();
-      if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumFrameChars) throw Invalid();
+      if (Encoding.UTF8.GetByteCount(json) > MaximumFrameBytes) throw new MhpException("invalidParams", "MHP_PANEL_TOO_LARGE");
       JsonSyntax.Validate(json);
       using (var reader = new JsonTextReader(new StringReader(json)) { MaxDepth = MaximumJsonDepth, DateParseHandling = DateParseHandling.None })
       {
@@ -85,13 +85,14 @@ namespace MuseSpark.VisualStudio.Protocol
       var reference = rules.Value<string>("$ref");
       if (reference != null)
       {
+        if (reference == "#") { Check(value, root, root); return; }
         if (!reference.StartsWith("#/", StringComparison.Ordinal)) throw Invalid();
         var target = root;
         foreach (var part in reference.Substring(2).Split('/')) target = target[part.Replace("~1", "/").Replace("~0", "~")] ?? throw Invalid();
         Check(value, target, root);
       }
       if (rules["anyOf"] is JArray alternatives && !alternatives.Any(s => Matches(value, s, root))) throw Invalid();
-      if (rules["oneOf"] is JArray exclusive && exclusive.Count(s => Matches(value, s, root)) != 1) throw Invalid();
+      if (rules["oneOf"] is JArray variants && variants.Count(s => Matches(value, s, root)) != 1) throw Invalid();
       if (rules["const"] is JToken constant && !Equal(value, constant)) throw Invalid();
       if (rules["enum"] is JArray values && !values.Any(v => Equal(value, v))) throw Invalid();
       if (rules["type"] is JToken type && !HasType(value, type)) throw Invalid();
