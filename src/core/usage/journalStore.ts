@@ -1,6 +1,8 @@
 // One file per process/day; snapshots and maintenance share a generation lock.
 import * as z from 'zod/mini'
 import {
+  RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS,
+  RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS,
   USAGE_DAYS_FOLDER,
   USAGE_DETAIL_DAYS,
   USAGE_FOLDER,
@@ -283,8 +285,13 @@ export interface UsageJournalOptions {
   readonly writerId: string
   readonly isEnabled: () => boolean
   readonly now: () => number
-  /** A fixed diagnostic code, never error text, paths or record content. */
-  readonly onWriteError: (code: 'usageWriteFailed') => void
+  /**
+  A fixed diagnostic code, never error text, paths or record content. The
+  failure travels with it; the log names it through usageFailureForLog.
+  */
+  readonly onWriteError: (code: 'usageWriteFailed', error: unknown) => void
+  /** Waits between lock attempts; absent, real timers wait. */
+  readonly sleep?: (ms: number) => Promise<void>
 }
 function isNewer(value: unknown): boolean {
   const version = versionSchema.safeParse(value)
@@ -441,6 +448,33 @@ identity in `read` only; it never surfaces to a caller.
 */
 class UsageLockRacedError extends Error {}
 
+/**
+A cross-process journal lock, waiting its turn: a momentarily held lock
+(another window's snapshot or retention) waits instead of failing the
+call. Attempts and spacing are the one lock discipline both journals
+share (RESOURCE_JOURNAL_WRITE_LOCK_*); a lock still held after them
+returns undefined and the caller names its own failure.
+*/
+export async function acquireJournalLock(
+  fs: UsageFs,
+  file: string,
+  staleMs: number,
+  sleep?: (ms: number) => Promise<void>,
+): Promise<UsageLock | undefined> {
+  const wait =
+    sleep ??
+    ((ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms)
+      }))
+  for (let attempt = 0; attempt < RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS; attempt++) {
+    const lock = await fs.acquireLock(file, staleMs)
+    if (lock !== undefined) return lock
+    await wait(RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS)
+  }
+  return undefined
+}
+
 export class UsageJournalStore {
   private readonly cache = new Map<string, FileCache>()
   private readonly rollupCache = new Map<
@@ -454,11 +488,11 @@ export class UsageJournalStore {
   ) {
     usageIdSchema.parse(options.writerId)
   }
-  private logWriteError(): void {
+  private report(error: unknown): void {
     if (writeDiagnosticState.hasLogged) return
     writeDiagnosticState.hasLogged = true
     try {
-      this.options.onWriteError('usageWriteFailed')
+      this.options.onWriteError('usageWriteFailed', error)
     } catch {
       /* Diagnostics cannot fail a model call. */
     }
@@ -467,9 +501,9 @@ export class UsageJournalStore {
     try {
       await previous
       if (this.options.isEnabled()) await this.fs.append(file, line)
-    } catch {
+    } catch (error) {
       // Diagnostics cannot fail a model call: the once-only write error stands in.
-      this.logWriteError()
+      this.report(error)
     }
   }
   private async readFile(file: string): Promise<FileCache> {
@@ -664,9 +698,9 @@ export class UsageJournalStore {
     try {
       if (!this.options.isEnabled()) return
       this.append(createUsageRecord(usage, context))
-    } catch {
+    } catch (error) {
       // Diagnostics cannot fail a model call: the once-only write error stands in.
-      this.logWriteError()
+      this.report(error)
     }
   }
   /** Fire-and-forget at the model boundary. flush() is for shutdown/tests. */
@@ -677,9 +711,9 @@ export class UsageJournalStore {
       const file = `${DAYS_ROOT}/${entry.day}/${this.options.writerId}.jsonl`
       const line = `${JSON.stringify(entry)}\n`
       this.queue = this.write(this.queue, file, line)
-    } catch {
+    } catch (error) {
       // Diagnostics cannot fail a model call: the once-only write error stands in.
-      this.logWriteError()
+      this.report(error)
     }
   }
   public async flush(): Promise<void> {
@@ -691,7 +725,12 @@ export class UsageJournalStore {
     // bytes gathered across generations; retry once, including a raced parse.
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
+        const lock = await acquireJournalLock(
+          this.fs,
+          LOCK_FILE,
+          USAGE_ROLLUP_LOCK_STALE_MS,
+          this.options.sleep,
+        )
         if (lock === undefined) throw new Error('usageLocked')
         try {
           const snapshot = await this.readSnapshot()
@@ -726,7 +765,12 @@ export class UsageJournalStore {
   public async retain(historyDays: number | null = null): Promise<boolean> {
     if (historyDays !== null) z.int().check(z.gte(USAGE_HISTORY_DAY_MIN)).parse(historyDays)
     await this.flush()
-    const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
+    const lock = await acquireJournalLock(
+      this.fs,
+      LOCK_FILE,
+      USAGE_ROLLUP_LOCK_STALE_MS,
+      this.options.sleep,
+    )
     if (lock === undefined) return false
     try {
       const stored = await this.readRollups()
@@ -806,7 +850,12 @@ export class UsageJournalStore {
   /** The service owns count-and-confirm; this method has no path argument. */
   public async reset(): Promise<void> {
     await this.flush()
-    const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
+    const lock = await acquireJournalLock(
+      this.fs,
+      LOCK_FILE,
+      USAGE_ROLLUP_LOCK_STALE_MS,
+      this.options.sleep,
+    )
     if (lock === undefined) throw new Error('usageLocked')
     try {
       if (!(await lock.isHeld())) throw new Error('usageLockLost')

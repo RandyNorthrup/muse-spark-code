@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import type { WebviewErrorSource } from '../../src/webview/errorReport'
+import type { WebviewErrorSource } from '../../src/shared/constants'
 import { createUiStore, listenToHost } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 

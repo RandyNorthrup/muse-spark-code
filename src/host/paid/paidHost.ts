@@ -1,4 +1,5 @@
 import type { UsageRecording } from '../../core/usage/recording'
+import { usageFailureForLog } from '../../core/usage/failures'
 import {
   paidWindowOnceFeatures,
   autoReviewPrice,
@@ -407,8 +408,8 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       .then((records) => {
         usage.restore(records.filter((record) => record.at < openedAt))
       })
-      .catch(() => {
-        deps.log.warn('Paid usage history could not be restored')
+      .catch((error: unknown) => {
+        deps.log.warn(`Paid usage history could not be restored (${usageFailureForLog(error)})`)
       })
   }
   return {
