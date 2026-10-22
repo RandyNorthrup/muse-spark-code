@@ -335,6 +335,12 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    // M88: the prompt sequences dialog gets its own measured closure budget.
+    name: 'prompt sequences',
+    entries: ['src/webview/prompts/SequencesDialog.tsx'],
+    budgetKiB: 25,
+  },
+  {
     // M118: chat preview closure 13.4 KiB + 15%, rounded up to 25 KiB.
     name: 'chat sharing',
     entries: ['src/webview/sharing/ChatShareDialog.tsx', 'src/webview/sharing/ChatShareBridge.tsx'],

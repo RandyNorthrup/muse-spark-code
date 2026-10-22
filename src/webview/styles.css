@@ -511,6 +511,22 @@ body {
   font-family: var(--ms-font-code);
 }
 
+/* --- sequence run row (M88): above the composer while a run goes --- */
+.sequence-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.sequence-run p {
+  margin: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
 /* --- composer --- */
 
 /* Positioning context for the palette, which sits above the composer. In the
@@ -2756,11 +2772,17 @@ body {
   font-weight: var(--ms-weight-normal);
 }
 
-.history-archive {
+.history-archive,
+.history-bookmark {
   flex-shrink: 0;
   min-width: var(--ms-space-24);
   height: var(--ms-space-24);
   opacity: 0%;
+}
+
+/* A bookmarked row keeps its filled star visible; the outline star wakes on hover. */
+.history-row .history-bookmark[data-bookmarked='true'] {
+  opacity: 100%;
 }
 
 .header-title-button:hover {
@@ -2769,14 +2791,18 @@ body {
 
 .header-title-button:focus-visible,
 .header-title-input:focus-visible,
-.history-archive:focus-visible {
+.history-archive:focus-visible,
+.history-bookmark:focus-visible {
   outline: var(--ms-focus-width) solid var(--ms-text);
   outline-offset: var(--ms-focus-offset);
 }
 
 .history-row:hover .history-archive,
 .history-row:focus-within .history-archive,
-.history-row.palette-item-active .history-archive {
+.history-row.palette-item-active .history-archive,
+.history-row:hover .history-bookmark,
+.history-row:focus-within .history-bookmark,
+.history-row.palette-item-active .history-bookmark {
   opacity: 100%;
 }
 

@@ -88,6 +88,18 @@ happened, not what was planned; superseded entries are kept.
   have five tasks and the acceptance-rate gap is clear, and opt-in
   per-role auto-order that applies the suggestion. Panel display arrives with
   the editor UI; nothing reorders unless the role opts in.
+- **Prompt sequences (M88).** **Prompt Sequences…** in the palette (or
+  `/sequences`) keeps ordered lists of prompts on both backends. Starting
+  one sends the first step as your own message and each later step after
+  the previous turn completes; the run ends on a failed or cancelled turn,
+  **Stop**, a session switch, or the panel closing. Personal sequences live
+  in the agent data folder, workspace ones in `.muse/prompts/sequences/`.
+- **Bookmarks (M88).** The header star bookmarks the open conversation,
+  History's rows carry stars, and **Alt+B** toggles the highlighted row
+  from the search box. The **Bookmarked** group comes first; a bookmarked
+  Model API session is kept past `museSpark.cleanupPeriodDays`, and
+  bookmarks sync per workspace only with `museSpark.syncPromptsAndBookmarks`
+  on.
 
 ### Changed
 

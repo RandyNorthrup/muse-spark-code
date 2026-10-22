@@ -4,6 +4,11 @@ import type { ReferenceText } from './featureCatalog'
 
 interface KeyGesture {
   readonly key: string
+  /**
+  Match `event.code` instead of `event.key` (M88): macOS's Option
+  characters would change `key` (Option+B is `∫`), but never the code.
+  */
+  readonly code?: string
   readonly printable?: boolean
   readonly shift?: boolean
   readonly alt?: boolean
@@ -115,6 +120,12 @@ export const WEBVIEW_KEYBINDINGS = {
   'history.archive': {
     archive: { keys: [{ key: 'Delete' }], text: { ui: 'referenceArchiveKeys' } },
   },
+  // Alt+B toggles the highlighted row's bookmark from History's search box
+  // (M88, PLAN.md D67): matched on `code`, free in VS Code's default keymap
+  // on Windows, macOS and Linux (docs/certification/rlm88.md).
+  'history.bookmark': {
+    toggle: { keys: [{ key: 'b', code: 'KeyB', alt: true }], text: { ui: 'bookmarkAdd' } },
+  },
   palette: {
     next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referencePaletteKeys' } },
     previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referencePaletteKeys' } },
@@ -178,6 +189,7 @@ export const WEBVIEW_KEYBINDINGS = {
 
 interface KeyEvent {
   readonly key: string
+  readonly code?: string
   readonly shiftKey: boolean
   readonly altKey: boolean
   readonly ctrlKey: boolean
@@ -188,6 +200,21 @@ function isAction<C extends keyof typeof WEBVIEW_KEYBINDINGS>(
   action: string,
 ): action is string & keyof (typeof WEBVIEW_KEYBINDINGS)[C] {
   return Object.hasOwn(WEBVIEW_KEYBINDINGS[context], action)
+}
+
+/** A gesture's key or code against the event; a code never reads `key`. */
+function isGestureMatched(gesture: KeyGesture, event: KeyEvent): boolean {
+  switch (true) {
+    case gesture.code !== undefined: {
+      return event.code === gesture.code
+    }
+    case gesture.printable === true: {
+      return event.key.length === 1
+    }
+    default: {
+      return gesture.key.toLowerCase() === event.key.toLowerCase()
+    }
+  }
 }
 /** Resolve one gesture in its own handler context. No handler owns key literals. */
 export function webviewKey<C extends keyof typeof WEBVIEW_KEYBINDINGS>(
@@ -202,9 +229,7 @@ export function webviewKey<C extends keyof typeof WEBVIEW_KEYBINDINGS>(
       (binding.when === undefined || settings?.[binding.when.setting] === binding.when.value) &&
       binding.keys.some(
         (key) =>
-          (key.printable === true
-            ? event.key.length === 1
-            : key.key.toLowerCase() === event.key.toLowerCase()) &&
+          isGestureMatched(key, event) &&
           (key.phase ?? 'down') === phase &&
           (key.shift === undefined || key.shift === event.shiftKey) &&
           (key.alt === undefined || key.alt === event.altKey) &&
@@ -232,7 +257,7 @@ export function referenceKeyboardActions() {
               const name = key.key.length === 1 ? key.key.toUpperCase() : key.key
               return key.primary === true
                 ? `Ctrl+${name} / Cmd+${name}`
-                : `${key.shift === true ? 'Shift+' : ''}${key.key === ' ' ? 'Space' : key.key}`
+                : `${key.alt === true ? 'Alt+' : ''}${key.shift === true ? 'Shift+' : ''}${key.key === ' ' ? 'Space' : name}`
             }),
         ),
       ].join(' / '),

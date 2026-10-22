@@ -842,6 +842,22 @@ Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model
 
 Commands: —. Settings: `museSpark.archiveInactiveSessions`, `museSpark.cleanupPeriodDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
+### Bookmark
+
+Bookmark conversations from History or the header star. A bookmarked Model API session is kept past cleanup; bookmarks sync only with saved prompts sync on.
+
+Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.syncPromptsAndBookmarks`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#bookmarks)
+
+### Prompt Sequences
+
+Run saved prompts in order from the palette: each step is sent after the previous turn completes. A failed turn, Stop or a session switch ends the run.
+
+Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#prompt-sequences)
+
 ### Safer Windows paths
 
 On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.
@@ -1710,6 +1726,7 @@ Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProble
 Availability depends on the backend. Installed skills also add their own slash commands.
 
 - `/resume`: museCode: Pick a previous conversation in this workspace; modelApi: Pick a previous conversation in this workspace
+- `/sequences`: museCode: Run saved prompts in order from the palette: each step is sent after the previous turn completes. A failed turn, Stop or a session switch ends the run.; modelApi: Run saved prompts in order from the palette: each step is sent after the previous turn completes. A failed turn, Stop or a session switch ends the run.
 - `/commit`: museCode: userRequestedMessage: Commit the changes in this workspace; a message is written only when you ask; modelApi: userRequestedMessage: Commit the changes in this workspace; a message is written only when you ask
 - `/push`: museCode: Push this branch; always asks, never forces; modelApi: Push this branch; always asks, never forces
 - `/pr`: museCode: On GitHub, as a draft or ready, linked to this conversation; modelApi: On GitHub, as a draft or ready, linked to this conversation
@@ -3531,7 +3548,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.syncPromptsAndBookmarks
 
-Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.
+Mirror prompts for all workspaces and bookmarks into Settings Sync. Workspace prompts stay local.
 
 Type: `"boolean"`. Default: `false`. Scope: `machine`.
 
@@ -3713,7 +3730,7 @@ These are defaults; editor customizations take precedence.
 - `editor.action.inlineSuggest.trigger`: `alt+\`; when `editorTextFocus && museSpark.tabOn`
 - `museSpark.nextOpenQuestion`: `ctrl+alt+j` (macOS: `cmd+alt+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `museSpark.previousOpenQuestion`: `ctrl+alt+shift+j` (macOS: `cmd+alt+shift+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
-- `team.pool`: `ArrowUp / ArrowDown`; when `team.pool`; Alt+Up / Alt+Down move this entry in its pool.
+- `team.pool`: `Alt+ArrowUp / Alt+ArrowDown`; when `team.pool`; Alt+Up / Alt+Down move this entry in its pool.
 - `models.table`: `ArrowDown / ArrowUp / Home / End / Enter / Escape`; when `models.table`; Navigate items, choose or complete a selection, or close the list.
 - `models.select`: `ArrowDown / ArrowUp / Enter / Escape`; when `models.select`; Navigate items, choose or complete a selection, or close the list.
 - `traffic.tabs`: `ArrowRight / ArrowDown / ArrowLeft / ArrowUp / Home / End`; when `traffic.tabs`; Navigate items, choose or complete a selection, or close the list.
@@ -3726,6 +3743,7 @@ These are defaults; editor customizations take precedence.
 - `composer.slash`: `ArrowDown / ArrowUp / Enter / Tab / Escape`; when `composer.slash`; Navigate items, choose or complete a selection, or close the list.
 - `composer.mic`: `Enter / Space`; when `composer.mic`; records your voice into the composer (tap to toggle, hold to talk)
 - `history.archive`: `Delete`; when `history.archive`; Archive / Unarchive
+- `history.bookmark`: `Alt+B`; when `history.bookmark`; Bookmark
 - `palette`: `ArrowDown / ArrowUp / ArrowRight / ArrowLeft / Enter / Escape`; when `palette`; Navigate items, choose or complete a selection, or close the list. Choose how much effort Muse puts into each reply.
 - `popover`: `ArrowDown / ArrowUp / ArrowRight / ArrowLeft / Enter / Space / Escape`; when `popover`; Navigate options, adjust a value, choose an option or close the popover.
 - `dialog`: `ArrowDown / ArrowUp / Enter / Escape`; when `dialog`; Browse matches, activate the selected conversation or close the dialog.

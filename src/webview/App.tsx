@@ -121,6 +121,7 @@ const EffortSlider = deferred(
 )
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
+import { SequenceRunRow } from './prompts/SequenceRunRow'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
@@ -216,6 +217,10 @@ const HistoryDialog = deferred(async () => {
 const FeedbackDialog = deferred(async () => {
   const module = await import('./components/FeedbackSurface')
   return { default: module.FeedbackSurface }
+}, true)
+const SequencesDialog = deferred(async () => {
+  const module = await import('./prompts/SequencesDialog')
+  return { default: module.SequencesDialog }
 }, true)
 const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
@@ -387,6 +392,7 @@ type Overlay =
   | 'agents'
   | 'review'
   | 'prompts'
+  | 'sequences'
   | 'chatShare'
   | 'help'
 
@@ -1978,6 +1984,11 @@ export function App({
           postMessage({ type: 'listSessions' })
           break
         }
+        case 'sequences': {
+          // Always re-list: the library changes while the dialog is closed.
+          postMessage({ type: 'requestSequences' })
+          break
+        }
         case 'board': {
           // The board re-reads too: conversations change while it is closed.
           postMessage({ type: 'listSessions' })
@@ -2214,6 +2225,39 @@ export function App({
     },
     [postMessage],
   )
+  // Bookmarks (M88, PLAN.md D67): History's rows and the header star toggle
+  // through the host, which answers the workspace's records.
+  const onToggleBookmark = useCallback(
+    (sessionId: string, isBookmarked: boolean, title: string) => {
+      if (state.auth.backend === undefined) {
+        return
+      }
+      postMessage({
+        type: 'bookmarkSet',
+        backend: state.auth.backend,
+        sessionId,
+        title,
+        isBookmarked,
+      })
+    },
+    [postMessage, state.auth.backend],
+  )
+  const onToggleCurrentBookmark = useCallback(() => {
+    if (state.sessionId === undefined || state.auth.backend === undefined) {
+      return
+    }
+    const isBookmarked =
+      state.bookmarks?.some(
+        (record) => record.backend === state.auth.backend && record.sessionId === state.sessionId,
+      ) === true
+    postMessage({
+      type: 'bookmarkSet',
+      backend: state.auth.backend,
+      sessionId: state.sessionId,
+      title: state.title ?? UI_TEXT.untitledConversation,
+      isBookmarked: !isBookmarked,
+    })
+  }, [postMessage, state.auth.backend, state.sessionId, state.title, state.bookmarks])
   const onRename = useCallback(
     (name: string) => {
       postMessage({ type: 'renameSession', name })
@@ -2473,6 +2517,10 @@ export function App({
         }
         case 'openHistory': {
           openOverlay('history')
+          break
+        }
+        case 'openSequences': {
+          openOverlay('sequences')
           break
         }
         case 'openUsage': {
@@ -3226,6 +3274,10 @@ export function App({
         onResume={onResumeSession}
         onSetArchived={onSetSessionArchived}
         onDelete={state.canDeleteSessions ? onDeleteSession : undefined}
+        bookmarks={(state.bookmarks ?? []).filter(
+          (record) => record.backend === state.auth.backend,
+        )}
+        onToggleBookmark={onToggleBookmark}
         onClose={closeOverlay}
       />
     ) : null
@@ -3283,6 +3335,7 @@ export function App({
   const isOtherModalOpen =
     feedbackDialog !== null ||
     overlay === 'prompts' ||
+    overlay === 'sequences' ||
     overlay === 'chatShare' ||
     overlay === 'help' ||
     overlay === 'usage' ||
@@ -3406,6 +3459,14 @@ export function App({
             }
             onOpenAgents={onOpenAgents}
             onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
+            isBookmarked={
+              state.sessionId !== undefined &&
+              (state.bookmarks ?? []).some(
+                (record) =>
+                  record.backend === state.auth.backend && record.sessionId === state.sessionId,
+              )
+            }
+            onToggleBookmark={state.sessionId === undefined ? undefined : onToggleCurrentBookmark}
           />
           {history}
           {board}
@@ -3427,6 +3488,27 @@ export function App({
             ) : null}
             {overlay === 'prompts' ? (
               <PromptLibraryBridge post={postMessage} onClose={closeOverlay} />
+            ) : null}
+            {overlay === 'sequences' ? (
+              <SequencesDialog
+                sequences={state.sequences ?? []}
+                hasWorkspace={state.sequenceHasWorkspace}
+                conversationTitle={title}
+                permissionMode={state.permissionMode}
+                backend={state.auth.backend}
+                port={{
+                  save: (sequence) => {
+                    postMessage({ type: 'sequenceSave', sequence })
+                  },
+                  remove: (sequence) => {
+                    postMessage({ type: 'sequenceDelete', scope: sequence.scope, id: sequence.id })
+                  },
+                  start: (sequence) => {
+                    postMessage({ type: 'sequenceStart', scope: sequence.scope, id: sequence.id })
+                  },
+                }}
+                onClose={closeOverlay}
+              />
             ) : null}
             {overlay === 'chatShare' ? (
               <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
@@ -3654,6 +3736,14 @@ export function App({
             </Suspense>
           ) : null}
           {accounts?.pill}
+          {state.sequenceRun === undefined ? null : (
+            <SequenceRunRow
+              run={state.sequenceRun}
+              onStop={() => {
+                postMessage({ type: 'sequenceStop' })
+              }}
+            />
+          )}
           <Composer
             onSavePrompt={savePrompt}
             onSharePrompt={sharePrompt}

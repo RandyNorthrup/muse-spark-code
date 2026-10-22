@@ -37,6 +37,7 @@ import {
   SETTINGS_SECTION,
   UI_TEXT,
 } from '../../shared/constants'
+import { applyLibrarySyncKeys } from '../stateSync'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { PromptCommands, type PromptUiPort } from './promptCommands'
@@ -443,10 +444,7 @@ function registerPromptSync(state: vscode.ExtensionContext['globalState']): void
   const isOn =
     vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>(PROMPT_SYNC_SETTING)
       ?.globalValue === true
-  state.setKeysForSync([
-    GLOBAL_STATE_KEYS.whatsNewLastSeenVersion,
-    ...(isOn ? [PROMPT_SYNC_KEY] : []),
-  ])
+  applyLibrarySyncKeys(state, isOn, [GLOBAL_STATE_KEYS.whatsNewLastSeenVersion])
 }
 
 export async function runHostPromptCommand(

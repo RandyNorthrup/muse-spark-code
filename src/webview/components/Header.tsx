@@ -5,7 +5,7 @@ import { webviewKey } from '../../shared/keybindings'
 import { type KeyboardEvent, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
-import { BoardIcon, HistoryIcon, NewConversationIcon } from './icons'
+import { BoardIcon, HistoryIcon, NewConversationIcon, StarIcon } from './icons'
 
 export interface HeaderProps {
   readonly title: string
@@ -33,6 +33,9 @@ export interface HeaderProps {
   readonly onOpenSideChat?: (() => void) | undefined
   /** M118: opens the lazy share dialog; the host supplies the current session. */
   readonly onShare?: (() => void) | undefined
+  /** M88: the open conversation's bookmark; the star shows with the toggle. */
+  readonly isBookmarked?: boolean
+  readonly onToggleBookmark?: (() => void) | undefined
 }
 
 /** The pill's words: the agents, the running background tasks, the team tasks, or each (M14, M46, M96). */
@@ -118,6 +121,8 @@ export function Header({
   onOpenAgents,
   onOpenSideChat,
   onShare,
+  isBookmarked = false,
+  onToggleBookmark,
 }: HeaderProps) {
   const isPillShown = agentCount > 0 || runningTaskCount > 0 || teamTaskCount > 0
   const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0 || runningTeamTaskCount > 0
@@ -159,6 +164,18 @@ export function Header({
             {pillLabel(agentCount, runningTaskCount, teamTaskCount)}
           </button>
         ) : null}
+        {onToggleBookmark === undefined ? null : (
+          <button
+            type="button"
+            className="icon-button"
+            title={UI_TEXT.bookmarkCurrentTitle}
+            aria-label={UI_TEXT.bookmarkCurrentTitle}
+            aria-pressed={isBookmarked}
+            onClick={onToggleBookmark}
+          >
+            <StarIcon filled={isBookmarked} />
+          </button>
+        )}
         <button
           type="button"
           className="icon-button"

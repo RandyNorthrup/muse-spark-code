@@ -430,6 +430,41 @@
         },
       ]
       const archivedIds = ['week']
+      // --- Prompt sequences and bookmarks (M88) ---
+      const storedSequences = [
+        {
+          schemaVersion: 1,
+          id: 'seq-1',
+          name: 'Morning review',
+          steps: ['Summarise the overnight failures.', 'File the follow-ups.'],
+          scope: 'user',
+          createdAt: ago(2 * 24 * HOUR),
+          updatedAt: ago(2 * HOUR),
+        },
+        {
+          schemaVersion: 1,
+          id: 'seq-2',
+          name: 'Release notes',
+          steps: ['List the merged changes.'],
+          scope: 'workspace',
+          createdAt: ago(9 * 24 * HOUR),
+          updatedAt: ago(9 * 24 * HOUR),
+        },
+      ]
+      const storedBookmarks = [
+        {
+          backend: 'modelApi',
+          sessionId: 'now',
+          title: 'Fix the parser',
+          bookmarkedAtMs: Date.now() - 2 * HOUR,
+        },
+        {
+          backend: 'modelApi',
+          sessionId: 'missing-chat',
+          title: 'Stored title of a gone session',
+          bookmarkedAtMs: Date.now() - 26 * HOUR,
+        },
+      ]
       const storedHistory = (sessionId, row, lastTurnId) => {
         const items = [
           {
@@ -1023,6 +1058,81 @@
                 archivedIds.splice(archivedIds.indexOf(message.sessionId), 1)
               }
               send({ type: 'sessionList', sessions: storedSessions, archivedIds })
+              break
+            }
+            // --- Prompt sequences and bookmarks (M88) ---
+            case 'bookmarkSet': {
+              const at = storedBookmarks.findIndex(
+                (record) =>
+                  record.backend === message.backend && record.sessionId === message.sessionId,
+              )
+              if (message.isBookmarked && at === -1) {
+                storedBookmarks.push({
+                  backend: message.backend,
+                  sessionId: message.sessionId,
+                  title: message.title,
+                  bookmarkedAtMs: Date.now(),
+                })
+              } else if (!message.isBookmarked && at !== -1) {
+                storedBookmarks.splice(at, 1)
+              }
+              send({ type: 'bookmarks', bookmarks: storedBookmarks })
+              break
+            }
+            case 'requestSequences': {
+              hostLater(40, () =>
+                send({
+                  type: 'sequenceLibrary',
+                  sequences: storedSequences,
+                  hasWorkspace: true,
+                }),
+              )
+              break
+            }
+            case 'sequenceSave': {
+              const at = storedSequences.findIndex(
+                (row) => row.scope === message.sequence.scope && row.id === message.sequence.id,
+              )
+              if (at === -1) {
+                storedSequences.push(message.sequence)
+              } else {
+                storedSequences[at] = message.sequence
+              }
+              send({ type: 'sequenceLibrary', sequences: storedSequences, hasWorkspace: true })
+              break
+            }
+            case 'sequenceDelete': {
+              const at = storedSequences.findIndex(
+                (row) => row.scope === message.scope && row.id === message.id,
+              )
+              if (at !== -1) {
+                storedSequences.splice(at, 1)
+              }
+              send({ type: 'sequenceLibrary', sequences: storedSequences, hasWorkspace: true })
+              break
+            }
+            case 'sequenceStart': {
+              const row = storedSequences.find(
+                (candidate) => candidate.scope === message.scope && candidate.id === message.id,
+              )
+              if (row !== undefined) {
+                hostLater(40, () =>
+                  send({
+                    type: 'sequenceState',
+                    run: {
+                      sequenceId: row.id,
+                      scope: row.scope,
+                      name: row.name,
+                      step: 1,
+                      total: row.steps.length,
+                    },
+                  }),
+                )
+              }
+              break
+            }
+            case 'sequenceStop': {
+              send({ type: 'sequenceState' })
               break
             }
             case 'resumeSession': {
@@ -3638,6 +3748,31 @@
             search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
           })
         },
+        // --- Prompt sequences (M88): the library from /sequences, two rows ---
+        sequences: () => {
+          click('Commands')
+          whenFound('.palette-filter', (filter) => {
+            setValue(filter, HTMLInputElement.prototype, '/sequences')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        'sequences-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['sequences']()
+        },
+        // --- Prompt sequences (M88): a run in progress above the composer ---
+        'sequences-run': () => {
+          send({
+            type: 'sequenceState',
+            run: {
+              sequenceId: 'seq-1',
+              scope: 'user',
+              name: 'Morning review',
+              step: 2,
+              total: 3,
+            },
+          })
+        },
         resume: () => {
           send({
             type: 'sessionInfo',
@@ -4945,6 +5080,21 @@
                 )
               })
             })
+          })
+        },
+        // --- Bookmarks (M88): the Bookmarked group first, with a live row,
+        // a stand-in for a gone session, and the header star lit ---
+        'history-bookmarked': () => {
+          send({
+            type: 'sessionInfo',
+            modelId: 'muse-spark-1.3',
+            contextLimit: 1007997,
+            sessionId: 'now',
+          })
+          send({ type: 'bookmarks', bookmarks: storedBookmarks })
+          click('Session History')
+          whenFound('.history .palette-filter', (search) => {
+            search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
           })
         },
         // --- M25: a patch past one page is fetched whole and numbered ---
@@ -6773,6 +6923,9 @@
         ),
         'prompt-library': () => document.querySelector('.prompt-library li') !== null,
         'prompt-library-narrow': () => document.querySelector('.prompt-library li') !== null,
+        sequences: () => document.querySelector('.sequences-list li') !== null,
+        'sequences-narrow': () => document.querySelector('.sequences-list li') !== null,
+        'sequences-run': () => document.querySelector('.sequence-run') !== null,
         'chat-sharing': () => document.querySelector('.chat-share-preview') !== null,
         'chat-sharing-narrow': () => document.querySelector('.chat-share-preview') !== null,
         'reply-chip': () => document.querySelector('.reference-chip') !== null,
