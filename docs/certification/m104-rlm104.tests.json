@@ -1,0 +1,67 @@
+{
+  "machine": "linuxlt",
+  "timeout": "repository defaults; no override",
+  "editors": {
+    "jetbrains": {
+      "gradleUnit": {
+        "tests": 76,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "detekt": "clean",
+      "ktlintCheck": "clean",
+      "buildPlugin": "muse-spark-code-jetbrains-0.19.0.zip",
+      "node": {
+        "tests": 12,
+        "fail": 0
+      }
+    },
+    "neovim": {
+      "check.lua": "19/19",
+      "lsp.lua": "PASS",
+      "nvim": "0.12.6"
+    },
+    "emacs": {
+      "ert": "9/9",
+      "emacs": "source-built 30.1 --without-x"
+    },
+    "sublime": {
+      "unittest": "15/15"
+    },
+    "zed": {
+      "unittest": "10/10"
+    },
+    "visualstudio": {
+      "dotnetBuild": "0 warnings/errors",
+      "embeddedBridge": "8/8",
+      "dotnetTest": "needs Windows rig (no mono net48 on Linux)"
+    },
+    "eclipse": {
+      "modules": "plugin SUCCESS + Checkstyle",
+      "assetFreshness": "1/1",
+      "mhpFixture": "2/2",
+      "junit": "20/27 (7 WebKitGTK-blocked, absent on rig)"
+    }
+  },
+  "unit": {
+    "passed": 23294,
+    "failedFixed": 12,
+    "loadFlakes": 4,
+    "environmental": 32,
+    "skipped": 2714
+  },
+  "postFix": {
+    "manifest": "40/40",
+    "paidMoneyStructure": "46/46",
+    "pathGuardSpawns": "7/7",
+    "estimatorSurfaces": "630/630",
+    "paidGrants": "5/5",
+    "connector": "8/8",
+    "paidNeighbors": "6/6",
+    "colourLiteralRule": "40/40",
+    "connectorStdioE2E": "7/7",
+    "jetbrainsPagesSecurity": "3/3",
+    "legalArchive": "5/5"
+  }
+}
