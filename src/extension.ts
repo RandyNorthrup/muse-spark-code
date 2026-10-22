@@ -5865,6 +5865,10 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
     }),
+    // M125 lane 0 opens the Judge settings; lane W binds this entry to the wizard.
+    registerLoggedCommand(log, COMMAND_IDS.setUpLocalJudge, async () => {
+      await vscode.commands.executeCommand(VSCODE_COMMANDS.openSettings, 'museSpark.judge')
+    }),
     registerLoggedCommand(log, COMMAND_IDS.retryPluginHooks, () => {
       pluginJobs.reset()
       void vscode.window.showInformationMessage(UI_TEXT.pluginHooksRetried)

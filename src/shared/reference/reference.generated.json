@@ -1959,8 +1959,12 @@
       "name": { "ui": "paidJudgeName" },
       "summary": { "tip": "paid:judge" },
       "description": { "tip": "paid:judge" },
-      "commands": [],
-      "settings": ["museSpark.judge.engine", "museSpark.judge.separate"],
+      "commands": ["museSpark.setUpLocalJudge"],
+      "settings": [
+        "museSpark.judge.engine",
+        "museSpark.judge.separate",
+        "museSpark.judge.fastPathOff"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-judge",
       "backends": ["modelApi"],
       "paid": true,
@@ -1986,7 +1990,7 @@
                 "when": "judgeEngine",
                 "text": {
                   "fallbackKey": "config.judge.engine.enumDescriptions.auto",
-                  "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+                  "fallback": "The fast judge: deterministic checks first, then the fastest ready engine per decision."
                 }
               }
             ]
@@ -2013,7 +2017,7 @@
                     "when": "judgeEngine",
                     "text": {
                       "fallbackKey": "config.judge.engine.enumDescriptions.auto",
-                      "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+                      "fallback": "The fast judge: deterministic checks first, then the fastest ready engine per decision."
                     }
                   }
                 ]
@@ -2033,7 +2037,11 @@
       "summary": { "ui": "judgeSubscriptionNotice" },
       "description": { "ui": "judgeSubscriptionNotice" },
       "commands": [],
-      "settings": ["museSpark.judge.engine", "museSpark.judge.separate"],
+      "settings": [
+        "museSpark.judge.engine",
+        "museSpark.judge.separate",
+        "museSpark.judge.fastPathOff"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-judge",
       "backends": ["museCode"],
       "paid": false,
@@ -2185,6 +2193,16 @@
         ]
       },
       "enablement": "isWindows || remoteName",
+      "canRun": false
+    },
+    {
+      "id": "museSpark.setUpLocalJudge",
+      "name": "Set Up Local Judge",
+      "nameKey": "command.setUpLocalJudge.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Scan this machine and install a local judge model.",
+      "text": { "ui": "referenceJudgeSetup" },
       "canRun": false
     },
     {
@@ -3751,13 +3769,13 @@
     {
       "id": "museSpark.judge.engine",
       "name": "museSpark.judge.engine",
-      "description": "`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.",
+      "description": "`auto` runs the fast judge: deterministic checks first, then the fastest ready engine per decision within its deadline; `same` keeps only your own chat model as the caution judge. `off` runs no judge. On the Model API backend each model judgment bills your key and asks once first; on Muse Code it runs on your subscription.",
       "descriptionKey": "config.judge.engine.description",
       "type": "string",
       "default": "auto",
       "enum": ["auto", "same", "separate", "both", "off"],
       "enumDescriptions": [
-        "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
+        "The fast judge: deterministic checks first, then the fastest ready engine per decision.",
         "Only your own chat model judges; it never switches models.",
         "Use only the configured separate judge after that source passes verification and permission. This selection alone does not enable a source.",
         "Use the separate judge and your own chat model through the measured cascade. Requires a verified source and suitable calibration profiles.",
@@ -3777,7 +3795,7 @@
               "when": "judgeEngine",
               "text": {
                 "fallbackKey": "config.judge.engine.enumDescriptions.auto",
-                "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+                "fallback": "The fast judge: deterministic checks first, then the fastest ready engine per decision."
               }
             }
           ]
@@ -3801,6 +3819,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "default": "" }
+    },
+    {
+      "id": "museSpark.judge.fastPathOff",
+      "name": "museSpark.judge.fastPathOff",
+      "description": "Stop the fast judge's deterministic checks and engine calls, leaving only the same-model caution judge.",
+      "descriptionKey": "config.judge.fastPathOff.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
     },
     {
       "text": {

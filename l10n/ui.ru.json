@@ -4706,6 +4706,10 @@
   "judgeStatusSlow": "По умолчанию выключен: слишком мало результатов готово к решению проверяющего",
   "judgeStatusSubscription": "Подписка",
   "judgeStatusPaid": "Платно",
+  "judgeFastOff": "Быстрый путь выкл.",
+  "judgeNotSetUp": "Оценщик: не настроен — Настроить",
+  "judgeInstalling": "Оценщик: установка ({percent})",
+  "referenceJudgeSetup": "Проверяет эту машину и устанавливает локальную модель оценщика.",
   "judgePanel": {
     "source": "Источник",
     "model": "Модель",

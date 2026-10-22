@@ -4706,6 +4706,10 @@
   "judgeStatusSlow": "Domyślnie wyłączony: zbyt mało wyników gotowych w chwili decyzji recenzenta",
   "judgeStatusSubscription": "Subskrypcja",
   "judgeStatusPaid": "Płatne",
+  "judgeFastOff": "Szybka ścieżka wyłączona",
+  "judgeNotSetUp": "Oceniający: nieskonfigurowany — Skonfiguruj",
+  "judgeInstalling": "Oceniający: instalowanie ({percent})",
+  "referenceJudgeSetup": "Skanuje ten komputer i instaluje lokalny model oceniający.",
   "judgePanel": {
     "source": "Źródło",
     "model": "Model sędziego",

@@ -4484,6 +4484,10 @@
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
   "judgeStatusPaid": "Fizetős",
+  "judgeFastOff": "Gyors út kikapcsolva",
+  "judgeNotSetUp": "Értékelő: Nincs beállítva — Beállítás",
+  "judgeInstalling": "Értékelő: Telepítés ({percent})",
+  "referenceJudgeSetup": "Átvizsgálja ezt a gépet, és telepít egy helyi értékelőmodellt.",
   "judgePanel": {
     "source": "Forrás",
     "model": "Modell",

@@ -4373,6 +4373,10 @@
   "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
   "judgeStatusSubscription": "訂閱",
   "judgeStatusPaid": "付費",
+  "judgeFastOff": "快速路徑已關閉",
+  "judgeNotSetUp": "評判器：未設定 — 設定",
+  "judgeInstalling": "評判器：正在安裝 ({percent})",
+  "referenceJudgeSetup": "掃描本機並安裝本機評判器模型。",
   "judgePanel": {
     "source": "來源",
     "model": "模型",
