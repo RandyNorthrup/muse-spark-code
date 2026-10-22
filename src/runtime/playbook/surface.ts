@@ -1,5 +1,4 @@
-import { FilePlaybookJournal } from '../../core/orchestration/playbook/journal'
-import { OrchestratorPlaybook } from '../../core/orchestration/playbook/policy'
+import { createFileJournalPolicy } from '../../core/orchestration/playbook/policy'
 import { UI_TEXT } from '../../shared/l10n/text'
 import { changedPlaybookSettings, type PlaybookChange, type PlaybookSurfacePort } from './command'
 
@@ -20,13 +19,7 @@ time come from this trusted context, never from the request; P re-checks
 authority on every change. Wire this factory only to surfaces the person
 operates; a model turn never receives it. */
 export function createPlaybookSurface(deps: PlaybookSurfaceDeps): PlaybookSurfacePort {
-  const journal = new FilePlaybookJournal(deps.agentDataFolder, deps.workspaceFolder)
-  const policy = new OrchestratorPlaybook({
-    journal,
-    teamId: deps.teamId,
-    laneId: deps.laneId,
-    workspaceFolder: deps.workspaceFolder,
-    now: deps.now ?? Date.now,
+  const policy = createFileJournalPolicy(deps, {
     // The caller answers for the person at the keyboard or terminal: every
     // request through this port is their own settings operation. Stamping
     // still comes from here, never from the request body.
