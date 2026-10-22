@@ -85,7 +85,6 @@ export interface TabEngineDeps {
   readonly onSent: (model: string) => void
   /** A request reported its usage (PaidUsage prices it). */
   readonly onUsage: (model: string, usage: TabEngineUsage) => void
-  readonly now?: () => number
 }
 
 export interface TabEngine {
@@ -116,7 +115,7 @@ function asError(error: unknown): Error {
 
 export function createTabEngine(deps: TabEngineDeps): TabEngine {
   const cache = new TabCache()
-  const scheduler = new TabScheduler(deps.now === undefined ? {} : { now: deps.now })
+  const scheduler = new TabScheduler()
   // The trigger the scheduler holds unsent: a newer one replaces it there,
   // and this answers it with no suggestion and zero usage.
   let dropWaiting: (() => void) | undefined

@@ -2969,10 +2969,6 @@ export const TAB_REQUEST_TIMEOUT_MS = 67_000
 export const TAB_CACHE_ENTRIES = 64
 // The latency gate: a slower median first text defaults the trigger to onInvoke.
 export const TAB_AUTOMATIC_LATENCY_CEILING_MS = 1500
-// Open requests at once (Zed's cap, L22).
-export const TAB_MAX_IN_FLIGHT = 2
-// Starts per window, under the contributor tier's 150 RPM team limit (A8).
-export const TAB_MAX_REQUESTS_PER_MINUTE = 20
 // Tab's own cache-key prefix, never a conversation's (SoL-Pi, A7).
 export const TAB_PROMPT_CACHE_KEY_PREFIX = 'muse-spark-tab-'
 // The fixed hole marker in the user message (Continue's hole-filler, L8).
