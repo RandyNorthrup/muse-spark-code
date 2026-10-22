@@ -4,10 +4,10 @@ import { fill } from '../shared/l10n/text'
 import { parseHostToWebviewMessage, type WebviewToHostMessage } from '../shared/protocol'
 
 /**
- * Request ids, unique for the webview's lifetime: a late answer to a closed
- * dialog's id can never match a new dialog's first request (RVCM1063 #5).
- * A holder object, so no function reassigns a module-level binding.
- */
+Request ids, unique for the webview's lifetime: a late answer to a closed
+dialog's id can never match a new dialog's first request (RVCM1063 #5).
+A holder object, so no function reassigns a module-level binding.
+*/
 const feedbackRequestIds = { next: 1 }
 
 /** The refusal for a note past the protocol maximum, before anything posts. */
@@ -16,14 +16,14 @@ function noteTooLong(): Error {
 }
 
 /**
- * The feedback dialog's port over the host bridge (C-M106-3R2): the preview
- * and the send round-trip with `requestId` correlation, in the shape of the
- * sharing RPC. Every answer is parsed with the shared zod bridge before
- * use; a malformed or stale answer is dropped and the dialog keeps waiting.
- * A refused preview or submit (an overlong note, an outcome with neither
- * result nor refusal, a close) rejects, so nothing leaves the dialog
- * waiting. Closing rejects every waiter and removes the listener.
- */
+The feedback dialog's port over the host bridge (C-M106-3R2): the preview
+and the send round-trip with `requestId` correlation, in the shape of the
+sharing RPC. Every answer is parsed with the shared zod bridge before
+use; a malformed or stale answer is dropped and the dialog keeps waiting.
+A refused preview or submit (an overlong note, an outcome with neither
+result nor refusal, a close) rejects, so nothing leaves the dialog
+waiting. Closing rejects every waiter and removes the listener.
+*/
 export function feedbackBridge(post: (message: WebviewToHostMessage) => void): {
   readonly port: FeedbackSubmitPort
   open(): void

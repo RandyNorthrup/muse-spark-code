@@ -13,13 +13,13 @@ import { effortLabel, isEffortLevel, type CatalogueTiers } from '../../shared/ef
 import { fill } from '../../shared/l10n/text'
 
 /**
- * The slider's catalogue path for one row (C-M106-3R3): the panel footer and
- * the palette share this, so the captured variants and default reach the
- * rendered tiers through the model list the controller sends. Undefined
- * where the row carries no catalogue, and the slider falls back to the
- * family table. A tier outside the extension's vocabulary renders with its
- * catalogue name; selecting one stays the caller's typed path.
- */
+The slider's catalogue path for one row (C-M106-3R3): the panel footer and
+the palette share this, so the captured variants and default reach the
+rendered tiers through the model list the controller sends. Undefined
+where the row carries no catalogue, and the slider falls back to the
+family table. A tier outside the extension's vocabulary renders with its
+catalogue name; selecting one stays the caller's typed path.
+*/
 export function catalogueSliderProps(
   source: CatalogueTiers | undefined,
   current: string,
