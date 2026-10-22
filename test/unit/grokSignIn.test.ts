@@ -8,7 +8,6 @@
 // keys); constructed inputs are standard OAuth/RFC 8628 shapes to our own
 // parsers, never xAI's private wire format.
 import { createHash, generateKeyPairSync, sign } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   buildGrokAuthorizeUrl,
@@ -27,55 +26,17 @@ import {
 import { createPkcePair, pkceChallenge, pkceRandom } from '../../src/core/providers/pkce'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
 import { GROK_DEFAULT_SCOPES, PKCE_STATE_BYTES } from '../../src/shared/constants'
+import {
+  CLIENT_ID,
+  DISCOVERY_URL,
+  discoveryFixture,
+  discoveryOnlyFetch,
+  type FetchCall,
+} from './helpers/grokDiscoveryFetch'
 import { grokGrantRecord } from './helpers/grokGrant'
 import { mapSecrets } from './helpers/mapSecrets'
 
-const CLIENT_ID = 'muse-spark-code.test-client'
-const DISCOVERY_URL = 'https://auth.x.ai/.well-known/openid-configuration'
 const TOKEN_URL = 'https://auth.x.ai/oauth2/token'
-
-function discoveryFixture(): unknown {
-  return JSON.parse(
-    readFileSync(new URL('../fixtures/grok/discovery.json', import.meta.url), 'utf8'),
-  )
-}
-
-function jsonResponse(json: unknown, status = 200): Response {
-  return Response.json(json, { status })
-}
-
-interface FetchCall {
-  readonly url: string
-  readonly method: string
-  readonly form: URLSearchParams | undefined
-}
-
-/**
-A fetch that answers only with the recorded discovery document and refuses
-everything else: the tests assert our request shapes from its calls, and
-xAI's other answers are never invented here.
-*/
-function discoveryOnlyFetch(
-  options: {
-    readonly discovery?: unknown
-    readonly calls?: FetchCall[]
-  } = {},
-): typeof fetch {
-  const discovery = options.discovery === undefined ? discoveryFixture() : options.discovery
-  const stub: typeof fetch = (url, init) => {
-    const href = url instanceof Request ? url.url : String(url)
-    const method = init?.method ?? (url instanceof Request ? url.method : 'GET')
-    const body = init?.body
-    let form: URLSearchParams | undefined
-    if (typeof body === 'string') form = new URLSearchParams(body)
-    else if (body instanceof URLSearchParams) form = body
-    options.calls?.push({ url: href, method, form })
-    return href === DISCOVERY_URL && method === 'GET'
-      ? Promise.resolve(jsonResponse(discovery))
-      : Promise.reject(new Error(`no recorded answer for ${method} ${href}`))
-  }
-  return stub
-}
 
 function testHost(
   overrides: Partial<GrokHostPort> & { readonly secrets: SecretStore },

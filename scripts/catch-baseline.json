@@ -12,9 +12,9 @@
       "CLEANUP": 235
     },
     "host": {
-      "SWALLOW": 19,
-      "GENERIC": 113,
-      "CLEANUP": 90
+      "SWALLOW": 18,
+      "GENERIC": 109,
+      "CLEANUP": 89
     },
     "root": {
       "SWALLOW": 1,
@@ -3580,38 +3580,8 @@
     },
     {
       "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "f6955d02e12d3547b83408de2476f23ab048a923df835313d4a4304931830a5d",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "00f21f64877bf0eeddb88d0ff6d7e758b5d988bf90c0722463a4c3e5ee257e1f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "9dede8f15ac764ef2ce9fb2e5372785152ad528a3a8c208c9c74bf922a0d6ee0",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "8aab9ff36da0a6e5cc2f2d874e5ceb9257485aa97a41c5e73e91e078682fa71f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "6f41f2bcf93948356f284630f2042094ca2b1f376a330021139a39e18ccf62d1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
       "identity": "34b38da4748c26821b2c02611590e55ce5d7f6468fd4ab384a68d5832f10f876",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "0f67ca60af04af049118a67beb221dc48bf0e5fe8ce2a6c48988f4a197370031",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/providers/copilotClient.ts",
