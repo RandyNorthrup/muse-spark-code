@@ -7,6 +7,9 @@ import * as z from 'zod/mini'
 import { createScheduleStore, type ScheduleRunIntent } from '../../core/schedules/store'
 import { createScheduler } from '../../core/schedules/scheduler'
 import { ScheduleDelivery, type ScheduleDeliveryDeps } from '../../core/schedules/delivery'
+import { ScheduleReportActionRunner } from '../../core/schedules/reportAction'
+import { createScheduleReportPort } from '../../core/schedules/reportAdapter'
+import { createReportOccurrencePort } from '../../core/schedules/reportOccurrences'
 import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
 import { ScheduleEventEngine } from '../../core/schedules/events/engine'
 import { createEventClaimStore } from '../../core/schedules/events/claimStore'
@@ -103,6 +106,8 @@ export interface ScheduleEngineOptions {
   /** Hosts whose workspace trust can refuse git observation (VS Code).
   Absent trusts the process's own machine (the CLI, ACP). */
   readonly isWorkspaceTrusted?: (root: string) => boolean
+  /** The installed locale for report documents. Absent reads English. */
+  readonly locale?: string
 }
 
 /** The conservative failed accounting for a delivery round that produced no
@@ -228,10 +233,29 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       return result
     },
   })
+  // RA's report lane: the delivery runner with M115's authority and
+  // occurrences. M113's backend binds with its lane; until then every
+  // report fire refuses with the pending sentence.
+  const reportRunner = new ScheduleReportActionRunner({
+    store,
+    reports: createScheduleReportPort({
+      store,
+      authorityStore: authority,
+      occurrences: createReportOccurrencePort(options.fs),
+      locale: options.locale ?? 'en',
+      roots: (workspace) => registry.root(workspace),
+    }),
+    audit: (entry) => authority.append(entry),
+    now,
+  })
   const delivery = new ScheduleDelivery({
     now,
     monotonicNow: () => performance.now(),
     holds: (workspace: string) => host.holds(workspace),
+    reports: {
+      deliver: (schedule, context, occurrenceMs, event) =>
+        reportRunner.run(schedule, context, occurrenceMs, event),
+    },
     ...((await options.delivery?.(authority)) ??
       runtimeDelivery?.delivery ?? {
         targets: {

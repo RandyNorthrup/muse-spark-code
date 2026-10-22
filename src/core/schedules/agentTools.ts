@@ -23,6 +23,8 @@ import {
 import type { McpTool } from '../mcp'
 import type { FunctionToolDefinition } from '../backends/modelapi/schemas'
 import { AgentScheduleNoEscalation } from './noEscalation'
+import { reportDestinationsAllowed } from './reportAdapter'
+import type { ScheduleReportAgentPort } from './reportAction'
 import promptParameters from './agentPromptSchema.json'
 
 export interface AgentScheduleAuthority {
@@ -141,7 +143,14 @@ export interface AgentScheduleToolsDeps {
   }): void
   now(): number
   /** W supplies SCHEDULE_AGENT_MODEL_TEXT from its guarded lazy bundle. */
-  readonly descriptions: { readonly prompt: string; readonly list: string; readonly cancel: string }
+  readonly descriptions: {
+    readonly prompt: string
+    readonly list: string
+    readonly cancel: string
+    readonly report: string
+  }
+  /** RA's report port. Absent withholds schedule_report from the tools. */
+  readonly report?: { readonly port: ScheduleReportAgentPort }
 }
 
 const promptArgs = z.strictObject({ draft: scheduleDraftSchema })
@@ -373,6 +382,34 @@ export class AgentScheduleTools {
     })
   }
 
+  /** G's schedule_report port for the standalone tool: the same creation
+  funnel as schedule_prompt, mapped to the schedule response. Refusal
+  reasons stay fixed sentences; the tool's catch keeps provider text out. */
+  public reportPort(): ScheduleReportAgentPort {
+    return {
+      destinationsAllowed: (action) => Promise.resolve(reportDestinationsAllowed(action)),
+      admit: async (draft) => {
+        if (draft.action.kind !== 'report')
+          throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+        const authority = await this.deps.authority()
+        const blocked = eligibility(authority)
+        if (blocked !== undefined)
+          return {
+            kind: 'refused',
+            reason: `${UI_TEXT.scheduleSettlement.outcomes.refused}: ${blocked}`,
+          }
+        const created = await this.create(draft, authority, new AbortController().signal)
+        if (created.outcome === 'created') return { kind: 'accepted', id: created.schedule.id }
+        if (created.outcome === 'refused')
+          return {
+            kind: 'refused',
+            reason: `${UI_TEXT.scheduleSettlement.outcomes.refused}: ${created.reason}`,
+          }
+        throw new Error(UI_TEXT.scheduleV2.runtime.invalidResponse)
+      },
+    }
+  }
+
   public async definitions(): Promise<readonly FunctionToolDefinition[]> {
     const authority = await this.deps.authority()
     if (eligibility(authority) !== undefined) return []
@@ -405,6 +442,17 @@ export class AgentScheduleTools {
         },
         strict: false,
       },
+      ...(this.deps.report === undefined
+        ? []
+        : [
+            {
+              type: 'function',
+              name: 'schedule_report',
+              description: this.deps.descriptions.report,
+              parameters: structuredClone(promptParameters),
+              strict: false,
+            } as const,
+          ]),
     ]
   }
 
@@ -432,6 +480,17 @@ export class AgentScheduleTools {
       const args = promptArgs.safeParse(input)
       return !args.success || args.data.draft.action.kind !== 'prompt' || args.data.draft.pinned
         ? this.refuse(authority, 'invalid')
+        : await this.create(args.data.draft, authority, signal)
+    }
+    if (name === 'schedule_report') {
+      const args = promptArgs.safeParse(input)
+      if (!args.success || args.data.draft.action.kind !== 'report' || args.data.draft.pinned)
+        return this.refuse(authority, 'invalid')
+      if (this.deps.report === undefined) return this.refuse(authority, 'unavailable')
+      const verdict = await this.deps.report.port.destinationsAllowed(args.data.draft.action)
+      if (verdict === false) return this.refuse(authority, 'invalid')
+      return typeof verdict === 'object'
+        ? this.refuse(authority, 'unavailable')
         : await this.create(args.data.draft, authority, signal)
     }
     const cancel = name === 'schedule_cancel' ? cancelArgs.safeParse(input) : undefined

@@ -679,7 +679,8 @@
       "kind": "보고서 종류",
       "format": "형식",
       "args": "인수",
-      "destinations": "대상"
+      "destinations": "대상",
+      "destinationsPending": "보고서 대상은 아직 준비되지 않았습니다. 이후 업데이트에서 제공됩니다."
     },
     "runtime": {
       "usage": "사용법: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 종료 코드: 0 성공, 1 거부, 2 사용 오류, 3 정리 경고.",

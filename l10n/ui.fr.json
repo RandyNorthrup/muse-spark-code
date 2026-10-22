@@ -683,7 +683,8 @@
       "kind": "Type de rapport",
       "format": "Format du rapport",
       "args": "Paramètres du rapport",
-      "destinations": "Destinations du rapport"
+      "destinations": "Destinations du rapport",
+      "destinationsPending": "Les destinations de rapports ne sont pas encore prêtes. Elles arriveront avec une mise à jour ultérieure."
     },
     "runtime": {
       "usage": "Utilisation: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codes de sortie : 0 réussite, 1 refus, 2 erreur d’utilisation, 3 avertissement de nettoyage.",

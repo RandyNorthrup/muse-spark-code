@@ -679,7 +679,8 @@
       "kind": "報告類型",
       "format": "格式",
       "args": "引數",
-      "destinations": "目的地"
+      "destinations": "目的地",
+      "destinationsPending": "報告目標尚未就緒，將在後續更新中提供。"
     },
     "runtime": {
       "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 結束代碼：0 成功，1 拒絕，2 用法錯誤，3 清理警告。",

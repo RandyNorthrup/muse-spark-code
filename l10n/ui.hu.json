@@ -681,7 +681,8 @@
       "kind": "Jelentéstípus",
       "format": "Formátum",
       "args": "Argumentumok",
-      "destinations": "Célok"
+      "destinations": "Célok",
+      "destinationsPending": "A jelentéscélok még nem állnak készen. Egy későbbi frissítéssel érkeznek."
     },
     "runtime": {
       "usage": "Használat: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kilépési kódok: 0 siker, 1 elutasítás, 2 használati hiba, 3 takarítási figyelmeztetés.",

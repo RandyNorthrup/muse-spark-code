@@ -683,7 +683,8 @@
       "kind": "Tipo di resoconto",
       "format": "Formato",
       "args": "Argomenti",
-      "destinations": "Destinazioni"
+      "destinations": "Destinazioni",
+      "destinationsPending": "Le destinazioni dei report non sono ancora pronte. Arriveranno con un aggiornamento successivo."
     },
     "runtime": {
       "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codici di uscita: 0 successo, 1 rifiuto, 2 uso errato, 3 avviso di pulizia.",
