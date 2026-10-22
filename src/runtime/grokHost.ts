@@ -4,12 +4,10 @@
 // refresh lock. Tokens never leave the store; the device code and address
 // are the only values printed.
 import { setTimeout as pause } from 'node:timers/promises'
-import {
-  GrokSignInError,
-  grokRecordSchema,
-  type GrokDevicePrompt,
-  type GrokHostPort,
-} from '../core/providers/subscriptions/grok'
+import type { GrokDevicePrompt, GrokHostPort } from '../core/providers/subscriptions/grok'
+// The sign-in core stays in dist/subscriptions.js; this bundle reads it
+// through subscriptionsEntry (one `instanceof` across the boundary).
+import { GrokSignInError, grokRecordSchema } from '../host/backend/subscriptionsEntry'
 import { StoreUnavailableError, storeOperation } from './keyStore'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { PROVIDER_SECRET_PREFIX } from '../shared/constants'

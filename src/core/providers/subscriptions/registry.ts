@@ -49,9 +49,18 @@ import {
 import type { CoreLogger } from '../../logging'
 import { failureCodeNames } from '../../networkFailure'
 import type { ProvidersFile } from '../providersFile'
-import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
-import { type GrokSignIn, GrokSignInError, grokRecordSchema } from './grok'
-import { CopilotFailureError } from './copilotFailure'
+import type { ChatGptSignIn } from './chatgpt'
+import type { GrokSignIn } from './grok'
+// The sign-in cores stay in dist/subscriptions.js; the registry reads them
+// through subscriptionsEntry (one `instanceof` across the boundary), exactly
+// like providersEntry above.
+import {
+  ChatGptSignInError,
+  CopilotFailureError,
+  GrokSignInError,
+  chatGptRecordSchema,
+  grokRecordSchema,
+} from '../../../host/backend/subscriptionsEntry'
 import type { ChatGptPlanFacts } from '../../backends/modelapi/planFacts'
 import { chatGptPlanFacts } from './chatgptPlanFacts'
 import type { PlanUsageRow } from './planUsage'

@@ -63,11 +63,11 @@ function capturedRefusal(name: 'unknown-model' | 'bad-key'): { status: number; b
 }
 
 /** The real sign-in class over the given grant: no callback or browser runs. */
-function signInWith(record: GrokRecord, fetch: typeof fetch = discoveryOnlyFetch()): GrokSignIn {
+function signInWith(record: GrokRecord, send: typeof fetch = discoveryOnlyFetch()): GrokSignIn {
   const host: GrokHostPort = {
     clientId: CLIENT_ID,
     scopes: undefined,
-    fetch,
+    fetch: send,
     now: Date.now,
     openBrowser: () => Promise.reject(new GrokSignInError('browser-unavailable')),
     startCallback: () => Promise.reject(new GrokSignInError('invalid-callback')),
@@ -126,12 +126,32 @@ function clientWith(options: {
   // legs, and with no key a regression that reaches Meta fails instead of
   // answering.
   const meta: ProviderClient = testPlanMetaClient(testSecretStore())
-  return createSubscriptionClient(meta, {
+  const base = {
     fetch: options.fetch,
     providers: () => Promise.resolve(file),
-    ...(options.grok !== undefined && { grok: options.grok }),
+    chatgpt: () => {
+      throw new Error('chatgpt leg unused by grok plan tests')
+    },
     accountId: () => Promise.resolve(undefined),
-  })
+  }
+  return createSubscriptionClient(
+    meta,
+    options.grok === undefined ? base : { ...base, grok: options.grok },
+  )
+}
+
+/** The plan catalogue the registry wires; absent on a client without legs. */
+async function listPlanModels(client: ProviderClient): Promise<string[]> {
+  const list = client.listPlanModels
+  if (list === undefined) throw new Error('plan catalogue unwired')
+  return await list()
+}
+
+/** The plan usage the registry tallies; absent on a client without legs. */
+function readPlanUsage(client: ProviderClient): unknown {
+  const read = client.readPlanUsage
+  if (read === undefined) throw new Error('plan usage unwired')
+  return read()
 }
 
 describe('grok catalogue listing', () => {
@@ -325,7 +345,7 @@ describe('grok plan dispatch', () => {
       fetch: listedFetch(calls),
       grok: () => Promise.resolve(signInWith(grokGrantRecord())),
     })
-    await expect(client.listPlanModels()).resolves.toEqual([`grok/${SLUG}`])
+    await expect(listPlanModels(client)).resolves.toEqual([`grok/${SLUG}`])
     expect(calls).toHaveLength(1)
     expect(calls[0]?.url).toBe(MODELS_URL)
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer test-access-token-placeholder')
@@ -333,7 +353,7 @@ describe('grok plan dispatch', () => {
 
   it('refuses an unwired host as signer-unavailable', async () => {
     const client = clientWith({ models: [SLUG], fetch: listedFetch([]) })
-    const failure = await captureFailure(() => client.listPlanModels())
+    const failure = await captureFailure(() => listPlanModels(client))
     expect(failure).toBeInstanceOf(Error)
     if (!(failure instanceof Error)) throw new Error('unreachable')
     expect(failure.message).toContain('signer-unavailable')
@@ -373,7 +393,7 @@ describe('grok plan dispatch', () => {
       grok: () => Promise.resolve(signInWith(grokGrantRecord())),
     })
     expect(client.modelContextLimit?.(`grok/${SLUG}`)).toBeUndefined()
-    await client.listPlanModels()
+    await listPlanModels(client)
     expect(client.modelContextLimit?.(`grok/${SLUG}`)).toBe(1_000_000)
     expect(client.modelContextLimit?.(`grok/${REASONING_SLUG}`)).toBeUndefined()
   })
@@ -407,7 +427,7 @@ describe('grok plan dispatch', () => {
     const sent = JSON.parse(calls[0]?.body ?? '{}') as { model?: unknown; input?: unknown }
     expect(sent.model).toBe(SLUG)
     expect(sent.input).toBeDefined()
-    expect(client.readPlanUsage()).toMatchObject([{ providerId: 'grok' }])
+    expect(readPlanUsage(client)).toMatchObject([{ providerId: 'grok' }])
   })
 
   it('surfaces an xAI refusal with xAI words and code, then ends the turn', async () => {
@@ -423,7 +443,7 @@ describe('grok plan dispatch', () => {
     expect(String((events[0] as { message?: unknown }).message)).toContain(
       'does not exist or your team',
     )
-    expect(client.readPlanUsage()).toMatchObject([{ providerId: 'grok' }])
+    expect(readPlanUsage(client)).toMatchObject([{ providerId: 'grok' }])
   })
 
   it('maps a dead grant to invalid_api_key and keeps the typed throw', async () => {

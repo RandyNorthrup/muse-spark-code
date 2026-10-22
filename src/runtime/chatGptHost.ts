@@ -1,13 +1,15 @@
 // Shared by every ACP editor: OS-store grants, terminal/browser URL handoff,
 // the loopback callback and process-safe refresh. No VS Code dependency.
 import type * as z from 'zod/mini'
+import type { ChatGptHostPort } from '../core/providers/subscriptions/chatgpt'
+// The sign-in core stays in dist/subscriptions.js; this bundle reads it
+// through subscriptionsEntry (one `instanceof` across the boundary).
 import {
   ChatGptSignInError,
   chatGptRecordSchema,
   chatGptRegistrationSchema,
   resolveChatGptHostId,
-  type ChatGptHostPort,
-} from '../core/providers/subscriptions/chatgpt'
+} from '../host/backend/subscriptionsEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { CHATGPT_REGISTRATION_SECRET_KEY, PROVIDER_SECRET_PREFIX } from '../shared/constants'
 import { startChatGptCallback } from './subscriptionCallback'

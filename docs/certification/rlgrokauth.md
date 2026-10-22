@@ -127,6 +127,20 @@ under the worktree (`temp/chrome-tmp`, removed after): the session
 TMPDIR's length exceeds Chrome's socket limit and `/var/tmp` is
 read-only in this sandbox.
 
+## Bundle split (found in final gates)
+
+The lane's code pushed `dist/subscriptions.js` to 68.5 KiB against its
+50 KiB budget (base: 44.5 KiB). Rather than raise it, dispatch and
+terminal commands split out beside the registry into
+`dist/subscriptionCommands.js` (new barrel
+`src/host/backend/subscriptionCommandsEntry.ts`), measured at
+47,827 B for a 75 KiB budget per D6/D74 (measured + 15%, next 25 KiB
+multiple). `dist/subscriptions.js` now carries only the sign-in cores
+at 29.2 KiB. Every bundle reads the cores through subscriptionsEntry
+(one `instanceof` across the boundary, no bundle cycles); the ACP
+agent resolves the same dynamic imports to the new file, and the
+post-split drills above were re-run identically against it.
+
 ## Gate record (this lane's final runs)
 
 `tsc` (host, webview), `eslint --max-warnings=0`, `prettier --check`,

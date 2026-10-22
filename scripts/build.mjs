@@ -183,6 +183,8 @@ const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
 const SUBSCRIPTIONS_ENTRY = 'src/host/backend/subscriptionsEntry.ts'
 const SUBSCRIPTIONS_OUTFILE = 'dist/subscriptions.js'
+const SUBSCRIPTION_COMMANDS_ENTRY = 'src/host/backend/subscriptionCommandsEntry.ts'
+const SUBSCRIPTION_COMMANDS_OUTFILE = 'dist/subscriptionCommands.js'
 const CONFIGURED_ENTRY = 'src/host/backend/configuredProvidersEntry.ts'
 const CONFIGURED_OUTFILE = 'dist/configuredProviders.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
@@ -557,6 +559,12 @@ const subscriptionsOptions = {
   ...modelApiOptions,
   entryPoints: [SUBSCRIPTIONS_ENTRY],
   outfile: SUBSCRIPTIONS_OUTFILE,
+}
+
+const subscriptionCommandsOptions = {
+  ...modelApiOptions,
+  entryPoints: [SUBSCRIPTION_COMMANDS_ENTRY],
+  outfile: SUBSCRIPTION_COMMANDS_OUTFILE,
 }
 
 const sessionBoardOptions = {
@@ -1699,6 +1707,7 @@ if (isWatch) {
     esbuild.context(resourceAdmissionOptions),
     esbuild.context(providersOptions),
     esbuild.context(subscriptionsOptions),
+    esbuild.context(subscriptionCommandsOptions),
     esbuild.context(configuredOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -1868,6 +1877,7 @@ if (isWatch) {
     resourceAdmission: recorded('resourceAdmission', resourceAdmissionOptions),
     providers: recorded('providers', providersOptions),
     subscriptions: recorded('subscriptions', subscriptionsOptions),
+    subscriptionCommands: recorded('subscriptionCommands', subscriptionCommandsOptions),
     configuredProviders: recorded('configuredProviders', configuredOptions),
     review: recorded('review', reviewOptions),
     sessionBoard: recorded('sessionBoard', sessionBoardOptions),
@@ -2105,6 +2115,7 @@ if (isWatch) {
   reportSize(RESOURCE_ADMISSION_OUTFILE)
   reportSize(PROVIDERS_OUTFILE)
   reportSize(SUBSCRIPTIONS_OUTFILE)
+  reportSize(SUBSCRIPTION_COMMANDS_OUTFILE)
   reportSize(CONFIGURED_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)

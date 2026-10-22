@@ -1,11 +1,13 @@
 // Terminal and editor entry points use the same runtime host. Only the
 // browser's authorize URL and translated status reach the command output.
+import type { ChatGptHostPort } from '../core/providers/subscriptions/chatgpt'
+// The sign-in core stays in dist/subscriptions.js; this bundle reads it
+// through subscriptionsEntry (one `instanceof` across the boundary).
 import {
   ChatGptSignIn,
   ChatGptSignInError,
   chatGptRecordSchema,
-  type ChatGptHostPort,
-} from '../core/providers/subscriptions/chatgpt'
+} from '../host/backend/subscriptionsEntry'
 import type { SignInMethod } from '../acp/agent'
 import { createRuntimeChatGptHost, type RuntimeChatGptOptions } from './chatGptHost'
 import { CHATGPT_NEW_ACCOUNT_FLAG, UI_TEXT } from '../shared/constants'

@@ -110,7 +110,7 @@ describe('createRuntimeGrokHost', () => {
 
   it('answers the caller abort beside the request signal on fetch', async () => {
     const seen: (AbortSignal | null | undefined)[] = []
-    const recording: typeof fetch = (url, init) => {
+    const recording: typeof fetch = (_url, init) => {
       seen.push(init?.signal)
       return Promise.resolve(new Response())
     }

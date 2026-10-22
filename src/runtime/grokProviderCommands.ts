@@ -1,12 +1,10 @@
 // Terminal and editor entry points use the same runtime host. Only the
 // browser's authorize URL, or the device code and address, and translated
 // status reach the command output.
-import {
-  GrokSignIn,
-  GrokSignInError,
-  grokRecordSchema,
-  type GrokHostPort,
-} from '../core/providers/subscriptions/grok'
+import type { GrokHostPort } from '../core/providers/subscriptions/grok'
+// The sign-in core stays in dist/subscriptions.js; this bundle reads it
+// through subscriptionsEntry (one `instanceof` across the boundary).
+import { GrokSignIn, GrokSignInError, grokRecordSchema } from '../host/backend/subscriptionsEntry'
 import type { SignInMethod } from '../acp/agent'
 import { createRuntimeGrokHost, type RuntimeGrokOptions } from './grokHost'
 import {

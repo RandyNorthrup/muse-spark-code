@@ -139,6 +139,10 @@ const BUDGETS = [
   // panel bundle; 22,917 B measured +15%, rounded up to the next 25 KiB
   // multiple (PLAN.md D6).
   { path: 'dist/modelsSubscriptions.js', budgetKiB: 50 },
+  // RLGROKAUTH: subscription dispatch and terminal commands (the registry
+  // beside the sign-in flows), split out of dist/subscriptions.js;
+  // 47,827 B measured +15%, rounded up to the next 25 KiB multiple (D6/D74).
+  { path: 'dist/subscriptionCommands.js', budgetKiB: 75 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },

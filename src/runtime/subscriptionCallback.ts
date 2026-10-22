@@ -4,8 +4,9 @@
 // waitForCallback. One server serves every subscription provider; each
 // provider binds its own callback parse and failure class.
 import { createServer, type ServerResponse } from 'node:http'
-import { chatGptCallbackBinding } from '../core/providers/subscriptions/chatgpt'
-import { grokCallbackBinding } from '../core/providers/subscriptions/grok'
+// The sign-in cores stay in dist/subscriptions.js; this bundle reads them
+// through subscriptionsEntry (one `instanceof` across the boundary).
+import { chatGptCallbackBinding, grokCallbackBinding } from '../host/backend/subscriptionsEntry'
 import { pkce } from '../host/backend/providersEntry'
 const { isPkceState } = pkce
 import { HTTP_STATUS, OAUTH_CODE_TTL_MS, OAUTH_LOOPBACK_HOST } from '../shared/constants'
