@@ -81,6 +81,13 @@ const PROVIDER_OPTIONS = {
   privacy: { type: 'string' },
   'private-ok': { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
+  // PROVSPEND: `providers usage <id> [--days n] [--output json]` and
+  // `auth set|clear --provider <id> --admin`. Serve and login still refuse
+  // these through NON_SERVE_OPTIONS in cliArgs; the auth route refuses
+  // everything but `admin` beside its own targeting.
+  days: { type: 'string' },
+  admin: { type: 'boolean' },
+  output: { type: 'string' },
 } as const satisfies CliParserOptions
 
 const COMMON_OPTIONS = {
@@ -192,6 +199,13 @@ export const CLI_OPTION_REGISTRY = {
       help: { type: 'boolean', short: 'h' },
     },
   },
+  providersUsage: {
+    options: {
+      days: { type: 'string' },
+      output: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
   usage: {
     options: {
       range: { type: 'string' },
@@ -254,6 +268,8 @@ export const CLI_OPTION_TEXT = {
   preset: 'preset',
   as: 'as',
   address: 'address',
+  days: 'days',
+  admin: 'admin',
   format: 'format',
   privacy: 'privacy',
   'private-ok': 'private-ok',
@@ -373,8 +389,8 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     providersList: 'providers list',
     providersTest: 'providers test <provider>',
     providersRemove: 'providers remove <provider>',
+    providersUsage: 'providers usage <id> [--days <n>] [--output json]',
     openRouterConnect: 'providers connect openrouter',
-    providerKeyUsage: 'providers usage <id>',
     helpTopic: 'help <command>',
     authGitHub: 'auth github login|logout|status',
   }
@@ -384,8 +400,8 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       providersList: table.referenceProviders,
       providersTest: table.referenceProviders,
       providersRemove: table.referenceProviders,
+      providersUsage: table.referenceProvidersUsage,
       openRouterConnect: table.providerOpenRouterServices,
-      providerKeyUsage: table.usageKeyUsage,
       helpTopic: table.referenceBriefHelp,
       authGitHub: table.referenceAuthGitHub,
       schedule: table.scheduleV2.runtime.usage,

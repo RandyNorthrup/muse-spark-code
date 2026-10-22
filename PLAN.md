@@ -143,6 +143,15 @@ are not product-wiring proof. Real-provider restart, mismatch, concurrent
 clear and hook/event checks remain explicit lead-run scenarios in
 `docs/certification/muse-restart-model.md`; lane gates and provider-free
 packed-product commands are measured separately.
+**PROVSPEND: provider-reported spend beside our estimate (2026-10-12,
+kubuntu lane).** Each preset declares one spend capability (`none`,
+`key-usage`, `balance`, `admin-report`); `providers usage <id> [--days n]
+[--output json]` shows the provider's own figures next to the journal
+estimate with the difference, and `auth --admin` stores the separate admin
+report key. The OpenRouter read is the first shared-shape report. Admin
+wire shapes are documented, not live captured (UNVERIFIED); the lead's
+capture checklist lives in `docs/certification/provider-spend.md`. Spend
+reports are display only and never feed a cap.
 
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding

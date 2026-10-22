@@ -457,6 +457,19 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // PROVSPEND: what the provider itself reports was spent, next to our
+    // estimate. Display and reconciliation only; never feeds a cap.
+    feature(
+      'provider-spend',
+      { ui: 'referenceProvidersUsage' },
+      { ui: 'referenceProvidersUsage' },
+      [],
+      [],
+      'usage-and-cost',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     feature(
       'uploads',
       { ui: 'uploadsName' },

@@ -401,6 +401,8 @@ export const EN = {
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceProviders:
     'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
+  referenceProvidersUsage:
+    'Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.',
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
@@ -413,6 +415,8 @@ export const EN = {
     preset: '--preset: Provider',
     as: '--as: Provider',
     address: '--address: Address',
+    days: '--days <n>: Spend report period in days',
+    admin: '--admin: Use the admin report key instead of the inference key',
     format: '--format <format>: Export',
     privacy: '--privacy: Any provider may be used, including ones that train on data.',
     'private-ok':
@@ -7124,6 +7128,31 @@ export const EN = {
     usageEvents: 'Account Events',
     usageRateTokens: 'Tokens',
     usageUnavailable: 'No current usage snapshot.',
+    spendReported: 'Reported by {provider}, as of {date}.',
+    spendTokensByModel: '{model}: {input} input, {output} output.',
+    spendDollarsByDay: '{day}: {cost} spent.',
+    spendBalance: 'Balance: {balance}.',
+    spendKeyUsage: 'Spent {today} today, {week} this week, {month} this month.',
+    spendKeyLimit: 'Limit {limit}; {remaining} left.',
+    spendEstimate: 'Our estimate for the same period: {cost}.',
+    spendEstimateTokens: 'Estimated tokens: {input} input, {output} output.',
+    spendMatches: 'The provider figure matches our estimate within rounding.',
+    spendDiffers:
+      'The provider reports {reported} and we estimate {estimated} for the same period, a difference of {difference}. {reasons}',
+    spendReasonShared: 'The same key may also be used by other tools.',
+    spendReasonCatalogue: 'Our prices come from a catalogue dated {date}.',
+    spendReasonPriority: 'Priority Tier use is not in the provider cost figure.',
+    spendRefused: 'The provider refused the spend report request.',
+    spendPlanUnavailable: 'This account’s plan does not offer the report API.',
+    spendUnreadable: 'The provider’s report could not be read ({kind}).',
+    spendUnsupported: 'This provider offers no spend report.',
+    spendAdminMissing: 'No admin report key is stored for {provider}.',
+    spendAdminExplains:
+      'This key can read the whole organisation’s usage and members. It is stored separately and used only for read-only spend reports, never for model requests.',
+    spendAdminPrompt: 'Admin report key for {provider}: ',
+    spendAdminStored: 'Admin report key stored for {provider} in {store}.',
+    spendAdminCleared: 'Admin report key cleared for {provider}.',
+    spendRefreshWait: 'Spend reports refresh at most once a minute; showing the cached report.',
   },
   // M108 X: machine-local testing options; read after table installation.
   developer: {
