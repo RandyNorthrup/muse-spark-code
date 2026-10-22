@@ -58,6 +58,9 @@ export {
   noteConfirmedRequestStarted,
   canRetryWithinBudget,
   whenAborted,
+  // Lane RLACP: read by dist/runtimeEngine.js (the ACP agent's failure
+  // log), same rule.
+  isMissingApiKeyError,
 } from '../../core/backends/modelapi/transport'
 import { noRetryBudget } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'

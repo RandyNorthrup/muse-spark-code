@@ -408,6 +408,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'modelApiAcp.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/backend/modelApiEntry.ts',
+        symbol: 'createModelApiHost',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
   { file: 'modelApiBoundaries.js', side: 'both', requestedBy: [] },
   {
     file: 'modelApiCodeIntel.js',
