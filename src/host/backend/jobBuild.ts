@@ -1,43 +1,23 @@
 // How a Windows job helper's C# (`jobSource.ts`) becomes a file in the
-// extension's storage: named by the source's digest, compiled once by
-// Windows' .NET Framework compiler, moved into place, and the builds of
-// earlier sources removed. M27's shell job assembly and M50's MCP launcher
-// take the same steps with their own names and compiler options.
+// extension's storage: named by the source's digest (`staleJobs.ts`),
+// compiled once by Windows' .NET Framework compiler, moved into place.
+// M27's shell job assembly and M50's MCP launcher take the same steps
+// with their own names and compiler options.
 
 import path from 'node:path'
 import type { RunProgram } from '../processTree'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { runBootstrap } from '../../core/bootstrapCommand'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
-import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
-import { describeStoreError, isStoreErrorCode } from './storeErrors'
+import { jobFileName, type JobBuild } from './staleJobs'
+import { isStoreErrorCode } from './storeErrors'
 import { WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
 
 const SOURCE_EXTENSION = '.cs'
-const DIGEST_LENGTH = 16
-
-/** One helper's build. */
-export interface JobBuild {
-  /** The file name before the source's digest. */
-  readonly stem: string
-  /** The compiled file's extension. */
-  readonly extension: string
-  /** The compiler's output type. */
-  readonly outputType: 'exe' | 'library'
-  /** Additional framework assemblies, resolved only under Windows' framework directory. */
-  readonly references: readonly string[]
-  /** Inbox WinRT metadata; never a downloaded SDK or a workspace assembly. */
-  readonly windowsMetadata?: readonly string[]
-  /** Recorder compilation receives only the OS root, never credentials. */
-  readonly compilerEnvironment?: NodeJS.ProcessEnv
-  /** What the log calls the built file. */
-  readonly label: string
-  /** Whether a built file is already at a path. */
-  readonly isPresent: (file: string) => Promise<boolean>
-}
 
 // Add-Type starts PowerShell and discovers its Utility module before running
 // this same compiler. On loaded Windows runners that startup can consume the
@@ -45,12 +25,6 @@ export interface JobBuild {
 // stdout (where csc writes diagnostics), stderr and termination metadata.
 const runCompiler: RunProgram = (file, args, env) =>
   runBootstrap(file, args, env, { isOutputReported: true })
-
-/** The built file's name for this source (the whole C#, the shared half included). */
-export function jobFileName(build: JobBuild, csharp: string): string {
-  const digest = createHash('sha256').update(csharp).digest('hex').slice(0, DIGEST_LENGTH)
-  return `${build.stem}${digest}${build.extension}`
-}
 
 /** Expand Windows 8.3 names without trusting a different object returned by resolution. */
 export async function nativeJobPath(file: string): Promise<string> {
@@ -187,29 +161,4 @@ export function screenRecordExecutable(deps: {
         return
       }
     })())
-}
-
-/**
-Removes the builds of earlier sources beside `current`. One that another
-window still has loaded cannot go and stays until a later start; that is
-logged.
-*/
-export async function removeStaleJobs(
-  build: JobBuild,
-  current: string,
-  log: (message: string) => void,
-): Promise<void> {
-  const directory = path.dirname(current)
-  const currentName = path.basename(current)
-  try {
-    const names = await readdir(directory)
-    for (const name of names) {
-      if (name !== currentName && name.startsWith(build.stem) && name.endsWith(build.extension)) {
-        await rm(path.join(directory, name), { force: true })
-      }
-    }
-  } catch (error: unknown) {
-    // A stale build stays for a later start; the log keeps the redacted cause.
-    log(`an earlier ${build.label} could not be removed yet (${describeStoreError(error)})`)
-  }
 }

@@ -1367,6 +1367,12 @@
       "title": "Vault rollback record isolated per vault",
       "summary": "Each vault keeps its own rollback record in the system credential store, so a vault can never report itself lost because of another vault.",
       "area": "security"
+    },
+    {
+      "id": "RLWINFIX",
+      "title": "Windows defects found in real use",
+      "summary": "Fixes five Windows defects found using 0.19.0 for real: the Resources view, CPU readings, usage history, judge cleanup, and stale helper builds.",
+      "area": "platform"
     }
   ]
 }

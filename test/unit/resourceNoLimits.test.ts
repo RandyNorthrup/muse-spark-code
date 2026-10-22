@@ -14,8 +14,8 @@ import {
 } from '../../src/core/resources/disk'
 import { ResourceEvents } from '../../src/core/resources/events'
 import { ResourceGovernor } from '../../src/core/resources/governor'
-import { ResourceQueue } from '../../src/core/resources/queue'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
+import { resourceGovernorAndQueue } from './helpers/resourceRig'
 import {
   resourceDiskVolumeSchema,
   resourceMemoryFloorBytes,
@@ -135,21 +135,15 @@ describe('resource governor without person-set limits', () => {
       () => settings,
     )
     const sampler = liveSampler(() => settings, disks)
-    const governor = new ResourceGovernor({
+    const { governor, queue } = resourceGovernorAndQueue({
       clock,
       sampler,
       settings,
       events,
-      hasRelocationTarget: null,
+      backgroundCount: () => 0,
       onError: (error) => {
         errors.push(error)
       },
-    })
-    const queue = new ResourceQueue({
-      clock,
-      events,
-      capacity: (kind) => governor.capacity(kind),
-      running: { backgroundCount: () => 0 },
     })
     try {
       await governor.refresh()

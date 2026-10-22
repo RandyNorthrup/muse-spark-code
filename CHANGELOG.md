@@ -47,6 +47,20 @@ happened, not what was planned; superseded entries are kept.
   action is delivered and its answer shown. An edit that another change
   overtakes now says the vault changed instead of discarding the draft
   silently.
+- **Show Resources renders on Windows.** A host message the view needs no
+  longer fails validation and drops, and a dropped host message now names
+  what was dropped.
+- **CPU readings work on Windows.** `resources status` shows real CPU use
+  instead of Unknown, and work is never paused while a reading is unknown.
+- **Usage history records and restores across windows.** A momentarily
+  held journal waits instead of failing, and every record/restore warning
+  names its cause.
+- **Judged approvals clean up quietly.** The judge's folder waits out a
+  file Windows holds and names the real failure, and an approval answered
+  before its batch started stands the batch down instead of failing it.
+- **Stale helper builds retire on process exit.** An older MCP job
+  executable a live process has loaded is removed when that process ends
+  instead of warning on every start.
 
 ### Release infrastructure
 

@@ -12,7 +12,8 @@ import { realpathSync } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { UI_TEXT } from '../../../shared/constants'
-import { compileJob, jobFileName, type JobBuild } from '../../backend/jobBuild'
+import { compileJob } from '../../backend/jobBuild'
+import { jobFileName, type JobBuild } from '../../backend/staleJobs'
 import { isResourcePaused } from '../../../core/resources/launch'
 
 const build: JobBuild = {

@@ -21,9 +21,7 @@ import {
   RESOURCE_JOURNAL_RETAIN_MS,
   RESOURCE_JOURNAL_ROLLUP_DELAY_MS,
   RESOURCE_JOURNAL_VERSION,
-  RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS,
   RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS,
-  RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS,
   USAGE_FOLDER,
   USAGE_LINE_FEED_BYTE,
   USAGE_RECORD_MAX_BYTES,
@@ -35,6 +33,7 @@ import {
   type ResourceHistoryDay,
 } from '../../shared/resourceHistory'
 import type { ResourceKind, ResourceRecord } from '../../shared/resources'
+import { acquireJournalLock } from './journalLock'
 import type { UsageFs, UsageLock } from './journalStore'
 import type { ResourceRecordSink } from './resourceRecords'
 
@@ -114,7 +113,7 @@ export interface ResourceJournalOptions {
   /** The last Delete history: nothing stamped at or before it is ever written or read. */
   readonly resetAtMs?: () => number
   /** Retention failed (expired history is still stored); reported once an hour while it fails. */
-  readonly onRetentionError?: () => void
+  readonly onRetentionError?: (error: unknown) => void
   /** Waits between write-lock attempts; tests may inject it. */
   readonly sleep?: (ms: number) => Promise<void>
 }
@@ -193,9 +192,12 @@ function isInWindow(atMs: number, now: number): boolean {
 }
 
 /** Calls a diagnostic, which never fails the recorder. */
-function notify(diagnostic: (() => void) | undefined): void {
+function notify(
+  diagnostic: ((error: unknown) => void) | (() => void) | undefined,
+  error?: unknown,
+): void {
   try {
-    diagnostic?.()
+    diagnostic?.(error)
   } catch {
     // Ignored: reporting is best effort.
   }
@@ -323,24 +325,18 @@ export class ResourceJournal implements ResourceRecordSink {
   held; each write inside `action` proves it again at its commit (`fence`).
   */
   private async exclusive<T>(action: (lock: UsageLock) => Promise<T>): Promise<T> {
-    const sleep =
-      this.options.sleep ??
-      ((ms: number) =>
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, ms)
-        }))
-    for (let attempt = 0; attempt < RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS; attempt++) {
-      const lock = await this.fs.acquireLock(WRITE_LOCK_FILE, RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS)
-      if (lock !== undefined) {
-        try {
-          return await action(lock)
-        } finally {
-          await lock.release()
-        }
-      }
-      await sleep(RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS)
+    const lock = await acquireJournalLock(
+      this.fs,
+      WRITE_LOCK_FILE,
+      RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS,
+      this.options.sleep,
+    )
+    if (lock === undefined) throw new Error('resourceHistoryBusy')
+    try {
+      return await action(lock)
+    } finally {
+      await lock.release()
     }
-    throw new Error('resourceHistoryBusy')
   }
 
   /** `budget`: bytes this read may still use; checked before and after reading. */
@@ -587,6 +583,14 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /** Durable append. A rejected write stays retryable; the next attempt uses a fresh file. */
+  /** A retention failure to the retention channel, at most hourly; never fails the recorder. */
+  private report(error: unknown): void {
+    const now = this.options.now()
+    if (isWithinRetainInterval(this.retentionReportedAt, now)) return
+    this.retentionReportedAt = now
+    notify(this.options.onRetentionError, error)
+  }
+
   public async append(input: ResourceRecord): Promise<void> {
     if (!this.options.isEnabled()) return
     const record = resourceHistoryRecordSchema.parse(input)
@@ -659,13 +663,11 @@ export class ResourceJournal implements ResourceRecordSink {
     try {
       await this.retain()
       this.retentionReportedAt = undefined
-    } catch {
+    } catch (error) {
       // A failed retention is reported through the retention channel and
       // retried later: nothing about it is hidden, and it fails no call.
-      const now = this.options.now()
-      if (isWithinRetainInterval(this.retentionReportedAt, now)) return
-      this.retentionReportedAt = now
-      notify(this.options.onRetentionError)
+      // The failure travels with the alarm, so the log names the cause.
+      this.report(error)
     }
   }
 

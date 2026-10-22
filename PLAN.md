@@ -16564,6 +16564,12 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
+
+**Status 2026-10-22: built.** All five items fixed, each with a real-code
+red/green drill; record: `docs/certification/rlwinfix.md`. The vault
+suites never ran on this PC per the lane rules; hosted CI owns them.
+
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
 **Status 2026-10-11: building.** Typed translated stop first; tools-disabled
@@ -36355,6 +36361,10 @@ No new escape hatch is introduced.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 5 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
 | `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                     | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
+
+| RLWINFIX location                                         | Escape hatch                                               | Reason                                                                                                                                                                                                               | Date       |
+| --------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/sharingResultDelivery.test.ts` (`transported`) | `eslint-disable-next-line unicorn/prefer-structured-clone` | The JSON round trip models the host-to-renderer transport, which drops an undefined-valued key; structuredClone keeps it, so it cannot reproduce the dropped-key defect under test. Inline-reasoned; no rule change. | 2026-10-22 |
 
 ## 9. Security assumptions and accepted residual risk
 

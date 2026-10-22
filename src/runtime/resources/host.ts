@@ -5,7 +5,7 @@ import {
   type ResourcePermit,
   type ResourceRunningWork,
 } from '../../core/resources/queue'
-import { RESOURCE_OVERRIDE_MS, UI_TEXT } from '../../shared/constants'
+import { RESOURCE_OVERRIDE_MS, RESOURCE_SAMPLE_MS, UI_TEXT } from '../../shared/constants'
 import { resourceHistorySchema } from '../../shared/resourceHistory'
 import {
   resourceSettingsSchema,
@@ -143,6 +143,14 @@ export async function createRuntimeResourceHost(
   const ensureOpen = () => {
     if (isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
   }
+  // One sample interval on a referenced timer: the second CPU reading's
+  // baseline. Referenced, unlike the host clock's timers, so a one-shot
+  // command waits out the interval instead of exiting with the loop drained.
+  const settleForCpu = async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, RESOURCE_SAMPLE_MS)
+    })
+  }
   const host: RuntimeResources = {
     async command(action, json) {
       if (action === 'history') {
@@ -150,6 +158,16 @@ export async function createRuntimeResourceHost(
         return json ? JSON.stringify(history) : resourceHistoryText(history)
       }
       const status = await (action === 'resume' ? host.resume() : host.status())
+      // A fresh sampler's first CPU read has no baseline: take the second
+      // reading one sample interval later, so the answer shows CPU use
+      // instead of Unknown. A warm sampler never waits (RLWINFIX). Only the
+      // asked-for status waits: admission stays on the unwaited status, so
+      // work is never held for a reading.
+      if (action === 'status' && status.sample?.cpuPercent === null) {
+        await settleForCpu()
+        const settled = await host.status()
+        return json ? JSON.stringify(settled) : resourceStatusText(settled)
+      }
       return json ? JSON.stringify(status) : resourceStatusText(status)
     },
     async status(signal) {
