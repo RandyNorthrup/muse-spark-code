@@ -6565,6 +6565,39 @@ export const EN = {
   teamSuggestFallbackDetail: '{role} has one entry; add {model} as its fallback',
   // {role}: the role; {amount}: the suggested day cap.
   teamSuggestBudget: '{role} day cap of {amount}, from the remaining daily budget',
+  // M96d Traffic suggestions: {count} below is the measured count.
+  trafficSuggestAddReviewer: forms({
+    one: '{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it',
+    other:
+      '{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them',
+  }),
+  trafficSuggestRaiseIntensity: forms({
+    one: '{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it',
+    other:
+      '{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more',
+  }),
+  trafficSuggestAddProviderEntry: forms({
+    one: '{entry} was throttled {count} time; adding {model} on {provider} spreads the load',
+    other: '{entry} was throttled {count} times; adding {model} on {provider} spreads the load',
+  }),
+  trafficSuggestDeclareSharedFile: forms({
+    one: '{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly',
+    other:
+      '{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly',
+  }),
+  trafficSuggestAddRunner: forms({
+    one: 'The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load',
+    other: 'The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load',
+  }),
+  trafficSuggestLowerIntensity: forms({
+    one: 'The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine',
+    other:
+      'The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine',
+  }),
+  trafficSuggestUserWaiters: forms({
+    one: '{count} task waits for you; answering unblocks it',
+    other: '{count} tasks wait for you; answering unblocks them',
+  }),
   teamPreviewFeatureTests: 'A feature with tests',
   teamPreviewResearchLibrary: 'Research a library',
   teamPreviewReviewBranch: 'Review my branch',

@@ -4982,6 +4982,27 @@
   "teamSuggestFreeLocal": "{model}은(는) 무료이며 로컬이고 {role} 작업을 할 수 있습니다",
   "teamSuggestFallbackDetail": "{role}에 항목이 하나뿐입니다. 폴백으로 {model}을(를) 추가하세요",
   "teamSuggestBudget": "남은 일일 예산에서 {role} 일일 상한 {amount}",
+  "trafficSuggestAddReviewer": {
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "other": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "테스트가 포함된 기능",
   "teamPreviewResearchLibrary": "라이브러리 조사하기",
   "teamPreviewReviewBranch": "내 브랜치 리뷰하기",

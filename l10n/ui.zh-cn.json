@@ -4982,6 +4982,27 @@
   "teamSuggestFreeLocal": "{model} 免费且本地，能做 {role} 工作",
   "teamSuggestFallbackDetail": "{role} 只有一个条目；请添加 {model} 作为后备",
   "teamSuggestBudget": "{role} 日上限 {amount}，来自剩余每日预算",
+  "trafficSuggestAddReviewer": {
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "other": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "带测试的功能",
   "teamPreviewResearchLibrary": "调研一个库",
   "teamPreviewReviewBranch": "评审我的分支",
