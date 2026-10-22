@@ -197,8 +197,11 @@ export const RESOURCE_READING_CODE = 'resource_reading'
 
 export class ResourceReadingError extends Error {
   public readonly code: typeof RESOURCE_READING_CODE = RESOURCE_READING_CODE
-  public constructor(public readonly reading: ResourceReading) {
-    super(UI_TEXT.resourceUnavailable)
+  public constructor(
+    public readonly reading: ResourceReading,
+    options?: { readonly cause?: unknown },
+  ) {
+    super(UI_TEXT.resourceUnavailable, options)
     this.name = 'ResourceReadingError'
   }
 }
@@ -232,8 +235,10 @@ export async function readResource<T>(
 ): Promise<T> {
   try {
     return await work()
-  } catch {
-    throw new ResourceReadingError(reading)
+  } catch (error: unknown) {
+    // The fixed reading identity crosses the resource/log boundary; the
+    // original fault rides along as `cause` for the in-process record.
+    throw new ResourceReadingError(reading, { cause: error })
   }
 }
 

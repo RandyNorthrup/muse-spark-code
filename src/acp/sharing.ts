@@ -171,9 +171,12 @@ export function createAcpSharing(
         // The parser's own error already names the caller's argument in the
         // installed language; anything else (Node's option diagnostics, a
         // JSON quote failure) becomes the product's unknown-argument reason.
+        // Either way the original fault rides along as `cause`, never on
+        // the wire.
         throw new AcpSharingFailure(
           SHARING_FAILURE_CODES.invalidParams,
           error instanceof SharingArgumentError ? error.message : localArgumentError(text).message,
+          { cause: error },
         )
       }
       if (parsed === undefined)
@@ -202,11 +205,15 @@ export function createAcpSharing(
         // Cancellation stays cancellable: the engine maps it, never an error.
         if (context.signal.aborted) throw error
         if (error instanceof SharingArgumentError)
-          throw new AcpSharingFailure(SHARING_FAILURE_CODES.invalidParams, error.message)
+          throw new AcpSharingFailure(SHARING_FAILURE_CODES.invalidParams, error.message, {
+            cause: error,
+          })
         if (error instanceof Error) {
           const refusal = sharingRefusal(error.message)
           if (refusal !== undefined)
-            throw new AcpSharingFailure(SHARING_FAILURE_CODES.invalidRequest, refusal)
+            throw new AcpSharingFailure(SHARING_FAILURE_CODES.invalidRequest, refusal, {
+              cause: error,
+            })
         }
         // Anything unrecognized stays an internal fault with the fixed
         // could-not-complete reason in place of paths, prompt text or raw

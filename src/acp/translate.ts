@@ -259,8 +259,13 @@ function isPricedCarriedCost(cost: {
   let amount: Usd
   try {
     amount = Usd.from(cost.usd)
-  } catch {
-    return false
+  } catch (error: unknown) {
+    // Only a non-decimal amount (or an exponent past BigInt) is unpriced:
+    // anything else keeps its kind.
+    if (error instanceof Error && error.message === 'USD amount must be a finite decimal')
+      return false
+    if (error instanceof RangeError) return false
+    throw error
   }
   return (
     amount.compare(Usd.from(0)) >= 0 &&

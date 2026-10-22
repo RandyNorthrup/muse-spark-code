@@ -2175,7 +2175,8 @@ class AcpSession {
     if (accounting === undefined) return undefined
     try {
       return await readAcpUsage(accounting, this.sessionId)
-    } catch {
+    } catch (error: unknown) {
+      this.deps.log.trace(`ACP usage accounting is unavailable: ${failureForLog(error)}`)
       if (!this.hasLoggedUsageFailure) {
         this.hasLoggedUsageFailure = true
         this.deps.log.warn('ACP usage accounting is unavailable')
@@ -2845,13 +2846,13 @@ class AcpSession {
       } catch (error: unknown) {
         // Only the broker's own cannot-start refusal reads as one: a protocol
         // fault (notably a malformed broker status) or a programming fault
-        // stays internal, with the raw failure in the log and a fixed reason
-        // on the wire.
-        if (error instanceof Error && error.message === UI_TEXT.vault.brokerBlocked)
-          throw refusalError(UI_TEXT.vault.brokerBlocked)
+        // stays internal, with the failure's kind in the log and a fixed
+        // reason on the wire.
         this.deps.log.warn(
           `ACP session ${this.sessionId}: vault command failed: ${failureForLog(error)}`,
         )
+        if (error instanceof Error && error.message === UI_TEXT.vault.brokerBlocked)
+          throw refusalError(UI_TEXT.vault.brokerBlocked)
         throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
@@ -4543,6 +4544,10 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
           `ACP ${method} failed: ${String(built.code)} ${failure.data.kind} ${built.message}`,
         )
         observeError(deps, 'requestFailed')
+      } else {
+        // A routine failure still leaves its kind in the finest detail; the
+        // answer on the wire is unchanged.
+        deps.log.trace(`ACP ${method} ended: ${failureForLog(error)}`)
       }
       throw built
     }

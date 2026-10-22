@@ -663,7 +663,8 @@ export function createPromptHost(ports: PromptActivationPorts, table: UiText, lo
             await runHostPromptCommand(command, input, ports, table, locale)
             return
           } catch (error_: unknown) {
-            ports.log.warn(safePromptCommandFailure(error_).message)
+            const safe = safePromptCommandFailure(error_, ports.log)
+            ports.log.warn(safe.message)
             return
           }
         }
@@ -693,7 +694,8 @@ export function createPromptHost(ports: PromptActivationPorts, table: UiText, lo
           const commands = await pending
           await commands.panel('invalidate', {})
         }).catch((error_: unknown) => {
-          ports.log.warn(safePromptCommandFailure(error_, ports.log).message)
+          const safe = safePromptCommandFailure(error_, ports.log)
+          ports.log.warn(safe.message)
         })
     },
     handle: (
@@ -714,12 +716,16 @@ export function createPromptHost(ports: PromptActivationPorts, table: UiText, lo
           if (ports.registry.has(surface))
             surface.post({ type: 'sharingResult', id: message.id, value })
         } catch (error: unknown) {
+          // A defined refusal keeps its own sentence; anything else is the
+          // fixed could-not-complete reason, never raw diagnostics.
+          const safe = safePromptCommandFailure(error, ports.log)
+          ports.log.warn(safe.message)
           if (ports.registry.has(surface))
             surface.post({
               type: 'sharingResult',
               id: message.id,
               value: undefined,
-              error: error instanceof Error ? error.message : UI_TEXT.actionFailed,
+              error: safe.message,
             })
         }
       }),

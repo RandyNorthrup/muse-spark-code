@@ -213,9 +213,12 @@ export class SharingCommands {
       request = shareRequestSchema.parse(command.request)
     } catch (error: unknown) {
       // Caller-owned flags (notably an empty --attachment-content) fail as
-      // the flag that carried them; anything else rethrows as an internal fault.
-      const owned = callerOwnedError(error)
-      if (owned !== undefined) throw owned
+      // the flag that carried them; anything else rethrows as the internal
+      // fault it is.
+      if (isSchemaError(error)) {
+        const owned = callerOwnedError(error)
+        if (owned !== undefined) throw owned
+      }
       throw error
     }
     if (confirmationId !== undefined) {
@@ -340,9 +343,12 @@ export class SharingCommands {
         })
       } catch (error: unknown) {
         // The title and tags are caller-owned flags (--title/--tag); the rest
-        // is built consistently here, so anything else rethrows as internal.
-        const owned = callerOwnedError(error)
-        if (owned !== undefined) throw owned
+        // is built consistently here, so anything else rethrows as the
+        // internal fault it is.
+        if (isSchemaError(error)) {
+          const owned = callerOwnedError(error)
+          if (owned !== undefined) throw owned
+        }
         throw error
       }
       // The store's write enforces its atomic-file rules (titles and bodies have no ceilings per D121).

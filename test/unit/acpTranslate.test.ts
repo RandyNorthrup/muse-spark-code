@@ -20,6 +20,7 @@ import {
 } from '../../src/acp/translate'
 import type { ApprovalChoice, ItemSnapshot, Question } from '../../src/shared/agentEvents'
 import { SELECTION_TEXT_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 
 // M63 (PLAN.md D62): what an ACP client sees of the panel's events, prompts,
 // approvals and questions.
@@ -344,6 +345,38 @@ describe('UpdateTranslator', () => {
         ],
       },
     ])
+  })
+
+  it('shows a priced carried cost and hides a malformed one without throwing', () => {
+    const priced = new UpdateTranslator(CWD, false, 'modelApi', true)
+    priced.updates({
+      type: 'tokenUsage',
+      inputTokens: 10,
+      outputTokens: 5,
+      cost: { usd: Usd.from('0.05').toAmount(), certainty: 'reported' },
+    })
+    expect(
+      priced.updates({ type: 'contextUsage', usedTokens: 15, windowTokens: 100, pressure: 'ok' }),
+    ).toEqual([
+      {
+        sessionUpdate: 'usage_update',
+        used: 15,
+        size: 100,
+        cost: { amount: 0.05, currency: 'USD' },
+        _meta: { museSpark: { costCertainty: 'reported' } },
+      },
+    ])
+    // A carried `usd` the decimal parser rejects is wire-shaped input the
+    // amount brand cannot spell, hence the cast (PLAN.md §8): the answer
+    // shows no cost instead of failing the turn.
+    const malformed = { usd: 'not-a-decimal' as UsdAmount, certainty: 'reported' as const }
+    const hidden = new UpdateTranslator(CWD, false, 'modelApi', true)
+    expect(() =>
+      hidden.updates({ type: 'tokenUsage', inputTokens: 10, outputTokens: 5, cost: malformed }),
+    ).not.toThrow()
+    expect(
+      hidden.updates({ type: 'contextUsage', usedTokens: 15, windowTokens: 100, pressure: 'ok' }),
+    ).toEqual([{ sessionUpdate: 'usage_update', used: 15, size: 100 }])
   })
 })
 
