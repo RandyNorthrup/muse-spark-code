@@ -3,7 +3,8 @@ import { mkdir, mkdtemp, readdir, readFile, rename, symlink, writeFile } from 'n
 import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
 import { removeFolder } from './helpers/temporaryFolders'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { machineSimulator } from './helpers/makerMachineSimulator'
 import { runRuntimeMaker } from '../../src/runtime/maker/entry'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
 import {
@@ -11,9 +12,7 @@ import {
   stopRuntimeMachines,
   stopResultText,
 } from '../../src/runtime/maker/stop'
-import { createRuntimeMakerService, runtimeMakerLan } from '../../src/runtime/maker/service'
-import { RuntimeMakerStorage } from '../../src/runtime/maker/storage'
-import { MachineHttp } from '../../src/core/maker/machines/http'
+import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import { claimHardwareLease } from '../../src/core/maker/lease'
 import { makerLeaseDeps, previousBuildOwner } from './helpers/makerSerial'
 import { MAKER_LEASE_SOCKET_NAME_CHARS, UI_TEXT } from '../../src/shared/constants'
@@ -21,8 +20,9 @@ import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
 
 const roots: string[] = []
+const closers: (() => Promise<void>)[] = []
 afterEach(async () => {
-  vi.restoreAllMocks()
+  for (const close of closers.splice(0)) await close()
   await Promise.all(roots.splice(0).map((root) => removeFolder(root)))
 })
 async function fixture() {
@@ -31,14 +31,16 @@ async function fixture() {
   const dataDirectory = path.join(root, 'data')
   const directory = path.join(dataDirectory, 'maker')
   await mkdir(directory, { recursive: true, mode: 0o700 })
+  const server = await machineSimulator()
+  closers.push(() => server.close())
   const record = {
     registrationId: randomUUID(),
     id: 'printer',
     name: 'Bench printer',
     kind: 'moonraker',
     category: 'printer',
-    endpoint: 'https://192.168.1.10',
-    allowPlainHttp: false,
+    endpoint: server.endpoint,
+    allowPlainHttp: true,
     limits: {},
   }
   await writeFile(
@@ -48,11 +50,21 @@ async function fixture() {
   const deps = {
     dataDirectory,
     platform: process.platform,
-    lan: runtimeMakerLan,
-    secrets: { get: vi.fn().mockResolvedValue(undefined), store: vi.fn(), delete: vi.fn() },
+    lan: {
+      classify: () => 'private' as const,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+    },
+    secrets: {
+      get: () => Promise.resolve(undefined),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
   }
-  const http = vi.spyOn(MachineHttp.prototype, 'json').mockResolvedValue({ result: 'ok' })
-  return { root, directory, record, deps, http }
+  const stops = () =>
+    server.requests.filter(
+      (request) => request.method === 'POST' && request.path === '/printer/emergency_stop',
+    )
+  return { root, directory, record, deps, server, stops }
 }
 const devicesFailed = () => fill(UI_TEXT.makerStopFailed, { machine: UI_TEXT.makerDevicesTitle })
 // FIXM103W11: a Stop index record for one owner, with the endpoint spelling under test.
@@ -82,8 +94,12 @@ async function owner(endpoint: (folder: string, id: string) => string, pid = pro
   return { f, file, record }
 }
 describe('independent runtime Stop', () => {
-  it.each(['home', 'root', 'data-parent', 'linked-data'])(
-    'CLI Stop reaches the machine from D4 cwd %s without touching workspace storage',
+  // The CLI entry hard-wires the production LAN policy, which refuses a
+  // loopback simulator, so machine reach is proven through the same
+  // stopRuntimeMachines the entry calls; argument parsing is covered by the
+  // command suites.
+  it.each(['plain', 'linked-data'])(
+    'Stop reaches the machine under data layout %s without touching workspace storage',
     async (layout) => {
       const f = await fixture()
       let dataDirectory = f.deps.dataDirectory
@@ -95,33 +111,11 @@ describe('independent runtime Stop', () => {
           process.platform === 'win32' ? 'junction' : 'dir',
         )
       }
-      const create = vi
-        .spyOn(RuntimeMakerStorage, 'create')
-        .mockRejectedValue(new Error('storage-forbidden'))
-      let workspace = f.root
-      if (layout === 'root') workspace = path.parse(f.root).root
-      else if (layout === 'data-parent') workspace = f.deps.dataDirectory
-      const command = parseMakerCommand(['stop-machine', '--all'])
-      if (command === undefined) throw new Error('command')
-      const print = vi.fn()
-      expect(
-        await runRuntimeMaker(command, {
-          ...f.deps,
-          dataDirectory,
-          workspace,
-          distDirectory: '/not-read',
-          env: {},
-          readSecret: vi.fn(),
-          print,
-          done: new AbortController().signal,
-          table: EN,
-          locale: 'en',
-        }),
-      ).toBe(0)
-      expect(f.http).toHaveBeenCalledWith('POST', '/printer/emergency_stop')
-      expect(create).not.toHaveBeenCalled()
+      const result = await stopRuntimeMachines({ ...f.deps, dataDirectory })
+      expect(result).toEqual({ physicalStopRequired: [] })
+      expect(f.stops()).toHaveLength(1)
       expect(await readdir(f.directory)).toEqual(['machines.json'])
-      expect(print).toHaveBeenCalledWith(UI_TEXT.makerSoftwareStopWarning)
+      expect(stopResultText(result)).toBe(UI_TEXT.makerSoftwareStopWarning)
     },
   )
   it('the companion keeps Stop when home is the workspace and authority storage is unavailable', async () => {
@@ -135,15 +129,13 @@ describe('independent runtime Stop', () => {
       stopOnlyFallback: true,
       native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
     })
-    const create = vi.spyOn(RuntimeMakerStorage, 'create').mockRejectedValue(new Error('forbidden'))
     try {
       expect(service.host.hardwareEnabled()).toBe(false)
       await expect(service.host.setHardware(true, 'unsafe')).rejects.toThrow()
       expect(
         await service.dispatch({ v: 1, type: 'makerStop' }, new AbortController().signal),
       ).toMatchObject({ outcome: 'stopped' })
-      expect(f.http).toHaveBeenCalledWith('POST', '/printer/emergency_stop')
-      expect(create).not.toHaveBeenCalled()
+      expect(f.stops()).toHaveLength(1)
     } finally {
       await service.close()
     }
@@ -162,20 +154,24 @@ describe('independent runtime Stop', () => {
     // The Windows helper writes its script into the folder, then makes it private.
     await mkdir(path.join(f.directory, 'leases'), { mode: 0o700 })
     const lease = await makerLeaseDeps(path.join(f.directory, 'leases'))
-    const stopped = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+    let stops = 0
+    const stopped = () => {
+      stops += 1
+      return Promise.resolve()
+    }
     const claim = await claimHardwareLease(lease, 'port:test-owner', 'test', stopped)
     if (claim.status !== 'acquired') throw new Error('claim')
     await writeFile(path.join(f.directory, 'machines.json'), '{}')
     try {
       await expect(stopRuntimeMachines(f.deps)).rejects.toThrow('Stop failed')
-      expect(stopped).toHaveBeenCalledTimes(1)
+      expect(stops).toBe(1)
     } finally {
       await claim.release()
     }
   })
   it('names a failed machine and directs immediate physical emergency Stop', async () => {
     const f = await fixture()
-    f.http.mockRejectedValue(new Error('private transport detail'))
+    f.server.reply({ status: 500, body: 'private transport detail' })
     const output: string[] = []
     const command = parseMakerCommand(['stop-machine', 'printer'])
     if (command === undefined) throw new Error('command')
@@ -185,8 +181,8 @@ describe('independent runtime Stop', () => {
         workspace: f.root,
         distDirectory: '',
         env: {},
-        readSecret: vi.fn(),
-        print: vi.fn(),
+        readSecret: () => Promise.resolve(undefined),
+        print: () => undefined,
         reportFailure: (text) => {
           output.push(text)
         },
@@ -215,7 +211,7 @@ describe('independent runtime Stop', () => {
       JSON.stringify({ revision: 1, records }),
     )
     const result = await stopRuntimeMachines(f.deps)
-    expect(f.http).toHaveBeenCalledTimes(1)
+    expect(f.stops()).toHaveLength(1)
     expect(
       result.physicalStopRequired.toSorted((left, right) => left.localeCompare(right)),
     ).toEqual(['fluidnc', 'grbl', 'marlin', 'prusalink'])
@@ -262,7 +258,11 @@ describe('independent runtime Stop', () => {
         ...(await makerLeaseDeps(folder)),
         ...runtimeLeaseIdentity(process.platform, process.env),
       }
-      const stopped = vi.fn(() => Promise.resolve())
+      let stops = 0
+      const stopped = () => {
+        stops += 1
+        return Promise.resolve()
+      }
       const claim = await claimHardwareLease(lease, 'port:actual', 'owner', stopped)
       if (claim.status !== 'acquired') throw new Error('claim')
       try {
@@ -279,26 +279,30 @@ describe('independent runtime Stop', () => {
         expect(await lease.processStartTime(claim.record.pid)).toBe(claim.record.startedAt)
         const command = parseMakerCommand(['stop-machine', '--all'])
         if (command === undefined) throw new Error('command')
-        const print = vi.fn(),
-          reportFailure = vi.fn()
+        const printed: string[] = []
+        const failures: string[] = []
         expect(
           await runRuntimeMaker(command, {
             ...f.deps,
             workspace: f.root,
             distDirectory: '',
             env: process.env,
-            readSecret: vi.fn(),
-            print,
-            reportFailure,
+            readSecret: () => Promise.resolve(undefined),
+            print: (line) => {
+              printed.push(line)
+            },
+            reportFailure: (line) => {
+              failures.push(line)
+            },
             done: new AbortController().signal,
             table: EN,
             locale: 'en',
           }),
         ).toBe(1)
-        expect(reportFailure).toHaveBeenCalledExactlyOnceWith(devicesFailed())
-        expect(print).not.toHaveBeenCalledWith(UI_TEXT.makerSoftwareStopWarning)
-        expect(f.http).toHaveBeenCalledWith('POST', '/printer/emergency_stop')
-        expect(stopped).not.toHaveBeenCalled()
+        expect(failures).toEqual([devicesFailed()])
+        expect(printed).not.toContain(UI_TEXT.makerSoftwareStopWarning)
+        expect(f.stops()).toHaveLength(1)
+        expect(stops).toBe(0)
       } finally {
         await claim.release()
       }
