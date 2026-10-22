@@ -5,10 +5,16 @@
 // broker and the real native store; nothing here substitutes for one.
 import { AsyncEntry } from '@napi-rs/keyring'
 import { randomBytes } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { expect } from 'vitest'
-import type { VaultFirstPartyReader } from '../../../../src/core/vault/broker/firstParty'
-import type { VaultManageSession } from '../../../../src/core/vault/broker/manageClient'
+import type { VaultBrokerClient } from '../../../../src/core/vault/broker/client'
+import { VaultFirstPartyReader } from '../../../../src/core/vault/broker/firstParty'
+import { recordingLogger } from '../recordingLogger'
+import { VaultManageSession } from '../../../../src/core/vault/broker/manageClient'
+import { encodeVaultMaterial } from '../../../../src/core/vault/crypto'
 import { keyringSecretStore } from '../../../../src/runtime/keyStore'
+import { FileAccountsMetadata } from '../../../../src/runtime/providers/providersFileStore'
 import { eraseItem } from '../../../../src/core/vault/migrate/material'
 import type { MigrationCredential } from '../../../../src/core/vault/migrate/ports'
 import { CredentialMigrationController } from '../../../../src/host/vault/migrateCredentials'
@@ -37,25 +43,92 @@ export function installedChatGptRecord() {
   }
 }
 
+/** Two installed-shape subscription records: the sign-in and its rotation. */
+export function chatgptSeeds(): { initial: () => string; rotated: () => string } {
+  return {
+    initial: () => JSON.stringify(installedChatGptRecord()),
+    rotated: () => JSON.stringify(installedChatGptRecord()),
+  }
+}
+
+/**
+Two installed-shape pooled account records in the installed writer's key
+order: the stored credential and its rotation. Secrets are generated and
+never sent.
+*/
+export function pooledAccountSeeds(
+  provider: string,
+  account: string,
+  origin: string,
+): { initial: () => string; rotated: () => string } {
+  const one = () =>
+    JSON.stringify({
+      provider,
+      account,
+      origin,
+      v: 1,
+      auth: 'oauth',
+      secret: `test-token-${randomBytes(16).toString('hex')}`,
+    })
+  return { initial: one, rotated: one }
+}
+
+/**
+Seed the runtime's account-pool file with one provider row carrying the
+named accounts: the same file the CLI, ACP and headless read.
+*/
+export function writeAccountPool(
+  file: string,
+  provider: string,
+  origin: string,
+  accounts: readonly string[],
+): void {
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(
+    file,
+    `${JSON.stringify({
+      providers: {
+        [provider]: {
+          id: provider,
+          policyProvider: provider,
+          product: provider,
+          auth: 'oauth',
+          origin,
+          accounts: accounts.map((id, order) => ({ id, label: id, order, thresholds: {} })),
+        },
+      },
+    })}\n`,
+    'utf8',
+  )
+}
+
+/** Pooled account ids through the real file-backed metadata, as the runtime reads them. */
+export function filePoolAccounts(file: string): (provider: string) => Promise<readonly string[]> {
+  const metadata = new FileAccountsMetadata(file)
+  return async (provider) => {
+    const entry = await metadata.read(provider)
+    return entry?.accounts?.map((row) => row.id) ?? []
+  }
+}
+
 export interface MigrationFlow {
   readonly controller: CredentialMigrationController
   readonly shell: MigrationShell
 }
 
-/**
-The real controller over the real session, reader and store, with the
-providers seam answering no providers: a slot that still migrates proves
-the controller found it itself.
-*/
-export function chatgptMigrationFlow(deps: {
+/** The real controller over the real session, reader and store, bound to its shell. */
+export function migrationFlow(deps: {
   secrets: SecretStore
   session: VaultManageSession
   reader: VaultFirstPartyReader
   log: Logger
+  providers: readonly string[]
+  listAccounts?: (provider: string) => Promise<readonly string[]>
 }): MigrationFlow {
   const controller = new CredentialMigrationController({
     secrets: deps.secrets,
-    listProviderIds: () => Promise.resolve([]),
+    listProviderIds: () => Promise.resolve(deps.providers),
+    ...(deps.listAccounts !== undefined && { listAccounts: deps.listAccounts }),
     ports: {
       snapshot: () => deps.session.snapshot(),
       write: (...args) => deps.session.write(...args),
@@ -79,6 +152,32 @@ export async function confirmBrokerSetup(session: VaultManageSession): Promise<v
     await session.confirmSetup(setup.setupId)
   } finally {
     setup.code.fill(0)
+  }
+}
+
+/**
+An unlocked real session with its reader and a uniquely named real store.
+A fresh client sets its broker up; a shared one meets whatever state the
+earlier case left, so it sets up or unlocks only what the state needs.
+*/
+export async function openMigrationSession(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+}): Promise<{ session: VaultManageSession; secrets: SecretStore; reader: VaultFirstPartyReader }> {
+  const session = new VaultManageSession(deps.connect, encodeVaultMaterial)
+  if (deps.fresh) {
+    await confirmBrokerSetup(session)
+  } else {
+    const before = await session.snapshot()
+    const state = before.status.state
+    if (state === 'uncreated') await confirmBrokerSetup(session)
+    else if (state === 'locked') await session.unlock(null)
+  }
+  return {
+    session,
+    secrets: uniqueKeyringStore(deps.lockScope),
+    reader: new VaultFirstPartyReader(deps.connect),
   }
 }
 
@@ -157,28 +256,26 @@ export async function assertMigratedSlot(deps: {
 }
 
 /**
-The whole subscription-slot drive both suites run: the installed record
-is taken on unlock, a token refresh mirrors through the shell, the row
-survives lock/unlock, the suite's own `extra` check runs while both
-copies live, then sign-out removes both and the log stayed quiet. The
-legacy slot is always cleaned up.
+The whole slot drive both suites run: the installed record is taken on
+unlock, a rotation mirrors through the shell, the row survives
+lock/unlock, the suite's own `extra` check runs while both copies live,
+then sign-out removes both and the log stayed quiet. The legacy slot is
+always cleaned up. Seeds are installed-shape JSON with generated
+test-only values, never issued or sent.
 */
-export async function driveSubscriptionMigration(deps: {
+export async function driveMigratedSlot(deps: {
+  flow: MigrationFlow
   secrets: SecretStore
   session: VaultManageSession
   reader: VaultFirstPartyReader
-  log: Logger
   logged: string[]
   codec: MigrationCredential
   origin: string
-  extra?: () => Promise<void>
+  initial: () => string
+  rotated: () => string
+  extra?: (ctx: { reader: VaultFirstPartyReader; codec: MigrationCredential }) => Promise<void>
 }): Promise<void> {
-  const { controller: active, shell } = chatgptMigrationFlow({
-    secrets: deps.secrets,
-    session: deps.session,
-    reader: deps.reader,
-    log: deps.log,
-  })
+  const { controller: active, shell } = deps.flow
   const migrated = (expected: string) =>
     assertMigratedSlot({
       reader: deps.reader,
@@ -191,26 +288,21 @@ export async function driveSubscriptionMigration(deps: {
   try {
     // The installed sign-in wrote here before the vault ever unlocked:
     // the raw store holds the record, taken on unlock.
-    const signedIn = installedChatGptRecord()
-    await deps.secrets.store(deps.codec.key, JSON.stringify(signedIn))
+    const signedIn = deps.initial()
+    await deps.secrets.store(deps.codec.key, signedIn)
     await active.ensureMigrated()
-    await migrated(JSON.stringify(signedIn))
+    await migrated(signedIn)
 
-    // A token refresh while unlocked mirrors through the shell.
-    const refreshed = {
-      ...signedIn,
-      accessToken: `test-access-${randomBytes(16).toString('hex')}`,
-      refreshToken: `test-refresh-${randomBytes(16).toString('hex')}`,
-      expiresAt: Date.now() + 3_600_000,
-    }
-    await shell.store.store(deps.codec.key, JSON.stringify(refreshed))
-    await migrated(JSON.stringify(refreshed))
+    // A rotation while unlocked mirrors through the shell.
+    const refreshed = deps.rotated()
+    await shell.store.store(deps.codec.key, refreshed)
+    await migrated(refreshed)
     await deps.session.lock()
     await deps.session.unlock(null)
     await active.ensureMigrated()
-    await migrated(JSON.stringify(refreshed))
+    await migrated(refreshed)
 
-    await deps.extra?.()
+    await deps.extra?.({ reader: deps.reader, codec: deps.codec })
 
     await shell.store.delete(deps.codec.key)
     expect((await deps.secrets.get(deps.codec.key)) === undefined).toBe(true)
@@ -222,4 +314,52 @@ export async function driveSubscriptionMigration(deps: {
   } finally {
     await deps.secrets.delete(deps.codec.key)
   }
+}
+
+/**
+One suite case over a real connection: the session, store, reader, log,
+pool file (for pooled slots) and controller are built, then the slot
+drive runs. Suites differ only in how they connect and what extra check
+they run while both copies live.
+*/
+export async function driveSlotCase(deps: {
+  connect: () => Promise<VaultBrokerClient>
+  lockScope: string
+  fresh: boolean
+  codec: MigrationCredential
+  origin: string
+  providers: readonly string[]
+  pool?: { file: string; provider: string; origin: string; accounts: readonly string[] }
+  initial: () => string
+  rotated: () => string
+  extra?: (ctx: { reader: VaultFirstPartyReader; codec: MigrationCredential }) => Promise<void>
+}): Promise<void> {
+  const { session, secrets, reader } = await openMigrationSession({
+    connect: deps.connect,
+    lockScope: deps.lockScope,
+    fresh: deps.fresh,
+  })
+  const { log, logged } = recordingLogger()
+  if (deps.pool !== undefined)
+    writeAccountPool(deps.pool.file, deps.pool.provider, deps.pool.origin, deps.pool.accounts)
+  const flow = migrationFlow({
+    secrets,
+    session,
+    reader,
+    log,
+    providers: deps.providers,
+    ...(deps.pool !== undefined && { listAccounts: filePoolAccounts(deps.pool.file) }),
+  })
+  await driveMigratedSlot({
+    flow,
+    secrets,
+    session,
+    reader,
+    logged,
+    codec: deps.codec,
+    origin: deps.origin,
+    initial: deps.initial,
+    rotated: deps.rotated,
+    ...(deps.extra !== undefined && { extra: deps.extra }),
+  })
 }

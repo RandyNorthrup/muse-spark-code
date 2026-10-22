@@ -11,6 +11,7 @@
 // lands and are not triggered here.
 import { createHash } from 'node:crypto'
 import { VaultMigration } from '../../core/vault/migrate/migrate'
+import { accountSecretMigrationCredential } from '../../core/vault/migrate/accountSecrets'
 import {
   CHATGPT_SUBSCRIPTION_PROVIDER_ID,
   chatgptSubscriptionMigrationCredential,
@@ -29,8 +30,14 @@ import {
 } from '../../core/vault/migrate/ports'
 import { validateMigrationItem } from '../../core/vault/migrate/material'
 import { type VaultItem, type VaultItemMetadata } from '../../shared/vault'
-import { VAULT_KEY_BYTES, VAULT_PROTOCOL_VERSION, SECRET_KEYS } from '../../shared/constants'
+import {
+  ACCOUNT_DEFAULT_ID,
+  VAULT_KEY_BYTES,
+  VAULT_PROTOCOL_VERSION,
+  SECRET_KEYS,
+} from '../../shared/constants'
 import { vaultPrivateReadSchema } from '../../shared/vaultProtocol'
+import { accountSecretKey } from '../../core/providers/accountCredentialRecord'
 import { providerSecretKey } from '../providers/credentialRecords'
 import { secretStorageLegacyPort } from './migrateSecretStorage'
 import type { SecretStore } from '../auth/credentialStore'
@@ -46,20 +53,40 @@ const JOURNAL_NAME_HASH_CHARS = 24
 /** Stable legacy-source identity for the journal rows (one SecretStorage per user). */
 const JOURNAL_SOURCE_ID = 'vscode-secret-storage'
 
-/** Every SecretStorage key this migration can take, in a fixed order. */
-export function listMigrationKeys(providerIds: readonly string[]): string[] {
+/**
+Every SecretStorage key this migration can take, in a fixed order: the
+model API key, one slot per provider, then one segmented slot per pooled
+(non-default) account. A default account rides its provider's own slot
+(the codec reads the overlaid shape), so it is never listed twice.
+*/
+export function listMigrationKeys(
+  providerIds: readonly string[],
+  accounts: ReadonlyMap<string, readonly string[]> = new Map(),
+): string[] {
   const keys: string[] = [SECRET_KEYS.modelApiKey]
   for (const id of providerIds) {
     const key = providerSecretKey(id)
     if (!keys.includes(key)) keys.push(key)
   }
+  for (const id of providerIds) {
+    const pool = accounts.get(id) ?? []
+    for (const account of pool) {
+      if (account === ACCOUNT_DEFAULT_ID) continue
+      const key = accountSecretKey(id, account)
+      if (!keys.includes(key)) keys.push(key)
+    }
+  }
   return keys
 }
 
-/** The codecs for exactly those keys; the model API key's shape is already merged. */
+/**
+The codecs for exactly those keys; the model API key's shape is already
+merged. Pooled accounts take the account codec over their segmented slot.
+*/
 export function buildMigrationCredentials(
   providerIds: readonly string[],
   now: () => number,
+  accounts: ReadonlyMap<string, readonly string[]> = new Map(),
 ): MigrationCredential[] {
   const credentials = [modelApiMigrationCredential(now)]
   for (const id of providerIds) {
@@ -68,6 +95,13 @@ export function buildMigrationCredentials(
       continue
     }
     credentials.push(providerCredentialMigrationCredential(id, now))
+  }
+  for (const id of providerIds) {
+    const pool = accounts.get(id) ?? []
+    for (const account of pool) {
+      if (account === ACCOUNT_DEFAULT_ID) continue
+      credentials.push(accountSecretMigrationCredential(id, account, now))
+    }
   }
   return credentials
 }
@@ -116,6 +150,12 @@ export interface CredentialMigrationDeps {
   readonly secrets: SecretStore
   /** Configured provider ids (the seam's store list). */
   readonly listProviderIds: () => Promise<readonly string[]>
+  /**
+  Pooled account ids per provider, from the host's account metadata.
+  Absent where the host binds no account pool yet: only default slots
+  migrate there. A test hands in the runtime's file-backed metadata.
+  */
+  readonly listAccounts?: (provider: string) => Promise<readonly string[]>
   readonly ports: CredentialMigrationPorts
   /** The installed release's minor ordinal; patches do not advance it. */
   readonly minorRelease: () => number
@@ -298,6 +338,7 @@ export class CredentialMigrationController implements MigrationMirror {
     migration: VaultMigration
     credentials: MigrationCredential[]
     providerIds: readonly string[]
+    accounts: ReadonlyMap<string, readonly string[]>
   }> {
     // The model API key needs no provider list; a seam that cannot be read
     // narrows the run to it instead of stopping it, and says so once.
@@ -322,7 +363,21 @@ export class CredentialMigrationController implements MigrationMirror {
         providerIds = [...providerIds, CHATGPT_SUBSCRIPTION_PROVIDER_ID]
       }
     }
-    const credentials = buildMigrationCredentials(providerIds, this.deps.now)
+    // Pooled accounts ride their provider's metadata pool; a pool that
+    // cannot be read narrows that provider to its default slot, said once.
+    const accounts = new Map<string, readonly string[]>()
+    if (this.deps.listAccounts !== undefined) {
+      for (const id of providerIds) {
+        try {
+          accounts.set(id, await this.deps.listAccounts(id))
+        } catch {
+          this.deps.log.warn(
+            `Credential migration could not list accounts for ${id}; migrating its default slot only`,
+          )
+        }
+      }
+    }
+    const credentials = buildMigrationCredentials(providerIds, this.deps.now, accounts)
     const now = this.deps.now()
     const deps: MigrationDeps = {
       vault: this.vaultPorts(credentials),
@@ -340,7 +395,12 @@ export class CredentialMigrationController implements MigrationMirror {
         this.deps.log.info(`Credential migration retired the legacy entry for ${key}`)
       },
     }
-    return { migration: new VaultMigration(deps, credentials), credentials, providerIds }
+    return {
+      migration: new VaultMigration(deps, credentials),
+      credentials,
+      providerIds,
+      accounts,
+    }
   }
 
   /**
@@ -370,6 +430,7 @@ export class CredentialMigrationController implements MigrationMirror {
       migration: VaultMigration
       credentials: MigrationCredential[]
       providerIds: readonly string[]
+      accounts: ReadonlyMap<string, readonly string[]>
     }
     try {
       engine = await this.engine()
@@ -378,8 +439,8 @@ export class CredentialMigrationController implements MigrationMirror {
       this.deps.log.warn(`Credential migration unavailable: ${code}`)
       return
     }
-    const { migration, providerIds } = engine
-    const keys = listMigrationKeys(providerIds)
+    const { migration, providerIds, accounts } = engine
+    const keys = listMigrationKeys(providerIds, accounts)
     for (const key of keys) {
       try {
         const phase = await migration.journalPhase(key)
@@ -415,8 +476,8 @@ export class CredentialMigrationController implements MigrationMirror {
   }
 
   async mirrorWrite(key: string, value: string): Promise<void> {
-    const { migration, providerIds } = await this.engine()
-    if (!listMigrationKeys(providerIds).includes(key)) return
+    const { migration, providerIds, accounts } = await this.engine()
+    if (!listMigrationKeys(providerIds, accounts).includes(key)) return
     const bytes = Buffer.from(value, 'utf8')
     try {
       // The journal phase decides, not `resolve`: provider codecs carry no
@@ -455,8 +516,8 @@ export class CredentialMigrationController implements MigrationMirror {
   mid-state delete with a conflict instead of destroying half a slot.
   */
   async mirrorDelete(key: string): Promise<boolean> {
-    const { migration, providerIds } = await this.engine()
-    if (!listMigrationKeys(providerIds).includes(key)) return false
+    const { migration, providerIds, accounts } = await this.engine()
+    if (!listMigrationKeys(providerIds, accounts).includes(key)) return false
     const phase = await migration.journalPhase(key)
     // Never copied, or a finished sign-out: no vault copy to remove, so the
     // shell clears SecretStorage the plain way.
