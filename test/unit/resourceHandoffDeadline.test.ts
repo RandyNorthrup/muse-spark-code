@@ -102,9 +102,16 @@ describe('handoffResourceFile wait', () => {
     try {
       const marker = path.join(storage, 'marker')
       // The deadline covers admission and the adapter run: admission is
-      // warmed first, so the bound falls on the adapter alone.
+      // warmed and timed first, so the bound falls on the adapter alone,
+      // half-way through its run. A Windows hand-off's admission (job
+      // helper, temp root) measured 0.9-1.5 s on a desktop PC, where a
+      // fixed 500 ms deadline cancelled admission before the adapter ran.
+      const warmStarted = Date.now()
       await runHandoff(storage, path.join(storage, 'warmup'), QUICK_SCRIPT)
-      await runHandoff(storage, marker, ADAPTER_SCRIPT, { timeoutMs: 500 })
+      const admissionMs = Date.now() - warmStarted
+      await runHandoff(storage, marker, ADAPTER_SCRIPT, {
+        timeoutMs: admissionMs + SLOW_ADAPTER_MS / 2,
+      })
       // Resolved while the adapter still runs: the marker lands only later.
       expect(existsSync(marker)).toBe(false)
       // Detached, never killed: the adapter runs to its own end.

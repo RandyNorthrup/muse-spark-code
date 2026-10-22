@@ -330,3 +330,18 @@ privateRootLease 2, mediaConvert 1 — parent-dir modes; vsixCompression
 2 — pinned zopfli absent; brokerSocketDirectory 3 — rig path depth
 over the socket limit; scheduleBackgroundReconcile 1 — `.app` in the
 rig path trips the launcher allowlist). Zero lane regressions.
+
+## Integration on Windows (int/recovery, 2026-10-22)
+
+`resourceHandoffDeadline` "detaches at an explicit deadline" failed on
+the owner's Windows 11 PC after the merge (`AbortError: Resource
+admission cancelled`): its fixed 500 ms deadline, tuned on `linuxlt`,
+covers admission, and a Windows hand-off's admission (job helper, temp
+root) measured 0.9-1.5 s there over twelve sequential warm hand-offs
+(plateau, no growth). The deadline is now the measured warm-up plus half
+the adapter's run, so it still lands on the adapter alone; the
+assertions are unchanged. Drill: the product's hand-off deadline
+removed (`callerStop(undefined, undefined)` in
+`src/core/resources/process.ts`) made the case red (exit 1, `expected
+true to be false`, the adapter waited out); restored byte-exact, green
+(exit 0, 3/3).
