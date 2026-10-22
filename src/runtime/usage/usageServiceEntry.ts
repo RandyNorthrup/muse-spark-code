@@ -7,6 +7,7 @@ import {
   type UsageJournalRead,
 } from '../../core/usage/usageService'
 import { usageText, type UsageTextFormat } from '../../core/usage/usageText'
+import { usageFailureForLog } from '../../core/usage/failures'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { setUsageText } from '../../shared/l10n/usageTable'
@@ -70,7 +71,7 @@ export const createUsageWriter: UsageWriterBundle['createUsageWriter'] = (option
       if (isInvalidUsageSettings(error)) {
         if (hasReportedInvalidSettings) return false
         hasReportedInvalidSettings = true
-        if (options.onInvalidSettings === undefined) options.onWriteError()
+        if (options.onInvalidSettings === undefined) options.onWriteError(error)
         else options.onInvalidSettings()
         return false
       }
@@ -81,6 +82,9 @@ export const createUsageWriter: UsageWriterBundle['createUsageWriter'] = (option
     new UsageJournalStore(new NodeUsageFs(options.dataFolder, options.now), {
       ...options,
       isEnabled,
+      onWriteError: (_code, error) => {
+        options.onWriteError(error)
+      },
     }),
   )
 }
@@ -104,8 +108,8 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
     writerId: randomUUID(),
     now: Date.now,
     isEnabled: () => settings().enabled,
-    onWriteError: () => {
-      deps.log.warn('Usage history could not be recorded')
+    onWriteError: (_code, error) => {
+      deps.log.warn(`Usage history could not be recorded (${usageFailureForLog(error)})`)
     },
   })
   // M107 J: the same machine journal the governors record; read-only here.

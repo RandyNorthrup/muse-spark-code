@@ -191,6 +191,10 @@ const SAFE_ERROR_FNS = new Set([
   'errorKind',
   'errorName',
   'codeOf',
+  // `usageFailureForLog` (core/usage/failures.ts) returns only a fixed
+  // known word, `wireWordForLog` of the error's `.code`, or a fixed
+  // fallback; a message carrying a path or content never matches.
+  'usageFailureForLog',
 ])
 
 /** A logger call (`log.warn(...)`, never `console.*`). */

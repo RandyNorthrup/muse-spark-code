@@ -21,9 +21,7 @@ import {
   RESOURCE_JOURNAL_RETAIN_MS,
   RESOURCE_JOURNAL_ROLLUP_DELAY_MS,
   RESOURCE_JOURNAL_VERSION,
-  RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS,
   RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS,
-  RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS,
   USAGE_FOLDER,
   USAGE_LINE_FEED_BYTE,
   USAGE_RECORD_MAX_BYTES,
@@ -35,7 +33,7 @@ import {
   type ResourceHistoryDay,
 } from '../../shared/resourceHistory'
 import type { ResourceKind, ResourceRecord } from '../../shared/resources'
-import type { UsageFs, UsageLock } from './journalStore'
+import { acquireJournalLock, type UsageFs, type UsageLock } from './journalStore'
 import type { ResourceRecordSink } from './resourceRecords'
 
 export const RESOURCE_JOURNAL_ROOT = `${USAGE_FOLDER}/${USAGE_VERSION_FOLDER}/${RESOURCE_JOURNAL_FOLDER}`
@@ -326,24 +324,18 @@ export class ResourceJournal implements ResourceRecordSink {
   held; each write inside `action` proves it again at its commit (`fence`).
   */
   private async exclusive<T>(action: (lock: UsageLock) => Promise<T>): Promise<T> {
-    const sleep =
-      this.options.sleep ??
-      ((ms: number) =>
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, ms)
-        }))
-    for (let attempt = 0; attempt < RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS; attempt++) {
-      const lock = await this.fs.acquireLock(WRITE_LOCK_FILE, RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS)
-      if (lock !== undefined) {
-        try {
-          return await action(lock)
-        } finally {
-          await lock.release()
-        }
-      }
-      await sleep(RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS)
+    const lock = await acquireJournalLock(
+      this.fs,
+      WRITE_LOCK_FILE,
+      RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS,
+      this.options.sleep,
+    )
+    if (lock === undefined) throw new Error('resourceHistoryBusy')
+    try {
+      return await action(lock)
+    } finally {
+      await lock.release()
     }
-    throw new Error('resourceHistoryBusy')
   }
 
   /** `budget`: bytes this read may still use; checked before and after reading. */

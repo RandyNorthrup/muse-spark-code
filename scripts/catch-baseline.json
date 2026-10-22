@@ -9,7 +9,7 @@
     "core": {
       "SWALLOW": 72,
       "GENERIC": 267,
-      "CLEANUP": 234
+      "CLEANUP": 230
     },
     "host": {
       "SWALLOW": 19,
@@ -2495,27 +2495,7 @@
     },
     {
       "file": "src/core/usage/journalStore.ts",
-      "identity": "c0fbf71b91079baaa2178f84ab43c1bd9b4d9c2590fe6735147d3e36ceb6030b",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/usage/journalStore.ts",
-      "identity": "0d55bb0da9e2cf1f1f62d202a5cbf998f01eb05e99052fa1dbaf057bad8ca1db",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/usage/journalStore.ts",
-      "identity": "c6709fc7a47eb4224c6849ae98590fbb43bd792b1fcb4410327d536fc06bfb85",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/usage/journalStore.ts",
-      "identity": "95fa69cfb5121d5d62fb825ae2aba9d835be53ce684454de47211b5b7c32d316",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/usage/recording.ts",
-      "identity": "9ffd18650d232af57d89d508c20749ca018670a99210881211d5a5d17889babc",
+      "identity": "0c3a7af65788ebeed16cecbf480b8a2e34e63b2ee271bdf1479ceb15c82f3a7a",
       "class": "CLEANUP"
     },
     {
