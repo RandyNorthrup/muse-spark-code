@@ -1,14 +1,16 @@
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
-import { beforeAll, expect, it } from 'vitest'
-import { HOST_PLUGINS } from '../../scripts/lib/hostPlugins.mjs'
+import { afterAll, beforeAll, expect, it } from 'vitest'
 import {
   deferredCohort,
+  sharedModelApiBoundaries,
   sharedResourceAdmission,
   sharedUiText,
   sharedValidation,
+  sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
 import { EN } from '../../src/shared/l10n/en'
 import { immediateResourceSettings } from './helpers/resources/fixtureAdmission.ts'
@@ -30,7 +32,10 @@ const workerNativeOperation = async (proof, op, identity = '') =>
     ]),
   )
 beforeAll(async () => {
-  state.folder = path.join(nativeScratch(), 'package')
+  // The packaged install stages outside the workspace, as production's
+  // installed location is: main's path guard refuses a helper planted
+  // inside the workspace, and the package's own copy is that helper here.
+  state.folder = await mkdtemp(path.join(tmpdir(), 'team-packaged-'))
   const options = {
     bundle: true,
     platform: 'node',
@@ -42,10 +47,20 @@ beforeAll(async () => {
   }
   await build({
     ...options,
-    // HOST_PLUGINS carries sharedResourceAdmission, as in production: the
-    // team chunks launch through the configured resourceAdmission.js below,
-    // never an inline copy whose admission state no test configures.
-    plugins: [...HOST_PLUGINS],
+    // Production's team plugin set (scripts/build.mjs teamOptions):
+    // sharedResourceAdmission so the team chunks launch through the
+    // configured resourceAdmission.js below, never an inline copy whose
+    // admission state no test configures — but no sharedExecGuard, which
+    // production's team build does not use either: the fence's guard layer
+    // stays inline in these chunks.
+    plugins: [
+      sharedUiText,
+      sharedValidation,
+      deferredCohort,
+      sharedWire,
+      sharedResourceAdmission,
+      sharedModelApiBoundaries,
+    ],
     entryPoints: {
       teamHost: 'src/core/team/workers/workerFence.ts',
       teamFileIo: 'src/core/team/workers/workerToolIoEntry.ts',
@@ -119,6 +134,10 @@ beforeAll(async () => {
     { mode: 0o755 },
   )
 }, 30_000) // Compile the real native/helper bundle graph once; test deadlines remain the repository default.
+
+afterAll(async () => {
+  if (state.folder !== '') await rm(state.folder, { recursive: true, force: true })
+})
 
 it('NF packaged file adapter shares the retained grant and loads native creation only on first use', async () => {
   const dist = path.join(state.folder, 'dist')
