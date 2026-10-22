@@ -2852,6 +2852,7 @@
   "agentRetryNoSubagent": "このエージェントは再試行できません。再試行するサブエージェントがありません。",
   "agentRetryNoCheckpoint": "このエージェントは再試行できません。分離されたチェックポイントがありません。共有ワークスペースの変更は保持されます。",
   "agentContinueUnavailable": "このエージェントまたは現在の状態では続行できません。",
+  "agentResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "この会話にそのエージェントはもういません。",
   "referenceAgentOutcomes": "エージェントは活動状況と証拠に基づく結果を表示します。終了したエージェントを選ぶと、サイズ制限付きの記録と試行履歴が開きます。確認後の続行ではセッションと変更を保持し、再試行には分離されたチェックポイントが必要です。証拠がない場合は未検証と表示します。ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "エージェントをクリックすると詳細を表示します",
