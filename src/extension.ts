@@ -2278,6 +2278,7 @@ async function activateWindow(
     onGenerationChanged: () => {
       estimatorProviderGeneration += 1
     },
+    log,
   })
   // Baseline the stable keys without bumping; dynamic provider keys bump
   // fail-safe on first sight (their prior identity is unknown).
