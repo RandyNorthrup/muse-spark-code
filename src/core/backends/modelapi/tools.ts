@@ -70,6 +70,7 @@ import {
   BROWSER_CHECK_PARAMETERS,
   BROWSER_CHECK_REQUIRED,
 } from '../../browser/browserTool'
+import { confinedGlob, pathRefusal } from './modelApiAcpEntry'
 import { confineWorkspacePath, normalizeModelPath } from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
@@ -503,6 +504,8 @@ export interface TouchedFiles {
 }
 
 export interface ToolOutcome {
+  readonly refusalCode?: 'outside_workspace'
+
   /** Owned process exit, retained separately from its human-readable output. */
   readonly exitCode?: number
   /** What the model receives as the function result. */
@@ -1451,7 +1454,7 @@ async function readFile(
   const resolved = await readablePath(args.path, context)
   context.signal?.throwIfAborted()
   if (!resolved.ok) {
-    return failure(resolved.reason)
+    return pathRefusal(resolved, args.path)
   }
   if (isDenied(resolved, context)) {
     return failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
@@ -1549,7 +1552,7 @@ async function located(
     context.io,
   )
   if (!resolved.ok) {
-    return { ok: false, outcome: failure(resolved.reason) }
+    return { ok: false, outcome: pathRefusal(resolved, given) }
   }
   if (isDenied(resolved, context)) {
     return {
@@ -1913,7 +1916,11 @@ async function search(
   const p = context.platform === 'win32' ? path.win32 : path.posix
   let candidates: readonly string[]
   try {
-    candidates = await listMatching(context, args.glob)
+    const checked = await confinedGlob(args.glob, context)
+    if (!checked.ok) {
+      return pathRefusal(checked, args.glob)
+    }
+    candidates = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
@@ -1970,7 +1977,11 @@ async function listFiles(
   const limit = Math.max(args.limit ?? LIST_FILES_DEFAULT_LIMIT, 1)
   let files: readonly string[]
   try {
-    files = await listMatching(context, args.glob)
+    const checked = await confinedGlob(args.glob, context)
+    if (!checked.ok) {
+      return pathRefusal(checked, args.glob)
+    }
+    files = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))

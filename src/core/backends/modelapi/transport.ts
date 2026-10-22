@@ -11,6 +11,7 @@ import {
 } from './pacing'
 import {
   MODEL_API_BASE_URL,
+  CREDENTIAL_STORE_ERROR_KIND,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_STATUS,
   NON_BILLABLE_HTTP_REJECTIONS,
@@ -741,17 +742,30 @@ export class RequestTransport {
 
   /** Read authorization fresh for every attempt. */
   private async headers(url: string): Promise<AuthHeaders> {
-    if (this.deps.auth !== undefined) {
-      return await this.deps.auth.headers(url)
-    }
-    const key = await this.deps.apiKey?.()
-    if (key === undefined) {
-      throw new MissingApiKeyError()
-    }
-    return {
-      redact: (text) => redactSecrets(text, [key]),
-      values: { Authorization: `Bearer ${key}`, 'Content-Type': JSON_MEDIA_TYPE },
-      keyDigest: createHash('sha256').update(key).digest('hex'),
+    try {
+      if (this.deps.auth !== undefined) {
+        return await this.deps.auth.headers(url)
+      }
+      const key = await this.deps.apiKey?.()
+      if (key === undefined) {
+        throw new MissingApiKeyError()
+      }
+      return {
+        redact: (text) => redactSecrets(text, [key]),
+        values: { Authorization: `Bearer ${key}`, 'Content-Type': JSON_MEDIA_TYPE },
+        keyDigest: createHash('sha256').update(key).digest('hex'),
+      }
+    } catch (error: unknown) {
+      // Runtime/bundled constructors differ; native diagnostics never cross this boundary.
+      if (error instanceof Error && error.name === 'StoreUnavailableError') {
+        throw new ModelApiError(
+          UI_TEXT.acpCredentialStoreNoAnswer,
+          0,
+          CREDENTIAL_STORE_ERROR_KIND,
+          CREDENTIAL_STORE_ERROR_KIND,
+        )
+      }
+      throw error
     }
   }
 

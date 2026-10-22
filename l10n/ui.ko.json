@@ -2683,6 +2683,7 @@
   "autoCompactionName": "자동 압축",
   "paidConfirmAutoCompaction": "자동 압축은 선택한 모델을 {price} 요금으로 사용합니다. 구독으로 이 비용을 지불할 수 없습니다.",
   "autoCompactionAwaitingEvaluation": "자동 압축은 평가를 기다리고 있으며 비활성 상태입니다.",
+
   "autoCompactionFailed": "자동 압축에 실패했습니다. 원래 컨텍스트로 계속 진행합니다.",
   "autoCompactionBudgetRefused": "자동 압축이 실행되지 않았습니다: 일일 유료 예산이 거부했습니다. 예산을 늘리거나 내일 다시 시도하세요. 원래 컨텍스트가 유지됩니다.",
   "contextWindowFull": "컨텍스트 창이 가득 찼습니다: /compact 또는 /handoff",
@@ -3610,6 +3611,10 @@
   "acpKeyAbsent": "저장된 Meta Model API 키가 없습니다.",
   "acpStoreDown": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없어 저장된 키를 확인할 수 없습니다.",
   "acpKeyCleared": "이 컴퓨터의 자격 증명 저장소에서 Meta Model API 키를 제거했습니다.",
+  "acpOutsideWorkspaceRefused": "작업 영역 밖입니다. 읽거나 쓴 내용이 없습니다. 승인은 작업 영역 접근 범위를 넓힐 수 없습니다.",
+  "acpRefusalOutsideWorkspace": "경로 {path}은(는) 작업 영역 밖에 있습니다. 읽거나 쓴 내용이 없습니다.",
+  "acpRefusalLinkEscape": "경로 {path}은(는) 링크를 통해 작업 영역 밖으로 연결됩니다. 읽거나 쓴 내용이 없습니다.",
+  "acpCredentialStoreNoAnswer": "자격 증명 저장소가 응답하지 않았습니다. 이 요청은 전송되지 않았습니다. 다시 시도하세요.",
   "acpStoreUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다({reason}). Linux에서는 GNOME Keyring이나 KWallet처럼 실행 중이고 잠금 해제된 Secret Service가 에이전트에 필요합니다.",
   "acpStoreNames": {
     "windows": "Windows 자격 증명 관리자",
@@ -3621,6 +3626,9 @@
   "acpQuestionFormMessage": "Muse가 질문이 있습니다.",
   "acpQuestionAsked": "Muse가 질문이 있습니다. 이 편집기에서는 양식으로 표시할 수 없으니 다음 메시지로 답해 주세요:",
   "acpUnknownArgument": "알 수 없는 인수: {argument}",
+  "acpUnknownCommand": "알 수 없는 명령 {command}입니다. 비슷한 명령: {commands}. 전체 목록은 /help로 확인하세요. 슬래시로 시작하는 메시지를 보내려면 \\/로 시작하세요.",
+  "acpHelpUnknownTopic": "{topic}에 대한 도움말이 없습니다. 명령 목록은 /help로 확인하세요.",
+  "acpCommandHelpNote": "에이전트가 모르는 슬래시 메시지는 여기서 답변하며 모델에 전송하지 않습니다. /help <명령>은 하나의 명령을 설명합니다. 선행 슬래시를 문자 그대로 보내려면 메시지를 \\/로 시작하세요.",
   "acpPaidNeedsModelApi": "{argument}에는 --backend modelApi가 필요합니다. 유료 기능은 Model API 키에 청구됩니다.",
   "acpFontUi": "UI 글꼴",
   "acpFontCode": "코드 글꼴",

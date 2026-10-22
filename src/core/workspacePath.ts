@@ -12,6 +12,7 @@ import {
   normalWindowsPath,
   unprovenUncPathReason,
   windowsPathProblem,
+  windowsPathRefusalCode,
 } from './windowsPathSpelling'
 import { pathIdentityRelation } from './pathIdentity'
 
@@ -27,7 +28,7 @@ export type PathResolution =
       */
       readonly canonical: string
     }
-  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' }
 
 /** A confined path and the canonical target checked before a tool read. */
 type ConfinedPathResolution =
@@ -44,6 +45,9 @@ export interface RealPathIo {
 }
 
 const PARENT_SEGMENT = '..'
+
+/** The fixed clause a confinement reason carries when a link escape was refused. */
+const LINK_ESCAPE_CLAUSE = 'leads outside the workspace through a link'
 
 /** Whether a `path.relative` result stays below its base. */
 export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
@@ -67,7 +71,9 @@ Windows. `~` is refused: it would otherwise create a literal `~` folder.
 export function normalizeModelPath(
   given: string,
   platform: NodeJS.Platform,
-): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly reason: string } {
+):
+  | { readonly ok: true; readonly path: string }
+  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' } {
   let path = given.replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
   if (path.startsWith('@')) {
     path = path.slice(1)
@@ -75,6 +81,7 @@ export function normalizeModelPath(
   if (path === '~' || path.startsWith('~/') || (platform === 'win32' && path.startsWith('~\\'))) {
     return {
       ok: false,
+      code: 'outside_workspace',
       reason: `path ${given} starts at the home directory, which is outside the workspace`,
     }
   }
@@ -115,44 +122,75 @@ export function normalizeModelPath(
   return { ok: true, path }
 }
 
-/** Resolves a model-given path inside the workspace by its text, refusing escapes. */
-export function resolveWorkspacePath(
+/**
+Normalise a model-given path and resolve it against the root textually,
+applying the Windows spelling rules. Lexical containment is NOT checked:
+`resolveWorkspacePath` checks it, while `confineWorkspacePath` judges an
+alias spelling by resolved identity instead (R4).
+*/
+function resolveWorkspaceAbsolute(
   workspaceRoot: string,
   given: string,
   platform: NodeJS.Platform,
-): PathResolution {
+):
+  | { readonly ok: true; readonly root: string; readonly absolute: string }
+  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' } {
   const normalized = normalizeModelPath(given, platform)
   if (!normalized.ok) {
     return normalized
   }
   const problem = windowsPathProblem(normalized.path, platform, workspaceRoot)
-  if (problem !== undefined) return { ok: false, reason: `path ${given} ${problem}` }
+  if (problem !== undefined) {
+    const code = windowsPathRefusalCode(problem)
+    return { ok: false, reason: `path ${given} ${problem}`, ...(code !== undefined && { code }) }
+  }
   const p = pathModule(platform)
   const root = platform === 'win32' ? normalWindowsPath(workspaceRoot) : workspaceRoot
   const absolute = p.resolve(
     root,
     platform === 'win32' ? normalWindowsPath(normalized.path) : normalized.path,
   )
-  const relative = p.relative(root, absolute)
+  return { ok: true, root, absolute }
+}
+
+/** Resolves a model-given path inside the workspace by its text, refusing escapes. */
+export function resolveWorkspacePath(
+  workspaceRoot: string,
+  given: string,
+  platform: NodeJS.Platform,
+): PathResolution {
+  const resolved = resolveWorkspaceAbsolute(workspaceRoot, given, platform)
+  if (!resolved.ok) {
+    return resolved
+  }
+  const p = pathModule(platform)
+  const relative = p.relative(resolved.root, resolved.absolute)
   if (!isBelow(relative, p)) {
-    return { ok: false, reason: `path ${given} is outside the workspace` }
+    return {
+      ok: false,
+      code: 'outside_workspace',
+      reason: `path ${given} is outside the workspace`,
+    }
   }
   if (
     platform === 'win32' &&
-    isUncPath(absolute) &&
-    pathIdentityRelation(absolute, workspaceRoot, platform) !== 'inside'
+    isUncPath(resolved.absolute) &&
+    pathIdentityRelation(resolved.absolute, workspaceRoot, platform) !== 'inside'
   ) {
     return { ok: false, reason: unprovenUncPathReason(given) }
   }
   const segments = relative.split(p.sep)
   const forward = segments.join('/')
-  return { ok: true, absolute, relative: forward, canonical: forward }
+  return { ok: true, absolute: resolved.absolute, relative: forward, canonical: forward }
 }
 
 /**
-`resolveWorkspacePath`, then the same check on the canonical forms of the
-root and the target: a symbolic link or junction inside the workspace
-that leads outside it is refused (PLAN.md D24).
+`resolveWorkspacePath`'s spelling rules, then containment by resolved
+identity (R4): the real path of the nearest existing ancestor of the
+target and of the root are compared, so a Windows 8.3 short name of the
+workspace is inside it. A spelling the rules refuse (devices, streams,
+the home folder, an unproven UNC root) stays refused; a link or junction
+inside the workspace that leads outside it is refused as before (PLAN.md D24).
 */
 export async function confineWorkspacePath(
   workspaceRoot: string,
@@ -160,16 +198,27 @@ export async function confineWorkspacePath(
   platform: NodeJS.Platform,
   io: RealPathIo,
 ): Promise<ConfinedPathResolution> {
-  const textual = resolveWorkspacePath(workspaceRoot, given, platform)
-  if (!textual.ok) {
-    return textual
+  const resolved = resolveWorkspaceAbsolute(workspaceRoot, given, platform)
+  if (!resolved.ok) {
+    return resolved
+  }
+  const p = pathModule(platform)
+  const lexical = p.relative(resolved.root, resolved.absolute)
+  const isLexicallyInside = isBelow(lexical, p)
+  if (
+    isLexicallyInside &&
+    platform === 'win32' &&
+    isUncPath(resolved.absolute) &&
+    pathIdentityRelation(resolved.absolute, workspaceRoot, platform) !== 'inside'
+  ) {
+    return { ok: false, reason: unprovenUncPathReason(given) }
   }
   let realRoot: string
   let realTarget: string
   try {
     ;[realRoot, realTarget] = await Promise.all([
       io.realPath(workspaceRoot),
-      io.realPath(textual.absolute),
+      io.realPath(resolved.absolute),
     ])
   } catch (error: unknown) {
     // Only a shaped store failure leaves the path unresolved: a refusal or
@@ -180,9 +229,23 @@ export async function confineWorkspacePath(
     }
     throw error
   }
-  const p = pathModule(platform)
   const relative = p.relative(realRoot, realTarget)
-  return isBelow(relative, p)
-    ? { ...textual, canonical: relative.split(p.sep).join('/'), checkedAbsolute: realTarget }
-    : { ok: false, reason: `path ${given} leads outside the workspace through a link` }
+  if (isBelow(relative, p)) {
+    const segments = lexical.split(p.sep)
+    const forward = segments.join('/')
+    return {
+      ok: true,
+      absolute: resolved.absolute,
+      relative: forward,
+      canonical: relative.split(p.sep).join('/'),
+      checkedAbsolute: realTarget,
+    }
+  }
+  return {
+    ok: false,
+    code: 'outside_workspace',
+    reason: isLexicallyInside
+      ? `path ${given} ${LINK_ESCAPE_CLAUSE}`
+      : `path ${given} is outside the workspace`,
+  }
 }

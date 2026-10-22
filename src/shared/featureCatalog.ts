@@ -54,7 +54,6 @@ const UI_CONDITIONS: Readonly<
   privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
   referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
-  autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
   referenceBestOfNRequirements: 'bestOfNAdmission',
   referenceSecretPrompt: 'secretDetected',
@@ -753,6 +752,7 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApi'],
     ),
     feature(
+      // ACPDOG: negotiated notices, journal accounting metadata and typed workspace refusals.
       'acp',
       { ui: 'helpReferenceTitle' },
       { ui: 'referenceAcp' },

@@ -145,6 +145,8 @@ import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
+import { resourceFailureReporter } from './resources/text'
+import { createAcpAccounting } from './acpAccounting'
 import type { ResourceSettings } from '../shared/resources'
 import { execAccountSelection } from './exec/execAccounts'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
@@ -490,6 +492,7 @@ async function runtimeFor(
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
+    hostKind: questions === undefined ? 'cli' : 'acp',
     options,
     version: packageVersion(),
     distDir,
@@ -520,9 +523,7 @@ function resourcesFor(
     }),
     sleep,
     log,
-    onError: () => {
-      log.warn(UI_TEXT.resourceUnavailable)
-    },
+    onError: resourceFailureReporter(log),
     // A damaged usage-history choice on stderr once, with what is damaged,
     // what the product does, and what to do (the noter announces once per
     // distinct damage).
@@ -1115,6 +1116,18 @@ async function serve(
     }
     const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
+      accounting: createAcpAccounting({
+        recording,
+        runtime,
+        isEnabled: () => isUsageHistoryOn && options.backend === 'modelApi',
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        now: Date.now,
+        sleep,
+      }),
       schedules: {
         isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
         async holdWorkspace(cwd, session) {

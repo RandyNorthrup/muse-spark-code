@@ -23,6 +23,21 @@ happened, not what was planned; superseded entries are kept.
   message ids and tool calls carry tool names, so editors group them
   correctly. The agent still never drives the editor's terminal or files
   itself; that stays a design note until a turn needs it.
+### Fixed
+
+- Workspace file refusals reach both the model and ACP tool rows with a typed reason.
+- Account, resource, question and schedule advisories stay out of model answers.
+
+- ACP turn responses and updates expose journal-backed exact costs, token classes and remaining budgets. Failed turns retain incurred-cost metadata.
+- Verbose exec logs name failed-turn causes; resource logs name unavailable readings once.
+
+- ACP requests report known failures as typed refusals and log unexpected failure causes once with secrets and request content redacted.
+
+- Provider settlement preserves catalogue cache-write rates and prices cache duration classes separately; usage records retain exact USD amounts.
+
+- ACP backend advisories use negotiated session notices once per session, keeping model answers free of feature-state and transport notices.
+
+- ACP slash handling: unknown slash commands are answered locally with the nearest known commands and never reach the model; `/help <command>` explains one command; `\/` sends a literal leading slash to the model. `session/load` of an unknown id answers resource-not-found like a prompt on an unknown session. `/compact` always ends with a message saying what it did. The command list arrives with the new or loaded session.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

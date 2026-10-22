@@ -2857,6 +2857,16 @@ export const ERROR_CAUSE_MAX_DEPTH = 5
 // The turn error kind both backends report when the credential is refused;
 // the controller turns it into the signed-out gate.
 export const AUTH_REQUIRED_ERROR_KIND = 'authRequired'
+// OS-store reads are request-local (D89).
+export const CREDENTIAL_STORE_ERROR_KIND = 'credential_store_unavailable'
+export const ACP_ERROR_CODES = {
+  internal: -32_603,
+  credentialStore: -32_010,
+  turnFailed: -32_011,
+  unavailable: -32_012,
+  refused: -32_013,
+} as const
+
 // The reasoning effort sent while the Thinking toggle is off (`none` is a 400).
 export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.
@@ -7490,6 +7500,20 @@ export const CODE_INTEL_MODEL_TEXT = {
 export const BYO_MODEL_REFERENCE_PATTERN = /^[a-z][a-z0-9-]{0,31}\/\S+$/
 
 export const MODEL_API_MODEL_TEXT = {
+  runtimeIdentity:
+    'You are {model}, served by {provider}, a coding agent in the Muse Spark Code (Unofficial) {host} runtime.',
+  runtimeNoShell:
+    'There is no shell tool in this run. Tools obey this run’s workspace permissions; refused actions return tool errors, so move on instead of retrying them.',
+  runtimeMcpRefused: 'MCP tools are unavailable with this run’s workspace permissions.',
+  runtimeLanguageHost: 'this host',
+  runtimeGitUnknown: '- Git facts are unavailable in this run.',
+  runtimeDiagnostics:
+    '- When this host supplies diagnostics after edits, fix errors introduced by your edits before finishing.',
+  execQuestionsUnavailable:
+    'This headless run has no interactive questions. If a decision is required, report it instead of asking. Use todo_write to track work.',
+
+  outsideWorkspaceRefused:
+    'outside the workspace; not read or written. Approval cannot widen workspace access.',
   // M106: only the Model API loop reads these, so keep them in its lazy
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
   // D121: no repeat stop of ours — a repeated call runs again, so the model

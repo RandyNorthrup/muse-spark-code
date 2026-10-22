@@ -6720,6 +6720,8 @@ generated tokens after disconnect. The retained amount is a possible charge,
 never a confirmed spend. `--max-output-tokens` lowers the actual request cap;
 startup no longer prices the model's full context window before building it.
 
+ACP clients receive turn accounting in protocol metadata; see [the ACP guide](docs/acp.md#turn-accounting) for exact USD, token classes and budget availability.
+
 ### Companion dictation certification
 
 The M9/M35 browser microphone implementation remains hidden in this build:

@@ -7,6 +7,7 @@ import type { ResourceEntryOptions, createResources } from './entry'
 import type { RuntimeResources } from './port'
 import { configureResources } from '../../core/resources/admission'
 import { runtimeWindowsJob } from './jobs'
+import { ResourceReadingError } from './text'
 
 interface ResourceModule {
   createResources: typeof createResources
@@ -91,7 +92,7 @@ export function lazyRuntimeResources(
     registryFile: path.join(options.machineDir, 'resource-created', 'registry.json'),
     inspect: () => ({}),
     onError: () => {
-      options.log.warn(UI_TEXT.resourceUnavailable)
+      options.onError(new ResourceReadingError('resources.admission'))
     },
     // The caller's deadline is armed before loading and sampling, so a slow
     // bundle, settings read or sampler cannot outlast it (SPAWN017C item 3).

@@ -8,6 +8,7 @@ import { nonnegativeUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 import { agentEvidenceSchema, agentFileSchema } from './agentEvidence'
+import { USAGE_CERTAINTIES } from './usageJournal'
 
 import { scheduleViewSchema } from './schedule'
 import {
@@ -155,6 +156,7 @@ export const itemSnapshotFields = {
   /** `toolCall` / `userShell`: transcript-visible result text (streams as `output`). */
   visibleOutput: optionalString,
   failureReason: optionalString,
+  refusalCode: z.optional(z.literal('outside_workspace')),
   outputRef: z.optional(outputRefSchema),
   patchRef: z.optional(outputRefSchema),
   patchSummary: z.optional(patchSummarySchema),
@@ -472,6 +474,16 @@ const agentEventSchema = z.discriminatedUnion('type', [
     packedTokensAvoided: optionalNumber,
     hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
     completion: z.optional(tokenUsageCompletionSchema),
+    // The settled cost of the requests behind these totals (R5, Model API
+    // only): each request priced at the model actually billed, with its
+    // certainty. Absent while any of it is unpriced, so readers never show
+    // a partial tally as the answer's cost.
+    cost: z.optional(
+      z.object({
+        usd: nonnegativeUsdSchema,
+        certainty: z.enum(USAGE_CERTAINTIES),
+      }),
+    ),
   }),
   z.object({
     type: z.literal('contextUsage'),

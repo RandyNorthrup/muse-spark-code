@@ -100,6 +100,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly bundledSkills?: BundledSkillsSource | undefined
   /** The managed personal agent root (M76). */
   readonly personalAgentsRoot: string | undefined
+  readonly hostKind?: ModelApiHostDeps['hostKind']
   readonly isWorkspaceTrusted: () => boolean
   /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
   readonly isConfidentialWorkspace: () => boolean
@@ -428,6 +429,7 @@ export class ModelApiBackendManager {
         personalSkillsRoot: this.deps.personalSkillsRoot,
         bundledSkills: this.deps.bundledSkills,
         personalAgentsRoot: this.deps.personalAgentsRoot,
+        hostKind: this.deps.hostKind,
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
         isConfidentialWorkspace: this.deps.isConfidentialWorkspace,
         confirmContributorModel: this.deps.confirmContributorModel,
