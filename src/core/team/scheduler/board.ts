@@ -384,6 +384,26 @@ export class TaskBoard {
     }
   }
 
+  /**
+  Move to… (M120 lane P): requeue a waiting task under another role. The
+  loan stays with its authorized candidate and role, so it goes; the new
+  role's demand window starts at the move. A running or terminal task
+  refuses; stop and capture it first.
+  */
+  moveToRole(id: string, roleId: string, at: number): boolean {
+    const task = this.requireTask(id)
+    if (terminal.has(task.state) || task.state === 'running') return false
+    task.roleId = roleId
+    task.state = 'ready'
+    task.readyAt = at
+    task.reassignments++
+    delete task.loan
+    delete task.unmetSinceMs
+    delete task.blockedReason
+    this.refresh(at)
+    return true
+  }
+
   /** Journalled with the board, including demand resets when a main candidate frees. */
   demand(id: string, nowMs: number, isMainFree: boolean): void {
     const task = this.requireTask(id)
