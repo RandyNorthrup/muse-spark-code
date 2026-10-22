@@ -153,13 +153,15 @@ unsupported OS refuses with typed `unsupported-host` before any spawn.
 A factory whose driver names another platform refuses the same way: one
 OS's containment never stands in for another's.
 */
+export interface DeviceWorkerDriverFactories {
+  darwin(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
+  win32(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
+  linux(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
+}
+
 export async function selectDeviceWorkerDriver(
   platform: NodeJS.Platform,
-  factories: {
-    darwin(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
-    win32(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
-    linux(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
-  },
+  factories: DeviceWorkerDriverFactories,
 ): Promise<DeviceWorkerDriver> {
   let driver: DeviceWorkerDriver
   switch (platform) {
