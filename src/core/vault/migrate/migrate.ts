@@ -633,6 +633,32 @@ export class VaultMigration {
       return entry.request === null ? null : vaultPrivateReadSchema.parse(entry.request)
     })
   }
+  /**
+  Authoritative read for a retired slot: the legacy copy is gone by
+  design, so the vault copy is the only value. Returns the legacy
+  envelope bytes the installed readers parse. Any other phase, or no
+  row, is not a retired slot and reads null — active slots keep
+  reading their legacy copy, unchanged. A vault copy that fails
+  validation or its journaled digest is damage and refuses, never a
+  silent absence; the caller owns the returned bytes and erases them.
+  */
+  async readRetired(key: string): Promise<Uint8Array | null> {
+    const entry = this.credential(key)
+    return await this.run(async (lease) => {
+      const row = await this.record(entry, lease)
+      if (row?.phase !== 'retired') return null
+      let item: VaultItem | undefined
+      try {
+        item = await this.deps.vault.read(entry.itemId)
+        lease.assertCurrent()
+        validateMigrationItem(item, entry.itemId)
+        if (itemDigest(item) !== row.digest) throw new VaultMigrationFault('verification')
+        return entry.encode(item)
+      } finally {
+        eraseItem(item)
+      }
+    })
+  }
   async undo(key: string): Promise<void> {
     const entry = this.credential(key)
     await this.run(async (lease) => {

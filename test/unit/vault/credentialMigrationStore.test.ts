@@ -17,6 +17,7 @@ import { recordingLogger } from '../helpers/recordingLogger'
 import {
   assertMigratedSlot,
   chatgptSeeds,
+  driveRetireCase,
   driveSlotCase,
   expectOriginRefused,
   openMigrationSession,
@@ -88,7 +89,16 @@ describe.skipIf(process.platform !== 'win32')(
         shell.bind(active)
         const codec = providerCredentialMigrationCredential(PROVIDER, Date.now)
         const assertMigrated = (expected: string) =>
-          assertMigratedSlot({ reader, session, codec, secrets, origin: ORIGIN, expected })
+          assertMigratedSlot({
+            reader,
+            session,
+            codec,
+            secrets,
+            shell,
+            origin: ORIGIN,
+            expected,
+            isLegacyPresent: true,
+          })
         try {
           const apiKey = {
             v: 1 as const,
@@ -195,6 +205,19 @@ describe.skipIf(process.platform !== 'win32')(
             accounts: ['default', POOLED_ACCOUNT],
           },
           ...pooledAccountSeeds(PROVIDER, POOLED_ACCOUNT, ORIGIN),
+        })
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'retires the legacy entry when due and keeps reading from the vault',
+      async () => {
+        const current = currentFixture()
+        await driveRetireCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
         })
       },
       FLOW_TIMEOUT_MS,

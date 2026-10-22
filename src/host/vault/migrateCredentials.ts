@@ -1,14 +1,15 @@
 // The extension's own key-store migration to the vault client (PLAN.md D89.14,
-// lane M). Reads always stay on SecretStorage — a person who never enables
-// the vault keeps working exactly as now, and activation never reads the
-// vault or starts a broker. After the vault unlocks, every stored key is
-// copied, decrypted back and compared by SHA-256 (the engine verifies), the
-// old entry stays in place and mirrored, and a half-migrated store recovers
-// on the next unlock through the engine's journal. Installed opaque
-// provider/account records stay whole in hidden, first-party `secret`
-// items, read only through the authenticated host's private channel.
-// Retire and undo ride the engine once their authoritative read surface
-// lands and are not triggered here.
+// lane M). Reads stay on SecretStorage while a legacy copy exists — a person
+// who never enables the vault keeps working exactly as now, and activation
+// never reads the vault or starts a broker. After the vault unlocks, every
+// stored key is copied, decrypted back and compared by SHA-256 (the engine
+// verifies), the old entry stays in place and mirrored, and a half-migrated
+// store recovers on the next unlock through the engine's journal. Installed
+// opaque provider/account records stay whole in hidden, first-party `secret`
+// items, read only through the authenticated host's private channel. Past
+// the retain window the legacy entry retires and its slot reads
+// authoritatively from the vault; undo's engine call awaits its
+// person-facing trigger.
 import { createHash } from 'node:crypto'
 import { VaultMigration } from '../../core/vault/migrate/migrate'
 import { accountSecretMigrationCredential } from '../../core/vault/migrate/accountSecrets'
@@ -36,7 +37,7 @@ import {
   VAULT_PROTOCOL_VERSION,
   SECRET_KEYS,
 } from '../../shared/constants'
-import { vaultPrivateReadSchema } from '../../shared/vaultProtocol'
+import { vaultPrivateReadSchema, type VaultBrokerSnapshot } from '../../shared/vaultProtocol'
 import { accountSecretKey } from '../../core/providers/accountCredentialRecord'
 import { providerSecretKey } from '../providers/credentialRecords'
 import { secretStorageLegacyPort } from './migrateSecretStorage'
@@ -139,7 +140,10 @@ function modelApiItemId(): string {
 
 /** The broker session the lazy binding owns, and its first-party reader. */
 export interface CredentialMigrationPorts {
-  snapshot(): Promise<{ items: readonly VaultItemMetadata[] }>
+  snapshot(): Promise<{
+    items: readonly VaultItemMetadata[]
+    status: VaultBrokerSnapshot['status']
+  }>
   write(item: VaultItem, isEdit: boolean, authorize?: () => void): Promise<void>
   remove(itemId: string, authorize?: () => void): Promise<void>
   firstPartyRead(request: ReturnType<typeof vaultPrivateReadSchema.parse>): Promise<Buffer>
@@ -388,9 +392,8 @@ export class CredentialMigrationController implements MigrationMirror {
       journal: this.journal(now),
       owner: this.owner,
       minorRelease: this.deps.minorRelease,
-      // Retire never runs in this slice, so this fires only for an
-      // interrupted retire the engine finishes on its own: name the key,
-      // never a value.
+      // Fires when a slot retires (or an interrupted retire finishes):
+      // name the key, never a value.
       onRetired: (key) => {
         this.deps.log.info(`Credential migration retired the legacy entry for ${key}`)
       },
@@ -468,10 +471,37 @@ export class CredentialMigrationController implements MigrationMirror {
           this.deps.log.warn(
             `Credential migration found ${key} deleted behind the vault; its vault copy waits for an answer`,
           )
+        // Retire when due: the engine retires only past the retain
+        // window with a verified live copy, and the retired slot keeps
+        // reading through the shell's authoritative path above.
+        await migration.retire(key)
       } catch (error: unknown) {
         const code = error instanceof VaultMigrationFault ? error.code : 'unavailable'
         this.deps.log.warn(`Credential migration paused for ${key}: ${code}`)
       }
+    }
+  }
+
+  /**
+  Authoritative read for a retired slot: the shell calls this only when
+  the legacy copy is absent. Anything but an unlocked vault reads
+  absent — locked, uncreated and unavailable vaults prove no value —
+  without touching the journal; past that gate the engine decides, and
+  damage refuses by throwing, never by silence. A lock landing between
+  the gate and the read surfaces as the broker's failure, the same
+  transient class as a failing credential store.
+  */
+  async readRetired(key: string): Promise<string | undefined> {
+    const snapshot = await this.deps.ports.snapshot()
+    if (snapshot.status.state !== 'unlocked') return undefined
+    const { migration, credentials } = await this.engine()
+    if (credentials.every((entry) => entry.key !== key)) return undefined
+    const bytes = await migration.readRetired(key)
+    if (bytes === null) return undefined
+    try {
+      return new TextDecoder().decode(bytes)
+    } finally {
+      bytes.fill(0)
     }
   }
 
