@@ -80,6 +80,9 @@ export function runtimeTab(deps: RuntimeTabDeps) {
           /* One fresh cache per eligibility check; no watcher to release. */
         },
       }),
+      trace: (message) => {
+        deps.log.trace(message)
+      },
     })
   async function isEligible(document: LspDocument): Promise<boolean> {
     const relative = path.relative(deps.workspace, document.path).split(path.sep).join('/')

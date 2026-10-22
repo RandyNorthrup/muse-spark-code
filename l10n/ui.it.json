@@ -3856,6 +3856,8 @@
     "purposeResources": "Mostra il carico della macchina e la cronologia recente.",
     "purposeShare": "Condividere una conversazione: copiarla, salvarla in un file o aprirla nel browser.",
     "purposePrompts": "Salvare, elencare, usare e condividere modelli di prompt riutilizzabili.",
+    "purposeLsp": "Servire il language server su stdin e stdout, con Tab a pagamento su richiesta.",
+    "purposePanel": "Servire il pannello portatile agli editor nativi.",
     "modelsList": "Modelli di {entry}:",
     "modelsForced": "forzato: {reason}",
     "modelsExtra": "Presso il provider, ma non nella voce:",

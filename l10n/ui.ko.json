@@ -3706,6 +3706,8 @@
     "purposeResources": "컴퓨터 부하와 최근 기록을 표시합니다.",
     "purposeShare": "대화를 공유합니다: 복사, 파일 저장, 브라우저에서 열기.",
     "purposePrompts": "재사용 가능한 프롬프트 템플릿을 저장, 나열, 사용 및 공유합니다.",
+    "purposeLsp": "stdin 및 stdout에서 언어 서버를 제공하고, 유료 Tab은 옵트인.",
+    "purposePanel": "네이티브 편집기에 포터블 패널을 제공한다.",
     "modelsList": "{entry}의 모델:",
     "modelsForced": "강제 추가: {reason}",
     "modelsExtra": "공급자에는 있지만 항목에 없는 모델:",

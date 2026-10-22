@@ -938,7 +938,7 @@ export const ON_FIRST_USE = [
     use: 'the window dictation setup construction',
     files: [
       'src/host/voice/dictationEntry.ts',
-      'src/host/voice/dictationHost.ts',
+      'src/host/vscode/voice/dictationHost.ts',
       'src/host/voice/voiceBundle.ts',
       'src/core/voice/helperLocation.ts',
     ],
@@ -1118,7 +1118,7 @@ export const ON_FIRST_USE = [
     use: 'the first paid consent, gate or usage read',
     files: [
       'src/host/paid/paidEntry.ts',
-      'src/host/paid/paidHost.ts',
+      'src/host/vscode/paid/paidHost.ts',
       'src/core/paid/paidConsent.ts',
       'src/core/paid/paidFeatures.ts',
       'src/core/paid/paidAuthority.ts',

@@ -108,6 +108,7 @@ it('names the report dialog for the agent side that loads it', () => {
   const row = LAZY_BUNDLES.find((entry) => entry.file === 'report.js')
   expect(row?.side).toBe('both')
   expect(row?.requestedBy).toEqual([
+    { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
     {
       importer: 'src/host/conversation/conversationController.ts',
       symbol: 'ConversationController.reportProblemHandler',

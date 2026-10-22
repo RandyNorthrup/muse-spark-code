@@ -3706,6 +3706,8 @@
     "purposeResources": "顯示電腦負載與最近歷程紀錄。",
     "purposeShare": "分享對話：複製、儲存到檔案或在瀏覽器中開啟。",
     "purposePrompts": "儲存、列出、使用和分享可重複使用的提示詞範本。",
+    "purposeLsp": "透過 stdin 和 stdout 提供語言伺服器，有付費 Tab 可選。",
+    "purposePanel": "為原生編輯器提供便攜面板。",
     "modelsList": "{entry} 的模型：",
     "modelsForced": "強制加入：{reason}",
     "modelsExtra": "提供者有但項目中沒有：",

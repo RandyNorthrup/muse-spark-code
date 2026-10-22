@@ -3,6 +3,7 @@
 // (the runtime LSP composes none yet, RVMSM104).
 import path from 'node:path'
 import { isGitExitError } from '../../host/git'
+import { failureForLog } from '../backends/musecode/logText'
 import { compileGlob } from '../backends/modelapi/globLimits'
 import { isProtectedPath } from '../protectedPaths'
 import { TAB_FILE_MAX_BYTES } from '../../shared/constants'
@@ -143,10 +144,13 @@ export interface TabIgnoreDeps {
   readonly workspaceRoots: (absolutePath: string) => readonly string[]
   /** Clears the cache when an ignore file changes. */
   readonly onIgnoreFilesChanged: (clear: () => void) => { dispose(): void }
+  /** Traces the blind rule's cause; git stays quiet on the typing path. */
+  readonly trace?: (message: string) => void
 }
 
 async function checkIgnore(
   runGit: TabIgnoreDeps['runGit'],
+  trace: TabIgnoreDeps['trace'],
   args: readonly string[],
   cwd: string,
 ): Promise<boolean | undefined> {
@@ -158,7 +162,11 @@ async function checkIgnore(
     if (isGitExitError(error) && error.exitCode === 1) {
       return false
     }
-    // Anything else: git cannot answer (no git, no repository, a bad config).
+    if (!isGitExitError(error)) {
+      // git never answered (no binary, a spawn failure): name it at trace.
+      trace?.(`Tab ignore check without git: ${failureForLog(error)}`)
+    }
+    // git ran but cannot answer (no repository, a bad config): blind.
     return undefined
   }
 }
@@ -192,6 +200,7 @@ export class TabIgnoreCache {
   private async askGit(rootAbs: string, relativePath: string): Promise<boolean> {
     const ignored = await checkIgnore(
       this.deps.runGit,
+      this.deps.trace,
       ['check-ignore', '-q', '--', relativePath],
       rootAbs,
     )
@@ -206,6 +215,7 @@ export class TabIgnoreCache {
       }
       const matched = await checkIgnore(
         this.deps.runGit,
+        this.deps.trace,
         ['-c', `core.excludesFile=${file}`, 'check-ignore', '--no-index', '-q', '--', relativePath],
         rootAbs,
       )

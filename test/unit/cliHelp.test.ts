@@ -474,6 +474,12 @@ function probeArgv(topic: string, name: string): string[] | undefined {
     case 'resources': {
       return ['resources', ...flag]
     }
+    case 'lsp': {
+      return ['lsp', ...flag]
+    }
+    case 'panel': {
+      return ['panel', ...flag]
+    }
     default: {
       return undefined
     }

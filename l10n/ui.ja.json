@@ -3706,6 +3706,8 @@
     "purposeResources": "マシンの負荷と最近の履歴を表示します。",
     "purposeShare": "会話を共有します：コピー、ファイルへの保存、ブラウザーで開く。",
     "purposePrompts": "再利用できるプロンプトテンプレートを保存・一覧・使用・共有します。",
+    "purposeLsp": "stdinとstdoutで言語サーバーを提供する（有料のTabはオプトイン）。",
+    "purposePanel": "ネイティブエディタにポータブルパネルを提供する。",
     "modelsList": "{entry} のモデル:",
     "modelsForced": "強制追加: {reason}",
     "modelsExtra": "プロバイダーにはあるがエントリにないもの:",

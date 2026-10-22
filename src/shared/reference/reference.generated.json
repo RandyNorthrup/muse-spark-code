@@ -4859,19 +4859,22 @@
       "route": "lsp",
       "name": "lsp [options]",
       "description": "Stdio language server with paid Tab opt-in and editor consent.",
-      "text": { "ui": "referenceLsp" }
+      "text": { "ui": "referenceLsp" },
+      "invocations": [["lsp"]]
     },
     {
       "route": "supervise",
       "name": "supervise <runtime arguments>",
       "description": "Run the runtime with independent authenticated Stop control.",
-      "text": { "ui": "referenceSupervise" }
+      "text": { "ui": "referenceSupervise" },
+      "invocations": [["supervise"]]
     },
     {
       "route": "stop",
       "name": "stop [runtime options]",
       "description": "Stop verified runtime owners in this workspace.",
-      "text": { "ui": "referenceStop" }
+      "text": { "ui": "referenceStop" },
+      "invocations": [["stop"]]
     },
     {
       "route": "usage",

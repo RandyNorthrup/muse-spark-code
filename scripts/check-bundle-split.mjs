@@ -755,7 +755,7 @@ const VAULT_ONLY = ['src/host/vscode/vault/vaultPanelEntry.ts', 'src/host/vault/
 const VAULT_ACTIONS = { output: 'dist/vaultActions.js', metafile: 'dist/meta/vaultActions.json' }
 const VAULT_ACTIONS_ONLY = [
   'src/host/vault/vaultActionsEntry.ts',
-  'src/host/vault/vaultActionDialogs.ts',
+  'src/host/vscode/vault/vaultActionDialogs.ts',
 
   'src/host/vault/vaultNativeEditor.ts',
   'src/core/vault/crypto.ts',
@@ -855,8 +855,8 @@ if (vault.has('src/core/vault/migrate/ports.ts')) {
 // refusal is the marker) or the consent's question (its one reader).
 const MEDIA_HOST = { output: 'dist/mediaHost.js', metafile: 'dist/meta/mediaHost.json' }
 const mediaHost = inputsOf(MEDIA_HOST)
-if (activation.has('src/host/media/mediaHostEntry.ts'))
-  problems.push(`${BUNDLES.activation.output} carries src/host/media/mediaHostEntry.ts`)
+if (activation.has('src/host/vscode/media/mediaHostEntry.ts'))
+  problems.push(`${BUNDLES.activation.output} carries src/host/vscode/media/mediaHostEntry.ts`)
 for (const file of ['src/core/media/attachedMedia.ts', 'src/core/media/contributorConsent.ts'])
   if (!mediaHost.has(file)) problems.push(`${MEDIA_HOST.output} no longer carries ${file}`)
 const activationText = readFileSync(BUNDLES.activation.output, 'utf8')
@@ -1512,12 +1512,19 @@ const TEXT_BLOCKS = [
     readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngines.js'],
   },
   // The playback turn's text (D203): the review bundle builds it for the
-  // panel, the Model API's built-in no-tools turn reads it, and the runtime
-  // engine's ACP agent (editors and headless runs) sends it.
+  // panel, the Model API's built-in no-tools turn reads it, the runtime
+  // engine's ACP agent (editors and headless runs) sends it, and the runtime
+  // panel's engine composition (RLM104: native editors' review feature)
+  // exposes it to its hosts.
   {
     block: 'PLAYBACK_MODEL_TEXT',
     sentinels: ['playbackRole', 'playbackNoTools'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
+    readers: [
+      REVIEW.output,
+      BUNDLES.modelApi.output,
+      'dist/runtimeEngine.js',
+      'dist/runtimeEngines.js',
+    ],
   },
   // M116 K's charter is read through the existing lazy skills bundle only.
   {

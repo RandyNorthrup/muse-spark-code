@@ -288,7 +288,7 @@ export const CLI_OPTION_TEXT = {
   to: 'to',
 
   csv: 'csv',
-  stdio: 'panel-stdio',
+  stdio: 'stdio',
   companion: 'panel-companion',
   registry: 'registry',
   backend: 'backend',

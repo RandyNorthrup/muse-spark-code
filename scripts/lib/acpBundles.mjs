@@ -68,6 +68,12 @@ export const ACP_BUNDLES = [
   'browserRuntime.js',
   'whatsNew.json',
   'conversation.js',
+  // RLM104: conversation.js and runtimeContext.js lazy-load these in the
+  // agent's graph; the agent carries them so the loads resolve (the VS Code
+  // flows behind them never run there).
+  'conversationTransfer.js',
+  'scheduleSurfaces.js',
+  'commands.js',
   'lsp.js',
   'runtimeWatchdog.js',
   'runtimeProcessAuthority.js',

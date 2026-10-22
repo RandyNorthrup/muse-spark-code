@@ -199,7 +199,7 @@
     // recording, each required by path on first use (dist/media.js,
     // dist/mediaHost.js, dist/screenRecord.js).
     "src/host/media/mediaEntry.ts",
-    "src/host/media/mediaHostEntry.ts",
+    "src/host/vscode/media/mediaHostEntry.ts",
     "src/host/media/screenRecordEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",

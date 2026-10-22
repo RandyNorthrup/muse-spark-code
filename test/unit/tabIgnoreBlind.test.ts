@@ -4,7 +4,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { GitExitError } from '../../src/host/git'
-import { TabIgnoreCache, type TabIgnoreDeps } from '../../src/host/tab/tabIgnore'
+import { TabIgnoreCache, type TabIgnoreDeps } from '../../src/core/tab/tabEligibility'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 const runExecFile = promisify(execFile)
@@ -51,12 +51,7 @@ const depsFor = (
   ignoreFileExists: (absolutePath) => existsSync(absolutePath),
   workspaceRoots: () => [root],
   onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
-  log: {
-    trace: (message) => void traces.push(message),
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-  },
+  trace: (message) => void traces.push(message),
 })
 
 const realGitRepo = async (root: string) => {
