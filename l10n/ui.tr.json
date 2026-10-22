@@ -3161,13 +3161,6 @@
     "guidanceAuto": "model başlattı"
   },
   "workflowAgentsLabel": "İş akışı aracıları",
-  "workflowChildStatuses": {
-    "scheduled": "sırada",
-    "started": "çalışıyor",
-    "usage": "çalışıyor",
-    "completed": "tamamlandı",
-    "terminal": "bitti"
-  },
   "workflowChildUntitled": "Aracı {number}",
   "workflowAttempt": "{attempt}. deneme",
   "workflowsCount": {

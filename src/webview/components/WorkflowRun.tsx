@@ -15,7 +15,6 @@ import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import type { WorkflowChild, WorkflowEntry } from '../state/uiState'
 import {
   childName,
-  childStatusLabel,
   isChildRunning,
   triggerSourceLabel,
   workflowName,
@@ -72,7 +71,8 @@ function agentMeta(child: WorkflowChild, now: number): string {
     child.usage === undefined
       ? undefined
       : tokensText(child.usage.inputTokens + child.usage.outputTokens),
-    childStatusLabel(child),
+    // One true status: the derived activity and outcome, never the raw
+    // child status beside it (RLTESTDRIVE item 1).
     agentStateText(
       {
         status: child.terminal ?? (isChildRunning(child) ? 'inProgress' : child.status),

@@ -3281,13 +3281,6 @@
     "guidanceAuto": "uruchomiony przez model"
   },
   "workflowAgentsLabel": "Agenci przepływu pracy",
-  "workflowChildStatuses": {
-    "scheduled": "w kolejce",
-    "started": "w toku",
-    "usage": "w toku",
-    "completed": "ukończono",
-    "terminal": "zakończono"
-  },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "próba {attempt}",
   "workflowsCount": {

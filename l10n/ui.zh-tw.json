@@ -3101,13 +3101,6 @@
     "guidanceAuto": "由模型啟動"
   },
   "workflowAgentsLabel": "工作流程代理程式",
-  "workflowChildStatuses": {
-    "scheduled": "排入佇列",
-    "started": "執行中",
-    "usage": "執行中",
-    "completed": "已完成",
-    "terminal": "已結束"
-  },
   "workflowChildUntitled": "代理程式 {number}",
   "workflowAttempt": "第 {attempt} 次嘗試",
   "workflowsCount": {

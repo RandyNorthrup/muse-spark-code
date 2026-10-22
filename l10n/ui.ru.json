@@ -3281,13 +3281,6 @@
     "guidanceAuto": "запущен моделью"
   },
   "workflowAgentsLabel": "Агенты рабочего процесса",
-  "workflowChildStatuses": {
-    "scheduled": "в очереди",
-    "started": "выполняется",
-    "usage": "выполняется",
-    "completed": "завершено",
-    "terminal": "закончено"
-  },
   "workflowChildUntitled": "Агент {number}",
   "workflowAttempt": "попытка {attempt}",
   "workflowsCount": {

@@ -3872,13 +3872,6 @@ export const EN = {
   },
   workflowAgentsLabel: 'Workflow Agents',
   // A workflow agent's status before it ends; one not listed shows as it came.
-  workflowChildStatuses: {
-    scheduled: 'Queued',
-    started: 'Running',
-    usage: 'Running',
-    completed: 'Completed',
-    terminal: 'Finished',
-  },
   // An agent the workflow gave no label; {number} counts from 1.
   workflowChildUntitled: 'Agent {number}',
   workflowAttempt: 'Attempt {attempt}',
