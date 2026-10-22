@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 
 import type { ShellResult } from '../../src/core/shellResult'
 import {
@@ -11,7 +12,14 @@ import {
   type TabHookEdit,
   type TabHookRun,
   type TabHooksDeps,
+  type TabHookState,
 } from '../../src/core/tab/tabHooks'
+import {
+  HOOK_OUTPUT_MAX_BYTES,
+  HOOK_STDIN_MAX_BYTES,
+  HOOK_TOOL_VALUE_PREVIEW_CHARS,
+  TAB_EDIT_HOOK_QUEUE,
+} from '../../src/shared/constants'
 
 // M94 acceptance 17 (the runner half): the hook guard over real subprocesses.
 // Each `run` below starts a real `node -e` child, feeds it the guard's own
@@ -129,6 +137,151 @@ describe('Tab hooks over real subprocesses', () => {
     const guard = hooks(`process.stdout.write(JSON.stringify({ permission: 'allow' }))`)
     expect(await guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).toBe(false)
     expect(seen).toHaveLength(0)
+  })
+
+  it('asks again when the epoch moves or the model differs', async () => {
+    let version = 'epoch-1'
+    const guard = createTabHooks({
+      isWorkspaceTrusted: () => true,
+      isHooksEnabled: () => true,
+      configurationVersion: () => version,
+      run: realRun(`process.stdout.write(JSON.stringify({ permission: 'allow' }))`, seen),
+      log: (message: string) => {
+        logs.push(message)
+      },
+    })
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(true)
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(true)
+    expect(seen).toHaveLength(1)
+    version = 'epoch-2'
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(true)
+    expect(seen).toHaveLength(2)
+    await expect(
+      guard.beforeRead('/workspace/a.ts', 'x', { ...CONTEXT, model: 'other-model' }),
+    ).resolves.toBe(true)
+    expect(seen).toHaveLength(3)
+  })
+
+  it('denies exit 2, a timeout and an oversize answer', async () => {
+    const refused = hooks('process.exit(2)')
+    expect(await refused.beforeRead('/workspace/a.ts', 'x', CONTEXT)).toBe(false)
+    const loud = hooks(`process.stdout.write('x'.repeat(${String(HOOK_OUTPUT_MAX_BYTES + 100)}))`)
+    expect(await loud.beforeRead('/workspace/a.ts', 'x', CONTEXT)).toBe(false)
+    const guard = createTabHooks({
+      isWorkspaceTrusted: () => true,
+      isHooksEnabled: () => true,
+      configurationVersion: () => 'epoch-1',
+      run: (request: TabHookRun) =>
+        new Promise((resolve) => {
+          const child = execFile(process.execPath, ['-e', 'setTimeout(() => {}, 30_000)'])
+          child.stdin?.write(request.stdin)
+          child.stdin?.end()
+          setTimeout(() => {
+            child.kill()
+            const timedOut: readonly ShellResult[] = [
+              {
+                stdout: '',
+                stderr: '',
+                exitCode: null,
+                isTimedOut: true,
+                isCancelled: false,
+              },
+            ]
+            resolve(timedOut)
+          }, 200)
+        }),
+      log: (message: string) => {
+        logs.push(message)
+      },
+    })
+    const started = Date.now()
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(false)
+    expect(Date.now() - started).toBeLessThan(5000)
+  })
+
+  it('refuses an oversize read unrun, and keeps code out of the log', async () => {
+    const guard = hooks(`process.stdout.write(JSON.stringify({ permission: 'allow' }))`)
+    const big = 'x'.repeat(HOOK_STDIN_MAX_BYTES + 1)
+    expect(await guard.beforeRead('/workspace/a.ts', big, CONTEXT)).toBe(false)
+    expect(seen).toHaveLength(0)
+    expect(logs.some((line) => line.includes('exceeds limit'))).toBe(true)
+    const secret = 'const password = "hunter22";\nvalue()'
+    expect(await guard.beforeRead('/workspace/a.ts', secret, CONTEXT)).toBe(true)
+    for (const line of logs) {
+      expect(line).not.toContain('hunter22')
+      expect(line).not.toContain('/workspace/a.ts')
+    }
+  })
+
+  it('refuses every read while the hook configuration is invalid or reloading', async () => {
+    let hookState: TabHookState = 'invalid'
+    const guard = createTabHooks({
+      isWorkspaceTrusted: () => true,
+      isHooksEnabled: () => true,
+      configurationVersion: () => 'epoch-1',
+      hookState: () => Promise.resolve(hookState),
+      run: realRun(`process.stdout.write(JSON.stringify({ permission: 'allow' }))`, seen),
+      log: (message: string) => {
+        logs.push(message)
+      },
+    })
+    const invalid = await guard.bindPolicy()
+    expect(invalid.isConfigurationInvalid).toBe(true)
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(false)
+    expect(seen).toHaveLength(0)
+    hookState = 'reloading'
+    const reloading = await guard.bindPolicy()
+    expect(reloading.isReloading).toBe(true)
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(false)
+    expect(seen).toHaveLength(0)
+    // No hook file at all reads unguarded.
+    hookState = 'absent'
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(true)
+    expect(seen).toHaveLength(0)
+  })
+
+  it('refuses the read when the hook state cannot be settled', async () => {
+    const guard = createTabHooks({
+      isWorkspaceTrusted: () => true,
+      isHooksEnabled: () => true,
+      configurationVersion: () => 'epoch-1',
+      hookState: () => Promise.reject(new Error('no dispatch')),
+      run: realRun(`process.stdout.write(JSON.stringify({ permission: 'allow' }))`, seen),
+      log: (message: string) => {
+        logs.push(message)
+      },
+    })
+    await expect(guard.beforeRead('/workspace/a.ts', 'x', CONTEXT)).resolves.toBe(false)
+    expect(seen).toHaveLength(0)
+  })
+
+  it('drops the oldest waiting edits past the queue bound', async () => {
+    const guard = hooks('setTimeout(() => {}, 100)')
+    for (let n = 0; n < TAB_EDIT_HOOK_QUEUE + 3; n += 1) {
+      guard.afterEdit({ ...EDIT, newString: `value-${String(n)}` }, CONTEXT)
+    }
+    for (let n = 0; n < 50 && seen.length < TAB_EDIT_HOOK_QUEUE + 1; n += 1) {
+      await sleep(100)
+    }
+    expect(seen).toHaveLength(TAB_EDIT_HOOK_QUEUE + 1)
+    expect(logs.filter((line) => line.includes('oldest waiting edit dropped'))).toHaveLength(2)
+  })
+
+  it('cuts the edit strings at the preview bound and counts the cut', async () => {
+    const guard = hooks('process.exit(0)')
+    guard.afterEdit({ ...EDIT, newString: 'n'.repeat(600), oldLine: 'o'.repeat(600) }, CONTEXT)
+    for (let n = 0; n < 50 && seen.length === 0; n += 1) {
+      await sleep(100)
+    }
+    expect(seen).toHaveLength(1)
+    const payload = z
+      .object({
+        edits: z.array(z.object({ new_string: z.string(), old_line: z.string() })),
+      })
+      .parse(JSON.parse(seen[0]?.stdin ?? ''))
+    expect(payload.edits[0]?.new_string).toHaveLength(HOOK_TOOL_VALUE_PREVIEW_CHARS)
+    expect(payload.edits[0]?.old_line).toHaveLength(HOOK_TOOL_VALUE_PREVIEW_CHARS)
+    expect(logs.some((line) => line.includes('preview omitted 176 characters'))).toBe(true)
   })
 
   it('reports an accepted edit with its envelope, and stays silent while typing', async () => {
