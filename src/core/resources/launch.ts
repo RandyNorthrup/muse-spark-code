@@ -23,6 +23,8 @@ export type ResourceProcessOptions = Omit<
   SpawnOptionsWithoutStdio,
   'detached' | 'stdio' | 'shell' | 'env'
 > & {
+  /** Synchronous last check after admission/preparation, immediately before spawn and Windows GO. */
+  readonly beforeSpawn?: (() => void) | undefined
   /**
   The child's whole environment: only `workspaceChildEnvironment` /
   `noWorkspaceChildEnvironment` can produce one, so a raw environment
@@ -134,6 +136,31 @@ export function isResourceMemoryLimit(error: unknown): error is ResourceMemoryLi
     error.name === 'ResourceMemoryLimitError' &&
     'code' in error &&
     error.code === 'memoryLimit'
+  )
+}
+
+/** Admission or containment was unavailable; codes cross the lazy bundle boundary. */
+export class ResourceUnavailableError extends Error {
+  constructor(readonly code: 'admissionUnavailable' | 'launchUnavailable') {
+    super(
+      code === 'admissionUnavailable'
+        ? 'Resource admission unavailable'
+        : 'Native governed process launch unavailable',
+    )
+    this.name = 'ResourceUnavailableError'
+  }
+}
+
+/** A refusal identified by its contract, never by arbitrary process failure text. */
+export function isGovernedRefusal(error: unknown): boolean {
+  return (
+    isResourcePaused(error) ||
+    isResourceCapRefused(error) ||
+    isResourceMemoryLimit(error) ||
+    (error instanceof Error &&
+      error.name === 'ResourceUnavailableError' &&
+      'code' in error &&
+      (error.code === 'admissionUnavailable' || error.code === 'launchUnavailable'))
   )
 }
 export interface ResourcePipedProcess extends ResourceInteractiveProcess {

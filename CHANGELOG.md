@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Checking out a pull request runs its git through the governed launcher:
+  the trust, cancellation and reservation checks run again at the last
+  moment before each git starts. When git cannot run, the error says why
+  (a busy machine, an unavailable helper, or the tree's memory limit),
+  and a failed git shows git's own message with secrets removed.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
