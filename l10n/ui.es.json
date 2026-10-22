@@ -6007,6 +6007,7 @@
     "remoteWarning": "Solo se puede solicitar una firma o un código de un solo uso desde otro dispositivo. Su usuario debe aprobar allí cada uso.",
     "approvalExpired": "Esta aprobación ha caducado. Solicite el uso de nuevo.",
     "useChanged": "El uso cambió después de la aprobación. Solicite aprobación para el nuevo uso.",
+    "editConflict": "La bóveda cambió mientras el editor estaba abierto. Revise el estado actual e inténtelo de nuevo.",
     "osStoreWarning": "Protegida por el almacén de credenciales de su sistema operativo. Los programas ejecutados con su cuenta también pueden desbloquearla.",
     "unknownTierWarning": "El nivel de protección es desconocido porque la caja está bloqueada. Desbloquéela para ver cómo está protegida.",
     "tierUnknown": "El nivel de protección es desconocido.",

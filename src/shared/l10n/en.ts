@@ -7423,6 +7423,7 @@ export const EN = {
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',
     useChanged: 'The use changed after approval. Request approval for the new use.',
+    editConflict: 'The vault changed while the editor was open. Review the latest and try again.',
     osStoreWarning:
       'Protected by your operating system’s credential store. Programs running as you may unlock it too.',
     unknownTierWarning:

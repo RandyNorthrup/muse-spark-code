@@ -6165,6 +6165,7 @@
     "remoteWarning": "Z innego urządzenia można żądać tylko podpisu lub kodu jednorazowego. Jego użytkownik musi zatwierdzić tam każde użycie.",
     "approvalExpired": "Ta zgoda wygasła. Ponownie poproś o użycie.",
     "useChanged": "Użycie zmieniło się po zatwierdzeniu. Poproś o zgodę na nowe użycie.",
+    "editConflict": "Sejf zmienił się, gdy edytor był otwarty. Sprawdź najnowszy stan i spróbuj ponownie.",
     "osStoreWarning": "Chroniony przez magazyn poświadczeń systemu operacyjnego. Programy działające na Twoim koncie też mogą go odblokować.",
     "unknownTierWarning": "Poziom ochrony jest nieznany, ponieważ sejf jest zablokowany. Odblokuj go, aby zobaczyć, jak jest chroniony.",
     "tierUnknown": "Poziom ochrony jest nieznany.",
