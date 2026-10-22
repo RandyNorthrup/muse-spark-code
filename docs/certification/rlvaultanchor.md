@@ -120,8 +120,17 @@ session connection fails — bare `dbus-send`, `secret-tool`, and
 `@napi-rs/keyring` all fail identically with `Failed to query AppArmor
 policy: Read-only file system` — so no Secret Service client can run and
 neither the new store cases nor the panel suites can run on this rig. No
-shim or workaround was built, per the lane's sandbox rule. The lead runs,
-outside the container with a lane-private keyring home:
+shim or workaround was built, per the lane's sandbox rule. A one-shot
+escalated run of the whole proof script (base panel flow, scope suite
+twice, lane panel flow, with shared-anchor hash checks between runs) was
+attempted and ran inside the same container — every store touch failed
+with the same AppArmor error and the script verdict was PROOF-FAIL, exit
+1, as designed for a broken bus. That run still paid: it showed the POSIX
+scope case reading the shared anchor outside its guarded region (fixed:
+the snapshot moved inside, so a store failure cannot orphan the client),
+the adoption probe skipping honestly on the broken bus, and the fixture
+cleanup failing loudly, never silently. The lead runs, outside the
+container with a lane-private keyring home:
 
 ```
 dbus-run-session -- sh -c "printf '<pw>\n' | gnome-keyring-daemon --unlock --components=secrets > /dev/null && npx vitest run test/unit/vault/vaultStoreScope.test.ts"

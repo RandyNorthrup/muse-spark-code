@@ -240,8 +240,10 @@ describe.skipIf(process.platform === 'win32' || !hasBrokerSocketFit() || !hasSto
         const current = fixture.current
         if (!current) throw new Error('the client platform did not build')
         const client = await current.startClient('scope')
-        const sharedBefore = await readPassword(VAULT_ANCHOR_ACCOUNT)
         try {
+          // Inside the guarded region: every store touch below can throw,
+          // and the client must be disposed on any of them.
+          const sharedBefore = await readPassword(VAULT_ANCHOR_ACCOUNT)
           const driven = await driveScopedVault(client.connect, client.dataDir, 'posix')
           await client.dispose()
           await expectVaultRecordsRemoved(driven)
