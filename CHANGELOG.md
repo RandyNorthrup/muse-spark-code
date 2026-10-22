@@ -7,6 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Continue With Grok (awaiting xAI's registration).** A SuperGrok or X
+  Premium subscription signs in with xAI and Grok models run on that
+  subscription, no API key: a browser flow with a local loopback callback
+  in Models & Agents, the command palette and the terminal
+  (`providers add grok`), plus a device-code flow for SSH and remote hosts
+  (`providers add grok --device`). The app's xAI OAuth client id lives in
+  the Muse Spark: Grok Client Id setting (or `--client-id`); until xAI
+  issues one, sign-in refuses before any request and says so. Tokens stay
+  in the credential store under their own lane, refreshed in the
+  background, and usage spends the subscription allowance.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
