@@ -1,0 +1,16 @@
+{
+  "id": "muse-spark-code",
+  "name": "Muse Spark Code (Unofficial)",
+  "version": "0.19.0",
+  "description": "Muse Spark coding agent: chat, edits and approvals over the Muse Code CLI and the Model API",
+  "repository": "https://github.com/RandyNorthrup/muse-spark-code",
+  "website": "https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/acp.md",
+  "authors": ["Randy Northrup"],
+  "license": "MIT",
+  "license_url": "https://github.com/RandyNorthrup/muse-spark-code/blob/main/LICENSE",
+  "distribution": {
+    "npx": {
+      "package": "muse-spark-code-acp@0.19.0"
+    }
+  }
+}
