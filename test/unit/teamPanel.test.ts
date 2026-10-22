@@ -357,8 +357,8 @@ describe('M96 U1 portable panel', () => {
     const snapshot16 = await rig.read()
     const snapshot17 = await imported.read()
     expect(snapshot17.document).toEqual(snapshot16.document)
-    expect(imported.update).not.toHaveBeenCalled()
-    expect(imported.reload).not.toHaveBeenCalled()
+    expect(imported.updateCalls).toEqual([])
+    expect(imported.reloadCalls).toEqual([])
   })
   it('clears the import notice when the draft is reset', async () => {
     const rig = panelRig()
@@ -390,7 +390,7 @@ describe('M96 U1 portable panel', () => {
     const bad = panelRig({ readImport: () => Promise.resolve(invalid) })
     await bad.read()
     await expect(bad.controller.handle({ type: 'roles/import' })).rejects.toThrow()
-    expect(bad.update).not.toHaveBeenCalled()
+    expect(bad.updateCalls).toEqual([])
     const missing = panelRig({
       offers: () => Promise.resolve(teamOffers().slice(0, 1)),
       readImport: () =>
