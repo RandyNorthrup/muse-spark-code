@@ -10,17 +10,18 @@ import { runnerEnvironment } from '../../src/core/runners/runnerConfig'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { runnerTestGit as git } from './helpers/runnerProcesses'
 
-// This case compiles and launches the native job helper for setup and check transactions.
-const NATIVE_RUNNER_TRANSACTION_TIMEOUT_MS = 60_000
+// This case compiles and launches the native job helper for setup and check
+// transactions through PowerShell, and waits for them however long the
+// machine takes (owner 2026-10-16: no limits of ours): about 7 s here, past
+// 60 s once on a hosted Windows runner (PR #257).
+const NO_TIME_LIMIT = 0
 
 const execute = promisify(execFile)
 const powerShell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
 const env = runnerEnvironment(process.env)
 const hasParser =
-  spawnSync(powerShell, ['-NoProfile', '-NonInteractive', '-Command', 'exit 0'], {
-    env,
-    timeout: 10_000,
-  }).status === 0
+  spawnSync(powerShell, ['-NoProfile', '-NonInteractive', '-Command', 'exit 0'], { env }).status ===
+  0
 const helper = path.join(process.cwd(), 'native', 'runner', 'runner-helper.ps1')
 
 describe('native Windows runner certification', () => {
@@ -97,9 +98,8 @@ foreach ($command in $commands) { if ($command.CommandElements.Count -ne 1) { th
           '10',
         ])
         expect(JSON.parse(started.stdout)).toMatchObject({ runId: 'native-run', state: 'running' })
-        const deadline = Date.now() + 30_000
         let result: { state: string; exitCode?: number | undefined } = { state: 'running' }
-        while (result.state === 'running' && Date.now() < deadline) {
+        while (result.state === 'running') {
           const status = await invoke(['status', root, 'native-run'])
           result = z
             .object({ state: z.string(), exitCode: z.optional(z.number()) })
@@ -116,6 +116,6 @@ foreach ($command in $commands) { if ($command.CommandElements.Count -ne 1) { th
         if (hasRetirement) await rm(folder, { recursive: true, force: true })
       }
     },
-    NATIVE_RUNNER_TRANSACTION_TIMEOUT_MS,
+    NO_TIME_LIMIT,
   )
 })

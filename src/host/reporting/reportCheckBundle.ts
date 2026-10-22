@@ -27,5 +27,5 @@ export function reportingCheckJournal(
   })
   let journal: ReturnType<JournalFactory> | undefined
   const get = () => (journal ??= load().createReportingCheckJournal(deps.context))
-  return { commit: () => get().commit(), append: (record) => get().append(record) }
+  return { commit: (signal) => get().commit(signal), append: (record) => get().append(record) }
 }

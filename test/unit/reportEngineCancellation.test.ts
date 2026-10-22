@@ -30,7 +30,7 @@ function sleep(ms: number): Promise<void> {
 describe.each(REPORT_KINDS)('%s cancellation', (kind) => {
   // Ports are per source, kinds per report: exercise each kind through its
   // own first registry source, which is the port the engine hands the
-  // signal and deadline for that kind.
+  // caller's signal for that kind.
   const source = REPORT_KIND_REGISTRY[kind].sources[0]
   it('never starts a read past an abort', async () => {
     const controller = new AbortController()
@@ -119,7 +119,8 @@ describe.each(REPORT_KINDS)('%s cancellation', (kind) => {
   })
 })
 
-it('honors the handed deadline instead of the default timeout', async () => {
+// The engine hands no deadline (D121/D208); one a caller hands in still binds.
+it('honors a deadline the caller hands in', async () => {
   const started = Date.now()
   const port = localSource('session', async ({ signal }) => {
     await new Promise<void>((_resolve, reject) => {
@@ -161,7 +162,7 @@ describe('admission queue', () => {
       expect(state.waiting).toHaveLength(1)
       state = reportAdmissionStep(state, { type: 'aborted', generation: waiter }).state
       expect(state.waiting).toHaveLength(0)
-      state = reportAdmissionStep(state, { type: 'timedOut', generation: owner }).state
+      state = reportAdmissionStep(state, { type: 'aborted', generation: owner }).state
       state = reportAdmissionStep(state, { type: 'released', generation: owner }).state
       expect(state).toEqual(empty)
     }

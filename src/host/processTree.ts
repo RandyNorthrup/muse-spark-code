@@ -38,7 +38,6 @@ import {
   ORPHAN_SWEEP_ROUNDS,
   POSIX_TREE_EXIT_POLL_MS,
   POSIX_TREE_EXIT_WAIT_MS,
-  PROCESS_TABLE_TIMEOUT_MS,
   SHELL_JOB_TYPE_NAME,
   TREE_EXIT_WAIT_MS,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
@@ -55,7 +54,10 @@ const KILLED_EXIT_CODE = 1
 Runs a program to its end: its stdout, or a rejection on a failure exit.
 The environment is always a guarded child environment (only
 `workspaceChildEnvironment` / `noWorkspaceChildEnvironment` can produce
-one), so a raw `process.env` does not type-check here.
+one), so a raw `process.env` does not type-check here. `timeoutMs` is the
+caller's own deadline; without one the program runs until it exits (no
+deadline of ours: Windows PowerShell's first start on a slow machine can
+take longer than any bound, and killing it failed the work it served).
 */
 export type RunProgram = (
   file: string,
@@ -96,12 +98,16 @@ export function treeSpawnOptions(platform: NodeJS.Platform): { readonly detached
   return { detached: platform !== 'win32' }
 }
 
-export const runProgram: RunProgram = (file, args, env, timeoutMs = PROCESS_TABLE_TIMEOUT_MS) =>
+export const runProgram: RunProgram = (file, args, env, timeoutMs) =>
   new Promise((resolve, reject) => {
     execFile(
       file,
       [...args],
-      { windowsHide: true, timeout: timeoutMs, env: withoutCredentials(env) },
+      {
+        windowsHide: true,
+        ...(timeoutMs !== undefined && { timeout: timeoutMs }),
+        env: withoutCredentials(env),
+      },
       (error, stdout) => {
         if (error === null) {
           resolve(stdout)
@@ -453,7 +459,7 @@ let deadline;
 const counts = { stdout: 0, stderr: 0 };
 function table() {
   return execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,lstart='], {
-    encoding: 'utf8', timeout: spec.cleanupMs, maxBuffer: spec.maxBuffer,
+    encoding: 'utf8', maxBuffer: spec.maxBuffer,
     env: { ...process.env, LC_ALL: 'C' }
   }).split('\n').flatMap(line => {
     const match = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
@@ -498,7 +504,7 @@ function signal(row, name) {
   let live;
   try {
     const text = execFileSync('/bin/ps', ['-o', 'lstart=', '-p', String(row.pid)], {
-      encoding: 'utf8', timeout: spec.cleanupMs, env: { ...process.env, LC_ALL: 'C' }
+      encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' }
     }).trim();
     if (text) live = { ...row, start: text };
   } catch (error) {
@@ -547,7 +553,9 @@ poll = setInterval(() => {
   try { capture(); }
   catch (error) { failed = true; process.stderr.write(error.message); endTree(); }
 }, spec.pollMs);
-deadline = setTimeout(() => {
+// Only the caller's own deadline is armed: setTimeout with no delay would
+// fire at once, and an absent timeout means the effect runs to its end.
+if (Number.isFinite(spec.timeout) && spec.timeout > 0) deadline = setTimeout(() => {
   failed = true;
   process.stderr.write('ETIMEDOUT');
   endTree();
@@ -558,7 +566,9 @@ deadline = setTimeout(() => {
 POSIX synchronous caller, asynchronous tree supervision. The supplied
 environment is always the guarded child environment for the effect's
 working directory (only `workspaceChildEnvironment` can produce one), and
-`cwd` is required; no shell parses the effect.
+`cwd` is required; no shell parses the effect. Only the caller's own
+`timeout` (positive, as spawnSync reads one) ends the effect early; without
+one it runs to its end.
 */
 export function runTreeSync(
   command: string,
@@ -568,9 +578,11 @@ export function runTreeSync(
     readonly cwd: string
   },
 ): SpawnSyncReturns<Buffer> {
+  const { timeout: callerTimeout, ...spawnOptions } = options
+  const timeout = callerTimeout !== undefined && callerTimeout > 0 ? callerTimeout : undefined
   const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
   return spawnSync(process.execPath, ['-e', POSIX_TREE_SUPERVISOR], {
-    ...options,
+    ...spawnOptions,
     // Child streams keep the caller's bound. Reserve room for the
     // supervisor's failure text so the caller cannot kill it mid-cleanup.
     maxBuffer: maxBuffer * 2,
@@ -578,13 +590,15 @@ export function runTreeSync(
       JSON.stringify({
         command,
         args,
-        timeout: options.timeout ?? PROCESS_TABLE_TIMEOUT_MS,
+        ...(timeout !== undefined && { timeout }),
         maxBuffer,
         pollMs: POSIX_TREE_EXIT_POLL_MS,
-        cleanupMs: POSIX_TREE_EXIT_WAIT_MS,
       }),
     ),
-    timeout: (options.timeout ?? PROCESS_TABLE_TIMEOUT_MS) + POSIX_TREE_EXIT_WAIT_MS * 2,
+    // Only the supervisor's own clock, at the caller's deadline, ends the
+    // tree; nothing of ours bounds its process-table reads or the cleanup
+    // after it (a clock here could kill the supervisor mid-cleanup and leave
+    // the tree running). No caller deadline, no clock at all.
     encoding: 'buffer',
   })
 }

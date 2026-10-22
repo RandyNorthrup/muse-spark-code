@@ -4,7 +4,6 @@ import {
   GIT_OUTPUT_MAX_BYTES,
   REPORT_MAX_ROWS,
   REPORT_STORAGE_LINK_COUNT,
-  REPORT_SOURCE_TIMEOUT_MS,
 } from '../../shared/constants'
 import {
   LocalSourceError,
@@ -257,7 +256,9 @@ export function reportGitIo(
           env: commandEnvironment,
           encoding: 'utf8',
           windowsHide: true,
-          timeout: REPORT_SOURCE_TIMEOUT_MS,
+          // No deadline of ours (D121/D208): git's own exit or the caller's
+          // signal ends the probe.
+          timeout: Infinity,
           maxBuffer: GIT_OUTPUT_MAX_BYTES,
           signal,
         })
@@ -289,7 +290,9 @@ export function reportGitIo(
           env: commandEnvironment,
           encoding: 'utf8',
           windowsHide: true,
-          timeout: REPORT_SOURCE_TIMEOUT_MS,
+          // No deadline of ours (D121/D208): git's own exit or the caller's
+          // signal ends the read.
+          timeout: Infinity,
           maxBuffer: GIT_OUTPUT_MAX_BYTES,
           signal,
         })

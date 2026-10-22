@@ -4633,7 +4633,9 @@ export const POSIX_TREE_EXIT_POLL_MS = 20
 // is compiled once into the extension's storage. Where no job is possible,
 // the shell is given this long to exit after taskkill, and then its orphans
 // are looked up by their dead parent's id and killed, one generation per
-// round, in this many rounds at most; each helper run is given this long.
+// round, in this many rounds at most. A helper run itself (PowerShell, the
+// process table, taskkill) has no deadline of ours: Windows PowerShell's
+// first start on a slow machine outlasted the old 20 s and was killed.
 export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
 export const SHELL_JOB_FOLDER = 'shell-job'
 // .NET Framework ships with Windows PowerShell 5.1; its x86 compiler is
@@ -4646,7 +4648,6 @@ export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.3
 export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
-export const PROCESS_TABLE_TIMEOUT_MS = 20_000
 /** OS hand-off adapters (opener, clipboard) must return promptly; only their root is owned. Windows PowerShell's cold start for Set-Clipboard sets the bound. */
 export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
@@ -6190,7 +6191,12 @@ export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 // past it refuses as `page-bound` instead of truncating silently (C-M113-6).
 export const REPORT_NETWORK_MAX_PAGES = 10
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
-export const REPORT_SOURCE_TIMEOUT_MS = 5000
+// Labels only, never a bound: a source observed within this age of the
+// report's stamp reads `fresh`, an older one `stale`. Nothing waits on it,
+// stops at it or refuses past it; no timeout of ours ends a source read
+// (D121/D208): only the caller's signal (the person's cancel) or a deadline
+// the caller hands in does.
+export const REPORT_SOURCE_FRESH_MS = 5000
 // NOLIMITS1FIX: report source files read at any size — the removed 16 MiB
 // bound (which A30 had renamed from the session-export cap) was invented.
 // Row and text bounds elsewhere (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`)
