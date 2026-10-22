@@ -4,9 +4,10 @@ import type { VaultSlotRecord } from '../../../shared/vault'
 import { type OsStoreVaultSlot } from './osStoreVaultSlot'
 import { LinuxTpm2Slot, linuxTpm2Capabilities, type LinuxTpm2Runner } from './linuxTpm2Slot'
 import {
+  checkOsStoreProviderDeps,
   freshOsStoreSlot,
   freshSlotEntry,
-  openOsStoreSlot,
+  openPlatformOsStoreSlot,
   slotEntryFromRecord,
   type OpenOsStoreEntry,
 } from './slotEntries'
@@ -28,15 +29,20 @@ export class LinuxVaultSlots implements VaultSlotProvider {
       readonly platform?: NodeJS.Platform
     },
   ) {
-    if ((deps.platform ?? process.platform) !== 'linux') throw new VaultError('invalid')
-    if (deps.dataDir === '') throw new VaultError('invalid')
+    checkOsStoreProviderDeps(deps, 'linux')
   }
   private get platform(): NodeJS.Platform {
     return this.deps.platform ?? process.platform
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | LinuxTpm2Slot | null {
-    if (record.tier === 'osStore' && record.provider === 'secretService')
-      return openOsStoreSlot(record, this.platform, this.deps.open, this.deps.dataDir)
+    const osStore = openPlatformOsStoreSlot(
+      record,
+      this.platform,
+      'secretService',
+      this.deps.open,
+      this.deps.dataDir,
+    )
+    if (osStore !== null) return osStore
     return record.tier === 'hardware' && record.provider === 'linuxTpm2'
       ? new LinuxTpm2Slot(slotEntryFromRecord(record), this.deps.runner, this.platform)
       : null
