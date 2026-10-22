@@ -2016,7 +2016,7 @@ class AcpSession {
       sessionUpdate: 'tool_call',
       toolCallId,
       title,
-      name: request.feature,
+      ...(request !== undefined && { name: request.feature }),
       kind: 'other',
       status: 'pending',
       content,
