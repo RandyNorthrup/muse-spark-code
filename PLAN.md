@@ -18125,8 +18125,10 @@ run. Certification record:
 
 ### M87–M88 — The owner's panel requests of 2026-10-03 (D66, D67)
 
-**Status 2026-10-04: M87 built and joined (its status below); M88
-planned, nothing built.** These are the owner's sixteen requests of
+**Status 2026-10-22 (RLM88): M87 built and joined (its status below);
+M88 sequences and bookmarks built on main (lanes 0, P, A, B, W), timed
+sends with resume stay M115's; evidence docs/certification/rlm88.md.**
+These are the owner's sixteen requests of
 2026-10-03, which came with screenshots of the Codex app as inspiration. The design decisions are D66 (M87) and D67 (M88); the
 owner's answers to their questions (2026-10-03) are in §3 and applied in D66
 and D67.
