@@ -29,7 +29,7 @@ happened, not what was planned; superseded entries are kept.
 
 - Show the phase-2 Devices views (QR with text fallback, discovery details,
   owners and grants with revoke, step-up prompts, power and pressure, blocked
-  recovery) against fakes behind the existing Devices budgets.
+  recovery) over the real panel snapshot behind the existing Devices budgets.
 
 - Join the unshipped Devices pairing, pinned TLS channel and durable receiver
   behind an editor-neutral lazy method port. Its callers must supply actual local
@@ -43,8 +43,8 @@ happened, not what was planned; superseded entries are kept.
   byte/queue caps and strict zod parsing, pacing helpers (at most 3 pending
   handshakes, backoff capped at 10 minutes, one failed authentication stops),
   owner-bound grants with device-answered step-up, typed refusals and result
-  acknowledgements, plus injected channel/capability/grant/result ports with
-  fakes. Phase-2 model guidance rides the declared lazy reader; seven status
+  acknowledgements, plus injected channel/capability/grant/result ports.
+  Phase-2 model guidance rides the declared lazy reader; seven status
   strings ship in all 14 tables. Bind the SSH-limit rules to gotchas
   G50–G52 and add the phase-2 threat model with the D101 reconcile note.
 
@@ -57,7 +57,6 @@ happened, not what was planned; superseded entries are kept.
   verdicts and asynchronous completions now share one state machine: an older
   ON cannot undo a blocked verdict, a later OFF wins, failed persistence is
   reported with a fresh read, and revoked policy settles startup to off.
-  No new UI strings; no real socket opens in tests.
 
 - Verify the unshipped Devices dispatch inputs against a content-addressed
   manifest before start, refusing missing or mismatched items and bases, and
