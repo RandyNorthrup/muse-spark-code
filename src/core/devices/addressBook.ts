@@ -127,7 +127,7 @@ export async function firstHandshakeWins<T>(attempts: readonly DiscoveryAttempt<
           try {
             return { index, ok: true as const, value: await attempt(controller.signal) }
           } catch (error: unknown) {
-            return { index, ok: false as const, error }
+            return { index, ok: false as const, cause: error }
           }
         })(),
       ]),
@@ -140,7 +140,7 @@ export async function firstHandshakeWins<T>(attempts: readonly DiscoveryAttempt<
         controller.abort()
         return next.value
       }
-      failures.push(next.error)
+      failures.push(next.cause)
     }
     throw new AggregateError(failures, `all ${String(attempts.length)} discovery legs failed`)
   } finally {

@@ -3741,6 +3741,7 @@
   "nodeLivenessOffline": "離線",
   "nodeLivenessUnreachable": "自{time}起無法存取，正在重試",
   "nodeWaitingRow": "等候中：{node}自{time}起無法存取，正在重試，第{attempt}次嘗試，下次在{delay}後",
+  "packsVerifyUnavailable": "此版本不支援套件驗證。",
   "execDeniedStop": "權限遭拒，執行已停止。",
   "execInterrupted": "執行已中斷。",
   "execOutputStalled": "輸出已關閉或停滯。",

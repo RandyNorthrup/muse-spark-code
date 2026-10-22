@@ -3819,6 +3819,7 @@
   "nodeLivenessOffline": "Getrennt",
   "nodeLivenessUnreachable": "Nicht erreichbar seit {time}, Wiederholung läuft",
   "nodeWaitingRow": "Warten: {node} nicht erreichbar seit {time}, Wiederholung läuft, Versuch {attempt}, nächster in {delay}",
+  "packsVerifyUnavailable": "Die Paketverifizierung ist in diesem Build nicht verfügbar.",
   "execDeniedStop": "Eine verweigerte Freigabe hat diesen Lauf gestoppt.",
   "execInterrupted": "Der Lauf wurde unterbrochen.",
   "execOutputStalled": "Die Ausgabe wurde geschlossen oder blockiert.",

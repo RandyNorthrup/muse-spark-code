@@ -4784,6 +4784,7 @@ export const EN = {
   nodeLivenessUnreachable: 'Unreachable since {time}, retrying',
   nodeWaitingRow:
     'Waiting: {node} unreachable since {time}, retrying, attempt {attempt}, next in {delay}',
+  packsVerifyUnavailable: 'Pack verification is unavailable in this build.',
   execDeniedStop: 'An approval denial stopped this run.',
   execInterrupted: 'The run was interrupted.',
   execOutputStalled: 'Output closed or stalled.',

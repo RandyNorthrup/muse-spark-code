@@ -3975,6 +3975,7 @@
   "nodeLivenessOffline": "Не в сети",
   "nodeLivenessUnreachable": "Недоступен с {time}, повтор",
   "nodeWaitingRow": "Ожидание: {node} недоступен с {time}, повтор, попытка {attempt}, следующая через {delay}",
+  "packsVerifyUnavailable": "Проверка пакетов недоступна в этой сборке.",
   "execDeniedStop": "Отказ в разрешении остановил этот запуск.",
   "execInterrupted": "Запуск был прерван.",
   "execOutputStalled": "Вывод закрыт или заблокирован.",

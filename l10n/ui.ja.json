@@ -3741,6 +3741,7 @@
   "nodeLivenessOffline": "オフライン",
   "nodeLivenessUnreachable": "{time}から到達不能、再試行中",
   "nodeWaitingRow": "待機中: {node}は{time}から到達不能、再試行中、試行{attempt}、次は{delay}後",
+  "packsVerifyUnavailable": "このビルドではパック検証を利用できません。",
   "execDeniedStop": "権限の拒否により実行を停止しました。",
   "execInterrupted": "実行が中断されました。",
   "execOutputStalled": "出力が閉じられたか停止しました。",

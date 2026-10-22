@@ -3897,6 +3897,7 @@
   "nodeLivenessOffline": "Fuori linea",
   "nodeLivenessUnreachable": "Non raggiungibile dalle {time}, nuovo tentativo in corso",
   "nodeWaitingRow": "In attesa: {node} non raggiungibile dalle {time}, nuovo tentativo in corso, tentativo {attempt}, prossimo tra {delay}",
+  "packsVerifyUnavailable": "La verifica dei pacchetti non è disponibile in questa build.",
   "execDeniedStop": "Un’autorizzazione negata ha fermato questa esecuzione.",
   "execInterrupted": "L’esecuzione è stata interrotta.",
   "execOutputStalled": "L’output è chiuso o bloccato.",

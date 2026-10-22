@@ -449,6 +449,9 @@ const BUDGETS = [
   // headless runs, loaded on the first vault need. Measured 19.8 KiB;
   // plus 15%, rounded up to 25 KiB.
   { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
+  // M110t TP2: the pack index verifier (sigstore), loaded on the first
+  // pack fetch. Measured 1450.0 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/packsVerify.js', budgetKiB: 1675 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

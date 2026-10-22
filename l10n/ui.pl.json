@@ -3975,6 +3975,7 @@
   "nodeLivenessOffline": "Niedostępny",
   "nodeLivenessUnreachable": "Nieosiągalny od {time}, ponawianie",
   "nodeWaitingRow": "Oczekiwanie: {node} nieosiągalny od {time}, ponawianie, próba {attempt}, następna za {delay}",
+  "packsVerifyUnavailable": "Weryfikacja pakietów jest niedostępna w tej kompilacji.",
   "execDeniedStop": "Odmowa uprawnienia zatrzymała to uruchomienie.",
   "execInterrupted": "Uruchomienie zostało przerwane.",
   "execOutputStalled": "Wyjście zostało zamknięte lub zablokowane.",
