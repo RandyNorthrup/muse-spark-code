@@ -91,7 +91,7 @@ export async function spawnVaultFeeder(
           // Best effort ends the root's group/job; the flag still fails the result below.
           hasTerminationFailed = true
           // Only the native port can prove the compound tree.
-          await killTree(child, deps.tree, startedAt, deps.job)
+          await killTree(child, deps.tree, startedAt, deps.job, undefined, signal)
         }
       })()
       void (async () => {

@@ -61,11 +61,12 @@ function queueExitedSweep(
   startedAt: number,
   diedAt: number,
   deps: McpSpawnDeps,
+  signal?: AbortSignal,
 ): Promise<void> {
   if (deps.platform !== 'win32') {
     return (async () => {
       try {
-        await sweepExitedTree(pid, startedAt, diedAt, deps)
+        await sweepExitedTree(pid, startedAt, diedAt, deps, undefined, signal)
       } catch (error: unknown) {
         deps.log(
           `the children of an exited MCP server could not be ended: ${describeStoreError(error)}`,
@@ -77,7 +78,7 @@ function queueExitedSweep(
   const cleanup = (async () => {
     await previous
     try {
-      await sweepExitedTree(pid, startedAt, diedAt, deps)
+      await sweepExitedTree(pid, startedAt, diedAt, deps, undefined, signal)
     } catch (error: unknown) {
       deps.log(
         `the children of an exited MCP server could not be swept: ${describeStoreError(error)}`,
@@ -177,6 +178,7 @@ export function observeMcpProcess(
   startedAt: number,
   isJobLauncher = false,
   resource?: ResourceLease,
+  signal?: AbortSignal,
 ): McpChildProcess {
   const exitListeners = new Set<(how: string) => void>()
   let exit: string | undefined
@@ -194,9 +196,9 @@ export function observeMcpProcess(
       listener(how)
     }
   }
-  child.onProcessExit((code, signal) => {
+  child.onProcessExit((code, exitSignal) => {
     processCode = code
-    processSignal = signal
+    processSignal = exitSignal
     // A server that exits by itself can still leave a child. Start the
     // identity-checked sweep now; stdout may still have a final MCP frame.
     if (resource !== undefined) {
@@ -205,7 +207,7 @@ export function observeMcpProcess(
         deps.log('an exited MCP server has an unproved registered tree stop')
       })
     } else if (!isJobLauncher) {
-      treeCleanup ??= queueExitedSweep(child.pid, startedAt, Date.now(), deps)
+      treeCleanup ??= queueExitedSweep(child.pid, startedAt, Date.now(), deps, signal)
     }
   })
   child.onStreamsClose((code, signal) => {
@@ -279,7 +281,7 @@ export function observeMcpProcess(
           })
         })
       }
-      treeCleanup ??= killTree(child, treeDeps, startedAt)
+      treeCleanup ??= killTree(child, treeDeps, startedAt, undefined, undefined, signal)
       return treeCleanup
     },
   }
@@ -296,7 +298,7 @@ export function mcpServerSpawner(
   resource?: ResourceLease,
   assembly?: string,
 ) => McpChildProcess {
-  return (launch, cwd, _isCancelled, _signal, resource, assembly) => {
+  return (launch, cwd, _isCancelled, signal, resource, assembly) => {
     if (mcpSecretReferences(launch).size > 0) {
       throw new Error(UI_TEXT.vault.noAccess)
     }
@@ -336,7 +338,7 @@ export function mcpServerSpawner(
         resource,
         resourceAssembly: assembly,
       })
-      return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true, resource)
+      return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true, resource, signal)
     }
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the server the user configured in Muse Code's settings, started only in a trusted workspace, with an absolute resolved command and a fixed argument array (PLAN.md §8).
     const child = spawnGuarded(line.file, [...line.args], {
@@ -347,7 +349,7 @@ export function mcpServerSpawner(
       ...treeSpawnOptions(deps.platform),
     })
     observeResourceProcess(resource, child)
-    return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, false, resource)
+    return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, false, resource, signal)
   }
 }
 

@@ -1371,7 +1371,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       kill ??= (async () => {
         try {
           if (run.terminateTree) await run.terminateTree(child)
-          else await killTree(child, run.tree, startedAt, run.job, run.resource)
+          else await killTree(child, run.tree, startedAt, run.job, run.resource, run.signal)
         } catch (error: unknown) {
           // A feeder's failed containment returns no output (M109); a refused
           // registered stop settles as a failure (M107).

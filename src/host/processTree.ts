@@ -35,7 +35,6 @@ import { powerShellQuoted } from '../core/shellQuote'
 import { describeStoreError } from './backend/storeErrors'
 import {
   GIT_OUTPUT_MAX_BYTES,
-  ORPHAN_SWEEP_ROUNDS,
   POSIX_TREE_EXIT_POLL_MS,
   POSIX_TREE_EXIT_WAIT_MS,
   SHELL_JOB_TYPE_NAME,
@@ -182,19 +181,35 @@ function orphansIn(
   })
 }
 
+const logSweepStoppedBeforeFirstRound = (pid: number, log: (message: string) => void): void => {
+  log(
+    `the sweep of exited ${String(pid)}'s children stopped before its first round; a child started during the kill may still run`,
+  )
+}
+
 async function sweepOrphans(
   shellPid: number,
   diedAt: number,
   startedAt: number,
   systemRoot: string,
   deps: ProcessTreeDeps,
+  signal?: AbortSignal,
 ): Promise<void> {
+  // No round count of ours (D121, RLF-NOLIMITS): the sweep reaps until no
+  // orphan remains, no kill confirms, or the stop fires. A fired stop ends
+  // the sweep instead of spending another round behind it — pool close
+  // aborts before it awaits the kills, so a shutdown sweep always sees a
+  // fired stop and stops; the tree kill itself still ran.
+  if (signal?.aborted) {
+    logSweepStoppedBeforeFirstRound(shellPid, deps.log)
+    return
+  }
   const run = deps.run ?? runProgram
   const powershell = windowsPowerShell(systemRoot)
   const script = (body: string) =>
     run(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, body], powershell.env)
   const ancestors = new Map([[shellPid, diedAt]])
-  for (let round = 0; round < ORPHAN_SWEEP_ROUNDS; round += 1) {
+  for (let round = 0; ; round += 1) {
     let orphans: readonly ProcessRow[]
     let killed: ReadonlySet<number>
     try {
@@ -233,10 +248,16 @@ async function sweepOrphans(
       )
       ancestors.set(orphan.pid, now)
     }
+    if (signal?.aborted) {
+      // No silent survivors: a stopped sweep names its rounds so the
+      // operator knows a child may still run.
+      const rounds = round + 1
+      deps.log(
+        `the sweep of exited ${String(shellPid)}'s children stopped after ${String(rounds)} ${rounds === 1 ? 'round' : 'rounds'}; a child started during the kill may still run`,
+      )
+      return
+    }
   }
-  deps.log(
-    `children of ${String(shellPid)} kept appearing for ${String(ORPHAN_SWEEP_ROUNDS)} rounds after its tree kill`,
-  )
 }
 
 /**
@@ -252,12 +273,19 @@ export async function sweepExitedTree(
   diedAt: number,
   deps: ProcessTreeDeps,
   resource?: ResourceLease,
+  signal?: AbortSignal,
 ): Promise<void> {
   if (resource !== undefined) {
     await stopResourceTree(resource)
     return
   }
   if (pid === undefined) {
+    return
+  }
+  // A fired stop ends the sweep instead of spending a signal behind it;
+  // the words name the exited root whose children may still run.
+  if (signal?.aborted) {
+    logSweepStoppedBeforeFirstRound(pid, deps.log)
     return
   }
   if (deps.platform !== 'win32') {
@@ -282,7 +310,7 @@ export async function sweepExitedTree(
     deps.log(`the children of exited ${String(pid)} could not be swept: SystemRoot is not set`)
     return
   }
-  await sweepOrphans(pid, diedAt, startedAt, deps.systemRoot, deps)
+  await sweepOrphans(pid, diedAt, startedAt, deps.systemRoot, deps, signal)
 }
 
 /**
@@ -390,6 +418,7 @@ export async function killTree(
   startedAt: number,
   job?: ShellJob,
   resource?: ResourceLease,
+  signal?: AbortSignal,
 ): Promise<void> {
   if (resource !== undefined) {
     await stopResourceTree(resource)
@@ -440,7 +469,7 @@ export async function killTree(
     deps.log(`${String(pid)} was still running ${String(TREE_EXIT_WAIT_MS)} ms after its tree kill`)
     return
   }
-  await sweepOrphans(pid, diedAt, startedAt, systemRoot, deps)
+  await sweepOrphans(pid, diedAt, startedAt, systemRoot, deps, signal)
 }
 
 // The journal reducer is synchronous. A separate trusted supervisor keeps
