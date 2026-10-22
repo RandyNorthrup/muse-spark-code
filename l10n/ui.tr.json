@@ -4007,6 +4007,7 @@
   "removeAttachmentNamed": "{name} öğesini kaldır",
   "announceApprovalFor": "{tool} için onay gerekiyor",
   "turnFailed": "Tur başarısız oldu.",
+  "turnTransientFailed": "Muse hizmeti turu tamamlayamadı. Tur çalışmasını korudu; devam etmek için iletiyi yeniden gönderin.",
   "turnRetrying": "Deneme {attempt}/{maxAttempts} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
   "turnRetryingUncapped": "Deneme {attempt} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor (yeniden deneme sınırı yok).",
   "modelApiProviderRetryWait": "{reason}; sağlayıcı {time} tarihine kadar beklemeyi istedi. Turu istediğiniz zaman durdurabilirsiniz.",

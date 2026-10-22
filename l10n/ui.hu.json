@@ -4007,6 +4007,7 @@
   "removeAttachmentNamed": "{name} eltávolítása",
   "announceApprovalFor": "Jóváhagyás szükséges: {tool}",
   "turnFailed": "A kör sikertelen volt.",
+  "turnTransientFailed": "A Muse szolgáltatása nem tudta befejezni a kört. A kör megőrizte a munkáját; a folytatáshoz küldje el újra az üzenetet.",
   "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
   "turnRetryingUncapped": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva (nincs beállítva újrapróbálkozási korlát).",
   "modelApiProviderRetryWait": "{reason}; a szolgáltató arra kért, hogy várj {time} időpontig. A menetet bármikor leállíthatod.",

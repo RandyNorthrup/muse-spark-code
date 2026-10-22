@@ -105,6 +105,7 @@ import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { MediaRefusal } from './media'
 import { UserRefusalError } from '../shared/refusal'
+import { transientTurnFailureText } from '../shared/turnFailure'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import { sessionTitle } from '../shared/sessions'
 import type { PaidUseRequest } from '../shared/paid'
@@ -1301,6 +1302,18 @@ class AcpSession {
           `ACP session ${this.sessionId}: sign-in lost across a backend restart (${restartCause})`,
         )
         pending.reject(loud)
+        return
+      }
+      // A turn the CLI judged resubmittable (a transient service
+      // failure): the client hears our sentence with the turn's own
+      // detail, and the error carries the retryable judgment for clients
+      // that act on it, so the turn can continue with the same input.
+      const transient = transientTurnFailureText(event)
+      if (transient !== undefined) {
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: turn ${event.turnId} failed but the CLI judged it retryable`,
+        )
+        pending.reject(RequestError.internalError({ retryable: true }, transient))
         return
       }
       pending.reject(

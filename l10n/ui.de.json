@@ -4007,6 +4007,7 @@
   "removeAttachmentNamed": "{name} entfernen",
   "announceApprovalFor": "Genehmigung erforderlich für {tool}",
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
+  "turnTransientFailed": "Der Dienst von Muse konnte den Durchgang nicht beenden. Der Durchgang hat seine Arbeit behalten; senden Sie die Nachricht erneut, um fortzufahren.",
   "turnRetrying": "Versuch {attempt}/{maxAttempts} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
   "turnRetryingUncapped": "Versuch {attempt} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s (kein Wiederholungslimit festgelegt).",
   "modelApiProviderRetryWait": "{reason}; der Anbieter hat gebeten, bis {time} zu warten. Sie können den Durchgang jederzeit stoppen.",

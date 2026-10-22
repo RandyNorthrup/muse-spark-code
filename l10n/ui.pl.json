@@ -4181,6 +4181,7 @@
   "removeAttachmentNamed": "Usuń {name}",
   "announceApprovalFor": "Wymagane zatwierdzenie dla {tool}",
   "turnFailed": "Tura nie powiodła się.",
+  "turnTransientFailed": "Usługa Muse nie mogła ukończyć tury. Tura zachowała swoją pracę; wyślij wiadomość ponownie, aby kontynuować.",
   "turnRetrying": "Próba {attempt}/{maxAttempts} nie powiodła się ({reason}); ponowienie za {seconds} s.",
   "turnRetryingUncapped": "Próba {attempt} nie powiodła się ({reason}); ponowienie za {seconds} s (nie ustawiono limitu ponowień).",
   "modelApiProviderRetryWait": "{reason}; dostawca poprosił o odczekanie do {time}. Turę możesz zatrzymać w dowolnym momencie.",

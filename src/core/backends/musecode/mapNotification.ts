@@ -106,7 +106,9 @@ const schemas = {
     terminal: z.string(),
     reason: z.optional(z.string()),
     durationMs: z.optional(z.number()),
-    error: z.optional(z.object({ kind: z.string(), message: z.string() })),
+    error: z.optional(
+      z.object({ kind: z.string(), message: z.string(), retryable: z.optional(z.boolean()) }),
+    ),
   }),
   'turn/retryScheduled': z.object({
     ...sessionScoped,
@@ -365,6 +367,7 @@ function rawNotification(notification: WireNotification): MapOutcome {
           terminal,
           ...(reason !== undefined && { reason }),
           ...(error !== undefined && { errorKind: error.kind }),
+          ...(error?.retryable !== undefined && { retryable: error.retryable }),
           ...(durationMs !== undefined && { durationMs }),
         },
       }

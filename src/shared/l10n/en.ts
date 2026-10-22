@@ -5070,6 +5070,12 @@ export const EN = {
   announceApprovalFor: 'Approval needed for {tool}',
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
+  // A failed turn the CLI judged resubmittable (TurnError.retryable): the
+  // service faltered mid-turn, the turn kept its work, and sending the
+  // message again continues it. The CLI's own detail follows in parentheses
+  // where the turn carried one (RLWINFIX2 item 3).
+  turnTransientFailed:
+    'MuseΓÇÖs service could not finish the turn. The turn kept its work; send the message again to continue.',
   turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
   // A retry notice with no retry limit (lane RETRYLIMITS): neither the
   // provider nor the person sets one, so the provider governs.

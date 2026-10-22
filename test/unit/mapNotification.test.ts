@@ -225,6 +225,9 @@ describe('mapNotification', () => {
         terminal: 'failed',
         reason: 'not logged in',
         errorKind: 'authRequired',
+        // RLWINFIX2 item 3: the CLI's retryable judgment now rides the
+        // event, so a transient failure can say so.
+        retryable: false,
       },
     ],
     [
@@ -720,4 +723,32 @@ it('redacts failed-turn diagnostics before MSP event subscribers receive them', 
   })
   expect(mapped).toMatchObject({ event: { type: 'turnCompleted', reason: '[redacted]' } })
   expect(JSON.stringify(mapped)).not.toContain(secret)
+})
+
+it('forwards a failed turn’s retryable judgment (RLWINFIX2 item 3)', () => {
+  // The reason is the recorded 2026-10-22 02:55 fleet failure; the error
+  // shape is the CLI's own TurnError (msp.schema.json, CLI 1.4.11, plus
+  // SDK TurnError.retryable). The kind value is illustrative, from the
+  // contract's own vocabulary: only the retryable forwarding is asserted.
+  const reason = 'transport error [net-timeout]: timed out waiting for response data (meta stream)'
+  const mapped = mapNotification({
+    method: 'turn/completed',
+    params: {
+      sessionId: 's1',
+      turnId: 't1',
+      terminal: 'failed',
+      reason,
+      error: { kind: 'modelError', message: reason, retryable: true },
+    },
+  })
+  expect(mapped).toMatchObject({
+    sessionId: 's1',
+    event: { type: 'turnCompleted', turnId: 't1', terminal: 'failed', retryable: true },
+  })
+  const older = mapNotification({
+    method: 'turn/completed',
+    params: { sessionId: 's1', turnId: 't1', terminal: 'failed', reason },
+  })
+  expect(older).toMatchObject({ event: { type: 'turnCompleted', reason } })
+  expect(older).not.toMatchObject({ event: { retryable: expect.anything() } })
 })
