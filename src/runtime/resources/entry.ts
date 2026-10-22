@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { createMachineResourceSampler } from '../../core/resources/sampler/system'
+import type { ResourceLaunchHost } from '../../core/resources/launchHost'
 import type { ResourceRunningWork } from '../../core/resources/queue'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS, UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
@@ -10,9 +11,19 @@ import {
   type ResourceStatus,
 } from '../../shared/resources'
 import { resourceHistoryReader, resourceHistoryRecorder } from './history'
-import { createRuntimeResourceHost } from './host'
-import type { ResourceHistoryPort, ResourceMachineStore, RuntimeResources } from './port'
+import {
+  createRuntimeResourceHost,
+  type RuntimeGovernorShare,
+  type RuntimeResourceProcess,
+} from './host'
+import type { ResourceHistoryPort, ResourceMachineStore } from './port'
 import { resourceMachineStore } from './settings'
+
+/** H–C1: what the process's launch host borrows, plus whether history is read. */
+export interface RuntimeLaunchShare extends RuntimeGovernorShare {
+  /** Attested settlements require the process's flag and the shared history choice. */
+  readonly isRecording: () => boolean
+}
 
 export interface ResourceEntryOptions {
   machineDir: string
@@ -27,14 +38,20 @@ export interface ResourceEntryOptions {
   machine?: ResourceMachineStore
   running?: ResourceRunningWork
   history?: ResourceHistoryPort
-  overrides?: Partial<ResourceSettings>
+  /**
+  The run's flags over the machine values. A function is read at every
+  settings sync, so the process facade's later run flags apply (H–C1).
+  */
+  overrides?: Partial<ResourceSettings> | (() => Partial<ResourceSettings> | undefined)
   hasRelocationTarget?: () => boolean
   /**
   Long-lived hosts (the ACP agent) record their governor's samples into the
   machine journal with this usage-history consent. One-shot commands and
-  headless runs leave it unset and only read.
+  headless runs leave it unset, or false, and only read.
   */
   isRecordingHistory?: () => boolean
+  /** H–C1: builds the process's governed launches around this host's one governor. */
+  launches?: ((share: RuntimeLaunchShare) => ResourceLaunchHost) | undefined
 }
 
 /** W builds this entry as dist/resourceGovernor.js and ships it beside acp.js. */
@@ -42,7 +59,7 @@ export async function createResources(
   options: ResourceEntryOptions,
   table: UiText,
   locale: string,
-): Promise<RuntimeResources> {
+): Promise<RuntimeResourceProcess> {
   setUiText(table, locale)
   const machine =
     options.machine ??
@@ -51,10 +68,13 @@ export async function createResources(
       resumeFile: path.join(options.machineDir, 'resource-resume.json'),
       sleep: options.sleep,
     })
+  const overrides = () =>
+    typeof options.overrides === 'function' ? options.overrides() : options.overrides
   let settings = resourceSettingsSchema.parse({})
   const isRecordingHistory = options.isRecordingHistory
-  // The runtime binds no registered trees (T occupancy is unknown), so it
-  // reports no harness work rather than an invented share.
+  // H–C1: the harness-work rows are the process's registered launches (none
+  // before the first governed launch), never an estimate.
+  const bound: { host?: RuntimeResourceProcess } = {}
   const recorder =
     isRecordingHistory === undefined
       ? undefined
@@ -70,11 +90,12 @@ export async function createResources(
               }
             },
           },
-          { read: () => Promise.resolve([]) },
+          { read: () => Promise.resolve(bound.host?.launchRows() ?? []) },
           () => {
             options.onError(new Error(UI_TEXT.resourceHistoryInvalid))
           },
         )
+  const launches = options.launches
   const host = await createRuntimeResourceHost({
     clock: {
       now: () => Date.now(),
@@ -88,9 +109,13 @@ export async function createResources(
     },
     machine: {
       async readSettings() {
-        const raw = await machine.readSettings()
-        settings = resourceSettingsSchema.parse({ ...raw, ...options.overrides })
-        return raw
+        // The run's flags ride on the machine values, so every sync applies them.
+        const merged = resourceSettingsSchema.parse({
+          ...(await machine.readSettings()),
+          ...overrides(),
+        })
+        settings = merged
+        return merged
       },
       readResumeUntil: () => machine.readResumeUntil(),
       writeResumeUntil: (untilMs) => machine.writeResumeUntil(untilMs),
@@ -99,7 +124,7 @@ export async function createResources(
       timeoutMs: RESOURCE_SAMPLE_MS,
       maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
     }),
-    // Missing T occupancy is explicitly unknown: throttle admits no background work.
+    // Before the first governed launch nothing is admitted; unknown stays unknown.
     running: options.running ?? { backgroundCount: () => null },
     onError: () => {
       // Settings/OS failures carry no free-text diagnostic across a resource surface.
@@ -111,11 +136,15 @@ export async function createResources(
         recorder.sample(status)
       },
     }),
-    ...(options.overrides !== undefined && { overrides: options.overrides }),
     ...(options.hasRelocationTarget !== undefined && {
       hasRelocationTarget: options.hasRelocationTarget,
     }),
+    ...(launches !== undefined && {
+      launches: (share: RuntimeGovernorShare) =>
+        launches({ ...share, isRecording: recorder?.isConsented ?? (() => false) }),
+    }),
   })
+  bound.host = host
   if (recorder === undefined) return host
   const stopEvents = host.subscribeEvents((event) => {
     recorder.event(event)

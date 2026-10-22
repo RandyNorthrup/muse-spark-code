@@ -612,6 +612,17 @@ class AcpSession {
           )
   }
 
+  /**
+  H–C1: the process's governed spawns this turn starts notify this session
+  (local correlation; nothing enters a resource event, status or record).
+  */
+  private inResourceSession<T>(action: () => T): T {
+    const resources = this.deps.resources
+    return resources?.inSession === undefined
+      ? action()
+      : resources.inSession(this.sessionId, action)
+  }
+
   private getQuestions(): AcpQuestionDeferral {
     if (this.questions !== undefined) return this.questions
     if (this.questionRegistry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
@@ -2818,7 +2829,7 @@ class AcpSession {
         // The same AgentSession core serves interactive ACP and runExec. A
         // compact starts synchronously, so cancellation need not wait for it.
         // No answer lease is peeked for a compact: a queued answer stays queued.
-        const outcome = await this.session.compact()
+        const outcome = await this.inResourceSession(() => this.session.compact())
         this.finishCompaction(outcome.status)
       } else {
         // No answer lease is peeked for a playback: a queued answer stays
@@ -2829,16 +2840,18 @@ class AcpSession {
         const sandboxNote = this.sandboxModelNote()
         const starting = isPlayback
           ? this.startPlaybackTurn()
-          : this.session.sendTurn(
-              [
-                ...(pending.answerLease?.parts ?? []),
-                ...this.withSkill([
-                  ...parsed.parts,
-                  ...mediaQueued.map((attachment) => attachment.part),
-                ]),
-                ...sandboxNote,
-              ],
-              parsed.displayText,
+          : this.inResourceSession(() =>
+              this.session.sendTurn(
+                [
+                  ...(pending.answerLease?.parts ?? []),
+                  ...this.withSkill([
+                    ...parsed.parts,
+                    ...mediaQueued.map((attachment) => attachment.part),
+                  ]),
+                  ...sandboxNote,
+                ],
+                parsed.displayText,
+              ),
             )
         this.starting = starting
         const submission = await starting

@@ -144,8 +144,7 @@ import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
 
-import { lazyRuntimeResources } from './resources/load'
-import type { ResourceSettings } from '../shared/resources'
+import { lazyRuntimeResources, type ProcessResources } from './resources/load'
 import { execAccountSelection } from './exec/execAccounts'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
 import { runtimeAccountsLoader, type RuntimeAccountsBundle } from './providers/accountsBundle'
@@ -505,12 +504,11 @@ async function runtimeFor(
   })
 }
 
-/** `isRecordingHistory` (usage-history consent) is for the long-lived ACP agent only. */
-function resourcesFor(
-  log: Logger,
-  overrides?: Partial<ResourceSettings>,
-  isRecordingHistory?: () => boolean,
-) {
+/**
+The process's one governor (H–C1), made once by `run()`. The ACP agent adds
+its usage-history consent and headless its run flags through `configure`.
+*/
+function resourcesFor(log: Logger): ProcessResources {
   return lazyRuntimeResources({
     distDir,
     machineDir: agentDataFolder({
@@ -529,8 +527,6 @@ function resourcesFor(
     onDamagedChoice: (text) => {
       log.error(text)
     },
-    ...(overrides !== undefined && { overrides }),
-    ...(isRecordingHistory !== undefined && { isRecordingHistory }),
   })
 }
 
@@ -1016,6 +1012,7 @@ async function serve(
   options: ServeOptions,
   log: Logger,
   loadAccounts: () => RuntimeAccountServices,
+  processResources: ProcessResources,
 ): Promise<number> {
   let clientName = 'ACP'
   const recording = runtimeRecording(
@@ -1041,7 +1038,8 @@ async function serve(
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
     })
     const isUsageHistoryOn = options.usageHistory ?? true
-    const resources = resourcesFor(log, undefined, () => isUsageHistoryOn)
+    // H–C1: the process's one governor records the agent's samples and launches.
+    const resources = processResources.configure({ isRecordingHistory: () => isUsageHistoryOn })
     const scheduleSessions = runtimeScheduleSessionFactory({
       current: runtime,
       create: (backend) => runtimeFor({ ...options, backend }, log),
@@ -1349,7 +1347,7 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
   return command.options.isVerbose ? 'trace' : 'info'
 }
 
-async function main(): Promise<number> {
+async function main(processResources: ProcessResources): Promise<number> {
   // Parse first, on the bundled English table: a stalled package
   // filesystem must not hang argument parsing past exec --timeout or the
   // fixed scan/legal deadlines. Parser refusals read English until the
@@ -1357,6 +1355,14 @@ async function main(): Promise<number> {
   // headless lifecycle further down (unbounded for the interactive
   // commands after it), and scan-secrets does no localization work at all
   // (Codex on PR #213).
+  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
+    await loadUiTable({
+      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+      log: stderrLogger((line) => {
+        writeLine(process.stderr, line)
+      }, 'warn'),
+    })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
@@ -1567,7 +1573,8 @@ async function main(): Promise<number> {
           randomHex: (bytes) => randomBytes(bytes).toString('hex'),
           log,
           resourceOverrides: command.resourceOverrides,
-          createResources: (overrides) => resourcesFor(log, overrides),
+          // H–C1: the run's flags configure the process's one governor and its v2 sink.
+          createResources: (overrides) => processResources.configure({ overrides }),
         },
         referenceTable,
         uiLocale(),
@@ -1646,9 +1653,8 @@ async function main(): Promise<number> {
       }
     }
     case 'resources': {
-      const resources = resourcesFor(log)
       try {
-        writeLine(process.stdout, await resources.command(command.action, command.json))
+        writeLine(process.stdout, await processResources.command(command.action, command.json))
         return 0
       } catch {
         // An unreadable journal is named as such; it is never printed as empty history.
@@ -1660,7 +1666,7 @@ async function main(): Promise<number> {
         )
         return EXIT_FAILED
       } finally {
-        resources.dispose()
+        processResources.dispose()
       }
     }
     case 'fontsInstall': {
@@ -1898,7 +1904,7 @@ async function main(): Promise<number> {
       return await providers.run(command.action)
     }
     case 'serve': {
-      return await serve(command.options, log, () => loadAccounts(log))
+      return await serve(command.options, log, () => loadAccounts(log), processResources)
     }
     case 'login': {
       const { museCode } = await runtimeFor(command.options, log)
@@ -2336,7 +2342,7 @@ async function run(): Promise<void> {
     }, 'warn'),
   )
   try {
-    process.exitCode = await main()
+    process.exitCode = await main(processResources)
   } catch (error: unknown) {
     writeLine(process.stderr, redactWhole(crashTextForLog(error), []))
     process.exitCode = EXIT_FAILED
