@@ -70,9 +70,11 @@ describe('bounded serial helper', () => {
       writable: false,
     }
     let didPrepare = false
-    const guard = vi.fn(() => {
+    let guardCalls = 0
+    const guard = () => {
+      guardCalls += 1
       throw new Error('test-approval-refused')
-    })
+    }
     await expect(
       startSerialProcess(command, makerProcessDeps(), undefined, async () => {
         await delay(1)
@@ -81,7 +83,7 @@ describe('bounded serial helper', () => {
       }),
     ).rejects.toThrow('test-approval-refused')
     expect(didPrepare).toBe(true)
-    expect(guard).toHaveBeenCalledOnce()
+    expect(guardCalls).toBe(1)
     await expect(access(marker)).rejects.toMatchObject({ code: 'ENOENT' })
   })
   it('waits for opener closure even when forced termination fails', async () => {
@@ -90,9 +92,11 @@ describe('bounded serial helper', () => {
     const marker = path.join(directory, 'pid')
     const exitMarker = path.join(directory, 'may-exit')
     const abort = new AbortController()
-    const kill = vi
-      .fn<ReturnType<typeof makerProcessDeps>['kill']>()
-      .mockRejectedValue(new Error('test-termination-failed'))
+    let killCalls = 0
+    const kill: ReturnType<typeof makerProcessDeps>['kill'] = () => {
+      killCalls += 1
+      return Promise.reject(new Error('test-termination-failed'))
+    }
     const opening = startSerialProcess(
       {
         file: process.execPath,
@@ -114,12 +118,12 @@ setInterval(() => {}, 100);`,
       makerProcessDeps({ durationMs: 30_000, kill }),
       abort.signal,
     )
-    const settled = vi.fn()
+    let settledCalls = 0
     const observed = (async () => {
       try {
         await opening
       } finally {
-        settled()
+        settledCalls += 1
       }
     })()
     const stopped = expect(observed).rejects.toThrow('test-termination-failed')
@@ -131,9 +135,9 @@ setInterval(() => {}, 100);`,
       })
       abort.abort()
       await vi.waitFor(() => {
-        expect(kill).toHaveBeenCalledTimes(1)
+        expect(killCalls).toBe(1)
       })
-      expect(settled).not.toHaveBeenCalled()
+      expect(settledCalls).toBe(0)
       expect(await isTestProcessAlive(pid)).toBe(true)
     } finally {
       abort.abort()
