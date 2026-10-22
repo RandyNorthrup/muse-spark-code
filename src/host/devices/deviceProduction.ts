@@ -10,8 +10,10 @@ import { randomBytes } from 'node:crypto'
 import { lstat, mkdir, rename, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { DEVICE_LIMITS } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { DevicePairingError } from '../../core/devices/pairing'
 import type { AttemptJournalOwner } from '../../core/devices/attemptJournal'
+import { isErrno } from '../../core/fs/errno'
 import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
 import type { DeviceChannelPort } from './deviceChannel'
@@ -175,24 +177,23 @@ async function assertJournalOwner(
 
 const PRIVATE_DIRECTORY_MODE = Number('0o700')
 
-function hasErrorCode(error: unknown, code: string): boolean {
-  return error instanceof Error && 'code' in error && error.code === code
-}
-
 /** Any missing parent of the Devices folder, owner-only where POSIX modes apply. */
 async function provisionParents(directory: string): Promise<void> {
   try {
     await mkdir(path.dirname(directory), { recursive: true, mode: PRIVATE_DIRECTORY_MODE })
-  } catch {
-    throw new DevicePairingError('storage')
+  } catch (error) {
+    throw new DevicePairingError('storage', { cause: error })
   }
 }
 
-async function removeStage(stage: string): Promise<void> {
+async function removeStage(stage: string, log: Logger): Promise<void> {
   try {
     await rmdir(stage)
-  } catch {
-    return
+  } catch (error) {
+    // A missing stage is already gone; anything else is left behind and
+    // logged, never fatal: the claim never depended on removing it.
+    if (isErrno(error) && error.code === 'ENOENT') return
+    log.warn(`Devices stage cleanup failed: ${failureForLog(error)}`)
   }
 }
 
@@ -209,12 +210,14 @@ async function provisionDevicesDirectory(
   directory: string,
   protection: DeviceStorageProtection | undefined,
   randomId: () => string,
+  log: Logger,
 ): Promise<void> {
   if (protection === undefined) {
     try {
       await mkdir(directory, { mode: PRIVATE_DIRECTORY_MODE })
     } catch (error) {
-      if (!hasErrorCode(error, 'EEXIST')) throw new DevicePairingError('storage')
+      if (isErrno(error) && error.code === 'EEXIST') return
+      throw new DevicePairingError('storage', { cause: error })
     }
     return
   }
@@ -222,14 +225,15 @@ async function provisionDevicesDirectory(
     await lstat(directory)
     return
   } catch (error) {
-    if (!hasErrorCode(error, 'ENOENT')) throw new DevicePairingError('storage')
+    if (!(isErrno(error) && error.code === 'ENOENT'))
+      throw new DevicePairingError('storage', { cause: error })
   }
   const parent = path.dirname(directory)
   const stage = path.join(parent, `.${path.basename(directory)}-${randomId()}.stage`)
   try {
     await mkdir(stage)
-  } catch {
-    throw new DevicePairingError('storage')
+  } catch (error) {
+    throw new DevicePairingError('storage', { cause: error })
   }
   let isStaged = true
   try {
@@ -237,16 +241,18 @@ async function provisionDevicesDirectory(
     try {
       await rename(stage, directory)
       isStaged = false
-    } catch {
+    } catch (error) {
       // Another creator got there first: that folder is validated, never claimed.
+      if (isErrno(error) && error.code === 'EEXIST') return
+      throw error
     }
-    if (!isStaged) await protection.syncDirectory(parent)
-  } catch {
-    throw new DevicePairingError('storage')
+    await protection.syncDirectory(parent)
+  } catch (error) {
+    throw new DevicePairingError('storage', { cause: error })
   } finally {
     // Only this call's own empty stage; never recursive. A stage left behind
     // is empty and harmless; the claim never depended on removing it.
-    if (isStaged) await removeStage(stage)
+    if (isStaged) await removeStage(stage, log)
   }
 }
 
@@ -298,15 +304,16 @@ export async function openDeviceProductionDeps(
       owned.push(binding.dispose)
       protection = binding.protection
     }
-    await provisionDevicesDirectory(context.storageDirectory, protection, randomId)
+    await provisionDevicesDirectory(context.storageDirectory, protection, randomId, context.log)
     const pairingDirectory = path.join(context.storageDirectory, 'pairing')
     let store: DeviceStore
     try {
       store = await bundle.DeviceStore.open(pairingDirectory, protection, platform)
-    } catch {
+    } catch (error) {
       // First provisioning claims the directory; an existing (including
       // damaged or still locked) store refuses the create below instead of
       // resetting.
+      if (!(error instanceof DevicePairingError)) throw error
       store = await bundle.DeviceStore.create(pairingDirectory, randomId(), protection, platform)
     }
     owned.push(() => store.close())
@@ -317,7 +324,8 @@ export async function openDeviceProductionDeps(
     let journal
     try {
       journal = await bundle.AttemptJournal.create(journalDirectory, owner, protection, platform)
-    } catch {
+    } catch (error) {
+      if (!(error instanceof DevicePairingError)) throw error
       journal = await bundle.AttemptJournal.open(journalDirectory, owner, protection, platform)
     }
     const secrets = new bundle.DeviceSecrets(context.secrets, context.host)

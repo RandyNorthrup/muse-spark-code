@@ -285,8 +285,9 @@ class DarwinProgramError extends DeviceWorkerHostError {
     detail: 'capacity' | 'helper',
     public readonly isRetryable: boolean,
     public readonly exitCode?: number | null,
+    options?: { cause?: unknown },
   ) {
-    super(detail)
+    super(detail, options)
   }
 }
 

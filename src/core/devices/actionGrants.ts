@@ -340,8 +340,12 @@ export class DeviceActionGrants implements DeviceActionGrantPort {
       })
       await this.attestStepUp(approval)
       return deviceStepUpSchema.parse(approval)
-    } catch {
-      return this.refusal(request, 'presence-unverified')
+    } catch (error) {
+      // An attestation race refuses as unverified; a port or schema failure
+      // stays loud so the caller denies it visibly instead of masking it.
+      if (error instanceof Error && error.message === 'presence-unverified')
+        return this.refusal(request, 'presence-unverified')
+      throw error
     } finally {
       clearTimeout(timer)
       control.abort()

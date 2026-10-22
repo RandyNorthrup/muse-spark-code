@@ -107,7 +107,8 @@ export class DevicePairing {
         }
       }
     } catch (error) {
-      setup.failure = error instanceof DevicePairingError ? error.reason : 'storage'
+      if (error instanceof DevicePairingError) setup.failure = error.reason
+      else throw error
     }
     return parseSetup(setup)
   }
@@ -156,9 +157,9 @@ export class DevicePairing {
         })
         return current
       })
-    } catch {
+    } catch (error) {
       if (hasStored) await this.deps.secrets.remove(generated.invitation.invitationId)
-      throw new DevicePairingError('storage')
+      throw new DevicePairingError('storage', { cause: error })
     } finally {
       generated.privateKeyPem = ''
     }
@@ -281,11 +282,13 @@ export class DevicePairing {
         this.deps.disconnectPair(request.action.pairId)
       }
     } catch (error) {
-      return parseSetup({
-        viewId: request.viewId,
-        requestId: request.requestId,
-        failure: error instanceof DevicePairingError ? error.reason : 'storage',
-      })
+      if (error instanceof DevicePairingError)
+        return parseSetup({
+          viewId: request.viewId,
+          requestId: request.requestId,
+          failure: error.reason,
+        })
+      throw error
     }
     return await this.ordered(async () => await this.perform(request))
   }
@@ -412,7 +415,11 @@ function parseSetup(candidate: unknown): Setup {
 async function settled(operation: Promise<unknown>): Promise<void> {
   try {
     await operation
-  } catch {
-    return
+  } catch (error) {
+    // The pairing lane's own typed failure is already recorded for the
+    // awaiting caller; anything else poisons the queue so later work fails
+    // loudly instead of building on unknown state.
+    if (error instanceof DevicePairingError) return
+    throw error
   }
 }

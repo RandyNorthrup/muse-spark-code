@@ -1,5 +1,4 @@
 // One host-owned revision stream per Devices document, shared by every editor.
-import { settleDeviceOperation } from './attemptJournal'
 import {
   deviceHostMessageSchema,
   devicesPanelStateSchema,
@@ -16,6 +15,22 @@ export interface DevicePanelDeps {
   publish(message: DeviceHostMessage): void
 }
 
+async function settlePanelObservation(operation: Promise<unknown>): Promise<void> {
+  try {
+    await operation
+  } catch (error) {
+    // A malformed snapshot or an exhausted revision refuses this observation
+    // only; anything else poisons the stream so later reads fail loudly
+    // instead of going quietly stale.
+    if (
+      error instanceof TypeError &&
+      (error.message === 'capacity' || error.message === 'invalid-snapshot')
+    )
+      return
+    throw error
+  }
+}
+
 export class DevicePanel implements DevicesPanelPort {
   private revision = 0
   private isReady = false
@@ -27,7 +42,9 @@ export class DevicePanel implements DevicesPanelPort {
     const previous = this.observations
     const capture = async (): Promise<DeviceHostMessage> => {
       await previous
-      const state = devicesPanelStateSchema.parse(await this.deps.snapshot())
+      const parsed = devicesPanelStateSchema.safeParse(await this.deps.snapshot())
+      if (!parsed.success) throw new TypeError('invalid-snapshot')
+      const state = parsed.data
       const revision = this.revision + 1
       if (!Number.isSafeInteger(revision)) throw new TypeError('capacity')
       this.revision = revision
@@ -36,7 +53,7 @@ export class DevicePanel implements DevicesPanelPort {
       return message
     }
     const operation = capture()
-    this.observations = settleDeviceOperation(operation)
+    this.observations = settlePanelObservation(operation)
     return await operation
   }
 

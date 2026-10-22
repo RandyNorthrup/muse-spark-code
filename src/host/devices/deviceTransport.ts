@@ -68,8 +68,8 @@ function verifyIdentity(pair: DeviceTransportPair): void {
 function checkIdentity(pair: DeviceTransportPair): void {
   try {
     verifyIdentity(pair)
-  } catch {
-    throw new Error('unpaired')
+  } catch (error) {
+    throw new Error('unpaired', { cause: error })
   }
 }
 
@@ -239,9 +239,9 @@ export class DeviceTransport {
       return () => {
         this.revokeListener(pair.pairId, server)
       }
-    } catch {
+    } catch (error) {
       this.revokeListener(pair.pairId, server)
-      throw new Error(failure)
+      throw new Error(failure, { cause: error })
     }
   }
 
@@ -350,10 +350,10 @@ export class DeviceTransport {
             reject(new Error('blocked-or-unreachable'))
           })
       })
-    } catch {
+    } catch (error) {
       socket?.destroy()
       release()
-      throw new Error('blocked-or-unreachable')
+      throw new Error('blocked-or-unreachable', { cause: error })
     } finally {
       clearTimeout(timer)
       if (cancel !== undefined) this.pending.delete(cancel)

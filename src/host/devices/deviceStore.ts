@@ -79,9 +79,9 @@ export class DeviceStore {
       if (names.some((name) => name.endsWith('.stage'))) throw new DevicePairingError('storage')
       await store.read()
       return store
-    } catch {
+    } catch (error) {
       await lock?.close()
-      throw new DevicePairingError('storage')
+      throw new DevicePairingError('storage', { cause: error })
     }
   }
   /** Explicit first setup only; refuses an existing directory, including damaged state. */
@@ -120,8 +120,8 @@ export class DeviceStore {
       await syncDirectory(directory, storage)
       await syncDirectory(path.dirname(directory), storage)
       return await this.open(directory, protection, platform)
-    } catch {
-      throw new DevicePairingError('storage')
+    } catch (error) {
+      throw new DevicePairingError('storage', { cause: error })
     }
   }
   private queue = Promise.resolve()
@@ -160,9 +160,9 @@ export class DeviceStore {
       } finally {
         await handle.close()
       }
-    } catch {
+    } catch (error) {
       this.hasFailed = true
-      throw new DevicePairingError('storage')
+      throw new DevicePairingError('storage', { cause: error })
     }
   }
   private async ordered<T>(work: () => Promise<T>): Promise<T> {
@@ -200,7 +200,7 @@ export class DeviceStore {
         )
           throw error
         this.hasFailed = true
-        throw new DevicePairingError('storage')
+        throw new DevicePairingError('storage', { cause: error })
       }
       try {
         const after = stateSchema.parse(candidate)
@@ -231,9 +231,9 @@ export class DeviceStore {
         } finally {
           await handle.close()
         }
-      } catch {
+      } catch (error) {
         this.hasFailed = true
-        throw new DevicePairingError('storage')
+        throw new DevicePairingError('storage', { cause: error })
       }
     })
   }
@@ -353,7 +353,11 @@ function isUnique(values: string[]): boolean {
 async function settled(operation: Promise<unknown>): Promise<void> {
   try {
     await operation
-  } catch {
-    return
+  } catch (error) {
+    // The store's own typed failure is already recorded for the awaiting
+    // caller; anything else poisons the queue so later work fails loudly
+    // instead of building on unknown state.
+    if (error instanceof DevicePairingError) return
+    throw error
   }
 }

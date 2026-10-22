@@ -49,8 +49,9 @@ export class DeviceWorkerHostError extends DevicePairingError {
   public constructor(
     public readonly detail:
       'context' | 'preflight' | 'helper' | 'desktop-heap' | 'result' | 'capacity',
+    options?: { cause?: unknown },
   ) {
-    super(reasonFor(detail))
+    super(reasonFor(detail), options)
     if (detail === 'desktop-heap') this.message = UI_TEXT.devices.desktopHeap
     else if (detail === 'capacity') this.message = UI_TEXT.devices.capacityHelp
     else this.message = UI_TEXT.devices.unsupportedHost

@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process'
 import { readFile, stat } from 'node:fs/promises'
 import { Socket } from 'node:net'
 import path from 'node:path'
+import { isErrno } from '../../core/fs/errno'
 import { isOwnerOnlyAcl } from '../../core/fs/ownerOnlyAcl'
 import type { DeviceStorageProtection } from '../../core/devices/storageProtection'
 import { compileJob, jobFileName, type JobBuild } from '../backend/jobBuild'
@@ -223,8 +224,9 @@ const HELPER: JobBuild = {
     try {
       const info = await stat(file)
       return info.isFile()
-    } catch {
-      return false
+    } catch (error) {
+      if (isErrno(error) && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return false
+      throw error
     }
   },
 }

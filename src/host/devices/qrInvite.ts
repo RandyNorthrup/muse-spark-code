@@ -27,7 +27,7 @@ export function encodeQrInviteText(invitation: DeviceInvitation, now: number): s
     return text
   } catch (error) {
     if (error instanceof DevicePairingError) throw error
-    throw new DevicePairingError('invalid-frame')
+    throw new DevicePairingError('invalid-frame', { cause: error })
   }
 }
 
@@ -45,6 +45,6 @@ export function decodeScannedInviteText(scanned: unknown, now: number): DeviceIn
     return parseDeviceInvitationText(text, now)
   } catch (error) {
     if (error instanceof DevicePairingError) throw error
-    throw new DevicePairingError('invalid-frame')
+    throw new DevicePairingError('invalid-frame', { cause: error })
   }
 }
