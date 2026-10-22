@@ -6,7 +6,7 @@ async function neverVisible() {
 }
 
 // The release publishes every artifact first and only then polls for
-// visibility under one shared deadline (PLAN.md D209): a slow registry
+// visibility under one shared stop (PLAN.md D209): a slow registry
 // delays the job once instead of once per artifact, and an unfinished
 // target is re-checked in the same job rather than left unpublished.
 describe('shared visibility poll', () => {
@@ -28,7 +28,6 @@ describe('shared visibility poll', () => {
           sleeps.push(ms)
         },
         now: () => 0,
-        timeoutMs: 1_800_000,
       },
     )
     expect(result).toEqual({ visible: ['a', 'b', 'c'], pending: [] })
@@ -36,8 +35,35 @@ describe('shared visibility poll', () => {
     expect(sleeps).toEqual([30_000, 60_000])
   })
 
-  it('shares one deadline across artifacts instead of one per artifact', async () => {
+  // No timeout of ours (D121, RLF-NOLIMITS): a registry slower than the
+  // removed 30-minute budget still resolves visible instead of pending.
+  it('waits past the removed 30-minute budget until every one is visible', async () => {
     let slept = 0
+    let now = 0
+    const slow = async () => {
+      if (slept < 45 * 60_000) throw new Error('HTTP 404 while checking published artifact')
+    }
+    const result = await pollAllVisible(
+      [
+        { label: 'a', verify: slow },
+        { label: 'b', verify: slow },
+        { label: 'c', verify: slow },
+      ],
+      {
+        sleep: async (ms) => {
+          slept += ms
+          now += ms
+        },
+        now: () => now,
+      },
+    )
+    expect(result).toEqual({ visible: ['a', 'b', 'c'], pending: [] })
+    expect(slept).toBeGreaterThanOrEqual(45 * 60_000)
+  })
+
+  it('shares one stop across artifacts instead of one per artifact', async () => {
+    const stop = new globalThis.AbortController()
+    let rounds = 0
     const result = await pollAllVisible(
       [
         { label: 'a', verify: neverVisible },
@@ -45,15 +71,46 @@ describe('shared visibility poll', () => {
         { label: 'c', verify: neverVisible },
       ],
       {
-        sleep: async (ms) => {
-          slept += ms
+        sleep: async () => {
+          rounds += 1
+          if (rounds === 2) stop.abort()
         },
         now: () => 0,
-        timeoutMs: 90_000,
+        signal: stop.signal,
       },
     )
     expect(result).toEqual({ visible: [], pending: ['a', 'b', 'c'] })
-    expect(slept).toBe(90_000)
+    expect(rounds).toBe(2)
+  })
+
+  it('says what is still pending on every round', async () => {
+    const lines = []
+    const sleeps = []
+    const calls = { alpha: 0, beta: 0 }
+    const fail = (label, times) => async () => {
+      calls[label] += 1
+      if (calls[label] <= times) throw new Error('HTTP 404 while checking published artifact')
+    }
+    const result = await pollAllVisible(
+      [
+        { label: 'alpha', verify: fail('alpha', 0) },
+        { label: 'beta', verify: fail('beta', 1) },
+      ],
+      {
+        sleep: async (ms) => {
+          sleeps.push(ms)
+        },
+        now: () => 0,
+        tell: (line) => {
+          lines.push(line)
+        },
+      },
+    )
+    expect(result).toEqual({ visible: ['alpha', 'beta'], pending: [] })
+    expect(sleeps).toHaveLength(1)
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toContain('beta')
+    expect(lines[0]).not.toContain('alpha')
   })
 
   it('rejects at once on an integrity mismatch instead of polling on', async () => {
@@ -73,7 +130,6 @@ describe('shared visibility poll', () => {
             slept += ms
           },
           now: () => 0,
-          timeoutMs: 90_000,
         },
       ),
     ).rejects.toThrow('differs from the release VSIX')
