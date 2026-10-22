@@ -90,9 +90,9 @@ describe('schedules report reader failures', () => {
   // one-shot reconciliation, the fencing-CAS retry and the persistent
   // ownership-loss cases hooked the reader's lock/publish calls through the
   // module factory: interception, unrepresentable through the real reader.
-  // Their verdicts are withdrawn in docs/certification/msm113.md; the busy
-  // verdict itself stays proven below against a real held lease, and the
-  // retry loop is admission's own suites.
+  // Their verdicts are withdrawn in docs/certification/msm113.md; the wait
+  // for a real held lease is proven below (no deadline of ours turns it
+  // busy), and the retry loop is admission's own suites.
 
   it('reads damaged stored JSON as invalid, never a generic failure', async () => {
     await withSchedulesRoot('schedules-corrupt-', async (root) => {
@@ -255,29 +255,43 @@ async function forgeJournalOverflow(root: string, changes: unknown) {
 }
 
 describe('schedules report contention waits', () => {
-  // The production 5 s source deadline must elapse while a valid holder owns
-  // the lease, so this needs longer than the repository default timeout.
+  // Past the removed 5 s source deadline (D121/D208): a read still waiting
+  // this long proves no deadline of ours ends it.
+  const PAST_FORMER_DEADLINE_MS = 6000
+
+  // The holder keeps the lease past the former deadline, so this needs
+  // longer than the repository default timeout.
   it(
-    'reports a held production lease as busy with no late publish',
+    'waits for a held production lease past the former deadline, then reads it',
     { timeout: 30_000 },
     async () => {
       await withSchedulesRoot('schedules-held-lease-', async (root) => {
         const { release, held } = await holdProductionLease(root)
         try {
-          // A valid writer holds the lease past the source deadline: the
-          // verdict is the Host busy sentence, never cancelled or timed out.
-          const result = await sourceFor(root).read(freshContext())
-          expect(result.record.status).toBe('unavailable')
-          expect(result.record.reason).toBe(UI_TEXT.teamHostBusy)
+          let isSettled = false
+          const pending = (async () => {
+            try {
+              return await sourceFor(root).read(freshContext())
+            } finally {
+              isSettled = true
+            }
+          })()
+          // A valid writer holds the lease: the read keeps waiting, never
+          // busy, cancelled or timed out on a clock of ours.
+          await delay(PAST_FORMER_DEADLINE_MS)
+          expect(isSettled).toBe(false)
           release.resolve(undefined)
           await held
+          const result = await pending
+          expect(result.record.status).toBe('ok')
+          expect(result.data).not.toBeNull()
           const settled = await inventory(root)
           await delay(300)
-          // The stopped reader performs no further read, write or publish
-          // once the holder lets go: the tree stays exactly as it settled.
-          // (Lock attempts leave no trace, so the single attempt is not
-          // asserted here.)
+          // The reader released its own lease when it settled: no further
+          // read, write or publish follows, and the tree stays as it settled.
           expect(await inventory(root)).toEqual(settled)
+          const reread = await readerFor(root).read(context())
+          expect(reread.schedules).toHaveLength(1)
         } finally {
           release.resolve(undefined)
         }
@@ -285,10 +299,10 @@ describe('schedules report contention waits', () => {
     },
   )
 
-  // Five sequential refreshes against a persistent holder: each one ends
-  // busy on its own wait, files stay untouched, and releasing the holder
-  // afterwards serves a fresh read. Needs five production waits back to back.
-  it('ends every refresh busy without accumulating readers', { timeout: 60_000 }, async () => {
+  // Five refreshes against a persistent holder, each cancelled by its
+  // caller: each ends cancelled, none acquires the lease, and releasing the
+  // holder afterwards serves a fresh read.
+  it('ends every cancelled refresh without accumulating readers', async () => {
     await withSchedulesRoot('schedules-refresh-', async (root) => {
       const { release, held } = await holdProductionLease(root)
       try {
@@ -298,9 +312,13 @@ describe('schedules report contention waits', () => {
           files.filter((file) => !file.endsWith('.heartbeat'))
         const before = withoutPulse(await inventory(root))
         for (let refresh = 0; refresh < 5; refresh += 1) {
-          const result = await sourceFor(root).read(freshContext())
+          const controller = new AbortController()
+          const pending = sourceFor(root).read({ ...freshContext(), signal: controller.signal })
+          await delay(50)
+          controller.abort()
+          const result = await pending
           expect(result.record.status).toBe('unavailable')
-          expect(result.record.reason).toBe(UI_TEXT.teamHostBusy)
+          expect(result.record.reason).toBe(UI_TEXT.reportSourceReasons.cancelled)
         }
         // No refresh acquired the lease, so no fence header or marker
         // appeared: repeated refreshes accumulate no readers.
@@ -312,28 +330,6 @@ describe('schedules report contention waits', () => {
       const fresh = await sourceFor(root).read(freshContext())
       expect(fresh.record.status).toBe('ok')
       expect(fresh.data).not.toBeNull()
-    })
-  })
-
-  // The full 5 s reader wait must elapse against the gated lock, so this
-  // needs longer than the repository default timeout.
-  it('stops a queued reader on its deadline with a frozen tree', { timeout: 30_000 }, async () => {
-    await withSchedulesRoot('schedules-queued-reader-', async (root) => {
-      const { release, held } = await holdProductionLease(root)
-      try {
-        expect(await codeOf(() => readerFor(root).read(freshContext()))).toBe('busy')
-        release.resolve(undefined)
-        await held
-        const settled = await inventory(root)
-        await delay(300)
-        // No read, listing, write or removal followed the stop: the tree
-        // stays exactly as it settled.
-        expect(await inventory(root)).toEqual(settled)
-        const reread = await readerFor(root).read(context())
-        expect(reread.schedules).toHaveLength(1)
-      } finally {
-        release.resolve(undefined)
-      }
     })
   })
 
@@ -568,7 +564,7 @@ describe('queue vocabulary coverage', () => {
   // NOTE (MSM113FIX): the per-word lock-rejection table is gone. It made
   // the lock fail with each queue word through the module factory:
   // interception, and lock attempts leave no real trace to assert. Each
-  // verdict stays proven for real elsewhere in this file: busy against a
+  // verdict stays proven for real elsewhere in this file: the wait for a
   // real held lease, invalid through forged fence headers, failed through
   // forged store states. The retry rows (ownership loss) and the heartbeat
   // failure have no deterministic real trigger; their runtime

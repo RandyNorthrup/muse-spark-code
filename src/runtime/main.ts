@@ -55,7 +55,6 @@ import {
   REFERENCE_BUNDLE_FILE,
   BOUNDED_FILE_READ_CHUNK_BYTES,
   SCHEDULE_STORE_SUBFOLDER,
-  REPORT_SOURCE_TIMEOUT_MS,
   CONNECTOR_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
@@ -790,11 +789,13 @@ function runtimeReports(
       },
       readSaved: async (cwd, file) => {
         // NOLIMITS1FIX: a saved report reads whole at any size — the
-        // removed 16 MiB bound was invented.
+        // removed 16 MiB bound was invented. No deadline of ours either
+        // (D121/D208): the read runs to end-of-file, and the person's
+        // interrupt of this command is what stops it.
         const bytes = await readBoundedFile(
           path.resolve(cwd, file),
           Infinity,
-          AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
+          new AbortController().signal,
         )
         const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
         return value

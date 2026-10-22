@@ -5,7 +5,6 @@ import {
   GITHUB_MEDIA_TYPE,
   MILLISECONDS_PER_SECOND,
   REPORT_GITHUB_RATE_FLOOR,
-  REPORT_SOURCE_TIMEOUT_MS,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { ReportSourceRecord } from '../../../shared/reportSchema'
@@ -137,8 +136,6 @@ function scrubStructured(value: unknown, scrub: (text: string) => string): unkno
 }
 
 const HTTP_NOT_MODIFIED = 304
-const HTTP_FORBIDDEN = 403
-const HTTP_TOO_MANY_REQUESTS = 429
 const PUBLIC_HOSTS = new Set([
   'api.github.com',
   'marketplace.visualstudio.com',
@@ -288,12 +285,12 @@ export class ReportNetworkReader {
     }
   }
 
-  /** Bound admission and transport by the source signal, even if a port ignores it. */
+  /** End admission and transport on the caller's signal, even if a port ignores it. */
   private async untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
     let abortListener: (() => void) | undefined
     const aborted = new Promise<never>((_resolve, reject) => {
       abortListener = () => {
-        reject(new ReportNetworkFailure('source-deadline'))
+        reject(new ReportNetworkFailure('source-cancelled'))
       }
       signal.addEventListener('abort', abortListener, { once: true })
       if (signal.aborted) abortListener()
@@ -316,10 +313,7 @@ export class ReportNetworkReader {
     signal.throwIfAborted()
     return await new Promise<DispatchResult>((resolve, reject) => {
       const abort = (): void => {
-        this.step(origin, {
-          type: signal.reason === 'source-timeout' ? 'timedOut' : 'aborted',
-          generation,
-        })
+        this.step(origin, { type: 'aborted', generation })
       }
       const generation: NetworkGeneration = {
         request,
@@ -484,17 +478,11 @@ export class ReportNetworkReader {
         Number.isFinite(until) ? until : now,
         Number(reset) * MILLISECONDS_PER_SECOND,
       )
-    if (
-      isAtFloor ||
-      Number.isFinite(until) ||
-      response.status === HTTP_TOO_MANY_REQUESTS ||
-      (retry !== null && response.status === HTTP_FORBIDDEN)
-    ) {
-      // Missing/malformed reset cannot authorize another dispatch immediately.
-      until = until > now && Number.isFinite(until) ? until : now + REPORT_SOURCE_TIMEOUT_MS
-      return until
-    }
-    return null
+    // Only the server's own instant holds the origin: its Retry-After, or
+    // the reset GitHub names at the floor. A limited answer that names no
+    // future instant invents no hold of ours (D121/D208); the next read
+    // asks the server again, and its answer says whether it is still limited.
+    return Number.isFinite(until) && until > now ? until : null
   }
 
   private async body(response: Response, signal: AbortSignal): Promise<string> {
@@ -535,7 +523,11 @@ export class ReportNetworkReader {
     return isReportNetworkAllowed(this.deps.policy, context, hostname)
   }
 
-  /** One deadline covers all pages, parsing, egress admission and storage. */
+  /**
+  One caller's signal (the person's cancel) covers all pages, parsing,
+  egress admission and storage. No deadline of ours abandons the read
+  (D121/D208): it runs until it settles or that signal aborts.
+  */
   public async read<T>(
     context: SourceReadContext,
     id: string,
@@ -585,9 +577,6 @@ export class ReportNetworkReader {
         data: schema.parse(scrubStructured(result.data, this.deps.scrub)),
       }
     }
-    const timer = setTimeout(() => {
-      controller.abort('source-timeout')
-    }, REPORT_SOURCE_TIMEOUT_MS)
     try {
       return await this.untilAborted(work(), signal)
     } catch (error: unknown) {
@@ -597,7 +586,7 @@ export class ReportNetworkReader {
         `${context.reportText.reportUi.generationFailed} (${this.deps.scrub(detail)})`,
       )
     } finally {
-      clearTimeout(timer)
+      // Pages still in flight after the read settled stop with it.
       controller.abort()
     }
   }

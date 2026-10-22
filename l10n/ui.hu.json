@@ -2087,7 +2087,7 @@
     "missing": "A forrásfájl vagy az adattár hiányzik.",
     "invalid": "A forrás formátuma nem támogatott, vagy érvénytelen adatokat tartalmaz.",
     "limit": "A forrás meghaladja a jelentés olvasási korlátját.",
-    "cancelled": "A forrás olvasása megszakadt, vagy lejárt az időkorlát.",
+    "cancelled": "A forrás olvasása megszakadt.",
     "failed": "A forrást nem sikerült teljesen beolvasni.",
     "refused": "A forrás elérési útja bizalmas, vagy az engedélyezett mappán kívül van.",
     "disabled": "Ez az ügynökhasználati forrás nincs bekapcsolva.",

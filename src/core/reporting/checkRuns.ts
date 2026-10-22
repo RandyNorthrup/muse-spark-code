@@ -3,7 +3,7 @@ import {
   CHECK_NAME_MAX_CHARS,
   REPORT_CHECK_RUNS_MAX,
   REPORT_MAX_ID_CHARS,
-  REPORT_SOURCE_TIMEOUT_MS,
+  REPORT_SOURCE_FRESH_MS,
 } from '../../shared/constants'
 import { reportsMethods } from '../../shared/hostApi/reports'
 import { type ReportStorage } from './history'
@@ -110,7 +110,7 @@ export class CheckRunJournal {
                     ? { status: 'ok' as const, reason: null }
                     : { status: 'partial' as const, reason: reportText.reportUi.generationFailed }),
                   observedAt,
-                  freshness: { state: ageMs > REPORT_SOURCE_TIMEOUT_MS ? 'stale' : 'fresh', ageMs },
+                  freshness: { state: ageMs > REPORT_SOURCE_FRESH_MS ? 'stale' : 'fresh', ageMs },
                 },
                 data: parsed.entries,
               }

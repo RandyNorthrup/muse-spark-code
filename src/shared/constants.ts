@@ -6190,7 +6190,12 @@ export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 // past it refuses as `page-bound` instead of truncating silently (C-M113-6).
 export const REPORT_NETWORK_MAX_PAGES = 10
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
-export const REPORT_SOURCE_TIMEOUT_MS = 5000
+// Labels only, never a bound: a source observed within this age of the
+// report's stamp reads `fresh`, an older one `stale`. Nothing waits on it,
+// stops at it or refuses past it; no timeout of ours ends a source read
+// (D121/D208): only the caller's signal (the person's cancel) or a deadline
+// the caller hands in does.
+export const REPORT_SOURCE_FRESH_MS = 5000
 // NOLIMITS1FIX: report source files read at any size — the removed 16 MiB
 // bound (which A30 had renamed from the session-export cap) was invented.
 // Row and text bounds elsewhere (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`)

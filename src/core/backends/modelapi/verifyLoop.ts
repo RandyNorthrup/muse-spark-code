@@ -24,7 +24,7 @@ import { shellOutcome, type ShellResult } from './tools'
 export interface VerifyHooks {
   /** M113-H: the shared journal adapter captures HEAD before execution, never shell text. */
   readonly checkRuns?: {
-    readonly commit: () => Promise<string>
+    readonly commit: (signal: AbortSignal) => Promise<string>
     readonly append: (record: CheckRunRecord) => Promise<void>
   }
   /** `museSpark.diagnosticsAfterEdits`. */
