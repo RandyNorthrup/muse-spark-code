@@ -84,3 +84,20 @@ export const WORKER_REPORT_FENCE = 'muse-team-report'
 
 /** A review task's findings fence tag: M70's `muse-review` (acceptance 18). */
 export const WORKER_REVIEW_FENCE = 'muse-review'
+
+/**
+A refusal the worker modules already typed keeps its sentence on the way
+out: the typed create failures carry fixed user vocabulary (never paths),
+so a caller that reports sentences may repeat them. This leaf owns the
+marker so the fence, the operations and the ACP surface share it without
+a module cycle.
+*/
+export function markTypedCreateRefusal(error: Error): Error {
+  return Object.assign(error, { typedCreateRefusal: true })
+}
+
+export function isTypedCreateRefusal(error: unknown): error is Error {
+  return (
+    error instanceof Error && 'typedCreateRefusal' in error && error.typedCreateRefusal === true
+  )
+}

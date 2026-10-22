@@ -8734,7 +8734,6 @@ export const TEAM_MAX_WORKERS_PER_CPU = 2
 // section (C-M96-2, lead 2026-10-10): until then it would do nothing a user
 // can see. Hidden means hidden: an absent setting counts as off.
 export const TEAM_SWITCH_SETTING = 'team'
-export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
 // A 429, or a remaining-requests or remaining-tokens header under this

@@ -36,7 +36,7 @@ export function installSweepText(table: UiText, locale: string): void {
   setUiText(table, locale)
 }
 
-import { markTypedCreateRefusal, isTypedCreateRefusal } from './workerFence'
+import { markTypedCreateRefusal, isTypedCreateRefusal } from './workerTypes'
 
 const receipt = z.strictObject({
   identity: z.string().check(z.regex(/^\d+:\d+$/)),

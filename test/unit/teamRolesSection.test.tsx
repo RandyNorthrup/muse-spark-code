@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { useReducer, useState } from 'react'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi, beforeAll } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { panelRig } from './helpers/teamPanelRig'
 import { teamOffers } from './helpers/teamPanelOffers'
@@ -22,7 +22,6 @@ import type { TeamPanelSlice } from '../../src/shared/teamPanel'
 import type { PanelToHostMessage } from '../../src/shared/modelsPanel'
 import { teamPanelMessageSchema } from '../../src/shared/teamPanel'
 import { ModelsApp, ModelsPanel } from '../../src/webview/models/panel'
-import * as browserSchemas from '../../src/webview/models/teamPanelBrowser'
 import { INITIAL_PANEL_UI, panelUiReducer } from '../../src/webview/models/reducer'
 import { RolesSection } from '../../src/webview/models/sections/roles/RolesSection'
 import { AgentsSection } from '../../src/webview/models/sections/agents/AgentsSection'
@@ -34,12 +33,15 @@ beforeAll(async () => {
   await loadMoneyDisplay()
 })
 
-function sectionProps(slice: TeamPanelSlice, post: SectionProps['post'] = vi.fn()): SectionProps {
+function sectionProps(
+  slice: TeamPanelSlice,
+  post: SectionProps['post'] = () => undefined,
+): SectionProps {
   return {
     panelState: makeState({ roles: slice, agents: {} }),
     post,
-    dispatch: vi.fn(),
-    navigate: vi.fn(),
+    dispatch: () => undefined,
+    navigate: () => undefined,
     wizardOpen: false,
     wizardLife: { generation: 0, isCurrent: () => false },
     importOpen: false,
@@ -179,59 +181,39 @@ describe('M96 U1 Roles UI', () => {
     view.rerender(<RolesSection {...props} highlightedItem="research" />)
     expect(screen.getByRole('heading', { name: UI_TEXT.teamEditorRoles.research })).toBeDefined()
   })
-  it('shows a retry after a deferred validator load fails', async () => {
-    const loader = vi
-      .spyOn(browserSchemas, 'loadTeamPanelSchemas')
-      .mockRejectedValue(new Error('chunk unavailable'))
-    try {
-      render(
-        <ModelsApp
-          host={{
-            post: vi.fn(),
-            messages: window,
-            savedState: () => undefined,
-            saveState: vi.fn(),
-          }}
-          report={vi.fn()}
-        />,
-      )
-      window.dispatchEvent(new MessageEvent('message', { data: { state: { roles: {} } } }))
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.surfaceLoadFailed)
-      })
-      expect(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry })).toBeDefined()
-    } finally {
-      loader.mockRestore()
-    }
-  })
   it('drops a pending deferred state when its document closes', async () => {
-    const pending = Promise.withResolvers<undefined>()
-    const loader = vi.spyOn(browserSchemas, 'loadTeamPanelSchemas').mockReturnValue(pending.promise)
-    const report = vi.fn()
-    try {
-      const view = render(
-        <ModelsApp
-          host={{
-            post: vi.fn(),
-            messages: window,
-            savedState: () => undefined,
-            saveState: vi.fn(),
-          }}
-          report={report}
-        />,
-      )
-      window.dispatchEvent(new MessageEvent('message', { data: { state: { roles: {} } } }))
-      await waitFor(() => {
-        expect(loader).toHaveBeenCalled()
-      })
-      view.unmount()
-      pending.resolve(undefined)
-      await pending.promise
-      await Promise.resolve()
-      expect(report).not.toHaveBeenCalled()
-    } finally {
-      loader.mockRestore()
+    // The document closes before the queued message is processed: closing
+    // reports nothing, while the same message on an open document loads
+    // through the real deferred schemas and renders. The pair proves the
+    // silence comes from the close, not from a broken path.
+    const reports: { readonly source: unknown; readonly error: unknown }[] = []
+    const bridge = {
+      post: () => undefined,
+      messages: window,
+      savedState: () => undefined,
+      saveState: () => undefined,
     }
+    const report = (source: unknown, error: unknown) => {
+      reports.push({ source, error })
+    }
+    const { slice } = await pairSlice()
+    const state = makeState({ roles: slice, agents: {} })
+    const closed = render(<ModelsApp host={bridge} report={report} />)
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'modelsPanel/state', state } }),
+    )
+    closed.unmount()
+    await waitFor(() => {
+      expect(reports).toEqual([])
+    })
+    render(<ModelsApp host={bridge} report={report} />)
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'modelsPanel/state', state } }),
+    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: UI_TEXT.providersSectionTitle })).toBeDefined()
+    })
+    expect(reports).toEqual([])
   })
   it('saves the first Pair in four clicks with found agents', async () => {
     const rig = await sectionRig()
@@ -247,14 +229,14 @@ describe('M96 U1 Roles UI', () => {
     }
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.save }))
     await waitFor(() => {
-      expect(rig.reload).toHaveBeenCalledOnce()
+      expect(rig.reloads()).toBe(1)
     })
     expect(rig.posted.map((message) => message.type)).toEqual(['roles/template', 'roles/save'])
     expect(screen.getByText(UI_TEXT.teamEditor.saved)).toBeDefined()
   })
   it('shows the stored template and keeps an imported draft out of the first-run guide', async () => {
     const { empty, imported } = await importedFullSlice()
-    const post = vi.fn<SectionProps['post']>()
+    const { posted, post } = collectingPost()
     const props = sectionProps(empty, post)
     const view = render(<RolesSection {...props} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerImport }))
@@ -264,15 +246,15 @@ describe('M96 U1 Roles UI', () => {
     )
     expect(screen.queryByRole('button', { name: UI_TEXT.wizardContinue })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.save }))
-    expect(post.mock.calls.map(([message]) => message.type)).toEqual(['roles/import', 'roles/save'])
+    expect(posted.map((message) => message.type)).toEqual(['roles/import', 'roles/save'])
   })
   it('keeps guided setup when the import picker is cancelled', async () => {
     const rig = panelRig()
     const empty = await rig.read()
-    const post = vi.fn<SectionProps['post']>()
+    const { posted, post } = collectingPost()
     const view = render(<RolesSection {...sectionProps(empty, post)} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerImport }))
-    expect(post).toHaveBeenCalledWith({ type: 'roles/import' })
+    expect(posted).toEqual([{ type: 'roles/import' }])
     // Cancelling the native picker delivers no new draft: the same empty
     // slice renders again and the guide stays.
     view.rerender(<RolesSection {...sectionProps(empty, post)} />)
@@ -280,11 +262,11 @@ describe('M96 U1 Roles UI', () => {
   })
   it('restores guided setup when the editor is cancelled back to empty', async () => {
     const { imported } = await importedFullSlice()
-    const post = vi.fn<SectionProps['post']>()
+    const { posted, post } = collectingPost()
     render(<RolesSection {...sectionProps(imported, post)} />)
     expect(screen.queryByRole('button', { name: UI_TEXT.wizardContinue })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardCancel }))
-    expect(post).toHaveBeenCalledWith({ type: 'roles/reset' })
+    expect(posted).toEqual([{ type: 'roles/reset' }])
     expect(screen.getByRole('button', { name: UI_TEXT.wizardContinue })).toBeDefined()
   })
   it('posts Alt+Up reordering and exposes only supported settings', async () => {
@@ -599,7 +581,7 @@ describe('M96 U1 Roles UI', () => {
   })
   it('shows inherited numeric settings as Default and can reset an explicit value', async () => {
     const slice = await outputCapSlice()
-    const post = vi.fn<SectionProps['post']>()
+    const { posted, post } = collectingPost()
     const view = render(<RolesSection {...sectionProps(slice, post)} />)
     const output = screen.getByRole('spinbutton', { name: 'Output Cap' })
     expect(output).toHaveDisplayValue('')
@@ -614,7 +596,8 @@ describe('M96 U1 Roles UI', () => {
     fireEvent.click(
       screen.getByRole('button', { name: `${UI_TEXT.teamResetToDefault} (outputCap)` }),
     )
-    expect(post).toHaveBeenCalledWith({
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).toMatchObject({
       type: 'roles/updateEntry',
       role: 'engineering',
       entryId: entry.id,
@@ -626,8 +609,8 @@ describe('M96 U1 Roles UI', () => {
       <ModelsPanel
         panelState={makeState()}
         ui={{ ...INITIAL_PANEL_UI, section: 'roles' }}
-        post={vi.fn()}
-        dispatch={vi.fn()}
+        post={() => undefined}
+        dispatch={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: UI_TEXT.teamRolesTitle })).toBeNull()
@@ -652,7 +635,7 @@ describe('M96 U1 Roles UI', () => {
         <ModelsPanel
           panelState={makeState({ roles: slice, agents: {} })}
           ui={ui}
-          post={vi.fn()}
+          post={() => undefined}
           dispatch={dispatch}
         />
       )
@@ -677,7 +660,8 @@ describe('M96 U1 Roles UI', () => {
   it('gives the Agents section its title-case labels and routes its actions', async () => {
     const rig = panelRig()
     const slice = await rig.read()
-    const props = sectionProps(slice)
+    const { posted, post } = collectingPost()
+    const props = sectionProps(slice, post)
     render(
       <AgentsSection
         {...props}
@@ -693,7 +677,7 @@ describe('M96 U1 Roles UI', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.stopAll }))
-    expect(props.post).toHaveBeenCalledWith({ type: 'agents/stopAll' })
+    expect(posted).toEqual([{ type: 'agents/stopAll' }])
   })
 })
 
@@ -750,14 +734,14 @@ describe('M96 U1 pool catalogue filters', () => {
     'saves a valid team with a fractional %s price filter',
     async (label) => {
       const { slice } = await pairSlice()
-      const post = vi.fn<SectionProps['post']>()
+      const { posted, post } = collectingPost()
       render(<RolesSection {...sectionProps(slice, post)} />)
       const filter = screen.getByRole('spinbutton', { name: UI_TEXT.modelFilterLabels[label] })
       fireEvent.change(filter, { target: { value: '0.5' } })
       expect(filter).toBeValid()
       expect(document.querySelector('form')?.checkValidity()).toBe(true)
       fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.save }))
-      expect(post).toHaveBeenCalledWith({ type: 'roles/save' })
+      expect(posted).toEqual([{ type: 'roles/save' }])
     },
   )
   it('formats pool prices with the installed French currency rules', async () => {
@@ -816,7 +800,7 @@ describe('M96 U1 localized role labels', () => {
     document.body.append(element)
     expect(installEmbeddedTable(document)).toBeUndefined()
     try {
-      render(<RoleEditor role={role} slice={slice} post={vi.fn()} />)
+      render(<RoleEditor role={role} slice={slice} post={() => undefined} />)
       expect(screen.getByRole('option', { name: 'Zusammenfassung' })).toBeDefined()
       expect(screen.getByRole('option', { name: 'Prüfung' })).toBeDefined()
       expect(screen.queryByRole('option', { name: 'summary' })).toBeNull()

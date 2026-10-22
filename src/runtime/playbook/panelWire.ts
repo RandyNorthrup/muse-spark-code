@@ -71,22 +71,22 @@ export const playbookHelloSchema = z.strictObject({
   type: z.literal('playbookHello'),
   workspaceId: z.optional(workspaceId),
   /**
-   * The conversation has a module under review while its mode lets the
-   * backend start subagents without asking: the map says so (D96.17).
-   */
+  The conversation has a module under review while its mode lets the
+  backend start subagents without asking: the map says so (D96.17).
+  */
   spawnGap: z.optional(z.boolean()),
 })
 /**
- * The window's playbook could not be asked at all: its bundle did not load,
- * or the hello's own read failed or did not answer in time. The map says so
- * and offers to ask again; it is never left to look like a host without one.
- */
+The window's playbook could not be asked at all: its bundle did not load,
+or the hello's own read failed or did not answer in time. The map says so
+and offers to ask again; it is never left to look like a host without one.
+*/
 export const playbookFailedSchema = z.strictObject({ type: z.literal('playbookFailed') })
 /**
- * The rows' records, as the journal has them: empty when it holds none for
- * them. Both carry the bridge lifetime id, like the read and change calls,
- * so a reply for a closed map is dropped.
- */
+The rows' records, as the journal has them: empty when it holds none for
+them. Both carry the bridge lifetime id, like the read and change calls,
+so a reply for a closed map is dropped.
+*/
 export const playbookAgentsSchema = z.strictObject({
   type: z.literal('playbookAgents'),
   ...scope,
@@ -94,9 +94,9 @@ export const playbookAgentsSchema = z.strictObject({
   records: playbookAgentRecordsSchema,
 })
 /**
- * The rows' records could not be read. Nothing is said about what they hold:
- * the map keeps what it showed, and says it may be out of date.
- */
+The rows' records could not be read. Nothing is said about what they hold:
+the map keeps what it showed, and says it may be out of date.
+*/
 export const playbookAgentsFailedSchema = z.strictObject({
   type: z.literal('playbookAgentsFailed'),
   ...scope,

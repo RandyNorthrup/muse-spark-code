@@ -53,14 +53,15 @@ export function observedTeamLimits(
   }
   if (preset === 'anthropic') {
     const rpm = amount(raw['anthropic-ratelimit-requests-limit'])
-    const tokens = [
+    const tokens: number[] = []
+    for (const key of [
       'anthropic-ratelimit-tokens-limit',
       'anthropic-ratelimit-input-tokens-limit',
       'anthropic-ratelimit-output-tokens-limit',
-    ].flatMap((key) => {
+    ]) {
       const value = amount(Reflect.get(raw, key))
-      return value === undefined ? [] : [value]
-    })
+      if (value !== undefined) tokens.push(value)
+    }
     const tpm = tokens.length === 0 ? undefined : Math.min(...tokens)
     return rpm === undefined && tpm === undefined ? undefined : { rpm, tpm }
   }
@@ -98,14 +99,14 @@ export function buildTeamModelOffers(input: {
   readonly maxWorkers: number
   readonly canRunKind: (kind: 'engine' | 'museCode' | 'external') => boolean
   /**
-   * The credential identity spending today, by provider. A known identity
-   * drops an observation stamped for another account, and an unstamped one
-   * is omitted with the limits reason (RVCM963J 7). An unknown identity
-   * for a provider (undefined: signed out, or an OAuth or damaged record)
-   * drops every stamped row, so no other account's quota comes back;
-   * unstamped rows keep the legacy newest-row selection. Absent keeps it
-   * everywhere (tests, unattributed rows).
-   */
+  The credential identity spending today, by provider. A known identity
+  drops an observation stamped for another account, and an unstamped one
+  is omitted with the limits reason (RVCM963J 7). An unknown identity
+  for a provider (undefined: signed out, or an OAuth or damaged record)
+  drops every stamped row, so no other account's quota comes back;
+  unstamped rows keep the legacy newest-row selection. Absent keeps it
+  everywhere (tests, unattributed rows).
+  */
   readonly currentAccountOf?: (provider: string) => string | undefined
 }): { readonly offers: TeamPanelOffer[]; readonly absent: TeamDiscoveryAbsence[] } {
   const offers: TeamPanelOffer[] = []

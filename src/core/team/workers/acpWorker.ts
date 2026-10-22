@@ -18,13 +18,13 @@ import {
   requireAcpNativeIsolation,
   confineWorkerPath,
   isCheckedWorkerWriteAllowed,
-  isTypedCreateRefusal,
   MuseWorkerFolderError,
   withWorkerFile,
   recheckWorkerRoot,
   type WorkerRootGrant,
   type WorkerFenceIo,
 } from './workerFence'
+import { isTypedCreateRefusal } from './workerTypes'
 import { WorkerRoleDeniedError } from './workerCreateEntry'
 /** @unwired M96 workerFence re-exports for ACP host consumers */
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'

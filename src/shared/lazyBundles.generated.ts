@@ -591,6 +591,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'playbook.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'PLAYBOOK_WINDOW_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'playbookSchedulesInputs.js',
     side: 'both',
     requestedBy: [

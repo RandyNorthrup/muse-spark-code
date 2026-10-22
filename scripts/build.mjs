@@ -2095,7 +2095,7 @@ if (isWatch) {
     browserRuntime: recorded('browserRuntime', browserRuntimeOptions),
     searchWorker: recorded('searchWorker', searchWorkerOptions),
     pageWorker: recorded('pageWorker', pageWorkerOptions),
-    playbookWindow: recorded('playbookWindow', playbookWindowOptions),
+    playbook: recorded('playbook', playbookWindowOptions),
     imageResizeWorker: recorded('imageResizeWorker', imageResizeWorkerOptions),
     webview: recorded('webview', webviewOptions),
   }

@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Merged
+
+- RLM116 recovery: the M116 panel playbook end to end over the certified
+  M96 orchestrator core (merge `1abea8ad7c`). The merged worker suites
+  prove refusals with real files and exact refusal sentences instead of
+  call watchers; the panel enforces the playbook at review turns,
+  `delegate` follow-ups, best-of-N starts, spawn requests and why-note
+  buttons. Cross-milestone bindings (planner/board facts, M107 capacity
+  admission, M113 row feeding, headless-run admission) remain owner
+  design: the team model carries no lane identity to join on. Record:
+  `docs/certification/rlm116.md`.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
