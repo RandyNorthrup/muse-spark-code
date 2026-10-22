@@ -9,6 +9,7 @@ import { type TeamBoardTask } from '../../../shared/team'
 import {
   decideReviewCarryOver,
   type CarryContext,
+  type CarryDecision,
   type CarryFileDelta,
   type CarryFileVerdict,
 } from './reviewCarryOver'
@@ -223,14 +224,18 @@ export class ReviewFlow {
       return await this.guardedDispatch(task.id, previous)
     }
     const deltas = this.deps.readDeltas?.(task.id, head)
-    const decision =
-      deltas === undefined || previous?.files === undefined
-        ? undefined
-        : decideReviewCarryOver(previous.files, deltas, {
-            patchHints: this.deps.patchHints?.(task.id, previous.head, head),
-            integrationChanged: this.deps.integrationChanged?.(task.id, previous.head, head),
-            readSets: this.deps.readSets?.(task.id),
-          })
+    let decision: CarryDecision<ClassifiedFinding> | undefined
+    if (deltas !== undefined && previous?.files !== undefined) {
+      const patchHints = this.deps.patchHints?.(task.id, previous.head, head)
+      const integrationChanged = this.deps.integrationChanged?.(task.id, previous.head, head)
+      const readSets = this.deps.readSets?.(task.id)
+      const context: CarryContext = {
+        ...(patchHints !== undefined && { patchHints }),
+        ...(integrationChanged !== undefined && { integrationChanged }),
+        ...(readSets !== undefined && { readSets }),
+      }
+      decision = decideReviewCarryOver(previous.files, deltas, context)
+    }
     if (decision !== undefined && previous !== undefined && decision.reReview.length === 0) {
       // The review stands on unchanged deltas: move the record to the
       // new head and dispatch its standing verdict, with no new round.
@@ -273,7 +278,7 @@ export class ReviewFlow {
       otherClasses: classes.filter((reviewClass) => !assigned.includes(reviewClass)),
       claims,
       isSameModel,
-      files: scope,
+      ...(scope !== undefined && { files: scope }),
     })
     const first = candidates[0]
     if (!first) return 'waiting'
@@ -355,7 +360,7 @@ export class ReviewFlow {
         findings: [...carriedVerdicts.flatMap((verdict) => verdict.findings), ...merged],
         failedChecks,
         hasDispatched: false,
-        files: deltas === undefined ? undefined : [...carriedVerdicts, ...freshClean],
+        ...(deltas !== undefined && { files: [...carriedVerdicts, ...freshClean] }),
       }
       this.records.set(task.id, record)
       return await this.dispatch(task.id, record)

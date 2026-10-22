@@ -14,10 +14,11 @@
 // authority (docs/design/m96d-coordinator.md §§1-2).
 
 import { randomUUID } from 'node:crypto'
-import { constants as fsConstants, type Stats } from 'node:fs'
-import { chmod, lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises'
+import type { Stats } from 'node:fs'
+import { chmod, lstat, mkdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { writeFileAtomic } from '../../fs/atomicFile'
 import {
   COORDINATOR_LEDGER_MAX_BYTES,
   COORDINATOR_STORE_VERSION,
@@ -37,7 +38,6 @@ const IDENTITY_FILE = 'identity.json'
 const OWNER_FILE = 'owner.json'
 const STORE_DIRECTORY_MODE = 0o700
 const OWNER_ONLY_MASK = 0o777
-const OWNER_FILE_MODE = 0o600
 
 const ledgerFileSchema = z.strictObject({
   storeId: z.string().check(z.minLength(1)),
@@ -88,41 +88,6 @@ export function isCoordinatorLedgerError(value: unknown): value is CoordinatorLe
 /** A file that is simply not there: absent, never a failure. */
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
-}
-
-async function syncDirectory(directory: string): Promise<void> {
-  // Node cannot fsync a Windows directory; the file sync plus the atomic
-  // rename is the whole contract there.
-  if (process.platform === 'win32') return
-  const handle = await open(directory, fsConstants.O_RDONLY)
-  try {
-    await handle.sync()
-  } finally {
-    await handle.close()
-  }
-}
-
-/** The one writer: exclusive temporary, full bytes, sync, atomic rename, directory sync. */
-async function publishLedgerFile(directory: string, name: string, text: string): Promise<void> {
-  const target = path.join(directory, name)
-  const temporary = path.join(directory, `.${name}.${randomUUID()}.tmp`)
-  const handle = await open(temporary, 'wx', OWNER_FILE_MODE)
-  try {
-    await handle.writeFile(text, 'utf8')
-    await handle.sync()
-  } catch (error: unknown) {
-    await handle.close()
-    await rm(temporary, { force: true })
-    throw error
-  }
-  await handle.close()
-  try {
-    await rename(temporary, target)
-    await syncDirectory(directory)
-  } catch (error: unknown) {
-    await rm(temporary, { force: true })
-    throw error
-  }
 }
 
 async function readJsonFile<T>(
@@ -254,7 +219,7 @@ export async function openCoordinatorLedger(
     // an empty ledger.
     if (ledger.found || owner.found)
       throw new CoordinatorLedgerError('ambiguousStore', UI_TEXT.coordinatorStoreAmbiguous)
-    await publishLedgerFile(
+    await writeFileAtomic(
       directory,
       IDENTITY_FILE,
       JSON.stringify({ storeId, version: COORDINATOR_STORE_VERSION }),
@@ -290,7 +255,7 @@ export async function openCoordinatorLedger(
       grants: engine.snapshot(),
     }
     try {
-      await publishLedgerFile(directory, LEDGER_FILE, JSON.stringify(state))
+      await writeFileAtomic(directory, LEDGER_FILE, JSON.stringify(state))
     } catch (error: unknown) {
       // A failed sync refuses the operation while the previous synced
       // state stands; the caller retries against that state.
@@ -319,7 +284,7 @@ export async function openCoordinatorLedger(
     if (isClosed) throw new Error('The coordinator ledger is closed')
   }
 
-  await publishLedgerFile(
+  await writeFileAtomic(
     directory,
     OWNER_FILE,
     JSON.stringify({ pid: process.pid, birth, boot, epoch: custody }),

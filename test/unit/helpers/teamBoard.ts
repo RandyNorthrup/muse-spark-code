@@ -8,6 +8,7 @@ import {
   type BoardSubmission,
 } from '../../../src/core/team/scheduler/board'
 import type { TeamAttempt, TeamBoardTask } from '../../../src/shared/team'
+import { canonicalUsd } from '../../../src/shared/usdSchema'
 
 export function testBoardContext(heads?: Map<string, string>): BoardContext {
   const archived = new Map<string, TeamBoardTask>()
@@ -37,10 +38,18 @@ export function submitTasks(board: TaskBoard, inputs: BoardSubmission[]): void {
 
 export function taskSubmission(
   id: string,
-  fields: BoardSubmission['fields'],
+  fields: Partial<BoardSubmission['fields']> = {},
   workspaceMode: BoardSubmission['workspaceMode'] = 'own-branch',
 ): BoardSubmission {
-  return { id, parentSessionId: 'session', roleId: 'role', workspaceMode, fields }
+  // The schema's own defaults, so a partial reads like the board parses it.
+  const { priority = 'normal', size = 'M', overlap = 'serialize', ...rest } = fields
+  return {
+    id,
+    parentSessionId: 'session',
+    roleId: 'role',
+    workspaceMode,
+    fields: { priority, size, overlap, ...rest },
+  }
 }
 
 export function boardAttempt(number: number): TeamAttempt {
@@ -58,7 +67,7 @@ export function boardAttempt(number: number): TeamAttempt {
       outputTokens: 0,
       reasoningTokens: 0,
       modelCalls: 0,
-      costUsd: 0,
+      costUsd: canonicalUsd(0),
       accuracy: 'reported',
     },
   }

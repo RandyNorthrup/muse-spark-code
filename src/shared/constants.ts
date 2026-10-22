@@ -3469,6 +3469,14 @@ export const COORDINATOR_LINUX_FS_EXFAT = 0x20_11_ba_b0
 export const COORDINATOR_LINUX_FS_NFS = 0x69_69
 export const COORDINATOR_LINUX_FS_SMB2 = 0xfe_53_4d_42
 export const COORDINATOR_LINUX_FS_TMPFS = 0x01_02_19_94
+/**
+The tested-tree cache keeps this many (tree hash, check identity)
+outcomes; older ones evict least-recently-used first. A lost entry
+only costs a retest, never a skipped one.
+*/
+export const COORDINATOR_TESTED_TREE_CACHE_MAX = 200
+/** A tested-trees file beyond this is not loaded: the queue retests. */
+export const COORDINATOR_TESTED_TREE_FILE_MAX_BYTES = 1024 * 1024
 // --- End Machine coordinator constants. ---
 // A tool name as the API takes a function name (MCP and IDE tools included).
 export const AGENT_TOOL_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
