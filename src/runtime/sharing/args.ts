@@ -52,8 +52,21 @@ export type SharingCommand =
       readonly confirmed: boolean
     })
 
-export function localArgumentError(argument: string): Error {
-  return new Error(fill(UI_TEXT.acpUnknownArgument, { argument }))
+/**
+Caller-owned input the adapter cannot take. A subclass of Error (not a
+second SDK copy) so the ACP boundary can map it to invalid params (-32602)
+across the lazy sharing bundle, where `instanceof` on a shared class would
+miss. The message is unchanged, so message-based handling elsewhere holds.
+*/
+export class SharingArgumentError extends Error {
+  public constructor(argument: string) {
+    super(fill(UI_TEXT.acpUnknownArgument, { argument }))
+    this.name = 'SharingArgumentError'
+  }
+}
+
+export function localArgumentError(argument: string): SharingArgumentError {
+  return new SharingArgumentError(argument)
 }
 
 /** The accepted values behind the sharing flags; the help facts read these. */

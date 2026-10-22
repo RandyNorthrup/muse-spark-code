@@ -36,6 +36,17 @@ export function failureForLog(error: unknown): string {
   return error instanceof Error ? error.name : 'an unknown failure'
 }
 
+/**
+The root fault behind wrappers that carry it as `cause` (a sharing
+adapter's internal failure, a bundle loader's unavailable error): still a
+name, never raw text, paths or prompt text.
+*/
+export function internalFaultForLog(error: unknown): string {
+  let current = error
+  while (current instanceof Error && current.cause instanceof Error) current = current.cause
+  return failureForLog(current)
+}
+
 // The stderr lines captured from `muse serve` 1.4.0-R4302.1 (Windows and
 // Linux, 2026-09-27; scratchpad/m140cred) and 1.4.10-R6427.1 (macOS,
 // 2026-10-17, F94), each named in fixed words.

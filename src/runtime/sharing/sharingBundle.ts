@@ -22,7 +22,9 @@ export function runtimeSharingLoader(bundlePath: string, log: Logger): () => Run
     bundlePath,
     log,
     isBundle,
+    // A bundle that cannot load is an installation fault, not a prompt-file
+    // error; the loader already logged the cause.
     label: 'sharing runtime',
-    unavailable: () => UI_TEXT.promptFileInvalid,
+    unavailable: () => UI_TEXT.actionFailed,
   })
 }

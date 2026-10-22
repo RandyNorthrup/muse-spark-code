@@ -154,6 +154,26 @@ export interface SharePrivacyPort {
   normalisePaths(text: string): string
 }
 
+/**
+Every atomic marker a share scrub can emit. A marker is never a path: no
+later scrub rule may match inside it, across it, or treat the text after
+it as the start of a new absolute path (RVDFACPERR5 P2: `team/[user]/src`
+re-scrubbed to `team/[user][path]` because only `[home]` was exempt).
+One list feeds every exemption; a new marker goes here, never in a
+per-marker case. `[redacted path]` and `[redacted account]` are the
+`CONVERSATION_MODEL_TEXT` values sessionTransfer emits, repeated here as
+literals so this shared boundary carries no model-text block itself.
+*/
+export const SCRUB_MARKERS: readonly string[] = [
+  '[home]',
+  '[user]',
+  '[path]',
+  '[workspace]',
+  '[redacted]',
+  '[redacted path]',
+  '[redacted account]',
+]
+
 /** No privacy bypass in full mode; apply existing shared redaction last too. */
 export function scrubShareText(text: string, privacy: SharePrivacyPort): string {
   return redactSecrets(privacy.normalisePaths(redactSecrets(privacy.redactRegisteredSecrets(text))))

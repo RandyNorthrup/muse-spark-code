@@ -1754,6 +1754,7 @@ async function main(): Promise<number> {
           sharingPorts(log, runtime, sharingDeps()),
           UI_TEXT,
           uiLocale(),
+          log,
         )
       } finally {
         await runtime?.close()

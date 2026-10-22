@@ -29,7 +29,59 @@ import {
   type ShareRequest,
 } from '../../shared/share'
 import { agentDataFolder, type DataFolderInput } from '../dataFolder'
-import { localArgumentError, type SharingCommand } from './args'
+import { localArgumentError, type SharingArgumentError, type SharingCommand } from './args'
+
+/** A zod/mini validation failure, read structurally: the class may be bundled twice. */
+function isSchemaError(error: unknown): error is Error & { readonly issues: readonly unknown[] } {
+  return (
+    error instanceof Error &&
+    'issues' in error &&
+    Array.isArray(error.issues) &&
+    error.issues.length > 0
+  )
+}
+
+function issuePathOf(error: { readonly issues: readonly unknown[] }): readonly unknown[] {
+  const [first] = error.issues
+  return typeof first === 'object' && first !== null && 'path' in first && Array.isArray(first.path)
+    ? first.path
+    : []
+}
+
+/**
+Caller-owned fields fail as the flag that carried them, never with the
+schema's English diagnostics (which can also quote the caller's values).
+Service data validated here (previews, stored prompts) is not mapped:
+it rethrows and stays an internal fault at the caller's boundary.
+*/
+/** Caller-owned schema paths (first two segments) and the flag that carried them. */
+const SHARE_ISSUE_FLAGS: ReadonlyMap<string, string> = new Map([
+  ['options/attachmentContents', '--attachment-content'],
+  ['range', '--from/--to'],
+  ['mode', '--mode'],
+  ['format', '--format'],
+  ['destination', '--destination'],
+  ['title', '--title'],
+  ['tags', '--tag'],
+])
+
+function shareFlagFor(path: readonly unknown[]): string | undefined {
+  const [head, next] = path
+  // Array indices ride along (`tags/0`); the head alone names those flags.
+  return typeof head === 'string'
+    ? (SHARE_ISSUE_FLAGS.get(`${head}/${String(next)}`) ?? SHARE_ISSUE_FLAGS.get(head))
+    : undefined
+}
+
+/**
+A schema failure on caller-owned fields becomes the flag that carried it;
+anything else (service data, unknown shapes) is undefined so the caller
+rethrows it as the internal fault it is.
+*/
+function callerOwnedError(error: unknown): SharingArgumentError | undefined {
+  const flag = isSchemaError(error) ? shareFlagFor(issuePathOf(error)) : undefined
+  return flag === undefined ? undefined : localArgumentError(flag)
+}
 
 const previewSchema = z
   .strictObject({
@@ -156,7 +208,16 @@ export class SharingCommands {
     if (policy() !== false) throw new Error(UI_TEXT.shareConfidential)
     if (confirmationId !== undefined && command.exportedAt === undefined)
       throw localArgumentError('--exported-at')
-    const request = shareRequestSchema.parse(command.request)
+    let request: ShareRequest
+    try {
+      request = shareRequestSchema.parse(command.request)
+    } catch (error: unknown) {
+      // Caller-owned flags (notably an empty --attachment-content) fail as
+      // the flag that carried them; anything else rethrows as an internal fault.
+      const owned = callerOwnedError(error)
+      if (owned !== undefined) throw owned
+      throw error
+    }
     if (confirmationId !== undefined) {
       let missing = command.destinationExplicit ? undefined : '--destination'
       if (out === undefined && command.destinationExplicit && request.destination === 'file')
@@ -165,7 +226,14 @@ export class SharingCommands {
         return { kind: 'cancelled', message: localArgumentError(missing).message }
       }
     }
-    const exportedAt = z.iso.datetime({ offset: true }).parse(command.exportedAt ?? this.deps.now())
+    // `now()` is always ISO; a failure here names the caller's --exported-at.
+    let exportedAt: string
+    try {
+      exportedAt = z.iso.datetime({ offset: true }).parse(command.exportedAt ?? this.deps.now())
+    } catch (error: unknown) {
+      if (isSchemaError(error)) throw localArgumentError('--exported-at')
+      throw error
+    }
     const rendered = previewSchema.parse(
       await this.deps.renderPreview(cwd, structuredClone(request), exportedAt),
     )
@@ -253,22 +321,31 @@ export class SharingCommands {
       const body = await context.readBody()
       if (!isSharingActive(context)) return { kind: 'cancelled' }
       const now = this.deps.now()
-      const prompt = savedPromptSchema.parse({
-        schemaVersion: PROMPT_SCHEMA_VERSION,
-        id: randomUUID(),
-        title: command.title,
-        body,
-        tags: command.tags,
-        scope: command.scope,
-        createdAt: now,
-        updatedAt: now,
-        untrusted: false,
-        variables: promptVariableNames(body).map((name) => ({
-          name,
-          source: ['selection', 'file', 'clipboard'].includes(name) ? name : 'input',
-        })),
-      })
-      // P's write enforces the title/body/per-scope caps and atomic-file rules.
+      let prompt: SavedPrompt
+      try {
+        prompt = savedPromptSchema.parse({
+          schemaVersion: PROMPT_SCHEMA_VERSION,
+          id: randomUUID(),
+          title: command.title,
+          body,
+          tags: command.tags,
+          scope: command.scope,
+          createdAt: now,
+          updatedAt: now,
+          untrusted: false,
+          variables: promptVariableNames(body).map((name) => ({
+            name,
+            source: ['selection', 'file', 'clipboard'].includes(name) ? name : 'input',
+          })),
+        })
+      } catch (error: unknown) {
+        // The title and tags are caller-owned flags (--title/--tag); the rest
+        // is built consistently here, so anything else rethrows as internal.
+        const owned = callerOwnedError(error)
+        if (owned !== undefined) throw owned
+        throw error
+      }
+      // The store's write enforces its atomic-file rules (titles and bodies have no ceilings per D121).
       await this.storage(context.cwd).write(prompt)
       return { kind: 'saved', prompt }
     }

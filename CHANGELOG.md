@@ -2403,6 +2403,34 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   confinement and reasoned refusals. Audio pastes transcribe by default;
   Gemini/OpenAI-compatible video remains unsupported.
 
+- The ACP agent reports product-defined refusals with their own message as
+  invalid request (-32600) instead of internal error (-32603): unavailable
+  accounts, a broker that cannot start, a backend that cannot run, no usable
+  model, a failed legal scan, and a turn the backend would not take. Sharing
+  an empty conversation is refused with "There is no conversation to export
+  yet.", and bad share/prompt arguments are invalid params (-32602) with
+  their reason (DFACPERR). Follow-up: mode/model/effort commands against a
+  backend session Muse Code evicted read as a missing resource (-32002);
+  caller-owned share/save validation names its flag (-32602) in the installed
+  language; scanner and broker programming faults stay internal errors
+  (-32603) with a fixed reason and nothing raw on the wire. An unexpected
+  sharing, prompt or headless fault reads as an internal error with the fixed
+  could-not-complete reason (never as a prompt-file error), and the
+  underlying fault is logged server-side by name — never a path or prompt
+  text. Defined refusals (an empty chat, an unreadable prompt store, a bad
+  prompt file) keep their own sentences on every surface. Malformed imports,
+  unsupported prompt schemas and headless argument refusals now retain their
+  localized reason (titles and bodies have no ceilings per D121, so a draft
+  that fails its schema reads as an invalid prompt file, never a size
+  limit). The native Prompt Library and
+  panel retry failed initialization safely. Export scrubbing recognizes OS
+  usernames in paths and identity fields, preserving ordinary words and
+  personal-prompt metadata even for usernames such as `user`, `admin` and `test`.
+  A scrubbed chat export whose text carries a username path segment (for
+  example `team/[user]/src/main.ts`) now releases instead of expiring its own
+  preview: every marker the scrub emits is atomic, so the confirmation
+  re-scrub is a fixed point.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

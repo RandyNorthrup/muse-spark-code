@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
 import {
   importPromptFile,
   mergePromptScopes,
@@ -51,7 +52,7 @@ describe('portable saved prompts', () => {
   it('refuses unknown front-matter metadata instead of silently losing it', () => {
     const file = serialisePromptFile(savedPromptFixture)
     const foreign = file.replace('"schemaVersion": 1', '"foreign": true, "schemaVersion": 1')
-    expect(() => parsePromptFile(foreign)).toThrow()
+    expect(() => parsePromptFile(foreign)).toThrow(EN.promptFileInvalid)
   })
 
   it.each([
@@ -81,7 +82,7 @@ describe('portable saved prompts', () => {
   it.each(['plain text', '---\n{}\n---\nbody', '---\nnot JSON\n---\nbody', '---\n{}\n---'])(
     'rejects an invalid file %j',
     (file) => {
-      expect(() => parsePromptFile(file)).toThrow()
+      expect(() => parsePromptFile(file)).toThrow(EN.promptFileInvalid)
     },
   )
 

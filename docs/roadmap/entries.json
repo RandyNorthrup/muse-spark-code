@@ -986,6 +986,11 @@
       "note": "development dependency updates"
     },
     {
+      "id": "DFACPERR",
+      "public": false,
+      "note": "honest ACP, headless and editor prompt refusals; safe initialization retry and contextual account scrubbing; goal tracked by M63"
+    },
+    {
       "id": "DIET1",
       "public": false,
       "note": "startup size budget"
