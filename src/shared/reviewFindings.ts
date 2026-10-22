@@ -32,6 +32,8 @@ const findingSchema = z.object({
   class: z.optional(textSchema.check(z.minLength(1))),
 })
 
+export { findingSchema as reviewFindingSchema }
+
 export const reviewResolutionSchema = z.strictObject({
   // The policy assigns this id to a prior finding, not the model's array index.
   findingId: textSchema.check(z.minLength(1)),

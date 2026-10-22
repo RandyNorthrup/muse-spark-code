@@ -40,7 +40,6 @@ export {
   redactModelApiError,
   rethrowStreamError,
   redactStreamDiagnostics,
-  retryAfterMs,
   providerWaitMs,
   ignoreClosingError,
   // Lane RETRYLIMITS: read by dist/configuredProviders.js
@@ -57,6 +56,7 @@ export {
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
   canRetryWithinBudget,
+  retryAfterMs,
   whenAborted,
 } from '../../core/backends/modelapi/transport'
 import { noRetryBudget } from '../../core/backends/modelapi/transport'

@@ -3890,6 +3890,31 @@ an **N agents** pill in the header opens the **Agent Map** (also `/agents`):
 this conversation, its agents with role, objective, status, duration and
 tokens, the background tasks, and each agent's own transcript.
 
+When a team is active, its tree has one Tab stop. Use arrows, Home, End,
+or type ahead to move between items; F2 focuses an item's actions, Left
+and Right choose an action, and Escape returns to the item. Finished
+workers produce one polite summary. Merge cards list affected files,
+protected paths, conflicts and the supplied review details, with an
+overflow count for long lists. A card without file details cannot approve
+a merge. Tree and card code loads on its first use.
+
+The unreleased scheduler and runner adapters ship in separate bundles for
+team use. Their tool schemas come from the same validators used by the
+board. Maintainers regenerate them with `node scripts/team-tool-schemas.mjs
+--write`; the production build checks them for drift. The Traffic and
+Runners views remain internal while the Models & Agents panel and the
+window-owned team runtime are integrated. They are not available as
+commands in this release. ACP and other editors need those same runtime
+bindings; packaging these adapters does not enable team dispatch.
+The internal Roles setup readiness checks editor support, trust and the team
+switch independently of saved entries. Its required configuration sources
+still keep the sections hidden while those sources are missing. The bound
+budget getter reads the shared daily paid journal, including outstanding
+claims; learned role samples come from the latest twelve settled tasks in
+validated workspace history. A failed source read clears stale team sections. The engine reads the active
+composer model and its attached backend; complete captured discovery and
+saved workspace overrides still await their bindings.
+
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under
   `$XDG_CONFIG_HOME`). The map says so and opens the file for you; the
@@ -4247,6 +4272,31 @@ can use it) or with its setting (`museSpark.modelApiWebSearch`,
 availability causes no startup price dialog. Explicitly turning a feature OFF
 and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
+
+Team workers default on for a runnable team of distinct models. They ask in
+this paid-use popup before the first charge, with the models, task ceilings
+and daily budget. Each task identifies its provider and tariff. Meta rates
+are quoted only for a matching verified Meta tariff; other providers or
+unverified tariffs state that the price is unknown and name the task and
+daily token ceilings. Billing uses each task provider's API key.
+Always is scoped to the provider, model and price tier that was approved;
+a different model asks again. Single-model activation asks no team question.
+The M96 team feature remains unavailable until its integration is complete.
+Its hidden worker service reserves each transport attempt separately. Reported
+usage settles that attempt at the sent model's known price; a dispatched
+attempt without usage retains its full maximum as uncertain liability. A
+successful retry cannot erase earlier liability. Refused or unsent attempts
+release their claims, including when cancellation or close wins during a durable
+admission. Late claims close at zero and never attach to an ended or replacement
+request; completed outcomes leave no reservation open. Raise can
+lift entry caps for one task; it cannot lift concurrent worker limits. Worker
+file writes check the role before opening and use verified file handles.
+The engine and ACP writers can create new files through the packaged native
+helper: it proves the admitted root and parent, walks without following links,
+and creates exclusively. The opened file is checked again before writing.
+Reservations fill binary bytes or release an unchanged empty file through the
+same authority; an unavailable helper refuses creation. These operations load
+on first use; teams still await the remaining integration and certification.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,
@@ -6739,3 +6789,47 @@ bindings/receipts pass. No companion
 dictation command is advertised as supported. Existing editor dictation is
 unchanged. [The certification record](docs/certification/m35-companion.md)
 tracks the Linux fake-device tests and the remaining platform checks.
+
+### Team configuration
+
+Roles and Agents in Models & Agents remain hidden until the production team
+worker binding and its complete configuration ports are installed. The portable editor and shared React sections
+are implemented and tested with an enabled fake host; that does not enable
+workers in the released extension. The saved workspace document is
+`museSpark.team.config`, followed by `TeamHostBinding.reload()`. The per-role
+editor loads on first use, with accessible loading and a retry on chunk failure.
+
+For maintainers, `npm run harness:team` runs the standalone
+Roles and Agents scenes through axe in six themes, all 14 translations and
+320 px layouts. PNGs and the JSON receipts stay under
+`temp/cm962-harness/`; only their reviewed hashes and dimensions are tracked
+in the certification record. See [the U1 record](docs/certification/m96-u1.md)
+for the engine, model-registry and other-editor bindings required before
+these sections can be enabled.
+
+The editor keeps pending settings, caps and tool selections across unrelated
+host replies. Manual Default concurrency stays within the resolved model's
+ceiling. Tool search uses translated labels; pool filters include model
+families and fractional price limits, with prices formatted in the display
+language.
+
+Hidden team configuration preserves each saved role’s purpose, done criteria and
+guidance in the worker charter. Workspace orchestrator overrides apply to new
+conversations; Reset to Default and Save restores the composer’s selection.
+Backend changes and contributor models retain their confirmations. These
+bindings remain behind the team availability gate pending the remaining ports
+and certification.
+
+The hidden Roles panel's paid Try sends the current draft to an isolated
+planning conversation with at most three attempts, a 4,096-token preflight input
+ceiling per attempt and 2,048 output tokens. It asks once before spending, names the model's rates
+and shared daily budget, runs no tools or workers, and displays charged cost
+and retained liability for uncertain responses. Closing the panel cancels it.
+
+The hidden configuration registry uses configured provider models and their captured
+capability records. It offers reasoning effort and output caps where they can be
+carried to an actual session. Unsupported saved settings refuse dispatch. Providers
+without discovery/capability captures, and Muse Code or external agents without a
+worker binding, stay absent. Team lifecycle hooks read ordinary hooks.json sources;
+selected-entry switch and Idle hooks read spark-hooks.json. Idle continuation remains
+within the task's admission and continuation limits.

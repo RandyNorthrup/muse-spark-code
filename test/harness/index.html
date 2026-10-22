@@ -2300,8 +2300,10 @@
       // entry, a capped one, and queued and unmerged tasks of their own.
       const teamTreeFixture = () => ({
         orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
-        spentUsdToday: 1.2,
-        budgetUsdToday: 50,
+        // Exact decimal strings, never binary floats: teamTreeSchema's dollar
+        // fields reject numbers, and the tree never mounts (RVCM963JB P2-7).
+        spentUsdToday: '1.2',
+        budgetUsdToday: '50',
         roles: [
           {
             id: 'engineering',

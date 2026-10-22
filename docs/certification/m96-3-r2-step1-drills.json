@@ -1,0 +1,16 @@
+[
+  {
+    "guard": "team navigation",
+    "source": "src/webview/models/panel.tsx",
+    "sha256": "b0f7a24c811c3f7b8ac568cd4c1d17ee5821a61f3997393d25844bd34dae6563",
+    "restoredSha256": "b0f7a24c811c3f7b8ac568cd4c1d17ee5821a61f3997393d25844bd34dae6563",
+    "exit": 1
+  },
+  {
+    "guard": "Role editor cap",
+    "file": "dist/webview/chunks/2E4KLTDS.js",
+    "sha256": "fc616e12b02829cb7eae04943b8e269cb72c10316c3320bf4f758d9d2b486658",
+    "restoredSha256": "fc616e12b02829cb7eae04943b8e269cb72c10316c3320bf4f758d9d2b486658",
+    "exit": 1
+  }
+]

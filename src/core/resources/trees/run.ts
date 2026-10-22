@@ -36,9 +36,11 @@ export function boundedTreeProgram(timeoutMs?: number, maxBuffer?: number): Reso
           ...(timeoutMs !== undefined && { timeout: timeoutMs }),
           ...(maxBuffer !== undefined && { maxBuffer }),
         },
-        (error, stdout) => {
+        (error, stdout, stderr) => {
+          // A native refusal keeps its bounded stderr on the rejection, so
+          // the caller reads what the helper said, never a bare signal.
           if (error === null) resolve(stdout)
-          else reject(new Error(error.message, { cause: error }))
+          else reject(Object.assign(new Error(error.message, { cause: error }), { stderr }))
         },
       )
     })

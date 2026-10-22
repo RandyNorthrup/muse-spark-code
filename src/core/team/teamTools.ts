@@ -2,6 +2,7 @@ import {
   TEAM_MODEL_TEXT,
   TEAM_BOOTSTRAP_MODEL_TEXT,
   TEAM_COLLECT_WAIT_MAX_SECONDS,
+  TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_REASON_CODES,
   TEAM_IDENTIFIER_MAX_CHARS,
@@ -257,7 +258,20 @@ export const TEAM_TOOL_DEFINITIONS: readonly {
 }[] = TEAM_TOOL_NAMES.map((name) => ({
   name,
   description: TEAM_TOOL_SCHEMAS[name].description,
-  properties: TEAM_TOOL_SCHEMAS[name].properties,
+  // The Model API runs `collect` in the extension host: it declares its own bound.
+  properties:
+    name === 'collect'
+      ? {
+          ...TEAM_TOOL_SCHEMAS.collect.properties,
+          wait_seconds: {
+            type: 'integer',
+            minimum: 0,
+            description: fill(TEAM_MODEL_TEXT.toolSecondsToWaitForReportsAt, {
+              value1: String(TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE),
+            }),
+          },
+        }
+      : TEAM_TOOL_SCHEMAS[name].properties,
   required: TEAM_TOOL_SCHEMAS[name].required,
 }))
 
@@ -338,10 +352,11 @@ export const collectArgs = z.object({
 `wait_seconds` within the backend's bound: a larger wait is clamped, never
 refused, so `collect` waits no longer than its bound (M96 acceptance 13).
 */
-export function clampCollectWait(waitSeconds: number | undefined): number | undefined {
-  return waitSeconds === undefined
-    ? undefined
-    : Math.min(waitSeconds, TEAM_COLLECT_WAIT_MAX_SECONDS)
+export function clampCollectWait(
+  waitSeconds: number | undefined,
+  max: number = TEAM_COLLECT_WAIT_MAX_SECONDS,
+): number | undefined {
+  return waitSeconds === undefined ? undefined : Math.min(waitSeconds, max)
 }
 
 export const cancelArgs = z.object({

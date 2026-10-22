@@ -17,7 +17,8 @@ import { isProtectedPath } from '../protectedPaths'
 import { isBelow, resolveWorkspacePath } from '../workspacePath'
 import { pathModule } from '../workspaceRoot'
 import { checkAgentsRef, type AgentsRefCheck } from './refFence'
-import { isTeamGitError, isSameTeamPath, teamProgramFreeGit, type TeamGit } from './teamWorkspaces'
+import { isSameTeamPath, teamProgramFreeGit } from './teamWorkspaces'
+import { isTeamGitError, type TeamGit } from './teamGit'
 // The team's merge (M96 lane I, PLAN.md D75): a per-file three-way merge of
 // a finished task's branch into the user's working tree, with `git
 // merge-file`, conflicts returned for rework, protected paths, the `write-paths`
@@ -450,7 +451,7 @@ card asks), then: `write-paths` violations refuse the whole merge; a ref
 breach refuses it; protected paths refuse it unless `allowProtected`;
 then derives every file through `git merge-file`. Conflicts go to the
 task copy under rework; no result lands in the user tree until clean.
-@unwired M96 team merge applier
+Team merge applier
 */
 export async function applyTeamMerge(
   io: TeamMergeIo,

@@ -55,11 +55,11 @@ function moduleFacts(target: PlaybookCharterTarget): string {
 }
 
 /**
- * Read only for a playbook review, through the existing lazy skills bundle.
- * With the modules the review counts in, the charter is followed by the
- * harness's facts about each: the ids a redesign review must resolve are
- * these, never ids the change or the model supplies.
- */
+Read only for a playbook review, through the existing lazy skills bundle.
+With the modules the review counts in, the charter is followed by the
+harness's facts about each: the ids a redesign review must resolve are
+these, never ids the change or the model supplies.
+*/
 export function playbookReviewerCharter(targets: readonly PlaybookCharterTarget[] = []): string {
   return [
     PLAYBOOK_MODEL_TEXT.playbookReviewInstructions,

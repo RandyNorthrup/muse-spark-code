@@ -25,6 +25,8 @@
     "src/webview/reporting/main.tsx",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
+    // U1: standalone portable controller factory, built by scripts/build.mjs.
+    "src/core/team/teamPanelEntry.ts",
     "src/core/resources/admissionEntry.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",
@@ -218,6 +220,8 @@
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
     "test/harness/vault/main.tsx",
+    // U1: the genuine React/controller page bundled by harness:team.
+    "test/harness/teamRoles.tsx",
     "test/harness/vault/run.mjs",
     // The mounted-vault harness page and its runner (C-M109-1 P1): same
     // by-path shape as U's (`node test/harness/vault/run-mounted.mjs`).
@@ -365,6 +369,9 @@
     "src/host/team/teamLedger.ts",
     "src/host/team/windowHints.ts",
     "src/host/team/windowIdentity.ts",
+    // The first-use worker-operations chunk (dist/teamWorkerOps.js), bundled
+    // by path in scripts/build.mjs; the barrel is the chunk's API surface.
+    "src/core/team/workers/workerOpsEntry.ts",
     //
     // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
     // and editor pieces ahead of their schedule-use wiring. Wiring: the

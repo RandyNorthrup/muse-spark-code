@@ -45,6 +45,7 @@ const UI_CONDITIONS: Readonly<
   referenceSchedulePaidConsentCertified: 'scheduleDeliveryCertified=true',
   referenceSchedulePaidConsent: 'scheduleDeliveryCertified=false',
   referenceRuntimeSchedules: 'scheduleDeliveryCertified=false',
+  referenceTeamFiles: 'teamIntegration=incomplete&workerNativeHelper=available',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
@@ -59,6 +60,8 @@ const UI_CONDITIONS: Readonly<
   referenceBestOfNRequirements: 'bestOfNAdmission',
   referenceSecretPrompt: 'secretDetected',
   referenceTabMenu: 'copilotYield',
+  referenceTeamConfiguration:
+    'teamWorkerBinding=engine|teamConfigurationBinding=captured|teamPreview=paid',
   referenceConversationActions: 'turnState',
   referencePermissionLimits: 'backend&permissionMode&autoReviewer',
   museCodeReviewerNotice: 'permissionMode=auto&museCodeAutoReviewer=true',
@@ -468,9 +471,18 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'team-configuration',
+      { ui: 'teamRolesTitle' },
+      { ui: 'referenceTeamConfiguration' },
+      ['modelsAndAgents'],
+      [],
+      'team-configuration',
+      ['modelApi', 'museCode'],
+    ),
+    feature(
       'team-workers',
       { ui: 'paidTeamWorkersName' },
-      { setting: 'modelApiTeamWorkers' },
+      { ui: 'referenceTeamFiles' },
       [],
       ['modelApiTeamWorkers'],
       'the-panel',
@@ -1408,6 +1420,7 @@ const REFERENCE_DETAILS: Readonly<
     'localContextWindowHint',
   ],
   acp: ['referenceBriefHelp'],
+  'team-configuration': ['referenceTeamPoolKeys'],
   // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
   estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.

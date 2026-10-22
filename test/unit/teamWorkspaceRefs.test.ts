@@ -3,12 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { onTestFinished, describe, expect, it } from 'vitest'
-import {
-  publishTaskRef,
-  TeamGitError,
-  TeamWorkspaceError,
-  type TeamGit,
-} from '../../src/core/team/teamWorkspaces'
+import { publishTaskRef, TeamWorkspaceError } from '../../src/core/team/teamWorkspaces'
+import { TeamGitError, type TeamGit } from '../../src/core/team/teamGit'
 import { teamAgentsRef } from '../../src/core/team/refFence'
 
 const BRANCH = 'agents/engineering/task-1'
