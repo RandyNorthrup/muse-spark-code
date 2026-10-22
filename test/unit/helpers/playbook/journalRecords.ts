@@ -39,6 +39,55 @@ export function orderModuleRecord(): PlaybookRecord {
   })
 }
 
+export function orderRoundWithResiduals(
+  answers: readonly { name: string; whySafe: string; followUp: string }[],
+  at = 8,
+): PlaybookRecord {
+  return playbookRecordSchema.parse({
+    kind: 'round',
+    value: {
+      module: orderModule,
+      implementerId: 'builder',
+      reviewerId: 'reviewer',
+      implementerSessionId: 'builder-session',
+      reviewerSessionId: 'reviewer-session',
+      round: 3,
+      phase: 'fix',
+      at,
+      findings: [],
+      answers: answers.map((answer, index) => ({
+        findingId: `finding-${String(index)}`,
+        status: 'residual',
+        name: answer.name,
+        whySafe: answer.whySafe,
+        followUp: answer.followUp,
+      })),
+    },
+  })
+}
+
+export function orderResidualAcceptance(input: {
+  milestoneId: string
+  name: string
+  actor?: 'lead' | 'owner'
+  reason?: string
+  at?: number
+  evidence?: { whySafe: string; followUp: string; moduleId: string }
+}): PlaybookRecord {
+  return playbookRecordSchema.parse({
+    kind: 'residual',
+    value: {
+      milestoneId: input.milestoneId,
+      name: input.name,
+      status: 'accepted',
+      actor: input.actor ?? 'owner',
+      reason: input.reason ?? 'Accepted.',
+      at: input.at ?? 9,
+      ...(input.evidence !== undefined && { evidence: input.evidence }),
+    },
+  })
+}
+
 export function orderDesign(outcome: 'pending' | 'impossible', id = 'design-1'): PlaybookRecord {
   return playbookRecordSchema.parse({
     kind: 'design',
