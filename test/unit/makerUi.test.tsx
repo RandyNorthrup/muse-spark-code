@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { UI_TEXT } from '../../src/shared/constants'
 import { MakerSurface, mountMaker } from '../../src/webview/maker/MakerSurface'
@@ -20,8 +20,6 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
 })
 function renderMaker() {
   const result = uiBridge()
@@ -39,18 +37,18 @@ async function askOnce(store: ReturnType<typeof uiBridge>['store']) {
 
 describe('shared maker views', () => {
   it('shared dialog Stop is outside the scrolling body', async () => {
-    const { store, post } = renderMaker()
+    const { store, posted } = renderMaker()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerDevicesTitle }))
     const dialog = await screen.findByRole('dialog', { name: UI_TEXT.makerDevicesTitle })
     const stop = within(dialog).getByRole('button', { name: UI_TEXT.makerStopAll })
     expect(stop.closest('.modal-body')).toBeNull()
     expect(stop.closest('.maker-stop-slot')?.parentElement).toBe(dialog)
     fireEvent.click(stop)
-    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+    expect(posted.at(-1)).toEqual({ v: 1, type: 'makerStop' })
     store.dispose()
   })
   it('renders exact target, payload and analysis; one click echoes the host request', async () => {
-    const { store, post } = renderMaker()
+    const { store, posted } = renderMaker()
     const request = uiApproval(Date.now() + 60_000)
     act(() => {
       store.receive({ v: 1, type: 'makerApproval', request })
@@ -68,7 +66,7 @@ describe('shared maker views', () => {
       expect(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce })).toBeEnabled(),
     )
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce }))
-    expect(post).toHaveBeenLastCalledWith({
+    expect(posted.at(-1)).toEqual({
       v: 1,
       type: 'makerAnswer',
       answer: {
@@ -83,34 +81,34 @@ describe('shared maker views', () => {
   })
 
   it.each(['close', 'escape', 'backdrop'])('dismissal by %s rejects once', async (method) => {
-    const { store, post } = renderMaker()
+    const { store, posted } = renderMaker()
     const dialog = await askOnce(store)
     if (method === 'close')
       fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.usageClose }))
     else if (method === 'escape') fireEvent.keyDown(dialog, { key: 'Escape' })
     else if (method === 'backdrop' && dialog.parentElement !== null)
       fireEvent.mouseDown(dialog.parentElement)
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenLastCalledWith(
+    expect(posted).toHaveLength(1)
+    expect(posted.at(-1)).toEqual(
       expect.objectContaining({ answer: expect.objectContaining({ decision: 'reject_once' }) }),
     )
     store.dispose()
   })
 
   it('Stop remains operable inside approval and log dialogs, without answering approval', async () => {
-    const { store, post } = renderMaker()
+    const { store, posted } = renderMaker()
     const dialog = await askOnce(store)
     const stop = await within(dialog).findByRole('button', {
       name: `${UI_TEXT.makerStopMachine}: ${MAKER_UI_MACHINE.name}`,
     })
     fireEvent.click(stop)
-    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop', machineId: 'printer' })
+    expect(posted.at(-1)).toEqual({ v: 1, type: 'makerStop', machineId: 'printer' })
     expect(store.getState().approvals).toHaveLength(1)
     store.dispose()
   })
 
   it('serial controls request exact bytes with reset warning and no direct approval', async () => {
-    const { store, post } = renderMaker()
+    const { store, posted } = renderMaker()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerDevicesTitle }))
     const dialog = await screen.findByRole('dialog', { name: UI_TEXT.makerDevicesTitle })
     expect(dialog).toHaveTextContent(UI_TEXT.makerResetWarning)
@@ -118,7 +116,7 @@ describe('shared maker views', () => {
       target: { value: '00ff' },
     })
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.makerWriteSerial }))
-    expect(post).toHaveBeenLastCalledWith(
+    expect(posted.at(-1)).toEqual(
       expect.objectContaining({
         type: 'makerSerial',
         operation: 'write',
@@ -200,7 +198,7 @@ describe('shared maker views', () => {
   })
 
   it('logs remain a user-opened view and preserve uncertainty with payload escaped', async () => {
-    const { store, post } = renderMaker()
+    const { store, posted } = renderMaker()
     act(() => {
       store.receive({
         v: 1,
@@ -225,14 +223,17 @@ describe('shared maker views', () => {
     expect(dialog).toHaveTextContent(UI_TEXT.makerSentOutcomeUnknown)
     expect(dialog).toHaveTextContent('<script>bad()</script>')
     expect(dialog.querySelector('script')).toBeNull()
-    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerOpenLog' })
+    expect(posted.at(-1)).toEqual({ v: 1, type: 'makerOpenLog' })
     store.dispose()
   })
 
   it('the wizard refuses incomplete/reversed limits and requires explicit plain-HTTP consent', () => {
-    const { post, store } = uiBridge()
+    const { posted, store } = uiBridge()
     store.receive(MAKER_UI_STATE)
-    const close = vi.fn()
+    let closes = 0
+    const close = () => {
+      closes += 1
+    }
     render(<MachineWizard send={store.send} onClose={close} stop={null} />)
     fireEvent.change(screen.getByLabelText(UI_TEXT.makerName), { target: { value: 'Bench' } })
     fireEvent.change(screen.getByLabelText(UI_TEXT.makerMachineId), { target: { value: 'bench' } })
@@ -243,7 +244,7 @@ describe('shared maker views', () => {
       screen.getByRole('button', { name: UI_TEXT.makerAddMachine }).closest('form') ??
         document.body,
     )
-    expect(post).not.toHaveBeenCalled()
+    expect(posted).toEqual([])
     expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.makerInvalidInput)
     fireEvent.click(screen.getByLabelText(UI_TEXT.makerPlainHttpWarning))
     fireEvent.change(screen.getByLabelText('Minimum x (mm)'), { target: { value: '10' } })
@@ -251,7 +252,7 @@ describe('shared maker views', () => {
       screen.getByRole('button', { name: UI_TEXT.makerAddMachine }).closest('form') ??
         document.body,
     )
-    expect(post).not.toHaveBeenCalled()
+    expect(posted).toEqual([])
     for (const axis of ['x', 'y', 'z']) {
       fireEvent.change(screen.getByLabelText(`Minimum ${axis} (mm)`), { target: { value: '0' } })
       fireEvent.change(screen.getByLabelText(`Maximum ${axis} (mm)`), { target: { value: '100' } })
@@ -261,13 +262,13 @@ describe('shared maker views', () => {
       screen.getByRole('button', { name: UI_TEXT.makerAddMachine }).closest('form') ??
         document.body,
     )
-    expect(post).not.toHaveBeenCalled()
+    expect(posted).toEqual([])
     fireEvent.change(screen.getByLabelText('Minimum x (mm)'), { target: { value: '0' } })
     fireEvent.submit(
       screen.getByRole('button', { name: UI_TEXT.makerAddMachine }).closest('form') ??
         document.body,
     )
-    expect(post).toHaveBeenLastCalledWith({
+    expect(posted.at(-1)).toEqual({
       v: 1,
       type: 'makerAddMachine',
       allowPlainHttp: true,
@@ -280,20 +281,20 @@ describe('shared maker views', () => {
         limits: { travel: { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 100, z: 100 } } },
       },
     })
-    expect(close).toHaveBeenCalledOnce()
+    expect(closes).toBe(1)
     store.dispose()
   })
 })
 
 it('mount resolves only after Stop is committed, so the static shell can hand over safely', async () => {
-  const { host, post, store } = uiBridge()
+  const { host, posted, store } = uiBridge()
   const element = document.createElement('div')
   document.body.append(element)
   const surface = await mountMaker(element, host)
   try {
     const stop = within(element).getByRole('button', { name: UI_TEXT.makerStopAll })
     fireEvent.click(stop)
-    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+    expect(posted.at(-1)).toEqual({ v: 1, type: 'makerStop' })
   } finally {
     act(() => {
       surface.dispose()

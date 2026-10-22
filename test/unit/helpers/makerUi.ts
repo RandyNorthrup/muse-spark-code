@@ -1,4 +1,3 @@
-import { vi } from 'vitest'
 import { createHash, webcrypto } from 'node:crypto'
 import type {
   ApprovalRequest,
@@ -62,15 +61,13 @@ export function installMakerBrowser() {
     callback: (entries: IntersectionObserverEntry[]) => void
     targets: Set<Element>
   }[] = []
-  HTMLElement.prototype.scrollIntoView = vi.fn()
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null)
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
-    this: HTMLElement,
-  ) {
+  HTMLElement.prototype.scrollIntoView = () => undefined
+  HTMLCanvasElement.prototype.getContext = () => null
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
     return this.classList.contains('maker-payload')
       ? new DOMRect(0, isVisible ? 0 : 900, width, 160)
       : new DOMRect(0, 0, width, 760)
-  })
+  }
   Object.defineProperties(HTMLElement.prototype, {
     clientWidth: {
       configurable: true,
@@ -95,39 +92,41 @@ export function installMakerBrowser() {
       },
     },
   })
-  vi.stubGlobal('crypto', webcrypto)
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      private readonly record
-      public constructor(callback: (entries: IntersectionObserverEntry[]) => void) {
-        this.record = { callback, targets: new Set<Element>() }
-        ends.push(this.record)
-      }
-      public observe(target: Element) {
-        this.record.targets.add(target)
-      }
-      public disconnect() {
-        this.record.targets.clear()
-      }
-    },
-  )
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      private readonly record
-      public constructor(callback: () => void) {
-        this.record = { callback, active: false }
-        resizes.push(this.record)
-      }
-      public observe() {
-        this.record.active = true
-      }
-      public disconnect() {
-        this.record.active = false
-      }
-    },
-  )
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true })
+  const intersectionObserver = class {
+    private readonly record
+    public constructor(callback: (entries: IntersectionObserverEntry[]) => void) {
+      this.record = { callback, targets: new Set<Element>() }
+      ends.push(this.record)
+    }
+    public observe(target: Element) {
+      this.record.targets.add(target)
+    }
+    public disconnect() {
+      this.record.targets.clear()
+    }
+  }
+  Object.defineProperty(globalThis, 'IntersectionObserver', {
+    value: intersectionObserver,
+    configurable: true,
+  })
+  const resizeObserver = class {
+    private readonly record
+    public constructor(callback: () => void) {
+      this.record = { callback, active: false }
+      resizes.push(this.record)
+    }
+    public observe() {
+      this.record.active = true
+    }
+    public disconnect() {
+      this.record.active = false
+    }
+  }
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    value: resizeObserver,
+    configurable: true,
+  })
   const visible = () => {
     isVisible = true
     for (const node of document.querySelectorAll<HTMLElement>('.maker-payload')) {
@@ -155,7 +154,10 @@ export function installMakerBrowser() {
   })
 }
 export function uiBridge() {
-  const post = vi.fn<(message: MakerSurfaceMessage) => void>()
+  const posted: MakerSurfaceMessage[] = []
+  const post = (message: MakerSurfaceMessage) => {
+    posted.push(message)
+  }
   const host: HostBridge<MakerSurfaceMessage> = {
     post,
     messages: window,
@@ -163,5 +165,5 @@ export function uiBridge() {
     saveState: () => undefined,
   }
   const store = createMakerStore(host)
-  return { host, post, store }
+  return { host, post, posted, store }
 }

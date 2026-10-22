@@ -1,31 +1,28 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { MakerApproval } from '../../src/core/maker/ports'
 import { createUiStore, listenToHost } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { createMakerStore } from '../../src/webview/maker/store'
 import { uiApproval, uiBridge, MAKER_UI_STATE, MAKER_UI_ID } from './helpers/makerUi'
 
-afterEach(() => {
-  vi.useRealTimers()
-})
-
 describe('maker UI echoes through the single host authority', () => {
   it('routes maker traffic outside chat validation while retaining chat boundary errors', () => {
-    const report = vi.fn()
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const reports: unknown[] = []
+    const report = (failure: unknown) => {
+      reports.push(failure)
+    }
     const dispose = listenToHost(createUiStore(initialUiState), window, Date.now, report)
     window.dispatchEvent(new MessageEvent('message', { data: MAKER_UI_STATE }))
-    expect(report).not.toHaveBeenCalled()
+    expect(reports).toEqual([])
     window.dispatchEvent(
       new MessageEvent('message', { data: { type: 'sessionInfo', modelId: 100 } }),
     )
-    expect(report).toHaveBeenCalledOnce()
+    expect(reports).toHaveLength(1)
     dispose()
-    warn.mockRestore()
   })
   it('echoes exact target/id/digest once and the engine consumes only its local binding', () => {
-    const { store, post } = uiBridge()
+    const { store, posted } = uiBridge()
     store.receive(MAKER_UI_STATE)
     const request = uiApproval()
     const engine = new MakerApproval(request, () => true)
@@ -39,9 +36,9 @@ describe('maker UI echoes through the single host authority', () => {
       digest: request.digest,
       isComplete: true,
     })
-    post.mockClear()
+    posted.length = 0
     expect(store.answer(request.id, 'allow_once')).toBe(true)
-    const raw = post.mock.calls[0]?.[0]
+    const raw = posted[0]
     expect(raw).toEqual({
       v: 1,
       type: 'makerAnswer',
@@ -61,14 +58,14 @@ describe('maker UI echoes through the single host authority', () => {
     expect(store.answer(request.id, 'allow_once')).toBe(false)
     store.receive({ v: 1, type: 'makerApproval', request })
     expect(store.getState().approvals).toEqual([])
-    expect(post).toHaveBeenCalledTimes(1)
+    expect(posted).toHaveLength(1)
     store.dispose()
   })
 
   it.each(['id', 'digest', 'target', 'expiry'])(
     'the engine refuses a surface answer with changed %s',
     (field) => {
-      const { store, post } = uiBridge()
+      const { store, posted } = uiBridge()
       store.receive(MAKER_UI_STATE)
       const request = uiApproval()
       let now = Date.now()
@@ -87,9 +84,9 @@ describe('maker UI echoes through the single host authority', () => {
       store.receive({ v: 1, type: 'makerApproval', request })
       store.previewRendered(request.id, request.digest)
       store.reviewCompleted(request.id, request.digest)
-      post.mockClear()
+      posted.length = 0
       store.answer(request.id, 'allow_once')
-      const raw = post.mock.calls[0]?.[0]
+      const raw = posted[0]
       if (raw?.type !== 'makerAnswer') throw new Error('missing answer')
       const answer = { ...raw.answer }
       if (field === 'id') answer.id = '954e0cdb-0f0a-4be0-80f2-fd0e47a93d61'
@@ -103,17 +100,20 @@ describe('maker UI echoes through the single host authority', () => {
     },
   )
 
-  it('rejects expiry even while the dialog chunk has not loaded', () => {
-    vi.useFakeTimers()
-    const { store, post } = uiBridge()
+  it('rejects expiry even while the dialog chunk has not loaded', async () => {
+    const { store, posted } = uiBridge()
     store.receive(MAKER_UI_STATE)
     store.receive({ v: 1, type: 'makerApproval', request: uiApproval() })
-    vi.advanceTimersByTime(1000)
-    expect(post).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'makerAnswer',
-        answer: expect.objectContaining({ decision: 'reject_once' }),
-      }),
+    await vi.waitFor(
+      () => {
+        expect(posted).toContainEqual(
+          expect.objectContaining({
+            type: 'makerAnswer',
+            answer: expect.objectContaining({ decision: 'reject_once' }),
+          }),
+        )
+      },
+      { timeout: 4000, interval: 25 },
     )
     expect(store.getState().approvals).toEqual([])
     expect(store.answer(MAKER_UI_ID, 'allow_once')).toBe(false)
@@ -121,7 +121,7 @@ describe('maker UI echoes through the single host authority', () => {
   })
 
   it('a late click rejects even before the timer callback can run', () => {
-    const { host, post } = uiBridge()
+    const { host, posted } = uiBridge()
     let now = Date.now()
     const store = createMakerStore(host, () => now)
     const request = uiApproval(now)
@@ -129,7 +129,7 @@ describe('maker UI echoes through the single host authority', () => {
     store.receive({ v: 1, type: 'makerApproval', request })
     now = request.expiresAt
     expect(store.answer(request.id, 'allow_once')).toBe(false)
-    expect(post).toHaveBeenLastCalledWith(
+    expect(posted.at(-1)).toEqual(
       expect.objectContaining({ answer: expect.objectContaining({ decision: 'reject_once' }) }),
     )
     store.dispose()
@@ -138,7 +138,7 @@ describe('maker UI echoes through the single host authority', () => {
   it.each(['isTrusted', 'hardwareEnabled', 'isInteractive'])(
     'denies actions when host %s is false; Stop remains independent',
     (flag) => {
-      const { store, post } = uiBridge()
+      const { store, posted } = uiBridge()
       store.receive({ ...MAKER_UI_STATE, [flag]: false })
       store.receive({ v: 1, type: 'makerApproval', request: uiApproval() })
       expect(store.getState().approvals).toEqual([])
@@ -166,17 +166,17 @@ describe('maker UI echoes through the single host authority', () => {
         }),
       ).toBe(false)
       expect(store.send({ v: 1, type: 'makerStop', machineId: 'printer' })).toBe(true)
-      expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop', machineId: 'printer' })
+      expect(posted.at(-1)).toEqual({ v: 1, type: 'makerStop', machineId: 'printer' })
       store.dispose()
     },
   )
 
   it('revocation rejects a pending approval and disposal rejects queued requests', () => {
-    const { store, post } = uiBridge()
+    const { store, posted } = uiBridge()
     store.receive(MAKER_UI_STATE)
     store.receive({ v: 1, type: 'makerApproval', request: uiApproval() })
     store.receive({ ...MAKER_UI_STATE, hardwareEnabled: false })
-    expect(post).toHaveBeenCalledTimes(1)
+    expect(posted).toHaveLength(1)
     store.receive(MAKER_UI_STATE)
     store.receive({
       v: 1,
@@ -184,14 +184,14 @@ describe('maker UI echoes through the single host authority', () => {
       request: { ...uiApproval(), id: '954e0cdb-0f0a-4be0-80f2-fd0e47a93d61' },
     })
     store.dispose()
-    expect(post).toHaveBeenCalledTimes(2)
-    expect(post).toHaveBeenLastCalledWith(
+    expect(posted).toHaveLength(2)
+    expect(posted.at(-1)).toEqual(
       expect.objectContaining({ answer: expect.objectContaining({ decision: 'reject_once' }) }),
     )
   })
 
   it('refuses malformed/versioned/secret-bearing boundary data and answer bypass', () => {
-    const { store, post } = uiBridge()
+    const { store, posted } = uiBridge()
     store.receive({ ...MAKER_UI_STATE, v: 2 })
     store.receive({ ...MAKER_UI_STATE, apiKey: 'unacceptable-field' })
     store.receive({
@@ -213,18 +213,18 @@ describe('maker UI echoes through the single host authority', () => {
         },
       }),
     ).toBe(false)
-    expect(post).not.toHaveBeenCalled()
+    expect(posted).toEqual([])
     store.dispose()
   })
 
   it('host close burns the display slot, including an out-of-order close', () => {
-    const { store, post } = uiBridge()
+    const { store, posted } = uiBridge()
     store.receive(MAKER_UI_STATE)
     store.receive({ v: 1, type: 'makerApprovalClosed', id: MAKER_UI_ID })
     store.receive({ v: 1, type: 'makerApproval', request: uiApproval() })
     expect(store.getState().approvals).toEqual([])
     expect(store.answer(MAKER_UI_ID, 'allow_once')).toBe(false)
-    expect(post).not.toHaveBeenCalled()
+    expect(posted).toEqual([])
     store.dispose()
   })
 })
