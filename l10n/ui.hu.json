@@ -5835,6 +5835,7 @@
     "remoteWarning": "Más eszköztől csak aláírás vagy egyszer használatos kód kérhető. Az ottani felhasználónak minden használatot ott kell jóváhagynia.",
     "approvalExpired": "Ez a jóváhagyás lejárt. Kérje újra a használatot.",
     "useChanged": "A használat megváltozott a jóváhagyás után. Kérjen jóváhagyást az új használathoz.",
+    "editConflict": "A tároló megváltozott, amíg a szerkesztő nyitva volt. Tekintse át a legfrissebb állapotot, és próbálja újra.",
     "osStoreWarning": "Az operációs rendszer hitelesítőadat-tárolója védi. Az Ön nevében futó programok is feloldhatják.",
     "unknownTierWarning": "A védelmi szint ismeretlen, mert a tároló zárolva van. Oldja fel, hogy lássa, hogyan védett.",
     "tierUnknown": "A védelmi szint ismeretlen.",

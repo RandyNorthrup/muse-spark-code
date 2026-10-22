@@ -48,6 +48,7 @@ const REFUSAL_SENTENCE_KEYS = [
   'operationFailed', // `invalid`, `io`
   'useChanged', // a guard below
   'approvalExpired', // a guard below
+  'editConflict', // the panel's draft guard: a change landed after the draft
 ] as const
 
 /** Every named vault refusal's own sentence. */

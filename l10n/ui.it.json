@@ -5992,6 +5992,7 @@
     "remoteWarning": "Da un altro dispositivo si può richiedere solo una firma o un codice monouso. Il suo utente deve approvare ogni uso su quel dispositivo.",
     "approvalExpired": "Questa approvazione è scaduta. Richiedi di nuovo l’utilizzo.",
     "useChanged": "L’utilizzo è cambiato dopo l’approvazione. Richiedi l’approvazione per il nuovo uso.",
+    "editConflict": "Il vault è cambiato mentre l’editor era aperto. Controlla lo stato più recente e riprova.",
     "osStoreWarning": "Protetta dall’archivio credenziali del sistema operativo. Anche i programmi eseguiti con il tuo account possono sbloccarla.",
     "unknownTierWarning": "Il livello di protezione è sconosciuto perché il vault è bloccato. Sbloccalo per vedere come è protetto.",
     "tierUnknown": "Il livello di protezione è sconosciuto.",

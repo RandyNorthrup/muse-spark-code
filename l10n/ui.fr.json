@@ -5992,6 +5992,7 @@
     "remoteWarning": "Seuls une signature ou un code à usage unique peuvent être demandés à un autre appareil. Son utilisateur doit approuver chaque usage sur place.",
     "approvalExpired": "Cette approbation a expiré. Demandez à nouveau cette utilisation.",
     "useChanged": "L’utilisation a changé après l’approbation. Demandez une approbation pour le nouvel usage.",
+    "editConflict": "Le coffre a changé pendant que l’éditeur était ouvert. Vérifiez l’état actuel et réessayez.",
     "osStoreWarning": "Protégé par le stockage des identifiants de votre système. Les programmes exécutés sous votre compte peuvent aussi le déverrouiller.",
     "unknownTierWarning": "Le niveau de protection est inconnu car le coffre est verrouillé. Déverrouillez-le pour voir comment il est protégé.",
     "tierUnknown": "Le niveau de protection est inconnu.",
