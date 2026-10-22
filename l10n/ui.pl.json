@@ -2106,6 +2106,7 @@
     "networkOff": "Sieciowe źródła raportów są wyłączone.",
     "signInRequired": "Zaloguj się do GitHub, aby odczytać to źródło.",
     "noPlan": "Projekt nie ma uporządkowanego planu.",
+    "noCustomKeybindings": "Brak niestandardowych skrótów klawiaturowych.",
     "planDrift": "Format planu w wierszu {line}: {detail}",
     "automatedNote": "Ten raport został wygenerowany automatycznie.",
     "post": "Opublikuj",

@@ -2048,6 +2048,7 @@
     "networkOff": "Rapor ağ kaynakları kapalı.",
     "signInRequired": "Bu kaynağı okumak için GitHub’a giriş yapın.",
     "noPlan": "Bu projenin yapılandırılmış bir planı yok.",
+    "noCustomKeybindings": "Özel klavye kısayolu yok.",
     "planDrift": "{line}. satırda plan biçimi: {detail}",
     "automatedNote": "Bu rapor otomatik oluşturulmuştur.",
     "post": "Yayımla",

@@ -2048,6 +2048,7 @@
     "networkOff": "A jelentések hálózati forrásai ki vannak kapcsolva.",
     "signInRequired": "A forrás olvasásához jelentkezzen be a GitHubra.",
     "noPlan": "A projektnek nincs strukturált terve.",
+    "noCustomKeybindings": "Nincsenek egyéni billentyűparancsok.",
     "planDrift": "Tervformátum a(z) {line}. sorban: {detail}",
     "automatedNote": "Ez a jelentés automatikusan készült.",
     "post": "Közzététel",

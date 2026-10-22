@@ -2077,6 +2077,7 @@
     "networkOff": "As fontes de rede dos relatórios estão desativadas.",
     "signInRequired": "Entre no GitHub para ler esta fonte.",
     "noPlan": "Este projeto não tem um plano estruturado.",
+    "noCustomKeybindings": "Não há atalhos de teclado personalizados.",
     "planDrift": "Formato do plano na linha {line}: {detail}",
     "automatedNote": "Este relatório foi gerado automaticamente.",
     "post": "Publicar",

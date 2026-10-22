@@ -2019,6 +2019,7 @@
     "networkOff": "レポートのネットワークソースは無効です。",
     "signInRequired": "このソースを読むには GitHub にサインインしてください。",
     "noPlan": "このプロジェクトに構造化された計画はありません。",
+    "noCustomKeybindings": "カスタムのキーボードショートカットはありません。",
     "planDrift": "計画形式の {line} 行目: {detail}",
     "automatedNote": "このレポートは自動生成されました。",
     "post": "投稿",

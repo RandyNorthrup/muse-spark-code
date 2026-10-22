@@ -2019,6 +2019,7 @@
     "networkOff": "보고서 네트워크 출처가 꺼져 있습니다.",
     "signInRequired": "이 출처를 읽으려면 GitHub에 로그인하세요.",
     "noPlan": "이 프로젝트에는 구조화된 계획이 없습니다.",
+    "noCustomKeybindings": "사용자 지정 키보드 단축키가 없습니다.",
     "planDrift": "{line}행의 계획 형식: {detail}",
     "automatedNote": "이 보고서는 자동으로 생성되었습니다.",
     "post": "게시",

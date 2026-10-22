@@ -217,11 +217,27 @@ describe('keybindings report facts', () => {
     expect(cells(valid.data![0]!, 'editor.action.inlineSuggest.trigger', 'editor/linux')).toEqual([
       { type: 'text', value: 'alt+\\' },
     ])
-    for (const broken of [{}, { contributes: {} }]) {
-      const result = await keybindingsSource(() => broken).read(keybindingsContext())
-      expect(result.record.status).toBe('unavailable')
+    // RLTESTDRIVE2 12: an absent manifest, or one that contributes no
+    // keybindings (the packed agent's npm manifest), is not invalid data:
+    // the source is not applicable and says there is nothing to list.
+    for (const empty of [
+      undefined,
+      {},
+      { contributes: {} },
+      { name: 'muse-spark-code-acp', version: '0.19.0' },
+      { contributes: { commands: [{ command: 'museSpark.focusInput' }] } },
+    ]) {
+      const result = await keybindingsSource(() => empty).read(keybindingsContext())
+      expect(result.record.status).toBe('notApplicable')
+      expect(result.record.reason).toBe(EN.reportUi.noCustomKeybindings)
       expect(result.data).toBeNull()
     }
+    // Declared commands carry no facts, so a manifest with keybindings but
+    // no command list still reports its bindings.
+    const noCommands = await keybindingsSource(() => ({
+      contributes: { keybindings: [{ command: 'museSpark.focusInput', key: 'ctrl+escape' }] },
+    })).read(keybindingsContext())
+    expect(noCommands.record.status).toBe('ok')
     // RVREPORTJOIN P2-1: one damaged declaration is a named problem beside
     // the good rows, never a lost source: the static panel gestures and ACP
     // commands still report.
@@ -502,13 +518,44 @@ describe('keybindings manifest reader', () => {
     expect(keybindingsManifestReader(file)()).toEqual({
       contributes: { commands: [], keybindings: [] },
     })
-    // The reader throws synchronously; the source port maps the codes.
-    expect(
-      readManifestError(keybindingsManifestReader(path.join(root, 'absent.json'))),
-    ).toMatchObject({
-      isLocalSourceError: true,
-      code: 'missing',
+    // RLTESTDRIVE2 12: an absent file reads as undefined, never invalid
+    // data; the source reports no custom keybindings for it.
+    expect(keybindingsManifestReader(path.join(root, 'absent.json'))()).toBeUndefined()
+    const absent = await keybindingsSource(
+      keybindingsManifestReader(path.join(root, 'absent.json')),
+    ).read(keybindingsContext())
+    expect(absent).toMatchObject({
+      record: { status: 'notApplicable', reason: EN.reportUi.noCustomKeybindings },
+      data: null,
     })
+    // JSONC with comments and trailing commas still parses; only a file
+    // that really fails to parse stays invalid.
+    await writeFile(
+      file,
+      [
+        '{',
+        '  // the installed defaults,',
+        '  "contributes": {',
+        '    "commands": [],',
+        '    "keybindings": [',
+        '      // one binding,',
+        '      { "command": "museSpark.focusInput", "key": "ctrl+escape", },',
+        '    ],',
+        '  }, /* end, */',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    expect(keybindingsManifestReader(file)()).toEqual({
+      contributes: {
+        commands: [],
+        keybindings: [{ command: 'museSpark.focusInput', key: 'ctrl+escape' }],
+      },
+    })
+    const commented = await keybindingsSource(keybindingsManifestReader(file)).read(
+      keybindingsContext(),
+    )
+    expect(commented.record.status).toBe('ok')
     await writeFile(file, '{ not json')
     expect(readManifestError(keybindingsManifestReader(file))).toMatchObject({
       isLocalSourceError: true,
