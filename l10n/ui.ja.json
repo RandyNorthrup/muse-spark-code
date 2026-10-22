@@ -4069,6 +4069,8 @@
   "referenceLsp": "有料Tabの明示的な有効化とエディターの同意に対応するstdio言語サーバー。",
   "referenceSupervise": "独立した認証済みStop制御でランタイムを実行します。",
   "referenceStop": "このワークスペースの検証済みランタイム所有者を停止します。",
+  "superviseUsage": "{command} supervise [エージェント引数]\n引数を監視付きランタイムとして実行する。Stopは認証済みレジストリ経由で利用可能。",
+  "stopUsage": "{command} stop [serveオプション]\nこのワークスペースの検証済みランタイムを停止する。フラグはserveフラグとして検証される。",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n言語サーバー：有料の Tab には明示的な有効化、信頼されたワークスペース、同意が必要です。",
   "acpStopUnverified": "停止を確認できません — プロセスがまだ実行中の可能性があります。観測した PID: {pids}",
   "acpSupervisorSignal": "監視対象のプロセスが {signal} により終了しました。",

@@ -4342,6 +4342,8 @@
   "referenceLsp": "Jazykový server přes stdio s volitelným placeným Tab a souhlasem editoru.",
   "referenceSupervise": "Spustit běhové prostředí s nezávislým ověřeným ovládáním Stop.",
   "referenceStop": "Zastavit ověřené vlastníky běhového prostředí v tomto pracovním prostoru.",
+  "superviseUsage": "{command} supervise [argumenty agenta]\nSpustí své argumenty jako dozorovaný běh; Stop zůstává dostupný přes ověřený registr.",
+  "stopUsage": "{command} stop [volby serve]\nZastaví ověřené běhy tohoto pracovního prostoru; jeho příznaky se ověřují jako příznaky serve.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nJazykový server: placený Tab vyžaduje výslovné zapnutí, důvěryhodný pracovní prostor a souhlas.",
   "acpStopUnverified": "Zastavení nelze ověřit — procesy mohou stále běžet. Pozorovaná PID: {pids}",
   "acpSupervisorSignal": "Dohlížený proces byl ukončen signálem {signal}.",

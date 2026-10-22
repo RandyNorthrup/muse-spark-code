@@ -5267,6 +5267,10 @@ export const EN = {
   referenceLsp: 'Stdio language server with paid Tab opt-in and editor consent.',
   referenceSupervise: 'Run the runtime with independent authenticated Stop control.',
   referenceStop: 'Stop verified runtime owners in this workspace.',
+  superviseUsage:
+    '{command} supervise [agent arguments]\nRuns its arguments as a supervised runtime; Stop stays available through the authenticated registry.',
+  stopUsage:
+    '{command} stop [serve options]\nStops the verified runtimes of this workspace; its flags are validated as serve flags.',
   lspUsage:
     'muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nLanguage server: explicit paid Tab opt-in; trusted workspace and consent required.',
   acpStopUnverified: 'Cannot verify Stop — processes may still be running. Observed PIDs: {pids}',

@@ -4069,6 +4069,8 @@
   "referenceLsp": "支援付費 Tab 明確啟用及編輯器同意的 stdio 語言伺服器。",
   "referenceSupervise": "以獨立且經過驗證的 Stop 控制執行環境。",
   "referenceStop": "停止此工作區中已驗證的執行環境擁有者。",
+  "superviseUsage": "{command} supervise [代理參數]\n將其參數作為受監督的執行階段執行；Stop 透過已驗證的登錄保持可用。",
+  "stopUsage": "{command} stop [serve 選項]\n停止此工作區的已驗證執行階段；其旗標按 serve 旗標驗證。",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n語言伺服器：付費 Tab 需要明確啟用、受信任的工作區及同意。",
   "acpStopUnverified": "無法驗證停止 — 程序可能仍在執行。已觀察到的 PID：{pids}",
   "acpSupervisorSignal": "受監督程序已被 {signal} 訊號終止。",

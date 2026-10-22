@@ -4342,6 +4342,8 @@
   "referenceLsp": "Serwer językowy stdio z opcjonalnym płatnym Tab i zgodą w edytorze.",
   "referenceSupervise": "Uruchom środowisko z niezależnym uwierzytelnionym sterowaniem Stop.",
   "referenceStop": "Zatrzymaj zweryfikowanych właścicieli środowiska w tym obszarze roboczym.",
+  "superviseUsage": "{command} supervise [argumenty agenta]\nUruchamia swoje argumenty jako nadzorowane środowisko; Stop pozostaje dostępny przez uwierzytelniony rejestr.",
+  "stopUsage": "{command} stop [opcje serve]\nZatrzymuje zweryfikowane środowiska tego obszaru roboczego; jego flagi są walidowane jako flagi serve.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nSerwer językowy: płatny Tab wymaga jawnego włączenia, zaufanego obszaru roboczego i zgody.",
   "acpStopUnverified": "Nie można potwierdzić zatrzymania — procesy mogą nadal działać. Zaobserwowane PID: {pids}",
   "acpSupervisorSignal": "Nadzorowany proces został zakończony sygnałem {signal}.",

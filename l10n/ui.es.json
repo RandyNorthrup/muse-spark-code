@@ -4251,6 +4251,8 @@
   "referenceLsp": "Servidor de lenguaje por stdio con Tab de pago opcional y consentimiento del editor.",
   "referenceSupervise": "Ejecutar el entorno con control Stop independiente y autenticado.",
   "referenceStop": "Detener los propietarios verificados del entorno en este espacio de trabajo.",
+  "superviseUsage": "{command} supervise [argumentos del agente]\nEjecuta sus argumentos como un runtime supervisado; Stop sigue disponible a través del registro autenticado.",
+  "stopUsage": "{command} stop [opciones de serve]\nDetiene los runtimes verificados de este espacio de trabajo; sus flags se validan como flags de serve.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nServidor de lenguaje: Tab de pago requiere activación explícita, un espacio de trabajo de confianza y consentimiento.",
   "acpStopUnverified": "No se puede verificar la detención — puede que los procesos sigan ejecutándose. PID observados: {pids}",
   "acpSupervisorSignal": "El proceso supervisado terminó por {signal}.",

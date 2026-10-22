@@ -4069,6 +4069,8 @@
   "referenceLsp": "支持付费 Tab 显式启用和编辑器同意的 stdio 语言服务器。",
   "referenceSupervise": "使用独立且经过身份验证的 Stop 控制运行环境。",
   "referenceStop": "停止此工作区中已验证的运行环境所有者。",
+  "superviseUsage": "{command} supervise [代理参数]\n将其参数作为受监督的运行时执行；Stop 通过已验证的注册表保持可用。",
+  "stopUsage": "{command} stop [serve 选项]\n停止此工作区的已验证运行时；其标志按 serve 标志验证。",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n语言服务器：付费 Tab 需要显式启用、受信任的工作区和同意。",
   "acpStopUnverified": "无法验证停止 — 进程可能仍在运行。已观察到的 PID：{pids}",
   "acpSupervisorSignal": "受监督进程已被 {signal} 信号终止。",

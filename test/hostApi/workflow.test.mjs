@@ -27,7 +27,7 @@ describe('native workflow release fences', () => {
     expect(block).toContain('"${native[@]/#/./}" > SHA256SUMS')
     expect(block).toContain('subject-checksums: release/SHA256SUMS')
     expect(block).toContain('mapfile -t native < release/.native')
-    expect(block).toContain('"${native[@]/#/release/}" release/SHA256SUMS')
+    expect(block).toContain('"${native[@]/#/release/}" "${helper_assets[@]}" release/SHA256SUMS')
     expect(block.indexOf('sha256sum')).toBeLessThan(
       block.indexOf('node scripts/github-release.mjs'),
     )

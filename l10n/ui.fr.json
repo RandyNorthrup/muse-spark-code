@@ -4251,6 +4251,8 @@
   "referenceLsp": "Serveur de langage stdio avec Tab payant facultatif et accord dans l’éditeur.",
   "referenceSupervise": "Lancer le moteur avec une commande Stop indépendante et authentifiée.",
   "referenceStop": "Arrêter les propriétaires vérifiés du moteur dans cet espace de travail.",
+  "superviseUsage": "{command} supervise [arguments agent]\nExécute ses arguments comme un runtime supervisé ; Stop reste disponible via le registre authentifié.",
+  "stopUsage": "{command} stop [options serve]\nArrête les runtimes vérifiés de cet espace de travail ; ses flags sont validés comme des flags serve.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nServeur de langage : Tab payant nécessite une activation explicite, un espace de travail approuvé et votre consentement.",
   "acpStopUnverified": "Impossible de vérifier l’arrêt — des processus peuvent encore être actifs. PID observés : {pids}",
   "acpSupervisorSignal": "Le processus supervisé a été terminé par {signal}.",

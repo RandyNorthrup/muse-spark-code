@@ -4069,6 +4069,8 @@
   "referenceLsp": "유료 Tab 명시적 사용과 편집기 동의를 지원하는 stdio 언어 서버.",
   "referenceSupervise": "독립적인 인증된 Stop 제어로 런타임을 실행합니다.",
   "referenceStop": "이 작업 영역에서 검증된 런타임 소유자를 중지합니다.",
+  "superviseUsage": "{command} supervise [에이전트 인수]\n인수를 감독 런타임으로 실행한다. Stop은 인증된 레지스트리를 통해 계속 사용할 수 있다.",
+  "stopUsage": "{command} stop [serve 옵션]\n이 작업 영역의 검증된 런타임을 중지한다. 플래그는 serve 플래그로 검증된다.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n언어 서버: 유료 Tab은 명시적인 활성화, 신뢰할 수 있는 작업 영역 및 동의가 필요합니다.",
   "acpStopUnverified": "중지를 확인할 수 없습니다 — 프로세스가 아직 실행 중일 수 있습니다. 관찰된 PID: {pids}",
   "acpSupervisorSignal": "감독 대상 프로세스가 {signal} 신호로 종료되었습니다.",

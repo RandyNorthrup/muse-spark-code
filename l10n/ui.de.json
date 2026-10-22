@@ -4160,6 +4160,8 @@
   "referenceLsp": "Stdio-Sprachserver mit freiwilligem kostenpflichtigem Tab und Editor-Zustimmung.",
   "referenceSupervise": "Laufzeit mit unabhängiger authentifizierter Stop-Steuerung starten.",
   "referenceStop": "Verifizierte Laufzeitbesitzer in diesem Arbeitsbereich stoppen.",
+  "superviseUsage": "{command} supervise [Agentenargumente]\nFührt seine Argumente als überwachte Laufzeit aus; Stop bleibt über die authentifizierte Registrierung verfügbar.",
+  "stopUsage": "{command} stop [Serve-Optionen]\nStoppt die verifizierten Laufzeiten dieses Arbeitsbereichs; seine Flags werden als Serve-Flags validiert.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nSprachserver: Kostenpflichtiges Tab erfordert ausdrückliche Aktivierung, einen vertrauenswürdigen Arbeitsbereich und Zustimmung.",
   "acpStopUnverified": "Stop kann nicht verifiziert werden — Prozesse laufen möglicherweise noch. Beobachtete PIDs: {pids}",
   "acpSupervisorSignal": "Der überwachte Prozess wurde durch {signal} beendet.",

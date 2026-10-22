@@ -4160,6 +4160,8 @@
   "referenceLsp": "Stdio nyelvi kiszolgáló választható fizetős Tab-bal és szerkesztői jóváhagyással.",
   "referenceSupervise": "Futtatókörnyezet indítása független, hitelesített Stop vezérléssel.",
   "referenceStop": "Az ellenőrzött futtatókörnyezet-tulajdonosok leállítása ebben a munkaterületben.",
+  "superviseUsage": "{command} supervise [ügynökargumentumok]\nArgumentumait felügyelt futásként futtatja; a Stop a hitelesített bejegyzésen át elérhető marad.",
+  "stopUsage": "{command} stop [serve kapcsolók]\nLeállítja e munkaterület ellenőrzött futásait; kapcsolóit serve kapcsolókként érvényesíti.",
   "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nNyelvi kiszolgáló: a fizetős Tab kifejezett bekapcsolást, megbízható munkaterületet és hozzájárulást igényel.",
   "acpStopUnverified": "A leállítás nem ellenőrizhető — a folyamatok még futhatnak. Megfigyelt PID-k: {pids}",
   "acpSupervisorSignal": "A felügyelt folyamatot a(z) {signal} jel állította le.",
