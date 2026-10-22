@@ -4,6 +4,7 @@ import {
   type ContentBlock,
   type SessionUpdate,
 } from '@agentclientprotocol/sdk'
+import { noticeMessageId } from './translate'
 import { UI_TEXT } from '../shared/constants'
 import { resourceEventSchema, resourceStatusSchema } from '../shared/resources'
 import type { RuntimeResourceNotice, RuntimeResources } from '../runtime/resources/port'
@@ -44,7 +45,8 @@ export async function acpResourceCommand(
 A local tool id supplies correlation; it never enters the bounded resource
 payload. A governor status is the app's own words, never the model's: where
 the client advertised `session.notices` it goes out as its own `notice`
-update, and only then falls back to an agent message (F82's class).
+update, and only then falls back to an agent message as its own message
+(F82's class, RLF-ACPTURNS F1).
 */
 export function acpResourceUpdates(
   notice: RuntimeResourceNotice,
@@ -82,6 +84,7 @@ export function acpResourceUpdates(
   return [
     {
       sessionUpdate: 'agent_message_chunk',
+      messageId: noticeMessageId(),
       content: { type: 'text', text: notice.text },
       _meta: { 'museSpark.resources': { event, status } },
     },

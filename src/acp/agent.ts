@@ -1,4 +1,5 @@
 import { estimateFailureText } from '../shared/estimateDiagnostic'
+import type { AccountEvent } from '../shared/accounts'
 import type { UsdAmount } from '../shared/usdSchema'
 import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
@@ -150,6 +151,7 @@ import {
   decidedChoice,
   isMediaLink,
   mcpServersFrom,
+  noticeMessageId,
   permissionOptions,
   permissionResponse,
   planEntries,
@@ -367,6 +369,54 @@ function accountRequestError(error: unknown): RequestError {
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
     : RequestError.internalError(undefined, text)
+}
+
+/**
+An account swap or stop as the client sees it (F82's class, RLF-ACPTURNS
+F1): its own `notice` where the client can show one, else the
+agent-message fallback as its own message — the app's own status, never
+the model's words. The structured event rides `_meta` either way.
+*/
+export function accountNoticeUpdate(
+  text: string,
+  event: AccountEvent,
+  areNoticesSupported: boolean,
+): SessionUpdate {
+  return areNoticesSupported
+    ? {
+        sessionUpdate: 'notice',
+        severity: event.type === 'stop' ? 'warning' : 'info',
+        title: text,
+        _meta: { accountNotice: event },
+      }
+    : {
+        sessionUpdate: 'agent_message_chunk',
+        messageId: noticeMessageId(),
+        _meta: { accountNotice: event },
+        content: { type: 'text', text },
+      }
+}
+
+/**
+F91's sandbox note as the client sees it (RLF-ACPTURNS F1): its own
+`notice` where the client can show one, else the agent-message fallback
+as its own message, carrying the `_meta` marker a client can tell apart
+from model speech.
+*/
+export function sandboxCannotStartUpdate(areNoticesSupported: boolean): SessionUpdate {
+  return areNoticesSupported
+    ? {
+        sessionUpdate: 'notice',
+        severity: 'warning',
+        title: UI_TEXT.sandboxCannotStartNotice,
+        _meta: { sandboxCannotStartNotice: true },
+      }
+    : {
+        sessionUpdate: 'agent_message_chunk',
+        messageId: noticeMessageId(),
+        _meta: { sandboxCannotStartNotice: true },
+        content: { type: 'text', text: UI_TEXT.sandboxCannotStartNotice },
+      }
 }
 
 /**
@@ -644,24 +694,7 @@ class AcpSession {
               })
             },
             (text, event) => {
-              // An account swap or stop is the app's own status, never the
-              // model's words: its own notice where the client can show
-              // one, the agent-message fallback otherwise (F82's class).
-              // The structured event rides `_meta` either way.
-              this.send(
-                this.areNoticesSupported
-                  ? {
-                      sessionUpdate: 'notice',
-                      severity: event.type === 'stop' ? 'warning' : 'info',
-                      title: text,
-                      _meta: { accountNotice: event },
-                    }
-                  : {
-                      sessionUpdate: 'agent_message_chunk',
-                      _meta: { accountNotice: event },
-                      content: { type: 'text', text },
-                    },
-              )
+              this.send(accountNoticeUpdate(text, event, this.areNoticesSupported))
             },
           )
   }
@@ -2445,35 +2478,15 @@ class AcpSession {
   /**
   F91: the editor hears once per session, in words, that Muse Code's
   Linux sandbox cannot start on this machine. The host start already said
-  it on stderr; the posture stands until the person turns it off.
-  
-  This is the harness speaking, never the model (that confusion is F82).
-  Where the client advertises its session-notices capability
-  (`ClientSessionCapabilities::notices`), it goes as that branch's
-  separate notice update; otherwise it stays an `agent_message_chunk`
-  carrying a `_meta` marker (the accountNotice precedent) a client can
-  tell apart from model speech, which the schema prescribes when notices
-  are not advertised.
+  it on stderr; the posture stands until the person turns it off. The
+  update itself is `sandboxCannotStartUpdate`.
   */
   public noteSandboxCannotStart(): void {
     if (this.hasSaidSandboxCannotStart || !this.sandboxCannotStart()) {
       return
     }
     this.hasSaidSandboxCannotStart = true
-    if (this.clientCapabilities.session?.notices != null) {
-      this.send({
-        sessionUpdate: 'notice',
-        severity: 'warning',
-        title: UI_TEXT.sandboxCannotStartNotice,
-        _meta: { sandboxCannotStartNotice: true },
-      })
-      return
-    }
-    this.send({
-      sessionUpdate: 'agent_message_chunk',
-      _meta: { sandboxCannotStartNotice: true },
-      content: { type: 'text', text: UI_TEXT.sandboxCannotStartNotice },
-    })
+    this.send(sandboxCannotStartUpdate(this.areNoticesSupported))
   }
 
   public async loadQuestions(): Promise<void> {
