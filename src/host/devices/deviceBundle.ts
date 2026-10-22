@@ -109,6 +109,9 @@ export function deviceMethods(options: {
   const release = (registration: () => void) => {
     if (owned.delete(registration)) registration()
   }
+  const releaseAttempt = (registrations: readonly (() => void)[]) => {
+    for (const registration of registrations) release(registration)
+  }
   async function service() {
     if (isDisposed()) throw new Error('revoked')
     pending ??= (async () => {
@@ -136,7 +139,7 @@ export function deviceMethods(options: {
         return instance
       } catch (error) {
         // A failed or revoked preparation ends what it started; a retry starts afresh.
-        for (const registration of attempt) release(registration)
+        releaseAttempt(attempt)
         if (isDisposed()) throw new Error('revoked', { cause: error })
         throw error
       }

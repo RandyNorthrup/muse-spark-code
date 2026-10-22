@@ -102,8 +102,11 @@ export function bindDeviceReceiverActionGrants(
   }
 }
 export class DeviceActionGrantError extends DevicePairingError {
-  public constructor(public readonly refusal: DeviceGrantRefusal) {
-    super('grant')
+  public constructor(
+    public readonly refusal: DeviceGrantRefusal,
+    options?: { cause?: unknown },
+  ) {
+    super('grant', options)
   }
 }
 interface PendingAttempt {

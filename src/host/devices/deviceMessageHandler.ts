@@ -20,8 +20,8 @@ export async function handleDeviceRequest(
       signal === undefined
         ? await port.request(request.message)
         : await port.request(request.message, signal)
-  } catch {
-    throw new Error('invalid-device-message')
+  } catch (error) {
+    throw new Error('invalid-device-message', { cause: error })
   }
   const response = parseDeviceHostMessage(raw)
   if (

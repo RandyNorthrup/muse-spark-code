@@ -15,8 +15,9 @@ export function checkedDeviceInterface(address: string, interfaces: readonly str
     !interfaces.some((entry) => {
       try {
         return checkedDeviceAddress(entry) === checked
-      } catch {
-        return false
+      } catch (error) {
+        if (error instanceof Error && error.message === 'invalid-device-address') return false
+        throw error
       }
     })
   )

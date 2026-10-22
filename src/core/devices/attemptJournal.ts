@@ -32,8 +32,9 @@ interface JournalStorage {
 export class DeviceJournalError extends Error {
   public constructor(
     public readonly reason: 'storage' | 'capacity' | 'payload-changed' | 'uncertain',
+    options?: { cause?: unknown },
   ) {
-    super(reason)
+    super(reason, options)
     this.name = 'DeviceJournalError'
   }
 }
@@ -171,8 +172,8 @@ export class AttemptJournal {
       }
       await syncDirectory(path.dirname(directory), storage)
       return await this.open(directory, owner, protection, platform)
-    } catch {
-      throw new DeviceJournalError('storage')
+    } catch (error) {
+      throw new DeviceJournalError('storage', { cause: error })
     }
   }
   public static async open(
@@ -191,8 +192,8 @@ export class AttemptJournal {
       if (names.some((name) => name.endsWith('.stage'))) throw new DeviceJournalError('storage')
       await journal.readNow()
       return journal
-    } catch {
-      throw new DeviceJournalError('storage')
+    } catch (error) {
+      throw new DeviceJournalError('storage', { cause: error })
     }
   }
   private queue: Promise<void> = Promise.resolve()
@@ -231,9 +232,9 @@ export class AttemptJournal {
       } finally {
         await handle.close()
       }
-    } catch {
+    } catch (error) {
       this.hasFailed = true
-      throw new DeviceJournalError('storage')
+      throw new DeviceJournalError('storage', { cause: error })
     }
   }
   private async writeNow(state: JournalState): Promise<void> {
@@ -270,9 +271,9 @@ export class AttemptJournal {
       } finally {
         await handle.close()
       }
-    } catch {
+    } catch (error) {
       this.hasFailed = true
-      throw new DeviceJournalError('storage')
+      throw new DeviceJournalError('storage', { cause: error })
     }
   }
   private async ordered<T>(work: () => Promise<T>): Promise<T> {
@@ -564,7 +565,11 @@ async function syncDirectory(directory: string, storage: JournalStorage): Promis
 export async function settleDeviceOperation(operation: Promise<unknown>): Promise<void> {
   try {
     await operation
-  } catch {
-    return
+  } catch (error) {
+    // The journal's own typed failure is already recorded for the awaiting
+    // caller; anything else poisons the queue so later work fails loudly
+    // instead of building on unknown state.
+    if (error instanceof DeviceJournalError) return
+    throw error
   }
 }

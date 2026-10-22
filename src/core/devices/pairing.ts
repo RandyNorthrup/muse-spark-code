@@ -19,8 +19,11 @@ import {
 } from '../../shared/devices'
 
 export class DevicePairingError extends Error {
-  public constructor(public readonly reason: (typeof DEVICE_FAILURES)[number]) {
-    super(reason)
+  public constructor(
+    public readonly reason: (typeof DEVICE_FAILURES)[number],
+    options?: { cause?: unknown },
+  ) {
+    super(reason, options)
   }
 }
 function requirePair(
@@ -133,8 +136,8 @@ export function validateDeviceCertificate(
     const signature = takeDer(outer.body.subarray(tbs.length + algorithm.length), '03')
     requirePair(signature.rest.length === 0 && signature.body[0] === 0)
     return certificate
-  } catch {
-    throw new DevicePairingError('invalid-frame')
+  } catch (error) {
+    throw new DevicePairingError('invalid-frame', { cause: error })
   }
 }
 
@@ -189,8 +192,8 @@ export function parseDeviceInvitationText(text: string, now: number): DeviceInvi
     requirePair(JSON.stringify(invitation) === text)
     assertFresh(invitation, now)
     return invitation
-  } catch {
-    throw new DevicePairingError('invalid-frame')
+  } catch (error) {
+    throw new DevicePairingError('invalid-frame', { cause: error })
   }
 }
 function assertFresh(invitation: DeviceInvitation, now: number): void {
@@ -243,8 +246,8 @@ export function devicePrivateKey(
     const key = typeof pem === 'string' ? createPrivateKey(pem) : pem
     requirePair(certificate.checkPrivateKey(key), 'storage')
     return key
-  } catch {
-    throw new DevicePairingError('storage')
+  } catch (error) {
+    throw new DevicePairingError('storage', { cause: error })
   }
 }
 export function confirmDeviceFingerprint(

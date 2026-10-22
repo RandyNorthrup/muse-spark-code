@@ -14,14 +14,28 @@ import {
   type DeviceResultEnvelope,
   type DeviceResultPort,
 } from '../../shared/devices'
-import { settleDeviceOperation } from './attemptJournal'
 import { deviceEpochSchema, type DeviceEpochState } from './epochs'
 
 export type DeviceResultRefusal = 'capacity' | 'payload-changed' | 'storage' | 'uncertain'
 
+async function settleResultOperation(operation: Promise<unknown>): Promise<void> {
+  try {
+    await operation
+  } catch (error) {
+    // The channel's own typed failure is already recorded for the awaiting
+    // caller; anything else poisons the queue so later work fails loudly
+    // instead of building on unknown state.
+    if (error instanceof DeviceResultError) return
+    throw error
+  }
+}
+
 export class DeviceResultError extends Error {
-  public constructor(public readonly reason: DeviceResultRefusal) {
-    super(reason)
+  public constructor(
+    public readonly reason: DeviceResultRefusal,
+    options?: { cause?: unknown },
+  ) {
+    super(reason, options)
     this.name = 'DeviceResultError'
   }
 }
@@ -100,9 +114,9 @@ export class ResultChannel implements DeviceResultPort {
         Buffer.byteLength(JSON.stringify(stored)) > DEVICE_LIMITS.journalBytes
       )
         throw new DeviceResultError('storage')
-    } catch {
+    } catch (error) {
       this.hasFailed = true
-      throw new DeviceResultError('storage')
+      throw new DeviceResultError('storage', { cause: error })
     }
     if (stored !== undefined && !isSameAttempt(stored.identity, result.identity))
       throw new DeviceResultError('payload-changed')
@@ -147,9 +161,9 @@ export class ResultChannel implements DeviceResultPort {
       throw new DeviceResultError('capacity')
     try {
       await this.store.save(record)
-    } catch {
+    } catch (error) {
       this.hasFailed = true
-      throw new DeviceResultError('storage')
+      throw new DeviceResultError('storage', { cause: error })
     }
     return ack
   }
@@ -171,7 +185,7 @@ export class ResultChannel implements DeviceResultPort {
         this.queuedPublishes -= 1
       }
     })()
-    this.queue = settleDeviceOperation(operation)
+    this.queue = settleResultOperation(operation)
     return await operation
   }
 

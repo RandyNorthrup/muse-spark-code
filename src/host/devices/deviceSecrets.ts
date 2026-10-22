@@ -40,9 +40,9 @@ export class DeviceSecrets {
       hasAttemptedWrite = true
       await this.store.store(name, pem)
       await this.key(invitation, now)
-    } catch {
+    } catch (error) {
       if (hasAttemptedWrite) await this.remove(invitation.invitationId)
-      throw new DevicePairingError('storage')
+      throw new DevicePairingError('storage', { cause: error })
     }
   }
   public async key(invitation: DeviceInvitation, now: number): Promise<KeyObject> {
@@ -57,8 +57,8 @@ export class DeviceSecrets {
       )
         throw new DevicePairingError('storage')
       return devicePrivateKey(invitation, loaded.pem, now)
-    } catch {
-      throw new DevicePairingError('storage')
+    } catch (error) {
+      throw new DevicePairingError('storage', { cause: error })
     } finally {
       loaded.pem = undefined
     }
@@ -67,8 +67,8 @@ export class DeviceSecrets {
     assertLocalDeviceHost(this.host)
     try {
       await this.store.delete(secretName(invitationId))
-    } catch {
-      throw new DevicePairingError('storage')
+    } catch (error) {
+      throw new DevicePairingError('storage', { cause: error })
     }
   }
 }
