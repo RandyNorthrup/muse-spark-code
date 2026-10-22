@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
   checkPresets,
@@ -38,10 +38,24 @@ import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 const projects = z
   .array(z.object({ kind: z.enum(MAKER_PROJECT_KINDS), files: z.record(z.string(), z.string()) }))
   .parse(JSON.parse(await readFile('test/fixtures/maker/projects.json', 'utf8')))
+const noPiRuns = { count: 0 }
 const noPi: PiDetectIo = {
   readModel: () => Promise.resolve(undefined),
-  isExecutable: vi.fn(),
-  run: vi.fn(),
+  isExecutable: () => Promise.resolve(false),
+  run: () => {
+    noPiRuns.count += 1
+    return Promise.resolve(undefined)
+  },
+}
+function hostFor(isTrusted: () => boolean = () => true) {
+  const notified: Parameters<MakerDetectHost['notify']>[0][] = []
+  const host: MakerDetectHost = {
+    isTrusted,
+    notify: (event) => {
+      notified.push(event)
+    },
+  }
+  return { host, notified }
 }
 
 function ioFor(files: Record<string, string>): ProjectDetectIo {
@@ -313,20 +327,24 @@ describe('presetsOffered host seam', () => {
   ])(
     'keeps the physical-root notice and generic Python syntax offer at a $platform volume root',
     async ({ platform, root, label }) => {
-      const host: MakerDetectHost = { isTrusted: () => true, notify: vi.fn() }
+      const { host, notified } = hostFor()
+      const labels: [string, string][] = []
       const io = {
         ...ioFor({ 'code.py': 'print("hello")', 'boot_out.txt': 'CircuitPython' }),
-        volumeLabel: vi.fn(() => Promise.resolve(label)),
+        volumeLabel: (root: string, platform: string) => {
+          labels.push([root, platform])
+          return Promise.resolve(label)
+        },
       }
       const event = await detectAndOfferMakerPresets({ root, platform, host, io, piIo: noPi })
-      expect(io.volumeLabel).toHaveBeenCalledWith(root, platform)
+      expect(labels).toContainEqual([root, platform])
       expect(event?.isCircuitPyRoot).toBe(true)
       expect(event?.kinds).toEqual(['circuitpython'])
       expect(event?.notices).toContain(UI_TEXT.makerDetectCircuitPy)
       expect(event?.presets).toMatchObject([
         { id: 'circuitpython:syntax:code.py', type: 'command' },
       ])
-      expect(host.notify).toHaveBeenCalledWith(event)
+      expect(notified).toContainEqual(event)
       const labelOnly = await detectAndOfferMakerPresets({
         root,
         platform,
@@ -341,7 +359,7 @@ describe('presetsOffered host seam', () => {
   )
 
   it('uses root boot_out.txt even with an unavailable label and never promotes a nested boot log', async () => {
-    const host: MakerDetectHost = { isTrusted: () => true, notify: vi.fn() }
+    const { host } = hostFor()
     const input = { root: 'E:\\', platform: 'win32' as const, host, piIo: noPi }
     const event = await detectAndOfferMakerPresets({
       ...input,
@@ -379,7 +397,7 @@ describe('presetsOffered host seam', () => {
   it.each(['panel', 'ACP', 'headless'])(
     'notifies the %s host with the same validated event, without running checks',
     async () => {
-      const host: MakerDetectHost = { isTrusted: () => true, notify: vi.fn() }
+      const { host, notified } = hostFor()
       const input = {
         root: '/ws',
         platform: 'linux' as const,
@@ -388,8 +406,7 @@ describe('presetsOffered host seam', () => {
         piIo: noPi,
       }
       const event = await detectAndOfferMakerPresets(input)
-      expect(host.notify).toHaveBeenCalledOnce()
-      expect(host.notify).toHaveBeenCalledWith(event)
+      expect(notified).toEqual([event])
       expect(event).toMatchObject({
         type: 'presetsOffered',
         kinds: ['platformio'],
@@ -399,17 +416,25 @@ describe('presetsOffered host seam', () => {
         hasMachineConfig: false,
       })
       expect(presetsOfferedSchema.parse(event)).toEqual(event)
-      expect(noPi.run).not.toHaveBeenCalled()
+      expect(noPiRuns.count).toBe(0)
     },
   )
 
   it('emits nothing and reads nothing without trust, and emits nothing after trust is revoked', async () => {
     let isTrusted = false
-    const host: MakerDetectHost = { isTrusted: () => isTrusted, notify: vi.fn() }
-    const io = { files: vi.fn(ioFor({ 'part.scad': 'cube(1);' }).files), read: vi.fn() }
+    const { host, notified } = hostFor(() => isTrusted)
+    const inner = ioFor({ 'part.scad': 'cube(1);' })
+    let fileCalls = 0
+    const io: ProjectDetectIo = {
+      files: (...args) => {
+        fileCalls += 1
+        return inner.files(...args)
+      },
+      read: () => Promise.resolve(undefined),
+    }
     const input = { root: '/ws', platform: 'linux' as const, host, io, piIo: noPi }
     expect(await detectAndOfferMakerPresets(input)).toBeUndefined()
-    expect(io.files).not.toHaveBeenCalled()
+    expect(fileCalls).toBe(0)
     isTrusted = true
     const piIo = {
       ...noPi,
@@ -419,16 +444,16 @@ describe('presetsOffered host seam', () => {
       },
     }
     expect(await detectAndOfferMakerPresets({ ...input, piIo })).toBeUndefined()
-    expect(host.notify).not.toHaveBeenCalled()
+    expect(notified).toEqual([])
   })
 
   it('keeps marker-free workspaces quiet and offers board selection and physical-edit notices', async () => {
-    const host: MakerDetectHost = { isTrusted: () => true, notify: vi.fn() }
+    const { host, notified } = hostFor()
     const input = { root: '/ws', platform: 'linux' as const, host, piIo: noPi }
     expect(
       await detectAndOfferMakerPresets({ ...input, io: ioFor({ 'README.md': 'Web app' }) }),
     ).toBeUndefined()
-    expect(host.notify).not.toHaveBeenCalled()
+    expect(notified).toEqual([])
     const arduino = await detectAndOfferMakerPresets({ ...input, io: ioFor({ 'sketch.yaml': '' }) })
     expect(arduino?.notices).toContain(UI_TEXT.makerDetectBoardRequired)
     const circuit = await detectAndOfferMakerPresets({
@@ -448,7 +473,7 @@ describe('presetsOffered host seam', () => {
   })
 
   it('includes explicit Wokwi privacy and OS-only Pi facts without probing other hardware', async () => {
-    const host: MakerDetectHost = { isTrusted: () => true, notify: vi.fn() }
+    const { host } = hostFor()
     const event = await detectAndOfferMakerPresets({
       root: '/ws',
       platform: 'linux',
@@ -471,7 +496,7 @@ describe('presetsOffered host seam', () => {
     const input = {
       root: '/ws',
       platform: 'linux' as const,
-      host: { isTrusted: () => true, notify: vi.fn() },
+      host: { isTrusted: () => true, notify: () => undefined },
       io: ioFor({ 'part.gcode': 'G21' }),
       piIo: noPi,
     }
