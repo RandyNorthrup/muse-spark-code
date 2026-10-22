@@ -3054,6 +3054,18 @@
     "checkSlots": "Prüfslots",
     "perCopy": "Jede Arbeitskopie"
   },
+  "coordinatorStoreTooLarge": "Der Datensatz des Rechner-Koordinators ist zu groß, um ihn sicher zu lesen, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorStoreAmbiguous": "Der Datensatz des Rechner-Koordinators ist beschädigt oder unklar, daher behält dieses Fenster seinen eigenen Scheduler. Es wurde nichts gelöscht.",
+  "coordinatorStoreIdentity": "Der Datensatz des Rechner-Koordinators gehört zu einem anderen Speicher, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorEpochReused": "Der Rechner-Koordinator hat eine wiederverwendete Sitzung abgelehnt, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorLedgerOwned": "Ein anderer Prozess koordiniert diesen Rechner bereits, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorLedgerOwnerUncertain": "Der Rechner-Koordinator kann nicht feststellen, ob ein anderer Prozess diesen Rechner noch koordiniert, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorSyncFailed": "Der Rechner-Koordinator konnte seinen Datensatz nicht speichern, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorModeWindowStorage": "Rechnerweite Koordination ist ausgeschaltet: Dieser Speicher kann sie nicht aufnehmen. Dieses Fenster behält seinen eigenen Scheduler.",
+  "coordinatorModeWindowNative": "Rechnerweite Koordination ist ausgeschaltet: Die Prozesssteuerung dieses Rechners ist noch nicht qualifiziert. Dieses Fenster behält seinen eigenen Scheduler.",
+  "coordinatorModeWindowScope": "Rechnerweite Koordination ist ausgeschaltet: Die vollständige Prozessabgrenzung ist hier nicht nachgewiesen. Dieses Fenster behält seinen eigenen Scheduler.",
+  "coordinatorModeBlockedGrants": "Rechnerweite Koordination ist blockiert: Frühere Zuteilungen sind noch offen. Dieses Fenster behält seinen eigenen Scheduler, bis sie abgeschlossen sind.",
+  "coordinatorEndpointPathTooLong": "Der Rechner-Koordinator kann hier nicht lauschen: Die Adresse ist zu lang. Dieses Fenster behält seinen eigenen Scheduler.",
   "teamTrafficMetrics": {
     "utilisation": "Slotauslastung",
     "queueDepth": "Warteschlangenlänge",

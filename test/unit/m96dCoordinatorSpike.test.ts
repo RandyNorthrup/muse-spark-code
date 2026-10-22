@@ -1,19 +1,43 @@
-import { describe, expect, it } from 'vitest'
+// M96d RVM96C2 adversarial schedules against the production grant
+// engine: the ledger's pure state machine, no clock, no I/O. The
+// schedules predate the implementation (written 2026-10-10, before any
+// production coordinator existed); the port keeps their names and
+// intent. Durability and custody around this engine are proved in
+// m96dCoordinatorStore.test.ts, with real stores and processes.
+import { randomUUID } from 'node:crypto'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
-  CoordinatorSpecification,
-  chooseMode,
-  signalTarget,
-  type NativeReference,
-} from './helpers/m96dCoordinatorSpecification'
+  COORDINATOR_LINUX_FS_EXFAT,
+  COORDINATOR_LINUX_FS_FAT,
+  COORDINATOR_LINUX_FS_LOCAL,
+  COORDINATOR_LINUX_FS_NFS,
+  COORDINATOR_LINUX_FS_SMB2,
+  COORDINATOR_LINUX_FS_TMPFS,
+} from '../../src/shared/constants'
+import {
+  CoordinatorGrants,
+  isCoordinatorGrantError,
+  type CoordinatorGrantRefusal,
+} from '../../src/core/team/coordinator/grants'
+import {
+  chooseCoordinatorMode,
+  coordinatorFilesystemKind,
+  coordinatorStatfsReader,
+  isBeneathSyncRoot,
+} from '../../src/core/team/coordinator/mode'
+import {
+  coordinatorSignalTarget,
+  type CoordinatorReference,
+} from '../../src/core/team/coordinator/references'
 
-// Written before the specification. These are design counterexamples, not
-// conformance receipts for a production coordinator or another operating system.
 const platforms = ['linux', 'darwin', 'win32'] as const
 const resources = ['worker', 'processWorker', 'heavyCommand', 'singleton', 'landing'] as const
 const owner = 'window-A'
 const grant = 'grant-A'
-const epoch = 'epoch-A'
-const reference: NativeReference = {
+const reference: CoordinatorReference = {
   platform: 'linux',
   kind: 'pidfd',
   token: 'held-reference-A',
@@ -23,9 +47,9 @@ const reference: NativeReference = {
   validated: true,
   exited: false,
 }
-const retiredReference: NativeReference = { ...reference, exited: true }
+const retiredReference: CoordinatorReference = { ...reference, exited: true }
 
-function referenceFor(platform: NativeReference['platform']): NativeReference {
+function referenceFor(platform: CoordinatorReference['platform']): CoordinatorReference {
   const kinds = { linux: 'pidfd', win32: 'processHandle', darwin: 'ownedChild' } as const
   return {
     ...reference,
@@ -34,90 +58,137 @@ function referenceFor(platform: NativeReference['platform']): NativeReference {
   }
 }
 
-function fixture() {
-  const spec = new CoordinatorSpecification(epoch)
-  expect(spec.reserve(grant, owner, resources)).toBe(true)
-  return spec
+function fixture(): CoordinatorGrants {
+  const engine = new CoordinatorGrants(randomUUID())
+  engine.reserve(grant, owner, [...resources])
+  return engine
+}
+
+/** A fresh custody over retained grants: what the shell loads after a restart. */
+function restarted(engine: CoordinatorGrants): CoordinatorGrants {
+  const recovered = new CoordinatorGrants(randomUUID())
+  recovered.retainLoaded(engine.snapshot())
+  return recovered
+}
+
+/** The refusal code a rejected engine operation throws. */
+function refusalOf(operation: () => unknown): CoordinatorGrantRefusal {
+  try {
+    operation()
+  } catch (error: unknown) {
+    if (isCoordinatorGrantError(error)) return error.code
+    throw error
+  }
+  throw new Error('Expected the engine to refuse')
 }
 
 describe('M96d RVM96C2 adversarial schedules', () => {
   for (const platform of platforms) {
     for (const error of ['ECONNREFUSED', 'ENOENT', 'ERROR_PIPE_BUSY', 'EOF']) {
       it(`F1 ${platform}: ${error} from a live owner cannot elect or release`, () => {
-        const spec = fixture()
-        spec.endpointFailed(error)
-        spec.advanceClock()
-        expect(spec.reachable).toBe(false)
-        expect(spec.electSuccessor(false)).toBe(false)
-        expect(spec.held(grant)).toEqual(resources)
-        expect(spec.reserve('grant-B', 'window-B', resources)).toBe(false)
+        const engine = fixture()
+        engine.endpointFailed(error)
+        expect(engine.reachable).toBe(false)
+        expect(engine.electSuccessor(false)).toBe(false)
+        expect(engine.held(grant)).toEqual([...resources])
+        expect(() => {
+          engine.reserve('grant-B', 'window-B', [...resources])
+        }).toThrow(expect.objectContaining({ name: 'CoordinatorGrantError' }))
+        expect(
+          refusalOf(() => {
+            engine.reserve('grant-B', 'window-B', [...resources])
+          }),
+        ).toBe('resourcesHeld')
       })
     }
 
     for (const boundary of ['intent', 'spawn', 'registration', 'resume', 'detachedChild']) {
       it(`F2 ${platform}: crash after ${boundary} retains every launch liability`, () => {
-        const spec = fixture()
-        expect(spec.persistIntent(grant, true)).toBe(true)
-        if (boundary !== 'intent') expect(spec.spawn(grant)).toBe(true)
+        const engine = fixture()
+        engine.persistIntent(grant)
+        if (boundary !== 'intent') engine.spawn(grant)
         if (boundary !== 'intent' && boundary !== 'spawn')
-          spec.register(grant, referenceFor(platform), 'complete')
-        if (boundary === 'resume' || boundary === 'detachedChild') spec.resume(grant)
-        spec.ownerExited(owner)
-        expect(spec.held(grant)).toEqual(resources)
-        expect(spec.reserve('grant-B', 'window-B', resources)).toBe(false)
-        const recovered = spec.restart('epoch-B')
-        expect(recovered.held(grant)).toEqual(resources)
-        expect(recovered.reserve('grant-B', 'window-B', resources)).toBe(false)
+          engine.register(grant, referenceFor(platform), 'complete')
+        if (boundary === 'resume' || boundary === 'detachedChild') engine.resume(grant)
+        engine.ownerExited(owner)
+        expect(engine.held(grant)).toEqual([...resources])
+        expect(
+          refusalOf(() => {
+            engine.reserve('grant-B', 'window-B', [...resources])
+          }),
+        ).toBe('resourcesHeld')
+        const recovered = restarted(engine)
+        expect(recovered.held(grant)).toEqual([...resources])
+        expect(
+          refusalOf(() => {
+            recovered.reserve('grant-B', 'window-B', [...resources])
+          }),
+        ).toBe('resourcesHeld')
+        // A fresh custody drops reference authority: nothing retained can release.
+        expect(recovered.retirementState(grant)).toBe('unknown')
       })
     }
 
     it(`F3 ${platform}: mistaken user confirmation cannot hand off a pending rename`, () => {
-      const spec = fixture()
-      spec.persistIntent(grant, true)
-      spec.spawn(grant)
-      spec.register(grant, referenceFor(platform), 'complete')
-      spec.resume(grant)
-      spec.freezeBeforeRename(grant)
-      expect(spec.userConfirmedStopped(grant)).toBe(false)
+      const engine = fixture()
+      engine.persistIntent(grant)
+      engine.spawn(grant)
+      engine.register(grant, referenceFor(platform), 'complete')
+      engine.resume(grant)
+      engine.freezeBeforeRename(grant)
+      expect(engine.userConfirmedStopped(grant)).toBe(false)
       expect(
-        spec.settle(
-          {
-            grant,
-            epoch,
-            reference: { ...referenceFor(platform), exited: true },
-            treeEmpty: true,
-            effectsDrained: true,
-          },
-          true,
-        ),
-      ).toBe(false)
-      spec.advanceClock()
-      expect(spec.reserve('grant-B', 'window-B', ['landing'])).toBe(false)
-      expect(spec.completePendingRename(grant)).toBe(true)
-      expect(spec.landed).toEqual([grant])
-      expect(spec.held(grant)).toEqual(resources)
+        engine.settle({
+          grant,
+          epoch: engine.epoch,
+          reference: { ...referenceFor(platform), exited: true },
+          treeEmpty: true,
+          effectsDrained: true,
+        }),
+      ).toBe('refused')
+      expect(
+        refusalOf(() => {
+          engine.reserve('grant-B', 'window-B', ['landing'])
+        }),
+      ).toBe('resourcesHeld')
+      expect(engine.completePendingRename(grant)).toBe(true)
+      expect(engine.held(grant)).toEqual([...resources])
     })
   }
 
-  it('F2: spawn is impossible before durable intent or after a failed sync', () => {
-    const spec = fixture()
-    expect(spec.spawn(grant)).toBe(false)
-    expect(spec.persistIntent(grant, false)).toBe(false)
-    expect(spec.spawn(grant)).toBe(false)
-    expect(spec.held(grant)).toEqual(resources)
+  it('F2: spawn is impossible before durable intent', () => {
+    const engine = fixture()
+    expect(
+      refusalOf(() => {
+        engine.spawn(grant)
+      }),
+    ).toBe('badPhase')
+    engine.persistIntent(grant)
+    engine.spawn(grant)
+    expect(
+      refusalOf(() => {
+        engine.persistIntent(grant)
+      }),
+    ).toBe('badPhase')
   })
 
   it('F4: microseconds distinguish macOS incarnations within one ps second', () => {
-    const expected: NativeReference = { ...reference, platform: 'darwin', kind: 'ownedChild' }
-    expect(signalTarget(expected, { ...expected, start: '1000002' })).toBeUndefined()
-    expect(signalTarget(expected, { ...expected, kind: 'psSeconds' })).toBeUndefined()
+    const expected: CoordinatorReference = {
+      ...reference,
+      platform: 'darwin',
+      kind: 'ownedChild',
+    }
+    expect(coordinatorSignalTarget(expected, { ...expected, start: '1000002' })).toBeUndefined()
+    expect(coordinatorSignalTarget(expected, { ...expected, kind: 'psSeconds' })).toBeUndefined()
     // Localised lstart text and a time-zone change provide no signal authority.
-    expect(signalTarget(expected, { ...expected, start: 'Thu Oct 10 01:00:01' })).toBeUndefined()
+    expect(
+      coordinatorSignalTarget(expected, { ...expected, start: 'Thu Oct 10 01:00:01' }),
+    ).toBeUndefined()
   })
 
   for (const platform of ['linux', 'win32'] as const) {
     it(`F4 ${platform}: PID reuse between query and dispatch cannot retarget a signal`, () => {
-      const expected: NativeReference = {
+      const expected: CoordinatorReference = {
         ...reference,
         platform,
         kind: platform === 'linux' ? 'pidfd' : 'processHandle',
@@ -126,130 +197,166 @@ describe('M96d RVM96C2 adversarial schedules', () => {
         [expected.token, 'owned-old-process'],
         ['pid:42', 'unrelated-new-process'],
       ])
-      const target = signalTarget(expected, expected)
+      const target = coordinatorSignalTarget(expected, expected)
       expect(target).toBe(expected.token)
       expect(target === undefined ? undefined : nativeTargets.get(target)).toBe('owned-old-process')
-      expect(signalTarget(expected, { ...expected, token: 'new-reference' })).toBeUndefined()
-      expect(signalTarget({ ...expected, validated: false }, expected)).toBeUndefined()
-      expect(signalTarget(expected, { ...expected, validated: false })).toBeUndefined()
-      expect(signalTarget(expected, { ...expected, boot: 'boot-B' })).toBeUndefined()
-      expect(signalTarget(expected, { ...expected, exited: true })).toBeUndefined()
+      expect(
+        coordinatorSignalTarget(expected, { ...expected, token: 'new-reference' }),
+      ).toBeUndefined()
+      expect(coordinatorSignalTarget({ ...expected, validated: false }, expected)).toBeUndefined()
+      expect(coordinatorSignalTarget(expected, { ...expected, validated: false })).toBeUndefined()
+      expect(coordinatorSignalTarget(expected, { ...expected, boot: 'boot-B' })).toBeUndefined()
+      expect(coordinatorSignalTarget(expected, { ...expected, exited: true })).toBeUndefined()
     })
   }
 
   it('F4 macOS: precise observation still cannot authorise a numeric-PID signal', () => {
-    const child: NativeReference = { ...reference, platform: 'darwin', kind: 'ownedChild' }
-    expect(signalTarget(child, child)).toBeUndefined()
+    const child: CoordinatorReference = { ...reference, platform: 'darwin', kind: 'ownedChild' }
+    expect(coordinatorSignalTarget(child, child)).toBeUndefined()
   })
 })
 
 describe('M96d release and fallback obligations', () => {
   for (const evidence of ['empty Job', 'same SID', 'same logon session', 'process-start trace']) {
     it(`RVCM96D1: ${evidence} cannot retire an unqualified Windows scope`, () => {
-      const spec = fixture()
+      const engine = fixture()
       const live = referenceFor('win32')
-      spec.persistIntent(grant, true)
-      spec.spawn(grant)
-      spec.register(grant, live, 'unknown')
-      spec.resume(grant)
+      engine.persistIntent(grant)
+      engine.spawn(grant)
+      engine.register(grant, live, 'unknown')
+      engine.resume(grant)
       // Captured Win32_Process.Create counterexample: the Job is empty, but
       // its brokered writer can still land. A caller's drain claim cannot
       // upgrade a boundary that never covered service-mediated effects.
       expect(
-        spec.settle(
-          {
-            grant,
-            epoch,
-            reference: { ...live, exited: true },
-            treeEmpty: true,
-            effectsDrained: true,
-          },
-          true,
-        ),
-      ).toBe(false)
-      expect(spec.retirementState(grant)).toBe('unknown')
-      expect(spec.held(grant)).toEqual(resources)
-      expect(spec.reserve('grant-B', 'window-B', resources)).toBe(false)
-      const recovered = spec.restart('epoch-B')
+        engine.settle({
+          grant,
+          epoch: engine.epoch,
+          reference: { ...live, exited: true },
+          treeEmpty: true,
+          effectsDrained: true,
+        }),
+      ).toBe('refused')
+      expect(engine.retirementState(grant)).toBe('unknown')
+      expect(engine.held(grant)).toEqual([...resources])
+      expect(
+        refusalOf(() => {
+          engine.reserve('grant-B', 'window-B', [...resources])
+        }),
+      ).toBe('resourcesHeld')
+      const recovered = restarted(engine)
       expect(recovered.retirementState(grant)).toBe('unknown')
-      expect(recovered.reserve('grant-B', 'window-B', resources)).toBe(false)
+      expect(
+        refusalOf(() => {
+          recovered.reserve('grant-B', 'window-B', [...resources])
+        }),
+      ).toBe('resourcesHeld')
     })
   }
 
   it('RVCM96D1: unproved scope coverage selects fallback only before enrolment', () => {
-    for (const platform of platforms) {
-      const prerequisites = {
-        platform,
-        filesystem: 'local',
-        nativeQualified: true,
-        scopeQualified: false,
-        storeValid: true,
-      }
-      expect(chooseMode(prerequisites, false)).toBe('windowScoped')
-      expect(chooseMode(prerequisites, true)).toBe('blocked')
-    }
+    const prerequisites = {
+      filesystem: 'local',
+      nativeQualified: true,
+      scopeQualified: false,
+      storeValid: true,
+    } as const
+    expect(chooseCoordinatorMode(prerequisites, false).mode).toBe('windowScoped')
+    expect(chooseCoordinatorMode(prerequisites, true).mode).toBe('blocked')
+    expect(chooseCoordinatorMode(prerequisites, false).reason).toBeTruthy()
   })
 
-  it('rejects reordered launch transitions and duplicate grant/intent publication', () => {
-    const spec = fixture()
-    expect(spec.reserve(grant, owner, [])).toBe(false)
-    expect(() => {
-      spec.register(grant, reference, 'complete')
-    }).toThrow('Not spawned')
-    expect(() => {
-      spec.resume(grant)
-    }).toThrow('Not registered')
-    expect(spec.persistIntent('missing', true)).toBe(false)
-    expect(spec.spawn('missing')).toBe(false)
-    expect(spec.held('missing')).toEqual([])
-    expect(() => {
-      spec.freezeBeforeRename(grant)
-    }).toThrow('Not running')
-    expect(spec.completePendingRename(grant)).toBe(false)
-    expect(spec.completePendingRename('missing')).toBe(false)
-    expect(spec.persistIntent(grant, true)).toBe(true)
-    expect(spec.persistIntent(grant, true)).toBe(false)
-    expect(spec.spawn(grant)).toBe(true)
-    expect(spec.spawn(grant)).toBe(false)
-    spec.register(grant, reference, 'complete')
-    expect(() => {
-      spec.register(grant, reference, 'complete')
-    }).toThrow('Not spawned')
-    spec.resume(grant)
-    expect(() => {
-      spec.resume(grant)
-    }).toThrow('Not registered')
+  it('rejects reordered launch transitions and duplicate grant publication', () => {
+    const engine = fixture()
+    expect(
+      refusalOf(() => {
+        engine.reserve(grant, owner, [...resources])
+      }),
+    ).toBe('grantReused')
+    expect(
+      refusalOf(() => {
+        engine.register(grant, reference, 'complete')
+      }),
+    ).toBe('badPhase')
+    expect(
+      refusalOf(() => {
+        engine.resume(grant)
+      }),
+    ).toBe('badPhase')
+    expect(
+      refusalOf(() => {
+        engine.persistIntent('missing')
+      }),
+    ).toBe('unknownGrant')
+    expect(
+      refusalOf(() => {
+        engine.spawn('missing')
+      }),
+    ).toBe('unknownGrant')
+    expect(engine.held('missing')).toEqual([])
+    expect(
+      refusalOf(() => {
+        engine.freezeBeforeRename(grant)
+      }),
+    ).toBe('badPhase')
+    expect(engine.completePendingRename(grant)).toBe(false)
+    expect(engine.completePendingRename('missing')).toBe(false)
+    engine.persistIntent(grant)
+    expect(
+      refusalOf(() => {
+        engine.persistIntent(grant)
+      }),
+    ).toBe('badPhase')
+    engine.spawn(grant)
+    expect(
+      refusalOf(() => {
+        engine.spawn(grant)
+      }),
+    ).toBe('badPhase')
+    engine.register(grant, reference, 'complete')
+    expect(
+      refusalOf(() => {
+        engine.register(grant, reference, 'complete')
+      }),
+    ).toBe('badPhase')
+    engine.resume(grant)
+    expect(
+      refusalOf(() => {
+        engine.resume(grant)
+      }),
+    ).toBe('badPhase')
   })
 
   it('new authority never frees the old ledger and cannot bypass a frozen holder', () => {
-    const spec = fixture()
-    expect(spec.electSuccessor(true)).toBe(true)
-    expect(spec.held(grant)).toEqual(resources)
-    expect(spec.reserve('grant-B', 'window-B', resources)).toBe(false)
+    const engine = fixture()
+    expect(engine.electSuccessor(true)).toBe(true)
+    expect(engine.held(grant)).toEqual([...resources])
+    expect(
+      refusalOf(() => {
+        engine.reserve('grant-B', 'window-B', [...resources])
+      }),
+    ).toBe('resourcesHeld')
   })
 
   for (const platform of platforms) {
     it(`${platform}: hypothetical complete qualified retirement has a positive release path`, () => {
-      const spec = fixture()
+      const engine = fixture()
       const live = referenceFor(platform)
-      spec.persistIntent(grant, true)
-      spec.spawn(grant)
-      spec.register(grant, live, 'complete')
-      expect(spec.retirementState(grant)).toBe('active')
+      engine.persistIntent(grant)
+      engine.spawn(grant)
+      engine.register(grant, live, 'complete')
+      expect(engine.retirementState(grant)).toBe('active')
       expect(
-        spec.settle(
-          {
-            grant,
-            epoch,
-            reference: { ...live, exited: true },
-            treeEmpty: true,
-            effectsDrained: true,
-          },
-          true,
-        ),
-      ).toBe(true)
-      expect(spec.retirementState(grant)).toBe('finished')
-      expect(spec.reserve('grant-B', 'window-B', resources)).toBe(true)
+        engine.settle({
+          grant,
+          epoch: engine.epoch,
+          reference: { ...live, exited: true },
+          treeEmpty: true,
+          effectsDrained: true,
+        }),
+      ).toBe('released')
+      expect(engine.retirementState(grant)).toBe('finished')
+      engine.reserve('grant-B', 'window-B', [...resources])
     })
   }
 
@@ -262,54 +369,49 @@ describe('M96d release and fallback obligations', () => {
     { pid: 43 },
   ] as const) {
     it(`F4: retirement refuses a changed ${Object.keys(change).join(',')} on the same token`, () => {
-      const spec = fixture()
-      spec.persistIntent(grant, true)
-      spec.spawn(grant)
-      spec.register(grant, reference, 'complete')
+      const engine = fixture()
+      engine.persistIntent(grant)
+      engine.spawn(grant)
+      engine.register(grant, reference, 'complete')
       expect(
-        spec.settle(
-          {
-            grant,
-            epoch,
-            reference: { ...retiredReference, ...change },
-            treeEmpty: true,
-            effectsDrained: true,
-          },
-          true,
-        ),
-      ).toBe(false)
-      expect(spec.held(grant)).toEqual(resources)
+        engine.settle({
+          grant,
+          epoch: engine.epoch,
+          reference: { ...retiredReference, ...change },
+          treeEmpty: true,
+          effectsDrained: true,
+        }),
+      ).toBe('refused')
+      expect(engine.held(grant)).toEqual([...resources])
     })
   }
 
   it('a matching but unsafe process-group or coarse reference cannot release even with a claimed empty tree', () => {
     for (const kind of ['processGroup', 'psSeconds'] as const) {
-      const spec = fixture()
+      const engine = fixture()
       const unsafe = { ...reference, kind }
-      spec.persistIntent(grant, true)
-      spec.spawn(grant)
-      spec.register(grant, unsafe, 'complete')
+      engine.persistIntent(grant)
+      engine.spawn(grant)
+      engine.register(grant, unsafe, 'complete')
       expect(
-        spec.settle(
-          {
-            grant,
-            epoch,
-            reference: { ...unsafe, exited: true },
-            treeEmpty: true,
-            effectsDrained: true,
-          },
-          true,
-        ),
-      ).toBe(false)
-      expect(spec.held(grant)).toEqual(resources)
+        engine.settle({
+          grant,
+          epoch: engine.epoch,
+          reference: { ...unsafe, exited: true },
+          treeEmpty: true,
+          effectsDrained: true,
+        }),
+      ).toBe('refused')
+      expect(engine.held(grant)).toEqual([...resources])
     }
   })
 
-  it('only exact durable complete retirement releases once; lost acknowledgement cannot reopen it', () => {
-    const spec = fixture()
-    spec.persistIntent(grant, true)
-    spec.spawn(grant)
-    spec.register(grant, reference, 'complete')
+  it('only exact complete retirement releases once; lost acknowledgement cannot reopen it', () => {
+    const engine = fixture()
+    engine.persistIntent(grant)
+    engine.spawn(grant)
+    engine.register(grant, reference, 'complete')
+    const epoch = engine.epoch
     const proof = {
       grant,
       epoch,
@@ -317,105 +419,265 @@ describe('M96d release and fallback obligations', () => {
       treeEmpty: true,
       effectsDrained: true,
     }
-    expect(spec.settle({ ...proof, treeEmpty: false }, true)).toBe(false)
-    expect(spec.settle({ ...proof, effectsDrained: false }, true)).toBe(false)
-    expect(spec.settle({ ...proof, grant: 'grant-B' }, true)).toBe(false)
-    expect(spec.settle({ ...proof, epoch: 'epoch-B' }, true)).toBe(false)
+    expect(engine.settle({ ...proof, treeEmpty: false })).toBe('refused')
+    expect(engine.settle({ ...proof, effectsDrained: false })).toBe('refused')
+    expect(engine.settle({ ...proof, grant: 'grant-B' })).toBe('refused')
+    expect(engine.settle({ ...proof, epoch: 'epoch-B' })).toBe('refused')
     expect(
-      spec.settle({ ...proof, reference: { ...retiredReference, token: 'other' } }, true),
-    ).toBe(false)
-    expect(spec.settle({ ...proof, reference: { ...reference, exited: false } }, true)).toBe(false)
-    expect(spec.settle(proof, false)).toBe(false)
-    expect(spec.held(grant)).toEqual(resources)
-    expect(spec.settle(proof, true)).toBe(true)
-    expect(spec.held(grant)).toEqual([])
-    expect(spec.settle(proof, true)).toBe(false)
-    const recovered = spec.restart('epoch-B')
+      engine.settle({
+        ...proof,
+        reference: { ...retiredReference, token: 'other' },
+      }),
+    ).toBe('refused')
+    expect(
+      engine.settle({
+        ...proof,
+        reference: { ...reference, exited: false },
+      }),
+    ).toBe('refused')
+    expect(engine.held(grant)).toEqual([...resources])
+    expect(engine.settle(proof)).toBe('released')
+    expect(engine.held(grant)).toEqual([])
+    // A lost acknowledgement retries the same grant: a duplicate, plus its recorded outcome.
+    expect(engine.settle(proof)).toBe('duplicate')
+    expect(engine.outcomeOf(grant)).toEqual({ epoch, token: retiredReference.token })
+    expect(engine.outcomeOf('missing')).toBeUndefined()
+    const recovered = restarted(engine)
     expect(recovered.held(grant)).toEqual([])
-    expect(recovered.reserve(grant, owner, resources)).toBe(false)
-    expect(recovered.reserve('grant-B', 'window-B', resources)).toBe(true)
+    expect(
+      refusalOf(() => {
+        recovered.reserve(grant, owner, [...resources])
+      }),
+    ).toBe('grantReused')
+    recovered.reserve('grant-B', 'window-B', [...resources])
+    expect(recovered.outcomeOf(grant)).toEqual({ epoch, token: retiredReference.token })
   })
 
   it('leader exit, a process group and missing confirmation cannot prove descendant retirement', () => {
     for (const kind of ['pidfd', 'processGroup', 'psSeconds'] as const) {
-      const spec = fixture()
-      spec.persistIntent(grant, true)
-      spec.spawn(grant)
+      const engine = fixture()
+      engine.persistIntent(grant)
+      engine.spawn(grant)
       const observed = { ...retiredReference, kind }
-      spec.register(grant, observed, 'complete')
+      engine.register(grant, observed, 'complete')
       expect(
-        spec.settle(
-          { grant, epoch, reference: observed, treeEmpty: false, effectsDrained: true },
-          true,
-        ),
-      ).toBe(false)
-      expect(spec.held(grant)).toEqual(resources)
+        engine.settle({
+          grant,
+          epoch: engine.epoch,
+          reference: observed,
+          treeEmpty: false,
+          effectsDrained: true,
+        }),
+      ).toBe('refused')
+      expect(engine.held(grant)).toEqual([...resources])
     }
-    const spec = fixture()
-    spec.persistIntent(grant, true)
-    spec.spawn(grant)
+    const engine = fixture()
+    engine.persistIntent(grant)
+    engine.spawn(grant)
     expect(
-      spec.settle(
-        { grant, epoch, reference: retiredReference, treeEmpty: true, effectsDrained: true },
-        true,
-      ),
-    ).toBe(false)
+      engine.settle({
+        grant,
+        epoch: engine.epoch,
+        reference: retiredReference,
+        treeEmpty: true,
+        effectsDrained: true,
+      }),
+    ).toBe('refused')
   })
 
   it('restart invalidates old retirement authority while preserving unresolved grants', () => {
-    const spec = fixture()
-    spec.persistIntent(grant, true)
-    spec.spawn(grant)
-    spec.register(grant, reference, 'complete')
-    const recovered = spec.restart('epoch-B')
+    const engine = fixture()
+    const epoch = engine.epoch
+    engine.persistIntent(grant)
+    engine.spawn(grant)
+    engine.register(grant, reference, 'complete')
+    const recovered = restarted(engine)
     expect(recovered.retirementState(grant)).toBe('unknown')
     expect(
-      recovered.settle(
-        { grant, epoch, reference: retiredReference, treeEmpty: true, effectsDrained: true },
-        true,
-      ),
-    ).toBe(false)
+      recovered.settle({
+        grant,
+        epoch,
+        reference: retiredReference,
+        treeEmpty: true,
+        effectsDrained: true,
+      }),
+    ).toBe('refused')
     expect(
-      recovered.settle(
-        {
-          grant,
-          epoch: 'epoch-B',
-          reference: retiredReference,
-          treeEmpty: true,
-          effectsDrained: true,
-        },
-        true,
-      ),
-    ).toBe(false)
-    expect(recovered.held(grant)).toEqual(resources)
+      recovered.settle({
+        grant,
+        epoch: recovered.epoch,
+        reference: retiredReference,
+        treeEmpty: true,
+        effectsDrained: true,
+      }),
+    ).toBe('refused')
+    expect(recovered.held(grant)).toEqual([...resources])
   })
 
-  for (const platform of platforms) {
-    for (const filesystem of ['fat32', 'exfat', 'nfs', 'unknown']) {
-      it(`${platform} ${filesystem}: fallback only before enrolment; unresolved work stays held`, () => {
-        const prerequisites = {
-          platform,
-          filesystem,
-          nativeQualified: true,
-          scopeQualified: true,
-          storeValid: true,
-        }
-        expect(chooseMode(prerequisites, false)).toBe('windowScoped')
-        expect(chooseMode(prerequisites, true)).toBe('blocked')
-      })
-    }
-    it(`${platform}: unqualified native helpers or damaged durable state cannot enrol`, () => {
+  it('a restored snapshot rolls a mutation back exactly', () => {
+    const engine = fixture()
+    const before = engine.snapshot()
+    engine.persistIntent(grant)
+    engine.spawn(grant)
+    engine.restore(before)
+    expect(engine.held(grant)).toEqual([...resources])
+    expect(
+      refusalOf(() => {
+        engine.spawn(grant)
+      }),
+    ).toBe('badPhase')
+    engine.persistIntent(grant)
+    engine.spawn(grant)
+  })
+
+  // The decision is platform-independent given its inputs: the
+  // per-OS evidence (native qualification, scope proof) arrives
+  // already read. The matrix runs over filesystems and qualification.
+  for (const filesystem of [
+    'fat32',
+    'exfat',
+    'nfs',
+    'smb',
+    'ephemeral',
+    'syncBacked',
+    'unknown',
+  ] as const) {
+    it(`${filesystem}: fallback only before enrolment; unresolved work stays held`, () => {
       const prerequisites = {
-        platform,
-        filesystem: 'local',
+        filesystem,
         nativeQualified: true,
         scopeQualified: true,
         storeValid: true,
-      }
-      expect(chooseMode(prerequisites, false)).toBe('machine')
-      expect(chooseMode({ ...prerequisites, nativeQualified: false }, false)).toBe('windowScoped')
-      expect(chooseMode({ ...prerequisites, storeValid: false }, false)).toBe('blocked')
-      expect(chooseMode({ ...prerequisites, nativeQualified: false }, true)).toBe('blocked')
+      } as const
+      expect(chooseCoordinatorMode(prerequisites, false).mode).toBe('windowScoped')
+      expect(chooseCoordinatorMode(prerequisites, false).reason).toBeTruthy()
+      expect(chooseCoordinatorMode(prerequisites, true).mode).toBe('blocked')
     })
   }
+  it('unqualified native helpers or damaged durable state cannot enrol', () => {
+    const prerequisites = {
+      filesystem: 'local',
+      nativeQualified: true,
+      scopeQualified: true,
+      storeValid: true,
+    } as const
+    expect(chooseCoordinatorMode(prerequisites, false)).toEqual({
+      mode: 'machine',
+      reason: undefined,
+    })
+    expect(chooseCoordinatorMode({ ...prerequisites, nativeQualified: false }, false).mode).toBe(
+      'windowScoped',
+    )
+    expect(chooseCoordinatorMode({ ...prerequisites, scopeQualified: false }, false).mode).toBe(
+      'windowScoped',
+    )
+    expect(chooseCoordinatorMode({ ...prerequisites, storeValid: false }, false).mode).toBe(
+      'blocked',
+    )
+    expect(chooseCoordinatorMode({ ...prerequisites, nativeQualified: false }, true).mode).toBe(
+      'blocked',
+    )
+  })
+})
+
+const fileStores: string[] = []
+afterEach(async () => {
+  for (const directory of fileStores.splice(0)) {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+function magicReader(type: number | bigint | undefined): {
+  statfsType: () => Promise<number | bigint | undefined>
+} {
+  return {
+    statfsType: () => Promise.resolve(type),
+  }
+}
+
+describe('M96d store qualification', () => {
+  it('maps documented Linux filesystem magics and refuses sync-backed stores', async () => {
+    const directory = path.join(tmpdir(), 'm96d-fs-kind')
+    for (const magic of COORDINATOR_LINUX_FS_LOCAL) {
+      expect(
+        await coordinatorFilesystemKind(directory, tmpdir(), 'linux', magicReader(magic)),
+      ).toBe('local')
+    }
+    expect(
+      await coordinatorFilesystemKind(
+        directory,
+        tmpdir(),
+        'linux',
+        magicReader(COORDINATOR_LINUX_FS_FAT),
+      ),
+    ).toBe('fat32')
+    expect(
+      await coordinatorFilesystemKind(
+        directory,
+        tmpdir(),
+        'linux',
+        magicReader(COORDINATOR_LINUX_FS_EXFAT),
+      ),
+    ).toBe('exfat')
+    expect(
+      await coordinatorFilesystemKind(
+        directory,
+        tmpdir(),
+        'linux',
+        magicReader(COORDINATOR_LINUX_FS_NFS),
+      ),
+    ).toBe('nfs')
+    expect(
+      await coordinatorFilesystemKind(
+        directory,
+        tmpdir(),
+        'linux',
+        magicReader(COORDINATOR_LINUX_FS_SMB2),
+      ),
+    ).toBe('smb')
+    expect(
+      await coordinatorFilesystemKind(
+        directory,
+        tmpdir(),
+        'linux',
+        magicReader(COORDINATOR_LINUX_FS_TMPFS),
+      ),
+    ).toBe('ephemeral')
+    expect(
+      await coordinatorFilesystemKind(directory, tmpdir(), 'linux', magicReader(0x12_34)),
+    ).toBe('unknown')
+    expect(
+      await coordinatorFilesystemKind(directory, tmpdir(), 'linux', magicReader(undefined)),
+    ).toBe('unknown')
+    // Node names no filesystem off Linux: honestly unknown, never local.
+    expect(await coordinatorFilesystemKind(directory, tmpdir(), 'darwin')).toBe('unknown')
+    expect(await coordinatorFilesystemKind(directory, tmpdir(), 'win32')).toBe('unknown')
+    // A store beneath a sync root reads sync-backed on every platform.
+    expect(isBeneathSyncRoot(path.join(homedir(), 'work', 'store'), homedir())).toBe(false)
+    const home = await mkdtemp(path.join(tmpdir(), 'm96d-home-'))
+    fileStores.push(home)
+    const synced = path.join(home, 'Dropbox', 'store')
+    expect(isBeneathSyncRoot(synced, home)).toBe(true)
+    expect(await coordinatorFilesystemKind(synced, home)).toBe('syncBacked')
+    expect(
+      isBeneathSyncRoot(
+        String.raw`C:\Users\someone\OneDrive - Tenant\store`,
+        String.raw`C:\Users\someone`,
+        'win32',
+      ),
+    ).toBe(true)
+    expect(
+      isBeneathSyncRoot(
+        '/Users/someone/Library/Mobile Documents/store',
+        '/Users/someone',
+        'darwin',
+      ),
+    ).toBe(true)
+    // The production reader answers the kernel: the magic number on
+    // a live directory, unknown on a missing one.
+    expect(typeof (await coordinatorStatfsReader.statfsType(tmpdir()))).toBe('number')
+    expect(
+      await coordinatorStatfsReader.statfsType(path.join(tmpdir(), `m96d-missing-${randomUUID()}`)),
+    ).toBeUndefined()
+  })
 })

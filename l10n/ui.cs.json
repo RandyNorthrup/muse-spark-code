@@ -3174,6 +3174,18 @@
     "checkSlots": "Kontrolní sloty",
     "perCopy": "Každá pracovní kopie"
   },
+  "coordinatorStoreTooLarge": "Záznam koordinátora stroje je příliš velký na bezpečné čtení, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorStoreAmbiguous": "Záznam koordinátora stroje je poškozený nebo nejasný, takže si toto okno ponechává vlastní plánovač. Nic nebylo smazáno.",
+  "coordinatorStoreIdentity": "Záznam koordinátora stroje patří jinému úložišti, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorEpochReused": "Koordinátor stroje odmítl znovu použitou relaci, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorLedgerOwned": "Jiný proces již tento stroj koordinuje, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorLedgerOwnerUncertain": "Koordinátor stroje nedokáže říct, zda jiný proces tento stroj stále koordinuje, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorSyncFailed": "Koordinátor stroje nemohl uložit svůj záznam, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorModeWindowStorage": "Koordinace stroje je vypnutá: toto úložiště ji nemůže pojmout. Toto okno si ponechává vlastní plánovač.",
+  "coordinatorModeWindowNative": "Koordinace stroje je vypnutá: řízení procesů tohoto stroje zatím není kvalifikované. Toto okno si ponechává vlastní plánovač.",
+  "coordinatorModeWindowScope": "Koordinace stroje je vypnutá: úplné omezení procesů zde není prokázáno. Toto okno si ponechává vlastní plánovač.",
+  "coordinatorModeBlockedGrants": "Koordinace stroje je blokována: dřívější přidělení jsou stále otevřená. Toto okno si ponechává vlastní plánovač, dokud se neuzavřou.",
+  "coordinatorEndpointPathTooLong": "Koordinátor stroje zde nemůže naslouchat: adresa je příliš dlouhá. Toto okno si ponechává vlastní plánovač.",
   "teamTrafficMetrics": {
     "utilisation": "Využití slotů",
     "queueDepth": "Délka fronty",

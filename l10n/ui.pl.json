@@ -3174,6 +3174,18 @@
     "checkSlots": "Sloty kontroli",
     "perCopy": "Każda kopia robocza"
   },
+  "coordinatorStoreTooLarge": "Rejestr koordynatora maszyny jest zbyt duży, aby bezpiecznie go odczytać, więc to okno zachowuje własny harmonogram.",
+  "coordinatorStoreAmbiguous": "Rejestr koordynatora maszyny jest uszkodzony lub niejasny, więc to okno zachowuje własny harmonogram. Niczego nie usunięto.",
+  "coordinatorStoreIdentity": "Rejestr koordynatora maszyny należy do innego magazynu, więc to okno zachowuje własny harmonogram.",
+  "coordinatorEpochReused": "Koordynator maszyny odrzucił ponownie użytą sesję, więc to okno zachowuje własny harmonogram.",
+  "coordinatorLedgerOwned": "Inny proces już koordynuje tę maszynę, więc to okno zachowuje własny harmonogram.",
+  "coordinatorLedgerOwnerUncertain": "Koordynator maszyny nie może stwierdzić, czy inny proces nadal koordynuje tę maszynę, więc to okno zachowuje własny harmonogram.",
+  "coordinatorSyncFailed": "Koordynator maszyny nie mógł zapisać swojego rejestru, więc to okno zachowuje własny harmonogram.",
+  "coordinatorModeWindowStorage": "Koordynacja maszyny jest wyłączona: ten magazyn nie może jej pomieścić. To okno zachowuje własny harmonogram.",
+  "coordinatorModeWindowNative": "Koordynacja maszyny jest wyłączona: sterowanie procesami tej maszyny nie jest jeszcze kwalifikowane. To okno zachowuje własny harmonogram.",
+  "coordinatorModeWindowScope": "Koordynacja maszyny jest wyłączona: pełne odizolowanie procesów nie zostało tu udowodnione. To okno zachowuje własny harmonogram.",
+  "coordinatorModeBlockedGrants": "Koordynacja maszyny jest zablokowana: wcześniejsze przydziały są nadal otwarte. To okno zachowuje własny harmonogram do czasu ich rozliczenia.",
+  "coordinatorEndpointPathTooLong": "Koordynator maszyny nie może nasłuchiwać tutaj: adres jest zbyt długi. To okno zachowuje własny harmonogram.",
   "teamTrafficMetrics": {
     "utilisation": "Wykorzystanie slotów",
     "queueDepth": "Długość kolejki",

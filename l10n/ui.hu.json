@@ -3054,6 +3054,18 @@
     "checkSlots": "Ellenőrzési helyek",
     "perCopy": "Minden munkapéldány"
   },
+  "coordinatorStoreTooLarge": "A gépkoordinátor nyilvántartása túl nagy a biztonságos olvasáshoz, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorStoreAmbiguous": "A gépkoordinátor nyilvántartása sérült vagy nem egyértelmű, ezért ez az ablak megtartja saját ütemezőjét. Semmit nem töröltünk.",
+  "coordinatorStoreIdentity": "A gépkoordinátor nyilvántartása egy másik tárolóhoz tartozik, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorEpochReused": "A gépkoordinátor elutasított egy újrahasznált munkamenetet, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorLedgerOwned": "Egy másik folyamat már koordinálja ezt a gépet, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorLedgerOwnerUncertain": "A gépkoordinátor nem tudja megmondani, hogy egy másik folyamat koordinálja-e még ezt a gépet, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorSyncFailed": "A gépkoordinátor nem tudta menteni a nyilvántartását, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeWindowStorage": "A gép szintű koordináció ki van kapcsolva: ez a tároló nem tudja befogadni. Ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeWindowNative": "A gép szintű koordináció ki van kapcsolva: a gép folyamatvezérlése még nem minősített. Ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeWindowScope": "A gép szintű koordináció ki van kapcsolva: a teljes folyamatelszigetelés itt nincs bizonyítva. Ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeBlockedGrants": "A gép szintű koordináció blokkolva van: korábbi kiosztások még nyitva vannak. Ez az ablak megtartja saját ütemezőjét, amíg le nem zárulnak.",
+  "coordinatorEndpointPathTooLong": "A gépkoordinátor nem tud itt figyelni: a cím túl hosszú. Ez az ablak megtartja saját ütemezőjét.",
   "teamTrafficMetrics": {
     "utilisation": "Helyek kihasználtsága",
     "queueDepth": "Sor hossza",

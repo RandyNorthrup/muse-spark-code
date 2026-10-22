@@ -3743,6 +3743,31 @@ export const EN = {
     checkSlots: 'Check Slots',
     perCopy: 'Each Working Copy',
   },
+  // M96d machine coordinator: every refusal says why the window keeps its own scheduler.
+  coordinatorStoreTooLarge:
+    'The machine coordinator’s record is too large to read safely, so this window keeps its own scheduler.',
+  coordinatorStoreAmbiguous:
+    'The machine coordinator’s record is damaged or unclear, so this window keeps its own scheduler. Nothing was deleted.',
+  coordinatorStoreIdentity:
+    'The machine coordinator’s record belongs to another store, so this window keeps its own scheduler.',
+  coordinatorEpochReused:
+    'The machine coordinator refused a reused session, so this window keeps its own scheduler.',
+  coordinatorLedgerOwned:
+    'Another process already coordinates this machine, so this window keeps its own scheduler.',
+  coordinatorLedgerOwnerUncertain:
+    'The machine coordinator cannot tell whether another process still coordinates this machine, so this window keeps its own scheduler.',
+  coordinatorSyncFailed:
+    'The machine coordinator could not save its record, so this window keeps its own scheduler.',
+  coordinatorModeWindowStorage:
+    'Machine-wide coordination is off: this store cannot hold it. This window keeps its own scheduler.',
+  coordinatorModeWindowNative:
+    'Machine-wide coordination is off: this machine’s process control is not qualified yet. This window keeps its own scheduler.',
+  coordinatorModeWindowScope:
+    'Machine-wide coordination is off: complete process containment is not proved here. This window keeps its own scheduler.',
+  coordinatorModeBlockedGrants:
+    'Machine-wide coordination is blocked: earlier grants are still open. This window keeps its own scheduler until they settle.',
+  coordinatorEndpointPathTooLong:
+    'The machine coordinator cannot listen here: the address is too long. This window keeps its own scheduler.',
   teamTrafficMetrics: {
     utilisation: 'Lane Utilisation',
     queueDepth: 'Queue Depth',

@@ -2994,6 +2994,18 @@
     "checkSlots": "检查槽位",
     "perCopy": "每个工作副本"
   },
+  "coordinatorStoreTooLarge": "机器协调器的记录太大，无法安全读取，因此此窗口继续使用自己的调度器。",
+  "coordinatorStoreAmbiguous": "机器协调器的记录已损坏或不明确，因此此窗口继续使用自己的调度器。未删除任何内容。",
+  "coordinatorStoreIdentity": "机器协调器的记录属于另一个存储，因此此窗口继续使用自己的调度器。",
+  "coordinatorEpochReused": "机器协调器拒绝了一个重复使用的会话，因此此窗口继续使用自己的调度器。",
+  "coordinatorLedgerOwned": "另一个进程已在协调本机，因此此窗口继续使用自己的调度器。",
+  "coordinatorLedgerOwnerUncertain": "机器协调器无法判断另一个进程是否仍在协调本机，因此此窗口继续使用自己的调度器。",
+  "coordinatorSyncFailed": "机器协调器无法保存其记录，因此此窗口继续使用自己的调度器。",
+  "coordinatorModeWindowStorage": "整机协调已关闭：此存储无法承载，因此此窗口继续使用自己的调度器。",
+  "coordinatorModeWindowNative": "整机协调已关闭：本机的进程控制尚未合格，因此此窗口继续使用自己的调度器。",
+  "coordinatorModeWindowScope": "整机协调已关闭：完整的进程隔离在此处尚未得到证明，因此此窗口继续使用自己的调度器。",
+  "coordinatorModeBlockedGrants": "整机协调已阻止：早期的授权仍处于开放状态。此窗口继续使用自己的调度器，直到它们完成结算。",
+  "coordinatorEndpointPathTooLong": "机器协调器无法在此处监听：地址太长。此窗口继续使用自己的调度器。",
   "teamTrafficMetrics": {
     "utilisation": "通道利用率",
     "queueDepth": "队列深度",
