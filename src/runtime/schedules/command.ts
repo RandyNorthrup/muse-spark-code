@@ -68,7 +68,7 @@ async function requestOf(
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
     }
     case 'background-maintain': {
-      return { method: 'schedules/backgroundStatus' }
+      return { method: 'schedules/backgroundMaintain' }
     }
     default: {
       const suffix = options.operation === 'run-now' ? 'runNow' : options.operation

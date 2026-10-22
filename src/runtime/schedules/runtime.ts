@@ -137,7 +137,22 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
         : undefined
     try {
       return await settleScheduleCommand(
-        () => runScheduleCommand(options, root, control, this.deps.reportCli),
+        async () => {
+          const settled = await runScheduleCommand(options, root, control, this.deps.reportCli)
+          // A fired wake is spent: re-arm the OS entry for the next wake
+          // before this process exits, or say the re-arm failed.
+          if (options.operation !== 'run-due') return settled
+          try {
+            await this.deps.background.reconcile()
+          } catch (error: unknown) {
+            return {
+              ...settled,
+              warning:
+                scheduleLauncherReason(error) ?? UI_TEXT.scheduleV2.runtime.backgroundUnavailable,
+            }
+          }
+          return settled
+        },
         () => (options.operation === 'run-due' ? this.close() : Promise.resolve()),
       )
     } finally {

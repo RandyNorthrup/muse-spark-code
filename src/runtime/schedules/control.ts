@@ -359,6 +359,14 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
           await deps.background.remove()
           return { kind: 'accepted' }
         }
+        case 'schedules/backgroundMaintain': {
+          // Re-arm the OS entry for the next wake, then report its state.
+          await deps.background.reconcile()
+          return {
+            kind: 'backgroundStatus',
+            status: await deps.background.status(),
+          }
+        }
         case 'schedules/background': {
           await deps.background.decide(request.consent)
           return { kind: 'accepted' }
