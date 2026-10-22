@@ -111,14 +111,14 @@ $grants = @($read.GetAccessRules($true, $true, [Security.Principal.SecurityIdent
 const WINDOWS_READ_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 $me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$scanned = foreach ($candidate in $inputPaths.paths) {
+$scanned = @(foreach ($candidate in $inputPaths.paths) {
   $seen = [IO.File]::GetAttributes($candidate)
   $reparse = ($seen -band [IO.FileAttributes]::ReparsePoint) -ne 0
   $folder = ($seen -band [IO.FileAttributes]::Directory) -ne 0
   if ($folder) { $acl = [IO.Directory]::GetAccessControl($candidate) } else { $acl = [IO.File]::GetAccessControl($candidate) }
   $grants = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq 'Allow'); full = ($_.FileSystemRights -eq 'FullControl'); rights = [int]$_.FileSystemRights } })
   @{ owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value; folder = $folder; reparse = $reparse; grants = $grants }
-}
+})
 @{ me = $me; scanned = $scanned } | ConvertTo-Json -Compress -Depth 6
 `
 
