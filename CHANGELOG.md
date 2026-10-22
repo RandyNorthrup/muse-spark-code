@@ -7,6 +7,42 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Estimator fleet binding** (M117 C-M117-3). The `fleet` and `candidatePool`
+  ports accept M107 capacity caps, M108 account rows and GitHub CI concurrency
+  through injected readers and apply them fail-closed onto this machine's
+  measured fleet. With no readers attached the forecast fleet is unchanged:
+  one serial local row, a demand-budgeted account, no CI rows and no device
+  or node rows. A lane whose affinity names a paired device or node stays
+  unschedulable with its reason.
+- **Estimator fleet binding R2** (M117 C-M117-3R2). Both production assemblies
+  now pass the binding: the extension reads M107's resource ceilings live from
+  the workspace configuration and headless applies the configured defaults, so
+  the ceilings shape admission — the local machine offers cores scaled by the
+  tighter ceiling (two 1-hour lanes finish in 2 h under 1/1, 1 h under
+  100/100). M108's active account is selected (active wins, else first, never
+  an ambiguous refusal) and translated to allowance rates with
+  measured-remaining windows; corrupt readers refuse with named details instead
+  of a raw parse error. No CI row is carried yet (no captured shape names
+  concurrency), so a lane declaring CI demand refuses with the schedule's
+  reason.
+- **Estimator fleet owner constraints** (M117 C-M117-3R4). Panel and ACP
+  forecasts read the existing subscription usage feed and retain blocking
+  plan windows. Current request/token allowance no longer invents a repeating
+  period or sustainable rate. Full captured windows retain their allowance
+  after reset; simultaneous blocks wait for the latest reset, and an unknown
+  reset refuses. Corrupt owners return named source errors. Concurrent estimates
+  each share their own fleet/pool snapshot. Missing CI qualifies only work
+  that uses CI. Default/configured thresholds retain their provenance and
+  explanations use the installed language.
+
+### Fixed
+
+- Keep the Estimator panel within its existing byte budget, retain safe host
+  refusal details through the panel, and load headless settings from their
+  existing resource bundle on first estimate.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

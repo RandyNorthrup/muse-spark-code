@@ -296,10 +296,22 @@ export const EN = {
   estimateDenied: 'Server creation was denied.',
   estimateWaiting: 'Waiting for {dependency}.',
   estimateRunning: 'Estimating…',
+  referenceEstimateFacts:
+    'Forecasts retain observed account blocks, name unread capacity and distinguish default from configured thresholds. Future refill rates remain unknown unless reported.',
   estimateFailed: 'Estimate failed: {detail}',
   // A refused estimate's omitted lanes: {count} is the lanes the estimator
   // did not name, rendered in the report's language from that number.
   estimateMissingMore: forms({ one: 'and {count} more', other: 'and {count} more' }),
+  estimateNoAccountReader: 'Unknown account limits on {source}.',
+  estimateLimitsUnread: 'Unknown: limits unread for {source}.',
+  estimateRefillUnknown: 'Future refill period and rate unknown: {source}.',
+  estimatePlanWindowUnknown:
+    '{source}: {percent} used; {reset}; window period and lane demand unknown.',
+  estimatePercentDemandUnknown: 'Percent demand of these lanes unknown: {source}; resets {reset}.',
+  estimateResetUnknown: 'reset unknown',
+  estimateCiUnread: 'CI capacity unknown: no reader.',
+  estimateSettingsDefault: 'Default settings: {source}.',
+  estimateSettingsConfigured: 'Configured settings: {source}.',
   estimateSchedule: 'Lane Schedule',
   estimateGantt: 'Schedule for {goal}, with the critical path and P50 and P90 finish marks.',
   estimateOptimizeDescription:

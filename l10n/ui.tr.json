@@ -5920,5 +5920,15 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "estimateNoAccountReader": "{source} üzerindeki hesap limitleri bilinmiyor.",
+  "estimateLimitsUnread": "Bilinmiyor: {source} sınırları okunmadı.",
+  "estimateRefillUnknown": "Gelecekteki yenileme dönemi ve hızı bilinmiyor: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} kullanıldı; {reset}; pencere dönemi ve görev talebi bilinmiyor.",
+  "estimatePercentDemandUnknown": "Bu görevlerin yüzde talebi bilinmiyor: {source}; sıfırlama {reset}.",
+  "estimateResetUnknown": "sıfırlama zamanı bilinmiyor",
+  "estimateCiUnread": "CI kapasitesi bilinmiyor: okuyucu yok.",
+  "estimateSettingsDefault": "Varsayılan ayarlar: {source}.",
+  "estimateSettingsConfigured": "Yapılandırılmış ayarlar: {source}.",
+  "referenceEstimateFacts": "Tahminler gözlemlenen hesap engellerini korur, okunmayan kapasiteyi belirtir ve varsayılan eşikleri yapılandırılmış eşiklerden ayırır. Gelecekteki yenileme hızları bildirilmedikçe bilinmez."
 }

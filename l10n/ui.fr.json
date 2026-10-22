@@ -6080,5 +6080,15 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "estimateNoAccountReader": "Limites du compte inconnues sur {source}.",
+  "estimateLimitsUnread": "Inconnu : limites non lues pour {source}.",
+  "estimateRefillUnknown": "Période et débit de renouvellement futurs inconnus : {source}.",
+  "estimatePlanWindowUnknown": "{source} : {percent} utilisés ; {reset} ; période de la fenêtre et demande des tâches inconnues.",
+  "estimatePercentDemandUnknown": "Demande en pourcentage de ces tâches inconnue : {source} ; réinitialisation {reset}.",
+  "estimateResetUnknown": "réinitialisation inconnue",
+  "estimateCiUnread": "Capacité CI inconnue : aucun lecteur.",
+  "estimateSettingsDefault": "Paramètres par défaut : {source}.",
+  "estimateSettingsConfigured": "Paramètres configurés : {source}.",
+  "referenceEstimateFacts": "Les prévisions conservent les blocages de comptes observés, nomment la capacité non lue et distinguent les seuils par défaut des seuils configurés. Les débits futurs de renouvellement restent inconnus tant qu’ils ne sont pas signalés."
 }

@@ -347,6 +347,7 @@ import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
+import { extensionFleetSources, fleetIoFromSources } from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
@@ -2728,6 +2729,21 @@ async function activateWindow(
           catalogUrls: [],
         }),
         snapshot,
+        // M117: bind the usage owners already used by Account & usage.
+        fleetIoFromSources(
+          extensionFleetSources({
+            inspect: (key) => vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(key),
+            readLiveLimits: () =>
+              (usageRecording.limits?.() ?? []).filter(
+                (row) => row.backend === auth.current.backend,
+              ),
+            readUsage: async () => {
+              if (!backend.isRunning || auth.current.backend !== 'museCode') return
+              const host = await backend.ensureHost()
+              return await host.readUsage()
+            },
+          }),
+        ),
       )
     },
   })

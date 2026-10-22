@@ -21,6 +21,13 @@ import {
 } from '../../shared/constants'
 import { fill, formatNumber, formatUnit, UI_TEXT, uiLocale } from '../../shared/l10n/text'
 
+/** Fixed fleet diagnostics only: raw I/O paths and arbitrary errors stay private. */
+export function fleetFailure(detail: string): Error {
+  return Object.assign(new Error(estimateFailureText({ estimateDiagnostic: detail })), {
+    estimateDiagnostic: detail,
+  })
+}
+
 export { estimateFailureText } from '../../core/estimator/diagnostic'
 
 export interface EstimateCommandOptions {

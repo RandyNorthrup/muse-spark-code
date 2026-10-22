@@ -5760,5 +5760,15 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "estimateNoAccountReader": "{source} 上的账户限额未知。",
+  "estimateLimitsUnread": "未知：尚未读取 {source} 的限额。",
+  "estimateRefillUnknown": "未来的补充周期和速率未知：{source}。",
+  "estimatePlanWindowUnknown": "{source}：已使用 {percent}；{reset}；窗口周期和任务需求未知。",
+  "estimatePercentDemandUnknown": "这些任务的百分比需求未知：{source}；重置 {reset}。",
+  "estimateResetUnknown": "重置时间未知",
+  "estimateCiUnread": "CI 容量未知：没有读取源。",
+  "estimateSettingsDefault": "默认设置：{source}。",
+  "estimateSettingsConfigured": "已配置的设置：{source}。",
+  "referenceEstimateFacts": "预测保留已观察到的账户阻止状态，注明未读取的容量，并区分默认阈值与已配置阈值。未来的补充速率在报告前仍为未知。"
 }

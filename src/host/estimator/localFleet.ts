@@ -3,9 +3,8 @@ import { parseEstimate, EstimateDiagnosticError } from '../../core/estimator/dia
 // nothing invented. Cores and RAM come from the OS; disks stay unknown
 // (Node cannot read headroom); the machine runs one lane at a time
 // (governor and caps of one) with one slot per lane kind the estimate holds.
-// API rate limits are not modeled here: the one `local` account is budgeted
-// to the lanes' own declared demand, so it never binds, until the account
-// bindings merge. A local estimate never claims quota it cannot see (see
+// Account rates are unknown until their owner reports them.
+// A local estimate never claims quota it cannot see (see
 // docs/certification/m117.md). Unsupported platforms refuse instead of
 // guessing a class.
 import * as os from 'node:os'
@@ -17,6 +16,7 @@ import {
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { fleetSnapshotSchema, type EstimateLane, type FleetSnapshot } from '../../shared/estimate'
 import type { EstimatorSourcePorts } from './estimatorBundle'
+import { applyFleetBinding, type FleetBindingIo } from './fleetBinding'
 
 export interface LocalHost {
   readonly platform: string
@@ -113,21 +113,32 @@ function missingEstimateBinding(dependency: string): never {
 
 /**
 The milestone bindings every shell assembles (M117, PLAN.md D97): this
-machine measured as the fleet; the snapshot reads the workspace plan
-through the shared core adapter (C-M117-1); the board, broker and catalog
-bindings refuse with their handoff names until those merge; history
-appends arrive with M115's lane-finished trigger. Only the price lookup
-differs.
+machine measured as the fleet, with M107's caps, M108's account rows and
+CI concurrency applied when their readers are passed (C-M117-3); the
+snapshot reads the workspace plan through the shared core adapter
+(C-M117-1); the board, broker and catalog bindings refuse with their
+handoff names until those merge; history appends arrive with M115's
+lane-finished trigger. Only the price lookup differs.
 */
 export function estimatorSourcePorts(
   priceLookup: EstimatorSourcePorts['priceLookup'],
   snapshot: EstimatorSourcePorts['snapshot'],
+  fleetIo?: FleetBindingIo,
 ): EstimatorSourcePorts {
+  const read = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
+    applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {})
   return {
     snapshot,
-    fleet: (lanes, asOf) => Promise.resolve(localFleet(lanes, asOf)),
+    fleet: read,
     history: () => Promise.resolve([]),
-    candidatePool: (lanes, asOf) => Promise.resolve(localFleet(lanes, asOf)),
+    candidatePool: read,
+    beginEstimate: () => {
+      // This memo belongs only to the requesting invocation, including concurrent ones.
+      let snapshot: Promise<FleetSnapshot> | undefined
+      const once = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
+        (snapshot ??= read(lanes, asOf))
+      return { fleet: once, candidatePool: once }
+    },
     board: () => ({
       audit: () => missingEstimateBinding('M117-W-M96-board'),
       start: () => missingEstimateBinding('M117-W-M96-board'),

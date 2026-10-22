@@ -11,13 +11,24 @@ import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 import path from 'node:path'
 import { createAcpEstimate, type AcpEstimatePort } from '../../acp/estimate'
 import { lazyEstimator, type EstimatorSourcePorts } from '../../host/estimator/estimatorBundle'
+import {
+  fleetIoFromSources,
+  headlessFleetSources,
+  type FleetUsageOwners,
+} from '../../host/estimator/fleetBinding'
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
 import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
-import { runEstimateCommand } from './command'
+import { runEstimateCommand, fleetFailure } from './command'
+import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
 import { PLAN_SNAPSHOT_BUNDLE_FILE } from '../../shared/constants'
+import type { resourceMachineStore } from '../resources/settings'
 
-export interface RuntimeEstimatorDeps {
+interface ResourceSettingsBundleDeps {
+  readonly loadResourceBundle?: ((file: string) => unknown) | undefined
+}
+
+export interface RuntimeEstimatorDeps extends ResourceSettingsBundleDeps {
   /** dist/estimator.js beside the running bundle. */
   readonly bundlePath: string
   readonly log: Logger
@@ -25,7 +36,7 @@ export interface RuntimeEstimatorDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-export interface RuntimeEstimatorPortsDeps {
+export interface RuntimeEstimatorPortsDeps extends ResourceSettingsBundleDeps {
   /** dist/planSnapshot.js beside the running bundle. */
   readonly snapshotBundlePath: string
   readonly log: Logger
@@ -33,10 +44,50 @@ export interface RuntimeEstimatorPortsDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
+/* The headless fleet owners: the agent data folder both the governor and the
+estimate read, and the runtime's account registry (identity only). Runtimes
+without a registry (report estimates) omit accounts: the fleet then names
+the runtime no-reader seam instead of inventing an identity. */
+export interface HeadlessFleetOwners extends FleetUsageOwners {
+  /** Agent data folder holding resources.json, the headless governor's file. */
+  readonly machineDir: string
+  /** The runtime's account registry: ids only, never credentials. */
+  readonly accounts?:
+    | {
+        list(provider: string): Promise<readonly { readonly id: string }[]>
+      }
+    | undefined
+}
+
 /** The milestone bindings; board, broker and catalog refuse until they merge. */
 export function runtimeEstimatorPorts(
-  deps: RuntimeEstimatorPortsDeps & { readonly root: string },
+  deps: RuntimeEstimatorPortsDeps & { readonly root: string } & HeadlessFleetOwners,
 ): EstimatorSourcePorts {
+  // The estimate's settings reader is the headless governor's own
+  // resourceMachineStore over the same resources.json: a missing file carries
+  // the schema defaults the governor itself runs, and a present file is the
+  // configured value. Only the file is shared; the governor never starts.
+  const settingsBundle = lazyBundleLoader({
+    bundlePath: path.join(path.dirname(deps.snapshotBundlePath), 'resourceGovernor.js'),
+    log: deps.log,
+    label: 'resource settings',
+    ...(deps.loadResourceBundle !== undefined && { loadBundle: deps.loadResourceBundle }),
+    isBundle: (value: unknown): value is { resourceMachineStore: typeof resourceMachineStore } =>
+      typeof value === 'object' &&
+      value !== null &&
+      'resourceMachineStore' in value &&
+      typeof value.resourceMachineStore === 'function',
+    unavailable: () => fleetFailure('fleet-caps-invalid settings').message,
+  })
+  let machine: ReturnType<typeof resourceMachineStore> | undefined
+  const readSettings = () => {
+    machine ??= settingsBundle().resourceMachineStore({
+      settingsFile: path.join(deps.machineDir, 'resources.json'),
+      resumeFile: path.join(deps.machineDir, 'resource-resume.json'),
+      sleep: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+    })
+    return machine.readSettingsWithOrigin()
+  }
   return estimatorSourcePorts(
     () => ({
       enabled: false,
@@ -51,23 +102,51 @@ export function runtimeEstimatorPorts(
       // No Reports policy: headless runs never do networked reads (D65).
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     }),
+    // The estimate's fleet (M117 C-M117-3R3, PLAN.md D97): M107's thresholds
+    // as facts through the governor's reader (slots stay certified); M108's
+    // account identity through the runtime registry with limits unknown;
+    // networked `gh` reads stay off (D65), so CI stays not read and lanes
+    // declaring it refuse with the schedule's true reason.
+    fleetIoFromSources(
+      headlessFleetSources({
+        readSettings: async () => {
+          const result = await readSettings()
+          return result.settings
+        },
+        readSettingsWithOrigin: readSettings,
+        // No registry in this runtime is an empty identity, which the
+        // binding names through the runtime no-reader seam.
+        listAccounts: () =>
+          deps.accounts === undefined ? Promise.resolve([]) : deps.accounts.list('meta'),
+        readLiveLimits: deps.readLiveLimits,
+        readUsage: deps.readUsage,
+      }),
+    ),
   )
 }
 
 /** The snapshot bundle beside the estimator engine bundle. */
-function portsWith(deps: RuntimeEstimatorDeps, root: string): () => EstimatorSourcePorts {
+function portsWith(
+  deps: RuntimeEstimatorDeps & HeadlessFleetOwners,
+  root: string,
+): () => EstimatorSourcePorts {
   return () =>
     runtimeEstimatorPorts({
       snapshotBundlePath: path.join(path.dirname(deps.bundlePath), PLAN_SNAPSHOT_BUNDLE_FILE),
       log: deps.log,
       root,
+      ...(deps.loadResourceBundle !== undefined && { loadResourceBundle: deps.loadResourceBundle }),
+      machineDir: deps.machineDir,
+      accounts: deps.accounts,
+      readLiveLimits: deps.readLiveLimits,
+      readUsage: deps.readUsage,
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     })
 }
 
 /** An estimator bound to one workspace root; one lives per root. */
 function estimatorFor(
-  deps: RuntimeEstimatorDeps,
+  deps: RuntimeEstimatorDeps & HeadlessFleetOwners,
   root: string,
   cache: Map<string, ReturnType<typeof lazyEstimator>>,
 ): ReturnType<typeof lazyEstimator> {
@@ -84,7 +163,9 @@ function estimatorFor(
 }
 
 /** The ACP agent's `/estimate`: headless estimates over the local fleet. */
-export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePort {
+export function createRuntimeEstimate(
+  deps: RuntimeEstimatorDeps & HeadlessFleetOwners,
+): AcpEstimatePort {
   // Each requesting session reads its own workspace root: an editor that
   // opened workspace B never estimates workspace A's plan, and each root's
   // estimator is built once and reused.
@@ -133,7 +214,10 @@ export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePo
 /** Standalone estimate uses the same lazy engine without starting an agent. */
 export async function runRuntimeEstimateCommand(
   argv: readonly string[],
-  deps: RuntimeEstimatorDeps & { write(text: string): void; error(text: string): void },
+  deps: RuntimeEstimatorDeps & {
+    write(text: string): void
+    error(text: string): void
+  } & HeadlessFleetOwners,
 ): Promise<number> {
   // The standalone command runs in the requesting workspace: its own
   // invocation directory is the session root, read once at entry.

@@ -26,7 +26,7 @@ import { parseEstimateComposer, type EstimateContext } from '../../runtime/estim
 // the review time observed in history, and hours per round would count it
 // twice (docs/estimator/prior.md).
 import * as z from 'zod/mini'
-import { setUiText } from '../../shared/l10n/text'
+import { fill, formatPercent, setUiText } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
 import { ESTIMATE_ENGINES, UI_TEXT } from '../../shared/constants'
@@ -68,6 +68,8 @@ export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
   fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   history(): Promise<unknown>
   candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
+  /** Invocation-owned supply snapshot; independent estimates never share a memo. */
+  beginEstimate?(): Pick<EstimatorSourcePorts, 'fleet' | 'candidatePool'>
   board(): EstimateStartPort
   prices(): EstimatePricePort
   priceLookup(): Omit<EstimatePriceLookup, 'asOf'>
@@ -136,12 +138,13 @@ export function createEstimatorRun(
     startWave: (input) => starter.start(input),
     estimate: async (request, signal) => {
       const parsed = parseEstimate(estimateRequestSchema, request)
+      const supply = ports.beginEstimate?.() ?? ports
       signal.throwIfAborted()
       const lanes = await resolveEstimateGoal(parsed.goal, parsed.asOf, {
         snapshot: (goal, asOf) => ports.snapshot(goal, asOf, signal),
       })
       signal.throwIfAborted()
-      const fleet = parseEstimate(fleetSnapshotSchema, await ports.fleet(lanes, parsed.asOf))
+      const fleet = parseEstimate(fleetSnapshotSchema, await supply.fleet(lanes, parsed.asOf))
       const history = parseEstimate(z.array(historyRecordSchema), await ports.history())
       signal.throwIfAborted()
       const inputs = parseEstimate(estimateInputsSchema, {
@@ -152,7 +155,7 @@ export function createEstimatorRun(
       })
       const pool = parseEstimate(
         fleetSnapshotSchema,
-        await ports.candidatePool(inputs.lanes, parsed.asOf),
+        await supply.candidatePool(inputs.lanes, parsed.asOf),
       )
       signal.throwIfAborted()
       const pairs: { kind: string; machineClassId: string }[] = []
@@ -255,12 +258,29 @@ export function createEstimatorRun(
       const forecastInputs = { ...inputs, fleet: selected.fleet }
       const durations = estimateDurationMap(simulation.durationSamples)
       const limitingResource = findEstimateBottleneck(inputs.lanes, selected.fleet, durations)
-      const qualifications = recommendation.selections.flatMap((selection) => {
+      const qualifications: NonNullable<EstimateSection['qualifications']> = []
+      for (const selection of recommendation.selections) {
         const evaluation = recommendation.evaluations[selection.evaluation]
-        return evaluation?.forecast.status === 'feasible'
-          ? { setup: selection.kind, unknownLimits: evaluation.forecast.simulation.unknownLimits }
-          : []
-      })
+        if (evaluation?.forecast.status !== 'feasible') continue
+        const settingsNotes: string[] = []
+        for (const machine of evaluation.fleet.machines) {
+          const origin = machine.caps.origin
+          if (origin === undefined) continue
+          for (const key of ['cpuPercent', 'memoryPercent'] as const)
+            settingsNotes.push(
+              fill(
+                origin[key] === 'default'
+                  ? UI_TEXT.estimateSettingsDefault
+                  : UI_TEXT.estimateSettingsConfigured,
+                { source: `${origin.source}/${key}: ${formatPercent(machine.caps[key])}` },
+              ),
+            )
+        }
+        qualifications.push({
+          setup: selection.kind,
+          unknownLimits: [...evaluation.forecast.simulation.unknownLimits, ...settingsNotes],
+        })
+      }
       const setupFleets = recommendation.selections.map((selection) => ({
         kind: selection.kind,
         fleet:

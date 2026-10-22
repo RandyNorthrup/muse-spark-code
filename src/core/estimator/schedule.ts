@@ -14,6 +14,7 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
+import { UI_TEXT, fill, formatDateTime } from '../../shared/l10n/text'
 import { buildEstimateDag, isEstimateDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { compareEstimateIds } from './goal'
 
@@ -110,6 +111,7 @@ end -> Mar 31). DST folds choose the earlier instant; gaps shift forward.
 This is a scheduling assumption, not a claim about a provider's behavior.
 */
 function renewals(window: Window, until: number): number[] {
+  if (window.kind === 'current') return [Date.parse(window.resetsAt)]
   const anchor = Date.parse(window.resetsAt)
   const formatter = new Intl.DateTimeFormat('en', {
     timeZone: window.timeZone,
@@ -331,9 +333,12 @@ export function prepareEstimateSchedule(
   // assumes a favourable slot/account split or widens an admission guard.
   const rateAccounts = accounts.filter((account) => {
     const users = usersByAccount.get(account) ?? []
+    // An unread rate constrains nothing: the unknown is recorded below,
+    // never passed against a number the owner did not state.
     return (
-      users.reduce((sum, lane) => sum + laneRate(lane, 'requests'), 0) >
-        account.requestsPerMinute * MINUTES_PER_HOUR ||
+      (account.requestsPerMinute !== undefined &&
+        users.reduce((sum, lane) => sum + laneRate(lane, 'requests'), 0) >
+          account.requestsPerMinute * MINUTES_PER_HOUR) ||
       (account.tokensPerMinute !== undefined &&
         users.reduce((sum, lane) => sum + laneRate(lane, 'tokens'), 0) >
           account.tokensPerMinute * MINUTES_PER_HOUR)
@@ -350,10 +355,37 @@ export function prepareEstimateSchedule(
   )
   for (const account of accounts) {
     if (account.usageLimits === undefined) unknownLimits.add(`${account.id}:usageLimits`)
+    if (account.requestsPerMinute === undefined)
+      unknownLimits.add(`${account.id}:requestsPerMinute`)
     if (account.tokensPerMinute === undefined) unknownLimits.add(`${account.id}:tokensPerMinute`)
+    // Stated limits travel verbatim: the owner said them, the schedule
+    // cannot convert them, and dropping them would hide them.
+    const stated = account.statedLimits ?? []
+    for (const note of stated) unknownLimits.add(note)
   }
   for (const ci of fleet.ci)
-    if (ci.minutesRemaining === undefined) unknownLimits.add(`${ci.id}:minutesRemaining`)
+    if (
+      ci.minutesRemaining === undefined &&
+      lanes.some(
+        (lane) =>
+          lane.state !== 'merged' &&
+          lane.resources.ciId === ci.id &&
+          known(lane.resources.ciMinutes, `${lane.id}:ciMinutes`) > 0,
+      )
+    )
+      unknownLimits.add(`${ci.id}:minutesRemaining`)
+  // No captured shape names CI concurrency, so an empty CI section means the
+  // row was not read, never a zeroed row.
+  if (
+    fleet.ci.length === 0 &&
+    lanes.some(
+      (lane) =>
+        lane.state !== 'merged' &&
+        (known(lane.resources.ciJobs, `${lane.id}:ciJobs`) > 0 ||
+          known(lane.resources.ciMinutes, `${lane.id}:ciMinutes`) > 0),
+    )
+  )
+    unknownLimits.add(UI_TEXT.estimateCiUnread)
 
   let quotaHints: number[] = []
   function isFeasible(
@@ -363,6 +395,16 @@ export function prepareEstimateSchedule(
   ): boolean {
     quotaHints = []
     const { lane, machine, start, end } = candidate
+    if (relaxation !== 'accountRate') {
+      for (const account of accounts) {
+        if (account.availableAt === undefined || accountShare(candidate, account.id) === 0) continue
+        const ready = (Date.parse(account.availableAt) - asOf) / HOUR_MS
+        if (start < ready) {
+          quotaHints.push(ready)
+          return false
+        }
+      }
+    }
     const kindSlots = machine.capacityByKind.find((entry) => entry.kind === lane.kind)?.slots ?? 0
     const requiresTimeline =
       relaxation === 'slots' ||
@@ -409,7 +451,11 @@ export function prepareEstimateSchedule(
               (sum, entry) => sum + laneRate(entry.lane, unit) * accountShare(entry, account.id),
               0,
             )
-          if (used('requests') > account.requestsPerMinute * MINUTES_PER_HOUR) return false
+          if (
+            account.requestsPerMinute !== undefined &&
+            used('requests') > account.requestsPerMinute * MINUTES_PER_HOUR
+          )
+            return false
           if (
             account.tokensPerMinute !== undefined &&
             used('tokens') > account.tokensPerMinute * MINUTES_PER_HOUR
@@ -502,11 +548,12 @@ export function prepareEstimateSchedule(
               ...resets.filter((reset) => reset > 0 && reset < horizon),
             ]),
           ].toSorted((a, b) => a - b)
-          let remaining = resets.some((reset) => reset <= 0) ? window.allowance : window.remaining
+          const renewedAllowance = window.kind === 'current' ? Infinity : window.allowance
+          let remaining = resets.some((reset) => reset <= 0) ? renewedAllowance : window.remaining
           for (let index = 0; index < boundaries.length - 1; index++) {
             const time = boundaries[index] ?? refuse('missing-boundary')
             const next = boundaries[index + 1] ?? refuse('missing-boundary')
-            if (resets.includes(time)) remaining = window.allowance
+            if (resets.includes(time)) remaining = renewedAllowance
             remaining -= users
               .filter((entry) => entry.start <= time && time < entry.end)
               .reduce(
@@ -585,16 +632,42 @@ export function prepareEstimateSchedule(
           : Math.max(0, ...(candidates.get(lane.id) ?? []).map((machine) => hours(lane, machine))),
       ]),
     )
+    const isDemandKnown = (lane: EstimateLane, unit: Window['unit']): boolean => {
+      const quantities = {
+        requests: lane.resources.accountRequestsPerHour,
+        tokens: lane.resources.accountTokensPerHour,
+        usd: lane.resources.accountUsdPerHour,
+        percent: lane.resources.accountPercentPerHour,
+      }
+      return quantities[unit].status !== 'unknown'
+    }
     const windowsByAccount = new Map(
       accounts.map((account) => [
         account,
-        (account.usageLimits ?? []).filter(
-          (window) =>
-            (usersByAccount.get(account) ?? []).reduce(
+        (account.usageLimits ?? []).filter((window) => {
+          const users = usersByAccount.get(account) ?? []
+          // A percent window with unknown lane demand is not an error: the
+          // estimate states the window it cannot convert and continues with
+          // what it knows, instead of throwing unknown-demand.
+          if (
+            window.unit === 'percent' &&
+            users.some((lane) => !isDemandKnown(lane, window.unit))
+          ) {
+            unknownLimits.add(
+              fill(UI_TEXT.estimatePercentDemandUnknown, {
+                source: `${account.id}/${window.id}`,
+                reset: formatDateTime(Date.parse(window.resetsAt)),
+              }),
+            )
+            return false
+          }
+          return (
+            users.reduce(
               (sum, lane) => sum + laneRate(lane, window.unit) * (maximumHours.get(lane) ?? 0),
               0,
-            ) > window.remaining,
-        ),
+            ) > window.remaining
+          )
+        }),
       ]),
     )
     const searchWindows: Window[] = []

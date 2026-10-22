@@ -591,6 +591,14 @@ function runtimeReports(
           snapshotBundlePath: path.join(distDir, PLAN_SNAPSHOT_BUNDLE_FILE),
           log,
           root: cwd,
+          // The report runtime has no account registry: the same agent data
+          // folder feeds the governor's thresholds while the fleet names the
+          // runtime no-reader seam for account limits.
+          machineDir: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
         }),
     })
     reportEstimators.set(cwd, estimator)
@@ -1221,6 +1229,24 @@ async function serve(
       estimate: createRuntimeEstimate({
         bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
         log,
+        // The ACP agent's own fleet owners (M117 C-M117-3R3): the same agent
+        // data folder the running governor reads resources.json from, and
+        // the runtime's account registry (identity only, read lazily).
+        machineDir: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        readLiveLimits: () =>
+          (recording.limits?.() ?? []).filter((row) => row.backend === options.backend),
+        accounts: {
+          list: async (provider: string) => {
+            const owner = loadAccounts()
+            return (await owner.metadata.read(provider)) === undefined
+              ? []
+              : await owner.store.list(provider)
+          },
+        },
       }),
       questions: (input) => {
         const registry = loadQuestions().createRuntimeQuestionRegistry(
@@ -2086,6 +2112,18 @@ async function main(): Promise<number> {
         },
         error: (text) => {
           writeLine(process.stderr, text)
+        },
+        // The same owners as the ACP agent: the agent data folder the
+        // headless governor reads resources.json from, and the runtime's
+        // account registry (identity only, read lazily).
+        machineDir: servicesInput.dataDir,
+        accounts: {
+          list: async (provider: string) => {
+            const owner = loadAccounts(log)
+            return (await owner.metadata.read(provider)) === undefined
+              ? []
+              : await owner.store.list(provider)
+          },
         },
       })
     }

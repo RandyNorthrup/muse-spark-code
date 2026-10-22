@@ -6240,5 +6240,15 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "estimateNoAccountReader": "Neznámé limity účtu na {source}.",
+  "estimateLimitsUnread": "Neznámé: limity pro {source} nebyly načteny.",
+  "estimateRefillUnknown": "Budoucí období a rychlost doplňování neznámé: {source}.",
+  "estimatePlanWindowUnknown": "{source}: využito {percent}; {reset}; období okna a poptávka úloh neznámé.",
+  "estimatePercentDemandUnknown": "Procentní poptávka těchto úloh neznámá: {source}; obnovení {reset}.",
+  "estimateResetUnknown": "čas obnovení neznámý",
+  "estimateCiUnread": "Kapacita CI neznámá: není čtečka.",
+  "estimateSettingsDefault": "Výchozí nastavení: {source}.",
+  "estimateSettingsConfigured": "Nakonfigurovaná nastavení: {source}.",
+  "referenceEstimateFacts": "Prognózy zachovávají zjištěná blokování účtů, označují nenačtenou kapacitu a rozlišují výchozí a nastavené prahy. Budoucí rychlosti doplňování zůstávají neznámé, dokud nejsou oznámeny."
 }

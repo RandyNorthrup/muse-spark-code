@@ -2508,6 +2508,59 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
+## Estimates
+
+The composer `/estimate <goal> [--by <date>] [--fleet
+current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
+`muse-spark-code-acp estimate` use one lazy engine. The snapshot reads your
+workspace `PLAN.md` with its git and `gh` evidence: lane hours, Starts
+dependencies, rigs, file affinities, the delivery order and §10 releases.
+Every declared prerequisite and release member must resolve, including references
+outside the selected goal; duplicate lane identities and unknown unfinished rigs
+refuse with all unresolved references named. Completed lanes remain addressable
+with zero remaining work and require no placement. Merge evidence uses origin's
+default branch; a current replacement branch overrides older merged PRs.
+Failed or incomplete enabled evidence collection refuses by source name. Git-only
+forecasts remain available while network reads are disabled; PR goals then refuse.
+Editor network reads follow the current Reports network/sign-in policy and trust
+admission on every estimate. ACP/headless network reads remain disabled.
+ACP, CLI and TUI preserve the named refusal so the plan or source can be repaired.
+`muse-spark-code-acp estimate --help` shows the
+standalone syntax without starting a model or asking for credentials.
+
+- **Verified against real plans.** The engine returns P50/P90 dates,
+  critical-path schedules, limiting resources and current/minimum/optimum setups. Figures
+  carry parameter-specific evidence and sample sizes; unknown capacity and
+  approximate placement stay qualified. Below 20 samples, fitted parameters
+  remain priors. Bases older than seven days carry a schedule-risk flag. A goal
+  whose lanes lack hour estimates is refused naming the lanes, instead of a
+  partial forecast; per-lane metered demands the plan never carries are
+  disclosed zero-sample assumptions until calibration replaces them per kind.
+  Issue and label goals resolve once their lane associations land with M113 N.
+- **Owner observations.** The panel and ACP read the existing subscription
+  usage feed. Full plan windows and vendor blocks wait for the latest known
+  reset; a full window with no reset refuses and names the account. Current
+  request/token allowance never implies a refill period or future rate.
+  Unreported limits stay unknown with their source; corrupt sources refuse.
+  Machine thresholds say whether each value is default or configured.
+  Standalone CLI has no running usage feed and names registry-only limits.
+- **Existing fleet.** The panel sends an audited, contract-first first-wave
+  request independently of rental readiness. Production dispatch still
+  refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
+  production refresh wait for M115.
+- **Still waiting.** Starting lanes (M96's board), price catalogs (M113's
+  catalogs), finished-lane history (M115) and multi-machine fleets each refuse
+  with their handoff names until those land; the local single-machine forecast
+  from your plan works now.
+- **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
+  and P's internal Slice 2 provisioning lifecycle are still absent. Liability
+  reservation, separate spend confirmation, funded-deadline/idle teardown,
+  Keep and wipe-before-delete are planned, not shipped behavior. No rental
+  creation is enabled.
+- **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
+  `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
+  network policy; catalog quotes retain their dates.
+
 ## Review
 
 Review what the agent did before it lands, on both backends.
