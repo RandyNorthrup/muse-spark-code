@@ -893,6 +893,10 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     // Parsed and reference-documented, but off the one screen: the setting
     // text carries the guard/spill/removal description (lane TOOLCAP).
     'max-tool-output-bytes',
+    // Parsed for headless teams (M96b), which stay behind the team
+    // availability switch until certified: off the help screen while
+    // dormant, as no usage of a dormant feature is published (CX1R3).
+    'team',
   ],
   providersAdd: [],
   providersModels: [],
