@@ -4,8 +4,8 @@
 // waitForCallback. One server serves every subscription provider; each
 // provider binds its own callback parse and failure class.
 import { createServer, type ServerResponse } from 'node:http'
-import { ChatGptSignInError, parseChatGptCallback } from '../core/providers/subscriptions/chatgpt'
-import { GrokSignInError, parseGrokCallback } from '../core/providers/subscriptions/grok'
+import { chatGptCallbackBinding } from '../core/providers/subscriptions/chatgpt'
+import { grokCallbackBinding } from '../core/providers/subscriptions/grok'
 import { pkce } from '../host/backend/providersEntry'
 const { isPkceState } = pkce
 import { HTTP_STATUS, OAUTH_CODE_TTL_MS, OAUTH_LOOPBACK_HOST } from '../shared/constants'
@@ -173,13 +173,7 @@ export async function startChatGptCallback(
     state,
     timeoutMs,
     pageText,
-    {
-      parse: (url, redirectUri) => {
-        parseChatGptCallback(url, redirectUri, state, clientId)
-      },
-      fail: (code, reason?, cause?) => new ChatGptSignInError(code, reason, { cause }),
-      isFailure: (error): error is ChatGptSignInError => error instanceof ChatGptSignInError,
-    },
+    chatGptCallbackBinding(state, clientId),
     signal,
   )
 }
@@ -195,13 +189,7 @@ export async function startGrokCallback(
     state,
     timeoutMs,
     pageText,
-    {
-      parse: (url, redirectUri) => {
-        parseGrokCallback(url, redirectUri, state)
-      },
-      fail: (code, reason?, cause?) => new GrokSignInError(code, reason, { cause }),
-      isFailure: (error): error is GrokSignInError => error instanceof GrokSignInError,
-    },
+    grokCallbackBinding(state),
     signal,
   )
 }

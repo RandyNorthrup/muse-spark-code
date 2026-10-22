@@ -271,6 +271,28 @@ export function buildGrokAuthorizeUrl(options: {
   return url.href
 }
 
+/** The loopback core every host shares: one parse, one failure class. */
+export interface GrokCallbackBinding {
+  parse(url: string, redirectUri: string): void
+  fail(
+    code: 'invalid-callback' | 'callback-timeout' | 'cancelled' | 'local-failed',
+    reason?: string,
+    cause?: unknown,
+  ): GrokSignInError
+  isFailure(error: unknown): error is GrokSignInError
+}
+
+/** The loopback core every host shares, bound to one attempt's state. */
+export function grokCallbackBinding(state: string): GrokCallbackBinding {
+  return {
+    parse: (url, redirectUri) => {
+      parseGrokCallback(url, redirectUri, state)
+    },
+    fail: (code, reason?, cause?) => new GrokSignInError(code, reason, { cause }),
+    isFailure: (error): error is GrokSignInError => error instanceof GrokSignInError,
+  }
+}
+
 /**
 Validate the captured callback fields. Only `code` and `state` decide;
 anything else xAI names (its scope echo, RFC 9207's issuer) is let

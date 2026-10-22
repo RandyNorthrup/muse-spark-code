@@ -3,6 +3,7 @@ export { setUiText } from '../../shared/l10n/text'
 export {
   ChatGptSignIn,
   ChatGptSignInError,
+  chatGptCallbackBinding,
   parseChatGptCallback,
 } from '../../core/providers/subscriptions/chatgpt'
 export type { ChatGptHostPort } from '../../core/providers/subscriptions/chatgpt'
@@ -15,6 +16,7 @@ export {
   GrokSignInError,
   buildGrokAuthorizeUrl,
   grokAccountIdHash,
+  grokCallbackBinding,
   grokRecordSchema,
   parseGrokCallback,
   parseGrokDeviceCode,

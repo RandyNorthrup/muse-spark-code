@@ -64,6 +64,9 @@ export function createSubscriptionFeatures(options: {
           globalStorageUri: options.globalStorageUri,
           isRemote: options.isRemote,
           fetch: fetcher,
+          log: (message) => {
+            options.log.info(message)
+          },
         })
       } catch (error) {
         signIn = undefined

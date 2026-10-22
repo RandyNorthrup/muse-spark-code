@@ -200,6 +200,31 @@ export function buildChatGptAuthorizeUrl(options: {
   return url.href
 }
 
+/** The loopback core every host shares: one parse, one failure class. */
+export interface ChatGptCallbackBinding {
+  parse(url: string, redirectUri: string): void
+  fail(
+    code: 'invalid-callback' | 'callback-timeout' | 'cancelled' | 'local-failed',
+    reason?: string,
+    cause?: unknown,
+  ): ChatGptSignInError
+  isFailure(error: unknown): error is ChatGptSignInError
+}
+
+/** The loopback core every host shares, bound to one attempt's state. */
+export function chatGptCallbackBinding(
+  state: string,
+  clientId: string | undefined,
+): ChatGptCallbackBinding {
+  return {
+    parse: (url, redirectUri) => {
+      parseChatGptCallback(url, redirectUri, state, clientId)
+    },
+    fail: (code, reason?, cause?) => new ChatGptSignInError(code, reason, { cause }),
+    isFailure: (error): error is ChatGptSignInError => error instanceof ChatGptSignInError,
+  }
+}
+
 /**
 Validate the captured callback fields. A new registration's callback names
 the issued client; a reauthorization with the saved `clientId` may omit it
