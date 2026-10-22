@@ -2620,6 +2620,8 @@
   "bookmarkedState": "Con segnalibro",
   "bookmarkUnavailable": "Non disponibile qui",
   "bookmarkNoWorkspace": "I segnalibri richiedono una cartella aperta.",
+  "bookmarksUnavailable": "I segnalibri non sono disponibili.",
+  "sequencesUnavailable": "Le sequenze di prompt non sono disponibili.",
   "referenceBookmarks": "Aggiungi conversazioni ai segnalibri dalla Cronologia o dalla stella dell’intestazione. Una sessione di Model API con segnalibro sopravvive alla pulizia; i segnalibri si sincronizzano solo con la sincronizzazione dei prompt salvati attiva.",
   "resumeItem": "Riprendi",
   "resumeDetail": "Scegli una conversazione precedente in questa area di lavoro",

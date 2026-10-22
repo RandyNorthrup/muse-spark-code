@@ -156,6 +156,7 @@ import {
   PDF_EXTENSION,
   PLAN_BRIEF_LOCAL_ID_PREFIX,
   PLAN_TODO_PENDING_STATUS,
+  SEQUENCE_STEP_LOCAL_ID_PREFIX,
   MENTION_RESULT_LIMIT,
   CONVERSATION_MODEL_TEXT,
   MSP_READ_OUTPUT_CONCURRENCY,
@@ -256,6 +257,9 @@ import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
+import type { BookmarkPort, SequencePort } from './featurePorts'
+import { safeBookmarkFailure } from './featurePorts'
+import type { DeferredSend, DeferredSendVerdict, TurnSettled } from './deferredSend'
 
 /** The controller's Git adapter contract, portable to hosts without VS Code. */
 export interface ConversationGitPort {
@@ -739,6 +743,13 @@ export interface ConversationDeps {
   */
   readonly judge?: JudgeAdvisory | undefined
   readonly museCodeReviewer?: MuseCodeReviewerPort
+  /**
+  This workspace's bookmarks and the prompt sequence library (M88, PLAN.md
+  D67): the panel's bookmark and sequence messages are answered through
+  them, and refused with an explicit error while one is missing.
+  */
+  readonly bookmarks?: BookmarkPort
+  readonly sequences?: SequencePort
   readonly now: () => number
   readonly log: Logger
 }
@@ -842,6 +853,8 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'requestHandoff',
   'confirmHandoff',
   'withdrawQueued',
+  // A sequence's first step is a turn (M88); its stop and library are local.
+  'sequenceStart',
 ])
 const QUEUED_DISPOSITION = 'queued'
 const COMPLETED_STATUS = 'completed'
@@ -1205,7 +1218,7 @@ function errorKind(error: unknown): string {
   return error instanceof Error ? error.name : typeof error
 }
 
-export class ConversationController {
+export class ConversationController implements DeferredSend {
   // Revert owns turn admission until file I/O settles; pending sends own it
   // even before their turnStarted event or acknowledgement reaches the panel.
   private revertsInFlight = 0
@@ -1561,6 +1574,10 @@ export class ConversationController {
   private readonly admittedEarly = new Set<string>()
   /** Cards whose withdrawal is in flight: a second Edit leaves the answer to the first. */
   private readonly withdrawals = new Set<string>()
+  /** A prompt sequence run's id while one is going in this conversation (M88); at most one. */
+  private sequenceRunId: string | undefined
+  /** Deferred send's turn-end listeners (M88): the sequence runner waits on them. */
+  private readonly turnSettledListeners = new Set<(settled: TurnSettled) => void>()
   /** The conversation's name as the surface shows it; undefined while untitled. */
   private conversationName: string | undefined
   /** The last todo list a session's events or history gave (M87: the tasks tab's list). */
@@ -2038,6 +2055,54 @@ export class ConversationController {
       // Said only where it is so (D26): the panel then offers no Delete.
       ...(!this.canDeleteSessions && { canDeleteSessions: false }),
     })
+    this.postBookmarks()
+  }
+
+  /** This workspace's bookmarks, with titles refreshed from the listed rows (M88). */
+  private postBookmarks(): void {
+    const port = this.deps.bookmarks
+    if (port === undefined || this.sessionRecords === undefined) {
+      return
+    }
+    const rows = Array.from(this.sessionRecords.values(), (record) => ({
+      sessionId: record.sessionId,
+      title: sessionTitle(record),
+    }))
+    void port
+      .refreshTitles(rows)
+      .then((bookmarks) => {
+        if (!this.isDisposed) {
+          this.post({ type: 'bookmarks', bookmarks: [...bookmarks] })
+        }
+      })
+      .catch((error: unknown) => {
+        if (!this.isDisposed) {
+          this.notice('warning', UI_TEXT.bookmarksUnavailable, undefined, error)
+        }
+      })
+  }
+
+  /** Set or remove one bookmark in this workspace (M88). */
+  private async setBookmark(
+    message: Extract<ConversationMessage, { type: 'bookmarkSet' }>,
+  ): Promise<void> {
+    const port = this.deps.bookmarks
+    if (port === undefined) {
+      this.notice('error', UI_TEXT.bookmarksUnavailable)
+      return
+    }
+    try {
+      const bookmarks = await port.set({
+        backend: message.backend,
+        sessionId: message.sessionId,
+        title: message.title,
+        isBookmarked: message.isBookmarked,
+      })
+      this.post({ type: 'bookmarks', bookmarks: [...bookmarks] })
+    } catch (error: unknown) {
+      // Only the boundary's fixed words cross to the panel (M88).
+      this.notice('warning', safeBookmarkFailure(error).message)
+    }
   }
 
   /** Remember when this surface's session was last active (the restore rule). */
@@ -2272,6 +2337,9 @@ export class ConversationController {
     // The same end line and clock as a turn the host ended (the review of PR #20).
     this.endTurnClock(event)
     this.checkpoints.turnCompleted(turnId)
+    // The runner ends the run on it, as on any other end (M88). A later
+    // duplicate event for the turn notifies again; the runner drops it.
+    this.noteTurnSettled(turnId, terminal)
     this.forward(event)
     // A draft asked for in this turn (M71) will not come: its form's button comes back.
     this.git.onEvent(event)
@@ -3084,6 +3152,11 @@ export class ConversationController {
           this.session !== undefined
         ) {
           this.markDamaged(this.session.sessionId, 'a turn ended on it')
+        }
+        // A waiting sequence step goes on its own turn's end (M88); a
+        // child's turn is the child's, never this conversation's.
+        if (!this.isChildTurn(event.turnId)) {
+          this.noteTurnSettled(event.turnId, event.terminal)
         }
         break
       }
@@ -6936,6 +7009,12 @@ export class ConversationController {
   */
   private isTurnRunning(): boolean {
     return this.activeTurnId !== undefined || this.turnSubmissionsInFlight > 0
+  }
+
+  private noteTurnSettled(turnId: string, terminal: string): void {
+    for (const listener of this.turnSettledListeners) {
+      listener({ turnId, terminal })
+    }
   }
 
   /**
@@ -11531,6 +11610,10 @@ export class ConversationController {
         await this.setSessionArchived(message.sessionId, message.isArchived)
         break
       }
+      case 'bookmarkSet': {
+        await this.setBookmark(message)
+        break
+      }
       case 'deleteSession': {
         await this.deleteSession(message.sessionId)
         break
@@ -11603,6 +11686,53 @@ export class ConversationController {
       ...(this.session !== undefined && { sessionId: this.session.sessionId }),
       ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
     })
+  }
+
+  /**
+  Deferred send (M88, PLAN.md D67): whether the session can take a message
+  now — loaded, with no turn running, no turn queued, and no other
+  sequence run going. The caller's own run never blocks its own steps.
+  */
+  public canSendNow(sessionId: string, exceptRunId?: string): DeferredSendVerdict {
+    if (this.session?.sessionId !== sessionId) {
+      return 'notLoaded'
+    }
+    const isBusy =
+      this.isTurnRunning() ||
+      this.queuedMessages.size > 0 ||
+      (this.sequenceRunId !== undefined && this.sequenceRunId !== exceptRunId)
+    return isBusy ? 'busy' : 'ok'
+  }
+
+  /**
+  Submit as the composer's Send does, only while `canSendNow` holds for
+  the run's session; otherwise refuse with that verdict and send nothing.
+  The step's card is the user's own, as `briefSubmitted` makes it. A send
+  refused mid-flight throws, as `send` does; the runner ends the run.
+  */
+  public async sendAsUser(
+    text: string,
+    run: { readonly sessionId: string; readonly runId: string },
+  ): Promise<{ readonly verdict: DeferredSendVerdict; readonly turnId?: string }> {
+    const verdict = this.canSendNow(run.sessionId, run.runId)
+    if (verdict === 'ok') {
+      const localId = `${SEQUENCE_STEP_LOCAL_ID_PREFIX}${this.deps.newAttachmentId()}`
+      this.post({ type: 'briefSubmitted', localId, text, attachments: [] })
+      const sent = await this.send(localId, text, [], false, undefined)
+      return {
+        verdict: sent.isAccepted ? 'ok' : 'busy',
+        ...(sent.isAccepted && sent.turnId !== undefined && { turnId: sent.turnId }),
+      }
+    }
+    return { verdict }
+  }
+
+  /** Every own-session turn's end, so a waiting step can go. */
+  public onTurnSettled(listener: (settled: TurnSettled) => void): () => void {
+    this.turnSettledListeners.add(listener)
+    return () => {
+      this.turnSettledListeners.delete(listener)
+    }
   }
 
   /** A setting change retires contributor work, including in-flight preparations. */

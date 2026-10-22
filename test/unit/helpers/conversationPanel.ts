@@ -20,6 +20,7 @@ import {
   type MentionSearch,
   type SessionMemory,
 } from '../../../src/host/conversation/conversationController'
+import type { BookmarkPort, SequencePort } from '../../../src/host/conversation/featurePorts'
 import type { ConversationExports } from '../../../src/host/conversation/exportConversation'
 import type { SessionTransferFiles } from '../../../src/host/conversation/sessionImport'
 import type { EditReviewActions } from '../../../src/host/editor/editReview'
@@ -177,6 +178,10 @@ export interface PanelOptions {
   readonly sessions?: SessionMemory
   /** The person's answer to the panel's confirm dialog, when the path asks one. */
   readonly confirmFileAction?: () => Promise<boolean>
+  /** This workspace's bookmarks (M88); absent, the controller refuses bookmark messages. */
+  readonly bookmarks?: BookmarkPort
+  /** The prompt sequence library (M88); absent, the controller refuses sequence messages. */
+  readonly sequences?: SequencePort
 }
 
 export interface PanelRig {
@@ -316,6 +321,8 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     ideMcpEndpoint: unused('ideMcpEndpoint'),
     newAttachmentId: () => `test-attachment-${String((attachmentIds += 1))}`,
     sessions: options.sessions ?? emptySessionMemory(),
+    ...(options.bookmarks !== undefined && { bookmarks: options.bookmarks }),
+    ...(options.sequences !== undefined && { sequences: options.sequences }),
     accountFacts: unused('accountFacts'),
     usageInsights: unused('usageInsights'),
     isRestorable: false,

@@ -2672,6 +2672,8 @@
   "bookmarkedState": "V záložkách",
   "bookmarkUnavailable": "Zde není k dispozici",
   "bookmarkNoWorkspace": "Záložky vyžadují otevřenou složku.",
+  "bookmarksUnavailable": "Záložky nejsou k dispozici.",
+  "sequencesUnavailable": "Sekvence promptů nejsou k dispozici.",
   "referenceBookmarks": "Konverzace se přidávají do záložek z Historie nebo hvězdičkou v záhlaví. Záložkovaná relace Model API přežije čištění; záložky se synchronizují jen se zapnutou synchronizací uložených promptů.",
   "resumeItem": "Obnovit",
   "resumeDetail": "Vybrat předchozí konverzaci v tomto pracovním prostoru",

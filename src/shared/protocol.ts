@@ -90,7 +90,8 @@ import {
 } from './legalFix'
 import { boardRowSchema } from './sessionBoard'
 import type { EstimatorToHostMessage, HostToEstimatorMessage } from './estimatorProtocol'
-import { sessionRowSchema } from './sessions'
+import { sessionRowSchema, bookmarkRefSchema } from './sessions'
+import { savedSequenceSchema, sequenceRunViewSchema } from './sequences'
 import {
   accountFactsSchema,
   providerUsageRowSchema,
@@ -204,6 +205,17 @@ export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
 
 export const BACKEND_KINDS = ['museCode', 'modelApi'] as const
 export type BackendKind = (typeof BACKEND_KINDS)[number]
+
+/**
+A bookmarked conversation (M88, PLAN.md D67): where its sessions are, the
+stored title, and when it was bookmarked. Per workspace; synced only with
+`museSpark.syncPromptsAndBookmarks` on.
+*/
+export const bookmarkRecordSchema = z.object({
+  ...bookmarkRefSchema.shape,
+  backend: z.enum(BACKEND_KINDS),
+})
+export type BookmarkRecord = z.infer<typeof bookmarkRecordSchema>
 
 // Things the webview asks the host to do outside the conversation itself.
 /**
@@ -793,6 +805,29 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   // Session history (M6).
   z.object({ type: z.literal('listSessions') }),
+  // Bookmarks (M88): set or remove one in this workspace; answered by `bookmarks`.
+  z.object({
+    type: z.literal('bookmarkSet'),
+    backend: z.enum(BACKEND_KINDS),
+    sessionId: stringSchema,
+    title: stringSchema,
+    isBookmarked: booleanSchema,
+  }),
+  // Prompt sequences (M88): the dialog's list, save and delete; answered by `sequenceLibrary`.
+  z.object({ type: z.literal('requestSequences') }),
+  z.object({ type: z.literal('sequenceSave'), sequence: savedSequenceSchema }),
+  z.object({
+    type: z.literal('sequenceDelete'),
+    scope: z.enum(['user', 'workspace']),
+    id: stringSchema,
+  }),
+  // A run's start and stop; answered by `sequenceState`, ended in words.
+  z.object({
+    type: z.literal('sequenceStart'),
+    scope: z.enum(['user', 'workspace']),
+    id: stringSchema,
+  }),
+  z.object({ type: z.literal('sequenceStop') }),
   // The session board (M77): every conversation in the window and its worktrees.
   z.object({ type: z.literal('requestSessionBoard') }),
   // The read-only legal scan (M97, PLAN.md D76): the report asks the host
@@ -1078,6 +1113,15 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // `false` where the host cannot delete a stored session (D26); absent means offered.
     canDeleteSessions: z.optional(booleanSchema),
   }),
+  // Bookmarks (M88): this workspace's records, posted with the session list and after `bookmarkSet`.
+  z.object({ type: z.literal('bookmarks'), bookmarks: z.array(bookmarkRecordSchema) }),
+  // Prompt sequences (M88): the library, and the run in this conversation, if any.
+  z.object({
+    type: z.literal('sequenceLibrary'),
+    sequences: z.array(savedSequenceSchema),
+    hasWorkspace: booleanSchema,
+  }),
+  z.object({ type: z.literal('sequenceState'), run: z.optional(sequenceRunViewSchema) }),
   // A resumed or forked session's history: the transcript is rebuilt from it.
   z.object({
     type: z.literal('historyLoaded'),

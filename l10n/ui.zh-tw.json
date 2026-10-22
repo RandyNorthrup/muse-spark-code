@@ -2516,6 +2516,8 @@
   "bookmarkedState": "已加書籤",
   "bookmarkUnavailable": "此處無法使用",
   "bookmarkNoWorkspace": "書籤需要開啟的資料夾。",
+  "bookmarksUnavailable": "書籤無法使用。",
+  "sequencesUnavailable": "提示詞序列無法使用。",
   "referenceBookmarks": "從歷史記錄或標題列星號收藏對話。已收藏的 Model API 交談會在清理後保留；書籤僅在已儲存提示詞同步開啟時同步。",
   "resumeItem": "恢復",
   "resumeDetail": "選擇此工作區中先前的對話",

@@ -2516,6 +2516,8 @@
   "bookmarkedState": "북마크됨",
   "bookmarkUnavailable": "여기서는 사용할 수 없음",
   "bookmarkNoWorkspace": "북마크를 사용하려면 열린 폴더가 필요합니다.",
+  "bookmarksUnavailable": "북마크를 사용할 수 없습니다.",
+  "sequencesUnavailable": "프롬프트 시퀀스를 사용할 수 없습니다.",
   "referenceBookmarks": "기록 또는 헤더 별표에서 대화를 북마크합니다. 북마크된 Model API 세션은 정리 후에도 유지됩니다. 북마크는 저장된 프롬프트 동기화가 켜져 있을 때만 동기화됩니다.",
   "resumeItem": "재개",
   "resumeDetail": "이 작업 영역의 이전 대화 선택",

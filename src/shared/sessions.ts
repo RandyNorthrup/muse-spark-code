@@ -37,6 +37,18 @@ export const sessionRowSchema = z.object({
 })
 export type SessionRow = z.infer<typeof sessionRowSchema>
 
+/**
+A bookmark as History groups it (M88, PLAN.md D67): the session, the title
+stored when it was bookmarked (standing in until the row is seen), and when.
+The backend rides the protocol's record; grouping never needs it.
+*/
+export const bookmarkRefSchema = z.object({
+  sessionId: z.string(),
+  title: z.string(),
+  bookmarkedAtMs: z.number(),
+})
+export type BookmarkRef = z.infer<typeof bookmarkRefSchema>
+
 const WHITESPACE_RUNS = /\s+/g
 
 export interface SessionTitleSource {

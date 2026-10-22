@@ -2620,6 +2620,8 @@
   "bookmarkedState": "Favoritada",
   "bookmarkUnavailable": "Indisponível aqui",
   "bookmarkNoWorkspace": "Favoritos precisam de uma pasta aberta.",
+  "bookmarksUnavailable": "Os favoritos estão indisponíveis.",
+  "sequencesUnavailable": "As sequências de prompts estão indisponíveis.",
   "referenceBookmarks": "Adicione conversas aos favoritos pelo Histórico ou pela estrela do cabeçalho. Uma sessão da Model API favoritada sobrevive à limpeza; favoritos só sincronizam com a sincronização de prompts salvos ativada.",
   "resumeItem": "Retomar",
   "resumeDetail": "Escolher uma conversa anterior neste espaço de trabalho",

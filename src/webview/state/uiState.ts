@@ -72,6 +72,8 @@ import type { ScheduleView } from '../../shared/schedule'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
+import type { BookmarkRecord } from '../../shared/protocol'
+import type { SavedSequence, SequenceRunView } from '../../shared/sequences'
 import type {
   AccountFacts,
   ProviderUsageRow,
@@ -294,6 +296,14 @@ export interface UiState {
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
+  /** This workspace's bookmarks, once the host posted them (M88). */
+  readonly bookmarks: readonly BookmarkRecord[] | undefined
+  /** The prompt sequences, once the dialog asked (M88). */
+  readonly sequences: readonly SavedSequence[] | undefined
+  /** Whether a workspace scope exists for new sequences (M88). */
+  readonly sequenceHasWorkspace: boolean
+  /** The run in this conversation, if one is going (M88). */
+  readonly sequenceRun: SequenceRunView | undefined
   /** The session board's rows, once the board asked (M77). */
   readonly board: readonly BoardRow[] | undefined
   /** The best-of-N run this surface last heard of (M77). */
@@ -705,6 +715,10 @@ export const initialUiState: UiState = {
   },
   sessions: undefined,
   archivedIds: [],
+  bookmarks: undefined,
+  sequences: undefined,
+  sequenceHasWorkspace: false,
+  sequenceRun: undefined,
   board: undefined,
   bestOfN: undefined,
   draft: '',
@@ -2529,6 +2543,8 @@ function clearedConversation(state: UiState): UiState {
     banner: undefined,
     title: undefined,
     sessionId: undefined,
+    // The host ends the run with the conversation; the row goes with it (M88).
+    sequenceRun: undefined,
     openQuestions: [],
     submittedQuestions: [],
     questionNavigation: undefined,
@@ -3102,6 +3118,19 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         openQuestionCounts: { ...state.openQuestionCounts, ...message.openQuestionCounts },
         canDeleteSessions: message.canDeleteSessions ?? true,
       }
+    }
+    case 'bookmarks': {
+      return { ...state, bookmarks: message.bookmarks }
+    }
+    case 'sequenceLibrary': {
+      return {
+        ...state,
+        sequences: message.sequences,
+        sequenceHasWorkspace: message.hasWorkspace,
+      }
+    }
+    case 'sequenceState': {
+      return { ...state, sequenceRun: message.run }
     }
     case 'sessionBoard': {
       return { ...state, board: message.rows }

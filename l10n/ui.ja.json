@@ -2516,6 +2516,8 @@
   "bookmarkedState": "ブックマーク済み",
   "bookmarkUnavailable": "ここでは利用できません",
   "bookmarkNoWorkspace": "ブックマークには開いているフォルダーが必要です。",
+  "bookmarksUnavailable": "ブックマークは利用できません。",
+  "sequencesUnavailable": "プロンプトのシーケンスは利用できません。",
   "referenceBookmarks": "履歴またはヘッダーの星から会話をブックマークします。ブックマークされた Model API セッションはクリーンアップ後も残ります。ブックマークの同期は、保存済みプロンプトの同期がオンの場合のみ行われます。",
   "resumeItem": "再開",
   "resumeDetail": "このワークスペースの以前の会話を選択します",

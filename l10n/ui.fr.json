@@ -2620,6 +2620,8 @@
   "bookmarkedState": "Avec signet",
   "bookmarkUnavailable": "Indisponible ici",
   "bookmarkNoWorkspace": "Les signets exigent un dossier ouvert.",
+  "bookmarksUnavailable": "Les signets sont indisponibles.",
+  "sequencesUnavailable": "Les séquences de prompts sont indisponibles.",
   "referenceBookmarks": "Ajoutez des conversations aux signets depuis l’Historique ou l’étoile de l’en-tête. Une session de l’API Model mise en signet survit au nettoyage ; les signets ne sont synchronisés qu’avec la synchronisation des prompts enregistrés.",
   "resumeItem": "Reprendre",
   "resumeDetail": "Choisir une conversation précédente dans cet espace de travail",

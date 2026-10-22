@@ -2568,6 +2568,8 @@
   "bookmarkedState": "Könyvjelzőzve",
   "bookmarkUnavailable": "Itt nem érhető el",
   "bookmarkNoWorkspace": "A könyvjelzőkhöz megnyitott mappa kell.",
+  "bookmarksUnavailable": "A könyvjelzők nem érhetők el.",
+  "sequencesUnavailable": "A promptszekvenciák nem érhetők el.",
   "referenceBookmarks": "Beszélgetések könyvjelzőzése az Előzményekből vagy a fejléc csillagával. A könyvjelzőzött Model API-munkamenet túléli a takarítást; a könyvjelzők csak bekapcsolt mentettprompt-szinkronizálással szinkronizálódnak.",
   "resumeItem": "Folytatás",
   "resumeDetail": "Egy korábbi beszélgetés kiválasztása ezen a munkaterületen",
