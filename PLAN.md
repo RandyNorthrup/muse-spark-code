@@ -16669,6 +16669,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 red/green drill; record: `docs/certification/rlwinfix.md`. The vault
 suites never ran on this PC per the lane rules; hosted CI owns them.
 
+### RLWINFIX2 — Defects found running the published 0.19.0 as the fleet overnight (2026-10-22)
+
+**Status 2026-10-22: built.** All four items fixed, each with a
+real-code red/green drill; record: `docs/certification/rlwinfix2.md`.
+No CLI release 1.4.8–1.4.11 changes model-transport retries, so the
+rig pin stays. The vault suites never ran on this PC per the lane
+rules; hosted CI owns them.
+
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
 **Status 2026-10-11: building.** Typed translated stop first; tools-disabled

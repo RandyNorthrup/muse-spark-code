@@ -8,6 +8,8 @@
 
 import { wireWordForLog } from '../../logging'
 import { DeadlineError } from '../../timeouts'
+import { UI_TEXT } from '../../../shared/constants'
+import { isCreatedRegistrySaveError } from '../../../shared/createdRegistrySaveError'
 
 /** SDK errors cross independently bundled code; constructor identity cannot. */
 export function isMspFailure(
@@ -34,6 +36,45 @@ export function failureForLog(error: unknown): string {
     return error.message
   }
   return error instanceof Error ? error.name : 'an unknown failure'
+}
+
+/** A machine code word: an errno-style token, never free text. */
+const ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{1,31}$/u
+
+/** Whether the message is one of the installed UI sentences, exactly. */
+export function isOwnSentence(message: string): boolean {
+  const pending: unknown[] = [UI_TEXT]
+  while (pending.length > 0) {
+    const value: unknown = pending.pop()
+    if (typeof value === 'string') {
+      if (value === message) return true
+    } else if (typeof value === 'object' && value !== null) {
+      for (const entry of Object.values(value)) pending.push(entry)
+    }
+  }
+  return false
+}
+
+/**
+The failure's cause for logs and person-facing details: failureForLog, plus
+the error's own code when it is a machine code word (a Node errno like
+EPIPE, an ABORT_ERR), plus a refused registry save's fixed reason, plus a
+message that is one of our own installed sentences (our layers throw those
+when they know what happened: a closed session, a command too large). The
+sentences span layers, so any installed sentence passes rather than a fixed
+allowlist. Anything else stays exactly failureForLog: messages, paths and
+accounts never pass, only the name and the token-shaped code.
+*/
+export function causeForLog(error: unknown): string {
+  if (error instanceof Error) {
+    if ('code' in error && typeof error.code === 'string' && ERROR_CODE_PATTERN.test(error.code))
+      return `${error.name} ${error.code}`
+    // A refused registry save names its fixed reason; one of our own
+    // sentences passes untouched; anything else stays the name alone.
+    if (isCreatedRegistrySaveError(error)) return `${error.name} ${error.reason}`
+    if (isOwnSentence(error.message)) return error.message
+  }
+  return failureForLog(error)
 }
 
 // The stderr lines captured from `muse serve` 1.4.0-R4302.1 (Windows and

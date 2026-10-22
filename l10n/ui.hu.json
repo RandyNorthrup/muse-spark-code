@@ -3786,6 +3786,15 @@
   },
   "acpNoModels": "A háttérrendszer nem kínál olyan modellt, amelyet ez az ügynök használhat.",
   "acpPromptBusy": "Ebben a munkamenetben már fut egy prompt.",
+  "acpSessionStartFailed": "A munkamenetet nem sikerült elindítani ({detail}). A részletek a Muse Spark naplójában vannak.",
+  "acpTurnStartFailed": "A kört nem sikerült elindítani ({detail}). A részletek a Muse Spark naplójában vannak.",
+  "createdRegistrySave": {
+    "failed": "A létrehozott erőforrások nyilvántartását nem sikerült menteni ({reason}). A részletek a Muse Spark naplójában vannak.",
+    "refused": "a rendszer-segéd elutasította a mentést",
+    "unsafe": "a mentett nyilvántartás biztonsági ellenőrzése sikertelen volt",
+    "invalid": "a mentett nyilvántartás érvénytelen",
+    "io": "a mentést nem sikerült kiírni"
+  },
   "acpQuestionFormMessage": "Muse-nak kérdése van Önhöz.",
   "acpQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tudja űrlapként megjeleníteni, ezért a következő üzenetében válaszoljon:",
   "acpUnknownArgument": "Ismeretlen argumentum: {argument}",
@@ -4116,6 +4125,7 @@
   "removeAttachmentNamed": "{name} eltávolítása",
   "announceApprovalFor": "Jóváhagyás szükséges: {tool}",
   "turnFailed": "A kör sikertelen volt.",
+  "turnTransientFailed": "A Muse szolgáltatása nem tudta befejezni a kört. A kör megőrizte a munkáját; a folytatáshoz küldje el újra az üzenetet.",
   "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
   "turnRetryingUncapped": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva (nincs beállítva újrapróbálkozási korlát).",
   "modelApiProviderRetryWait": "{reason}; a szolgáltató arra kért, hogy várj {time} időpontig. A menetet bármikor leállíthatod.",

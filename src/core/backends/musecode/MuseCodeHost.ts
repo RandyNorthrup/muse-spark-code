@@ -148,7 +148,7 @@ import {
   type WireNotification,
 } from './mapNotification'
 import type { MuseUsageDeltas, UsageNotesBundle } from './usageDeltas'
-import { failureForLog } from './logText'
+import { causeForLog, failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
 import {
@@ -2716,7 +2716,7 @@ export class MuseSession implements ScheduledAgentSession {
     // connection is still open, even when the turn that started it has ended.
     void this.stopAllTasks().catch((error: unknown) => {
       this.log.warn(
-        `task/stopAll before releasing session ${this.sessionId} failed: ${failureForLog(error)}`,
+        `task/stopAll before releasing session ${this.sessionId} failed: ${causeForLog(error)}`,
       )
     })
     this.finishDispose()

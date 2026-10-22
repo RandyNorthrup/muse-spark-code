@@ -431,6 +431,9 @@ const agentEventSchema = z.discriminatedUnion('type', [
     terminal: stringSchema,
     reason: optionalString,
     errorKind: optionalString,
+    // The CLI's judgment that resubmitting the same input may succeed
+    // (TurnError.retryable): present where the wire reports it.
+    retryable: optionalBoolean,
     durationMs: optionalNumber,
   }),
   z.object({

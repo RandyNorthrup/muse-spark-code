@@ -15,6 +15,7 @@ import {
   RESOURCE_TEMP_TOKEN_BYTES,
 } from '../../shared/constants'
 import { fileIdentityKey, lstatIdentity } from '../fs/fileIdentity'
+import { CreatedRegistrySaveError } from '../../shared/createdRegistrySaveError'
 
 const entrySchema = z.strictObject({
   id: z.string().check(z.regex(/^[\da-f-]+$/u)),
@@ -57,6 +58,51 @@ export interface CreatedCleanup {
 function isMissing(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
 }
+
+/**
+Whether the native file helper ran and refused (a nonzero exit): the tree
+runner wraps the child failure with the child's error as its cause, whose
+numeric code is the exit status. Anything else (a spawn failure, a refusal
+shaped any other way) is not a refusal the save can judge a race by.
+*/
+function isHelperRefusal(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('cause' in error)) return false
+  const cause: unknown = error.cause
+  if (typeof cause !== 'object' || cause === null || !('code' in cause)) return false
+  const code: unknown = cause.code
+  return typeof code === 'number' && Number.isSafeInteger(code)
+}
+
+/** One entry per id, serialized for exact sync comparison. */
+function snapshotEntries(entries: ReadonlyMap<string, CreatedPath>): Map<string, string> {
+  const snapshot = new Map<string, string>()
+  for (const [id, entry] of entries) snapshot.set(id, JSON.stringify(entry))
+  return snapshot
+}
+
+function areSnapshotsEqual(
+  left: ReadonlyMap<string, CreatedPath>,
+  right: ReadonlyMap<string, string>,
+): boolean {
+  if (left.size !== right.size) return false
+  for (const [id, entry] of left) {
+    if (right.get(id) !== JSON.stringify(entry)) return false
+  }
+  return true
+}
+
+/** The live manifest behind one save attempt, with the publish's expected identity. */
+interface LiveManifest {
+  readonly contents: string
+  readonly previous: string
+  readonly isFresh: boolean
+  readonly parent: string
+  readonly parentIdentity: string
+}
+
+/** A publish attempt: landed, or the helper's refusal to judge a race by. */
+type PublishAttempt = { readonly output: string } | { readonly refusal: unknown }
+
 function digest(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
@@ -92,16 +138,9 @@ export class CreatedRegistry {
     if (registry.baseIdentity === undefined) throw new Error('Unsafe creation base')
     await registry.verifyBase()
     try {
-      const entries = z.array(entrySchema).parse(JSON.parse(await registry.checkManifest()))
-      for (const entry of entries) {
-        registry.checkPath(entry.path)
-        if (
-          registry.entries.has(entry.id) ||
-          Array.from(registry.entries.values(), (stored) => stored.path).includes(entry.path)
-        )
-          throw new Error('Invalid creation registry')
-        registry.entries.set(entry.id, entry)
-      }
+      const loaded = registry.parseManifest(await registry.checkManifest())
+      for (const [id, entry] of loaded) registry.entries.set(id, entry)
+      registry.synced = snapshotEntries(registry.entries)
     } catch (error: unknown) {
       if (!isMissing(error)) throw error
     }
@@ -113,6 +152,8 @@ export class CreatedRegistry {
   }
 
   private readonly entries = new Map<string, CreatedPath>()
+  /** This process's entries as of its last sync with the live manifest (open or save). */
+  private synced = new Map<string, string>()
   /** The background retirement of names earlier runs left; clean() reports its failure. */
   private leftovers: Promise<readonly PromiseSettledResult<void>[]> = Promise.resolve([])
   /** Entry ids and retained manifest names that failed proof and were left alone. */
@@ -161,6 +202,22 @@ export class CreatedRegistry {
       !/^muse-tree-[\da-f-]+$/u.test(name)
     )
       throw new Error('Invalid created path: outside creation base')
+  }
+
+  /** The manifest's bytes as entries, validated exactly as open() always validated them. */
+  private parseManifest(contents: string): Map<string, CreatedPath> {
+    const parsed = z.array(entrySchema).parse(JSON.parse(contents))
+    const entries = new Map<string, CreatedPath>()
+    for (const entry of parsed) {
+      this.checkPath(entry.path)
+      if (
+        entries.has(entry.id) ||
+        Array.from(entries.values(), (stored) => stored.path).includes(entry.path)
+      )
+        throw new Error('Invalid creation registry')
+      entries.set(entry.id, entry)
+    }
+    return entries
   }
 
   private async checkManifest(): Promise<string> {
@@ -392,44 +449,149 @@ export class CreatedRegistry {
   }
 
   private async save(): Promise<void> {
-    await this.verifyBase()
-    const { parent, identity: parentIdentity } = await this.verifiedParent()
-    let previous = ''
+    // No attempt limit of ours (D121): a lost compare-and-swap re-reads the
+    // live manifest, merges this process's entries into it, and publishes
+    // again until it lands. Concurrent instances (VS Code windows, ACP
+    // agents, the CLI) share the registry: a save never drops another
+    // process's entries, and a lost swap never fails a session. Only a
+    // genuine failure throws, typed for the caller's words.
+    for (;;) {
+      const live = await this.readLiveForSave()
+      const merged = this.mergeLiveChecked(live)
+      if (areSnapshotsEqual(merged, this.synced)) return
+      const stage = await this.writeStageChecked(merged)
+      const attempt = await this.tryPublishChecked(live, stage)
+      if (!('refusal' in attempt)) {
+        this.entries.clear()
+        for (const [id, entry] of merged) this.entries.set(id, entry)
+        this.synced = snapshotEntries(merged)
+        // The publish keeps the stage and the displaced manifest under
+        // guessable names; retire this save's own now that the live manifest
+        // is proven, by content and identity. A failed proof leaves the name
+        // alone and reports it. Names earlier runs left are the background
+        // queue's (open()).
+        await this.retireBatch([
+          stage.stageName,
+          `${stage.stageName}.previous`,
+          `${stage.stageName}.publish`,
+        ])
+        return
+      }
+      // A lost swap and a genuine refusal look the same (the helper exits 1
+      // either way). The live manifest tells them apart: unchanged means the
+      // helper refused this save; changed means another process published
+      // first, so merge again and publish again.
+      const current = await this.readLiveForSave()
+      if (current.previous === live.previous)
+        throw new CreatedRegistrySaveError('refused', { cause: attempt.refusal })
+    }
+  }
+
+  /** The live manifest behind one save attempt; a safety fault throws unsafe. */
+  private async readLiveForSave(): Promise<LiveManifest> {
     try {
-      await this.checkManifest()
-      previous = this.manifestIdentity ?? ''
+      await this.verifyBase()
+      const { parent, identity: parentIdentity } = await this.verifiedParent()
+      let previous = ''
+      let contents = ''
+      let isFresh = true
+      try {
+        contents = await this.checkManifest()
+        previous = this.manifestIdentity ?? ''
+        isFresh = false
+      } catch (error: unknown) {
+        if (!isMissing(error)) throw error
+      }
+      return { contents, previous, isFresh, parent, parentIdentity }
     } catch (error: unknown) {
-      if (!isMissing(error)) throw error
+      throw new CreatedRegistrySaveError('unsafe', { cause: error })
     }
-    const stage = `${this.file}.${randomUUID()}`
-    const handle = await open(stage, 'wx', RESOURCE_PRIVATE_FILE_MODE)
+  }
+
+  /**
+  The live manifest with this process's entries merged into it: entries this
+  process added, changed or removed since its last sync win by id; anything
+  else the live manifest holds is kept. A path this process recorded that
+  the live manifest already holds under another id is genuinely ambiguous
+  and throws invalid, never silently dropping either side.
+  */
+  private mergeLive(live: ReadonlyMap<string, CreatedPath>): Map<string, CreatedPath> {
+    const merged = new Map(live)
+    const livePaths = new Map<string, string>()
+    for (const [id, entry] of live) livePaths.set(entry.path, id)
+    for (const [id, entry] of this.entries) {
+      if (this.synced.get(id) === JSON.stringify(entry)) continue
+      const clash = livePaths.get(entry.path)
+      if (clash !== undefined && clash !== id) throw new Error('Invalid creation registry')
+      merged.set(id, entry)
+      livePaths.set(entry.path, id)
+    }
+    for (const id of this.synced.keys()) {
+      if (!this.entries.has(id)) merged.delete(id)
+    }
+    return merged
+  }
+
+  /** The merged live manifest; a validation fault throws invalid. */
+  private mergeLiveChecked(live: LiveManifest): Map<string, CreatedPath> {
     try {
-      await handle.writeFile(JSON.stringify(Array.from(this.entries.values(), (entry) => entry)))
-      await handle.sync()
-      const identity = fileIdentityKey(await handle.stat({ bigint: true }))
-      if (identity === undefined) throw new Error('Unsafe manifest stage identity')
-      z.strictObject({ published: z.literal(true) }).parse(
-        JSON.parse(
-          await this.nativeFiles([
-            'publish',
-            parent,
-            parentIdentity,
-            path.basename(stage),
-            path.basename(this.file),
-            previous,
-            identity,
-          ]),
-        ),
-      )
-    } finally {
-      await handle.close()
+      return this.mergeLive(live.isFresh ? new Map() : this.parseManifest(live.contents))
+    } catch (error: unknown) {
+      throw new CreatedRegistrySaveError('invalid', { cause: error })
     }
-    // The publish keeps the stage and the displaced manifest under guessable
-    // names; retire this save's own now that the live manifest is proven, by
-    // content and identity. A failed proof leaves the name alone and reports
-    // it. Names earlier runs left are the background queue's (open()).
-    const stageName = path.basename(stage)
-    await this.retireBatch([stageName, `${stageName}.previous`, `${stageName}.publish`])
+  }
+
+  /** The merged manifest staged for publication; a write fault throws io. */
+  private async writeStageChecked(
+    merged: ReadonlyMap<string, CreatedPath>,
+  ): Promise<{ stageName: string; identity: string }> {
+    const stage = `${this.file}.${randomUUID()}`
+    try {
+      const handle = await open(stage, 'wx', RESOURCE_PRIVATE_FILE_MODE)
+      try {
+        await handle.writeFile(JSON.stringify(Array.from(merged.values(), (entry) => entry)))
+        await handle.sync()
+        const identity = fileIdentityKey(await handle.stat({ bigint: true }))
+        if (identity === undefined) throw new Error('Unsafe manifest stage identity')
+        return { stageName: path.basename(stage), identity }
+      } finally {
+        await handle.close()
+      }
+    } catch (error: unknown) {
+      throw new CreatedRegistrySaveError('io', { cause: error })
+    }
+  }
+
+  /**
+  One publish: landed, or the helper's refusal to judge a race by. Anything
+  but a refusal (a spawn failure, a malformed acknowledgement) is not a race
+  signal and throws, typed when the helper answered.
+  */
+  private async tryPublishChecked(
+    live: LiveManifest,
+    stage: { stageName: string; identity: string },
+  ): Promise<PublishAttempt> {
+    let output: string
+    try {
+      output = await this.nativeFiles([
+        'publish',
+        live.parent,
+        live.parentIdentity,
+        stage.stageName,
+        path.basename(this.file),
+        live.previous,
+        stage.identity,
+      ])
+    } catch (error: unknown) {
+      if (!isHelperRefusal(error)) throw error
+      return { refusal: error }
+    }
+    try {
+      z.strictObject({ published: z.literal(true) }).parse(JSON.parse(output))
+    } catch (error: unknown) {
+      throw new CreatedRegistrySaveError('refused', { cause: error })
+    }
+    return { output }
   }
 
   private async nativeFiles(args: readonly string[]): Promise<string> {

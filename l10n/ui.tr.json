@@ -3786,6 +3786,15 @@
   },
   "acpNoModels": "Arka uç, bu aracının kullanabileceği bir model sunmuyor.",
   "acpPromptBusy": "Bu oturumda zaten bir istem çalışıyor.",
+  "acpSessionStartFailed": "Oturum başlatılamadı ({detail}). Ayrıntılar Muse Spark günlüğünde.",
+  "acpTurnStartFailed": "Tur başlatılamadı ({detail}). Ayrıntılar Muse Spark günlüğünde.",
+  "createdRegistrySave": {
+    "failed": "Oluşturulan kaynakların kayıt defteri kaydedilemedi ({reason}). Ayrıntılar Muse Spark günlüğünde.",
+    "refused": "sistem yardımcısı kaydetmeyi reddetti",
+    "unsafe": "kaydedilen kayıt defterinin güvenlik denetimi başarısız oldu",
+    "invalid": "kaydedilen kayıt defteri geçersiz",
+    "io": "kayıt yazılamadı"
+  },
   "acpQuestionFormMessage": "Muse'un size bir sorusu var.",
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",
   "acpUnknownArgument": "Bilinmeyen bağımsız değişken: {argument}",
@@ -4116,6 +4125,7 @@
   "removeAttachmentNamed": "{name} öğesini kaldır",
   "announceApprovalFor": "{tool} için onay gerekiyor",
   "turnFailed": "Tur başarısız oldu.",
+  "turnTransientFailed": "Muse hizmeti turu tamamlayamadı. Tur çalışmasını korudu; devam etmek için iletiyi yeniden gönderin.",
   "turnRetrying": "Deneme {attempt}/{maxAttempts} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
   "turnRetryingUncapped": "Deneme {attempt} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor (yeniden deneme sınırı yok).",
   "modelApiProviderRetryWait": "{reason}; sağlayıcı {time} tarihine kadar beklemeyi istedi. Turu istediğiniz zaman durdurabilirsiniz.",

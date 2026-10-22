@@ -274,6 +274,9 @@
     // intelligence integration test (M67); main.ts imports the rest.
     "test/fixtures/workspace/code-intel/main.ts",
     "test/hosts/*.mjs",
+    // The created-registry race worker entry: the race test bundles it with
+    // esbuild, which knip does not trace.
+    "test/unit/createdRegistryRaceEntry.ts",
     // The GitHub Action's scripts (M80): each composite step runs one by path.
     "action/lib/*.mjs",
     "action/apply/lib/*.mjs",

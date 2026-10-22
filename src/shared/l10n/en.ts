@@ -4673,6 +4673,21 @@ export const EN = {
   },
   acpNoModels: 'The backend offers no model this agent may use.',
   acpPromptBusy: 'A prompt is already running in this session.',
+  // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
+  acpSessionStartFailed:
+    'The session could not be started ({detail}). The Muse Spark log has the details.',
+  // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
+  acpTurnStartFailed:
+    'The turn could not be started ({detail}). The Muse Spark log has the details.',
+  createdRegistrySave: {
+    // {reason}: why the save failed, one of the clauses below.
+    failed:
+      'The created-resources registry could not be saved ({reason}). The Muse Spark log has the details.',
+    refused: 'the system helper refused the save',
+    unsafe: 'a safety check on the saved registry failed',
+    invalid: 'the saved registry was invalid',
+    io: 'the save could not be written',
+  },
   acpQuestionFormMessage: 'Muse has a question for you.',
   acpQuestionAsked:
     'Muse has a question; this editor cannot show it as a form, so answer in your next message:',
@@ -5220,6 +5235,12 @@ export const EN = {
   announceApprovalFor: 'Approval needed for {tool}',
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
+  // A failed turn the CLI judged resubmittable (TurnError.retryable): the
+  // service faltered mid-turn, the turn kept its work, and sending the
+  // message again continues it. The CLI's own detail follows in parentheses
+  // where the turn carried one (RLWINFIX2 item 3).
+  turnTransientFailed:
+    'MuseΓÇÖs service could not finish the turn. The turn kept its work; send the message again to continue.',
   turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
   // A retry notice with no retry limit (lane RETRYLIMITS): neither the
   // provider nor the person sets one, so the provider governs.

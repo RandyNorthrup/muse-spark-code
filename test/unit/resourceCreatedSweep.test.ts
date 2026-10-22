@@ -11,11 +11,12 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { CreatedRegistry, type CreatedPathProof } from '../../src/core/resources/createdRegistry'
+import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
 import { createdPathCommands } from '../../src/core/resources/resourceGovernorEntry'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { configureResources } from '../../src/core/resources/admission'
 import { buildLinuxHelper } from '../../scripts/build-linux-helper.mjs'
+import { createdRegistryProof } from './helpers/resources/registryProof'
 
 const fixture: {
   root: string
@@ -30,18 +31,9 @@ async function files(args: readonly string[]): Promise<string> {
   return await fixture.commands(args)
 }
 
-const proof: CreatedPathProof = {
-  files,
-  // As the product wires it: Linux's helper answers files only; macOS and
-  // Windows answer directories through the same commands.
-  directories: process.platform === 'linux' ? undefined : files,
-  // This fixture retires no owners and archives nothing: false and the
-  // production uninstalled answer are the true answers here.
-  exited: () => Promise.resolve(false),
-  createdByTree: () => Promise.resolve(false),
-  archivedAndClean: () => Promise.reject(new Error('Archive/clean proof is not installed')),
-  freeBytes: () => Promise.resolve(null),
-}
+// This fixture retires no owners and archives nothing: the shared proof's
+// false answers and production uninstalled answer are the true ones here.
+const proof = createdRegistryProof(files)
 
 async function openRegistry(dir: string): Promise<CreatedRegistry> {
   return await CreatedRegistry.open(

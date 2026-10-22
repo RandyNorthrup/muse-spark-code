@@ -8,14 +8,13 @@
 // On Windows the same driver races the named pipe (no socket files exist
 // there). The Unix-socket branch needs macOS or Linux and is marked for the
 // lead's run (docs/certification/chatgpt-grant-lock.md, "PLANFIX R2").
-import { spawn } from 'node:child_process'
-import { once } from 'node:events'
 import { chmod, lstat, mkdir, mkdtemp, rm, symlink, utimes, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { withNamedLock } from '../../src/runtime/namedLock'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { runDriverScript } from './helpers/spawnDriver'
 import {
   CHATGPT_GRANT_LOCK_DIR,
   CHATGPT_GRANT_LOCK_FILE,
@@ -59,25 +58,15 @@ interface Summary {
 
 describe('the named lock under a race (R2)', () => {
   it(`never lets two of ${String(PROCESSES)} processes hold at once, on dead socket files or a pipe`, async () => {
-    const driver = spawn(
-      process.execPath,
-      [
-        path.resolve('test/hosts/named-lock-race.mjs'),
-        scratch.bundle,
-        // Relative to the working folder the driver and its workers share: a
-        // socket path under a CI checkout's absolute path passed macOS's 103
-        // bytes (CI run 39086390519, capacity shard 5).
-        path.relative(process.cwd(), path.join(scratch.folder, 'work')),
-        String(PROCESSES),
-        String(ROUNDS),
-      ],
-      { stdio: ['ignore', 'pipe', 'inherit'] },
-    )
-    let output = ''
-    driver.stdout.on('data', (chunk: Buffer) => {
-      output += chunk.toString()
-    })
-    const [code] = await once(driver, 'exit')
+    const { code, output } = await runDriverScript(path.resolve('test/hosts/named-lock-race.mjs'), [
+      scratch.bundle,
+      // Relative to the working folder the driver and its workers share: a
+      // socket path under a CI checkout's absolute path passed macOS's 103
+      // bytes (CI run 39086390519, capacity shard 5).
+      path.relative(process.cwd(), path.join(scratch.folder, 'work')),
+      String(PROCESSES),
+      String(ROUNDS),
+    ])
     const summary = JSON.parse(output) as Summary
     expect(summary.violations, 'two holders inside the protected work at once').toBe(0)
     expect(summary.failures).toEqual([])

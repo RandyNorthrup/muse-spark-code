@@ -3708,6 +3708,15 @@
   },
   "acpNoModels": "バックエンドには、このエージェントが使用できるモデルがありません。",
   "acpPromptBusy": "このセッションでは既にプロンプトを実行中です。",
+  "acpSessionStartFailed": "セッションを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
+  "acpTurnStartFailed": "ターンを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
+  "createdRegistrySave": {
+    "failed": "作成済みリソースのレジストリを保存できませんでした ({reason})。詳細は Muse Spark のログを参照してください。",
+    "refused": "システム ヘルパーが保存を拒否しました",
+    "unsafe": "保存済みレジストリの安全性チェックが失敗しました",
+    "invalid": "保存済みレジストリが無効です",
+    "io": "保存内容を書き込めませんでした"
+  },
   "acpQuestionFormMessage": "Muse から質問があります。",
   "acpQuestionAsked": "Muse から質問があります。このエディターではフォームとして表示できないため、次のメッセージで回答してください:",
   "acpUnknownArgument": "不明な引数: {argument}",
@@ -4024,6 +4033,7 @@
   "removeAttachmentNamed": "{name} を削除",
   "announceApprovalFor": "{tool} の承認が必要です",
   "turnFailed": "ターンが失敗しました。",
+  "turnTransientFailed": "Muse のサービスはターンを完了できませんでした。ターンの作業は保持されています。続けるにはメッセージをもう一度送信してください。",
   "turnRetrying": "試行 {attempt}/{maxAttempts} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
   "turnRetryingUncapped": "試行 {attempt} が失敗しました ({reason})。{seconds} 秒後に再試行します（再試行の上限なし）。",
   "modelApiProviderRetryWait": "{reason}；プロバイダーが{time}まで待機するよう求めています。ターンはいつでも停止できます。",
