@@ -622,6 +622,7 @@ describe('slashCommandsOf', () => {
     const names = commands.map((command) => command.name)
     expect(names).toEqual([
       'resume',
+      'sequences',
       'commit',
       'push',
       'pr',
