@@ -15092,13 +15092,16 @@ resolved against the plan's user-visible promise, not against the tag:
 
 ### D109 — Model-call turn limits preserve the answer (TOOLROUNDS, 2026-10-11; renumbered from D108 at merge, main took D108 for the test overhaul)
 
-The Model API turn cap is a limit, not a loop detector: default 200 model
-calls: ordinary reviews and coding jobs need more than fifty calls, while
-existing money caps protect spending. An existing caller request cap replaces that default with its remaining
-allowance. Reserve the last permitted call for a tools-disabled wrap-up; retain
-its answer and report a translated, typed request-limit stop in every host.
-Existing money caps, compaction accounting and queued-input promotion remain
-in force. Certification: [toolrounds](docs/certification/toolrounds.md).
+The Model API turn cap is a limit, not a loop detector: no round count of ours
+ends a turn (2026-10-17, D121/D208: the 200-call default no longer exists;
+ordinary reviews and coding jobs need more than fifty calls, and only a
+provider's documented limit or a value the person set may stop anything).
+A caller allowance bounds the run — exec's `--max-requests`, a best-of-N
+attempt ceiling, or another caller bound — and an existing caller request cap
+is read with its remaining allowance. Reserve the last permitted call for a
+tools-disabled wrap-up; retain its answer and report a translated, typed
+request-limit stop in every host. Person-set money caps, compaction accounting
+and queued-input promotion remain in force. Certification: [toolrounds](docs/certification/toolrounds.md).
 
 ### D208 — No spending check without a limit the person set (spend-simple, owner 2026-10-17; numbered D121 until the 0.19.0 join, when that number was found shared with D121 limits-only-on-models)
 
