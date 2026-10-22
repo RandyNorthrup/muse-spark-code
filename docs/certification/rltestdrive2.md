@@ -29,6 +29,19 @@ the manifest fixed. Palette visibility itself has no VS Code API
 (`getCommands` lists hidden commands too), so it is proven on the
 packed VSIX below.
 
+Look: `ui:look -- help` and `ui:look -- palette`, light and dark, all
+four render — but neither scene can show this change. The Help dialog
+renders the published reference, which filters in-progress commands,
+so the vault/estimator rows (and their Run buttons) are absent by
+design; the `palette` scene is the in-panel Commands menu (chat
+actions), not VS Code's native palette. No harness scene renders the
+native Ctrl+Shift+P palette, so the eyeball check stays a real-VS
+Code step for the owner/lead; the automatable chain is complete (exact
+manifest pin + the VSIX-manifest drill). Environment note: Chrome
+aborts under the lane's long default TMPDIR (`Socket path too long`,
+SIGABRT); `TMPDIR=<worktree>/temp` works
+(`/var/tmp/l-RLTESTDRIVE2` is read-only in-sandbox).
+
 ## 12. Absent keybindings input is not invalid data (`9024621d2f`)
 
 Every report kind read the keybindings source as "The source has an
