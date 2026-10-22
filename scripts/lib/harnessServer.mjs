@@ -267,7 +267,9 @@ export const SCENARIOS = [
   'share-narrow',
   'verify',
   'board',
+  'board-narrow',
   'bestofn',
+  'bestofn-narrow',
   'plan',
   'plan-brief',
   'plan-narrow',
@@ -398,6 +400,8 @@ checks pass or reports why they did not. The wide column keeps the
 scrollbars headless Chrome otherwise hides, as its check measures one.
 */
 export const SIZED_SCENARIOS = {
+  'board-narrow': { width: 320, ready: '#board-listbox' },
+  'bestofn-narrow': { width: 320, ready: '.bestofn-panes' },
   ...Object.fromEntries(
     TRAFFIC_SCENARIOS.map((scenario) => [
       scenario,

@@ -334,7 +334,12 @@
         height: 695,
         sizeBytes: 12345,
       })
-      let composer = { effort: 'high', isThinkingEnabled: true, permissionMode: 'manual' }
+      let composer = {
+        effort: 'high',
+        isThinkingEnabled: true,
+        isFastEnabled: false,
+        permissionMode: 'manual',
+      }
       // M79: where the harness's plan is saved, and a plan reply in the shape
       // Muse Code's `plan` skill sends it in Plan mode (captured live
       // 2026-09-27): the handoff, the plan, the handoff again.
@@ -6156,6 +6161,31 @@
           })
         },
         // --- M77: best-of-N: parallel attempts, their diffs side by side, "take this one" ---
+        'board-narrow': () => {
+          if (innerWidth !== 320) throw new Error('The board requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.board()
+          whenFound('#board-listbox', () => {
+            const search = document.querySelector('[role="combobox"]')
+            if (search === null || document.activeElement !== search)
+              throw new Error('The mixed-backend board must focus its search')
+            search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+            whenFound('[id="board-row-museCode:s2"][aria-selected="true"]', () => {
+              if (
+                document.activeElement !== search ||
+                search.getAttribute('aria-activedescendant') !== 'board-row-museCode:s2'
+              )
+                throw new Error('The board arrows must reach the native row without moving focus')
+            })
+          })
+        },
+        'bestofn-narrow': () => {
+          if (innerWidth !== 320) throw new Error('Best-of-N requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.bestofn()
+        },
         bestofn: () => {
           // The run lands first: the dialog shows the run view only for a run
           // it already knows when it opens.
@@ -6169,6 +6199,9 @@
               attempts: 3,
               requestCeilingPerAttempt: 8,
               status: 'running',
+              // Reported spend replays recorded receipts (M106 u8,
+              // 2026-10-05; OR-UNSUP, 2026-10-13 UTC): a complete
+              // receipt, a partial total, and an attempt with none yet.
               runAttempts: [
                 {
                   attemptId: 'a1',
@@ -6179,6 +6212,10 @@
                   requestsMade: 4,
                   ceilingReached: false,
                   approvalsDenied: 0,
+                  reportedInputTokens: 6,
+                  reportedOutputTokens: 5,
+                  reportedCostUsd: '0.00000091',
+                  hasUnreportedCost: false,
                   files: [{ path: 'src/parser.ts', insertions: 2, deletions: 2 }],
                   changedLines: 4,
                   diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n+    ['??', 4],",
@@ -6193,6 +6230,10 @@
                   requestsMade: 8,
                   ceilingReached: true,
                   approvalsDenied: 1,
+                  reportedInputTokens: 2119,
+                  reportedOutputTokens: 689,
+                  reportedCostUsd: '0.00000091',
+                  hasUnreportedCost: true,
                   files: [{ path: 'src/parser.ts', insertions: 3, deletions: 1 }],
                   changedLines: 4,
                   diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n-    ['??', 5],\n+    ['??', 4],\n+    ['||', 5],",
@@ -6615,6 +6656,10 @@
       const scheduleNarrowFits = () =>
         window.innerWidth === 320 && document.documentElement.scrollWidth <= window.innerWidth
       const SCENARIO_READY = {
+        'board-narrow': () =>
+          scheduleNarrowFits() && document.querySelector('#board-listbox') !== null,
+        'bestofn-narrow': () =>
+          scheduleNarrowFits() && document.querySelector('.bestofn-panes') !== null,
         jump: () => document.querySelector('.jump-latest') !== null,
         'resources-throttle': () =>
           document.querySelector('.resource-popover footer') !== null &&

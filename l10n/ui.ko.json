@@ -4116,6 +4116,8 @@
   "bestOfNApprovalsDenied": {
     "other": "거부된 승인 {count}건"
   },
+  "bestOfNAttemptCost": "보고된 지출 {cost}",
+  "bestOfNAttemptCostPartial": "{cost} 보고됨, 나머지 대기 중",
   "bestOfNAttemptFailed": "실패: {reason}",
   "bestOfNTakenMark": "채택: {branch}",
   "bestOfNDiffClipped": "차이가 잘렸습니다.",
@@ -4136,6 +4138,8 @@
   "bestOfNAttemptNotDone": "완료된 시도만 채택할 수 있습니다.",
   "bestOfNWorktreeFailed": "시도의 작업 트리를 만들 수 없습니다: {reason}",
   "bestOfNTaken": "{branch}의 미리 보기를 적용하고 스테이징했습니다.",
+  "bestOfNTakenSpend": "{branch}의 미리 보기를 적용하고 스테이징했습니다. 보고된 사용량: {tokens}.",
+  "bestOfNTakenSpendCost": "{branch}의 미리 보기를 적용하고 스테이징했습니다. 보고된 사용량: {tokens}, 보고된 지출 {cost}.",
   "bestOfNTakeFailed": "{branch}를 적용하고 스테이징할 수 없습니다. 다시 시도하기 전에 작업 복사본을 확인하세요: {reason}",
   "paidConfirmAccept": "켜기",
   "paidBadge": "유료: {features}",
