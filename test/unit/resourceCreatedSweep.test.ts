@@ -165,5 +165,8 @@ describe('created registry sweep', () => {
     await second.clean()
     expect(await folderNames(dir)).toEqual(['registry.json', 'trees'])
     expect(JSON.parse(await readFile(path.join(dir, 'registry.json'), 'utf8'))).toHaveLength(2)
-  })
+    // 5,000 real files planted and retired through the native helpers take
+    // 7.5 to 13.6 s on this project's Windows PC, near the repository's 15 s
+    // Windows budget: no limit of ours on it (owner 2026-10-16).
+  }, 0)
 })

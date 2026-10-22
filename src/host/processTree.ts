@@ -459,7 +459,7 @@ let deadline;
 const counts = { stdout: 0, stderr: 0 };
 function table() {
   return execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,lstart='], {
-    encoding: 'utf8', timeout: spec.cleanupMs, maxBuffer: spec.maxBuffer,
+    encoding: 'utf8', maxBuffer: spec.maxBuffer,
     env: { ...process.env, LC_ALL: 'C' }
   }).split('\n').flatMap(line => {
     const match = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
@@ -504,7 +504,7 @@ function signal(row, name) {
   let live;
   try {
     const text = execFileSync('/bin/ps', ['-o', 'lstart=', '-p', String(row.pid)], {
-      encoding: 'utf8', timeout: spec.cleanupMs, env: { ...process.env, LC_ALL: 'C' }
+      encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' }
     }).trim();
     if (text) live = { ...row, start: text };
   } catch (error) {
@@ -593,13 +593,12 @@ export function runTreeSync(
         ...(timeout !== undefined && { timeout }),
         maxBuffer,
         pollMs: POSIX_TREE_EXIT_POLL_MS,
-        cleanupMs: POSIX_TREE_EXIT_WAIT_MS,
       }),
     ),
-    // The supervisor's own clock ends the tree at the caller's deadline;
-    // this one only backs it, past the cleanup it then runs. No caller
-    // deadline, no clock at all.
-    ...(timeout !== undefined && { timeout: timeout + POSIX_TREE_EXIT_WAIT_MS * 2 }),
+    // Only the supervisor's own clock, at the caller's deadline, ends the
+    // tree; nothing of ours bounds its process-table reads or the cleanup
+    // after it (a clock here could kill the supervisor mid-cleanup and leave
+    // the tree running). No caller deadline, no clock at all.
     encoding: 'buffer',
   })
 }

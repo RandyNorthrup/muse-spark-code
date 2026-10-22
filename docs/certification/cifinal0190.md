@@ -720,3 +720,33 @@ Drills, on this PC:
   helper build: exit 1, "inline node code imports 'zod', and the job installs
   nothing before this step". Restored: exit 0. (The same edit to a hosts.yml
   step that runs after its job's `npm ci` stayed green, as it should.)
+
+## 20. PR #257's third run: our own time limits on slow Windows runners
+
+PR #257 head `87753d1877` (CI run 39675615471, capacity run 39675898149):
+red on hosted Windows only, in code the pull request did not change, as on
+PR #255's second run and PR #257's first (capacity run 39672218426): a
+different set of cases each time, each one ended by a time limit of ours on
+a slow runner: `runnerHelperNative` past its 60 s, the schedule background
+entry past the integration runs' 20 s, the screen recorder's Windows
+PowerShell identity read killed by the process table's 20 s
+(`killed: true, SIGTERM`), and store reads `unavailable` after the report
+sources' 5 s. By the owner's decision (2026-10-21) the limits go in this
+release:
+
+- Report sources: no deadline of ours ends a read, a post or a rate-limit
+  hold (`docs/certification/lim-reports.md`).
+- Process queries and their stops: no deadline of ours on Windows
+  PowerShell, `taskkill` or process-table reads, the POSIX tree supervisor
+  arms a clock only for a caller's deadline and bounds none of its own
+  `ps` reads, and the media and vault stop paths wait for the process's own
+  exit (`docs/certification/nolimitsprocs0190.md`).
+- The two test cases wait however long the machine takes.
+- `callerStop` (`src/core/timeouts.ts`) reads 0 and Infinity as no
+  deadline, so the report reads' `timeout: Infinity` never reaches
+  `AbortSignal.timeout`, which throws on it (checked: `ERR_OUT_OF_RANGE`).
+- `resourceCreatedSweep`'s 5,000-file case took 7.5 to 13.6 s in fresh
+  worktrees on this PC and 15 to 16.2 s in this worktree (the same commit,
+  the same `node_modules`, the same disk speed by a 5,000-file write
+  benchmark), against the repository's 15 s Windows budget: it waits however
+  long it takes too (16.2 s here, passing).

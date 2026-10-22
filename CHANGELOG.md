@@ -394,6 +394,12 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   step it served (building a Windows helper, reading a process tree, ending
   one) then failed. These steps, and their macOS and Linux counterparts, now
   run until they end; Stop, or a deadline the caller sets, still ends them.
+- Reports no longer give up on a source after 5 seconds. A slow answer from
+  GitHub, the Marketplace, Open VSX, npm or a large repository's git history
+  used to make that part of the report read "unavailable"; each source now
+  waits for its answer, and Stop still ends the report. A source rate-limited
+  without saying until when is asked again on the next report instead of
+  being held back for 5 seconds.
 - On Windows as an elevated administrator (Windows Server's defaults), work
   the resource governor starts is no longer refused, and the private folder
   for a screen-recording preview is locked to its owner alone.
