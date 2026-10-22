@@ -151,10 +151,13 @@ describe('the ACP child-work admission', () => {
         },
       ),
     )
-    const flag = (): void => {
-      isSettled = true
-    }
-    void outcome.then(flag).catch(flag)
+    void (async () => {
+      try {
+        await outcome
+      } finally {
+        isSettled = true
+      }
+    })()
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(wakes).toBe(1)
     expect(isSettled).toBe(false)
