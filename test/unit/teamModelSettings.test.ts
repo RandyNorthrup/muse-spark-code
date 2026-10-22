@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  capabilitiesForModelId,
   defaultEntryEffort,
   roleBaseEffort,
   settingCostNote,
@@ -14,6 +15,7 @@ import {
   type TeamModelSettingsSource,
   type ResolvedEntrySettings,
 } from '../../src/core/team/modelSettings'
+import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 
 const META_TIERS = ['minimal', 'low', 'medium', 'high', 'xhigh']
 
@@ -144,5 +146,66 @@ describe('shiftEffort', () => {
   it('shifts Default from the picker effort', () => {
     expect(defaultEntryEffort('medium', 1, META_TIERS)).toBe('high')
     expect(defaultEntryEffort('medium', -1, META_TIERS)).toBe('low')
+  })
+})
+
+describe('capabilitiesForModelId', () => {
+  const meta = metaCapabilityRecord('muse-spark-1.3')
+  const metaEffort = meta.reasoning.effortLevels
+  if (metaEffort.state !== 'yes') throw new Error('Expected verified Meta tiers')
+  const byo = {
+    ...meta,
+    identity: { ...meta.identity, provider: 'openai' },
+    reasoning: {
+      ...meta.reasoning,
+      effortLevels: { ...metaEffort, value: ['high'] },
+    },
+  }
+  const metaRecord = () => meta
+
+  // P2-5/P3-4: Meta's known families resolve locally, anything else from
+  // today's discovery match; unknown stays unknown.
+  it('resolves a qualified provider id from its discovery match', () => {
+    expect(
+      capabilitiesForModelId({
+        modelId: 'openai/gpt-5',
+        discoveryMatch: byo,
+        isKnownMetaFamily: false,
+        metaRecord,
+      }),
+    ).toMatchObject({ effortTiers: ['high'] })
+  })
+
+  it('leaves an undiscovered provider unknown', () => {
+    expect(
+      capabilitiesForModelId({
+        modelId: 'openai/gpt-5',
+        discoveryMatch: undefined,
+        isKnownMetaFamily: false,
+        metaRecord,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('resolves a known Meta family from the catalogue record', () => {
+    expect(
+      capabilitiesForModelId({
+        modelId: 'muse-spark-1.3',
+        discoveryMatch: undefined,
+        isKnownMetaFamily: true,
+        metaRecord,
+      }),
+    ).toMatchObject({ effortTiers: expect.any(Array) })
+  })
+
+  it('leaves an unknown Meta family unknown', () => {
+    expect(
+      capabilitiesForModelId({
+        modelId: 'muse-spark-9.9',
+        discoveryMatch: undefined,
+        isKnownMetaFamily: false,
+        metaRecord,
+      }),
+    ).toBeUndefined()
   })
 })

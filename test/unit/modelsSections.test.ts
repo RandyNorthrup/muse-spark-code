@@ -11,8 +11,14 @@ import { INITIAL_PANEL_UI } from '../../src/webview/models/reducer'
 import { makeState } from './modelsPanelFixtures'
 
 describe('MODEL_SECTIONS', () => {
-  it('registers providers, models and the gated vault, each with a title, icon and Component', () => {
-    expect(MODEL_SECTIONS.map((section) => section.id)).toEqual(['providers', 'models', 'vault'])
+  it('registers providers, models, the gated team sections and the gated vault, each with a title, icon and Component', () => {
+    expect(MODEL_SECTIONS.map((section) => section.id)).toEqual([
+      'providers',
+      'models',
+      'roles',
+      'agents',
+      'vault',
+    ])
     for (const section of MODEL_SECTIONS) {
       expect(section.getTitle().length).toBeGreaterThan(0)
       expect(typeof section.icon).toBe('function')
@@ -39,8 +45,9 @@ describe('MODEL_SECTIONS', () => {
     expect(vault.reduceSection(INITIAL_PANEL_UI, { type: 'open-wizard' })).toBe(INITIAL_PANEL_UI)
   })
 
-  it('finds nothing for a section this build has none of', () => {
-    expect(sectionById('roles' as 'providers')).toBe(undefined)
+  it('finds the gated team sections by their deep-link IDs', () => {
+    expect(sectionById('roles')?.getTitle()).toBe(UI_TEXT.teamRolesTitle)
+    expect(sectionById('agents')?.getTitle()).toBe(UI_TEXT.teamEditor.agents)
   })
 
   it('folds each section only over its own overlay actions', () => {

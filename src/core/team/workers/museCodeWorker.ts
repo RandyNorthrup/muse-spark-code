@@ -54,7 +54,6 @@ capture, research §4.7), so Muse Code itself refuses that worker's file
 writes and shell. A trusted workspace loads its rules and skills.
 `isContributorMode` is the person's own Muse Code settings
 (`contributor_mode_enabled`); absent reads as off, never defaulted on.
-@unwired M96 worker serve arguments
 */
 export function workerServeArgs(
   kind: MuseWorkerHostKind,
@@ -190,7 +189,6 @@ Runs one Muse Code worker's task: a session per task on the window's team
 host (the read-only host for a `read-only` role, never the
 conversation's), in the task's folder, with the bridge's servers. The
 worker ends its last message with the `muse-team-report` block.
-@unwired M96 Muse worker runner
 */
 export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
   readonly sessionId: string

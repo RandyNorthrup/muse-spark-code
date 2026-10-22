@@ -703,9 +703,7 @@ function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): ResolvedRole |
   return Object.freeze({ ...met.role, workspace, delegates, tools: toolset.tools, toolset })
 }
 
-/** Capture every input first. Any failure invalidates the whole catalogue.
-@unwired M96 role catalogue loader
-*/
+/** Capture every input first. Any failure invalidates the whole catalogue. */
 export async function loadRoles(
   deps: AgentsLoaderDeps,
   roots: readonly AgentRoot[],

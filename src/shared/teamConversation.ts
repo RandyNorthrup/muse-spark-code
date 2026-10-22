@@ -9,7 +9,12 @@
 // the team off sends nothing for the team at any time.
 
 import * as z from 'zod/mini'
-import { TEAM_BOOTSTRAP_MODEL_TEXT, VERIFY_TOOLS } from './constants'
+import {
+  OPTIONAL_RUNTIME_AVAILABILITY,
+  TEAM_BOOTSTRAP_MODEL_TEXT,
+  UI_TEXT,
+  VERIFY_TOOLS,
+} from './constants'
 export { TEAM_BOOTSTRAP_MODEL_TEXT } from './constants'
 
 import type { TeamDecisionSource } from '../core/team/teamSeams'
@@ -31,6 +36,31 @@ export type TeamConversationMode = 'single-model' | 'team'
 export interface TeamConversationDecision {
   readonly mode: TeamConversationMode
   readonly reason: SingleModelReason
+}
+
+/**
+Decides a conversation's mode when it starts, from the latest probe
+results already known. An entry counts only when it is both a different
+model from the orchestrator slot's (after `sameModel` dedupe) and
+observably loaded in this window. Key-billed entries need `teamWorkers`
+on; unavailable or unready entries never count.
+The one availability decision (RVCM963JB P2-1): the release latch AND the
+raw setting. Every entry point (canConfigure, the Roles, Agents and Try
+bindings, loading a saved runnable team, dispatch) asks this function, so
+a true setting with a closed latch opens nothing.
+*/
+export function isTeamAvailable(setting: unknown): boolean {
+  return OPTIONAL_RUNTIME_AVAILABILITY.team && setting === true
+}
+
+/**
+The refusal an entry point reports when the release latch closes it
+(P3-1): the latch, never the budget sentence. Undefined while the latch
+is open; a setting switched off or an untrusted workspace keeps its own
+error at each site.
+*/
+export function teamLatchRefusal(): string | undefined {
+  return OPTIONAL_RUNTIME_AVAILABILITY.team ? undefined : UI_TEXT.teamNotReleased
 }
 
 /**
@@ -75,8 +105,6 @@ export function decideTeamConversationMode(source: TeamDecisionSource): TeamConv
 export const TEAM_WORKSPACE_KEYS = {
   /** The workspace team (lanes R/A own the shape): template, roles and pools. */
   team: 'museSpark.team.config',
-  /** The orchestrator slot's workspace override (lane T owns the shape). */
-  orchestratorOverride: 'museSpark.team.orchestrator',
   conversationModes: 'museSpark.team.conversations',
 } as const
 
@@ -104,9 +132,52 @@ export function readTeamWorkspaceHint(state: TeamWorkspaceStateReader): {
   }
   const template: unknown = 'template' in stored ? stored.template : undefined
   return {
-    soloTemplate: template === 'Solo',
+    soloTemplate: template === 'Solo' || template === 'solo',
     hasStoredTeam: true,
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+Whether the stored team names an entry that could make a conversation a
+team one: an agent this editor runs, a model other than the orchestrator's
+(model ids compared trimmed, lane R's `sameModel`), and, when it bills a
+key, `teamWorkers` on. Read in the activation bundle from workspace state
+alone: without such an entry nothing loads and nothing is probed (Solo,
+single-model, key entries with `teamWorkers` off; acceptance 1 and 47).
+*/
+export function hasRunnableTeamEntry(
+  state: TeamWorkspaceStateReader,
+  options: {
+    readonly orchestratorModelId: string
+    readonly isTeamWorkersOn: boolean
+    readonly canRunKind: (kind: string) => boolean
+  },
+): boolean {
+  const stored: unknown = state.get(TEAM_WORKSPACE_KEYS.team)
+  if (!isRecord(stored) || stored['template'] === 'Solo' || !Array.isArray(stored['roles']))
+    return false
+  const orchestrator = options.orchestratorModelId.trim()
+  return stored['roles'].some(
+    (role: unknown) =>
+      isRecord(role) &&
+      Array.isArray(role['pool']) &&
+      role['pool'].some((entry: unknown) => {
+        const agent = isRecord(entry) ? entry['agent'] : undefined
+        if (!isRecord(agent)) return false
+        const { kind, model, pays } = agent
+        return (
+          typeof kind === 'string' &&
+          typeof model === 'string' &&
+          options.canRunKind(kind) &&
+          model.trim() !== orchestrator &&
+          (pays !== 'key' || options.isTeamWorkersOn)
+        )
+      }),
+  )
 }
 
 const conversationModesSchema = z.record(z.string(), z.enum(['single-model', 'team']))

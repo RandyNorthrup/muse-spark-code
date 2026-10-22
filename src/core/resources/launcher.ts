@@ -6,6 +6,7 @@ import type {
 } from './launch'
 import type {
   execResourceFile as ResourceCommandRunner,
+  execResourceFileBytes as ResourceBytesRunner,
   handoffResourceFile as ResourceHandoffRunner,
 } from './commands'
 
@@ -59,4 +60,12 @@ export async function execResourceFile(
 ): Promise<Awaited<ReturnType<typeof ResourceCommandRunner>>> {
   const bundle = await import('./resourceProcessEntry.js')
   return await bundle.execResourceFile(...args)
+}
+
+/** Binary-safe bounded helper commands share the same lazy process boundary. */
+export async function execResourceFileBytes(
+  ...args: Parameters<typeof ResourceBytesRunner>
+): Promise<Awaited<ReturnType<typeof ResourceBytesRunner>>> {
+  const bundle = await import('./resourceProcessEntry.js')
+  return await bundle.execResourceFileBytes(...args)
 }
