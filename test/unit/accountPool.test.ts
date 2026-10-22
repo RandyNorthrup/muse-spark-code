@@ -36,8 +36,9 @@ function account(id: string, order: number, overrides: Partial<Account> = {}): A
   return { id, label: `Label ${id}`, order, thresholds: {}, ...overrides }
 }
 
-function conversation(): AccountPoolRequest {
+function conversation(retryAccount?: string): AccountPoolRequest {
   return {
+    ...(retryAccount !== undefined && { retryAccount }),
     owner: 'chat-1',
     budgetOwner: 'chat-1',
     modelId: MODEL,
@@ -378,6 +379,54 @@ describe('M108 account pool composition', () => {
     expect((JSON.parse(await readFile(claimFile, 'utf8')) as { isClosed: boolean }).isClosed).toBe(
       true,
     )
+  })
+
+  it('stops a pinned retry on its own payer instead of swapping it away', async () => {
+    const harness = await setup([account('s1', 0), account('s2', 1)])
+    const resetAt = new Date(NOW + 3_600_000).toISOString()
+    harness.journal.block('meta', 's1', resetAt)
+    // The Judge pins its side request so it stops rather than paying on
+    // an account nobody chose for it: no question, no swap.
+    let failure: unknown = 'admitted'
+    try {
+      await harness.pool.acquire(conversation('s1'))
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(AccountPoolStoppedError)
+    expect((failure as AccountPoolStoppedError).trigger).toMatchObject({
+      kind: 'vendorLimit',
+      reason: 'rateLimited',
+      resetAt,
+    })
+    expect(harness.asked.count).toBe(0)
+    expect(harness.published).toEqual([])
+  })
+
+  it('fails a dropped pin over to the healthy account on the next admission', async () => {
+    const harness = await setup([account('s1', 0), account('s2', 1)])
+    harness.asked.answers.push('confirm')
+    const first = await harness.pool.acquire(conversation())
+    expect(first.account).toBe('s1')
+    first.beforeSend()
+    await first.settle(parseUsd('0.01'))
+    // The transport's 429 observation durably blocks s1; the host drops
+    // the payer pin and retries, so the pool re-admits unpinned.
+    const resetAt = new Date(NOW + 3_600_000).toISOString()
+    harness.journal.block('meta', 's1', resetAt)
+    const second = await harness.pool.acquire(conversation())
+    expect(second.account).toBe('s2')
+    second.beforeSend()
+    await second.settle(parseUsd('0.01'))
+    expect(harness.published).toHaveLength(1)
+    expect(harness.published[0]).toMatchObject({
+      type: 'swap',
+      previousAccount: 's1',
+      account: 's2',
+      trigger: { kind: 'vendorLimit', reason: 'rateLimited', resetAt },
+    })
+    expect(totalsOf(harness, 's1').settledUsd).toBe('0.01')
+    expect(totalsOf(harness, 's2').settledUsd).toBe('0.01')
   })
 
   it('refuses to escape a live group block onto a second key', async () => {

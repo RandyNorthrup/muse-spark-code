@@ -7123,6 +7123,17 @@ export class ModelApiSession implements ScheduledAgentSession {
           await this.refreshSearchConsent(signal)
           continue
         }
+        // A vendor-limit failure on a leased attempt drops the payer pin,
+        // so the retry below re-admits and the pool fails over to a healthy
+        // account: the transport already recorded the durable block that
+        // fences the dead account. Without a lease or pooling the 429 keeps
+        // its existing path, and the Judge keeps its deliberate pin.
+        const canFailOverAccount =
+          this.deps.accountRequests !== undefined &&
+          payer.account !== undefined &&
+          error instanceof ModelApiError &&
+          error.status === HTTP_TOO_MANY_REQUESTS
+        if (canFailOverAccount) delete payer.account
         // Lane RETRYLIMITS: the selected model's own retry limit (the
         // provider's documented maximum, or the person's setting when set;
         // unbounded when neither sets one, so the provider governs). A
@@ -7157,7 +7168,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           continue
         }
         if (
-          !(error instanceof RetryableStreamError) ||
+          (!canFailOverAccount && !(error instanceof RetryableStreamError)) ||
           signal.aborted ||
           !canRetryWithinBudget(budget, budget.retriesUsed) ||
           budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
@@ -7168,16 +7179,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         const attempt = budget.retriesUsed
         budget.retriesUsed += 1
         const delayMs = client.retryDelayMs(attempt)
+        // A failed-over vendor limit names its status: the 429 reached the
+        // host only after the transport refused or exhausted its own budget.
+        const failureCode =
+          error instanceof ModelApiError ? `HTTP ${String(error.status)}` : error.code
         this.emit({
           type: 'turnRetry',
           turnId,
           attempt: attempt + 1,
           maxAttempts: allowed === undefined ? undefined : allowed + 1,
           retryDelayMs: delayMs,
-          reason: `${error.code}: ${error.message}`,
+          reason: `${failureCode}: ${error.message}`,
         })
         this.deps.log.warn(
-          `Model API stream ended with ${error.code}; sending the request again in ${String(delayMs)} ms`,
+          `Model API stream ended with ${failureCode}; sending the request again in ${String(delayMs)} ms`,
         )
         await client.waitBeforeRetry(delayMs, signal)
         // Lane PR225W1: the person's limit is live — a change mid-wait (to
