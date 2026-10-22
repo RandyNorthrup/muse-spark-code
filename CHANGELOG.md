@@ -56,6 +56,24 @@ happened, not what was planned; superseded entries are kept.
   overrides. Session saves coalesce into one in-flight write plus the latest;
   parallel save failures are observed immediately while other sessions drain.
   History listing validates headers without replay/transcript validation.
+- Provider usage and price gaps: cached tokens on Groq settle at the
+  documented half price instead of the full input price; DeepSeek's
+  catalogue reasoning-token price reaches the price card and settlement;
+  catalogue long-context tiers (Gemini 2.5 Pro past 200k prompts) apply to
+  every tiered model; the Hugging Face router shows per-upstream prices,
+  honours per-upstream context and tool/structured flags, and takes an
+  `upstream` choice on the provider entry (sent as the documented
+  `model:upstream` suffix); a tested OpenRouter key's credit balance
+  reaches Account & usage; Fireworks requests carry
+  `prompt_cache_isolation_key` beside the cache key. Catalogue
+  `cache_write` prices now apply too. Every new wire shape is
+  documentation-quoted and UNVERIFIED until the lead's real-request
+  capture (`docs/certification/usagefields-capture-plan.json`) confirms it.
+- Background requests honour xAI's documented per-second request budgets
+  and per-minute token budgets instead of one default window, and a
+  request with more images than Anthropic's documented per-request count
+  (100 for 200k-context models, 600 otherwise) is refused with the reason
+  before sending.
 
 ### Fixed
 
@@ -64,6 +82,8 @@ happened, not what was planned; superseded entries are kept.
   token rates; subscription/provider account transitions work without a restart,
   Windows path casing preserves history, and refused retries describe only that
   attempt.
+- A session you just started appears in History at once. It was saved but
+  left out of the list until a restart.
 
 ### Release infrastructure
 
@@ -1004,20 +1024,6 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   only say that a frame had changed against the frame accepted before it,
   never that what a frame showed was wrong: Meta's logo was in the accepted
   frames.
-
-- Provider usage and price gaps (lane USAGEFIELDS, branch
-  feat/provider-usage-fields): cached tokens on Groq settle at the documented
-  half price instead of the full input price; DeepSeek's catalogue
-  reasoning-token price reaches the price card and settlement; catalogue
-  long-context tiers (Gemini 2.5 Pro past 200k prompts) apply to every
-  tiered model; the Hugging Face router shows per-upstream prices, honours
-  per-upstream context and tool/structured flags, and takes an `upstream`
-  choice on the provider entry (sent as the documented `model:upstream`
-  suffix); a tested OpenRouter key's credit balance reaches Account &
-  usage; Fireworks requests carry `prompt_cache_isolation_key` beside the
-  cache key. Catalogue `cache_write` prices now apply too. Every new wire
-  shape is documentation-quoted and UNVERIFIED until the lead's real-request
-  capture (`docs/certification/usagefields-capture-plan.json`) confirms it.
 
 ## [0.18.1] - 2026-10-12
 
