@@ -6,6 +6,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { PaletteContext } from '../../src/shared/palette'
 import { Palette, type PaletteProps } from '../../src/webview/components/Palette'
+import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 
 const context: PaletteContext = {
   currentModel: { modelId: 'muse-spark-1.3', contextLimit: 1_007_997 },
@@ -95,5 +96,26 @@ describe('panel plain words', () => {
     const standard = rows.find((row) => rowLabel(row) === 'Muse Spark 1.3')
     expect(contributor?.textContent).toContain('1M context · Contributor')
     expect(standard?.textContent).not.toContain('Contributor')
+  })
+
+  it('shows this conversation usage once the host reports it', () => {
+    const after = uiReducer(initialUiState, {
+      type: 'hostMessage',
+      message: {
+        type: 'agentEvent',
+        event: { type: 'tokenUsage', inputTokens: 12_345, outputTokens: 678 },
+      },
+      at: 0,
+    })
+    render(<Palette {...propsFor({ groups: buildPalette({ ...context, usage: after.usage }) })} />)
+    const row = screen.getByText('Session Usage').closest('li')
+    expect(row?.textContent).toContain('12.3K in · 678 out')
+  })
+
+  it('reads no usage yet as an em dash, never a zero', () => {
+    render(<Palette {...propsFor()} />)
+    const row = screen.getByText('Session Usage').closest('li')
+    expect(row?.textContent).toContain('—')
+    expect(row?.textContent).not.toContain('0 in')
   })
 })

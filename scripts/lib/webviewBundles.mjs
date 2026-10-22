@@ -1,5 +1,61 @@
-import { readFileSync } from 'node:fs'
+import { transformSync } from 'esbuild'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+
+// M114 C-M114-1: the companion page's static theme sheets, in themeEntry's
+// order. The companion server links this file after the entry CSS because a
+// dynamic JavaScript import never injects extracted CSS, and bundling it
+// through the usage entry would charge the entry's CSS budget instead.
+export const COMPANION_THEME_CSS_SOURCES = [
+  'src/webview/tokens.css',
+  'design/tokens/generated/host-roles.css',
+  'design/tokens/generated/muse.css',
+  'src/webview/bridges/theme/themeSurface.css',
+]
+export const COMPANION_THEME_CSS_FILE = 'theme.css'
+
+// The usage entry the companion page's theme sheets ship beside. This must
+// name the same file as USAGE_WEBVIEW_ENTRY in scripts/build.mjs; the plugin
+// below carries the sheets' watch registration on its load.
+export const COMPANION_THEME_CSS_ENTRY = 'src/webview/usage/usage.tsx'
+
+/**
+The themed sheets as one minified document; byte-identical in every build.
+@returns {string} the minified CSS text
+*/
+export function companionThemeCss() {
+  const combined = COMPANION_THEME_CSS_SOURCES.map((file) => readFileSync(file, 'utf8')).join('\n')
+  return transformSync(combined, { loader: 'css', minify: true }).code
+}
+
+// M114 C-M114-1 R2: the companion page's static theme sheets beside the
+// webview entries, rebuilt with every webview build including watch. The
+// sheets live outside the module graph, and onEnd cannot register watch
+// files, so the usage entry's load carries the sources' registration: an
+// edit to any sheet rebuilds (and rewrites) theme.css under watch.
+export const companionThemeCssPlugin = {
+  name: 'companion-theme-css',
+  setup(build) {
+    build.onLoad({ filter: /[/\\]usage\.tsx$/ }, (args) => {
+      // esbuild hands this hook an absolute path; the entry constant stays
+      // relative to the repository root it runs from.
+      if (!normalPath(args.path).endsWith(`/${COMPANION_THEME_CSS_ENTRY}`)) return null
+      return {
+        contents: readFileSync(args.path, 'utf8'),
+        loader: 'tsx',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [...COMPANION_THEME_CSS_SOURCES],
+      }
+    })
+    build.onEnd((result) => {
+      if (result.errors.length > 0) return
+      writeFileSync(
+        path.join(build.initialOptions.outdir, COMPANION_THEME_CSS_FILE),
+        companionThemeCss(),
+      )
+    })
+  },
+}
 
 const normalPath = (file) => file.replaceAll('\\', '/')
 
