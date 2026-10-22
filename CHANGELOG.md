@@ -7,6 +7,23 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Show Resources renders on Windows.** A host message the view needs no
+  longer fails validation and drops, and a dropped host message now names
+  what was dropped.
+- **CPU readings work on Windows.** `resources status` shows real CPU use
+  instead of Unknown, and work is never paused while a reading is unknown.
+- **Usage history records and restores across windows.** A momentarily
+  held journal waits instead of failing, and every record/restore warning
+  names its cause.
+- **Judged approvals clean up quietly.** The judge's folder waits out a
+  file Windows holds and names the real failure, and an approval answered
+  before its batch started stands the batch down instead of failing it.
+- **Stale helper builds retire on process exit.** An older MCP job
+  executable a live process has loaded is removed when that process ends
+  instead of warning on every start.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
