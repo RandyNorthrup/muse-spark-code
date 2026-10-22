@@ -237,6 +237,22 @@ describe('parseStoredSession', () => {
     expect(parsed).toEqual({ ok: true, session: full })
   })
 
+  it('keeps a Gemini thought signature on an output_text part through storage (M101-SIGNATURE-PERSISTENCE)', () => {
+    const signed = {
+      turnId: 't1',
+      item: {
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: 'done', thoughtSignature: 'signed-thought-bytes' }],
+      },
+    } as const
+    const session = { ...full, replay: [...full.replay, signed] }
+    // The file store's own round trip: stringify on save, parse on load.
+    const stored = JSON.stringify(session)
+    const parsed = parseStoredSession(JSON.parse(stored))
+    expect(parsed).toMatchObject({ ok: true, session: { replay: [...full.replay, signed] } })
+  })
+
   it('reads a session saved before goals (M45) as one without a goal', () => {
     const { goal: _goal, ...older } = full
     const parsed = parseStoredSession(structuredClone(older))

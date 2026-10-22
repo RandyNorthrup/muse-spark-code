@@ -90,9 +90,9 @@ export function geminiThinkingLevelForEffort(effort: string): GeminiThinkingLeve
 
 /**
 M101 lane P1 (BYO item 11): per-request encode options. Lane P fills
-these from the model record; lane N will own the normalized catalog
-fields (`capabilities.vision`, a generation marker). Absent means
-today's behavior.
+these from the model record; lane N owns the normalized catalog
+generation marker (`ModelCapabilityRecord.generation`), which the codec
+reads before the id heuristic below. Absent means today's behavior.
 */
 export interface GeminiEncodeOptions {
   /** The model's image input; `false` sends the image-omitted placeholder (BYO item 1). */
@@ -106,8 +106,9 @@ export interface GeminiEncodeOptions {
 
 /**
 M101 lane P1 (BYO item 11): the Gemini generation of a native model id
-(`gemini-3.5-flash-lite` → 3), or undefined when the id names none. The
-item-11 capabilities ride on this until the catalog carries them.
+(`gemini-3.5-flash-lite` → 3), or undefined when the id names none.
+M101-GENERATION-RECORD keeps this as the fallback for records silent on
+generation only; the record's marker wins wherever evidence spoke.
 */
 export function geminiGeneration(nativeModelId: string): number | undefined {
   const match = /(?:^|\/)gemini-(\d+)/.exec(nativeModelId)
@@ -649,9 +650,12 @@ export function encodeGeminiRequest(
     }
   }
   // M101 lane P1 (BYO item 11): Gemini 3 and later take the full tool
-  // schema; older models keep the OpenAPI 3.0 subset. The generation comes
-  // from the catalog override when lane P supplies one, else the model id.
-  const generation = options?.generation ?? geminiGeneration(nativeModelId)
+  // schema; older models keep the OpenAPI 3.0 subset. M101-GENERATION-RECORD
+  // (lane N): the generation comes from the caller's override, else the
+  // capability record's evidence-carried marker, else the model id
+  // heuristic, which stays as the fallback for silent records only.
+  const generation =
+    options?.generation ?? capabilityRecord?.generation ?? geminiGeneration(nativeModelId)
   const isGemini3 = generation !== undefined && generation >= GEMINI_FULL_SCHEMA_GENERATION
   const declarations = body.tools
     .filter((tool): tool is FunctionToolDefinition => tool.type === 'function')
