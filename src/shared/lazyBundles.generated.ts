@@ -252,6 +252,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   { file: 'estimateContracts.js', side: 'both', requestedBy: [] },
   {
+    file: 'estimateHistory.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'ESTIMATE_HISTORY_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'estimatePrices.js',
     side: 'vscode',
     requestedBy: [
