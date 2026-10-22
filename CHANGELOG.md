@@ -299,6 +299,11 @@ happened, not what was planned; superseded entries are kept.
   client works with servers on MCP 2026-07-28 as well as older ones: it
   probes the new revision first and falls back to the handshake, on stdio
   and streamable HTTP, including the form a server may request mid-call.
+- Checking out a pull request runs its git through the governed launcher:
+  the trust, cancellation and reservation checks run again at the last
+  moment before each git starts. When git cannot run, the error says why
+  (a busy machine, an unavailable helper, or the tree's memory limit),
+  and a failed git shows git's own message with secrets removed.
 
 ### Release infrastructure
 

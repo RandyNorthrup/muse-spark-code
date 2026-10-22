@@ -5,6 +5,7 @@ import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
+  type ResourceProcessOptions,
 } from './launch'
 import { NO_WORKSPACE, type GuardedChildEnv } from '../executables'
 import {
@@ -176,7 +177,7 @@ async function launchGovernedFile(
     Defaults to the spawn's own working directory, else this process's.
     */
     readonly workspaceRoot?: string | undefined
-  },
+  } & Pick<ResourceProcessOptions, 'beforeSpawn'>,
 ): Promise<{
   readonly launched: Awaited<ReturnType<typeof spawnResourceProcess>>
   readonly signal: AbortSignal | undefined
@@ -196,6 +197,7 @@ async function launchGovernedFile(
     env: childEnv,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(signal !== undefined && { signal }),
+    ...(options.beforeSpawn !== undefined && { beforeSpawn: options.beforeSpawn }),
   })
   return { launched, signal }
 }
@@ -210,7 +212,7 @@ export async function execResourceFile(
     Defaults to the spawn's own working directory, else this process's.
     */
     readonly workspaceRoot?: string | undefined
-  },
+  } & Pick<ResourceProcessOptions, 'beforeSpawn'>,
 ): Promise<{ stdout: string; stderr: string }> {
   const { launched, signal } = await launchGovernedFile(profile, command, args, options)
   const { child, stop } = launched
@@ -262,13 +264,15 @@ export async function execResourceFile(
           stderr: Buffer.concat(err).toString('utf8'),
         }
         if (code === 0 && !isFailed) resolve(result)
-        else
+        else {
+          const failureCode = isFailed ? -1 : code
           reject(
             Object.assign(new Error('Governed command failed'), {
               ...result,
-              code: isFailed ? -1 : code,
+              code: bytesRead > max ? 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' : failureCode,
             }),
           )
+        }
       })().catch(reject)
     })
   })

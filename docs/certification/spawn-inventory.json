@@ -578,20 +578,49 @@
     "reason": "Admitted by the shared git runner (createGitProcess): admission, Windows job, then the caller's gate and the spawn in one synchronous turn, and the gate again at Windows GO (M123 lock protocol)."
   },
   {
-    "site": "src/runtime/panel/pullRequests/checkout.ts#call:execFile:1",
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:execResourceFile:1",
     "profile": "test-only",
-    "reason": "Pull-request checkout (M123 lane P): no production entry imports it in this release, so nothing can start these launches (proved by the guard). They move behind the governed launcher, with the gate in the spawn turn, before the panel binds the checkout.",
+    "reason": "Pull-request checkout (M123): behind the governed launcher since RLM123, with the gate in the spawn turn; still test-only, since no production entry imports it (proved by the guard). Only explicitly checked read-only argument forms take the probe.",
     "testOnly": "nodeGitProcesses"
   },
   {
-    "site": "src/runtime/panel/pullRequests/checkout.ts#call:spawn:1",
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:execResourceFile:2",
     "profile": "test-only",
-    "reason": "Pull-request checkout (M123 lane P): no production entry imports it in this release, so nothing can start these launches (proved by the guard). They move behind the governed launcher, with the gate in the spawn turn, before the panel binds the checkout.",
+    "reason": "Pull-request checkout (M123): behind the governed launcher since RLM123, with the gate in the spawn turn; still test-only, since no production entry imports it (proved by the guard). All other argument forms stay contained.",
+    "testOnly": "nodeGitProcesses"
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:spawnResourceProcess:1",
+    "profile": "test-only",
+    "reason": "Pull-request checkout (M123): behind the governed launcher since RLM123, with the gate in the spawn turn; still test-only, since no production entry imports it (proved by the guard). Explicitly checked held batch reads take the probe.",
+    "testOnly": "nodeGitProcesses"
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:spawnResourceProcess:2",
+    "profile": "test-only",
+    "reason": "Pull-request checkout (M123): behind the governed launcher since RLM123, with the gate in the spawn turn; still test-only, since no production entry imports it (proved by the guard). Any unlisted batch argument form stays contained.",
     "testOnly": "nodeGitProcesses"
   },
   {
     "site": "src/runtime/panel/pullRequests/checkout.ts#import:1",
     "profile": "test-only",
-    "reason": "Pull-request checkout (M123 lane P): no production entry imports it in this release, so nothing can start these launches (proved by the guard). They move behind the governed launcher, with the gate in the spawn turn, before the panel binds the checkout."
+    "reason": "Pull-request checkout (M123): type-only child_process import; the two start functions pass the caller gate through the governed beforeSpawn hook. Still test-only, since no production entry imports it (proved by the guard)."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/unconfiguredGit.ts#call:execFile:1",
+    "profile": "test-only",
+    "reason": "Direct git only when resource admission is absent, matching the shared git runner; the caller gate runs synchronously before the launch, argument array, no shell, bounded output and deadline. Reachable only through nodeGitProcesses, so test-only with it.",
+    "testOnly": "nodeGitProcesses"
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/unconfiguredGit.ts#call:spawn:1",
+    "profile": "test-only",
+    "reason": "Direct git only when resource admission is absent, matching the shared git runner; the caller gate runs synchronously before the launch, argument array, no shell, bounded deadline, owned POSIX group. Reachable only through nodeGitProcesses, so test-only with it.",
+    "testOnly": "nodeGitProcesses"
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/unconfiguredGit.ts#import:1",
+    "profile": "test-only",
+    "reason": "Direct git only when resource admission is absent, matching the shared git runner; the caller gate runs synchronously before each launch. Reachable only through nodeGitProcesses, so test-only with it."
   }
 ]

@@ -20,18 +20,32 @@
 // converges them (see `untrustedCheckoutArgs`).
 //
 // Every git this module starts goes through `runGit`, `runGitListing` or
-// `startGitBatch`, which call the caller's gate and then start the process
-// in the same synchronous turn: nothing can change between the check and
-// the spawn (PLAN.md M123's lock protocol). A checkout's gate asks that the project
-// is still trusted, that Cancel was not pressed, and that the record is
-// still exactly this checkout's reservation (its fence).
+// `startGitBatch`, which hand the caller's gate to the governed launcher:
+// it runs after admission and job preparation, and again at Windows GO,
+// in the process-start synchronous turn, so nothing can change between the
+// check and the spawn (PLAN.md M123's lock protocol). A checkout's gate
+// asks that the project is still trusted, that Cancel was not pressed, and
+// that the record is still exactly this checkout's reservation (its fence).
 
-import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { execResourceFile, spawnResourceProcess } from '../../../core/resources/launcher'
+import { loadResourceWindow } from '../../../core/resources/admission'
+import {
+  isGovernedRefusal,
+  isResourceMemoryLimit,
+  isResourcePaused,
+  resourcePausedText,
+  ResourceMemoryLimitError,
+  ResourceCapRefusedError,
+  type ResourcePipedProcess,
+} from '../../../core/resources/launch'
+import { unconfiguredGitProcesses } from './unconfiguredGit'
 import type { BigIntStats } from 'node:fs'
 import path from 'node:path'
 import {
   GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
+  GIT_STDERR_MAX_CHARS,
   GIT_WORKTREE_TIMEOUT_MS,
   HELD_CLEANUP_REMOVE_RETRIES,
   HELD_CLEANUP_TIMEOUT_MS,
@@ -103,7 +117,6 @@ import {
 import { type GuardedChildEnv } from '../../../core/executables'
 import { workspaceChildEnvironment } from '../../../core/execGuard'
 import { realpathSync } from 'node:fs'
-import { execFileGuarded, spawnGuarded } from '../../../core/guardedChildProcess'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { mkdir, rename, rm, rmdir } from 'node:fs/promises'
@@ -251,6 +264,8 @@ export interface GitRunOptions {
   readonly signal: AbortSignal
   readonly timeout: number
   readonly maxBuffer: number
+  /** Rechecked by the launcher after admission and at Windows GO. */
+  readonly beforeSpawn: GitGate
 }
 
 /** How the batch child starts. */
@@ -260,13 +275,20 @@ export interface GitStartOptions {
   readonly env: GuardedChildEnv
   readonly signal: AbortSignal
   readonly timeout: number
-  /** Its own process group on POSIX. */
+  /** The governed profile owns its tree; retained for recording port compatibility. */
   readonly detached: boolean
+  /** Rechecked by the launcher after admission and at Windows GO. */
+  readonly beforeSpawn: GitGate
+}
+
+/** A batch keeps its launcher settlement, including a refused Windows GO. */
+export type GitBatchChild = ResourcePipedProcess['child'] & {
+  readonly outcome?: ResourcePipedProcess['outcome']
 }
 
 /**
 How git processes start: node's, or a test's that records each start.
-Both start the process before they return.
+Both run beforeSpawn synchronously immediately before the process start.
 */
 export interface GitProcessPort {
   /** Runs to completion; resolves with the standard output. */
@@ -276,22 +298,130 @@ export interface GitProcessPort {
     file: string,
     args: readonly string[],
     options: GitStartOptions,
-  ): ChildProcessWithoutNullStreams
+  ): GitBatchChild | Promise<GitBatchChild>
 }
 
-/** Node's processes: explicit argument arrays, no shell, hidden windows. */
+/** Only these complete argument forms are probes; all other invocations are contained. */
+function isReadOnlyGitArgs(args: readonly string[]): boolean {
+  let rest = args
+  for (const platform of ['linux', 'win32'] as const) {
+    const fixed = untrustedCheckoutArgs(platform)
+    if (fixed.every((arg, index) => rest[index] === arg)) {
+      rest = rest.slice(fixed.length)
+      break
+    }
+  }
+  while (rest[0] === '-c' && /^hook\.[^=\p{Cc}]+\.(?:enabled=false|event=)$/u.test(rest[1] ?? ''))
+    rest = rest.slice(2)
+  const isSame = (expected: readonly string[]) =>
+    rest.length === expected.length && expected.every((arg, index) => rest[index] === arg)
+  return (
+    isSame(['--version']) ||
+    isSame(['config', '--null', '--name-only', '--list']) ||
+    isSame(['remote', '-v']) ||
+    (/^[\w.-]+$/u.test(rest[2] ?? '') && isSame(['config', '--get', rest[2] ?? ''])) ||
+    isSame(['rev-parse', '--verify', 'FETCH_HEAD^{commit}']) ||
+    isSame(['cat-file', '--batch']) ||
+    (isCommitSha(rest.at(-1) ?? '') &&
+      isSame(['ls-tree', '-r', '-z', '--full-tree', '--long', rest.at(-1) ?? '']))
+  )
+}
+
+/** The launcher's typed admission-unavailable failure, nothing else. */
+function isAdmissionUnavailable(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === 'ResourceUnavailableError' &&
+    'code' in error &&
+    error.code === 'admissionUnavailable'
+  )
+}
+
+function gitProcessFailure(error: unknown): Error {
+  if (isResourceMemoryLimit(error)) return new PullRequestServiceError(UI_TEXT.gitMemoryLimit)
+  if (
+    error instanceof Error &&
+    error.name === 'ResourceUnavailableError' &&
+    'code' in error &&
+    (error.code === 'launchUnavailable' || error.code === 'admissionUnavailable')
+  )
+    return new PullRequestServiceError(UI_TEXT.gitResourceUnavailable)
+  if (isResourcePaused(error)) return new PullRequestServiceError(resourcePausedText())
+  if (isGovernedRefusal(error)) return new PullRequestServiceError(UI_TEXT.gitMachineBusy)
+  return error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+}
+
+/** The mapped failure with git's own redacted diagnostics for the run command. */
+function withCommandDiagnostics(failure: Error, file: string, args: readonly string[]): Error {
+  failure.message = failureText(failure, [file, ...args].join(' '))
+  return failure
+}
+
+/** Node's processes are admitted before the synchronous gate and process start. */
 export const nodeGitProcesses: GitProcessPort = {
-  run: (file, args, options) =>
-    new Promise<string>((resolve, reject) => {
-      execFileGuarded(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
-        if (error === null) {
-          resolve(stdout)
-          return
-        }
-        reject(error instanceof Error ? error : new PullRequestServiceError(failureText(error)))
+  run: async (file, args, options) => {
+    try {
+      const call = { ...options, encoding: 'utf8' as const, windowsHide: true }
+      const launched = isReadOnlyGitArgs(args)
+        ? await execResourceFile('probe', file, args, call)
+        : await execResourceFile('contained', file, args, call)
+      return launched.stdout
+    } catch (error: unknown) {
+      options.signal.throwIfAborted()
+      // Only absent admission, as in the shared git runner, permits the
+      // direct route: a configured governor's refusal is not an
+      // unconfigured embedding, and a caller gate throwing this code must
+      // never select a retry.
+      if (isAdmissionUnavailable(error) && (await loadResourceWindow()) === undefined) {
+        options.signal.throwIfAborted()
+        return await unconfiguredGitProcesses.run(file, args, options)
+      }
+      throw withCommandDiagnostics(gitProcessFailure(error), file, args)
+    }
+  },
+  start: async (file, args, options) => {
+    try {
+      const signal = AbortSignal.any([options.signal, AbortSignal.timeout(options.timeout)])
+      const call = {
+        cwd: options.cwd,
+        env: options.env,
+        signal,
+        windowsHide: true,
+        beforeSpawn: options.beforeSpawn,
+      }
+      const launched = isReadOnlyGitArgs(args)
+        ? await spawnResourceProcess('probe', file, args, call)
+        : await spawnResourceProcess('contained', file, args, call)
+      return Object.assign(launched.child, {
+        outcome: async () => {
+          try {
+            const outcome = await launched.outcome()
+            const limits = outcome?.limits ?? []
+            for (const limit of limits) {
+              if (limit !== 'activeProcess') throw new ResourceMemoryLimitError(limit)
+            }
+            if (outcome !== undefined && outcome.capRefusals > 0)
+              throw new ResourceCapRefusedError(outcome.capRefusals)
+            return outcome
+          } catch (error: unknown) {
+            options.signal.throwIfAborted()
+            throw gitProcessFailure(error)
+          }
+        },
       })
-    }),
-  start: (file, args, options) => spawnGuarded(file, [...args], { ...options, windowsHide: true }),
+    } catch (error: unknown) {
+      options.signal.throwIfAborted()
+      // Only absent admission, as in the shared git runner, permits the
+      // direct route: a configured governor's refusal is not an
+      // unconfigured embedding, and a caller gate throwing this code must
+      // never select a retry.
+      if (isAdmissionUnavailable(error) && (await loadResourceWindow()) === undefined) {
+        options.signal.throwIfAborted()
+        return await unconfiguredGitProcesses.start(file, args, options)
+      }
+      throw gitProcessFailure(error)
+    }
+  },
 }
 
 export interface NodePullRequestCheckoutGitOptions {
@@ -385,6 +515,7 @@ function runGit(
     signal: how.signal ?? git.signal,
     timeout: GIT_WORKTREE_TIMEOUT_MS,
     maxBuffer: GIT_OUTPUT_MAX_BYTES,
+    beforeSpawn: gate,
   })
 }
 
@@ -402,73 +533,77 @@ function runGitListing(
   args: readonly string[],
   cwd: string,
 ): Promise<string[]> {
-  const child = startGitBatch(git, gate, args, cwd)
-  return new Promise<string[]>((resolve, reject) => {
-    const listing = new ListingRecords()
-    const records: string[] = []
-    let hasSettled = false
-    const closed = new Promise<number | null>((done) => {
-      child.once('close', (code: number | null) => {
-        done(code)
+  return (async () => {
+    // The gate runs synchronously inside the start call; only the
+    // governed launch (admission, preparation) is awaited.
+    const child = await startGitBatch(git, gate, args, cwd)
+    return await new Promise<string[]>((resolve, reject) => {
+      const listing = new ListingRecords()
+      const records: string[] = []
+      let hasSettled = false
+      const closed = new Promise<number | null>((done) => {
+        child.once('close', (code: number | null) => {
+          done(code)
+        })
       })
-    })
-    const fail = (error: Error) => {
-      if (hasSettled) {
-        return
-      }
-      hasSettled = true
-      clearTimeout(timer)
-      git.signal.removeEventListener('abort', onAbort)
-      killBatchTree(child, git.platform)
-      child.stdout.destroy()
-      child.stderr.destroy()
-      reject(error)
-    }
-    const onAbort = () => {
-      const reason: unknown = git.signal.reason
-      fail(reason instanceof Error ? reason : new Error('The operation was aborted'))
-    }
-    // The listing's own deadline, independent of the spawn timeout: a root
-    // that ignores its signal still ends the checkout.
-    const timer = setTimeout(() => {
-      fail(unreadable())
-    }, GIT_WORKTREE_TIMEOUT_MS)
-    git.signal.addEventListener('abort', onAbort, { once: true })
-    if (git.signal.aborted) {
-      onAbort()
-      return
-    }
-    child.on('error', fail)
-    // Nothing reads the error stream: discard it, so a chatty git can
-    // never fill the pipe and stall the listing past its deadline.
-    child.stderr.resume()
-    child.stdin.end()
-    void (async () => {
-      try {
-        const stdout: NodeJS.ReadableStream = child.stdout
-        for await (const chunk of stdout) {
-          if (!Buffer.isBuffer(chunk)) {
-            throw unreadable()
-          }
-          records.push(...listing.take(chunk))
+      const fail = (error: Error) => {
+        if (hasSettled) {
+          return
         }
-      } catch (error: unknown) {
-        fail(error instanceof Error ? error : unreadable())
-        return
+        hasSettled = true
+        clearTimeout(timer)
+        git.signal.removeEventListener('abort', onAbort)
+        killBatchTree(child, git.platform)
+        child.stdout.destroy()
+        child.stderr.destroy()
+        reject(error)
       }
-      const code = await closed
-      if (code !== 0) {
+      const onAbort = () => {
+        const reason: unknown = git.signal.reason
+        fail(reason instanceof Error ? reason : new Error('The operation was aborted'))
+      }
+      // The listing's own deadline, independent of the spawn timeout: a root
+      // that ignores its signal still ends the checkout.
+      const timer = setTimeout(() => {
         fail(unreadable())
+      }, GIT_WORKTREE_TIMEOUT_MS)
+      git.signal.addEventListener('abort', onAbort, { once: true })
+      if (git.signal.aborted) {
+        onAbort()
         return
       }
-      records.push(...listing.finish())
-      // Past a failure this resolve is a no-op: the rejection stands, and
-      // the timer and the abort listener are already gone with it.
-      clearTimeout(timer)
-      git.signal.removeEventListener('abort', onAbort)
-      resolve(records)
-    })()
-  })
+      child.on('error', fail)
+      // Nothing reads the error stream: discard it, so a chatty git can
+      // never fill the pipe and stall the listing past its deadline.
+      child.stderr.resume()
+      child.stdin.end()
+      void (async () => {
+        try {
+          const stdout: NodeJS.ReadableStream = child.stdout
+          for await (const chunk of stdout) {
+            if (!Buffer.isBuffer(chunk)) {
+              throw unreadable()
+            }
+            records.push(...listing.take(chunk))
+          }
+        } catch (error: unknown) {
+          fail(error instanceof Error ? error : unreadable())
+          return
+        }
+        const code = await closed
+        if (code !== 0) {
+          fail(unreadable())
+          return
+        }
+        records.push(...listing.finish())
+        // Past a failure this resolve is a no-op: the rejection stands, and
+        // the timer and the abort listener are already gone with it.
+        clearTimeout(timer)
+        git.signal.removeEventListener('abort', onAbort)
+        resolve(records)
+      })()
+    })
+  })()
 }
 
 /** Starts the batch child once `gate` allows it, in the same synchronous turn. */
@@ -477,7 +612,7 @@ function startGitBatch(
   gate: GitGate,
   args: readonly string[],
   cwd: string,
-): ChildProcessWithoutNullStreams {
+): GitBatchChild | Promise<GitBatchChild> {
   gate()
   return git.processes.start(git.gitPath, args, {
     cwd,
@@ -487,6 +622,7 @@ function startGitBatch(
     // Its own group on POSIX, so the deadline stops the helpers it
     // spawned with it, not just the root.
     detached: git.platform !== 'win32',
+    beforeSpawn: gate,
   })
 }
 
@@ -677,7 +813,7 @@ async function writeHeldBlobs(
       }),
     unreadable,
   )
-  const child = startGitBatch(
+  const child = await startGitBatch(
     git,
     gates.run,
     [...untrustedCheckoutArgs(git.platform), 'cat-file', '--batch'],
@@ -700,10 +836,13 @@ async function writeHeldBlobs(
     platform: git.platform,
     signal: git.signal,
     writers,
+    outcome: child.outcome,
   })
 }
 
 export interface BatchChildOptions {
+  /** The launcher's refusal or enforced cap wins over an unreadable batch. */
+  readonly outcome?: ResourcePipedProcess['outcome'] | undefined
   /** The batch's own deadline: a root that ignores its signal still ends the checkout. */
   readonly deadlineMs: number
   /** How long a killed batch is observed before the checkout settles anyway. */
@@ -729,6 +868,23 @@ keeps the checkout pending past both its deadline and Cancel, and no
 writer outlives the cleanup. Exported so the tests can stand a
 scripted root with a helper where git would be.
 */
+/**
+The launcher settlement's rejection as a value: a refused Windows GO or
+an enforced cap fails the batch, while a settled outcome resolves
+undefined. The cause is carried verbatim, including a non-Error
+rejection, so nothing thrown is hidden.
+*/
+async function outcomeRejection(
+  outcome: ResourcePipedProcess['outcome'] | undefined,
+): Promise<{ readonly cause: unknown } | undefined> {
+  try {
+    await outcome?.()
+  } catch (error: unknown) {
+    return { cause: error }
+  }
+  return undefined
+}
+
 export function runBatchChild(
   child: ChildProcess,
   answers: BlobAnswers,
@@ -796,6 +952,12 @@ export function runBatchChild(
         return
       }
       const code = await closed
+      const rejection = await outcomeRejection(options.outcome)
+      if (rejection !== undefined) {
+        const reason: unknown = rejection.cause
+        fail(reason instanceof Error ? reason : unreadable())
+        return
+      }
       if (code !== 0) {
         fail(unreadable())
         return
@@ -1206,8 +1368,20 @@ function pullHeadRef(number: number): string {
   return `pull/${String(number)}/head`
 }
 
-function failureText(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
+function failureText(error: unknown, command?: string): string {
+  // execFile's original diagnostic includes its command and stderr. The
+  // governed runner keeps stderr separately; redact before the display cap
+  // so a credential crossing it can never be shown as a partial token.
+  let text = error instanceof Error ? error.message : String(error)
+  if (
+    command !== undefined &&
+    error instanceof Error &&
+    'stderr' in error &&
+    typeof error.stderr === 'string' &&
+    error.stderr.trim() !== ''
+  )
+    text = `Command failed: ${command}\n${error.stderr}`
+  return redactSecrets(text).slice(0, GIT_STDERR_MAX_CHARS)
 }
 
 /**

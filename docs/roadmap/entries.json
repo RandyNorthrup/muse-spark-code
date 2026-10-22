@@ -891,7 +891,7 @@
     {
       "id": "M123",
       "title": "Git and pull requests in every editor",
-      "summary": "Commit drafts, confirmed pushes, pull requests and held checkouts of other people's pull requests in every supported editor, signing in to GitHub through your editor, a one-time code or your gh login.",
+      "summary": "Commit drafts, confirmed pushes, pull requests and held checkouts with git diagnostics and reservation checks in every supported editor, signing in through your editor, a one-time code or gh.",
       "area": "editors"
     },
     {
