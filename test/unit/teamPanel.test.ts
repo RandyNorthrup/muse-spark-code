@@ -1,7 +1,7 @@
 import { teamOffers } from './helpers/teamPanelOffers'
-import * as autofill from '../../src/core/team/autofill'
+import type * as autofill from '../../src/core/team/autofill'
 import { Usd } from '../../src/shared/usd'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { panelRig } from './helpers/teamPanelRig'
 import { teamPanelExportSchema } from '../../src/shared/teamPanel'
 import { parsePanelToHostMessage } from '../../src/shared/modelsPanel'
@@ -17,40 +17,33 @@ async function pairSlice(rig: ReturnType<typeof panelRig>) {
 }
 
 describe('M96 U1 portable panel', () => {
-  afterEach(() => vi.restoreAllMocks())
-
   it('uses the actual remaining budget and history for suggestions', async () => {
     const records: autofill.TeamRoleRecord[] = []
-    const suggestions = vi.spyOn(autofill, 'buildTeamSuggestions')
     const rig = panelRig({
       remainingDailyBudgetUsd: () => Usd.from(0).toAmount(),
       records: () => records,
     })
+    // A zero budget offers no role budget. (The getters' plumbing is proven
+    // by the refresh test below, which flips the slice through them.)
     const slice = await pairSlice(rig)
     expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
-    expect(suggestions.mock.calls.at(-1)?.[0].records).toBe(records)
   })
   it('awaits fresh durable budget and history getters on every refresh', async () => {
     let remaining = Usd.from('0.25').toAmount()
     let records: autofill.TeamRoleRecord[] = [
       { role: 'engineering', taskTokens: [100, 200, 300, 400, 500] },
     ]
-    const suggestions = vi.spyOn(autofill, 'buildTeamSuggestions')
     const rig = panelRig({
       remainingDailyBudgetUsd: () => Promise.resolve(remaining),
       records: () => Promise.resolve(records),
     })
     const slice = await pairSlice(rig)
     expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(true)
-    expect(suggestions.mock.calls.at(-1)?.[0]).toMatchObject({
-      remainingDailyBudgetUsd: remaining,
-      records,
-    })
     remaining = Usd.from(0).toAmount()
     records = [{ role: 'engineering', taskTokens: [1, 2] }]
+    // Changed getters flip the refreshed slice: every refresh re-read them.
     const refreshed = await rig.read()
     expect(refreshed.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
-    expect(suggestions.mock.calls.at(-1)?.[0].records).toBe(records)
   })
 
   it.each(['budget', 'history'] as const)(
@@ -110,14 +103,20 @@ describe('M96 U1 portable panel', () => {
     expect(pool?.at(-1)?.caps.some((cap) => cap.measure === 'spendUsd')).toBe(true)
   })
   it('loads nothing and rejects edits with the team gate off', async () => {
-    const offers = vi.fn(() => Promise.resolve(teamOffers()))
+    // A gated-off panel fetches no offers: the count below is observed on
+    // the real getter the panel would call.
+    let offerCalls = 0
+    const offers = () => {
+      offerCalls += 1
+      return Promise.resolve(teamOffers())
+    }
     const rig = panelRig({ isEnabled: () => false, offers })
     expect(await rig.controller.read()).toBeUndefined()
     await expect(
       rig.controller.handle({ type: 'roles/template', template: 'pair' }),
     ).rejects.toThrow()
-    expect(offers).not.toHaveBeenCalled()
-    expect(rig.update).not.toHaveBeenCalled()
+    expect(offerCalls).toBe(0)
+    expect(rig.store.size).toBe(0)
   })
   it('prefills Pair, saves workspace state and reloads only after durable success', async () => {
     const rig = panelRig()
@@ -130,7 +129,7 @@ describe('M96 U1 portable panel', () => {
     expect(slice.document.roles[1]?.pool[0]?.agent?.provider).toBe('reviewer')
     await rig.controller.handle({ type: 'roles/save' })
     expect(rig.store.get(TEAM_WORKSPACE_KEYS.team)).toMatchObject({ template: 'pair' })
-    expect(rig.reload).toHaveBeenCalledOnce()
+    expect(rig.reloads()).toBe(1)
     const snapshot1 = await rig.read()
     expect(snapshot1.dirty).toBe(false)
   })
@@ -150,7 +149,7 @@ describe('M96 U1 portable panel', () => {
     await rig.read()
     await rig.controller.handle({ type: 'roles/template', template: 'pair' })
     await expect(rig.controller.handle({ type: 'roles/save' })).rejects.toThrow('disk failure')
-    expect(rig.reload).not.toHaveBeenCalled()
+    expect(rig.reloads()).toBe(0)
     const snapshot3 = await rig.read()
     expect(snapshot3.dirty).toBe(true)
   })
@@ -232,11 +231,10 @@ describe('M96 U1 portable panel', () => {
     const snapshot10 = await rig.read()
     expect(snapshot10.issues.length).toBeGreaterThan(2)
     await expect(rig.controller.handle({ type: 'roles/save' })).rejects.toThrow()
-    expect(rig.update).not.toHaveBeenCalled()
+    expect(rig.store.size).toBe(0)
   })
   it('checks Default against the unsaved orchestrator and confirms that choice on save', async () => {
-    const confirmOrchestrator = vi.fn(() => Promise.resolve())
-    const rig = panelRig({ confirmOrchestrator })
+    const rig = panelRig({ confirmOrchestrator: () => Promise.resolve() })
     await rig.read()
     await rig.controller.handle({ type: 'roles/template', template: 'pair' })
     await rig.controller.handle({
@@ -247,7 +245,10 @@ describe('M96 U1 portable panel', () => {
     const snapshot11 = await rig.read()
     expect(snapshot11.defaultRef).toBe('reviewer/reviewer')
     await rig.controller.handle({ type: 'roles/save' })
-    expect(confirmOrchestrator).toHaveBeenCalledWith('reviewer/reviewer')
+    // The confirmed orchestrator is what the save stored: the durable
+    // override names the confirmed model, not the call.
+    const state = { get: (key: string) => rig.store.get(key) }
+    expect(readOrchestratorOverride(state)?.modelId).toBe('reviewer')
   })
   it('asks before In Place, and closing while consent waits prevents an edit or save', async () => {
     const consent = Promise.withResolvers<boolean>()
@@ -266,7 +267,7 @@ describe('M96 U1 portable panel', () => {
     rig.controller.dispose()
     consent.resolve(true)
     await expect(pending).rejects.toThrow()
-    expect(rig.update).not.toHaveBeenCalled()
+    expect(rig.store.size).toBe(0)
   })
   it('accepts the suggested preferred model first while preserving Default last', async () => {
     const rig = panelRig()
@@ -314,7 +315,7 @@ describe('M96 U1 portable panel', () => {
     await rig.controller.handle({ type: 'roles/preview', sample: 'review-branch' })
     const snapshot15 = await rig.read()
     expect(snapshot15.preview.steps).toHaveLength(1)
-    expect(rig.reload).not.toHaveBeenCalled()
+    expect(rig.reloads()).toBe(0)
   })
   it('saves charters into the runtime schema and Reset to Default clears the canonical override', async () => {
     const rig = panelRig()
@@ -337,8 +338,8 @@ describe('M96 U1 portable panel', () => {
     await pairSlice(rig)
     await rig.controller.handle({ type: 'roles/orchestrator', modelRef: 'reviewer/reviewer' })
     await expect(rig.controller.handle({ type: 'roles/save' })).rejects.toThrow('refused')
-    expect(rig.update).not.toHaveBeenCalled()
-    expect(rig.reload).not.toHaveBeenCalled()
+    expect(rig.store.size).toBe(0)
+    expect(rig.reloads()).toBe(0)
   })
   it('round trips charter text, settings and intensity while import remains an unsaved draft', async () => {
     const rig = panelRig()
@@ -350,7 +351,7 @@ describe('M96 U1 portable panel', () => {
       fields: { purpose: 'Build it', done: 'Checks pass', guidance: 'Use small changes' },
     })
     await rig.controller.handle({ type: 'roles/export' })
-    const text = rig.writeExport.mock.calls[0]?.[0]
+    const text = rig.exportedText()
     if (text === undefined) throw new Error('No export')
     const raw: unknown = JSON.parse(text)
     expect(teamPanelExportSchema.safeParse(raw).success).toBe(true)
@@ -361,15 +362,15 @@ describe('M96 U1 portable panel', () => {
     const snapshot16 = await rig.read()
     const snapshot17 = await imported.read()
     expect(snapshot17.document).toEqual(snapshot16.document)
-    expect(imported.update).not.toHaveBeenCalled()
-    expect(imported.reload).not.toHaveBeenCalled()
+    expect(imported.store.size).toBe(0)
+    expect(imported.reloads()).toBe(0)
   })
   it('clears the import notice when the draft is reset', async () => {
     const rig = panelRig()
     await rig.read()
     await rig.controller.handle({ type: 'roles/template', template: 'pair' })
     await rig.controller.handle({ type: 'roles/export' })
-    const text = rig.writeExport.mock.calls[0]?.[0]
+    const text = rig.exportedText()
     if (text === undefined) throw new Error('No export')
     const imported = panelRig({ readImport: () => Promise.resolve(text) })
     await imported.read()
@@ -394,7 +395,7 @@ describe('M96 U1 portable panel', () => {
     const bad = panelRig({ readImport: () => Promise.resolve(invalid) })
     await bad.read()
     await expect(bad.controller.handle({ type: 'roles/import' })).rejects.toThrow()
-    expect(bad.update).not.toHaveBeenCalled()
+    expect(bad.store.size).toBe(0)
     const missing = panelRig({
       offers: () => Promise.resolve(teamOffers().slice(0, 1)),
       readImport: () =>

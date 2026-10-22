@@ -102,6 +102,10 @@
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
     "src/host/teamViewBundle.ts",
+    // The team host barrel (C-M96-3, D6): dist/teamHost.js, required by path
+    // for a workspace that stores a team; the engine chunk reads the fence
+    // authority surface through its re-exports.
+    "src/host/team/teamHostEntry.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
     "src/core/backends/modelapi/schedulesEntry.ts",

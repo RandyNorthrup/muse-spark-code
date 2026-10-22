@@ -10,7 +10,7 @@ import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
 import { USAGE_JOURNAL_VERSION } from '../../src/shared/constants'
 
 const base = metaCapabilityRecord('muse-spark-1.3')
-const engine = (provider = 'meta', preset = provider): TeamEngineModel => ({
+const engine = (provider = 'meta'): TeamEngineModel => ({
   model: {
     modelId: provider === 'meta' ? 'muse-spark-1.3' : `${provider}/captured`,
     providerId: provider,
@@ -20,7 +20,7 @@ const engine = (provider = 'meta', preset = provider): TeamEngineModel => ({
     contextLimit: undefined,
   },
   record: { ...base, identity: { ...base.identity, provider } },
-  preset,
+  preset: provider,
 })
 const input = {
   engine: [engine()],

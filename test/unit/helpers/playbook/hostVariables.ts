@@ -20,10 +20,10 @@ export const LOWER_CASE_HOST_VARIABLES: Readonly<Record<string, string>> = Objec
 )
 
 /**
- * The `ELECTRON_*` and `VSCODE_*` names an environment holds, in any letter
- * case, sorted: a name spelled `electron_run_as_node` is the switch to a
- * Windows child all the same.
- */
+The `ELECTRON_*` and `VSCODE_*` names an environment holds, in any letter
+case, sorted: a name spelled `electron_run_as_node` is the switch to a
+Windows child all the same.
+*/
 export function hostNames(env: NodeJS.ProcessEnv | undefined): string[] {
   return Object.keys(env ?? {})
     .filter((name) => /^(?:ELECTRON|VSCODE)_/iu.test(name))

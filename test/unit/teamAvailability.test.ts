@@ -2,19 +2,13 @@
 // release latch AND the `museSpark.team` switch. With the latch closed
 // nothing of teams is constructed, shown, or reachable by command, even with
 // a true setting; with both on each surface works.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { TeamHostBinding, isTeamSwitchOn } from '../../src/host/teamHostBinding'
-import { createTeamPanelHost } from '../../src/host/models/modelsPanelEntry'
+import { createTeamPanel } from '../../src/core/team/teamPanelEntry'
 import { OPTIONAL_RUNTIME_AVAILABILITY, UI_TEXT } from '../../src/shared/constants'
 import { isTeamAvailable, teamLatchRefusal } from '../../src/shared/teamConversation'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
-
-function noop(): void {
-  // A panel callback with nothing to do.
-}
-function noopUnsubscribe(): void {
-  // A tree listener that never fires.
-}
+import { panelRig } from './helpers/teamPanelRig'
 function storedTeam(): Map<string, unknown> {
   return new Map<string, unknown>([
     [
@@ -91,22 +85,31 @@ function ports(isTeamOn: boolean) {
 }
 
 function binding(isTeamOn: boolean) {
-  const factory = vi.fn()
-  const openRoles = vi.fn(() => Promise.resolve())
+  // Observed on the real ports the binding would call: bundle loads and
+  // Roles opens count, never watched.
+  let loads = 0
+  let opened = 0
   const bound = new TeamHostBinding({
     ...ports(isTeamOn),
     canRunKind: (kind) => kind === 'engine',
     loadFactory: () => {
-      factory()
+      loads += 1
       return Promise.resolve(() => undefined as never)
     },
     uiText: () => UI_TEXT,
     uiLocale: () => 'en',
     showTree: () => undefined,
-    openRoles,
+    openRoles: () => {
+      opened += 1
+      return Promise.resolve()
+    },
     showDiff: () => Promise.resolve(),
   })
-  return { bound, factory, openRoles }
+  return {
+    bound,
+    loads: () => loads,
+    opened: () => opened,
+  }
 }
 
 describe('the team availability switch', () => {
@@ -154,7 +157,7 @@ describe('the team availability switch', () => {
       const closed = binding(isOn)
       // Nothing is constructed: a stored runnable team loads no bundle.
       await closed.bound.open()
-      expect(closed.factory, `service construction, setting ${String(isOn)}`).not.toHaveBeenCalled()
+      expect(closed.loads(), `service construction, setting ${String(isOn)}`).toBe(0)
       // Nothing is shown: no configuration, no Agent map.
       expect(closed.bound.canConfigure(), `configuration, setting ${String(isOn)}`).toBe(false)
       expect(closed.bound.tree(), `Agent map, setting ${String(isOn)}`).toBeUndefined()
@@ -164,26 +167,18 @@ describe('the team availability switch', () => {
         closed.bound.handle({ type: 'openTeamRoles', roleId: undefined }),
         `Roles section by command, setting ${String(isOn)}`,
       ).rejects.toThrow(UI_TEXT.teamTaskUnknown)
-      expect(closed.openRoles, `Roles section, setting ${String(isOn)}`).not.toHaveBeenCalled()
+      expect(closed.opened(), `Roles section, setting ${String(isOn)}`).toBe(0)
       await expect(
         closed.bound.handle({ type: 'stopTeamTask', taskId: 'task-1' }),
         `Agents section task command, setting ${String(isOn)}`,
       ).rejects.toThrow(UI_TEXT.teamTaskUnknown)
-      // The Models & Agents panel builds no Roles/Agents content.
-      const panel = createTeamPanelHost({
-        team: {
-          isEnabled: () => closed.bound.canConfigure(),
-          state: { get: () => undefined, update: () => Promise.resolve() },
-          reload: noop,
-          onTreeChange: () => noopUnsubscribe,
-          tree: () => undefined,
-          handle: () => Promise.resolve(),
-        },
-        l10n: { table: UI_TEXT, locale: 'en' },
-        writeExportFile: () => Promise.resolve(undefined),
-        readImportFile: () => Promise.resolve(undefined),
+      // The Models & Agents panel builds no Roles/Agents content: the core
+      // panel reads nothing while the binding refuses configuration.
+      const panel = createTeamPanel(UI_TEXT, 'en', {
+        ...panelRig().deps,
+        isEnabled: () => closed.bound.canConfigure(),
       })
-      expect(await panel?.load(), `Roles/Agents panel, setting ${String(isOn)}`).toBeUndefined()
+      expect(await panel.read(), `Roles/Agents panel, setting ${String(isOn)}`).toBeUndefined()
       await closed.bound.dispose()
     }
   })
@@ -193,13 +188,13 @@ describe('the team availability switch', () => {
       const on = binding(true)
       expect(on.bound.canConfigure(), 'first-time configuration while on').toBe(true)
       await on.bound.handle({ type: 'openTeamRoles', roleId: undefined })
-      expect(on.openRoles, 'Roles section by command while on').toHaveBeenCalledOnce()
+      expect(on.opened(), 'Roles section by command while on').toBe(1)
       await on.bound.dispose()
 
       const off = binding(false)
       expect(off.bound.canConfigure(), 'configuration with a false setting').toBe(false)
       await off.bound.open()
-      expect(off.factory, 'service construction with a false setting').not.toHaveBeenCalled()
+      expect(off.loads(), 'service construction with a false setting').toBe(0)
       await off.bound.dispose()
     } finally {
       OPTIONAL_RUNTIME_AVAILABILITY.team = false

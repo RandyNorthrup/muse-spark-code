@@ -6,12 +6,12 @@ import type { ResourceHostSettings } from '../../../../src/core/resources/resour
 import type { ResourceAdmission, ResourceLaunchRequest } from '../../../../src/core/resources/queue'
 
 /**
- * Suites that execute the production governed launcher against real OS
- * helpers, with no contention to queue for: admission grants at once. The
- * spawn itself (containment, tree stop, output bounds, deadlines) stays
- * production; only the queue wait is bypassed. Queueing itself is proved by
- * spawnBootstrap, spawnGovernance and spawnRuntimeAdmission, never here.
- */
+Suites that execute the production governed launcher against real OS
+helpers, with no contention to queue for: admission grants at once. The
+spawn itself (containment, tree stop, output bounds, deadlines) stays
+production; only the queue wait is bypassed. Queueing itself is proved by
+spawnBootstrap, spawnGovernance and spawnRuntimeAdmission, never here.
+*/
 function grantAtOnce(request: ResourceLaunchRequest): Promise<ResourceAdmission> {
   return Promise.resolve({
     ready: Promise.resolve({
@@ -31,11 +31,11 @@ export function immediateAdmission(): (
 }
 
 /**
- * Plain self-cleaning temp roots: the governor's proof-backed roots shell to
- * the native helper at its installed (built-layout) path, which a source
- * checkout running vitest does not have. Containment of the launched tree
- * stays production; root proofs are the registry suites' subject, never here.
- */
+Plain self-cleaning temp roots: the governor's proof-backed roots shell to
+the native helper at its installed (built-layout) path, which a source
+checkout running vitest does not have. Containment of the launched tree
+stays production; root proofs are the registry suites' subject, never here.
+*/
 async function createPlainRoot(): Promise<ResourceTempRoot> {
   const root = await mkdtemp(path.join(tmpdir(), 'muse-immediate-roots-'))
   return {
@@ -54,9 +54,9 @@ export function plainTempRoots(): ResourceHostSettings['tempRoots'] {
 }
 
 /**
- * Settings for suites that launch for real: the queue wait bypassed and
- * roots plain, everything else production.
- */
+Settings for suites that launch for real: the queue wait bypassed and
+roots plain, everything else production.
+*/
 export function immediateResourceSettings(
   base: Omit<ResourceHostSettings, 'admission' | 'tempRoots'>,
 ): ResourceHostSettings {

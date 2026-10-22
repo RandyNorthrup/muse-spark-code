@@ -44,15 +44,15 @@ function inner(data: unknown): unknown {
 }
 
 /**
- * The VS Code panel's link to its window's playbook: asks which journal the
- * window reads, hands the map that journal's port, and reads the rows'
- * records. What it shows itself is what the map would otherwise hide: that
- * the window's playbook could not be asked, that the rows' records could not
- * be read (what is shown is kept, and said to be possibly old), each with a
- * way to ask again; and the line a governed conversation is owed while its
- * backend starts subagents without asking. A host that never answers has no
- * playbook, and leaves the map exactly as it was.
- */
+The VS Code panel's link to its window's playbook: asks which journal the
+window reads, hands the map that journal's port, and reads the rows'
+records. What it shows itself is what the map would otherwise hide: that
+the window's playbook could not be asked, that the rows' records could not
+be read (what is shown is kept, and said to be possibly old), each with a
+way to ask again; and the line a governed conversation is owed while its
+backend starts subagents without asking. A host that never answers has no
+playbook, and leaves the map exactly as it was.
+*/
 export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkProps) {
   const [workspaceId, setWorkspaceId] = useState<string>()
   const [hasSpawnGap, setSpawnGap] = useState(false)

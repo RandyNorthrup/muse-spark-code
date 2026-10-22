@@ -87,6 +87,12 @@ export const COMPUTED_SOURCE_LOADS = Object.freeze([
     reason:
       'The page worker: the caller passes the path, built from the PAGE_WORKER_FILE constant the scan reads.',
   }),
+  Object.freeze({
+    importer: 'src/host/playbook/playbookEntry.ts',
+    call: 'new Worker(file)',
+    reason:
+      'The playbook worker: the caller passes the path, built from the PLAYBOOK_WINDOW_BUNDLE_FILE constant the scan reads.',
+  }),
 ])
 
 /**

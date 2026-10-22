@@ -163,21 +163,6 @@ export class MuseWorkerFolderError extends Error {
   }
 }
 
-/**
-A refusal the worker modules already typed keeps its sentence on the way
-out: the typed create failures carry fixed user vocabulary (never paths),
-so a caller that reports sentences may repeat them.
-*/
-export function markTypedCreateRefusal(error: Error): Error {
-  return Object.assign(error, { typedCreateRefusal: true })
-}
-
-export function isTypedCreateRefusal(error: unknown): error is Error {
-  return (
-    error instanceof Error && 'typedCreateRefusal' in error && error.typedCreateRefusal === true
-  )
-}
-
 interface IdentifiedPath {
   readonly absolute: string
   readonly identity: string
