@@ -319,16 +319,14 @@ function carryHarness(
     redesign: () => {
       throw new Error('unexpected redesign: no blocker finding was reviewed')
     },
-    readDeltas: options?.readDeltas === false ? undefined : readDeltasFor(repo, base),
-    patchHints:
-      options?.patchHints === undefined
-        ? undefined
-        : (_taskId, priorHead, at) => options.patchHints?.(priorHead, at),
-    integrationChanged:
-      options !== undefined && 'integrationChanged' in options
-        ? () => integrationChanged
-        : undefined,
-    readSets: options !== undefined && 'readSets' in options ? () => readSets : undefined,
+    ...(options?.readDeltas !== false && { readDeltas: readDeltasFor(repo, base) }),
+    ...(options?.patchHints !== undefined && {
+      patchHints: (_taskId: string, priorHead: string, at: string) =>
+        options.patchHints?.(priorHead, at),
+    }),
+    ...(options !== undefined &&
+      'integrationChanged' in options && { integrationChanged: () => integrationChanged }),
+    ...(options !== undefined && 'readSets' in options && { readSets: () => readSets }),
   }
   const flow = new ReviewFlow(deps, {
     flow: 'full',
