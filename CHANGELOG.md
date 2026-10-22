@@ -35,9 +35,22 @@ happened, not what was planned; superseded entries are kept.
 
 - Provider settlement preserves catalogue cache-write rates and prices cache duration classes separately; usage records retain exact USD amounts.
 
-- ACP backend advisories use negotiated session notices once per session, keeping model answers free of feature-state and transport notices.
+- ACP backend advisories use negotiated session notices, keeping model answers free of feature-state and transport notices.
 
 - ACP slash handling: unknown slash commands are answered locally with the nearest known commands and never reach the model; `/help <command>` explains one command; `\/` sends a literal leading slash to the model. `session/load` of an unknown id answers resource-not-found like a prompt on an unknown session. `/compact` always ends with a message saying what it did. The command list arrives with the new or loaded session.
+
+- `/compact` in an editor session now answers instead of ending in
+  silence: it says how many turns it folded (and the size before and
+  after), or why nothing was done. The terminal and the panel say the
+  same thing in their own form.
+- Product notices (such as the automatic-compaction status) no longer
+  open the model's answer in editor sessions; where the editor shows
+  notices they arrive on the protocol's own notice channel, otherwise
+  as a separate message.
+- A model or effort the run does not offer is refused with its name:
+  the message names the id as typed, the provider or session that does
+  not offer it, and what to do (for a provider entry, the command that
+  lists its models; in a session, picking an offered model or effort).
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

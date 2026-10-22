@@ -50,6 +50,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
+import { listModelsRemedy, unknownProviderModelText } from '../../core/unknownModel'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -757,9 +758,12 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
   const requested = input.model ?? model
   if (requested === undefined) {
     // A default that names another provider is the file's choice, not this
-    // run's model; only a run with no model anywhere needs --model spelled out.
+    // run's model: the sentence names that default and the entry it cannot
+    // run on. Only a run with no model anywhere needs --model spelled out.
     return usage(
-      `${UI_TEXT.execProviderModelRequired}: ${provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', ')}`,
+      fallback === undefined
+        ? UI_TEXT.execProviderModelRequired
+        : unknownProviderModelText(fallback, provider.entry.id, UI_TEXT.execProviderModelRequired),
     )
   }
   const matches = provider.entry.models.filter(
@@ -779,7 +783,14 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
   const modelRef = `${provider.entry.id}/${matches[0] ?? ''}`
   const parsedRef = parseModelRef(modelRef)
   if (parsedRef?.providerId !== provider.entry.id) {
-    return usage(UI_TEXT.execUnknownModel)
+    // --model names another entry (or nothing parsable): the sentence names
+    // the id as typed, this entry, and the command listing what it offers.
+    return usage(unknownProviderModelText(modelRef, provider.entry.id, listModelsRemedy()))
+  }
+  if (provider.entry.models.length > 0 && !provider.entry.models.includes(parsedRef.modelId)) {
+    // The entry does not offer this id: refuse before any request is sent.
+    // An empty list judges nothing (unprobed entry); a listed one does.
+    return usage(unknownProviderModelText(modelRef, provider.entry.id, listModelsRemedy()))
   }
   let key: string | undefined
   let memory: MemorySecretStore | undefined =

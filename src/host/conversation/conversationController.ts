@@ -39,6 +39,7 @@ import type { EstimateSection } from '../../shared/estimate'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
+import { compactResultText } from '../../core/compactResult'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
@@ -9420,6 +9421,8 @@ export class ConversationController {
         )
       } else if (outcome.status === CANCELLED_STATUS) {
         this.notice('info', UI_TEXT.compactionStoppedNotice)
+      } else {
+        this.notice('info', compactResultText(outcome))
       }
     } catch (error: unknown) {
       this.deps.log.warn(`A conversation could not be compacted: ${failureForLog(error)}`)

@@ -183,6 +183,7 @@ import {
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
 import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
+import { unknownModelRefText } from '../../unknownModel'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -3320,8 +3321,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
         ? await this.deps.models?.resolve(ref)
         : metaResolvedModel(ref, this.deps.client, planFacts)
-    if (model?.ref !== ref || !model.isCurrent()) {
-      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+    if (model?.ref !== ref) {
+      // Unknown: the sentence names the id as typed, the entry that was
+      // asked, and what the person can do. No request was sent.
+      throw new Error(unknownModelRefText(ref))
+    }
+    if (!model.isCurrent()) {
+      // Stale, not unknown: the record changed while resolving, so the
+      // stale sentence and its retry remedy are the true ones (as the
+      // provider registry itself answers a stale record).
+      throw this.staleRecordError()
     }
     if (ref.includes('/')) {
       this.modelKeyDigests.set(ref, await model.client.currentKeyDigest())
@@ -3335,7 +3344,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const found = this.resolvedModels.get(ref)
     if (found !== undefined) return found
     if (ref.includes('/') && this.deps.client.isPlanModel?.(ref) !== true)
-      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+      throw new Error(unknownModelRefText(ref))
     return metaResolvedModel(ref, this.deps.client)
   }
 
@@ -17807,9 +17816,27 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.active !== undefined || this.compacting !== undefined) {
       throw new Error(TURN_RUNNING)
     }
+    // What /compact reports: the turns and replay entries it folded away.
+    const size = (): { turns: number; entries: number } => ({
+      turns: new Set(
+        this.replay
+          .filter((entry) => entry.turnId !== COMPACTION_TURN_ID)
+          .map((entry) => entry.turnId),
+      ).size,
+      entries: this.replay.length,
+    })
+    const before = size()
     const compacting = this.compactNow(summaryForkSource)
     this.track(compacting, true)
-    return await compacting
+    const outcome = await compacting
+    if (outcome.status !== ACCEPTED) return outcome
+    const after = size()
+    return {
+      ...outcome,
+      turns: before.turns - after.turns,
+      beforeEntries: before.entries,
+      afterEntries: after.entries,
+    }
   }
 
   /** Resolves after turns, compactions, Interrupt work and children's work end. */

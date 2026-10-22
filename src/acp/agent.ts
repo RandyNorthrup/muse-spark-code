@@ -24,6 +24,8 @@ import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
 import { compactReference } from '../shared/cliCommands'
+import { compactResultText } from '../core/compactResult'
+import { effortNotForModelText } from '../core/unknownModel'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
@@ -483,8 +485,8 @@ export function modelEffortLevels(
 
 /**
 The refusal an editor reads for a level the model does not serve: the
-sentence plus the levels it does serve, the same words headless `exec`
-refuses with, so both surfaces name the choice.
+unavailable sentence plus the levels it does serve. Headless `exec`
+names the effort too, through `effortNotForModelText`.
 */
 export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
   return `${UI_TEXT.execEffortUnavailable} --effort: ${modelEffortLevels(models, modelId).join(', ')}`
@@ -664,6 +666,8 @@ class AcpSession {
       cwd,
       false,
       'museCode',
+      // Notices may go out only to a client that advertised them (the
+      // pinned SDK's v1 `Notice` contract; see translate.ts).
       clientCapabilities.session?.notices != null,
     )
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
@@ -900,31 +904,6 @@ class AcpSession {
   }
 
   /** A finished compact says what it did, so the turn never ends silent. */
-  private answerCompaction(status: string, reason: string | undefined): void {
-    let text =
-      reason === undefined
-        ? UI_TEXT.nothingToCompact
-        : fill(UI_TEXT.nothingToCompactReason, { reason })
-    switch (status) {
-      case 'completed': {
-        text = UI_TEXT.compactionDone
-        break
-      }
-      case 'cancelled': {
-        text = UI_TEXT.compactionStoppedNotice
-        break
-      }
-      case 'failed': {
-        text = UI_TEXT.compactionFailed
-        break
-      }
-      default: {
-        break
-      }
-    }
-    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
-  }
-
   private withSkill(parts: TurnPart[]): TurnPart[] {
     const [first, ...rest] = parts
     if (first?.type !== 'text') {
@@ -1209,7 +1188,15 @@ class AcpSession {
         throw RequestError.invalidParams(undefined, error.message)
       throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
     }
-    if (attachment === undefined) return true
+    if (attachment === undefined) {
+      // A dismissed recording is still an answer: the person reads that
+      // nothing was attached. Only /record returns undefined.
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.media.recordingDiscarded },
+      })
+      return true
+    }
     if (signal.aborted || this.isDisposed) {
       await attachment.dispose?.()
       signal.throwIfAborted()
@@ -2657,7 +2644,12 @@ class AcpSession {
     if (configId === ACP_CONFIG_IDS.model) {
       const chosen = this.models.find((model) => model.modelId === value)
       if (chosen === undefined) {
-        throw RequestError.invalidParams(undefined, value)
+        // The session does not offer this id: the refusal names the id
+        // as typed. No request was sent.
+        throw RequestError.invalidParams(
+          undefined,
+          fill(UI_TEXT.modelNotInSession, { model: value }),
+        )
       }
       // Refused in the protocol's own error with the limit's sentence
       // (F83): a plain backend error would reach the client as a bare
@@ -2693,7 +2685,12 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, configId)
     }
     if (!isEffortLevel(value) || !modelEffortLevels(this.models, this.modelId).includes(value)) {
-      throw RequestError.invalidParams(undefined, effortRefusalData(this.models, this.modelId))
+      // The effort is not on this model: the refusal names the effort,
+      // the model, and the levels that are.
+      throw RequestError.invalidParams(
+        undefined,
+        effortNotForModelText(value, this.modelId, modelEffortLevels(this.models, this.modelId)),
+      )
     }
     await this.applyEffort(value)
     this.isEffortChosen = true
@@ -3090,8 +3087,10 @@ class AcpSession {
           throw accountRequestError(error)
         }
         if (preparing.isCancelled || this.isDisposed) return 'cancelled'
-        if (text !== undefined)
-          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        // A command turn never ends silently: no sentence is a refusal.
+        if (text === undefined)
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
       }
@@ -3207,8 +3206,12 @@ class AcpSession {
       return 'end_turn'
     }
     if (isUsage) {
+      // A usage turn stopped before its first sentence ends stopped, not
+      // silent: only a finished usage ends the turn. The shared preparing
+      // flag is read through the reply gate (cancelPreparing mutates it
+      // through the shared reference, past the type checker's narrowing).
       await this.outbox
-      return 'end_turn'
+      return this.canReplyUsage(preparing) ? 'end_turn' : 'cancelled'
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).
@@ -3236,10 +3239,14 @@ class AcpSession {
         // The same AgentSession core serves interactive ACP and runExec. A
         // compact starts synchronously, so cancellation need not wait for it.
         // No answer lease is peeked for a compact: a queued answer stays queued.
+        // A command turn never ends silently: the person reads what happened.
         const outcome = await this.session.compact()
-        // Every local command says what it did: a compact with nothing to
-        // say would end the turn with no text and no update.
-        this.answerCompaction(outcome.status, outcome.reason)
+        // Every local command says what it did: the compacted report names
+        // the turns folded away, never a bare done.
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: compactResultText(outcome) },
+        })
         this.finishCompaction(outcome.status)
       } else {
         // No answer lease is peeked for a playback: a queued answer stays

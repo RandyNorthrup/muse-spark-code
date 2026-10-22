@@ -289,6 +289,9 @@ describe('UpdateTranslator', () => {
     expect(translator.updates({ type: 'contextUsage', usedTokens: 10, pressure: 'low' })).toEqual(
       [],
     )
+    // No notices capability on this translator: the SDK's sanctioned agent
+    // message carries the notice instead (acpBackendNotice.test.ts covers
+    // the advertised path).
     expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Slow\n\n' } },
     ])
