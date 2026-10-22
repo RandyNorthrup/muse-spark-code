@@ -590,7 +590,7 @@ export const EN = {
   referenceCodeIntelExtra:
     'Use editor language services for definitions, references, symbols, calls and safe renames. Hover Repo map (mcp__ide__repoMap / repo_map).',
   referenceContext:
-    'Click to compact now Summarise older context to free the window Cannot rewind before the latest compaction.',
+    'Click to compact now Summarise older context to free the context window Cannot rewind before the latest compaction.',
   referenceBundled:
     'Bundled skills: project_setup, feature_delivery, quality_retrofit. muse_gadgets is available on Model API only.',
   referenceExports:
@@ -2294,7 +2294,7 @@ export const EN = {
   openPullRequestOpenedHeld:
     'Pull request #{number} opened in a new window, held until you trust it there.',
   compactItem: '/compact',
-  compactDetail: 'Summarise older context to free the window',
+  compactDetail: 'Summarise older context to free the context window',
   clearItem: '/clear',
   logoutItem: '/logout',
   openLog: 'Open Output Log',
@@ -4537,6 +4537,14 @@ export const EN = {
     'This computer’s credential store is unavailable, so stored keys cannot be checked.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
+  acpOutsideWorkspaceRefused:
+    'Outside the workspace; nothing was read or written. Approval cannot widen workspace access.',
+  // {path}: the refused path or search pattern, as the user wrote it.
+  acpRefusalOutsideWorkspace: 'Path {path} is outside the workspace; nothing was read or written.',
+  acpRefusalLinkEscape:
+    'Path {path} leads outside the workspace through a link; nothing was read or written.',
+  acpCredentialStoreNoAnswer:
+    'The credential store did not answer. This request was not sent; try again.',
   acpStoreUnavailable:
     'This computer’s credential store cannot be used ({reason}). On Linux the agent needs a running, unlocked Secret Service, such as GNOME Keyring or KWallet.',
   acpStoreNames: {
@@ -4550,6 +4558,14 @@ export const EN = {
   acpQuestionAsked:
     'Muse has a question; this editor cannot show it as a form, so answer in your next message:',
   acpUnknownArgument: 'Unknown argument: {argument}',
+  // {command}: the slash command as typed. {commands}: the nearest known
+  // commands. A message starting with \/ sends a literal leading slash.
+  acpUnknownCommand: String.raw`Unknown command {command}. Nearest commands: {commands}. Send /help for the full list. To send a message starting with a slash, start it with \/.`,
+  // {topic}: the /help topic as typed.
+  acpHelpUnknownTopic: 'No help for {topic}. Send /help for the command list.',
+  // The /help footer for slash handling: unknown commands stay local, and
+  // \/ sends a literal leading slash.
+  acpCommandHelpNote: String.raw`A slash message the agent does not know is answered here, never sent to the model. /help <command> explains one command. To send a literal leading slash, start the message with \/.`,
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
   // {command}: the executable's name. The options and values stay as typed.

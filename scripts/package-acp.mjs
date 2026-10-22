@@ -41,7 +41,6 @@ import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 import { removePackageStage, writeStageReceipt } from './lib/packageStage.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
-
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const SCHEMAS = [
   'exec-result-v1.schema.json',

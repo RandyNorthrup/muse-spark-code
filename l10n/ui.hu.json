@@ -2739,6 +2739,7 @@
   "autoCompactionName": "Automatikus tömörítés",
   "paidConfirmAutoCompaction": "Az automatikus tömörítés a kiválasztott modellt használja {price} áron. Az előfizetés ezt nem fedezi.",
   "autoCompactionAwaitingEvaluation": "Az automatikus tömörítés értékelésre vár, és inaktív.",
+
   "autoCompactionFailed": "Az automatikus tömörítés sikertelen; folytatás az eredeti kontextussal.",
   "autoCompactionBudgetRefused": "Az automatikus tömörítés nem futott le: a napi fizetős keret elutasította. Emelje meg a keretet, vagy próbálja újra holnap; az eredeti környezet megmarad.",
   "contextWindowFull": "A kontextusablak megtelt: /compact vagy /handoff",
@@ -3685,6 +3686,10 @@
   "acpKeyAbsent": "Nincs tárolt Meta Model API-kulcs.",
   "acpStoreDown": "A számítógép hitelesítőadat-tárolója nem érhető el, ezért a tárolt kulcsok nem ellenőrizhetők.",
   "acpKeyCleared": "A Meta Model API-kulcs törölve lett a számítógép hitelesítőadat-tárolójából.",
+  "acpOutsideWorkspaceRefused": "A munkaterületen kívül; semmi nem lett olvasva vagy írva. A jóváhagyás nem bővítheti a munkaterülethez való hozzáférést.",
+  "acpRefusalOutsideWorkspace": "A(z) {path} útvonal a munkaterületen kívül van; semmi nem lett olvasva vagy írva.",
+  "acpRefusalLinkEscape": "A(z) {path} útvonal egy hivatkozáson keresztül a munkaterületen kívülre vezet; semmi nem lett olvasva vagy írva.",
+  "acpCredentialStoreNoAnswer": "A hitelesítőadat-tároló nem válaszolt. A kérés nem lett elküldve; próbálja újra.",
   "acpStoreUnavailable": "A számítógép hitelesítőadat-tárolója nem használható ({reason}). Linuxon az ügynöknek futó, feloldott Secret Service szolgáltatásra van szüksége, például GNOME Keyringre vagy KWalletre.",
   "acpStoreNames": {
     "windows": "Windows Hitelesítőadat-kezelő",
@@ -3696,6 +3701,9 @@
   "acpQuestionFormMessage": "Muse-nak kérdése van Önhöz.",
   "acpQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tudja űrlapként megjeleníteni, ezért a következő üzenetében válaszoljon:",
   "acpUnknownArgument": "Ismeretlen argumentum: {argument}",
+  "acpUnknownCommand": "Ismeretlen parancs: {command}. Hasonló parancsok: {commands}. A teljes listához küldd el: /help. Ha perjellel kezdődő üzenetet szeretnél küldeni, kezd \\/ jellel.",
+  "acpHelpUnknownTopic": "Nincs súgó ehhez: {topic}. A parancslistához küldd el: /help.",
+  "acpCommandHelpNote": "A perjeles üzenetet, amelyet az ügynök nem ismer, itt válaszolja meg, és soha nem küldi el a modellnek. A /help <parancs> elmagyaráz egy parancsot. Szó szerinti kezdő perjel küldéséhez kezd az üzenetet \\/ jellel.",
   "acpPaidNeedsModelApi": "A(z) {argument} használatához --backend modelApi szükséges: a fizetős funkciókat egy Model API-kulcsra számlázzák.",
   "acpFontUi": "Felület betűtípusa",
   "acpFontCode": "Kód betűtípusa",

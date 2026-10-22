@@ -29,6 +29,7 @@ export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 export const MODEL_API_OPTIONAL_ONLY = [
+  'acpAssist.ts',
   'codeIntelEntry.ts',
   'codeIntelCalls.ts',
   'mcpPoolEntry.ts',
@@ -254,6 +255,14 @@ export const DEFERRED = [
       'src/core/backends/modelapi/mcp/http.ts',
       'src/core/backends/modelapi/mcp/stdio.ts',
       'src/core/backends/modelapi/mcp/servers.ts',
+    ],
+  },
+  {
+    output: 'dist/modelApiAcp.js',
+    metafile: 'dist/meta/modelApiAcp.json',
+    files: [
+      'src/core/backends/modelapi/modelApiAcpEntry.ts',
+      'src/core/backends/modelapi/acpAssist.ts',
     ],
   },
   {
@@ -1323,6 +1332,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/runtimeAccountingEntry.ts'), 'dist/runtimeAccounting.js'],
   [path.resolve('src/core/backends/modelapi/modelApiHooksEntry.ts'), 'dist/modelApiHooks.js'],
   [path.resolve('src/core/backends/modelapi/modelApiMcpEntry.ts'), 'dist/modelApiMcp.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiAcpEntry.ts'), 'dist/modelApiAcp.js'],
   [path.resolve('src/runtime/exec/runExec.ts'), 'dist/headless.js'],
   [path.resolve('src/runtime/usage/usageAcp.ts'), 'dist/usageService.js'],
   [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
@@ -1411,15 +1421,30 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+        // The backend's own modules import the assist entry statically, so
+        // the moved paths stay plain calls; the build externalises those
+        // imports to a require of the sibling bundle. Only the backend may
+        // do this: any other bundle keeps the entry's sources to itself and
+        // the split gate fails it loudly.
+        if (
+          source === path.resolve('src/core/backends/modelapi/modelApiAcpEntry.ts') &&
+          args.kind !== 'entry-point'
+        ) {
+          const output = DEFERRED_OUTFILES.get(source)
+          return output !== undefined &&
+            path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
+            ? { path: `./${path.basename(output)}`, external: true }
+            : undefined
+        }
         if (
           args.kind !== 'dynamic-import' &&
           !/(?:providerPolicyEntry|providersEntry|subscriptionsEntry|runExec)$/.test(args.path)
         )
           return
-        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
         const output = DEFERRED_OUTFILES.get(source)
         return output === undefined
           ? undefined

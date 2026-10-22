@@ -2683,6 +2683,7 @@
   "autoCompactionName": "自動コンパクション",
   "paidConfirmAutoCompaction": "自動圧縮は選択したモデルを {price} の料金で使用します。サブスクリプションでは支払われません。",
   "autoCompactionAwaitingEvaluation": "自動コンパクションは評価待ちのため無効です。",
+
   "autoCompactionFailed": "自動コンパクションに失敗しました。元のコンテキストで続行します。",
   "autoCompactionBudgetRefused": "自動圧縮は実行されませんでした: 日次有料予算が拒否しました。予算を引き上げるか、明日再試行してください。元のコンテキストが維持されます。",
   "contextWindowFull": "コンテキストウィンドウがいっぱいです: /compact または /handoff",
@@ -3610,6 +3611,10 @@
   "acpKeyAbsent": "Meta Model API キーは保存されていません。",
   "acpStoreDown": "このコンピューターの資格情報ストアを利用できないため、保存済みのキーを確認できません。",
   "acpKeyCleared": "Meta Model API キーをこのコンピューターの資格情報ストアから削除しました。",
+  "acpOutsideWorkspaceRefused": "ワークスペースの外部です。読み取りも書き込みも行われていません。承認によってワークスペースへのアクセス範囲を拡張することはできません。",
+  "acpRefusalOutsideWorkspace": "パス {path} はワークスペースの外部です。読み取りも書き込みも行われていません。",
+  "acpRefusalLinkEscape": "パス {path} はリンクを介してワークスペースの外部につながっています。読み取りも書き込みも行われていません。",
+  "acpCredentialStoreNoAnswer": "認証情報ストアが応答しませんでした。このリクエストは送信されていません。もう一度お試しください。",
   "acpStoreUnavailable": "このコンピューターの資格情報ストアを使用できません ({reason})。Linux では、GNOME Keyring や KWallet など、実行中でロック解除された Secret Service がエージェントに必要です。",
   "acpStoreNames": {
     "windows": "Windows 資格情報マネージャー",
@@ -3621,6 +3626,9 @@
   "acpQuestionFormMessage": "Muse から質問があります。",
   "acpQuestionAsked": "Muse から質問があります。このエディターではフォームとして表示できないため、次のメッセージで回答してください:",
   "acpUnknownArgument": "不明な引数: {argument}",
+  "acpUnknownCommand": "不明なコマンド {command} です。近いコマンド: {commands}。一覧は /help で確認できます。スラッシュで始まるメッセージを送るには、\\/ で始めてください。",
+  "acpHelpUnknownTopic": "{topic} のヘルプはありません。コマンドの一覧は /help で確認できます。",
+  "acpCommandHelpNote": "エージェントが知らないスラッシュメッセージにはここで回答し、モデルには送信しません。/help <コマンド> で1つのコマンドを説明します。先頭のスラッシュを文字どおり送るには、メッセージを \\/ で始めてください。",
   "acpPaidNeedsModelApi": "{argument} には --backend modelApi が必要です。有料機能は Model API キーに請求されます。",
   "acpFontUi": "UI のフォント",
   "acpFontCode": "コードのフォント",

@@ -282,7 +282,7 @@ function backendFiles() {
 }
 
 const problems = []
-const EXTRA_ONLY = new Set(['modelApiHooksEntry.ts', 'modelApiMcpEntry.ts'])
+const EXTRA_ONLY = new Set(['modelApiHooksEntry.ts', 'modelApiMcpEntry.ts', 'modelApiAcpEntry.ts'])
 const CONFIGURED_ONLY = ['authSource.ts', 'providerClient.ts']
 const PROVIDER_ONLY = []
 const onDisk = new Set(backendFiles())
@@ -1412,6 +1412,7 @@ const TEXT_BLOCKS = [
       'dist/modelApiMcp.js',
       'dist/modelApiVerify.js',
       'dist/productionMedia.js',
+      'dist/modelApiAcp.js',
     ],
   },
   // The verify loop's own words (M68): the loop, its ledger and the

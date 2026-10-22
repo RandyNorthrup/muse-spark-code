@@ -8288,3 +8288,55 @@ providers' documentation quotes for "not billed" (with what they do not say
 marked), and five red drills are in the certification record.
 
 <!-- plan-archive:end id="decisions-406932fef-14803" -->
+
+## D212 — The stabilized ACP surface is answered, on SDK 1.8.0 (lane ACPGAPS, 2026-10-12; numbered D108 on its branch until the 0.19.0 join, when that number was found shared with the test overhaul)
+
+<!-- plan-archive:begin id="decisions-62a29535c-15270" lines="15270-15314" at="62a29535c" bytes="2881" sha256="c78b28116497977cc7a4d8697f7f32de6c95e16b41b19cd28f4c88f7a2df7423" -->
+
+**Owner (2026-10-12):** "we need the gaps alll filled asap" — every
+stabilized editor-protocol method and field the scans found our agent not
+answering or sending. Rule: an editor that calls a stabilized method gets
+the documented answer, never "method not found"; every request or reply
+shape rests on the pinned SDK 1.8.0 schema or a protocol page read
+2026-10-12, and stays UNVERIFIED until a real editor confirms it
+(`docs/certification/ACPGAPS-capture-plan.json`; certification
+`docs/certification/ACPGAPS.md`). Landed 2026-10-22 on the 0.19.0 join
+against main's error-truth refusal shapes (PR #238): deletes go through
+the required `AgentHost.deleteSession` behind `info.canDeleteSessions`,
+advertised only where the backend deletes, and every refusal answers in
+the failure's own true words.
+
+- **ACP-G02 closed:** `session/delete` removes the stored session on both
+  backends (`AgentHost.deleteSession`; Muse Code's own delete verb, a
+  stored-file remove on Model API). Unknown ids succeed silently.
+- **ACP-G03 closed:** `logout` stops every held session and removes the
+  stored Model API key; the CLI's sign-in stays the user's to end.
+- **ACP-G04 closed:** `$/cancel_request` ends a prompt like
+  `session/cancel` (the SDK aborts the request signal; the agent cancels
+  the turn and answers `cancelled`), and a cancel sends it for the
+  client's waiting requests. The team worker cancels its child the same
+  way.
+- **ACP-G05/G06 closed:** the modes are also a `mode` settings selector,
+  mode changes are announced, and paid "Allow always" is a boolean
+  setting shown only where the client renders booleans. Legacy
+  `modes`/`set_mode` stay until the protocol removes them.
+- **ACP-G09 closed:** new/load/resume take absolute `additionalDirectories`
+  and listing reports them; tools keep running in the session folder.
+- **ACP-G10/G11 closed:** every message chunk carries its item's
+  `messageId`, every tool call its backend `name`. One-shot notices keep
+  going out ungrouped (follow-up).
+- **ACP-G12 NOT started (design note in the certification):** the agent
+  makes no client `terminal/*` or `fs/*` call; no turn needs one yet, and
+  inventing a call site would be guessing. Decision points: which turn
+  may run client-side commands, whose approval gates them, and what the
+  panel/terminal twins get at the same time.
+- **Parity (owner: all editors equal):** the panel has no session delete
+  and no per-session "Allow always" refusal; the terminal agent has no
+  logout/delete surface. Recorded as follow-ups; nothing here is
+  reachable only through a vscode-only path.
+- **Reference detector fix:** `scripts/lib/reference.mjs` matches wrapped
+  `client.request(` calls too — the cancel cascade wrapped every call
+  site and silently dropped `session/request_permission` from the
+  generated reference until the maintained generator test caught it.
+
+<!-- plan-archive:end id="decisions-62a29535c-15270" -->

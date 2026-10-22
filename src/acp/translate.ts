@@ -1,8 +1,6 @@
 import type { UsageCost } from '../shared/usageJournal'
-import { estimateCostUsd } from '../core/usage/insights'
-import { Usd } from '../shared/usd'
+import { Usd, type UsdAmount } from '../shared/usd'
 import {
-  MODEL_API_PRICED_MODELS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
   FILE_EDIT_TOOLS,
@@ -253,6 +251,23 @@ export function planEntries(items: readonly TodoItem[]): PlanEntry[] {
   }))
 }
 
+/** A carried answer cost the translator may show: exact decimal dollars with a priced certainty. */
+function isPricedCarriedCost(cost: {
+  readonly usd: UsdAmount
+  readonly certainty: string
+}): cost is { readonly usd: UsdAmount; readonly certainty: 'reported' | 'computed' } {
+  let amount: Usd
+  try {
+    amount = Usd.from(cost.usd)
+  } catch {
+    return false
+  }
+  return (
+    amount.compare(Usd.from(0)) >= 0 &&
+    (cost.certainty === 'reported' || cost.certainty === 'computed')
+  )
+}
+
 /**
 Turns one session's AgentEvents into ACP session updates. It remembers,
 per item, how much text went out (an item can arrive whole after its
@@ -267,7 +282,11 @@ export class UpdateTranslator {
   private readonly previewing = new Set<string>()
   /** Each item's kind, so a delta is routed by what it belongs to. */
   private readonly kinds = new Map<string, string>()
-  private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
+  /**
+  The answer's cost, carried on the usage event itself (R5): the settled
+  dollars behind its totals, each request priced at the model actually
+  billed. The translator computes nothing.
+  */
   private cost: UsageCost | undefined
   private hasUnpricedUsage = false
   /** The last agent text sent ended mid-line, so the next notice opens its own paragraph. */
@@ -277,7 +296,6 @@ export class UpdateTranslator {
     private readonly cwd: string,
     /** Replaying a loaded history: the user's own messages go out too. */
     private readonly isReplay: boolean,
-    private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
     /**
     The client advertised `session.notices`: backend notices go out as
@@ -393,6 +411,9 @@ export class UpdateTranslator {
           locations: toolLocations(args, this.cwd),
         }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
+      ...(item.refusalCode !== undefined && {
+        _meta: { 'museSpark.refusal': { code: item.refusalCode, reason: item.failureReason } },
+      }),
     })
     if (isCompleted) {
       this.toolOutput.delete(item.itemId)
@@ -403,36 +424,21 @@ export class UpdateTranslator {
   private translated(event: AgentEvent): SessionUpdate[] {
     switch (event.type) {
       case 'tokenUsage': {
-        const priced: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
-        const next = {
-          inputTokens: event.inputTokens,
-          outputTokens: event.outputTokens,
-          cachedTokens: event.cachedTokens ?? 0,
-        }
-        const delta = {
-          inputTokens: next.inputTokens - this.tokens.inputTokens,
-          outputTokens: next.outputTokens - this.tokens.outputTokens,
-          cachedTokens: next.cachedTokens - this.tokens.cachedTokens,
-        }
+        // One source for cost (R5): the event carries what the usage record
+        // computed for these totals, per model actually billed. No second
+        // computation here; without it the answer shows no cost.
+        const carried = event.cost
         if (
+          carried !== undefined &&
+          !this.hasUnpricedUsage &&
           this.backend === 'modelApi' &&
-          event.modelId !== undefined &&
-          priced.includes(event.modelId) &&
-          Object.values(delta).every((value) => Number.isSafeInteger(value) && value >= 0) &&
-          delta.cachedTokens <= delta.inputTokens &&
-          !this.hasUnpricedUsage
+          isPricedCarriedCost(carried)
         ) {
-          this.cost = {
-            certainty: 'computed',
-            usd: Usd.from(this.cost?.usd ?? 0)
-              .add(Usd.from(estimateCostUsd(delta, event.modelId)))
-              .toAmount(),
-          }
+          this.cost = { certainty: carried.certainty, usd: carried.usd }
         } else {
           this.hasUnpricedUsage = true
           this.cost = undefined
         }
-        this.tokens = next
         return []
       }
       case 'itemStarted':
@@ -455,12 +461,15 @@ export class UpdateTranslator {
         return [{ sessionUpdate: 'session_info_update', title: event.name }]
       }
       case 'contextUsage': {
-        const cost = this.readCost === undefined ? this.cost : this.readCost()
+        // The turn's own running tally, which includes the request it
+        // describes: never a journal snapshot from before it (finding 3).
+        const cost = this.cost
         const hasCost =
           cost?.usd !== undefined &&
           cost.certainty !== 'unpriced' &&
           cost.certainty !== 'uncertain' &&
-          cost.certainty !== 'plan'
+          cost.certainty !== 'plan' &&
+          cost.certainty !== 'local'
         return event.windowTokens === undefined
           ? []
           : [

@@ -811,3 +811,31 @@ After: 3,563,591 bytes, 1,567 bytes under the gate.
 - `npm run check:reference`: exit 0.
 - `planReader` + `planCitation` + `autoCompact` + `paidMoneyStructure`: 135
   passed.
+
+## 2026-10-22: room for the RLACP join (lane RLACP)
+
+The RLACP join's D212 decision record put `PLAN.md` at 3,567,376 bytes,
+2,218 over the `check:plan` gate (85% of the 4 MiB bound, 3,565,158). The
+record moved to `docs/plan-archive/decisions.md` in the same change, as the
+standing rule requires of a new design record; `PLAN.md` keeps the rule in
+force with `Full record` pointing at it:
+
+| Block                 | Lines (at `62a29535c`) | Bytes | SHA-256     |
+| --------------------- | ---------------------- | ----- | ----------- |
+| D212 ACPGAPS decision | 15270–15314            | 2,881 | `c78b2811…` |
+
+After: 3,564,873 bytes, 285 bytes under the gate.
+
+### Proofs
+
+- Reassembly: the command rebuilt the old `PLAN.md` before the write,
+  SHA-256 `31bca438…`.
+- Parsed facts: identical; format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/decisions.md`: clean.
+- `npm run check:plan`: `plan-format-v1; 223 milestones; 0 drift`.
+- `npm run roadmap:generate`: `ROADMAP.md` rewritten for the lane's own
+  `entries.json` change (ACPDOG entry added), not for the archive move.
+- `npm run check:reference`: exit 0.
+- `planReader` + `planCitation` + `autoCompact` + `paidMoneyStructure`: 135
+  passed (after the numeric-cost rework below, which the joined branches
+  forced: the money gate fired before this record was written).

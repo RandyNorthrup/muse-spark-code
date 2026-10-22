@@ -1,3 +1,4 @@
+import type { CoreLogger } from '../../core/logging'
 import {
   RESOURCE_SERVICE_PRESSURE_PERCENT,
   RESOURCE_TRANSPORT_FAILURE_PERCENT,
@@ -173,4 +174,76 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
           )
   }
   return [fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold }), ...details].join('\n')
+}
+
+// Technical reading identifiers name the failed port, without a native message or path.
+const RESOURCE_READINGS = [
+  'resources.settings',
+  'resources.resume',
+  'resources.sample',
+  'resources.history',
+  'resources.status',
+  'resources.admission',
+] as const
+export type ResourceReading = (typeof RESOURCE_READINGS)[number]
+
+/**
+Stable cross-bundle brand (R2): the resources bundle ships separately
+from the ACP agent, so each bundle carries its own class object and
+`instanceof` cannot recognise the other's failures. Matching is on this
+brand plus a reading from the fixed vocabulary, never on identity.
+*/
+export const RESOURCE_READING_CODE = 'resource_reading'
+
+export class ResourceReadingError extends Error {
+  public readonly code: typeof RESOURCE_READING_CODE = RESOURCE_READING_CODE
+  public constructor(public readonly reading: ResourceReading) {
+    super(UI_TEXT.resourceUnavailable)
+    this.name = 'ResourceReadingError'
+  }
+}
+
+/** A resource-reading failure from any bundle that built it. */
+export function isResourceReadingError(error: unknown): error is ResourceReadingError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === RESOURCE_READING_CODE &&
+    'reading' in error &&
+    typeof error.reading === 'string' &&
+    (RESOURCE_READINGS as readonly string[]).includes(error.reading)
+  )
+}
+
+/** The named reading when branded, else the generic status reading. */
+export function resourceReadingOf(error: unknown): ResourceReading {
+  return isResourceReadingError(error) ? error.reading : 'resources.status'
+}
+
+/** A reading name from the fixed vocabulary, for rebuilding outbound data. */
+export function isResourceReadingName(value: unknown): value is ResourceReading {
+  return typeof value === 'string' && (RESOURCE_READINGS as readonly string[]).includes(value)
+}
+
+export async function readResource<T>(
+  reading: ResourceReading,
+  work: () => T | Promise<T>,
+): Promise<T> {
+  try {
+    return await work()
+  } catch {
+    throw new ResourceReadingError(reading)
+  }
+}
+
+/** The connected process reports each unavailable reading once, in its installed language. */
+export function resourceFailureReporter(log: Pick<CoreLogger, 'warn'>): (error: unknown) => void {
+  const reported = new Set<ResourceReading>()
+  return (error) => {
+    const reading = resourceReadingOf(error)
+    if (reported.has(reading)) return
+    reported.add(reading)
+    log.warn(`${reading}: ${UI_TEXT.resourceUnavailable}`)
+  }
 }

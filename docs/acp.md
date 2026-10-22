@@ -446,7 +446,15 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
-  model turn.
+  model turn. The command list (`available_commands_update`) arrives with the
+  new or loaded session, so the editor builds its slash menu before the
+  first prompt; a skill that settles later is announced through the
+  backend's skill-change event. A slash message that names no local command,
+  no advertised command and no installed skill is answered locally with the
+  nearest known commands and never reaches the model. `/help <command>`
+  explains one command, or says there is no such topic. A message that must
+  start with a slash starts with `\/`, which the agent strips and sends to
+  the model with a literal leading slash.
   Scheduled prompt delivery remains unavailable pending shared certification.
   M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
   when the estimator binding is present; it runs the same engine as the
@@ -499,7 +507,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   cancelled and stops that turn, and an answer you give it afterwards
   decides nothing. Cancelling one request (`$/cancel_request`) ends its
   prompt the same way a session cancel does, and a cancel in turn stops
-  the editor's own waiting requests (permission, forms).
+  the editor's own waiting requests (permission, forms). Loading an id no
+  host holds answers resource-not-found, the same shape as a prompt on an
+  unknown session, never an internal error.
 - **Prompts**: text, files as @mentions, attached excerpts, and PNG, JPEG,
   GIF and WebP images at any size (reads bounded only by host memory; the
   selected model's capability record and the provider answer for the rest).
@@ -808,11 +818,15 @@ ACP advertises `/compact` alongside skills. An exact text-only `/compact`
 prompt calls the backend's shared compaction core and waits for its updates
 before returning. Cancellation stops the compaction; another prompt is refused
 while it runs. The headless runtime uses this same ACP dispatch and its existing
-request/budget ledger. On an empty headless session, `/compact` is a no-op and
-sends no model request. Its exec result retains the response-proof contract:
+request/budget ledger. Every `/compact` ends with a message saying what it
+did: what was compacted, that there was nothing to compact yet, that it
+stopped, or that it failed. On an empty session it answers that there is
+nothing to compact yet and sends no model request. Its exec result retains the response-proof contract:
 `incomplete` (exit 8), null terminal and `no_compactable_history`, rather than
 claiming a completed model response. Attachments or additional arguments remain ordinary
-prompts, rather than being silently discarded as command input.
+prompts, rather than being silently discarded as command input. While automatic
+compaction stays off by design, the turn says nothing about it: no status of
+that feature is sent as answer text or as a notice.
 
 ## Local usage history
 
@@ -961,7 +975,7 @@ records:
 
 ## Help and reference
 
-Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help reference` in a terminal for the complete reference. Help starts no backend and makes no model request.
+Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` (or `help reference`) in a terminal for the complete reference. Help starts no backend and makes no model request. `/help <command>` explains one command; unknown slash commands and the `\/` escape are answered the same local way (see [What the editor sees](#what-the-editor-sees)).
 
 ## Resource status and resume
 
@@ -1118,3 +1132,100 @@ browser/free speech-helper receipts and assigned editor bindings/receipts pass. 
 `docs/certification/m35-companion.md` in the source repository distinguishes
 Linux fake-device/agent evidence from the remaining real editor and platform
 checks. This does not change the supported voice routes in this guide.
+
+## Turn accounting
+
+The agent sends `session_info_update` notifications during a turn and includes
+`_meta["museSpark.usage"]` on `session/prompt` responses. These are ACP 1.8.0
+extensions: clients may ignore the metadata and still read `stopReason`.
+The final notification also precedes a failed prompt's typed refusal; that
+refusal carries the same metadata in `data._meta`.
+
+Counts and cost come from settled usage-journal entries, including recorded
+child calls. USD amounts are decimal strings. `settledUsd` excludes upper
+bounds and retained uncertain liability; those have separate fields.
+`missingTokenCounters` names counters the provider did not report. Session
+totals cover retained journal entries; history can age out or be deleted.
+Unavailable or disabled history returns `{ "v": 1, "available": false }`,
+never a claim of free usage. Daily and session budgets use the ledger's canonical decimal amounts,
+including its liabilities, without converting the numeric display fields. A `null` cap/remaining amount means no session cap is configured.
+
+A first completed turn with a $1 daily cap can return:
+
+```json
+{
+  "stopReason": "end_turn",
+  "_meta": {
+    "museSpark.usage": {
+      "v": 1,
+      "available": true,
+      "turn": {
+        "requests": 1,
+        "tokens": {
+          "input": 100,
+          "cached": 20,
+          "cacheWrite": 30,
+          "cacheWrite5m": 20,
+          "cacheWrite1h": 10,
+          "output": 10,
+          "reasoning": 2
+        },
+        "missingTokenCounters": [],
+        "settledUsd": "0.000548",
+        "upperBoundUsd": "0",
+        "retainedLiabilityUsd": "0",
+        "unknownRequests": 0,
+        "planRequests": 0,
+        "legacyNumericCosts": false
+      },
+      "session": {
+        "requests": 1,
+        "tokens": {
+          "input": 100,
+          "cached": 20,
+          "cacheWrite": 30,
+          "cacheWrite5m": 20,
+          "cacheWrite1h": 10,
+          "output": 10,
+          "reasoning": 2
+        },
+        "missingTokenCounters": [],
+        "settledUsd": "0.000548",
+        "upperBoundUsd": "0",
+        "retainedLiabilityUsd": "0",
+        "unknownRequests": 0,
+        "planRequests": 0,
+        "legacyNumericCosts": false
+      },
+      "budgets": [
+        {
+          "scope": "daily",
+          "capUsd": "1",
+          "spentUsd": "0.000548",
+          "remainingUsd": "0.999452",
+          "uncertainUsd": "0",
+          "hasUnknownCost": false
+        }
+      ]
+    }
+  }
+}
+```
+
+Backend advisories use ACP's `notice` channel only when
+`clientCapabilities.session.notices` is advertised, once per advisory per
+session. They do not enter model answer text.
+
+## Workspace file boundaries
+
+Writes outside the workspace are refused before any permission request.
+Approval cannot widen the write boundary. Read, edit, list and search failures
+likewise return an `outside_workspace` tool error to the model and a failed
+client tool row with `_meta["museSpark.refusal"]` containing its code and
+localized reason. Explicit permission-profile extra read roots retain their
+existing read-only semantics; they do not authorize writes.
+
+Accounting metadata requires Model API journal records. Muse Code and disabled
+or unavailable history report `available: false`; retained history can be
+pruned, so session figures describe retained records. Clients requiring a
+complete lifetime total must treat that limit as unavailable evidence.

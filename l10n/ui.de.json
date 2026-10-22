@@ -2739,6 +2739,7 @@
   "autoCompactionName": "Automatische Komprimierung",
   "paidConfirmAutoCompaction": "Die automatische Komprimierung verwendet das gewählte Modell für {price}. Das Abonnement übernimmt diese Kosten nicht.",
   "autoCompactionAwaitingEvaluation": "Die automatische Komprimierung wartet auf die Auswertung und ist inaktiv.",
+
   "autoCompactionFailed": "Die automatische Komprimierung ist fehlgeschlagen; der ursprüngliche Kontext wird weiterverwendet.",
   "autoCompactionBudgetRefused": "Die automatische Komprimierung wurde nicht ausgeführt: Das Tagesbudget für kostenpflichtige Extras hat sie abgelehnt. Erhöhen Sie das Budget oder versuchen Sie es morgen erneut; der ursprüngliche Kontext wird weiterverwendet.",
   "contextWindowFull": "Kontextfenster voll: /compact oder /handoff",
@@ -3685,6 +3686,10 @@
   "acpKeyAbsent": "Es ist kein Schlüssel für die Meta Model API gespeichert.",
   "acpStoreDown": "Der Anmeldeinformationsspeicher dieses Computers ist nicht verfügbar, daher können gespeicherte Schlüssel nicht überprüft werden.",
   "acpKeyCleared": "Der Schlüssel für die Meta Model API wurde aus dem Anmeldeinformationsspeicher dieses Computers entfernt.",
+  "acpOutsideWorkspaceRefused": "Außerhalb des Arbeitsbereichs; es wurde nichts gelesen oder geschrieben. Eine Genehmigung kann den Zugriff auf den Arbeitsbereich nicht erweitern.",
+  "acpRefusalOutsideWorkspace": "Pfad {path} liegt außerhalb des Arbeitsbereichs; es wurde nichts gelesen oder geschrieben.",
+  "acpRefusalLinkEscape": "Pfad {path} führt über einen Link aus dem Arbeitsbereich hinaus; es wurde nichts gelesen oder geschrieben.",
+  "acpCredentialStoreNoAnswer": "Der Anmeldedatenspeicher hat nicht geantwortet. Diese Anfrage wurde nicht gesendet; versuchen Sie es erneut.",
   "acpStoreUnavailable": "Der Anmeldeinformationsspeicher dieses Computers kann nicht verwendet werden ({reason}). Unter Linux benötigt der Agent einen laufenden, entsperrten Secret Service wie GNOME Keyring oder KWallet.",
   "acpStoreNames": {
     "windows": "Windows-Anmeldeinformationsverwaltung",
@@ -3696,6 +3701,9 @@
   "acpQuestionFormMessage": "Muse hat eine Frage an Sie.",
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
   "acpUnknownArgument": "Unbekanntes Argument: {argument}",
+  "acpUnknownCommand": "Unbekannter Befehl {command}. Ähnliche Befehle: {commands}. /help zeigt die vollständige Liste. Um eine Nachricht zu senden, die mit einem Schrägstrich beginnt, stelle \\/ voran.",
+  "acpHelpUnknownTopic": "Keine Hilfe zu {topic}. /help zeigt die Befehlsliste.",
+  "acpCommandHelpNote": "Eine Nachricht mit Schrägstrich, die der Agent nicht kennt, wird hier beantwortet, nie an das Modell gesendet. /help <Befehl> erklärt einen Befehl. Für einen wörtlichen Schrägstrich am Anfang beginne die Nachricht mit \\/.",
   "acpPaidNeedsModelApi": "{argument} erfordert --backend modelApi: Kostenpflichtige Funktionen werden über einen Model-API-Schlüssel abgerechnet.",
   "acpFontUi": "Schrift der Oberfläche",
   "acpFontCode": "Schrift für Code",

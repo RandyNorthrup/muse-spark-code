@@ -294,6 +294,11 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   // members off the ModelApiClient | ProviderClient union.
   const clientModels = 'models' in client ? client.models : undefined
   const isPlanModel = 'isPlanModel' in client ? client.isPlanModel : undefined
+  // The assist bundle's installed language (dist/modelApiAcp.js, PLAN.md D6):
+  // the bundle keeps its own language state, so the entry installs the
+  // caller's table when the backend starts.
+  const assist = await import('../../core/backends/modelapi/modelApiAcpEntry.js')
+  assist.installLanguage(deps.uiText, deps.uiLocale)
   const host: ModelApiHost = new ModelApiHost({
     ...hostDeps,
     // The one audio path (lane V seam 3B): a turn with attached sound loads
