@@ -22,6 +22,7 @@ import {
 // become permission options. Pure; `agent.ts` sends what these return.
 
 import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
@@ -490,9 +491,16 @@ export class UpdateTranslator {
         }
         // A client renders agent chunks as one text: after the model's
         // words the notice opens its own paragraph instead of running on
-        // ("Canberra.The turn finished…").
+        // ("Canberra.The turn finished…"). Its own message id starts a new
+        // message where the client groups by one (RLF-ACPTURNS F1).
         const opening = this.isAgentLineOpen ? PART_SEPARATOR : ''
-        return [agentText(`${opening}${event.text}${PART_SEPARATOR}`)]
+        return [
+          {
+            sessionUpdate: 'agent_message_chunk',
+            messageId: noticeMessageId(),
+            content: { type: 'text', text: `${opening}${event.text}${PART_SEPARATOR}` },
+          },
+        ]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
@@ -547,6 +555,16 @@ export class UpdateTranslator {
 
 function agentText(text: string): SessionUpdate {
   return { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } }
+}
+
+/**
+A one-shot product notice's own message id (RLF-ACPTURNS F1): a fresh id
+per emission, so a client without `session.notices` starts a new message
+for the fallback chunk instead of folding the notice into the model's
+answer (ACP `ContentChunk.messageId`: a change starts a new message).
+*/
+export function noticeMessageId(): string {
+  return randomUUID()
 }
 
 function thoughtText(text: string): SessionUpdate {
