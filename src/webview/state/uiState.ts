@@ -71,6 +71,7 @@ import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared
 import type { ScheduleView } from '../../shared/schedule'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
+import type { BackgroundTaskRow, SessionHookRow, SessionPluginRow } from '../../shared/sessionLists'
 import type { SessionRow } from '../../shared/sessions'
 import type { BookmarkRecord } from '../../shared/protocol'
 import type { SavedSequence, SequenceRunView } from '../../shared/sequences'
@@ -265,6 +266,21 @@ export interface CheckpointView {
   readonly turnIds: readonly string[]
 }
 
+/** One stored session's recap as History shows it (M127). */
+export interface SessionRecapView {
+  readonly outcome: string
+  readonly title?: string | undefined
+  readonly text?: string | undefined
+  readonly reason?: string | undefined
+}
+
+/** The current session's live lists as the dialog shows them (M127). */
+export interface SessionListsView {
+  readonly tasks?: readonly BackgroundTaskRow[] | undefined
+  readonly hooks?: readonly SessionHookRow[] | undefined
+  readonly plugins?: readonly SessionPluginRow[] | undefined
+}
+
 export interface UiState {
   readonly pendingReportCommand:
     { readonly requestId: string; readonly draftRevision: number } | undefined
@@ -292,6 +308,12 @@ export interface UiState {
   readonly canEditSessions: boolean
   /** False where the host cannot delete a stored session (D26: no Muse Code CLI from 1.4.4 on). */
   readonly canDeleteSessions: boolean
+  /** False where the backend keeps no recaps (M127: the Model API backend). */
+  readonly canRecapSessions: boolean
+  /** One stored session's recap, once History asked (M127). */
+  readonly recaps: Readonly<Record<string, SessionRecapView>>
+  /** The current session's live lists, once the dialog asked (M127). */
+  readonly sessionLists: SessionListsView | undefined
   readonly checkpoints: CheckpointView
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
@@ -705,6 +727,9 @@ export const initialUiState: UiState = {
   sessionId: undefined,
   canEditSessions: true,
   canDeleteSessions: true,
+  canRecapSessions: true,
+  recaps: {},
+  sessionLists: undefined,
   checkpoints: {
     availability: CHECKPOINT_INITIAL_AVAILABILITY,
     canRestore: false,
@@ -2586,6 +2611,9 @@ function clearedAccountView(state: UiState): UiState {
     auth: initialUiState.auth,
     canEditSessions: initialUiState.canEditSessions,
     canDeleteSessions: initialUiState.canDeleteSessions,
+    canRecapSessions: initialUiState.canRecapSessions,
+    recaps: {},
+    sessionLists: undefined,
     checkpoints: initialUiState.checkpoints,
     sessions: [],
     openQuestionCounts: {},
@@ -3117,6 +3145,31 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         archivedIds: message.archivedIds,
         openQuestionCounts: { ...state.openQuestionCounts, ...message.openQuestionCounts },
         canDeleteSessions: message.canDeleteSessions ?? true,
+        canRecapSessions: message.canRecapSessions ?? true,
+      }
+    }
+    case 'sessionRecap': {
+      return {
+        ...state,
+        recaps: {
+          ...state.recaps,
+          [message.sessionId]: {
+            outcome: message.outcome,
+            ...(message.title !== undefined && { title: message.title }),
+            ...(message.text !== undefined && { text: message.text }),
+            ...(message.reason !== undefined && { reason: message.reason }),
+          },
+        },
+      }
+    }
+    case 'sessionLists': {
+      return {
+        ...state,
+        sessionLists: {
+          ...(message.tasks !== undefined && { tasks: message.tasks }),
+          ...(message.hooks !== undefined && { hooks: message.hooks }),
+          ...(message.plugins !== undefined && { plugins: message.plugins }),
+        },
       }
     }
     case 'bookmarks': {

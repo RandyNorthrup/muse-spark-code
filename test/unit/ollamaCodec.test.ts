@@ -12,6 +12,7 @@ import {
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { UI_TEXT, setUiText } from '../../src/shared/l10n/text'
+import { makeTurnBody } from './helpers/turnBodies'
 import {
   OLLAMA_CHAT_PATH,
   decodeOllamaStream,
@@ -118,28 +119,16 @@ async function response(
   return last.response
 }
 function firstTurn(): CreateResponseBody {
-  return {
+  return makeTurnBody({
     model: 'muse-spark-1.3',
     input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Say hi' }] }],
     instructions: 'Be brief.',
-    tools: [
-      {
-        type: 'function',
-        name: 'read_file',
-        description: 'Read a file',
-        parameters: { type: 'object', properties: { path: { type: 'string' } } },
-        strict: false,
-      },
-    ],
-    tool_choice: 'auto',
-    reasoning: { effort: 'low', summary: 'auto' },
-    stream: true,
-    store: false,
+    toolName: 'read_file',
+    effort: 'low',
     include: [],
-    max_output_tokens: 1024,
-    prompt_cache_key: 'k',
-    prompt_cache_retention: 'in_memory',
-  }
+    maxOutputTokens: 1024,
+    promptCacheKey: 'k',
+  })
 }
 function toolLoop(): CreateResponseBody {
   return {

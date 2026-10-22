@@ -1996,6 +1996,7 @@
         "museSpark.modelApiTab",
         "museSpark.tabModel",
         "museSpark.tabDailyBudgetUsd",
+        "museSpark.tabMaxOutputTokens",
         "museSpark.tabLanguages",
         "museSpark.tabMultiline",
         "museSpark.tabTrigger",
@@ -3955,6 +3956,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "number", "minimum": 0, "default": 0 }
+    },
+    {
+      "id": "museSpark.tabMaxOutputTokens",
+      "name": "museSpark.tabMaxOutputTokens",
+      "description": "Maximum output tokens for each Tab completion request; 0 is the provider's maximum for the model. A set cap sizes the request and its worst-case cost reservation.",
+      "descriptionKey": "config.tabMaxOutputTokens.description",
+      "type": "integer",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "minimum": 0, "default": 0 }
     },
     {
       "text": { "conditions": [{ "when": "language", "text": { "setting": "tabLanguages" } }] },

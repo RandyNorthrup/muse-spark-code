@@ -767,3 +767,72 @@ it('names the minimum when merged provider evidence has inconsistent output boun
     ]),
   ).toThrow('Output cap must be at least 16 tokens.')
 })
+
+const generationIdentity = (nativeModel: string) => ({
+  provider: 'gemini',
+  nativeModel,
+  format: 'gemini' as const,
+})
+const generationToolBody: CreateResponseBody = {
+  ...body,
+  // Thinking off: these cases pin the tool-schema shape, not thinking,
+  // and an unknown-modes record refuses any named effort.
+  reasoning: { effort: 'none', summary: 'auto' },
+  tools: [
+    {
+      type: 'function',
+      name: 'read_file',
+      description: 'Read a file',
+      parameters: { type: 'object', properties: { path: { type: 'string' } } },
+      strict: false,
+    },
+  ],
+}
+function declarationsOf(nativeModel: string, fields: CapabilityOverrides): unknown[] {
+  const resolved = resolveModelCapabilities(generationIdentity(nativeModel), [{ source, fields }])
+  const tools = encodeGeminiRequest(generationToolBody, nativeModel, resolved).body['tools']
+  if (!Array.isArray(tools) || tools.length !== 1)
+    throw new TypeError('Expected one native tools entry')
+  const first: unknown = tools[0]
+  if (typeof first !== 'object' || first === null || !('functionDeclarations' in first))
+    throw new TypeError('Expected function declarations')
+  const declarations: unknown = first.functionDeclarations
+  if (!Array.isArray(declarations)) throw new TypeError('Expected a declarations array')
+  return declarations
+}
+
+describe('M101-GENERATION-RECORD: the catalog carries the Gemini generation', () => {
+  it('keeps a person-affirmed generation with its provenance', () => {
+    const resolved = resolveModelCapabilities(generationIdentity('custom-flash-deploy'), [
+      { source, fields: { generation: 3 } },
+    ])
+    expect(resolved.generation).toBe(3)
+    expect(resolved.sources['generation']).toMatchObject({ kind: 'user' })
+  })
+
+  it('reads documented generations from the recorded models list, exact ids only', () => {
+    expect(capturedCapabilities('gemini', 'gemini-2.5-flash').generation).toBe(2)
+    expect(capturedCapabilities('gemini', 'gemini-2.5-pro').generation).toBe(2)
+    expect(capturedCapabilities('gemini', 'gemini-3.5-flash-lite').generation).toBe(3)
+    expect(capturedCapabilities('gemini', 'gemini-9-hologram').generation).toBeUndefined()
+  })
+
+  it('sends full tool schemas for a record generation the id never names', () => {
+    const declarations = declarationsOf('custom-flash-deploy', { generation: 3 })
+    expect(declarations[0]).toHaveProperty('parametersJsonSchema')
+    expect(declarations[0]).not.toHaveProperty('parameters')
+  })
+
+  it('keeps the subset for a record generation below 3 whatever the id says', () => {
+    const declarations = declarationsOf('gemini-3.5-flash-lite', { generation: 2 })
+    expect(declarations[0]).toHaveProperty('parameters')
+    expect(declarations[0]).not.toHaveProperty('parametersJsonSchema')
+  })
+
+  it('falls back to the id heuristic only while the record stays silent', () => {
+    const subset = declarationsOf('gemini-2.5-flash', {})
+    expect(subset[0]).toHaveProperty('parameters')
+    const full = declarationsOf('gemini-3.5-flash-lite', {})
+    expect(full[0]).toHaveProperty('parametersJsonSchema')
+  })
+})

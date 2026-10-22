@@ -143,6 +143,7 @@
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: Standard tarifeler, kodunuzla eğitim yok.",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor: katkıcı tarifeler, Meta gönderilen kodla eğitim yapar.",
   "config.tabDailyBudgetUsd.description": "Bu makinedeki tüm pencerelerde Tab tamamlama istekleri için ABD doları cinsinden katı günlük bütçe; en kötü durumu bunu aşacak istek gönderilmez. 0,05 $ ile 50 $ arasında.",
+  "config.tabMaxOutputTokens.description": "Her Tab tamamlama isteği için maksimum çıktı jetonu; 0, model için sağlayıcının maksimumudur. Belirlenen sınır, isteğin ve en kötü durum maliyet rezervasyonunun boyutunu belirler.",
   "config.tabLanguages.description": "Tab'in önerdiği diller; GitHub Copilot'un github.copilot.enable ayarı gibidir: burada aksi belirtilmedikçe plaintext, markdown ve scminput dışında her dil açıktır.",
   "config.tabMultiline.description": "Tab'in çok satırlı tamamlamalar için çevredeki bağlamı ne zaman ekleyeceği.",
   "config.tabMultiline.enumDescriptions.auto": "İmleç satırı boşsa veya blok açıcıyla bitiyorsa çok satırlı, ayrıca her açık çağrıda.",

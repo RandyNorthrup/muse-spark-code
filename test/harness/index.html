@@ -714,6 +714,26 @@
               if (message.action === 'reload') location.reload()
               break
             }
+            case 'requestSessionLists': {
+              // M127: the recorded 1.4.9 echo rows (one disabled SessionStart
+              // hook; no background tasks, no plugins).
+              hostLater(0, () =>
+                send({
+                  type: 'sessionLists',
+                  tasks: [],
+                  hooks: [
+                    {
+                      key: '/home/randy/lanes/MUSEUPDATE.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ce2b4ea5-1911-4e24-a779-4f1d02e684ea/musews/.muse/hooks.json:session_start:def-589c31907f2c758b',
+                      event: 'sessionStart',
+                      handlerKind: 'project',
+                      enabled: false,
+                    },
+                  ],
+                  plugins: [],
+                }),
+              )
+              break
+            }
             case 'readReference': {
               // The scene is not done until the reference reply has been sent.
               void hostTrack(
@@ -2846,6 +2866,9 @@
           whenFound('[role="dialog"] button.button-secondary', (button) => button.click())
         },
         empty: () => {},
+        'session-lists': () => {
+          whenFound(`button[aria-label="${shown('Session lists')}"]`, (button) => button.click())
+        },
         // --- The pre-sign-in gate (M1/M7): what the panel shows before a
         // credential exists. `ready` above answers signedIn, so each step
         // pushes the gate state afterwards, as the host does on activation.
@@ -6928,6 +6951,7 @@
         'sequences-run': () => document.querySelector('.sequence-run') !== null,
         'chat-sharing': () => document.querySelector('.chat-share-preview') !== null,
         'chat-sharing-narrow': () => document.querySelector('.chat-share-preview') !== null,
+        'session-lists': () => document.querySelector('#session-lists-hooks') !== null,
         'reply-chip': () => document.querySelector('.reference-chip') !== null,
         // C-M106-3R3: each feedback scene is ready only in its end state, so
         // a stuck preview or send fails the gate instead of scanning early.

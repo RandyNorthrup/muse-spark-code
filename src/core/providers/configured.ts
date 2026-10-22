@@ -46,7 +46,11 @@ import type { NativeModelMetadata } from './modelMetadata'
 import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
 import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
-import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
+import {
+  CodecClient,
+  type WireCodec,
+  type WireEncodeOptions,
+} from '../backends/modelapi/providerClient'
 import {
   RequestTransport,
   abortableSleep,
@@ -515,6 +519,27 @@ export function manualThinkingBudget(
       (maxOutputTokens ?? Infinity) - PROVIDER_MANUAL_THINKING_BUDGET,
     ),
   )
+}
+
+/**
+M101-REPLAY-ORIGIN: the producing refs as the wire compares them. Each
+origin ref from this entry becomes the entry's wire model for its native
+id, so the codec compares wire model to wire model. A ref from another
+entry (or one that parses to nothing) becomes the empty string, which
+never equals the wire model: a foreign id is stripped, never sent to a
+400.
+*/
+export function translateReplayOrigins(
+  entry: ProviderEntry,
+  origins: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const translated: Record<string, string> = {}
+  for (const [callId, ref] of Object.entries(origins)) {
+    const parsed = modelRef.parseModelRef(ref)
+    translated[callId] =
+      parsed?.providerId === entry.id ? presets.wireModelFor(entry, parsed.modelId) : ''
+  }
+  return translated
 }
 
 async function* chunks(response: PinnedResponse, idleMs: number | undefined, provider: string) {
@@ -1306,7 +1331,13 @@ export function createConfiguredProviderServices(
       // could invent a product sentence, and a new member fails to typecheck
       // until it gets its own parser.
       parseError: (status, value) => parseFormatError(format, status, value),
-      encode: (body) => {
+      encode: (body, _model, options?: WireEncodeOptions) => {
+        // M101-REPLAY-ORIGIN: only the Responses branch below reads the
+        // provenance map; every other format encodes exactly as before.
+        const replayOrigins =
+          options?.replayOrigins === undefined
+            ? undefined
+            : translateReplayOrigins(entry, options.replayOrigins)
         let path = '/v1/responses'
         let wire: unknown
         let extras: Readonly<Record<string, string>> = {}
@@ -1399,11 +1430,14 @@ export function createConfiguredProviderServices(
                 // would send `auto` for every model, listed or not.
                 () => capabilities.capabilitiesOf({ capabilityRecord: record }),
               )
-              .encodeRequest({
-                ...body,
-                model: presets.wireModelFor(entry, native),
-                ...(shouldOmitReasoning && { reasoning: undefined }),
-              })
+              .encodeRequest(
+                {
+                  ...body,
+                  model: presets.wireModelFor(entry, native),
+                  ...(shouldOmitReasoning && { reasoning: undefined }),
+                },
+                replayOrigins === undefined ? undefined : { replayOrigins },
+              )
             if (isAzure) path = '/responses'
           }
         }
@@ -1556,7 +1590,15 @@ export function createConfiguredProviderServices(
       // UTF-8 bytes bound text tokens conservatively and include tool schemas.
       countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
       ...(exactInputCount !== undefined && { countInputTokensDetailed: exactInputCount }),
-      streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
+      streamResponse: async function* (
+        body,
+        signal,
+        onRetry,
+        budget,
+        admitAttempt,
+        confirmed,
+        replayOrigins?: Readonly<Record<string, string>>,
+      ) {
         const minimum = providerOutputMinimum(
           entry.address,
           native,
@@ -1603,6 +1645,7 @@ export function createConfiguredProviderServices(
             budget,
             observe,
             confirmed === undefined ? undefined : { ...confirmed, providerId: entry.id },
+            replayOrigins,
           )
           for await (const event of events) {
             if ('response' in event && event.response.usage != null) usage = event.response.usage

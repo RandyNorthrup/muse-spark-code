@@ -1,0 +1,21 @@
+{
+  "method": "workflow/childControl",
+  "params": {
+    "action": "retry",
+    "attempt": 1,
+    "childId": "no-such-child",
+    "commandId": "01a1631b-5728-7000-98dc-8907d4fbd742",
+    "sessionId": "01a1631b-563d-7691-a84b-b48adf3444ec",
+    "workflowRunId": "no-such-run"
+  },
+  "error": {
+    "message": "MspError: workflow/childControl command 01a1631b-5728-7000-98dc-8907d4fbd742 rejected: missing_run",
+    "code": -32030,
+    "data": {
+      "kind": "commandRejected",
+      "retryable": false,
+      "commandId": "01a1631b-5728-7000-98dc-8907d4fbd742",
+      "reason": "missing_run"
+    }
+  }
+}

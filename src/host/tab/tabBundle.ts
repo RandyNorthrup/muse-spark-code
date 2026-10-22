@@ -346,7 +346,7 @@ export type TabCompletionSnapshot = TabEngineRequest
 
 /**
 Lane C's completion pipeline (src/core/tab/tabEngine.ts, M94): the
-typing-through cache, the debounce and caps, the request, and the
+typing-through cache, the debounce, the request, and the
 filters. The completion is already filtered; undefined means no
 suggestion. It is published at the closing tag; `usage` settles when the
 request ends, so the ledger stays exact even for a refusal the provider
@@ -407,11 +407,18 @@ export interface TabProviderDeps {
   /** The validated Tab settings, read live (machine-scoped, D73). */
   readonly settings: () => {
     readonly tabModel: string
+    readonly tabMaxOutputTokens: number
     readonly tabLanguages: Readonly<Record<string, boolean>>
     readonly tabMultiline: 'auto' | 'onInvoke' | 'never'
     readonly tabTrigger: 'automatic' | 'onInvoke'
     readonly tabWithCopilot: 'yield' | 'both'
   }
+  /**
+  The provider's maximum output tokens for a Tab model, from its
+  capability record (activation's side, so the record machinery stays
+  out of the lazy bundle).
+  */
+  readonly recordMaxOutputTokens: (model: string) => number
   /** The paid gate's answer for `tab` (M33): the setting on and the price accepted. */
   readonly isPaidOn: () => boolean
   /** A Model API key is stored, as last read (M44): never read here, never asked for. */
@@ -692,6 +699,12 @@ export interface TabLanguagesCommandDeps {
 export interface TabServicesDeps {
   /** The activation bundle's key client stream (M57 keeps it there for M44). */
   readonly stream: TabStream
+  /**
+  The provider's maximum output tokens for a Tab model, from its
+  capability record (M94 goal, D121). The provider sends this unless the
+  person set `museSpark.tabMaxOutputTokens` lower.
+  */
+  readonly recordMaxOutputTokens: (model: string) => number
   /** The ledger's folder: global storage's `tab-spend`. */
   readonly ledgerDirectory: string
   /** This window's ledger file name: letters, digits, `_` and `-` only. */
@@ -1001,6 +1014,7 @@ export interface TabActivationDeps {
   readonly isTabSettingOn: () => boolean
   readonly tabSettings: () => {
     readonly tabModel: string
+    readonly tabMaxOutputTokens: number
     readonly tabLanguages: Readonly<Record<string, boolean>>
     readonly tabMultiline: 'auto' | 'onInvoke' | 'never'
     readonly tabTrigger: 'automatic' | 'onInvoke'
@@ -1199,6 +1213,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       const settings = deps.tabSettings()
       return {
         tabModel: settings.tabModel,
+        tabMaxOutputTokens: settings.tabMaxOutputTokens,
         tabLanguages: settings.tabLanguages,
         tabMultiline: settings.tabMultiline,
         tabTrigger: settings.tabTrigger,
@@ -1207,6 +1222,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     }
     const provider = bundle.createTabProvider({
       settings: settingsOf,
+      recordMaxOutputTokens: deps.services.recordMaxOutputTokens,
       isPaidOn: deps.isPaidOn,
       isKeyStored: deps.isKeyStored,
       isTrusted: deps.isTrusted,

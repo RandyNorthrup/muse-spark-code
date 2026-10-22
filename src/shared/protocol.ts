@@ -94,6 +94,11 @@ import type { EstimatorToHostMessage, HostToEstimatorMessage } from './estimator
 import { sessionRowSchema, bookmarkRefSchema } from './sessions'
 import { savedSequenceSchema, sequenceRunViewSchema } from './sequences'
 import {
+  backgroundTaskRowSchema,
+  sessionHookRowSchema,
+  sessionPluginRowSchema,
+} from './sessionLists'
+import {
   accountFactsSchema,
   providerUsageRowSchema,
   subscriptionUsageSchema,
@@ -894,6 +899,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('cancelBestOfN'), runId: stringSchema }),
   // The Agent map reads a subagent's own session (M14).
   z.object({ type: z.literal('readChildSession'), sessionId: stringSchema }),
+  // History's "while you were away" recap for one stored session (M127).
+  z.object({ type: z.literal('recapSession'), sessionId: stringSchema }),
+  // The session-lists dialog's three live lists (M127).
+  z.object({ type: z.literal('requestSessionLists') }),
   // The Agent map's owner controls (M18, M48), including reopen and readResult.
   z.object({
     type: z.literal('subagentControl'),
@@ -1144,6 +1153,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     openQuestionCounts: z.optional(z.record(z.string(), z.number().check(z.int(), z.minimum(0)))),
     // `false` where the host cannot delete a stored session (D26); absent means offered.
     canDeleteSessions: z.optional(booleanSchema),
+    // `false` where the backend keeps no recaps; absent means offered.
+    canRecapSessions: z.optional(booleanSchema),
   }),
   // Bookmarks (M88): this workspace's records, posted with the session list and after `bookmarkSet`.
   z.object({ type: z.literal('bookmarks'), bookmarks: z.array(bookmarkRecordSchema) }),
@@ -1208,6 +1219,23 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     sessionId: stringSchema,
     name: z.optional(stringSchema),
     items: z.array(itemSnapshotSchema),
+  }),
+  // One stored session's recap for History (M127): the outcome is open.
+  z.object({
+    type: z.literal('sessionRecap'),
+    sessionId: stringSchema,
+    outcome: stringSchema,
+    title: z.optional(stringSchema),
+    text: z.optional(stringSchema),
+    reason: z.optional(stringSchema),
+  }),
+  // The current session's live lists (M127): a list is absent where the
+  // backend keeps none, and the dialog says so per section.
+  z.object({
+    type: z.literal('sessionLists'),
+    tasks: z.optional(z.array(backgroundTaskRowSchema)),
+    hooks: z.optional(z.array(sessionHookRowSchema)),
+    plugins: z.optional(z.array(sessionPluginRowSchema)),
   }),
   // A local share file rendered read-only (M84, PLAN.md D49): the panel
   // shows it in a modal that can act on nothing. `exportedAt` is ISO 8601.

@@ -50,7 +50,6 @@ export function createTabServices(deps: TabServicesDeps): TabServices {
       stream: deps.stream,
       onSent: deps.onSent,
       onUsage: deps.onUsage,
-      now,
     }),
     spend: createTabSpendGate({
       ledger,

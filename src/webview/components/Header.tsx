@@ -5,7 +5,7 @@ import { webviewKey } from '../../shared/keybindings'
 import { type KeyboardEvent, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
-import { BoardIcon, HistoryIcon, NewConversationIcon, StarIcon } from './icons'
+import { BoardIcon, HistoryIcon, ListsIcon, NewConversationIcon, StarIcon } from './icons'
 
 export interface HeaderProps {
   readonly title: string
@@ -16,6 +16,8 @@ export interface HeaderProps {
   readonly onOpenHistory?: (() => void) | undefined
   /** The session board (M77); undefined while the shell is connecting. */
   readonly onOpenBoard?: (() => void) | undefined
+  /** The session lists (M127); undefined while the shell is connecting. */
+  readonly onOpenSessionLists?: (() => void) | undefined
   /** Present once a session exists: the title becomes editable. */
   readonly onRename?: ((name: string) => void) | undefined
   /** The agents pill (M14): shown once a subagent exists in this conversation. */
@@ -112,6 +114,7 @@ export function Header({
   onNewConversation,
   onOpenHistory,
   onOpenBoard,
+  onOpenSessionLists,
   onRename,
   agentCount = 0,
   runningAgentCount = 0,
@@ -204,6 +207,19 @@ export function Header({
           onClick={onOpenBoard}
         >
           <BoardIcon />
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          title={UI_TEXT.sessionListsTitle}
+          aria-label={UI_TEXT.sessionListsTitle}
+          disabled={onOpenSessionLists === undefined}
+          onMouseDown={(event) => {
+            event.preventDefault()
+          }}
+          onClick={onOpenSessionLists}
+        >
+          <ListsIcon />
         </button>
         <button
           type="button"

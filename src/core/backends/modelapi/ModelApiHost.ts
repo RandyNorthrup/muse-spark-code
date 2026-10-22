@@ -341,6 +341,7 @@ import type {
 import { toolMatcherNames } from './hookNames'
 import { planDefaultEffort, planFastTier, planOfferedLevels } from './planFacts'
 import {
+  replayOrigins,
   replayProducer,
   type ReplayProducer,
   effortForPolicy,
@@ -5238,6 +5239,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
+  /**
+  M101-REPLAY-ORIGIN: this request's replay provenance, from the same
+  filtered replay the request body carries. Only the configured
+  Responses codec reads it; every other client ignores it.
+  */
+  private requestReplayOrigins(): Readonly<Record<string, string>> | undefined {
+    return replayOrigins(this.requestReplay())
+  }
+
   private outputCap(resolved: ResolvedModel): number {
     // Recomputed for every request (RVMINOUT P2): each request resolves its
     // own record, so this memo spans that one request's projections (replay
@@ -7276,6 +7286,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         budget,
         admitAttempt,
         confirmedRequest,
+        this.requestReplayOrigins(),
       )
       for await (const event of responseStream) {
         if (inFlight !== undefined) {
@@ -16217,6 +16228,8 @@ export class ModelApiSession implements ScheduledAgentSession {
           },
           budget,
           guarded,
+          undefined,
+          this.requestReplayOrigins(),
         )
         try {
           for (

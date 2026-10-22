@@ -153,6 +153,15 @@ export function BoardIcon(props: IconProps) {
   )
 }
 
+export function ListsIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.5 4h8M5.5 8h8M5.5 12h8" />
+      <path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" />
+    </Svg>
+  )
+}
+
 export function NewConversationIcon(props: IconProps) {
   return (
     <Svg {...props}>

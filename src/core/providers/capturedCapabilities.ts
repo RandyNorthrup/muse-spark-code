@@ -6,6 +6,19 @@ import {
   type CapabilitySource,
 } from './capabilityRecord'
 
+/**
+M101-GENERATION-RECORD (lane N): the recorded models list names each
+display generation outright ("Gemini 2.5 Flash", "Gemini 3.5 Flash
+Lite"), so these markers are read from the capture, never parsed from
+the id. Exact ids only; anything else stays silent for the person's
+override or the codec's fallback.
+*/
+const DOCUMENTED_GEMINI_GENERATIONS: Readonly<Record<string, number>> = {
+  'gemini-2.5-flash': 2,
+  'gemini-2.5-pro': 2,
+  'gemini-3.5-flash-lite': 3,
+}
+
 /** Fallback for direct codec callers until lane I supplies the configured record. */
 export function capturedCapabilities(
   format: 'anthropic' | 'gemini',
@@ -39,6 +52,18 @@ export function capturedCapabilities(
     fields = { reasoning: { modes: yes(['level']) } }
   }
   const evidence = [{ source, fields }]
+  if (format === 'gemini') {
+    const generation = DOCUMENTED_GEMINI_GENERATIONS[nativeModel]
+    if (generation !== undefined) {
+      evidence.push({
+        source: {
+          kind: 'models-list',
+          ref: 'docs/certification/m95-captures/gemini/01-models-list.json',
+        },
+        fields: { generation },
+      })
+    }
+  }
   if (format === 'gemini' && nativeModel === 'gemini-3.5-flash-lite') {
     evidence.push({
       source: { kind: 'catalogue', ref: 'vendor/models-dev/snapshot.json' },

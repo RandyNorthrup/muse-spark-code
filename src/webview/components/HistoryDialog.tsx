@@ -11,6 +11,7 @@ import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import type { BookmarkRecord } from '../../shared/protocol'
+import type { SessionRecapView } from '../state/uiState'
 import {
   groupSessions,
   relativeTime,
@@ -47,6 +48,9 @@ export interface HistoryDialogProps {
   /** Toggle one row's bookmark; the title rides the set for a new bookmark. Absent, no stars. */
   readonly onToggleBookmark?:
     ((sessionId: string, isBookmarked: boolean, title: string) => void) | undefined
+  /** Set where the backend keeps recaps (M127): the recap shows under the row. */
+  readonly onRecap?: ((sessionId: string) => void) | undefined
+  readonly recaps?: Readonly<Record<string, SessionRecapView>> | undefined
   readonly onClose: () => void
 }
 
@@ -96,9 +100,10 @@ const RowView = deferred(async () => {
 export function HistoryDialog(props: HistoryDialogProps) {
   const [menuContainer, setMenuContainer] = useState<HTMLDivElement | null>(null)
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
-  const { onResume, onSetArchived, onDelete, onToggleBookmark, onClose } = props
+  const { onResume, onSetArchived, onDelete, onToggleBookmark, onRecap, recaps, onClose } = props
   const [query, setQuery] = useState('')
   const [isShowingArchived, setIsShowingArchived] = useState(false)
+  const [pendingRecapId, setPendingRecapId] = useState<string | undefined>(undefined)
   const search = useRef<HTMLInputElement>(null)
   const nowMs = now()
   // The Bookmarked group, its stars and Alt+B arrive with the toggle; without
@@ -220,6 +225,19 @@ export function HistoryDialog(props: HistoryDialogProps) {
                 isUnavailable(entry.row)
                   ? UI_TEXT.bookmarkUnavailable
                   : metaOf(entry.row, nowMs, props.openQuestionCounts?.[entry.row.sessionId])
+              }
+              recap={recaps?.[entry.row.sessionId]}
+              isRecapPending={
+                pendingRecapId === entry.row.sessionId &&
+                recaps?.[entry.row.sessionId] === undefined
+              }
+              onRecap={
+                onRecap === undefined
+                  ? undefined
+                  : () => {
+                      setPendingRecapId(entry.row.sessionId)
+                      onRecap(entry.row.sessionId)
+                    }
               }
               onHover={() => {
                 setActiveIndex(entry.index)

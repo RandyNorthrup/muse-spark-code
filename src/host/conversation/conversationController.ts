@@ -1540,6 +1540,8 @@ export class ConversationController implements DeferredSend {
   private canEditSessions = true
   /** Whether the listed sessions' host deletes (D26: no Muse Code CLI from 1.4.4 on). */
   private canDeleteSessions = true
+  /** Whether the listed sessions' host recaps (M127: the Muse Code backend only). */
+  private canRecapSessions = true
   /** The unsaved files last warned about, so the same set is not repeated (D27). */
   private unsavedNoticeKey = ''
   /** A transcript reload after a delivery gap, and the gaps heard so far. */
@@ -2157,6 +2159,7 @@ export class ConversationController implements DeferredSend {
       openQuestionCounts: Object.fromEntries(this.historyQuestionCounts),
       // Said only where it is so (D26): the panel then offers no Delete.
       ...(!this.canDeleteSessions && { canDeleteSessions: false }),
+      ...(!this.canRecapSessions && { canRecapSessions: false }),
     })
     this.postBookmarks()
   }
@@ -5273,6 +5276,7 @@ export class ConversationController implements DeferredSend {
       // Absent on a Muse Code host (its delete gate stays out of the
       // activation bundle): History offers no Delete there.
       this.canDeleteSessions = host.info.canDeleteSessions ?? false
+      this.canRecapSessions = host.requestSessionRecap !== undefined
       this.watchList(host)
       const records: SessionRecord[] = []
       let cursor: string | undefined
@@ -11157,6 +11161,89 @@ export class ConversationController implements DeferredSend {
     }
   }
 
+  /** History's "while you were away" recap for one stored session (M127). */
+  private async recapSession(sessionId: string): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      const host = await this.deps.ensureHost()
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      if (host.requestSessionRecap === undefined) {
+        this.notice('warning', UI_TEXT.recapUnsupported)
+        return
+      }
+      const recap = await host.requestSessionRecap(sessionId)
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      this.post({
+        type: 'sessionRecap',
+        sessionId,
+        outcome: recap.outcome,
+        ...(recap.title !== undefined && { title: recap.title }),
+        ...(recap.text !== undefined && { text: recap.text }),
+        ...(recap.reason !== undefined && { reason: recap.reason }),
+      })
+    } catch (error: unknown) {
+      this.deps.log.warn(`A session recap could not be read: ${failureForLog(error)}`)
+      if (generation === this.sendInvalidationEpoch && !this.isDisposed) {
+        // History shows the failure inline, under the row that asked.
+        this.post({
+          type: 'sessionRecap',
+          sessionId,
+          outcome: 'failed',
+          reason: `${UI_TEXT.recapFailed}: ${describe(error)}`,
+        })
+      }
+    }
+  }
+
+  /** The current session's live lists for the session-lists dialog (M127). */
+  private async requestSessionLists(): Promise<void> {
+    if (this.deps.workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    const generation = this.sendInvalidationEpoch
+    try {
+      const session = await this.ensureSession(this.deps.workspaceRoot)
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      const tasks = await session.listBackgroundTasks?.()
+      const hooks = await session.listSessionHooks?.()
+      const plugins = await session.listSessionPlugins?.()
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      this.post({
+        type: 'sessionLists',
+        ...(tasks !== undefined && { tasks: [...tasks] }),
+        ...(hooks !== undefined && { hooks: [...hooks] }),
+        ...(plugins !== undefined && {
+          plugins: plugins.map((plugin) => ({
+            id: plugin.id,
+            version: plugin.version,
+            enabled: plugin.enabled,
+            source:
+              typeof plugin.source === 'string' ? plugin.source : JSON.stringify(plugin.source),
+          })),
+        }),
+      })
+    } catch (error: unknown) {
+      this.deps.log.warn(`The session lists could not be read: ${failureForLog(error)}`)
+      if (generation === this.sendInvalidationEpoch) {
+        this.notice(
+          'warning',
+          `${UI_TEXT.sessionListsFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
+      }
+    }
+  }
+
   // --- Voice dictation (M9) ---
 
   /** The engine the microphone uses now, and its setup (M35). */
@@ -12050,6 +12137,14 @@ export class ConversationController implements DeferredSend {
       }
       case 'readChildSession': {
         await this.readChildSession(message.sessionId)
+        break
+      }
+      case 'recapSession': {
+        await this.recapSession(message.sessionId)
+        break
+      }
+      case 'requestSessionLists': {
+        await this.requestSessionLists()
         break
       }
       case 'subagentControl': {

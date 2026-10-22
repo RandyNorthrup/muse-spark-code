@@ -160,6 +160,7 @@ export const SCENARIOS = [
   'sequences',
   'sequences-narrow',
   'sequences-run',
+  'session-lists',
   'resume',
   'narrow',
   'usage',
