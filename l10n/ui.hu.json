@@ -1841,7 +1841,26 @@
       "paused": "Figyelő szüneteltetve: {repository}.",
       "resumed": "Figyelő folytatva: {repository}.",
       "alreadyPaused": "A(z) {repository} figyelője már szünetel.",
-      "notPaused": "A(z) {repository} figyelője nincs szüneteltetve."
+      "notPaused": "A(z) {repository} figyelője nincs szüneteltetve.",
+      "invalidRepository": "Adja meg a tárolót tulajdonos/név formában.",
+      "watching": "{repository} figyelve."
+    },
+    "poll": {
+      "skippedPullRequest": "nem probléma, hanem pull request",
+      "skippedLocked": "zárolva",
+      "skippedAuthor": "figyelmen kívül hagyott szerző",
+      "skippedLabels": "a figyelt címkéken kívül",
+      "alreadyAcked": "már nyugtázva",
+      "ackPosted": "nyugtázva"
+    },
+    "verdicts": {
+      "valid": "Érvényes",
+      "needsInfo": "Információ kell",
+      "duplicate": "Ismétlődés",
+      "alreadyFixed": "Már javítva",
+      "inHand": "Folyamatban",
+      "invalid": "Érvénytelen",
+      "spam": "Levélszemét"
     },
     "refusal": {
       "spamHeld": "Gyanított levélszemétként visszatartva: semmi sem lett közzétéve.",

@@ -1899,7 +1899,26 @@
       "paused": "Сторож для {repository} приостановлен.",
       "resumed": "Сторож для {repository} возобновлён.",
       "alreadyPaused": "Сторож для {repository} уже приостановлен.",
-      "notPaused": "Сторож для {repository} не приостановлен."
+      "notPaused": "Сторож для {repository} не приостановлен.",
+      "invalidRepository": "Укажите репозиторий как владелец/имя.",
+      "watching": "Отслеживается {repository}."
+    },
+    "poll": {
+      "skippedPullRequest": "запрос на слияние, а не проблема",
+      "skippedLocked": "заблокирована",
+      "skippedAuthor": "игнорируемый автор",
+      "skippedLabels": "вне отслеживаемых меток",
+      "alreadyAcked": "уже подтверждено",
+      "ackPosted": "подтверждено"
+    },
+    "verdicts": {
+      "valid": "Верно",
+      "needsInfo": "Нужны сведения",
+      "duplicate": "Дубликат",
+      "alreadyFixed": "Уже исправлено",
+      "inHand": "В работе",
+      "invalid": "Неверно",
+      "spam": "Спам"
     },
     "refusal": {
       "spamHeld": "Задержано как возможный спам: ничего не опубликовано.",

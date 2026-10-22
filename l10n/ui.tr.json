@@ -1841,7 +1841,26 @@
       "paused": "{repository} için bekçi duraklatıldı.",
       "resumed": "{repository} için bekçi sürdürüldü.",
       "alreadyPaused": "{repository} bekçisi zaten duraklatılmış.",
-      "notPaused": "{repository} bekçisi duraklatılmamış."
+      "notPaused": "{repository} bekçisi duraklatılmamış.",
+      "invalidRepository": "Depoyu sahip/ad biçiminde verin.",
+      "watching": "{repository} izleniyor."
+    },
+    "poll": {
+      "skippedPullRequest": "sorun değil, çekme isteği",
+      "skippedLocked": "kilitli",
+      "skippedAuthor": "yoksayılan yazar",
+      "skippedLabels": "izlenen etiketlerin dışında",
+      "alreadyAcked": "zaten onaylandı",
+      "ackPosted": "onaylandı"
+    },
+    "verdicts": {
+      "valid": "Geçerli",
+      "needsInfo": "Bilgi gerekli",
+      "duplicate": "Yineleme",
+      "alreadyFixed": "Zaten düzeltildi",
+      "inHand": "Elde",
+      "invalid": "Geçersiz",
+      "spam": "İstenmeyen"
     },
     "refusal": {
       "spamHeld": "Olası istenmeyen ileti olarak tutuldu: hiçbir şey yayımlanmadı.",

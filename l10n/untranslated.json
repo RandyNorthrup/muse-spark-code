@@ -136,7 +136,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "watchdog.verdicts.spam"
     ],
     "tr": [
       "groupModel",
@@ -170,7 +171,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "watchdog.verdicts.spam"
     ],
     "de": [
       "groupSkills",
@@ -217,7 +219,8 @@
       "teamUsageTitle",
       "gitPullRequestFormLabel",
       "agentsCount.one",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "watchdog.verdicts.spam"
     ],
     "es": [
       "hooksItem",
@@ -235,7 +238,8 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "watchdog.verdicts.spam"
     ],
     "pt-br": [
       "agentTokens",
@@ -251,7 +255,8 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "watchdog.verdicts.spam"
     ],
     "fr": [
       "modesTitle",
@@ -280,7 +285,8 @@
       "teamSetupSteps.pools",
       "teamTemplateSolo",
       "teamIntensityLevels.minimal",
-      "reportLabels.total"
+      "reportLabels.total",
+      "watchdog.verdicts.spam"
     ],
     "it": [
       "usageAccount",
@@ -299,7 +305,8 @@
       "teamCapabilityWarning",
       "teamTreeLabel",
       "teamUsageTitle",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "watchdog.verdicts.spam"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],

@@ -1841,7 +1841,26 @@
       "paused": "Watchdog für {repository} pausiert.",
       "resumed": "Watchdog für {repository} fortgesetzt.",
       "alreadyPaused": "Der Watchdog für {repository} ist bereits pausiert.",
-      "notPaused": "Der Watchdog für {repository} ist nicht pausiert."
+      "notPaused": "Der Watchdog für {repository} ist nicht pausiert.",
+      "invalidRepository": "Geben Sie ein Repository als Besitzer/Name an.",
+      "watching": "Beobachte {repository}."
+    },
+    "poll": {
+      "skippedPullRequest": "ein Pull Request, kein Problem",
+      "skippedLocked": "gesperrt",
+      "skippedAuthor": "ein ignorierter Autor",
+      "skippedLabels": "außerhalb der beobachteten Labels",
+      "alreadyAcked": "bereits bestätigt",
+      "ackPosted": "bestätigt"
+    },
+    "verdicts": {
+      "valid": "Gültig",
+      "needsInfo": "Braucht Informationen",
+      "duplicate": "Duplikat",
+      "alreadyFixed": "Bereits behoben",
+      "inHand": "In Arbeit",
+      "invalid": "Ungültig",
+      "spam": "Spam"
     },
     "refusal": {
       "spamHeld": "Als möglicher Spam zurückgehalten: nichts wurde veröffentlicht.",

@@ -1899,7 +1899,26 @@
       "paused": "Hlídací pes pro {repository} pozastaven.",
       "resumed": "Hlídací pes pro {repository} obnoven.",
       "alreadyPaused": "Hlídací pes pro {repository} je již pozastaven.",
-      "notPaused": "Hlídací pes pro {repository} není pozastaven."
+      "notPaused": "Hlídací pes pro {repository} není pozastaven.",
+      "invalidRepository": "Zadejte repozitář jako vlastník/název.",
+      "watching": "Sledování {repository}."
+    },
+    "poll": {
+      "skippedPullRequest": "žádost o stažení, nikoli problém",
+      "skippedLocked": "uzamčeno",
+      "skippedAuthor": "ignorovaný autor",
+      "skippedLabels": "mimo sledované štítky",
+      "alreadyAcked": "již potvrzeno",
+      "ackPosted": "potvrzeno"
+    },
+    "verdicts": {
+      "valid": "Platné",
+      "needsInfo": "Potřebuje informace",
+      "duplicate": "Duplikát",
+      "alreadyFixed": "Již opraveno",
+      "inHand": "V řešení",
+      "invalid": "Neplatné",
+      "spam": "Spam"
     },
     "refusal": {
       "spamHeld": "Zadrženo jako podezřelý spam: nic nebylo zveřejněno.",

@@ -1870,7 +1870,26 @@
       "paused": "Vigia pausado para {repository}.",
       "resumed": "Vigia retomado para {repository}.",
       "alreadyPaused": "O vigia de {repository} já está pausado.",
-      "notPaused": "O vigia de {repository} não está pausado."
+      "notPaused": "O vigia de {repository} não está pausado.",
+      "invalidRepository": "Informe um repositório como dono/nome.",
+      "watching": "Vigiando {repository}."
+    },
+    "poll": {
+      "skippedPullRequest": "uma solicitação de pull, não um problema",
+      "skippedLocked": "bloqueado",
+      "skippedAuthor": "um autor ignorado",
+      "skippedLabels": "fora dos rótulos vigiados",
+      "alreadyAcked": "já confirmado",
+      "ackPosted": "confirmado"
+    },
+    "verdicts": {
+      "valid": "Válido",
+      "needsInfo": "Precisa de informações",
+      "duplicate": "Duplicado",
+      "alreadyFixed": "Já corrigido",
+      "inHand": "Em andamento",
+      "invalid": "Inválido",
+      "spam": "Spam"
     },
     "refusal": {
       "spamHeld": "Retido como possível spam: nada foi publicado.",

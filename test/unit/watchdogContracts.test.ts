@@ -37,9 +37,9 @@ describe('watchdog state machine', () => {
   })
 
   it('re-drives an edited or polled issue in place', () => {
-    expect(nextWatchdogState('acknowledged', 'edited')).toBe('triaged')
-    expect(nextWatchdogState('triaged', 'edited')).toBe('triaged')
-    expect(nextWatchdogState('replied', 'edited')).toBe('triaged')
+    expect(nextWatchdogState('acknowledged', 'edited')).toBe('acknowledged')
+    expect(nextWatchdogState('triaged', 'edited')).toBe('acknowledged')
+    expect(nextWatchdogState('replied', 'edited')).toBe('acknowledged')
     const states: WatchdogState[] = [
       'seen',
       'acknowledged',

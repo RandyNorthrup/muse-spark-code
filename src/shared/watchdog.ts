@@ -134,17 +134,19 @@ const TRANSITIONS: Readonly<
     closed: 'closed',
   },
   planned: { replied: 'replied', closed: 'closed', reopened: 'planned' },
-  replied: { closed: 'closed', reopened: 'replied', edited: 'triaged' },
+  replied: { closed: 'closed', reopened: 'replied', edited: 'acknowledged' },
   closed: { reopened: 'acknowledged', edited: 'closed', polled: 'closed' },
 }
 
 /** The machine's one step. `polled` and `edited` re-drive an open flow
-without repeating a post; anything unlisted throws, never silently. */
+without repeating a post; anything unlisted throws, never silently. An
+edit drops the flow back to `acknowledged`: its findings are stale, and
+the poll clears them. */
 export function nextWatchdogState(state: WatchdogState, event: WatchdogEvent): WatchdogState {
   // An open flow re-reads its issue every poll and stays where it is.
   if (event === 'polled' && state !== 'closed') return state
   // An edited open issue is triaged again; a post is never repeated.
-  if (event === 'edited' && (state === 'acknowledged' || state === 'triaged')) return 'triaged'
+  if (event === 'edited' && (state === 'acknowledged' || state === 'triaged')) return 'acknowledged'
   const next = TRANSITIONS[state][event]
   if (next === undefined) throw new Error(`watchdog cannot move from ${state} on ${event}`)
   return next

@@ -1870,7 +1870,26 @@
       "paused": "Vigilante en pausa para {repository}.",
       "resumed": "Vigilante reanudado para {repository}.",
       "alreadyPaused": "El vigilante de {repository} ya está en pausa.",
-      "notPaused": "El vigilante de {repository} no está en pausa."
+      "notPaused": "El vigilante de {repository} no está en pausa.",
+      "invalidRepository": "Indique un repositorio como propietario/nombre.",
+      "watching": "Vigilando {repository}."
+    },
+    "poll": {
+      "skippedPullRequest": "una solicitud de cambios, no un problema",
+      "skippedLocked": "bloqueado",
+      "skippedAuthor": "un autor ignorado",
+      "skippedLabels": "fuera de las etiquetas vigiladas",
+      "alreadyAcked": "ya confirmado",
+      "ackPosted": "confirmado"
+    },
+    "verdicts": {
+      "valid": "Válido",
+      "needsInfo": "Necesita información",
+      "duplicate": "Duplicado",
+      "alreadyFixed": "Ya corregido",
+      "inHand": "En curso",
+      "invalid": "No válido",
+      "spam": "Spam"
     },
     "refusal": {
       "spamHeld": "Retenido como posible spam: no se publicó nada.",

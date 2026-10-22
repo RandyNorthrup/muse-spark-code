@@ -1812,7 +1812,26 @@
       "paused": "已暂停 {repository} 的看护。",
       "resumed": "已恢复 {repository} 的看护。",
       "alreadyPaused": "{repository} 的看护已处于暂停状态。",
-      "notPaused": "{repository} 的看护未处于暂停状态。"
+      "notPaused": "{repository} 的看护未处于暂停状态。",
+      "invalidRepository": "请按 所有者/名称 的格式指定仓库。",
+      "watching": "正在监视 {repository}。"
+    },
+    "poll": {
+      "skippedPullRequest": "是拉取请求，而非问题",
+      "skippedLocked": "已锁定",
+      "skippedAuthor": "已忽略的作者",
+      "skippedLabels": "监视标签范围之外",
+      "alreadyAcked": "已确认",
+      "ackPosted": "已确认"
+    },
+    "verdicts": {
+      "valid": "有效",
+      "needsInfo": "需要信息",
+      "duplicate": "重复",
+      "alreadyFixed": "已修复",
+      "inHand": "处理中",
+      "invalid": "无效",
+      "spam": "垃圾信息"
     },
     "refusal": {
       "spamHeld": "因疑似垃圾信息已被扣留：未发布任何内容。",

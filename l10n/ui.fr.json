@@ -1870,7 +1870,26 @@
       "paused": "Veille en pause pour {repository}.",
       "resumed": "Veille reprise pour {repository}.",
       "alreadyPaused": "La veille pour {repository} est déjà en pause.",
-      "notPaused": "La veille pour {repository} n’est pas en pause."
+      "notPaused": "La veille pour {repository} n’est pas en pause.",
+      "invalidRepository": "Indiquez un dépôt sous la forme propriétaire/nom.",
+      "watching": "Surveillance de {repository}."
+    },
+    "poll": {
+      "skippedPullRequest": "une demande de tirage, pas un problème",
+      "skippedLocked": "verrouillé",
+      "skippedAuthor": "un auteur ignoré",
+      "skippedLabels": "hors des étiquettes surveillées",
+      "alreadyAcked": "déjà accusé de réception",
+      "ackPosted": "accusé de réception"
+    },
+    "verdicts": {
+      "valid": "Valide",
+      "needsInfo": "Besoin d’informations",
+      "duplicate": "Doublon",
+      "alreadyFixed": "Déjà corrigé",
+      "inHand": "En cours",
+      "invalid": "Non valide",
+      "spam": "Spam"
     },
     "refusal": {
       "spamHeld": "Retenu comme spam suspect : rien n’a été publié.",
