@@ -74,8 +74,7 @@ export interface TeamPlaybookTask {
   readonly taskId: string
   readonly brief: string
   readonly files: readonly string[]
-  readonly reasonCode: string
-  readonly reasonDetail: string
+  readonly reason: string
   readonly sessionId: string
   readonly teamId: string
 }
@@ -109,7 +108,7 @@ export function teamPlaybookWork(
     brief: {
       objective: task.brief,
       scope: [...files],
-      acceptance: [`${task.reasonCode}: ${task.reasonDetail}`],
+      acceptance: [task.reason],
       baseCommit: head.commit,
     },
     commands: [],

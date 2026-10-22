@@ -96,8 +96,7 @@ describe('teamPlaybookWork', () => {
     taskId: 'task-1',
     brief: 'Rework the retry helper',
     files: ['src/core/team/retry.ts'],
-    reasonCode: 'own-branch',
-    reasonDetail: 'isolated change',
+    reason: 'own-branch',
     sessionId: 'session-1',
     teamId: 'team',
   }

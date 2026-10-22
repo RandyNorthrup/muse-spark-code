@@ -2340,6 +2340,9 @@ export const PLAYBOOK_PANEL_TIMEOUT_MS = 75_000
 export const PLAYBOOK_PANEL_TEAM = 'panel'
 export const PLAYBOOK_PANEL_LANE = 'panel'
 export const PLAYBOOK_SURFACE_LANE = 'surface'
+// The team runner's orchestration (M116, PLAN.md D212): one team id and one
+// lane label per workspace journal, beside the panel's.
+export const PLAYBOOK_TEAM_RUNNER = 'team'
 // D96.1's default module: the file's directory two levels under the source root.
 export const PLAYBOOK_MODULE_DIRECTORY_DEPTH = 3
 // Windows containment (PLAN.md §9, FIXM116P3-Windows-job-binding): one named
@@ -7978,6 +7981,10 @@ export const TEAM_MODEL_TEXT = {
   hostUntrusted: 'the workspace is in Restricted Mode, so no worker starts',
   hostMaxWorkers: 'at most {max} workers run at once in this window',
   hostPaidDeclined: 'the user declined paid team use for these tasks',
+  hostPlaybookRefused:
+    'the orchestrator playbook did not admit this task (rule: {rule}; reason: {code}; module: {module}); do not start the same work another way',
+  hostPlaybookBriefInvalid:
+    'the task brief carries an unfilled template marker, so the playbook cannot record it; restate the brief without markers',
   hostUnknownTask: 'no such task in this conversation',
   hostMergePlanMode: 'merge is refused in Plan mode',
   hostMergeNotReady: 'only a finished task with changes on its own branch can be merged, once',
