@@ -15265,6 +15265,23 @@ restore paths are proven by live probes. Manual's words stand unchanged;
 they hold on Muse Code 1.4.7 and later. Record:
 `docs/certification/manualmode.md`.
 
+### D213 — The MCP client speaks both protocol eras; the connector stays legacy (lane RLMCPERA, 2026-10-22)
+
+The survey's MCP claims were verified against the spec and the published
+SDKs before building (every source and capture:
+`docs/certification/rlmcpera.md`): `2026-07-28` is current, has no
+handshake, and a legacy client fails against a modern-only server. The
+client probes `server/discover` at `2026-07-28` and falls back to
+`initialize` (stdio on a disposable sibling process, HTTP on its own
+transport instance), carries the `_meta` envelope and mirrored headers on
+every modern request, retries `-32022` once at a mutual modern version,
+runs MRTR elicitation through the M91 machinery, and leaves the legacy
+path byte-identical. The 10 s probe silence bound is the official Python
+SDK's documented probe timeout: the spec's verdict mechanism, not a
+limit of ours. The connector stays legacy-only: the spec requires
+nothing of legacy servers and none of its clients speaks only the new
+era. Full record: `docs/certification/rlmcpera.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -16557,6 +16574,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### RLMCPERA — MCP client for both protocol eras (D213)
+
+**Status 2026-10-22: building.** Recovery lane: the Model API backend's
+MCP client probes `server/discover` and falls back to `initialize`, and
+carries the version on every request to a modern server, on stdio and
+streamable HTTP (D213). The connector stays legacy-only (D213). Record:
+`docs/certification/rlmcpera.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 

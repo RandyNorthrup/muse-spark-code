@@ -1247,6 +1247,11 @@
       "note": "release preparation (0.16.0)"
     },
     {
+      "id": "RLMCPERA",
+      "public": false,
+      "note": "MCP client for both protocol eras (recovery)"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
