@@ -1,8 +1,8 @@
 // The Model API backend's byte-range file execution: reads and edits of
 // one byte window at any file size. dist/modelApi.js loads this through
-// dist/modelApiTools.js on the first range addressed call; the whole-file
-// paths never load it. A bundle that cannot load refuses the call that
-// needed it, never a silent fallback.
+// dist/modelApiFileRange.js on the first range addressed call; the
+// whole-file paths never load it. A bundle that cannot load refuses the
+// call that needed it, never a silent fallback.
 
 import { Buffer } from 'node:buffer'
 import {
@@ -11,19 +11,19 @@ import {
   TOOL_FILE_RANGE_MAX_BYTES,
   TOOL_OUTPUT_MAX_CHARS,
 } from '../../../shared/constants'
-import { UI_TEXT } from '../../../shared/l10n/text'
-import type { FormatTarget, TextShape, ToolContext, ToolOutcome, TouchedFiles } from './tools'
+import type { FormatTarget, ToolContext, ToolOutcome, TouchedFiles } from './tools'
 import {
   editRefusal,
   failure,
   fileText,
-  matchRange,
+  locateHead,
   modelText,
   patchOutcome,
-  toLf,
+  resolveEditRanges,
+  type TextShape,
   touchedBy,
   writeAdmission,
-} from './tools'
+} from '../../toolEdit'
 
 /** A byte window into a file: `offset` first, at most `length` bytes. */
 export interface FileByteRange {
@@ -210,7 +210,11 @@ export function decodeWindow(bytes: Uint8Array, start: number, end: number): str
     // The BOM is kept as a character, exactly as whole reads decode (D27):
     // the display strips it, the digest covers it.
     return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(slice)
-  } catch {
+  } catch (error: unknown) {
+    // A fatal decode throws only TypeError for a malformed sequence (the
+    // encoding and options above are constants): the window is not valid
+    // UTF-8, so there is no text to show for it.
+    if (!(error instanceof TypeError)) throw error
     return undefined
   }
 }
@@ -372,40 +376,30 @@ export async function editFileRange(
   // it. A match elsewhere is reached by reading its window, never by
   // widening this one past its cap.
   const scope = `bytes ${String(offset)}–${String(offset + clamped)} of \`${head.relative}\``
-  const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
-  for (const [index, entry] of singles.entries()) {
-    const prefix = hasEdits ? `edits[${String(index)}]: ` : ''
-    const matched = await matchRange(
-      current,
-      shape.isCrlf ? toLf(entry.find) : entry.find,
-      context.signal,
-    )
-    if ('refusal' in matched) {
-      return matched.refusal === 'notFound'
+  // Every single resolved against the window text first (M101): overlaps
+  // are refused and one splice applies all of them, so either all land or
+  // none does. A miss or repeat names this window; a match elsewhere is
+  // reached by reading its window, never by widening this one past its cap.
+  const resolved = await resolveEditRanges(
+    current,
+    shape,
+    singles,
+    hasEdits,
+    context.signal,
+    (prefix, isRepeated) =>
+      isRepeated
         ? failure(
-            `${prefix}find text not found in ${scope}; read the window that holds it and pass that range`,
-            `${prefix}Find text was not found in this window; read the window that holds it and pass that range.`,
-          )
-        : failure(
             `${prefix}find text occurs more than once in ${scope}; include more context`,
             `${prefix}Find text occurs more than once in this window; include more context.`,
           )
-    }
-    ranges.push({
-      start: matched.start,
-      end: matched.end,
-      replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
-    })
-  }
-  // Every entry resolved against the original text first (M101): overlaps
-  // are refused and one splice applies all of them, so either all land or
-  // none does.
-  const ordered = ranges.toSorted((a, b) => a.start - b.start)
+        : failure(
+            `${prefix}find text not found in ${scope}; read the window that holds it and pass that range`,
+            `${prefix}Find text was not found in this window; read the window that holds it and pass that range.`,
+          ),
+  )
+  if (!resolved.ok) return resolved.outcome
+  const ordered = resolved.ranges
   for (const [index, range] of ordered.entries()) {
-    const previous = ordered[index - 1]
-    if (previous !== undefined && range.start < previous.end) {
-      return failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap)
-    }
     if (byteAt(range.start) < offset - first || byteAt(range.end) > offset - first + clamped) {
       return failure(
         `edits[${String(index)}]: matched outside the read window (bytes ${String(offset)}–${String(offset + clamped)} of \`${head.relative}\`); read the window that holds it and pass that range`,
@@ -508,4 +502,35 @@ function applyOrdered(
     at = range.end
   }
   return updated + current.slice(at)
+}
+
+/** A range `read_file` call: byte addressing only, confined before anything reads. */
+export async function readFileByRange(
+  args: FileRangeArgs & {
+    readonly path: string
+    readonly offset?: number | undefined
+    readonly limit?: number | undefined
+  },
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  if (args.offset !== undefined || args.limit !== undefined) {
+    return failure(
+      'read_file takes either line addressing (offset and limit) or byte addressing (byteOffset and byteLength), not both',
+    )
+  }
+  // The path is confined first, exactly as the inline version did.
+  const head = await locateHead(args.path, context)
+  return head.ok ? await readFileWindow(head, args, context) : head.outcome
+}
+
+/** A range `edit_file` call: validated singles applied to the confined window. */
+export async function editFileByRange(
+  args: FileRangeArgs & { readonly path: string },
+  singles: readonly { readonly find: string; readonly replace: string }[],
+  hasEdits: boolean,
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  // The path is confined first, exactly as the inline version did.
+  const head = await locateHead(args.path, context)
+  return head.ok ? await editFileRange(head, args, singles, hasEdits, context) : head.outcome
 }

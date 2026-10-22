@@ -67,7 +67,7 @@ The VS Code adapter: 50 files. Everything else reaches VS Code only through them
 | `src/host/reporting/reportPanel.ts`                | 47                |
 | `src/host/reporting/reportPanelEntry.ts`           | 18                |
 | `src/host/support/reportEditorIo.ts`               | 9                 |
-| `src/host/tab/tabBundle.ts`                        | 23                |
+| `src/host/tab/tabBundle.ts`                        | 24                |
 | `src/host/tab/tabProvider.ts`                      | 39                |
 | `src/host/tab/tabStatus.ts`                        | 3                 |
 | `src/host/usage/usagePanel.ts`                     | 41                |
@@ -467,7 +467,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `window.showQuickPick`                                                               | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/git/gitWindow.ts`, `src/host/media/previewPanel.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/prompts/promptEntry.ts`, `src/host/quickPick.ts`, `src/host/reporting/reportPanel.ts`, `src/host/tab/tabStatus.ts`, `src/host/vault/vaultActionDialogs.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                                                            |
 | `window.showSaveDialog`                                                              | `src/host/cliFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/prompts/chatSharing.ts`, `src/host/prompts/promptEntry.ts`, `src/host/reporting/reportPanel.ts`, `src/host/support/reportEditorIo.ts`, `src/host/usage/usagePanel.ts`                                                                                                                                                                                                                                                                                                                                                                   |
 | `window.showTextDocument`                                                            | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `window.showWarningMessage`                                                          | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeCommand.ts`, `src/host/git/gitWindow.ts`, `src/host/media/mediaHostEntry.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/popups.ts`, `src/host/prompts/promptEntry.ts`, `src/host/usage/usagePanel.ts`, `src/host/vault/vaultActionDialogs.ts`, `src/host/vault/vaultPanelEntry.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`                                  |
+| `window.showWarningMessage`                                                          | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeCommand.ts`, `src/host/git/gitWindow.ts`, `src/host/media/mediaHostEntry.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/popups.ts`, `src/host/prompts/promptEntry.ts`, `src/host/tab/tabBundle.ts`, `src/host/usage/usagePanel.ts`, `src/host/vault/vaultActionDialogs.ts`, `src/host/vault/vaultPanelEntry.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`     |
 | `window.state`                                                                       | `src/host/conversation/vscodeBackgroundNotices.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `window.tabGroups`                                                                   | `src/extension.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `window.visibleTextEditors`                                                          | `src/host/editor/verifyEditor.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -498,21 +498,21 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | Module                   | Files |
 | ------------------------ | ----- |
 | `node:async_hooks`       | 5     |
-| `node:buffer`            | 73    |
+| `node:buffer`            | 75    |
 | `node:child_process`     | 31    |
-| `node:crypto`            | 216   |
+| `node:crypto`            | 217   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 4     |
-| `node:fs`                | 135   |
-| `node:fs/promises`       | 144   |
+| `node:fs`                | 136   |
+| `node:fs/promises`       | 145   |
 | `node:http`              | 17    |
 | `node:https`             | 3     |
 | `node:module`            | 4     |
 | `node:net`               | 26    |
 | `node:os`                | 46    |
-| `node:path`              | 265   |
+| `node:path`              | 267   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 28    |
 | `node:readline`          | 1     |

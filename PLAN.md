@@ -34147,6 +34147,22 @@ lane A's first step.
         count first, use an empty workspace, count from the trace log.
   - [ ] Codex review in one pass per lane class before push.
 
+### RLLIMITS — Carry fix/limits-int2's rule-abiding parts onto 0.19.0 (2026-10-22)
+
+**Status 2026-10-22: built.** Hand-ported on rig `linuxlt`, branch
+`rec/rllimits`, base 0.19.0, never merged: byte-range `read_file`/`edit_file`
+with the deferred `modelApiFileRange.js` chunk; six once-silent outcomes
+said with their way back (judge advisory, elicitation timeout, question
+expiry, subagent result clip, provider send failure, tab budget detail);
+paged search, listings, diagnostics and web fetches with offset; the
+unsent draft rides the omitted-transcript restore; damage markers are
+never sliced. Dropped under D121: the repeat stop, the continuation
+repeat stop, and `modelApiMaxTurnRequests`, `questions.maxOpenQuestions`,
+`judge.timeoutSeconds`. The activation budget holds by weight
+(`dist/modelApi.js` 523.8 KiB against 525; new execution lives in
+`dist/modelApiTools.js` and `dist/modelApiFileRange.js`). Evidence:
+`docs/certification/rllimits.md`.
+
 ---
 
 ## 7. Gates

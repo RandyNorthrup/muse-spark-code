@@ -661,6 +661,19 @@ const modelApiToolsOptions = {
   outfile: MODEL_API_TOOLS_OUTFILE,
 }
 
+// The byte-range file execution (reads and edits of one byte window at any
+// file size), loaded on the first range addressed call, off the per-call
+// helpers' budget.
+const MODEL_API_FILE_RANGE_ENTRY = 'src/core/backends/modelapi/modelApiFileRangeEntry.ts'
+const MODEL_API_FILE_RANGE_OUTFILE = 'dist/modelApiFileRange.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiFileRangeOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_FILE_RANGE_ENTRY],
+  outfile: MODEL_API_FILE_RANGE_OUTFILE,
+}
+
 // The verify loop's session side (M68: the loop, its ledger and the
 // diagnostics history), loaded on the first turn that verifies tool edits.
 const MODEL_API_VERIFY_ENTRY = 'src/core/backends/modelapi/modelApiVerifyEntry.ts'
@@ -1759,6 +1772,7 @@ if (isWatch) {
     }),
     esbuild.context(hookRuntimeOptions),
     esbuild.context(modelApiToolsOptions),
+    esbuild.context(modelApiFileRangeOptions),
     esbuild.context(modelApiVerifyOptions),
     esbuild.context(modelApiImageOptions),
     esbuild.context({
@@ -1930,6 +1944,7 @@ if (isWatch) {
     hookRuntime: recorded('hookRuntime', hookRuntimeOptions),
     pluginHooks: recorded('pluginHooks', pluginHooksOptions),
     modelApiTools: recorded('modelApiTools', modelApiToolsOptions),
+    modelApiFileRange: recorded('modelApiFileRange', modelApiFileRangeOptions),
     modelApiVerify: recorded('modelApiVerify', modelApiVerifyOptions),
     modelApiImage: recorded('modelApiImage', modelApiImageOptions),
     planMarkdown: recorded('planMarkdown', planMarkdownOptions),

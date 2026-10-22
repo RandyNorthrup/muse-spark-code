@@ -27,6 +27,7 @@ import type {
   ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
+import { wireWordForLog } from '../../core/logging'
 import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../core/timeouts'
 import type { ToolImageIo } from '../../core/toolImages'
 import {
@@ -671,7 +672,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       return await rangeLoad
     } catch (error) {
       rangeLoad = undefined
-      deps.log(`toolRange.js failed (${error instanceof Error ? error.name : 'unknown'})`)
+      const name = error instanceof Error ? wireWordForLog(error.name) : 'unknown'
+      deps.log(`toolRange.js failed (${name})`)
       throw new Error(UI_TEXT.toolRangeUnavailable, { cause: error })
     }
   }

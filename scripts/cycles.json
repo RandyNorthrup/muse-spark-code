@@ -13,6 +13,7 @@
     "src/runtime/runtimeMediaEntry.ts",
     "src/host/media/mediaHostEntry.ts",
     "src/core/backends/modelapi/modelApiToolsEntry.ts",
+    "src/core/backends/modelapi/modelApiFileRangeEntry.ts",
     "src/core/backends/modelapi/modelApiVerifyEntry.ts",
     "src/shared/wireEntry.ts",
     "src/shared/modelApiBoundariesEntry.ts",

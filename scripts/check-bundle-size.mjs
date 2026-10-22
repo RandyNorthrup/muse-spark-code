@@ -205,6 +205,11 @@ const BUDGETS = [
   // 23,433 B measured (2026-10-11); D6: 23,433 × 1.15 = 26,947.95 B,
   // rounded up to the next 25 KiB multiple = 51,200 B (50 KiB).
   { path: 'dist/modelApiTools.js', budgetKiB: 50 },
+  // The byte-range file execution (reads and edits of one byte window),
+  // loaded on the first range addressed call, off the per-call helpers'
+  // budget: 32,040 B measured; D6: 32,040 × 1.15 = 36,846 B, rounded up
+  // to the next 25 KiB multiple = 51,200 B (50 KiB).
+  { path: 'dist/modelApiFileRange.js', budgetKiB: 50 },
   // The verify loop's session side (M68: the loop, its ledger and the
   // diagnostics history), loaded on the first turn that verifies tool
   // edits: 51,213 B measured (2026-10-18); D6: 51,213 × 1.15 = 58,894.95 B,
