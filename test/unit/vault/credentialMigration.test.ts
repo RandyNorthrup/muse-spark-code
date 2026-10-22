@@ -39,6 +39,29 @@ describe('migration key list', () => {
     expect(modelApi?.decode(Buffer.from(modelApiKey(), 'utf8')).material.kind).toBe('apiKey')
   })
 
+  it('lists pooled account slots after provider slots, skipping defaults', () => {
+    expect(
+      listMigrationKeys(['openrouter'], new Map([['openrouter', ['default', 'work']]])),
+    ).toEqual([
+      SECRET_KEYS.modelApiKey,
+      'museSpark.provider.openrouter',
+      'museSpark.provider.openrouter.account.work',
+    ])
+  })
+
+  it('builds account codecs for pooled slots', () => {
+    const credentials = buildMigrationCredentials(
+      ['openrouter'],
+      now,
+      new Map([['openrouter', ['work']]]),
+    )
+    expect(credentials.map((entry) => entry.key)).toEqual([
+      SECRET_KEYS.modelApiKey,
+      'museSpark.provider.openrouter',
+      'museSpark.provider.openrouter.account.work',
+    ])
+  })
+
   it('gives chatgpt the subscription codec, never the provider record codec', () => {
     const credentials = buildMigrationCredentials(['chatgpt'], now)
     expect(credentials.map((entry) => entry.key)).toEqual([

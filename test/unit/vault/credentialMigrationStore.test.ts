@@ -3,10 +3,9 @@
 // service owns only this run's generated entries; no person's key is read.
 // No file/Map store, anchor, broker or editor substitute participates.
 import { randomBytes } from 'node:crypto'
+import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
-import { VaultFirstPartyReader } from '../../../src/core/vault/broker/firstParty'
-import { encodeVaultMaterial } from '../../../src/core/vault/crypto'
+import { accountSecretMigrationCredential } from '../../../src/core/vault/migrate/accountSecrets'
 import { chatgptSubscriptionMigrationCredential } from '../../../src/core/vault/migrate/chatgptSubscription'
 import { providerCredentialMigrationCredential } from '../../../src/core/vault/migrate/providerCredentials'
 import { CredentialMigrationController } from '../../../src/host/vault/migrateCredentials'
@@ -17,10 +16,11 @@ import { UI_TEXT } from '../../../src/shared/constants'
 import { recordingLogger } from '../helpers/recordingLogger'
 import {
   assertMigratedSlot,
-  confirmBrokerSetup,
-  driveSubscriptionMigration,
+  chatgptSeeds,
+  driveSlotCase,
   expectOriginRefused,
-  uniqueKeyringStore,
+  openMigrationSession,
+  pooledAccountSeeds,
 } from '../helpers/vault/subscriptionMigrationFlow'
 import {
   startWindowsBrokerFixture,
@@ -30,6 +30,7 @@ import {
 const ORIGIN = 'https://openrouter.ai'
 const PROVIDER = 'openrouter'
 const CHATGPT_ORIGIN = 'https://api.openai.com'
+const POOLED_ACCOUNT = 'work'
 const fixture = { current: undefined as WindowsBrokerFixture | undefined }
 // The same complete real-helper flow deadline as windowsVaultPanelFlow.
 const FLOW_TIMEOUT_MS = 300_000
@@ -54,10 +55,11 @@ describe.skipIf(process.platform !== 'win32')(
       'verifies opaque records, rotates kinds, survives lock and removes both copies',
       async () => {
         const current = currentFixture()
-        const session = new VaultManageSession(current.connect, encodeVaultMaterial)
-        await confirmBrokerSetup(session)
-        const secrets = uniqueKeyringStore(current.hostId)
-        const reader = new VaultFirstPartyReader(current.connect)
+        const { session, secrets, reader } = await openMigrationSession({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+        })
         const { log, logged } = recordingLogger()
         let shouldLockAfterRemoval = false
         const active = new CredentialMigrationController({
@@ -160,28 +162,39 @@ describe.skipIf(process.platform !== 'win32')(
       'probes the chatgpt slot, migrates its tokens, rotates them and removes both copies',
       async () => {
         const current = currentFixture()
-        const session = new VaultManageSession(current.connect, encodeVaultMaterial)
-        // The earlier case leaves the vault set up; a lone run meets a
-        // fresh broker, so set up or unlock only what the state needs.
-        const before = await session.snapshot()
-        const state = before.status.state
-        if (state === 'uncreated') {
-          await confirmBrokerSetup(session)
-        } else if (state === 'locked') {
-          await session.unlock(null)
-        }
-        const secrets = uniqueKeyringStore(current.hostId)
-        const reader = new VaultFirstPartyReader(current.connect)
-        const { log, logged } = recordingLogger()
-        const codec = chatgptSubscriptionMigrationCredential(Date.now)
-        await driveSubscriptionMigration({
-          secrets,
-          session,
-          reader,
-          log,
-          logged,
-          codec,
+        // The providers seam answers no providers: a slot that still
+        // migrates proves the controller probed it itself.
+        await driveSlotCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+          codec: chatgptSubscriptionMigrationCredential(Date.now),
           origin: CHATGPT_ORIGIN,
+          providers: [],
+          ...chatgptSeeds(),
+        })
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'lists the pooled slot from the account pool and migrates it like any slot',
+      async () => {
+        const current = currentFixture()
+        await driveSlotCase({
+          connect: current.connect,
+          lockScope: current.hostId,
+          fresh: false,
+          codec: accountSecretMigrationCredential(PROVIDER, POOLED_ACCOUNT, Date.now),
+          origin: ORIGIN,
+          providers: [PROVIDER],
+          pool: {
+            file: path.join(current.root, 'pooled', 'providers.json'),
+            provider: PROVIDER,
+            origin: ORIGIN,
+            accounts: ['default', POOLED_ACCOUNT],
+          },
+          ...pooledAccountSeeds(PROVIDER, POOLED_ACCOUNT, ORIGIN),
         })
       },
       FLOW_TIMEOUT_MS,

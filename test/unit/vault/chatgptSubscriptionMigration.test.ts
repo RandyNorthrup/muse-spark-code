@@ -1,29 +1,34 @@
-// The ChatGPT subscription slot through the real native credential
-// store, the migration controller and the authenticated POSIX broker into
-// the encrypted vault: probed (never listed by the providers seam),
-// copied, verified, rotated, locked/unlocked and signed out. A unique
-// service owns only this run's generated entries; no person's key is read,
-// and the generated tokens are never issued or sent anywhere: no sign-in,
-// refresh or provider call runs. No file/Map store, anchor, broker or
-// editor substitute participates.
+// The subscription and pooled-account slots through the real native
+// credential store, the migration controller and the authenticated POSIX
+// broker into the encrypted vault: probed or pool-listed (never listed by
+// the providers seam), copied, verified, rotated, locked/unlocked and
+// signed out. A unique service owns only this run's generated entries; no
+// person's key is read, and the generated tokens are never issued or sent
+// anywhere: no sign-in, refresh or provider call runs. No file/Map store,
+// anchor, broker or editor substitute participates.
 import { execFileSync } from 'node:child_process'
+import path from 'node:path'
 import { afterAll, beforeAll, describe, it } from 'vitest'
-import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
-import { VaultFirstPartyReader } from '../../../src/core/vault/broker/firstParty'
-import { encodeVaultMaterial } from '../../../src/core/vault/crypto'
+import { accountSecretMigrationCredential } from '../../../src/core/vault/migrate/accountSecrets'
 import { chatgptSubscriptionMigrationCredential } from '../../../src/core/vault/migrate/chatgptSubscription'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
-import { recordingLogger } from '../helpers/recordingLogger'
 import { hasBrokerSocketFit } from '../helpers/vault/socketFit'
 import {
-  confirmBrokerSetup,
-  driveSubscriptionMigration,
+  chatgptSeeds,
+  driveSlotCase,
   expectOriginRefused,
-  uniqueKeyringStore,
+  pooledAccountSeeds,
 } from '../helpers/vault/subscriptionMigrationFlow'
-import { startPosixPanelFixture, type PosixPanelFixture } from '../helpers/vault/posixPanelFixture'
+import {
+  startPosixPanelFixture,
+  type PosixPanelClient,
+  type PosixPanelFixture,
+} from '../helpers/vault/posixPanelFixture'
 
 const ORIGIN = 'https://api.openai.com'
+const POOLED_PROVIDER = 'openrouter'
+const POOLED_ACCOUNT = 'work'
+const POOLED_ORIGIN = 'https://openrouter.ai'
 const fixture = { current: undefined as PosixPanelFixture | undefined }
 // The same complete real-helper flow deadline as windowsVaultPanelFlow.
 const FLOW_TIMEOUT_MS = 300_000
@@ -52,9 +57,24 @@ function hasSessionBus(): boolean {
   return process.platform !== 'linux' || (process.env['DBUS_SESSION_BUS_ADDRESS'] ?? '') !== ''
 }
 
+/** One case over its own fresh client, ended afterwards. */
+async function withClient(
+  name: string,
+  work: (client: PosixPanelClient, root: string) => Promise<void>,
+): Promise<void> {
+  const current = fixture.current
+  if (current === undefined) throw new Error('the POSIX broker fixture did not start')
+  const client = await current.startClient(name)
+  try {
+    await work(client, current.root)
+  } finally {
+    await client.dispose()
+  }
+}
+
 describe.skipIf(
   process.platform === 'win32' || !hasBrokerSocketFit() || !hasProcessListing() || !hasSessionBus(),
-)('chatgpt subscription migration through the real broker', () => {
+)('chatgpt and pooled migration through the real broker', () => {
   beforeAll(async () => {
     fixture.current = await startPosixPanelFixture('vs-pmigration-')
     // One-time OS costs belong in hooks, never in a case: the first exec
@@ -72,35 +92,50 @@ describe.skipIf(
   it(
     'probes the slot, migrates it, rotates its tokens, survives lock and removes both copies',
     async () => {
-      const current = fixture.current
-      if (current === undefined) throw new Error('the POSIX broker fixture did not start')
-      const client = await current.startClient('migration')
-      try {
-        const session = new VaultManageSession(client.connect, encodeVaultMaterial)
-        await confirmBrokerSetup(session)
-        const secrets = uniqueKeyringStore(client.hostId)
-        const reader = new VaultFirstPartyReader(client.connect)
-        const { log, logged } = recordingLogger()
-        const codec = chatgptSubscriptionMigrationCredential(Date.now)
-        await driveSubscriptionMigration({
-          secrets,
-          session,
-          reader,
-          log,
-          logged,
-          codec,
+      await withClient('migration', (client) =>
+        // The providers seam answers no providers: a slot that still
+        // migrates proves the controller probed it itself.
+        driveSlotCase({
+          connect: client.connect,
+          lockScope: client.hostId,
+          fresh: true,
+          codec: chatgptSubscriptionMigrationCredential(Date.now),
           origin: ORIGIN,
-          extra: () =>
+          providers: [],
+          ...chatgptSeeds(),
+          extra: ({ reader, codec }) =>
             expectOriginRefused({
               reader,
               itemId: codec.itemId,
               origin: 'https://api.meta.ai',
               message: 'a different origin must not read the subscription',
             }),
-        })
-      } finally {
-        await client.dispose()
-      }
+        }),
+      )
+    },
+    FLOW_TIMEOUT_MS,
+  )
+
+  it(
+    'lists the pooled slot from the account pool and migrates it like any slot',
+    async () => {
+      await withClient('pooled', (client, root) =>
+        driveSlotCase({
+          connect: client.connect,
+          lockScope: client.hostId,
+          fresh: true,
+          codec: accountSecretMigrationCredential(POOLED_PROVIDER, POOLED_ACCOUNT, Date.now),
+          origin: POOLED_ORIGIN,
+          providers: [POOLED_PROVIDER],
+          pool: {
+            file: path.join(root, 'pooled', 'providers.json'),
+            provider: POOLED_PROVIDER,
+            origin: POOLED_ORIGIN,
+            accounts: ['default', POOLED_ACCOUNT],
+          },
+          ...pooledAccountSeeds(POOLED_PROVIDER, POOLED_ACCOUNT, POOLED_ORIGIN),
+        }),
+      )
     },
     FLOW_TIMEOUT_MS,
   )
