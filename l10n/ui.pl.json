@@ -5052,7 +5052,8 @@
       "modelRef": "Odwołanie do modelu",
       "outputCap": "Limit wyjścia przekracza okno kontekstu",
       "customLimits": "Modele niestandardowe wymagają okien kontekstu i limitów wyjścia",
-      "compat": "Opcje zgodności dotyczą wyłącznie serwera niestandardowego"
+      "compat": "Opcje zgodności dotyczą wyłącznie serwera niestandardowego",
+      "upstream": "Routing nadrzędny dotyczy wyłącznie wpisu Hugging Face"
     },
     "descriptions": {
       "openai": "API Responses OpenAI z modelami GPT",

@@ -13,6 +13,7 @@
 import { createServer } from 'node:net'
 import { setTimeout as timer } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
+import { resolveAttemptBillingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { PLAN_KEY_PRESETS, PRESETS, presetById, quirksOf } from '../../src/core/providers/presets'
 import { emptyProvidersFile } from '../../src/core/providers/providersFile'
@@ -117,19 +118,25 @@ const transportToNowhere = (
     apiKey: () => Promise.resolve('retry-limit-test-key'),
   })
 
-const postNowhere = (
+const postNowhere = async (
   transport: RequestTransport,
   signal: AbortSignal | undefined,
   notices: RetryNotice[],
-) =>
-  transport.request(
+): Promise<unknown> => {
+  return await transport.request(
     '/responses',
-    { method: 'POST', body: {}, accept: 'application/json' },
+    {
+      method: 'POST',
+      body: {},
+      accept: 'application/json',
+      billingRoute: await resolveAttemptBillingRoute({ feature: 'ordinary', isMetaDirect: false }),
+    },
     signal,
     (notice) => {
       notices.push(notice)
     },
   )
+}
 
 /**
 A refused send's retry notices: posts, waits for `wanted` notices, stops

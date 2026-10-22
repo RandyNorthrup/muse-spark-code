@@ -4932,7 +4932,8 @@
       "modelRef": "Una referencia de modelo",
       "outputCap": "El límite de salida supera la ventana de contexto",
       "customLimits": "Los modelos personalizados requieren ventanas de contexto y límites de salida",
-      "compat": "Las opciones de compatibilidad solo se aplican a un servidor personalizado"
+      "compat": "Las opciones de compatibilidad solo se aplican a un servidor personalizado",
+      "upstream": "El enrutamiento ascendente solo se aplica a una entrada de Hugging Face"
     },
     "descriptions": {
       "openai": "API Responses de OpenAI con modelos GPT",

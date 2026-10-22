@@ -4,10 +4,12 @@
 // tests are marked for the lead in the certification.
 
 import { describe, expect, it } from 'vitest'
-// The static import warms the lazily loaded providers bundle at
-// collection time, so the first report read runs inside the repository's
-// own per-test timeout.
+// The static imports warm the lazily loaded providers, transport and auth
+// bundles at collection time, so the first report read runs inside the
+// repository's own per-test timeout.
 import '../../src/host/backend/providersEntry'
+import '../../src/host/backend/modelApiEntry'
+import '../../src/host/backend/configuredProvidersEntry'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import {
   formatStoredProviderSecret,
@@ -134,6 +136,7 @@ function authDepsWith(
     errors,
     secrets: fakeSecretStore(secrets),
     storeName: 'test store',
+    confirmKeyUse: () => Promise.reject(new Error('spend terminal test asks no key-use question')),
     readSecret: () => Promise.resolve(secret),
     print: (line) => {
       printed.push(line)

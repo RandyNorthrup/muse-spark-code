@@ -5,6 +5,7 @@
 // probe, the suggestions and the wizard save — composed from the
 // SecretStorage records and the injected lane-P/T seams.
 
+import { createHash, randomUUID } from 'node:crypto'
 import type * as vscode from 'vscode'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -235,6 +236,15 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
   // the paid state, so the panel can offer the test again.
   const runTest = async (entry: ProviderEntry, credential: string): Promise<KeyTestResult> => {
     const first = await deps.tester.test(entry, credential, false)
+    // A tested OpenRouter key carries its credit balance: Account & usage
+    // shows it at once instead of waiting for the next stream cost.
+    if (first.kind === 'ok' && first.keyUsage !== undefined)
+      deps.onKeyUsage?.({
+        ...first.keyUsage,
+        providerId: entry.id,
+        credentialId: createHash('sha256').update(credential).digest('hex'),
+        observationId: randomUUID(),
+      })
     if (first.kind !== 'paid') {
       return first
     }

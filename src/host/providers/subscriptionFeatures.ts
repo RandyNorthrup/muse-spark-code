@@ -5,6 +5,7 @@ import type * as vscode from 'vscode'
 import type { ProviderClient } from '../../core/backends/modelapi/client'
 import { createChatGptSignIn } from './chatgptSignIn'
 import { connectCopilotFromClick } from './copilotClient'
+import { parseOpenRouterKeyUsageBody } from './openRouter'
 import {
   createModelsPanelSeam,
   setUiText,
@@ -168,7 +169,15 @@ export function createSubscriptionFeatures(options: {
     tester: {
       test: async (provider: Parameters<typeof fetchModels>[0], key: string) => {
         const services = await configured()
-        return await services.test(providersFile.providerEntrySchema.parse(provider), key)
+        const parsed = providersFile.providerEntrySchema.parse(provider)
+        const result = await services.test(parsed, key)
+        // OpenRouter's key check already fetched the credit balance: parse
+        // it here (host side) so Account & usage shows it after Test.
+        if (result.kind === 'ok' && parsed.preset === 'openrouter' && 'keyBody' in result) {
+          const keyUsage = parseOpenRouterKeyUsageBody(result.keyBody)
+          if (keyUsage !== undefined) return { ...result, keyUsage }
+        }
+        return result
       },
     },
   }

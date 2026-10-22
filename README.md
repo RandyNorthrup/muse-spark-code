@@ -4598,6 +4598,21 @@ a value, no explicitly refuses support, and unknown supplies no evidence.
 User-file parsing stamps known overrides with `source.kind: "user"`; a supplied
 source cannot elevate their priority. See [M95 N's record contract](docs/certification/m95-n.md).
 
+A Hugging Face entry can pin one router upstream (or a routing policy) with
+`upstream`; it is sent as the documented `model:upstream` suffix, and the
+panel prices that upstream instead of the dearest list price. For example:
+
+```json
+{
+  "preset": "huggingface",
+  "upstream": "novita"
+}
+```
+
+`novita` names one provider from the router's live list; `cheapest`,
+`fastest` and `preferred` follow the router's policies. Without `upstream`
+the router chooses and the panel keeps the dearest price as the bound.
+
 | What                             | Limit                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Images and PDFs                  | No count or size of ours: any number attaches at any size (reads bounded only by host memory). The selected model's capability record admits from the provider's documented limits (Meta: 50 MB per inline image, 50 images per request); the transports keep their own frame validity and the provider answers for the rest at send. |
