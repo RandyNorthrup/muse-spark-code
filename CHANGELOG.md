@@ -40,6 +40,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **`playbook run` headless check command** (M116, RLM116 D213). The ACP
+  agent runs one of the workspace's `museSpark.checkCommands` through the
+  same admission, journal and record as the panel: a paused resource
+  governor refuses with its why-note and the check never spawns, and the
+  record follows the outcome line either way. The command exits with the
+  check's own exit code. `/playbook` stays read-only.
+
 - **Roles and Agents editor** (M96 U1, C-M96-2), kept hidden behind the team
   worker availability gate. Strict workspace drafts support guided Pair
   setup, editable charters, ordered pools, caps, model capability checks,

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { parsePlaybookCommand, runPlaybookCommand } from '../../src/runtime/playbook/command'
+import { runPlaybookCheckCli } from '../../src/runtime/playbook/runCheck'
 import { answerPlaybookCommand, type PlaybookSource } from '../../src/host/playbook/playbookAnswer'
 import { surfacePort } from './playbookSurfaceFixtures'
 
@@ -41,6 +42,7 @@ function setup(overrides?: Partial<PlaybookSource>) {
     },
     runPlaybookCommand,
     runPlaybookCli: () => Promise.resolve(2),
+    runPlaybookCheckCli,
   })
   const loadBundle = (): unknown => {
     loads += 1

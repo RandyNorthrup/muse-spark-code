@@ -129,8 +129,8 @@ hash verification and migrate when read.
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
-- **Orchestrator playbook CLI/ACP.** Read journal records and change settings
-  locally with the CLI or ACP agent.
+- **Orchestrator playbook CLI/ACP.** Read journal records, change settings
+  and run check commands locally with the CLI or ACP agent.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
@@ -350,7 +350,10 @@ The CLI `playbook <status|record|settings ...>` and
 panel's composer read journal records and settings locally without starting
 a backend or a model turn. In VS Code the Agent map also opens the same
 journal's status, record and settings (**Playbook Settings**). Settings
-changes need a reason and record the owner. The reviewer charter ships as
+changes need a reason and record the owner. The CLI also runs one of the
+workspace's check commands (`playbook run <name>`) through the same
+admission, journal and record as the panel, and exits with the check's own
+exit code. The reviewer charter ships as
 the `orchestrator-playbook` skill.
 
 Muse Code starts subagents without asking; the panel counts their observed
