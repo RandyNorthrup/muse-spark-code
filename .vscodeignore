@@ -131,6 +131,7 @@
 !dist/productionAudio.js
 !dist/runtimeMedia.js
 !dist/modelApiTools.js
+!dist/modelApiFileRange.js
 !dist/modelApiVerify.js
 !dist/modelApiImage.js
 

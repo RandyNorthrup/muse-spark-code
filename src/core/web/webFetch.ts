@@ -864,6 +864,11 @@ function failureOf(error: unknown): WebFetchFailure {
     : webFetchFailure('network', { detail: detailOf(error) })
 }
 
+/** A fetch that failed for any reason but Stop: the mapped reason, never a throw. */
+function failedResult(error: unknown): WebFetchResult {
+  return { kind: 'failed', failure: failureOf(error) }
+}
+
 /** The redirect's target: checked like the first URL, or handed back when it is another host's. */
 function nextHop(
   response: PinnedResponse,
@@ -986,7 +991,7 @@ export async function fetchWebPage(
     if (turn.aborted) {
       throw error
     }
-    return { kind: 'failed', failure: failureOf(error) }
+    return failedResult(error)
   } finally {
     stopNoticing?.()
   }

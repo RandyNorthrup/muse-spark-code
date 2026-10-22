@@ -37,6 +37,8 @@
     "src/runtime/runtimeMediaEntry.ts",
     // The deferred per-call helpers, built as dist/modelApiTools.js (MODELAPIDIET).
     "src/core/backends/modelapi/modelApiToolsEntry.ts",
+    // The byte-range file execution, built as dist/modelApiFileRange.js, loaded on the first range addressed call.
+    "src/core/backends/modelapi/modelApiFileRangeEntry.ts",
     "src/host/backend/toolRangeEntry.ts",
     // The verify loop's session side, built as dist/modelApiVerify.js (M68).
     "src/core/backends/modelapi/modelApiVerifyEntry.ts",

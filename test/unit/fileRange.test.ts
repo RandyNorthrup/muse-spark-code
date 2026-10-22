@@ -179,18 +179,12 @@ describe('byte-range edit_file', () => {
 })
 
 describe('range addressed through the deferred chunk', () => {
-  it('serves a window through the real modelApiTools entry', async () => {
-    const entry = await import('../../src/core/backends/modelapi/modelApiToolsEntry')
+  it('serves a window through the real modelApiFileRange entry', async () => {
+    const entry = await import('../../src/core/backends/modelapi/modelApiFileRangeEntry')
     writeFileSync(small, 'alpha\nbeta\ngamma\ndelta\n')
     const { ctx } = contextFor()
-    const outcome = await entry.readFileWindow(
-      {
-        relative: 'small.txt',
-        canonical: 'small.txt',
-        absolute: path.join(root, 'small.txt'),
-        checkedAbsolute: path.join(root, 'small.txt'),
-      },
-      { byteOffset: 6, byteLength: 5 },
+    const outcome = await entry.readFileByRange(
+      { path: 'small.txt', byteOffset: 6, byteLength: 5 },
       ctx,
     )
     expect(outcome.output).toContain('(bytes 6–11 of 23)')
