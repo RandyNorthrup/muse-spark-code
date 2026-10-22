@@ -8342,7 +8342,7 @@ export const ESTIMATE_RUNS = 2000
 export const ESTIMATE_CALIBRATION_MIN_SAMPLES = 20
 export const ESTIMATE_PRIOR_SIGMA = 0.5
 export const ESTIMATE_MARGINAL_FLOOR_HOURS = 4
-/** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
+/** Idle teardown deadline in minutes: the funded lifetime still ends on time. */
 export const ESTIMATE_IDLE_TEARDOWN_MINUTES = 30
 /** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
 export const ESTIMATE_LOCAL_BUDGET_MS = 2000

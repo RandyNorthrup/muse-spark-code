@@ -225,6 +225,10 @@
     "test/harness/vault/run-mounted.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
+    // The M117 time-zone probe: estimatorFleetFactsReview.test.ts bundles
+    // this file by path and runs the bundle in child processes, so the
+    // entry keeps knip's graph on the probe's real imports.
+    "test/unit/helpers/estimatorZoneProbe.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",

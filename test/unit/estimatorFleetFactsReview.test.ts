@@ -86,28 +86,13 @@ async function bindWorkFleet(lane: EstimateLane, port: UsageRecording) {
 }
 const zoneProbe =
   buildSync({
-    stdin: {
-      contents: `
-    import { applyFleetBinding } from './src/host/estimator/fleetBinding';
-    import { fleetFromHost } from './src/host/estimator/localFleet';
-    import { simulateEstimate } from './src/core/estimator/simulate';
-    import { scheduleLane, simulationInputs, lognormalPort } from './test/unit/helpers/estimatorKindScheduleFixtures';
-    (async () => {
-      const lane = scheduleLane('A');
-      const fleet = await applyFleetBinding(fleetFromHost({platform:'linux',arch:'x64',cores:4,ramGiB:8}, [lane], '${AS_OF}'), {
-        activeAccount: () => ({kind:'limits',generation:'1',accountId:'private-id',providerId:'meta',label:'Work',snapshot:{planWindows:{weekly:{usedPercent:90,resetAt:'2026-10-06T13:00:00.000Z'}}}})
-      });
-      const input = simulationInputs([lane], fleet); delete input.request.seed;
-      process.stdout.write(JSON.stringify({fleet,forecast:simulateEstimate(input,lognormalPort)}));
-    })();`,
-      resolveDir: process.cwd(),
-      sourcefile: 'fleet-zone-probe.ts',
-    },
+    entryPoints: ['test/unit/helpers/estimatorZoneProbe.ts'],
     bundle: true,
     write: false,
     platform: 'node',
     format: 'cjs',
     minify: true,
+    absWorkingDir: process.cwd(),
   }).outputFiles[0]?.text ?? ''
 
 describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
@@ -268,7 +253,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       const child = spawnSync(process.execPath, [], {
         input: zoneProbe,
         encoding: 'utf8',
-        env: { ...process.env, TZ },
+        env: { ...process.env, TZ, RLM117_ZONE_PROBE_AS_OF: AS_OF },
       })
       expect(child.status, child.stderr).toBe(0)
       return child.stdout
