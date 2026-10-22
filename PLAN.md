@@ -16964,6 +16964,34 @@ SAST run (sandbox CA crash), and reruns of `connectorLimitsLock` and
 the untouched base (slow TMPDIR, 5 s timeouts under load). Record:
 `docs/certification/msm124.md`.
 
+**RLM124 record (2026-10-22, branch `rec/rlm124`, commits `423f1088e2`
+and `67ed0a01c6`).** RVM124 finding 15 closed: the store's new guard
+(`src/runtime/connector/storageGuard.ts`, lazy
+`dist/connectorStoreGuard.js`, 15.1 KiB of an 18 KiB budget) secures every
+created file and folder owner-only (explicit DACL on Windows, 0600/0700 on
+POSIX) and verifies the tree before serve, grant, resume and status, while
+revoke and kill still narrow untrusted storage. Proven by
+`test/unit/connectorStorageGuard.test.ts` (8 real-code tests with an
+independent Get-Acl oracle on Windows), three red drills, and a WSL Linux
+probe of the shipped chunk (8/8; the macOS extended-ACL check runs on
+hosted CI). Real-client qualification, all in an isolated home with the
+owner's configs byte-identical after: Codex 0.159.0 (registration plus
+initialize and tools/list from a failed-auth run startup, no model call),
+Claude Code 2.1.288 (project and user registration, user-scope
+health-check initialize and tools/list twice) and Gemini CLI 0.64.0 over
+npx (project registration, list shows Connected, initialize); Inspector
+2.11.0 tools/list and tools/call (no error, scrubbed); direct stdio
+granted list (9 tools), reads, the honest unavailable, a write to
+awaitingApproval with the page on loopback (HTTP 200) then a disconnect
+cancel that writes nothing, and kill/status/revoke/status. Still with the
+lead and the owners: the T adapters (no owner seams on main: no
+cross-process fleet or outcome store, no lane-start port, no M116 advice
+or M117 goal-resolution entry, M115 consent not carried, no host publish
+sinks), the shared approval UI (M104 waiting), R and O (no M110 home
+node, orchestrator-link contract or Q-M124.1 domain and operator answer),
+and authenticated-session tool calls through the three clients (needs the
+owner's accounts). Record: `docs/certification/rlm124.md`.
+
 **Provenance.** The documentation-only M119PLAN lane planned this on
 2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
 `ebcefbb1a` on `plan/m119-connector`, from base `ccce6e6ac`). Main has since
