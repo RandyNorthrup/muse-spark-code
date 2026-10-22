@@ -70,6 +70,7 @@ describe('bookmarked sessions past the loaded pages', () => {
   let directory = ''
   let rig: ModelApiRig | undefined
 
+  // A thousand and two real session writes plus a full host load: slow under parallel load.
   beforeAll(async () => {
     directory = await mkdtemp(path.join(tmpdir(), 'muse-bookmark-paging-'))
     const next = modelApiRig(directory)
@@ -78,7 +79,7 @@ describe('bookmarked sessions past the loaded pages', () => {
     }
     await next.host.load()
     rig = next
-  })
+  }, 60_000)
   afterAll(async () => {
     await removeFolder(directory)
   })
@@ -97,15 +98,16 @@ describe('bookmarked sessions past the loaded pages', () => {
     return listedIds(panel.posted)
   }
 
+  // Each test pages a thousand real sessions out of the file store.
   it('loads further pages until the bookmarked id is found', async () => {
     const ids = await listedWithBookmark('modelApi')
     expect(ids).toContain(BOOKMARKED_ID)
     expect(ids).toHaveLength(SESSION_COUNT)
-  })
+  }, 30_000)
 
   it('stops at the bound without the bookmark, and ignores the other backend', async () => {
     const ids = await listedWithBookmark('museCode')
     expect(ids).not.toContain(BOOKMARKED_ID)
     expect(ids).toHaveLength(1000)
-  })
+  }, 30_000)
 })
