@@ -366,6 +366,41 @@ describe('schedules report contention waits', () => {
       await held
     })
   })
+
+  it('returns an agreed snapshot across a concurrent writer, never busy', async () => {
+    await withSchedulesRoot('schedules-churn-', async (root) => {
+      const seeded = await seedJob(root)
+      const writer = createScheduleStore(createNodeScheduleFs(root))
+      // The first bump lands before the read starts, so the returned
+      // snapshot is provably newer than the seed; the rest race the read, so
+      // the triple it returns must agree across a concurrent writer. (The
+      // index lock serializes readers and writers into agreement: even 100
+      // hammered updates across four writers settle inside the first few
+      // triples, which is why the removed attempt count never fired.)
+      const [first] = await writer.list(FIXTURE_WORKSPACE_KEY)
+      if (first === undefined) throw new Error('seeded schedule missing')
+      expect(await writer.update(first)).toBe(true)
+      const churn = (async () => {
+        for (let bumped = 1; bumped < 20;) {
+          const [job] = await writer.list(FIXTURE_WORKSPACE_KEY)
+          if (job === undefined) throw new Error('seeded schedule missing')
+          if (await writer.update(job)) bumped += 1
+        }
+      })()
+      const result = await readerFor(root).read(context())
+      await churn
+      // A real revision the writer wrote: the returned triple agreed, so it
+      // names one store state, never a torn mix of two.
+      expect(result.schedules).toHaveLength(1)
+      const revision = result.schedules[0]?.revision ?? -1
+      expect(revision).toBeGreaterThan(seeded.revision)
+      expect(revision).toBeLessThanOrEqual(seeded.revision + 20)
+      // And the quiesced store reads exactly what the writer left.
+      const reread = await readerFor(root).read(context())
+      const [final] = await writer.list(FIXTURE_WORKSPACE_KEY)
+      expect(reread.schedules).toEqual(final === undefined ? [] : [final])
+    })
+  })
 })
 
 describe('schedules report lease identity words', () => {

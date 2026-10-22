@@ -37,11 +37,17 @@ export type ResourceProcessOptions = Omit<
   readonly jobMemoryBytes?: number | undefined
   /** Hand-off only: when the adapter counts as launched (see ResourceHandoffUntil). */
   readonly handoffUntil?: ResourceHandoffUntil | undefined
+  /**
+  Hand-off only: a deadline the caller passes (D121). Without one the wait
+  for the adapter ends at its exit, its start, or the caller's cancel.
+  */
+  readonly handoffTimeoutMs?: number | undefined
 }
 /**
-'exit': the adapter's exit 0, or still running at the named deadline (then
-detached, never killed). 'spawn': a foreground handler that may stay with
-what it opened (xdg-open), launched once it has started, in its own session.
+'exit': the adapter's exit 0, or still running at the caller's deadline
+(then detached, never killed). 'spawn': a foreground handler that may stay
+with what it opened (xdg-open), launched once it has started, in its own
+session.
 */
 export type ResourceHandoffUntil = 'exit' | 'spawn'
 export interface ResourceInteractiveProcess {

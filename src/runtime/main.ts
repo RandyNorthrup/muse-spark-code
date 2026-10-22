@@ -56,6 +56,7 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
+  USAGE_PAGE_OPEN_TIMEOUT_MS,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -970,6 +971,7 @@ async function openUsageBrowser(input: string): Promise<void> {
       env: process.env,
       workspaceRoot: process.cwd(),
       ...(process.platform === 'linux' && { until: 'spawn' as const }),
+      timeoutMs: USAGE_PAGE_OPEN_TIMEOUT_MS,
     })
   } catch (error: unknown) {
     if (isResourcePaused(error)) throw error

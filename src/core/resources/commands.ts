@@ -105,10 +105,11 @@ function childEnvironment(
 
 /**
 Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
-the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
-then is detached and counts as launched. Never waits for, or stops, what the
-OS started for the user. `until: 'spawn'` is for a foreground handler
-(xdg-open), launched once started; it takes no input.
+the adapter's own exit; one still running at the caller's deadline is
+detached and counts as launched. Without a caller deadline the wait ends at
+the adapter's exit, its start, or the caller's cancel. Never waits for, or
+stops, what the OS started for the user. `until: 'spawn'` is for a
+foreground handler (xdg-open), launched once started; it takes no input.
 */
 export async function handoffResourceFile(
   command: string,
@@ -118,6 +119,8 @@ export async function handoffResourceFile(
     readonly input?: string
     signal?: AbortSignal
     readonly until?: ResourceHandoffUntil
+    /** A deadline the caller passes (D121); none is armed without one. */
+    readonly timeoutMs?: number | undefined
     /**
     The workspace the child runs in (guards its lookup and PATH).
     Defaults to the spawn's own working directory, else this process's.
@@ -134,6 +137,7 @@ export async function handoffResourceFile(
     env: childEnvironment(options.env, workspace),
     ...(options.signal !== undefined && { signal: options.signal }),
     ...(options.until !== undefined && { handoffUntil: options.until }),
+    ...(options.timeoutMs !== undefined && { handoffTimeoutMs: options.timeoutMs }),
   })
   const { stdin } = child
   if (stdin === null) {
