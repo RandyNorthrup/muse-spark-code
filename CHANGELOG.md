@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge hardware scan: the wizard's Scan step reads the OS and
+  architecture, RAM, the GPU's vendor and usable backend (CUDA, ROCm,
+  Metal or CPU only, each with its reason), CPU features, free install
+  disk, any existing Ollama with its version and models, and a bounded
+  CPU throughput probe. Unknown readings stay unknown; the scan
+  writes nothing and makes no network call.
+
 - Fast judge accuracy checks: six checks on the agent's own work
   (destructive commands, edit fit, unmentioned failures, unbacked
   "done", scope, consistency with files read) show a hint, a note or a

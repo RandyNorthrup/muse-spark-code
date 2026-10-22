@@ -4749,6 +4749,15 @@ export const JUDGE_BENCH_BUDGET_MS = 5000
 // Lane-0 choice: RAM kept free past the loaded model before a local
 // judge size is recommended.
 export const JUDGE_MEMORY_HEADROOM_GIB = 2
+// Ollama's loopback port when OLLAMA_HOST names none.
+export const OLLAMA_DEFAULT_PORT = 11_434
+// Lane-H choice: one budget for every hardware probe's child process
+// and one cap for its output. Probes (nvidia-smi, sysctl, ioreg,
+// system_profiler, an Ollama binary) answer in milliseconds; 10 s
+// tolerates a loaded machine, and 256 KiB holds the largest display
+// dump while bounding a runaway tool.
+export const JUDGE_PROBE_TIMEOUT_MS = 10_000
+export const JUDGE_PROBE_MAX_OUTPUT_BYTES = 262_144
 // Lane-0 choice: a setup-smoke question slower than the veto window
 // fails the smoke; the smoke is health and latency, never calibration.
 export const JUDGE_STATE_LATENCY_MAX_MS = 5000
