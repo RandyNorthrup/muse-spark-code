@@ -23,6 +23,7 @@ import { needsYou } from './needsYou'
 import { collectMilestone, planFormat } from './plan'
 import {
   isPlaybookReportKind,
+  mergeMilestoneResidualRows,
   wrapPlaybookSection,
   wrapPlaybookSections,
   type PlaybookReportOrderer,
@@ -175,13 +176,21 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
       }
       case 'milestone': {
         sections = collectMilestone(snapshot, options)
-        if (dependencies.playbookOrder !== undefined)
+        if (dependencies.playbookOrder !== undefined) {
+          const merged = mergeMilestoneResidualRows(
+            sections,
+            dependencies.playbookOrder,
+            options.scope,
+            snapshot.sources.playbook.record.id,
+          )
           sections = wrapPlaybookSections(
             dependencies.playbookOrder,
             'milestone',
-            sections,
+            merged.sections,
             showPlaybookNote,
+            merged.flags,
           )
+        }
         break
       }
       case 'release': {

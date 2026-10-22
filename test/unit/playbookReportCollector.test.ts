@@ -17,6 +17,7 @@ import {
 } from '../../src/core/reporting/collect/common'
 import {
   isPlaybookReportKind,
+  mergeMilestoneResidualRows,
   wrapPlaybookSections,
 } from '../../src/core/reporting/collect/playbookOrder'
 import {
@@ -42,6 +43,8 @@ import { scratchFolders } from './helpers/playbook/scratchFolders'
 import {
   orderDesign,
   orderModuleRecord,
+  orderResidualAcceptance,
+  orderRoundWithResiduals,
   orderVerification,
   writeOrderJournal,
 } from './helpers/playbook/journalRecords'
@@ -241,6 +244,74 @@ describe('D214 collector playbook ordering', () => {
     ])
     // The bucket prefixes prove the seam ran, not key order by luck.
     expect(checklist?.rows.map((entry) => entry.key.slice(0, 2))).toEqual(['0/', '2/'])
+  })
+
+  it('merges the journal residual register into the milestone residuals', () => {
+    const { folders, order } = orderer()
+    writeOrderJournal(folders, [
+      orderModuleRecord(),
+      orderRoundWithResiduals(
+        [
+          { name: 'open-risk', whySafe: 'Safe enough.', followUp: 'Revisit.' },
+          { name: 'done-risk', whySafe: 'Contained.', followUp: 'None.' },
+        ],
+        8,
+      ),
+      orderResidualAcceptance({
+        milestoneId: 'M12',
+        name: 'done-risk',
+        actor: 'owner',
+        reason: 'Reviewed.',
+        at: 9,
+        evidence: { whySafe: 'Contained.', followUp: 'None.', moduleId: 'store-17' },
+      }),
+      orderResidualAcceptance({
+        milestoneId: 'M12',
+        name: 'legacy-risk',
+        actor: 'lead',
+        reason: 'Legacy.',
+        at: 10,
+      }),
+    ])
+    const collector = createReportCollector({
+      finalize: fixtureFinalize,
+      nextStepLimit: 3,
+      selections: changeSelections(),
+      playbookOrder: order,
+    })
+    const document = collector(fullSnapshot(), reportOptions('milestone', { scope: 'M12' }))
+    const residuals = document.sections.find((entry) => entry.id === 'milestoneResiduals')
+    // Open blocks the release (owner and failing), unbound needs fresh
+    // acceptance (owner), the plan row and the bound acceptance are history.
+    expect(residuals?.rows.map((entry) => entry.cells['name'])).toEqual([
+      { type: 'text', value: 'open-risk' },
+      { type: 'text', value: 'legacy-risk' },
+      { type: 'text', value: 'R1' },
+      { type: 'text', value: 'done-risk' },
+    ])
+    expect(residuals?.rows.map((entry) => entry.key.slice(0, 2))).toEqual(['0/', '0/', '2/', '2/'])
+    expect(residuals?.rows[0]?.sourceIds).toEqual(['playbook'])
+    expect(residuals?.rows[0]?.cells['reason']).toEqual({
+      type: 'text',
+      value: 'Safe enough. · Revisit.',
+    })
+    expect(residuals?.rows[3]?.cells['reason']).toEqual({
+      type: 'text',
+      value: 'owner: Reviewed.',
+    })
+  })
+
+  it('merges nothing without an orderer or with an empty register', () => {
+    const input = [drillsSection()]
+    const untouched = mergeMilestoneResidualRows(input, undefined, 'M12', 'playbook')
+    expect(untouched.sections).toHaveLength(1)
+    expect(untouched.sections[0]).toBe(input[0])
+    expect(untouched.flags.size).toBe(0)
+    const { order } = orderer()
+    const empty = mergeMilestoneResidualRows(input, order, 'M12', 'playbook')
+    expect(empty.sections).toHaveLength(1)
+    expect(empty.sections[0]).toBe(input[0])
+    expect(empty.flags.size).toBe(0)
   })
 
   it('collects the fleet kind unbound with empty sections and one note', () => {
