@@ -227,7 +227,7 @@
   "command.savePrompt.title": "Uložit prompt",
   "command.useSavedPrompt.title": "Použít uložený prompt…",
   "command.copyToMyPrompts.title": "Zkopírovat do mých promptů",
-  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní.",
+  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory a záložky do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní.",
   "command.attachScreenRecording.title": "Přiložit záznam obrazovky…",
   "command.attachLatestScreenRecording.title": "Přiložit nejnovější záznam obrazovky",
   "command.deleteUploadedFiles.title": "Odstranit nahrané soubory…",

@@ -227,7 +227,7 @@
   "command.savePrompt.title": "プロンプトを保存",
   "command.useSavedPrompt.title": "保存したプロンプトを使用…",
   "command.copyToMyPrompts.title": "自分のプロンプトにコピー",
-  "config.syncPromptsAndBookmarks.description": "全ワークスペース用のプロンプトを設定同期に反映します。ワークスペース用プロンプトはローカルに残ります。",
+  "config.syncPromptsAndBookmarks.description": "全ワークスペース用のプロンプトとブックマークを設定同期に反映します。ワークスペース用プロンプトはローカルに残ります。",
   "command.attachScreenRecording.title": "画面録画を添付…",
   "command.attachLatestScreenRecording.title": "最新の画面録画を添付",
   "command.deleteUploadedFiles.title": "アップロード済みファイルを削除…",

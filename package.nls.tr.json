@@ -227,7 +227,7 @@
   "command.savePrompt.title": "İstemi kaydet",
   "command.useSavedPrompt.title": "Kayıtlı istemi kullan…",
   "command.copyToMyPrompts.title": "İstemlerime kopyala",
-  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır.",
+  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ve yer imlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır.",
   "command.attachScreenRecording.title": "Ekran kaydını ekle…",
   "command.attachLatestScreenRecording.title": "En son ekran kaydını ekle",
   "command.deleteUploadedFiles.title": "Yüklenen dosyaları sil…",
