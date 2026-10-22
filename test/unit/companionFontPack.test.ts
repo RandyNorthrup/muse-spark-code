@@ -7,26 +7,9 @@ import {
   openUsageCompanion,
 } from '../../src/runtime/usage/usageCompanionEntry'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
-import type { CoreLogger } from '../../src/core/logging'
 import { EN } from '../../src/shared/l10n/en'
+import { recordingLogger } from './helpers/recordingLogger'
 import { removeFolder } from './helpers/temporaryFolders'
-
-function logger(into: string[]): CoreLogger {
-  return {
-    trace: (message) => {
-      into.push(message)
-    },
-    info: (message) => {
-      into.push(message)
-    },
-    warn: (message) => {
-      into.push(message)
-    },
-    error: (message) => {
-      into.push(message)
-    },
-  }
-}
 
 const roots: string[] = []
 afterEach(async () => {
@@ -99,7 +82,7 @@ describe('companion installed-font discovery', () => {
     await mkdir(assetsFolder, { recursive: true })
     await writeFile(path.join(assetsFolder, 'usage.js'), 'export {}')
     await writeFile(path.join(assetsFolder, 'usage.css'), '/* entry */')
-    const log = logger([])
+    const { log } = recordingLogger()
     const usage = createUsageAccess({
       dataFolder: root,
       packageRoot: process.cwd(),
