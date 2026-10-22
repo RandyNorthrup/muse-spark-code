@@ -6173,6 +6173,30 @@ mode. Resource-tree launchers use its exact kernel start microseconds, parent,
 group and exited state before authorizing process actions; this mode runs
 before any audio or privacy setup. Native tests build and sign the production
 helper in private fixtures, so they work in a clean checkout.
+The home-node service groundwork stays in the lazy `dist/node.js` (75 KiB
+cap). Its HTTPS listener requires an explicitly selected private/loopback
+address, a pinned non-CA certificate and A1's real memory-session verifier;
+unbound privileged routes refuse. HTTP and terminal WebSocket operations use
+the shared method port in every editor, with strict same-origin guards,
+request limits and an action-bound step-up for each physical/maker action.
+Authenticated Stop requires no step-up. This is an internal integration
+library; the runnable home node still awaits the sign-in, certificate,
+controller and deployment bindings and platform receipts listed in
+[the node certification](docs/certification/m110-n-node-service.md#named-listener-handoffs).
+
+The passkey and browser-pairing libraries build separately with
+`npm run build:node-auth`, under unchanged 500/350 KiB server/page caps
+(the page cap includes CSS). Challenges are stateless authenticated tokens,
+so abandoned sign-ins cannot fill an issuance table. Successful proofs alone
+retain one-use nonces until expiry; proof-work limits apply per source.
+Console recovery still requires a fresh setup code, and refused recovery
+preserves healthy sessions. TLS issuance
+publishes the key and certificate together under `node-tls/`; retry after
+a crash discards private uncommitted staging or recovers the same complete
+leaf and fingerprint without overwriting it. Auth audit records distinguish
+`verified` proofs from `allowed` issued access, and record refusal when
+persistence outlasts proof freshness. These libraries still require the
+[A1 integration bindings and platform receipts](docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md#integration-bindings).
 
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after

@@ -1,0 +1,420 @@
+[
+  {
+    "drill": "attendance-owner-expiry",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H12 names attendance only while an authenticated owner session is attached 13ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 names attendance only while an authenticated owner session is attached"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "attendance-session-cap",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 bounds sessions and asks and refuses conflicting session identities 43ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H09 bounds sessions and asks and refuses conflicting session identities"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "attendance-identity",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 bounds sessions and asks and refuses conflicting session identities 37ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H09 bounds sessions and asks and refuses conflicting session identities"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "attendance-ask-cap",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 bounds sessions and asks and refuses conflicting session identities 36ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H09 bounds sessions and asks and refuses conflicting session identities"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "unattended-floor",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H12 refuses unattended unsafe policy {\"mode\":\"bypass\"} 9ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"protectedPath\":true} 1ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"requiresAsking\":true} 1ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"makerAction\":\"connect\"} 1ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"makerAction\":\"program\"} 1ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"makerAction\":\"actuate\"} 1ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"paid\":true} 1ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"paid\":true,\"budgetUsd\":0} 1ms",
+      "\u00d7 H12 refuses unattended unsafe policy {\"paid\":true,\"budgetUsd\":null} 1ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"mode\":\"bypass\"}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"protectedPath\":true}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"requiresAsking\":true}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"makerAction\":\"connect\"}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"makerAction\":\"program\"}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"makerAction\":\"actuate\"}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"paid\":true}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"paid\":true,\"budgetUsd\":0}",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 refuses unattended unsafe policy {\"paid\":true,\"budgetUsd\":null}"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "approval-expiry-refuses",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H12 an unanswered ask expires as refusal, never as approval 12ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 an unanswered ask expires as refusal, never as approval"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "approval-auth-binding",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H12 rejects forged, detached, expired and replayed approval answers 8ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 rejects forged, detached, expired and replayed approval answers"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "lock-ends-attendance",
+    "source": "src/runtime/node/attendance.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 lock refuses outstanding asks and ends every attached session 12ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > lock refuses outstanding asks and ends every attached session"
+    ],
+    "sha256Before": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc",
+    "sha256After": "582c72c85f1ef48e694184cdf6276d6710fa428726b374ea9a615b7b5a0daccc"
+  },
+  {
+    "drill": "kill-aborts-and-seals",
+    "source": "src/runtime/node/killSwitch.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 lock seals immediately and calls every cleanup even when one throws 9ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > H08 lock seals immediately and calls every cleanup even when one throws"
+    ],
+    "sha256Before": "39e24080f886e3f2cc54eeb964d86547d4e0d7f05b41514bce8ea80ee5f012a5",
+    "sha256After": "39e24080f886e3f2cc54eeb964d86547d4e0d7f05b41514bce8ea80ee5f012a5"
+  },
+  {
+    "drill": "kill-observes-cleanup-failure",
+    "source": "src/runtime/node/killSwitch.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 lock seals immediately and calls every cleanup even when one throws 10ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > H08 lock seals immediately and calls every cleanup even when one throws"
+    ],
+    "sha256Before": "39e24080f886e3f2cc54eeb964d86547d4e0d7f05b41514bce8ea80ee5f012a5",
+    "sha256After": "39e24080f886e3f2cc54eeb964d86547d4e0d7f05b41514bce8ea80ee5f012a5"
+  },
+  {
+    "drill": "kill-deadline",
+    "source": "src/runtime/node/killSwitch.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 stop has a bounded deadline even if a cleanup never resolves 5008ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > H08 stop has a bounded deadline even if a cleanup never resolves"
+    ],
+    "sha256Before": "39e24080f886e3f2cc54eeb964d86547d4e0d7f05b41514bce8ea80ee5f012a5",
+    "sha256After": "39e24080f886e3f2cc54eeb964d86547d4e0d7f05b41514bce8ea80ee5f012a5"
+  },
+  {
+    "drill": "attempt-reconcile-no-replay",
+    "source": "src/runtime/node/supervisor.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 crash reconciliation blocks uncertain attempts instead of replaying them 23ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > H15 crash reconciliation blocks uncertain attempts instead of replaying them"
+    ],
+    "sha256Before": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d",
+    "sha256After": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d"
+  },
+  {
+    "drill": "attempt-single-admission",
+    "source": "src/runtime/node/supervisor.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 crash reconciliation blocks uncertain attempts instead of replaying them 20ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > H15 crash reconciliation blocks uncertain attempts instead of replaying them"
+    ],
+    "sha256Before": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d",
+    "sha256After": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d"
+  },
+  {
+    "drill": "attempt-unique-journal",
+    "source": "src/runtime/node/supervisor.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 failed or cancelled work remains blocked and malformed journal fails closed 14ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > failed or cancelled work remains blocked and malformed journal fails closed"
+    ],
+    "sha256Before": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d",
+    "sha256After": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d"
+  },
+  {
+    "drill": "supervisor-backoff-cap",
+    "source": "src/runtime/node/supervisor.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 restarts with capped backoff and stops before an aborted restart 12ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > restarts with capped backoff and stops before an aborted restart"
+    ],
+    "sha256Before": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d",
+    "sha256After": "a5b241159a79c97da6528219b30658ee57416bd3d4090344ddfcfaeeff00848d"
+  },
+  {
+    "drill": "health-journal-and-key",
+    "source": "src/runtime/node/health.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 ready requires current writable state, readable journals and any needed key unsealed 15ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > ready requires current writable state, readable journals and any needed key unsealed"
+    ],
+    "sha256Before": "0701e51dd3836d92e19c6f3b90de14f5847ab63dd4135dfe53f72e349986cf98",
+    "sha256After": "0701e51dd3836d92e19c6f3b90de14f5847ab63dd4135dfe53f72e349986cf98"
+  },
+  {
+    "drill": "health-writable-state",
+    "source": "src/runtime/node/health.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 ready requires current writable state, readable journals and any needed key unsealed 22ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > ready requires current writable state, readable journals and any needed key unsealed"
+    ],
+    "sha256Before": "0701e51dd3836d92e19c6f3b90de14f5847ab63dd4135dfe53f72e349986cf98",
+    "sha256After": "0701e51dd3836d92e19c6f3b90de14f5847ab63dd4135dfe53f72e349986cf98"
+  },
+  {
+    "drill": "vault-epoch",
+    "source": "src/runtime/node/keyStore.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 lock during a slow unlock cannot unseal when it eventually returns 21ms",
+      "FAIL  test/unit/nodeKeyStore.test.ts > M110-N interim item encryption and slot handoff > H08 lock during a slow unlock cannot unseal when it eventually returns"
+    ],
+    "sha256Before": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de",
+    "sha256After": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de"
+  },
+  {
+    "drill": "vault-handle-boundary",
+    "source": "src/runtime/node/keyStore.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H06 rejects unsupported handles and destroys the usable slot before wipe 29ms",
+      "FAIL  test/unit/nodeKeyStore.test.ts > M110-N interim item encryption and slot handoff > H06 rejects unsupported handles and destroys the usable slot before wipe"
+    ],
+    "sha256Before": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de",
+    "sha256After": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de"
+  },
+  {
+    "drill": "vault-item-byte-cap",
+    "source": "src/runtime/node/keyStore.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 refuses empty and oversized item values without altering ciphertext 30ms",
+      "FAIL  test/unit/nodeKeyStore.test.ts > M110-N interim item encryption and slot handoff > H09 refuses empty and oversized item values without altering ciphertext"
+    ],
+    "sha256Before": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de",
+    "sha256After": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de"
+  },
+  {
+    "drill": "vault-authenticates-before-unseal",
+    "source": "src/runtime/node/keyStore.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 refuses wrong passphrase and item tampering or kind substitution 26ms",
+      "FAIL  test/unit/nodeKeyStore.test.ts > M110-N interim item encryption and slot handoff > H15 refuses wrong passphrase and item tampering or kind substitution"
+    ],
+    "sha256Before": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de",
+    "sha256After": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de"
+  },
+  {
+    "drill": "vault-item-domain-binding",
+    "source": "src/runtime/node/keyStore.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 refuses wrong passphrase and item tampering or kind substitution 48ms",
+      "FAIL  test/unit/nodeKeyStore.test.ts > M110-N interim item encryption and slot handoff > H15 refuses wrong passphrase and item tampering or kind substitution"
+    ],
+    "sha256Before": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de",
+    "sha256After": "004ee9293754477c1656ef8d708a0240fddeb0e1954522e41402fb56852605de"
+  },
+  {
+    "drill": "tools-uid-split",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H11 refuses root, service UID and a mismatched actual tools UID 13ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H11 refuses root, service UID and a mismatched actual tools UID"
+    ],
+    "sha256Before": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969",
+    "sha256After": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969"
+  },
+  {
+    "drill": "tools-trust",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H10 refuses unknown, untrusted and symlink-escaping workspaces before spawn 59ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H10 refuses unknown, untrusted and symlink-escaping workspaces before spawn"
+    ],
+    "sha256Before": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969",
+    "sha256After": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969"
+  },
+  {
+    "drill": "tools-allowlist-environment",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H11 runs a real argv child with empty arguments and an allow-list environment 27ms",
+      "\u00d7 H13 delivers output in order, awaits each acknowledgement and ends exactly once after output 12ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H11 runs a real argv child with empty arguments and an allow-list environment",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H13 delivers output in order, awaits each acknowledgement and ends exactly once after output"
+    ],
+    "sha256Before": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969",
+    "sha256After": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969"
+  },
+  {
+    "drill": "terminal-ack-backpressure",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H13 delivers output in order, awaits each acknowledgement and ends exactly once after output 13ms",
+      "\u00d7 H13 consumer rejection terminates the PTY; write/resize/close keep their bounds 5002ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H13 delivers output in order, awaits each acknowledgement and ends exactly once after output",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H13 consumer rejection terminates the PTY; write/resize/close keep their bounds"
+    ],
+    "sha256Before": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969",
+    "sha256After": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969"
+  },
+  {
+    "drill": "terminal-input-and-size-bound",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H13 consumer rejection terminates the PTY; write/resize/close keep their bounds 10ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H13 consumer rejection terminates the PTY; write/resize/close keep their bounds"
+    ],
+    "sha256Before": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969",
+    "sha256After": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969"
+  },
+  {
+    "drill": "tool-child-output-bound",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 real child output has a combined stdout and stderr cap 5004ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H09 real child output has a combined stdout and stderr cap"
+    ],
+    "sha256Before": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969",
+    "sha256After": "0567e5d8c94fea7f13de0e3a9bbbc279ac048fbcc5ffeedf44b1eb8a2b814969"
+  },
+  {
+    "drill": "service-late-resource-lock",
+    "source": "src/runtime/node/service.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 lock while resources are still opening disposes the late resources without starting work 14ms",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H08 lock while resources are still opening disposes the late resources without starting work"
+    ],
+    "sha256Before": "3a2e026feace35bcb01c6d863e0399a162756006b542d2803eddbe8aa58b4226",
+    "sha256After": "3a2e026feace35bcb01c6d863e0399a162756006b542d2803eddbe8aa58b4226"
+  },
+  {
+    "drill": "service-cleanup-failure-floor",
+    "source": "src/runtime/node/service.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 cleanup failure refuses fresh work and unlock until a process restart 29ms",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H08 cleanup failure refuses fresh work and unlock until a process restart"
+    ],
+    "sha256Before": "3a2e026feace35bcb01c6d863e0399a162756006b542d2803eddbe8aa58b4226",
+    "sha256After": "3a2e026feace35bcb01c6d863e0399a162756006b542d2803eddbe8aa58b4226"
+  },
+  {
+    "drill": "node-command-flags",
+    "source": "src/runtime/node/args.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H01 refuses unsafe/secret/wrong-command arguments {\"argv\":[\"lock\",\"--all\"]} 7ms",
+      "\u00d7 H01 refuses unsafe/secret/wrong-command arguments {\"argv\":[\"status\",\"--confirm-wipe\"]} 1ms",
+      "FAIL  test/unit/nodeCommands.test.ts > M110-N node commands and isolated dispatch > H01 refuses unsafe/secret/wrong-command arguments {\"argv\":[\"lock\",\"--all\"]}",
+      "FAIL  test/unit/nodeCommands.test.ts > M110-N node commands and isolated dispatch > H01 refuses unsafe/secret/wrong-command arguments {\"argv\":[\"status\",\"--confirm-wipe\"]}"
+    ],
+    "sha256Before": "6a77f979ecaaa918e15f9f6aad44596fd4a0d8e800af13a132753b757a88841f",
+    "sha256After": "6a77f979ecaaa918e15f9f6aad44596fd4a0d8e800af13a132753b757a88841f"
+  },
+  {
+    "drill": "node-wipe-confirmation",
+    "source": "src/runtime/node/main.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 wipe requires explicit confirmation and destroys key slots before removing state 22ms",
+      "FAIL  test/unit/nodeCommands.test.ts > M110-N node commands and isolated dispatch > H08 wipe requires explicit confirmation and destroys key slots before removing state"
+    ],
+    "sha256Before": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d",
+    "sha256After": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d"
+  },
+  {
+    "drill": "git-alternates",
+    "source": "src/runtime/node/gitSnapshot.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H10 refuses object alternates, symlinks and service state inside a workspace 30ms",
+      "FAIL  test/unit/nodeGitRunner.test.ts > M110-N closed Git runner (native Linux receipt) > H10 refuses object alternates, symlinks and service state inside a workspace"
+    ],
+    "sha256Before": "4820e5ff9964918d3644a03743951ca07347c11d70f6cd9899a4966b7393e435",
+    "sha256After": "4820e5ff9964918d3644a03743951ca07347c11d70f6cd9899a4966b7393e435"
+  },
+  {
+    "drill": "git-import-byte-bound",
+    "source": "src/runtime/node/gitSnapshot.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 refuses oversized import before allocating or copying it 67ms",
+      "FAIL  test/unit/nodeGitRunner.test.ts > M110-N closed Git runner (native Linux receipt) > H09 refuses oversized import before allocating or copying it"
+    ],
+    "sha256Before": "4820e5ff9964918d3644a03743951ca07347c11d70f6cd9899a4966b7393e435",
+    "sha256After": "4820e5ff9964918d3644a03743951ca07347c11d70f6cd9899a4966b7393e435"
+  },
+  {
+    "drill": "git-destination-binding",
+    "source": "src/runtime/node/gitRunner.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H14 refuses a changed resolved destination before any credentialed child 58ms",
+      "FAIL  test/unit/nodeGitRunner.test.ts > M110-N closed Git runner (native Linux receipt) > H14 refuses a changed resolved destination before any credentialed child"
+    ],
+    "sha256Before": "00df039bc2a4e987093b7afb276b3b23bd7f62ed2adcde1c1399dc6555a0e2a9",
+    "sha256After": "00df039bc2a4e987093b7afb276b3b23bd7f62ed2adcde1c1399dc6555a0e2a9"
+  },
+  {
+    "drill": "git-head-binding",
+    "source": "src/runtime/node/gitRunner.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H14 refuses a changed resolved destination before any credentialed child 76ms",
+      "FAIL  test/unit/nodeGitRunner.test.ts > M110-N closed Git runner (native Linux receipt) > H14 refuses a changed resolved destination before any credentialed child"
+    ],
+    "sha256Before": "00df039bc2a4e987093b7afb276b3b23bd7f62ed2adcde1c1399dc6555a0e2a9",
+    "sha256After": "00df039bc2a4e987093b7afb276b3b23bd7f62ed2adcde1c1399dc6555a0e2a9"
+  }
+]

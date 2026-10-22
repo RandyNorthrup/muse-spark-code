@@ -1,0 +1,35 @@
+{
+  "browser": "154.0.8037.92",
+  "capture": "M81-pinned linux64, fresh profile, empty environment, no trust changes or TLS bypass",
+  "modelAttempts": 0,
+  "results": [
+    {
+      "theme": "dark",
+      "width": 320,
+      "viewport": 320,
+      "fullPin": true,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "viewport": 320,
+      "fullPin": true,
+      "violations": []
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "viewport": 320,
+      "fullPin": true,
+      "violations": []
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "viewport": 320,
+      "fullPin": true,
+      "violations": []
+    }
+  ]
+}

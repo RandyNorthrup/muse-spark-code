@@ -1,0 +1,24 @@
+[
+  {
+    "drill": "service-reconciliation-before-admission",
+    "source": "src/runtime/node/service.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 a service cannot accept work before reconciliation or boot twice 14ms",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H15 a service cannot accept work before reconciliation or boot twice"
+    ],
+    "sha256Before": "d2ea5accf5bf6ec1205c8a0806e96d14e3fd2e39548ec484c0849924c8e3cad5",
+    "sha256After": "d2ea5accf5bf6ec1205c8a0806e96d14e3fd2e39548ec484c0849924c8e3cad5"
+  },
+  {
+    "drill": "supervisor-interrupted-backoff",
+    "source": "src/runtime/node/supervisor.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 an aborted restart delay finishes normally and never starts another instance 5ms",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N kill switch and supervision > H08 an aborted restart delay finishes normally and never starts another instance"
+    ],
+    "sha256Before": "65112a7cadec8a6bc9581d823f650f61d5c057bfdf503d5e727ad39ea0fc754d",
+    "sha256After": "65112a7cadec8a6bc9581d823f650f61d5c057bfdf503d5e727ad39ea0fc754d"
+  }
+]

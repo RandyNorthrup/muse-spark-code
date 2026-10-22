@@ -184,6 +184,8 @@
     // The Models & Agents panel's own entry (M95 lane M), required by path.
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
+    // M110-N's standalone bundle, required only by an explicit node command.
+    "src/runtime/node/main.ts",
     "src/runtime/sharing/sharingEntry.ts",
     // M105 media attachments, the window's media registry and screen
     // recording, each required by path on first use (dist/media.js,

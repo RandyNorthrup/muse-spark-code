@@ -1,0 +1,130 @@
+{
+  "rig": "kubuntu",
+  "checks": [
+    {
+      "check": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    },
+    {
+      "check": "lint",
+      "command": "npx eslint --max-warnings=0 src/runtime/node/auth/challenges.ts src/runtime/node/auth/entry.ts src/runtime/node/auth/service.ts src/runtime/node/listener.ts src/runtime/node/listenerGuard.ts src/runtime/node/listenerMethods.ts src/runtime/node/listenerSocket.ts src/runtime/node/tls/certificate.ts src/shared/constants.ts src/shared/hostApi/nodeMethods.ts src/shared/nodeAuth.ts test/unit/helpers/node/authService.ts test/unit/helpers/node/authenticator.ts test/unit/nodeAuthChallenges.test.ts test/unit/nodeAuthMethods.test.ts test/unit/nodeCertificate.test.ts test/unit/nodeListener.test.ts test/unit/nodeListenerGuard.test.ts test/unit/nodeListenerSocket.test.ts test/unit/nodePasskeyAuth.test.ts test/unit/nodePasskeyVerifier.test.ts test/unit/nodeStatelessProof.test.ts",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    },
+    {
+      "check": "format",
+      "command": "npx prettier --check CHANGELOG.md PLAN.md README.md docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md docs/certification/m110-threat-model.md src/runtime/node/auth/challenges.ts src/runtime/node/auth/entry.ts src/runtime/node/auth/service.ts src/runtime/node/listener.ts src/runtime/node/listenerGuard.ts src/runtime/node/listenerMethods.ts src/runtime/node/listenerSocket.ts src/runtime/node/tls/certificate.ts src/shared/constants.ts src/shared/hostApi/nodeMethods.ts src/shared/nodeAuth.ts test/unit/helpers/node/authService.ts test/unit/helpers/node/authenticator.ts test/unit/nodeAuthChallenges.test.ts test/unit/nodeAuthMethods.test.ts test/unit/nodeCertificate.test.ts test/unit/nodeListener.test.ts test/unit/nodeListenerGuard.test.ts test/unit/nodeListenerSocket.test.ts test/unit/nodePasskeyAuth.test.ts test/unit/nodePasskeyVerifier.test.ts docs/certification/m110-a1/a3-baseline.json docs/certification/m110-a1/a3-dependencies.json docs/certification/m110-a1/a3-drills.json test/unit/nodeStatelessProof.test.ts",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    },
+    {
+      "check": "deadcode",
+      "command": "npm run deadcode",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    },
+    {
+      "check": "duplication",
+      "command": "npx jscpd",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    },
+    {
+      "check": "l10n",
+      "command": "npm run check:l10n",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    },
+    {
+      "check": "host-api",
+      "command": "npm run check:host-api",
+      "exitCode": 1,
+      "inheritedLeadHandoff": true
+    },
+    {
+      "check": "build",
+      "command": "npm run build",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    },
+    {
+      "check": "build-node-auth",
+      "command": "npm run build:node-auth",
+      "exitCode": 0,
+      "inheritedLeadHandoff": false
+    }
+  ],
+  "testBatches": [
+    {
+      "files": [
+        "test/unit/nodePasskeyAuth.test.ts",
+        "test/unit/nodeAuthChallenges.test.ts",
+        "test/unit/nodeCertificate.test.ts"
+      ],
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts test/unit/nodeAuthChallenges.test.ts test/unit/nodeCertificate.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-final-tests-0.json",
+      "exitCode": 0,
+      "passed": 51,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/nodePasskeyVerifier.test.ts",
+        "test/unit/nodeStatelessProof.test.ts",
+        "test/unit/nodeAuthMethods.test.ts"
+      ],
+      "command": "npx vitest run test/unit/nodePasskeyVerifier.test.ts test/unit/nodeStatelessProof.test.ts test/unit/nodeAuthMethods.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-final-tests-1.json",
+      "exitCode": 0,
+      "passed": 15,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/nodeListener.test.ts",
+        "test/unit/nodeListenerGuard.test.ts",
+        "test/unit/nodeListenerSocket.test.ts"
+      ],
+      "command": "npx vitest run test/unit/nodeListener.test.ts test/unit/nodeListenerGuard.test.ts test/unit/nodeListenerSocket.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-final-tests-2.json",
+      "exitCode": 0,
+      "passed": 97,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": ["test/unit/node.test.ts", "test/unit/nodeAuthSessions.test.ts"],
+      "command": "npx vitest run test/unit/node.test.ts test/unit/nodeAuthSessions.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-final-tests-3.json",
+      "exitCode": 0,
+      "passed": 127,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": ["test/unit/NodePairing.test.tsx", "test/unit/nodeAuthBuild.test.mjs"],
+      "command": "npx vitest run test/unit/NodePairing.test.tsx test/unit/nodeAuthBuild.test.mjs --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-final-tests-4.json",
+      "exitCode": 0,
+      "passed": 16,
+      "failed": 0,
+      "pending": 0
+    }
+  ],
+  "totalPassed": 306,
+  "modelAttempts": 0,
+  "followupChecks": [
+    {
+      "command": "npm run typecheck:unit",
+      "exitCode": 0,
+      "reason": "Portable listener test fixture adjustment after the five-project typecheck."
+    },
+    {
+      "command": "npx eslint --max-warnings=0 test/unit/nodeListener.test.ts",
+      "exitCode": 0
+    },
+    {
+      "command": "npx prettier --check <all changed text files>",
+      "exitCode": 0
+    }
+  ]
+}

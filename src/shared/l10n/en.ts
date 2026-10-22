@@ -16,6 +16,107 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M110a0: node labels and messages; consumers read UI_TEXT at runtime.
+  // M110-A1: console recovery and browser trust instructions.
+  nodeAuth: {
+    lockout:
+      'Passkey sign-in is locked. Use the local node console to issue a new one-time setup code and enroll a replacement passkey.',
+    windows:
+      'Windows: import the compared certificate into your user certificate store, then restart the browser.',
+    macos:
+      'macOS: import the compared certificate in Keychain Access, trust it for this node, then restart the browser.',
+    linux:
+      'Linux: import the compared certificate using your browser’s certificate manager, then restart the browser.',
+    firefox:
+      'Firefox uses its own certificate manager. If it cannot trust this non-CA certificate, pairing is unavailable pending platform qualification.',
+    verified:
+      'I compared the downloaded certificate’s full SHA-256 fingerprint with the node console and installed that certificate.',
+    download: 'Download node certificate',
+    trustRequired:
+      'Install the compared certificate before creating or using a passkey. Clicking through a warning does not establish trust.',
+  },
+  nodeLabels: {
+    title: 'Muse Spark Code Node (Unofficial)',
+    files: 'Workspace files',
+    editor: 'File editor',
+    terminal: 'Workspace terminal',
+    git: 'Git changes',
+    dashboard: 'Node dashboard',
+    audit: 'Audit log',
+    cpu: 'CPU usage',
+    memory: 'Memory usage',
+    disk: 'Disk space',
+    uptime: 'Uptime',
+    sharedSandbox: 'Shared sandbox',
+    attended: 'Attended',
+    unattended: 'Unattended',
+    sealed: 'Key store sealed',
+    unsealed: 'Key store unlocked',
+    fingerprint: 'Certificate fingerprint',
+    pairBrowser: 'Pair this browser',
+    signin: 'Sign in with a passkey',
+    enroll: 'Create owner passkey',
+    stepUp: 'Verify your identity',
+    setupCode: 'One-time setup code',
+    name: 'Node name',
+    address: 'LAN interface',
+    deployKey: 'SSH deploy public key',
+    lock: 'Lock node',
+    unlock: 'Unlock key store',
+    wipe: 'Wipe node',
+    stopAll: 'Stop everything',
+    screenReader: 'Screen-reader mode',
+    terminalPerson: 'Your terminal',
+    terminalModel: 'Model terminal',
+    upload: 'Upload file',
+    download: 'Download file',
+    trustWorkspace: 'Trust workspace',
+  },
+  nodeMessages: {
+    sharedSandbox: 'All workspaces share one sandbox. Tools run as a separate user.',
+    trustCertificate:
+      'Compare {fingerprint} with the node console before trusting this certificate on this PC.',
+    changedCertificate:
+      'The node certificate changed. Compare its fingerprint and pair this browser again.',
+    nameRequired: 'Passkeys require a trusted HTTPS domain name. Connect using {name}.',
+    nameUnresolved:
+      'The node name {name} does not resolve. Configure LAN DNS or a hosts-file entry on this PC.',
+    setupExpires: 'This setup code expires at {time} and can enroll one owner passkey.',
+    reloadSignsIn: 'This page keeps its session in memory. Reloading requires sign-in again.',
+    stepUpFor: 'Verify your identity to {action}.',
+    locked: 'The node is locked. All sessions and terminals ended; the key store is sealed.',
+    sealedAtBoot: 'The key store starts sealed after every restart. Unlock it to use stored keys.',
+    noObserver: 'No person is attached. Approval requests wait and expire as refusals.',
+    paidConsent:
+      'Paid extras ask before the first charge, show the price, and share the daily budget {budget}.',
+    deployKey:
+      'Add this public deploy key to your git host. Only the git page can use its private key.',
+    wipeConfirm: 'Wipe {name}? This removes the node’s keys, state and workspaces.',
+    listenChoice: 'The node will listen only on the LAN interface you choose.',
+    museCodeUnavailable:
+      'Muse Code is unavailable until container sandbox and headless sign-in checks pass.',
+    terminalOpened: 'Opened terminal {id} in {workspace}.',
+    terminalEnded: 'Terminal {id} ended with exit code {code}.',
+    auditRetention: 'Audit storage is capped at {size} and retained for {days}.',
+    unofficial: 'This node is unofficial and is not endorsed by Meta.',
+  },
+  nodeErrors: {
+    invalidRequest: 'The request is invalid.',
+    unavailable: 'The node feature is unavailable.',
+    unauthenticated: 'Sign in to continue.',
+    forbidden: 'This session cannot perform that action.',
+    stepUpRequired: 'Verify your identity before this action.',
+    expired: 'This request or session expired.',
+    locked: 'The node is locked.',
+    conflict: 'The file or branch changed. Refresh before retrying.',
+    tooLarge: 'The request exceeds the size limit.',
+    rateLimited: 'Too many requests. Wait before retrying.',
+    noSuchWorkspace: 'The workspace does not exist.',
+    notFound: 'The requested item was not found.',
+    cancelled: 'The action was cancelled.',
+    untrusted: 'Trust the workspace before running repository code.',
+    unsupported: 'This operation is not supported on this node.',
+  },
   // M110 T: terminal surface, read only at render/dispatch time.
   tuiInvalidFrame: 'The node sent an invalid or oversized frame.',
   tuiConnecting: 'Connecting to the node…',
@@ -533,6 +634,8 @@ export const EN = {
   referenceVault:
     'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them. Reset can also replace unknown writer ownership after explicit confirmation.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
+  referenceNode:
+    'Serve this machine as the home node: init, serve, status, stop, lock, unlock and wipe.',
   referenceVaultPanel:
     'Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.',
   referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',

@@ -10373,6 +10373,23 @@ restore` checks versions and replays migrations. A schedule writes to a
       page's fetch, pull and push through an agent socket only its own user
       can open. Agents' git commands get no credential (M96's fence), so they
       work on local branches, and the person pushes from the git page.
+      **RVM110L0-1 boundary:** argv and a step-up do not make repository Git
+      configuration safe. N owns a closed Git runner: every node-initiated
+      Git uses `NODE_GIT_OPTIONS` and an allow-list environment with no
+      inherited `GIT_*`, system/global config or executable lookup from the
+      repository. Credentialed Git runs only against a service-owned gitdir
+      whose inert config passes `nodeGitRepositoryConfigSchema`, without
+      repository includes, hooks, filters, drivers or helpers and without a
+      check/use race on mutable configuration. The person approves the exact
+      SSH host/port/user/repository and verified host key exposed by git
+      status, plus remote/ref/head in the action digest. N rechecks that
+      binding immediately before using its socket and passes the resolved
+      destination, never a mutable alias. SSH has a trusted absolute wrapper,
+      pinned host key and no repository/user config, proxy, local command or
+      agent forwarding. Hooks are disabled by default; user-enabled hooks
+      execute separately as `muse-tools` without service identity/socket.
+      C/N/U1 must qualify the repository-program canary in A0-GIT; a list of
+      `-c` overrides alone is not a closed configuration boundary.
     - **Listening.** One TLS port on the interface the user chooses (with
       Docker, the published host address). Before sign-in it serves only the
       sign-in page. D80.2's firewall guidance applies, including Windows
@@ -15268,6 +15285,72 @@ they hold on Muse Code 1.4.7 and later. Record:
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
+
+- **Q-M110 — What M110 needs from the owner (2026-10-05).** Every lane builds
+  and certifies on fakes and the rigs meanwhile; nothing here blocks M110a0's
+  lane 0.
+  1. **Rule 8 on a node.** The runtime's Linux key store is the Secret
+     Service (D61), which a container or a server without a desktop session
+     does not have. **Default:** until M109 merges, M110a0's interim key
+     store (D90.23: a passphrase slot in D89.2's format, sealed at each
+     restart); after it, D89's vault (a passphrase or TPM slot, or D90.9's
+     paired slot). A key enters only through the node's web UI password field
+     on the pinned session after a step-up, or `auth set` on standard input;
+     never an environment variable, an argument or a file, Docker and
+     Kubernetes secret files included. Muse Code's own `META_API_KEY` path is
+     not offered on a node.
+  2. **The home PCs.** Which machines and operating systems M110a0 and Muse
+     Node OS are first installed on ("some pcs around my house"). **Default:**
+     the Windows PC with Docker Desktop, the Kubuntu VM, the Mac mini with
+     Docker Desktop and the Win11 VM, plus whatever he names.
+  3. **A test server and a domain.** Certifying M110d–f on the internet needs
+     a small rented server and a domain name (for ACME and passkeys); both
+     are payments and accounts, so they are his. **Default:** the rigs only (a
+     Kubuntu VM as the "server", the overlay and the relay on the LAN), and
+     internet reach stays Preview until a real server passes.
+  4. **Meta's terms, in writing.** Three readings need Meta's answer or the
+     owner's ruling: the CLI on servers and in containers the user builds; a
+     node relaying one person's own Model API requests (§10.1(i)'s "proxy");
+     and a team node (§3.1, §10.1(i)). **Default:** D90.17: no CLI in images,
+     the relay for one person only, team mode waits.
+  5. **Hardware for the OS matrix.** A Raspberry Pi 4 and a Pi 5 (8 GB, with
+     an SSD), an x86-64 mini PC, an old desktop and an ARM64 UEFI server (or
+     rented ARM64 metal), plus the GTX 1080 Ti VM for NVIDIA. **Default:**
+     QEMU for both architectures on every change, and each missing machine
+     named as waiting. The rig that changed address on 2026-10-05 is the
+     first network-resilience test host (D90.25).
+  6. **Signing keys for Muse Node OS** (D90.24). Two are credentials, so
+     they are his:
+     - **The update-bundle key.** An offline root, and a signing certificate
+       for the release job (an HSM, or the `marketplace` environment).
+       **Default:** until it exists, OS images are published for manual
+       install only, with cosign signatures and checksums, and no
+       over-the-air updates are offered.
+     - **The Secure Boot keys.** Platform keys made offline in a key ceremony
+       only he performs. **Default:** images boot with Secure Boot off; never
+       a platform key in CI.
+  7. **The captures** (no model call; the sign-in is a sign-in, not a turn):
+     bubblewrap inside a rootless container on the Kubuntu VM and on arm64;
+     how a Muse Code subscription signs in on a node with no browser (Meta
+     documents no device-code flow); TPM 2.0 on each rig and an OpenSSL TPM
+     provider under Node's TLS. One capture is a model call: the error frame
+     Muse Code sends when its connection drops mid-turn (D90.25), one short
+     turn on the contributor model in an empty workspace, about one model
+     attempt, counted from the trace log. **Default:** until captured, a
+     node's Muse Code backend is off and says why, and Muse Code turns are not
+     continued automatically.
+  8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
+     "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
+     the images.
+  9. **CLI sign-in isolation on the home node (L0 review).** D90.23 runs
+     agent CLIs and repository tools as `muse-tools`, while D90.7 requires
+     an owner-only CLI sign-in home. Directory permissions do not isolate
+     processes with the same UID. N/A1 must qualify how the trusted CLI
+     engine and its own sign-in are isolated from every terminal, check and
+     repository tool (including memory/ptrace), without passing credentials
+     to tools or disabling the CLI sandbox. **Default:** the Muse Code
+     backend remains unavailable under Q-M110.7 until this boundary and the
+     sandbox/sign-in captures pass; no subscription-use claim meanwhile.
 
 - **Q-0191-LINUX-VAULT — the vault in VS Code on Linux (2026-10-20).**
   **Resolved by the owner: ship with the limitation documented, fix in the
@@ -29876,7 +29959,190 @@ is widened. Record each regression and byte-exact red drill in
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned, documentation only. Nothing is implemented,
-and no lane is launched by this record. The research is
+and no lane is launched by this record.
+
+**M110a0 lane 0, 2026-10-05 (`m110/l0`).** The home-node contracts,
+strings, test fakes and phase-scoped threat model are implemented and locally verified;
+the service and listener remain other lanes' work. The threat-model review
+is recorded in `docs/certification/m110-threat-model.md` (Codex review;
+lead acceptance recorded below for M110a0 listener code). Platform receipts and
+named bindings are in `docs/certification/m110-captures.md`, tests/drills in
+`docs/certification/m110-0.md`. This base has no frozen M104 MHP definitions:
+the node method catalog is an independently validated extension behind an
+injected `NodeMethodPort`, bound by M104 lane 0 at integration. No production
+fake, MHP envelope guess or new dependency is authorized by that seam.
+Lane 0 adds no executable commands or manifest entries; the integration
+help-reference handoff lists the features once their owning lanes wire them.
+
+**Lead acceptance (2026-10-06).**
+
+Accepted for M110a0 by the lead on 2026-10-06, with two additions. H19 — physical and maker actions (D83) reached through the node require a fresh action-bound user-verification step-up for EACH action, bound to the exact payload digest (this is the node's form of OS user presence, matching the M103 lane R redesign); Stop is never gated and works over any authenticated session and from the console. H20 — sign-in lockout (H09) can never permanently lock the owner out: recovery is a new console setup code (H04 rules), and the lockout state is visible on the console. The listener may now be implemented within this table.
+
+**M110N continuation scope.** Implement the selected-interface HTTPS listener
+inside H01/H02/H06–H09/H19. A1 supplies an injected bearer verifier and atomic
+action-bound step-up consumption; no bound verifier means privileged routes
+refuse. N loads the configured pinned leaf and reports its full fingerprint
+to console/TUI. HTTP routes carry the existing catalog params directly,
+without guessing M104's absent envelope. Terminal frames use the shared
+method port (add write/resize/attach contracts), and a generic maker-action
+contract enforces H19 even before M103's runtime is integrated. All method
+params and results are parsed; no editor-specific dispatch. A1 owns H20's
+console recovery and lockout state, T its display, C/S0 the OS bind/firewall
+and issuance receipts. Tests cover binding, origin/metadata, header-only
+auth, first-frame deadline, size/admission limits, payload binding and Stop;
+every guard is deliberately broken and restored. No paid/live calls.
+
+**M110A1 implementation scope (2026-10-06).** Implement the accepted A1
+controls H02–H06, H08–H09 and H19–H20 under `runtime/node/auth`,
+`runtime/node/tls` and `webview/node/auth`. Use the pinned MIT
+`@simplewebauthn/server` 14.0.3 verifier, with required presence/UV, exact
+RP/origin/challenge and library counter checks. Serialize enrollment and
+durable lockout; keep all challenges, bearers and consumed action proofs in
+bounded process memory on monotonic deadlines. Recover only through a fresh
+console code, atomically replacing disabled passkeys. Bind N's verifier,
+state/audit and session lifecycle through explicit injected ports; missing
+M104 page/route and T console bindings remain named integration handoffs.
+Issue a non-CA self-signed leaf through installed OpenSSL, verify its names,
+key, validity and full fingerprint, and check local name resolution. Supply
+a lazy browser pairing/sign-in entry with OS trust instructions and no
+persistent credential storage. Browser/platform trust receipts remain
+qualification prerequisites; no trust store or firewall is changed here.
+
+**FIXM110A2 scope (RVM110A1B, 2026-10-09).** Close all six A1 review
+findings within H02/H04/H05/H08/H09/H15/H19/H20: bound challenge issuance
+by actual source and globally, with identifier-independent monotonic backoff
+and reserved console-enrollment capacity; refuse healthy-owner recovery
+before invalidating any capabilities; publish the TLS key and leaf in one
+fsynced directory rename and recover abandoned staging or the unchanged
+committed pair/pin at the next issuance. Retain refusal for existing legacy
+flat files and mismatched names; N uses the returned private pair root.
+Make the OpenSSL CA fixture portable to LibreSSL, prove the cross-origin
+guard with a correctly signed negative derivation accepted by the pinned SDK,
+and distinguish verified proofs from issued access in the append-only audit
+so expiry during persistence never records allowed access. Add baseline
+regressions and byte-exact SHA-256 red drills to the A1 certification. No
+dependency, paid/live call, host setting or gate change is in scope.
+
+**FIXM110A2 receipt.** All six RVM110A1B findings are closed. The original
+source reproduces the challenge, recovery, split-publication and audit
+regressions; counterfactual old/new test comparisons expose the test-only
+origin/LibreSSL gaps without claiming a new macOS receipt. **19** red drills
+restore byte-exact with final-source SHA-256 matches. **268** scoped tests
+pass with default timeouts, along with all five type projects, scoped
+lint/format, localization, deadcode, duplication and both production builds.
+Auth server/page sizes are **495.9/500** and **284.4/350 KiB**; every existing
+bundle cap remains green. The prior J-owned host API snapshot mismatch and
+aggregate/platform/audit handoffs remain §7 deferrals. See the A1 certification
+and its `fixm110a2-*.json` registers; no paid/live attempt occurred.
+
+**M110A3 redesign scope (RVM110A2, 2026-10-09).** Replace the
+fillable challenge table and global issuance backoff with stateless
+HMAC-SHA-256 challenges: purpose, 128-bit nonce, exact issuance/expiry,
+console-code hash or session/action/digest binding, and a process epoch.
+The WebAuthn challenge is the complete authenticated token, echoed as the
+opaque challenge id; dedicated bounded schemas admit it without widening
+other identifiers or bearers. Derive the per-node HMAC key with HKDF from
+the protected committed TLS private key and certificate fingerprint, so
+rotation and A2's atomic crash recovery cover both identities. N injects
+that key through the existing lazy auth factory. Keep only successfully
+verified consumed nonces until their monotonic expiry, never abandoned or
+failed issues. Preserve the SDK's signature-counter checks, epoch and
+post-persistence expiry barriers. Issuance does not enter proof admission. Proof-work admission and failure backoff
+are per source, with a bounded attempts window; remove shared account
+backoff, and pass the actual socket source through both listener dispatches.
+H20 recovery remains console-code-only and independent of challenge capacity;
+healthy-owner refusal still preserves sessions. Reproduce the reviewer's
+25-address steady-state flood on e5f11498b, prove owner sign-in and lockout
+recovery, replay/forgery/purpose/expiry and independent-source admission, and
+require verified plus denied audit rows on expiry. Record byte-exact guard
+drills, update challenge threat rows and scoped certification. No dependency,
+paid/live call, trust-store change, aggregate gate or cap change is authorized.
+
+**M110A3 receipt (2026-10-09).** The stateless redesign closes RVM110A2's
+P1 and both P3 findings. The exact e5f11498b stack fails four new service
+regressions while retaining 22 passing tests. All **29** guard drills fire
+and restore SHA-256-identical final source; the final **306** scoped tests
+pass with repository-default timeouts. All five type projects, scoped
+lint/format, localization, deadcode, duplication and both builds pass.
+Auth server/page are **497.0/500** and **284.4/350 KiB**; every existing cap
+stays green. Only missing locked dependency trees were added; all **31,224**
+existing files/symlinks match their pre-install bytes and metadata. The
+inherited generated-host-record, aggregate/platform/audit and named runtime
+bindings remain §7 lead handoffs. No paid/live model attempt occurred. See
+A1 certification's A3 section and `m110-a1/a3-*.json` registers.
+
+**A1 dependency pins.** `@simplewebauthn/server` 14.0.3 and
+`@simplewebauthn/browser` 14.0.0 are MIT, with no peer dependencies (checked
+2026-10-06). Server integrity:
+`sha512-D39/0fiDiYmGV+nraY9s63D1Ho2AX/waMLy22/9gUadTUuvbAnstfb4bpbHYbwZuV5ZLDYN1SmzDKuiHzKAA4Q==`;
+browser integrity:
+`sha512-1odWVqeEBTl7lJ9zMKLEsmTlnyrDO5iRcTvfMKKk1WThUnp/i8JJdffdj2icP+tty159s4PgwE3BiMoEW9NFow==`.
+The server verifies actual WebAuthn cryptography; the browser package handles
+the native credential API's binary/JSON conversion. Both remain confined to
+the A1 lazy artifacts. The manifest/lock pins are exact. The initial scratch
+installation was under this lane's `temp/`. On resume, the lead authorized
+adding only the 25 missing package directories from a fresh, script-free
+install under this lane's `TMPDIR`. The post-copy snapshot confirms all
+31,226 pre-existing files/symlinks retain their bytes, inode, mode, size and
+modification time. Normal Vitest subsequently updated its existing results
+cache, recorded in certification; no package bytes changed.
+
+**M110N listener receipt (2026-10-06).** N implements the accepted-table
+transport in the lazy node bundle: explicit private/loopback bind, pinned TLS
+and full console fingerprint, browser guards, memory-bearer verifier port,
+bounded HTTP/WebSocket handling and shared method dispatch, with an exact
+per-action UV-proof binding for physical/maker actions and ungated authenticated
+Stop. See `docs/certification/m110-n-node-service.md` for tests, byte-exact red
+drills and the named `N-A1-VERIFIER`, `N-A1-S0-TLS`, `N-C-LISTENER`,
+`N-M104-METHODS`, `N-U2-TERMINAL` and `N-M103-ACTION` handoffs. Production
+sign-in (including H20 console recovery), issuance, OS deployment and user
+surfaces remain their owners' integration work; unbound serve still refuses.
+
+**FIXM110N2 scope (RVM110NG, 2026-10-06).** Correct H07's WebSocket
+destination to `websocket` while HTTP keeps `empty`, with fixtures derived
+from Fetch Metadata and negative cases for both transports. Correct H08's
+attendance to track first verification and latest authenticated activity on
+the monotonic clock, bounded by the existing idle/absolute maxima; reject
+future or over-long public session metadata. Reverification never resets the
+absolute clock. Retain expired attachment records until A1 detaches/ends them
+so a repeated id cannot restart either limit; the existing session cap bounds
+that memory. Add before-fix regressions and byte-exact guard-fire receipts.
+The P3 packed replace-ref finding is the named §9 residual below. No guard is
+widened; no dependency, protocol shape or unrelated lane file changes.
+
+**FIXM110N2 receipt.** Both P2 findings are fixed. The nine scoped final
+suites pass **203 tests** with repository-default timeouts; the original
+source fails both regressions. **15** accepted red drills restore byte-exact
+and match the final source hashes. Detailed tests, metadata sources, A1's
+expired-identity detach handoff and the P3 follow-up are recorded in
+`docs/certification/m110-n-node-service.md` and
+`docs/certification/m110-n-review-drills.json`. The inherited J-owned host-API
+snapshot mismatch remains the §7 integration handoff; no gate is weakened.
+
+**RVM110L0 corrections (FIXM110L0).** Before freezing these contracts,
+close all three review findings: require a closed, service-owned Git
+configuration with fixed overrides/environment and immutable SSH destination
+and host-key binding; provide ordered, backpressured PTY output/exit delivery
+and disconnect disposal in `NodeToolHostPort`; preserve empty argv entries
+after a nonempty executable. Add regression tests, byte-exact red-drill
+receipts and updated schema/threat-model/integration records. N owns the
+actual Git runner and OS canary qualification; L0 adds no listener or runner.
+User-enabled repository hooks run separately as `muse-tools`, without the
+deploy-key socket, and never inside credentialed service Git.
+
+L0 fixes A0 bounds in `NODE_*`: setup 15 minutes, session idle 30 minutes,
+absolute session 12 hours, step-up 5 minutes, WebSocket authentication 5
+seconds, lockout at 100 failures, 1 MiB file/terminal-output cap, 16 KiB
+terminal input, 64 frames/s, 1,000 results per page, 100 sessions/challenges,
+10 MiB audit cap and 30-day retention. These are rejection limits, never
+permission grants. Config/state/audit reject unknown fields and expose no
+credential-valued fields; filesystem containment, cryptographic verification, expiry and hash-chain
+verification still require their runtime bindings and acceptance drills.
+
+**Status 2026-10-06: M110a0 threat model accepted.** N's service core is
+implemented (`docs/certification/m110-n-node-service.md`); the listener is
+authorized within the accepted table. Production sign-in, images and user
+surfaces still require their named lane bindings and platform receipts. The research is
 `docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat
 model is reviewed and accepted before that phase's listener, relay or sign-in
 code is written. Listening on a network stays off until `node init` chooses
@@ -30473,6 +30739,44 @@ those integration gates. Run the complete owned test files in batches of at
 most three with three workers, plus typecheck, changed-file lint/format,
 deadcode, duplication, localization, host API and production build directly
 on Kubuntu. Hooks remain enabled. No gate or threshold is weakened.
+
+**M110A3 gate boundary (2026-10-09).** The same scoped/lead-owned
+aggregate and platform handoff below applies to the A3 redesign. No merge,
+rebase, push or modification of existing shared dependency entries is allowed.
+
+**FIXM110A2 gate boundary (2026-10-09).** The brief reserves aggregate
+quality/coverage and platform certification for the lead and forbids merging,
+rebasing, pushing and modifying existing shared dependency entries. Run
+scoped whole files directly on Kubuntu with repository-default timeouts,
+at most three files per invocation and one worker. Run all five type projects,
+changed-file lint/format, localization, deadcode, duplication, host API and
+both production builds serially. Vitest's `--cache=false` avoids updating its
+shared results cache. Install the exact lockfile only in private scratch
+space, copying missing package directories without overwriting any entry.
+Retain the existing A1 generated-host-record and inherited dependency-audit
+handoffs below; no gate, cap, rule or hook is weakened. Final receipts and
+SHA-256 red drills are in the A1 certification and its `fixm110a2-*.json`
+registers.
+
+**M110 A1 scoped certification (2026-10-06).** The lane brief forbids the
+aggregate quality run and changes to other owners' files. A1 runs its own
+whole test files with default timeouts and at most three workers; the lead
+retains integrated `npm run quality`, OS/browser TLS/name qualification and
+binding the named N/M104/T/C/J ports. No cap, timeout, lint level, ignore or
+hook is weakened. See `docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md`
+for failures deliberately observed and restored, package/audit details and
+the documentation/reference integration patch.
+
+A1's same-scope base/current audit reports the same 13 vulnerable packages,
+with no new vulnerable dependency. The unchanged audit gate still refuses
+inherited `shell-quote` GHSA-pqg4-j6r4-53mv and `source-map-js`
+GHSA-68fv-2mgg-jv7q; their repair is deferred to the lead because A1 cannot
+upgrade other owners' dependencies. The generated host API record is also
+deferred to J's integration ownership. On 2026-10-09 the lead authorized
+adding only the 25 missing dependency directories; this resolves normal SDK
+resolution without changing pre-existing shared files or the installed hooks.
+The audit and generated-record conditions remain integration handoffs,
+not green gate claims or exceptions.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -35695,6 +35999,15 @@ FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
 fallback. The other counts above are unchanged. W owns this same generated
 snapshot handoff; the portable-module check and all build checks pass.
 
+**M110N lane verification delegation (2026-10-06).** The rig brief and
+shared lane rules explicitly prohibit full quality/full-suite runs here.
+N runs its owned tests at the default timeout, scoped ESLint/Prettier,
+all-project typecheck, deadcode, duplication, localization, host-API and
+production build, with unchanged hooks and budgets. The lead runs full
+quality/coverage/a11y/integration on the integrated tree before acceptance.
+J owns the generated host-API snapshot; N records the exact stale import-count
+changes for integration rather than changing that lane's file.
+
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
 this worktree. Hook-on repair commits require the owning regression files,
@@ -36015,6 +36328,8 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | Location                                                        | Escape hatch                                                          | Reason                                                                                                                                                                                                                                                                        |
 | --------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET)                             | `as UiText` on the descriptor clone                                   | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                            |
+| `src/runtime/node/auth/methods.ts` (M110 A1)                    | `as NodeMethodResult<M>`                                              | The selected catalog's zod result parser validates the exact method result; TypeScript cannot preserve that generic key/result correlation across the switch.                                                                                                                 |
+| `src/webview/node/auth/client.ts` (M110 A1)                     | `as NodeMethodResult<M>`                                              | The selected catalog's zod result parser validates the HTTP response before use; TypeScript cannot preserve the generic catalog correlation.                                                                                                                                  |
 | `native/windows/MuseSparkVault.cs` (FIXM109PW3, supervisor job) | Job handle deliberately retained until OS process exit                | Joining the supervisor before CreateProcess makes child job membership atomic. The non-inheritable kill-on-close handle stays in its OS handle table for this one-launch process; closing it at Launch return would terminate the supervisor before it reports its exit code. |
 | `native/windows/MuseSparkVault.cs` (FIXM109PW3)                 | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
 | `src/runtime/vault/vaultRuntime.ts` (M109 H)                    | `as Partial<RuntimeVaultModule>`                                      | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format.                                         |
@@ -39044,6 +39359,27 @@ review findings and terminal settlement-pricing failure.
   certifies crafted OCI layers and the actual promotion shell on local fakes.
   No registry operation or model call runs here. J carries the CHANGELOG and
   operator-documentation update at integration.
+
+- **M110N-packed-replace-ref (RVM110NG P3).** The private Git snapshot
+  rejects loose `refs/replace/*` but copies packed replacement refs as data.
+  Safe for now: every `NodeGitRunner` invocation prepends
+  `NODE_GIT_OPTIONS`, including `--no-replace-objects`, so those refs cannot
+  replace objects during any current operation. Follow-up: N/U1 reject packed
+  replacement refs in the bounded FD-held import, add a packed-ref regression
+  and red drill, and qualify it before expanding the Git invocation surface.
+  This is retained data, not permission to enable Git replacement objects.
+
+- **M110L0-Git-runtime-qualification (RVM110L0-1).** The closed configuration,
+  fixed Git policy and immutable SSH destination contracts are fixed in L0;
+  the actual service-owned snapshot/runner, trusted SSH wrapper, atomic
+  destination recheck and two-UID repository-program canary are N/C/U1's
+  unimplemented A0-GIT qualification. Safe for now: L0 has no listener,
+  credentialed Git child or node service, and threat-model acceptance and
+  A0-GIT are prerequisites to claiming support. Follow-up: bind the constants
+  and parsers, prove no hooks/helpers/filters/drivers/includes/config env can
+  execute with service privileges or its socket, and qualify alias/host-key
+  mutation before dispatch. This names the runtime evidence still needed,
+  not an exception to the closed runner requirement.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

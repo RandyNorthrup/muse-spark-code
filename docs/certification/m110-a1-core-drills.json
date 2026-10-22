@@ -1,0 +1,387 @@
+[
+  {
+    "hazard": "H05",
+    "guard": "challenge purpose",
+    "file": "src/runtime/node/auth/challenges.ts",
+    "suite": "test/unit/nodeAuthChallenges.test.ts",
+    "failedTests": [
+      "H04/H05/H09 bounded one-use challenges refuses a swapped purpose and burns that challenge"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0",
+    "mutationSha256": "d631cda22bbd471f3742fd31faeaf1475185e1c1cd36a0df1edbfe9471b3c1b4",
+    "restoredSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0"
+  },
+  {
+    "hazard": "H05",
+    "guard": "challenge expiry",
+    "file": "src/runtime/node/auth/challenges.ts",
+    "suite": "test/unit/nodeAuthChallenges.test.ts",
+    "failedTests": [
+      "H04/H05/H09 bounded one-use challenges refuses a challenge at its exact five-minute deadline"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0",
+    "mutationSha256": "aa9e14d88d2bd367f44c2507bb1c40c620f521b28f6711e54c15e0fa90e8d9ea",
+    "restoredSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0"
+  },
+  {
+    "hazard": "H09",
+    "guard": "challenge cap",
+    "file": "src/runtime/node/auth/challenges.ts",
+    "suite": "test/unit/nodeAuthChallenges.test.ts",
+    "failedTests": [
+      "H04/H05/H09 bounded one-use challenges rejects before allocation at the cap and prunes expired slots"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0",
+    "mutationSha256": "8b436ea8bc060820b7996697f4e77a69549eaa1a64365b39f4191b132e01a818",
+    "restoredSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0"
+  },
+  {
+    "hazard": "H08",
+    "guard": "lock invalidation",
+    "file": "src/runtime/node/auth/challenges.ts",
+    "suite": "test/unit/nodeAuthChallenges.test.ts",
+    "failedTests": ["H04/H05/H09 bounded one-use challenges invalidates all purposes on lock"],
+    "exitCode": 1,
+    "beforeSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0",
+    "mutationSha256": "708c91e374f285b43c0de93fd74b59e9079ddb8e75c273f7f9228ff84a219998",
+    "restoredSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0"
+  },
+  {
+    "hazard": "H08",
+    "guard": "session invalidation",
+    "file": "src/runtime/node/auth/challenges.ts",
+    "suite": "test/unit/nodeAuthChallenges.test.ts",
+    "failedTests": [
+      "H04/H05/H09 bounded one-use challenges binds exact action/session/digest and ends only that session’s challenges"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0",
+    "mutationSha256": "473f82e8850eec7e4ff2ac164740138929ca3c40d273390f59f67b0ef4e6116a",
+    "restoredSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0"
+  },
+  {
+    "hazard": "H02",
+    "guard": "certificate pin",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses a changed pin, wrong or extra SAN, and an expired/not-yet-valid leaf"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "21174eaae55ff9a28aca01d3f5ebce3725140a616145c2ca841a1fbbb13cd3c0",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H02",
+    "guard": "leaf only",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses a CA, mismatched private key and forged self-signature"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "c5cb404ae85a64fb7fdd06ef4ebe68565a970731926d072d9d00263b187da1e9",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H02",
+    "guard": "key matching",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses a CA, mismatched private key and forged self-signature"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "fd43461e5e809f912ceeb9e9258c1eaaf7175fd59d72fa72b2bf84375fed3f92",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H02",
+    "guard": "self-signature",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses a CA, mismatched private key and forged self-signature"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "8dab90174f76ee9f0cf120949419beb3fc6ba6497a3428e4da372a0da319564b",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H02",
+    "guard": "valid-from",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses a changed pin, wrong or extra SAN, and an expired/not-yet-valid leaf"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "bd26fb7ef6afd59d1a6b5b9156b35d26fbe81df5a10163ba25c44a90f9eadace",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H02",
+    "guard": "valid-to",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses a changed pin, wrong or extra SAN, and an expired/not-yet-valid leaf"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "a355dccdf8a5c8718ef33914f5400439b444fd626c71d90e8ecbb34448e46dc9",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H02",
+    "guard": "no silent reissue",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate never overwrites an existing certificate/key or accepts an executable from PATH"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "ba63876a7175040085eb20ea24c8324345ca8dd38a6822060d9bb6b7ad7c08ec",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H05",
+    "guard": "challenge one-use",
+    "file": "src/runtime/node/auth/challenges.ts",
+    "suite": "test/unit/nodeAuthChallenges.test.ts",
+    "failedTests": [
+      "H04/H05/H09 bounded one-use challenges uses cryptographic randomness and consumes each challenge once",
+      "H04/H05/H09 bounded one-use challenges refuses a swapped purpose and burns that challenge"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0",
+    "mutationSha256": "c67e9c1088e1fdcbcb5cfe47bd42f58ac64e55c04660f02a3db70e7347cb4ec6",
+    "restoredSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0"
+  },
+  {
+    "hazard": "H02",
+    "guard": "exact SAN set",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses a changed pin, wrong or extra SAN, and an expired/not-yet-valid leaf"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "3386806b399f94edb4ff87ce424378820975b9b2717ab908dc5141d38c8a8376",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H02",
+    "guard": "installed executable",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02 pinned non-CA certificate refuses IPs, wildcards, duplicate names and cancellation before issuance"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "a9d4969b036e0f4c5d456063bcb3ff9ba7e941f707ee8a328aaceb1104837f10",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H03",
+    "guard": "DNS answer binding",
+    "file": "src/runtime/node/tls/certificate.ts",
+    "suite": "test/unit/nodeCertificate.test.ts",
+    "failedTests": [
+      "H02/H03 name resolution requires each chosen name to resolve to the selected LAN interface"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+    "mutationSha256": "a0ef1c3a15c6fcea1f09ee583d5bf4c529d5b9548b57811301295de826c19857",
+    "restoredSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304"
+  },
+  {
+    "hazard": "H08",
+    "guard": "UV age before persistence",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H08/H19 one UV proof per exact physical action does not extend fresh UV through slow persistence or accept future verification"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "247115ae36e86218862b3fe5f5d03f50be0dd490061a099a4fa0686cc82b4b2f",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H06",
+    "guard": "bearer lookup",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H06/H08 memory capabilities authenticates a random bearer, never a public ID, and detaches on signout"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "d3e21db976053f81a03f55d48452bc3aabe4c84254c22057a20b3d9f13e7e108",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H08",
+    "guard": "idle deadline",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H06/H08 memory capabilities expires at the exact idle boundary despite wall-clock rollback",
+      "H06/H08 memory capabilities aborts idle sessions without needing another request",
+      "H06/H08 memory capabilities bounds simultaneous sessions and releases expired slots"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "3d26fd9f0771a55c5f0c9f7896d8d6930beecec4775552db6c352f4f2f4d4b89",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H08",
+    "guard": "absolute deadline",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H06/H08 memory capabilities activity refreshes idle time but never the absolute deadline"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "25b2b30fac6adedd9db48313572285c4b9c89b5cb33f99303f90f5903fe4cde5",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H08",
+    "guard": "expiry timer",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H06/H08 memory capabilities aborts idle sessions without needing another request"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "e4f0e27617eb82af79f16d1f85e392cfe842c74b2d7294472e3bea9d156b0402",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H08",
+    "guard": "session abort",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H06/H08 memory capabilities authenticates a random bearer, never a public ID, and detaches on signout",
+      "H06/H08 memory capabilities expires at the exact idle boundary despite wall-clock rollback",
+      "H06/H08 memory capabilities aborts idle sessions without needing another request",
+      "H06/H08 memory capabilities aborts all sessions even when one detach callback fails",
+      "H08/H19 one UV proof per exact physical action expires at five minutes on the time.monotonic clock and drops on lock"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "5c489a64be4107dff3be993672951a90babb765fb2ad105d3644065a3476e85a",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H19",
+    "guard": "proof action",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H08/H19 one UV proof per exact physical action refuses a changed action and burns the proof"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "d2dc94ddbf5e86d8ea803c2c670c60099d3d26232a3c4ea113e3464ed8212488",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H19",
+    "guard": "proof digest",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H08/H19 one UV proof per exact physical action refuses a changed actionDigest and burns the proof"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "2e4168cb075b8da4ec1abe73c1ce6dd8f3da5b9f279a2156ca5f47c1a50f9747",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H19",
+    "guard": "proof session",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H08/H19 one UV proof per exact physical action refuses a changed sessionId and burns the proof"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "8bb17d011f2a8b2d3dae99de58094b766aeb74864eecb02ca64c31dd4cf1fd2e",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H19",
+    "guard": "proof consumption",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H08/H19 one UV proof per exact physical action refuses a changed action and burns the proof",
+      "H08/H19 one UV proof per exact physical action refuses a changed actionDigest and burns the proof",
+      "H08/H19 one UV proof per exact physical action refuses a changed sessionId and burns the proof",
+      "H08/H19 one UV proof per exact physical action atomically consumes one proof, rejecting concurrent reuse"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "935c7fe467f9bb6afc6842bf7ec92e12d47d535f7a5679e149e76706d005f5f4",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H08",
+    "guard": "proof expiry",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H08/H19 one UV proof per exact physical action expires at five minutes on the time.monotonic clock and drops on lock"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "c03810e8f8d14ef3a2ba717afa599496160767c23046d0d823a4733a7a3e329a",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H09",
+    "guard": "session cap",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H06/H08 memory capabilities bounds simultaneous sessions and releases expired slots"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "08afffe98e14e91efbd77b18ec47f341246116db781c49ea09f17888b44201dc",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  },
+  {
+    "hazard": "H09",
+    "guard": "proof cap",
+    "file": "src/runtime/node/auth/sessions.ts",
+    "suite": "test/unit/nodeAuthSessions.test.ts",
+    "failedTests": [
+      "H08/H19 one UV proof per exact physical action caps pending proofs before allocation"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b",
+    "mutationSha256": "5a036586a33371ad8e1727f93ef323a7d6bac4ba296bef514ba48272e460abfd",
+    "restoredSha256": "7ff57bad9e496d4d7e05e8c796aad03b2ec0bda294bf722e5ae0c003e500ec0b"
+  }
+]

@@ -56,6 +56,7 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
+  NODE_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -88,9 +89,15 @@ import { lazyEstimator } from '../host/estimator/estimatorBundle'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder, workspaceKey, workspaceSessionsFolder } from './dataFolder'
+import {
+  agentDataFolder,
+  nodeDataFolder,
+  workspaceKey,
+  workspaceSessionsFolder,
+} from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
+import { nodeModule } from './node/bundle'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import {
@@ -1736,6 +1743,38 @@ async function main(): Promise<number> {
         )
       } finally {
         await runtime?.close()
+      }
+    }
+    case 'node': {
+      const controller = new AbortController()
+      const stop = () => {
+        controller.abort()
+      }
+      process.on('SIGTERM', stop)
+      process.on('SIGINT', stop)
+      try {
+        return await nodeModule(path.join(distDir, NODE_BUNDLE_FILE)).runNodeArgs(
+          command.argv,
+          {
+            root: nodeDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            signal: controller.signal,
+            now: Date.now,
+            print: (line) => {
+              writeLine(process.stdout, line)
+            },
+            readSecret: () =>
+              readSecretLine(UI_TEXT.nodeLabels.unlock, process.stdin, process.stderr),
+          },
+          UI_TEXT,
+          uiLocale(),
+        )
+      } finally {
+        process.off('SIGTERM', stop)
+        process.off('SIGINT', stop)
       }
     }
     case 'schedule': {
