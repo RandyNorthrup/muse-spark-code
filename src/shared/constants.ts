@@ -912,6 +912,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'syncPromptsAndBookmarks',
   'initialPermissionMode',
   'backend',
+  // C-M95-SUB: the subscription opt-in chooses the billing route, so a
+  // repository must not set it (PLAN.md D15).
+  'useMuseCodeSubscription',
   'shellSandbox',
   'allowDangerouslySkipPermissions',
   'museBinaryPath',
