@@ -109,16 +109,19 @@ export async function verifyPublished(channel, artifact, manifest, deps = {}) {
   // One package per platform (PLAN.md D209): the registries serve each
   // target under its own download, so a targeted artifact is verified
   // against its own target's bytes. The target travels in vsce's artifact
-  // name; an untargeted artifact verifies the universal download as before.
+  // name; an untargeted artifact verifies the universal download.
   const target = targetOfVsix(artifact)
   let url
   if (channel === 'marketplace') {
     url = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${encodeURIComponent(publisher)}/vsextensions/${encodeURIComponent(name)}/${encodeURIComponent(version)}/vspackage`
     if (target !== undefined) url += `?targetPlatform=${encodeURIComponent(target)}`
   } else if (channel === 'openvsx') {
-    const segments = [publisher, name]
-    if (target !== undefined) segments.push(target)
-    segments.push(version)
+    // Always the explicit target: once a version has targeted packages,
+    // Open VSX's untargeted `/<version>` answer names whichever package it
+    // picks (0.19.0: `win32-arm64` to this script, `universal` to curl), so
+    // the untargeted artifact is checked at `/universal/<version>`, which
+    // also answers for a version published only universal (0.18.2).
+    const segments = [publisher, name, target ?? 'universal', version]
     const metadata = await response(
       `https://open-vsx.org/api/${segments.map((segment) => encodeURIComponent(segment)).join('/')}`,
       fetcher,

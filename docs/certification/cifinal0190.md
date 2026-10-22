@@ -765,3 +765,27 @@ function (title) { context.test(title); }`), and `.timeout(0)` was
     refused by this PC's account), and no vault path reaches the process
     helpers whose deadlines changed. The toast check printed no log; it now
     prints the panel's log with the toasts, so a repeat names its cause.
+
+## 21. The 0.19.0 release run: Open VSX's check read another package
+
+Release run 39720213044 (`v0.19.0` on `4e09cab6ea`): tag checks, reuse of
+CI run 39716712837, GitHub Release, Marketplace and npm succeeded; the Open
+VSX job ended "openvsx: the published artifact does not match the release".
+
+- Cause: `verifyPublished` read `/api/RandyNorthrup/muse-spark-code/0.19.0`
+  for the untargeted package. With targeted packages present, that answer
+  named `win32-arm64` (three of three reads from Node; curl got
+  `universal`), so the universal VSIX was compared with the win32-arm64
+  bytes. `/api/RandyNorthrup/muse-spark-code/universal/0.19.0` names the
+  universal package for 0.19.0 and for 0.18.2 (universal only).
+- Open VSX state: all seven packages uploaded. `darwin-arm64`,
+  `linux-arm64` and `linux-x64` answered "Extension not found" for a few
+  minutes after the job (activated by 04:15 UTC), the other four at once.
+- After the run, with the fixed check, each of the seven VSIX packages on
+  the Marketplace and on Open VSX matches the release asset (14 of 14), npm's
+  integrity for `muse-spark-code-acp@0.19.0` equals the release tarball's
+  sha512, and the downloaded assets pass `SHA256SUMS` (8 of 8).
+- Drill, against the real Open VSX: the tag's `verifyPublished` on the
+  universal VSIX failed three of three ("openvsx published SHA-256 differs
+  from the release VSIX"), exit 1; the fixed one matched three of three,
+  exit 0, and still matches the win32-x64 package three of three.
