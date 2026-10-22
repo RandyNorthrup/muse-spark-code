@@ -3736,31 +3736,6 @@ an **N agents** pill in the header opens the **Agent Map** (also `/agents`):
 this conversation, its agents with role, objective, status, duration and
 tokens, the background tasks, and each agent's own transcript.
 
-When a team is active, its tree has one Tab stop. Use arrows, Home, End,
-or type ahead to move between items; F2 focuses an item's actions, Left
-and Right choose an action, and Escape returns to the item. Finished
-workers produce one polite summary. Merge cards list affected files,
-protected paths, conflicts and the supplied review details, with an
-overflow count for long lists. A card without file details cannot approve
-a merge. Tree and card code loads on its first use.
-
-The unreleased scheduler and runner adapters ship in separate bundles for
-team use. Their tool schemas come from the same validators used by the
-board. Maintainers regenerate them with `node scripts/team-tool-schemas.mjs
---write`; the production build checks them for drift. The Traffic and
-Runners views remain internal while the Models & Agents panel and the
-window-owned team runtime are integrated. They are not available as
-commands in this release. ACP and other editors need those same runtime
-bindings; packaging these adapters does not enable team dispatch.
-The internal Roles setup readiness checks editor support, trust and the team
-switch independently of saved entries. Its required configuration sources
-still keep the sections hidden while those sources are missing. The bound
-budget getter reads the shared daily paid journal, including outstanding
-claims; learned role samples come from the latest twelve settled tasks in
-validated workspace history. A failed source read clears stale team sections. The engine reads the active
-composer model and its attached backend; complete captured discovery and
-saved workspace overrides still await their bindings.
-
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under
   `$XDG_CONFIG_HOME`). The map says so and opens the file for you; the
@@ -4118,31 +4093,6 @@ can use it) or with its setting (`museSpark.modelApiWebSearch`,
 availability causes no startup price dialog. Explicitly turning a feature OFF
 and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
-
-Team workers default on for a runnable team of distinct models. They ask in
-this paid-use popup before the first charge, with the models, task ceilings
-and daily budget. Each task identifies its provider and tariff. Meta rates
-are quoted only for a matching verified Meta tariff; other providers or
-unverified tariffs state that the price is unknown and name the task and
-daily token ceilings. Billing uses each task provider's API key.
-Always is scoped to the provider, model and price tier that was approved;
-a different model asks again. Single-model activation asks no team question.
-The M96 team feature remains unavailable until its integration is complete.
-Its hidden worker service reserves each transport attempt separately. Reported
-usage settles that attempt at the sent model's known price; a dispatched
-attempt without usage retains its full maximum as uncertain liability. A
-successful retry cannot erase earlier liability. Refused or unsent attempts
-release their claims, including when cancellation or close wins during a durable
-admission. Late claims close at zero and never attach to an ended or replacement
-request; completed outcomes leave no reservation open. Raise can
-lift entry caps for one task; it cannot lift concurrent worker limits. Worker
-file writes check the role before opening and use verified file handles.
-The engine and ACP writers can create new files through the packaged native
-helper: it proves the admitted root and parent, walks without following links,
-and creates exclusively. The opened file is checked again before writing.
-Reservations fill binary bytes or release an unchanged empty file through the
-same authority; an unavailable helper refuses creation. These operations load
-on first use; teams still await the remaining integration and certification.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,

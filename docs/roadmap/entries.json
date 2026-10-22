@@ -699,13 +699,13 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Hidden Roles/Agents bind saved charters, conversation overrides, paid Try, captured engine discovery, lifecycle hooks and native worker file creation; scheduler, advanced controls and VS Code composition certification remain open.",
+      "summary": "Hidden Roles and Agents bind saved charters, conversation overrides, paid Try, engine discovery, lifecycle hooks and native worker file creation, while the scheduler, advanced controls and VS Code certification are in progress.",
       "area": "agents"
     },
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "Headless exec and the ACP agent run engine teams behind the availability switch (off until certified): hard budgets, keyless local workers, denied questions and checked merges; certification and remaining editor bindings follow in their slices.",
+      "summary": "Headless exec and the ACP agent run engine teams behind the availability switch, off until certified, with hard budgets, keyless local workers, denied questions and checked merges, while certification and other editor bindings are in progress.",
       "area": "agents"
     },
     {
