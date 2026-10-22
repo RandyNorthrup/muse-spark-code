@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge engine choice: each decision picks the fastest ready engine
+  its deadline admits, suspending a hanging engine by its third miss and
+  requalifying it only through background probes. The chat model never
+  serves inline or slack decisions, hosted engines need consent, and a
+  verified local judge closes the separate-source install gap.
+
 - Fast judge deterministic checks: loop and stall detection, first-send
   triage, effort lowering for mechanical requests, context ranking,
   skill matching, and unmentioned-failure and unbacked-done detection
