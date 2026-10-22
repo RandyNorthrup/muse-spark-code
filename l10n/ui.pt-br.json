@@ -70,6 +70,17 @@
     "screenReader": "Modo de leitor de tela",
     "terminalPerson": "Seu terminal",
     "terminalModel": "Terminal do modelo",
+    "terminalShared": "Terminal compartilhado",
+    "newTerminal": "Novo terminal",
+    "attachTerminal": "Anexar terminal",
+    "terminalId": "ID do terminal",
+    "close": "Fechar",
+    "sessions": "Sessões",
+    "workspaces": "Espaços de trabalho",
+    "version": "Versão",
+    "challenges": "Desafios de login pendentes",
+    "help": "Ajuda do nó",
+    "whatsNew": "Novidades",
     "upload": "Enviar arquivo",
     "download": "Baixar arquivo",
     "trustWorkspace": "Confiar no espaço de trabalho"
@@ -96,6 +107,43 @@
     "auditRetention": "O armazenamento de auditoria é limitado a {size} e mantido por {days}.",
     "unofficial": "Este nó não é oficial e não é endossado pela Meta.",
     "unexpectedFailure": "O nó encontrou uma falha inesperada e continua funcionando."
+  },
+  "nodeTerminal": {
+    "connecting": "Conectando…",
+    "ended": "Terminal encerrado."
+  },
+  "nodeDashboard": {
+    "noSessions": "Nenhuma sessão.",
+    "noWorkspaces": "Nenhum espaço de trabalho."
+  },
+  "nodeAudit": {
+    "filterAll": "Todos os eventos",
+    "filterSignin": "Logins",
+    "filterSignup": "Inscrições",
+    "filterTerminal": "Terminais",
+    "filterKeys": "Chaves",
+    "filterNode": "Nó",
+    "filterGit": "Git",
+    "filterApproval": "Aprovações",
+    "allowed": "Permitido",
+    "refused": "Recusado",
+    "noEntries": "Nenhuma entrada de auditoria."
+  },
+  "nodeHelp": {
+    "title": "Ajuda do nó",
+    "files": "Arquivos do espaço: navegue, edite, envie e baixe.",
+    "terminal": "Terminal: um shell neste espaço. Abrir um verifica sua identidade.",
+    "dashboard": "Painel: leituras, sessões e espaços neste nó.",
+    "audit": "Registro de auditoria: logins e cada evento auditado, mais recentes primeiro.",
+    "git": "Mudanças do Git: estado, preparo, commit e ramificações; a rede verifica sua identidade.",
+    "sandbox": "Todos os espaços compartilham uma sandbox até as sandboxes por espaço chegarem."
+  },
+  "nodeWhatsNew": {
+    "title": "Novidades neste nó",
+    "terminal": "Terminal: um shell no espaço, com auditoria de login para cada sessão.",
+    "dashboard": "Painel: leituras de CPU, memória e disco com sessões e espaços.",
+    "audit": "Registro de auditoria: logins e eventos do nó, mais recentes primeiro.",
+    "sandbox": "Prévia para dois usuários: todos os espaços compartilham uma sandbox por enquanto."
   },
   "nodeErrors": {
     "invalidRequest": "A solicitação é inválida.",

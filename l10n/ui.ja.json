@@ -70,6 +70,17 @@
     "screenReader": "スクリーンリーダーモード",
     "terminalPerson": "自分のターミナル",
     "terminalModel": "モデルのターミナル",
+    "terminalShared": "共有ターミナル",
+    "newTerminal": "新規ターミナル",
+    "attachTerminal": "ターミナルに接続",
+    "terminalId": "ターミナルID",
+    "close": "閉じる",
+    "sessions": "セッション",
+    "workspaces": "ワークスペース",
+    "version": "バージョン",
+    "challenges": "保留中のサインインチャレンジ",
+    "help": "ノードヘルプ",
+    "whatsNew": "新機能",
     "upload": "ファイルをアップロード",
     "download": "ファイルをダウンロード",
     "trustWorkspace": "ワークスペースを信頼"
@@ -96,6 +107,43 @@
     "auditRetention": "監査ストレージの上限は {size}、保持期間は {days} です。",
     "unofficial": "このノードは非公式で、Meta の承認を受けていません。",
     "unexpectedFailure": "ノードで予期しない障害が発生しましたが、動作を続けています。"
+  },
+  "nodeTerminal": {
+    "connecting": "接続中…",
+    "ended": "ターミナルが終了しました。"
+  },
+  "nodeDashboard": {
+    "noSessions": "セッションがありません。",
+    "noWorkspaces": "ワークスペースがありません。"
+  },
+  "nodeAudit": {
+    "filterAll": "すべてのイベント",
+    "filterSignin": "サインイン",
+    "filterSignup": "登録",
+    "filterTerminal": "ターミナル",
+    "filterKeys": "鍵",
+    "filterNode": "ノード",
+    "filterGit": "Git",
+    "filterApproval": "承認",
+    "allowed": "許可",
+    "refused": "拒否",
+    "noEntries": "監査エントリがありません。"
+  },
+  "nodeHelp": {
+    "title": "ノードヘルプ",
+    "files": "ワークスペースファイル: 参照、編集、アップロード、ダウンロード。",
+    "terminal": "ターミナル: このワークスペースのシェル。開くときに本人確認します。",
+    "dashboard": "ダッシュボード: このノードの測定値、セッション、ワークスペース。",
+    "audit": "監査ログ: サインインと監査対象の全イベント（新しい順）。",
+    "git": "Gitの変更: 状態、ステージ、コミット、ブランチ。ネットワーク操作は本人確認します。",
+    "sandbox": "ワークスペースごとのサンドボックスが来るまで、全ワークスペースで1つのサンドボックスを共有します。"
+  },
+  "nodeWhatsNew": {
+    "title": "このノードの新機能",
+    "terminal": "ターミナル: ワークスペースのシェル。各セッションのサインイン監査付き。",
+    "dashboard": "ダッシュボード: セッションとワークスペース付きのCPU・メモリ・ディスク測定値。",
+    "audit": "監査ログ: サインインとノードイベント（新しい順）。",
+    "sandbox": "2ユーザープレビュー: 当面は全ワークスペースで1つのサンドボックスを共有します。"
   },
   "nodeErrors": {
     "invalidRequest": "リクエストは無効です。",

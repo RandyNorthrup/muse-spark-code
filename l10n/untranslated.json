@@ -115,7 +115,8 @@
       "vault.daysHint",
       "vault.startHourHint",
       "vault.endHourHint",
-      "vault.ceilingHint"
+      "vault.ceilingHint",
+      "nodeAudit.filterGit"
     ],
     "cs": [
       "groupModel",
@@ -217,7 +218,9 @@
       "teamUsageTitle",
       "gitPullRequestFormLabel",
       "agentsCount.one",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "nodeLabels.version",
+      "nodeAudit.filterTerminal"
     ],
     "es": [
       "hooksItem",
@@ -280,7 +283,9 @@
       "teamSetupSteps.pools",
       "teamTemplateSolo",
       "teamIntensityLevels.minimal",
-      "reportLabels.total"
+      "reportLabels.total",
+      "nodeLabels.sessions",
+      "nodeLabels.version"
     ],
     "it": [
       "usageAccount",

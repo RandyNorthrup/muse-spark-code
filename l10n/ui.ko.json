@@ -70,6 +70,17 @@
     "screenReader": "스크린 리더 모드",
     "terminalPerson": "사용자 터미널",
     "terminalModel": "모델 터미널",
+    "terminalShared": "공유 터미널",
+    "newTerminal": "새 터미널",
+    "attachTerminal": "터미널 연결",
+    "terminalId": "터미널 ID",
+    "close": "닫기",
+    "sessions": "세션",
+    "workspaces": "작업 공간",
+    "version": "버전",
+    "challenges": "보류 중인 로그인 챌린지",
+    "help": "노드 도움말",
+    "whatsNew": "새로운 기능",
     "upload": "파일 업로드",
     "download": "파일 다운로드",
     "trustWorkspace": "작업 공간 신뢰"
@@ -96,6 +107,43 @@
     "auditRetention": "감사 저장소는 {size}(으)로 제한되며 {days} 동안 보관됩니다.",
     "unofficial": "이 노드는 비공식이며 Meta의 승인을 받지 않았습니다.",
     "unexpectedFailure": "노드에 예상치 못한 오류가 발생했지만 계속 실행 중입니다."
+  },
+  "nodeTerminal": {
+    "connecting": "연결 중…",
+    "ended": "터미널이 종료되었습니다."
+  },
+  "nodeDashboard": {
+    "noSessions": "세션이 없습니다.",
+    "noWorkspaces": "작업 공간이 없습니다."
+  },
+  "nodeAudit": {
+    "filterAll": "모든 이벤트",
+    "filterSignin": "로그인",
+    "filterSignup": "등록",
+    "filterTerminal": "터미널",
+    "filterKeys": "키",
+    "filterNode": "노드",
+    "filterGit": "Git",
+    "filterApproval": "승인",
+    "allowed": "허용",
+    "refused": "거부",
+    "noEntries": "감사 항목이 없습니다."
+  },
+  "nodeHelp": {
+    "title": "노드 도움말",
+    "files": "작업 공간 파일: 탐색, 편집, 업로드, 다운로드.",
+    "terminal": "터미널: 이 작업 공간의 셸. 열 때 본인 확인을 합니다.",
+    "dashboard": "대시보드: 이 노드의 측정값, 세션, 작업 공간.",
+    "audit": "감사 로그: 로그인과 감사 대상 모든 이벤트(최신순).",
+    "git": "Git 변경: 상태, 스테이지, 커밋, 브랜치. 네트워크 작업은 본인 확인을 합니다.",
+    "sandbox": "작업 공간별 샌드박스가 나올 때까지 모든 작업 공간이 하나의 샌드박스를 공유합니다."
+  },
+  "nodeWhatsNew": {
+    "title": "이 노드의 새로운 기능",
+    "terminal": "터미널: 작업 공간의 셸. 모든 세션에 로그인 감사가 포함됩니다.",
+    "dashboard": "대시보드: 세션 및 작업 공간과 함께 제공되는 CPU, 메모리, 디스크 측정값.",
+    "audit": "감사 로그: 로그인과 노드 이벤트(최신순).",
+    "sandbox": "2인 미리 보기: 당분간 모든 작업 공간이 하나의 샌드박스를 공유합니다."
   },
   "nodeErrors": {
     "invalidRequest": "요청이 유효하지 않습니다.",

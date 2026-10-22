@@ -70,6 +70,17 @@
     "screenReader": "Režim čtečky obrazovky",
     "terminalPerson": "Váš terminál",
     "terminalModel": "Terminál modelu",
+    "terminalShared": "Sdílený terminál",
+    "newTerminal": "Nový terminál",
+    "attachTerminal": "Připojit terminál",
+    "terminalId": "ID terminálu",
+    "close": "Zavřít",
+    "sessions": "Relace",
+    "workspaces": "Pracovní prostory",
+    "version": "Verze",
+    "challenges": "Čekající výzvy k přihlášení",
+    "help": "Nápověda uzlu",
+    "whatsNew": "Novinky",
     "upload": "Nahrát soubor",
     "download": "Stáhnout soubor",
     "trustWorkspace": "Důvěřovat pracovnímu prostoru"
@@ -96,6 +107,43 @@
     "auditRetention": "Úložiště auditu je omezeno na {size} a uchovává se po dobu {days}.",
     "unofficial": "Tento uzel je neoficiální a není podporován společností Meta.",
     "unexpectedFailure": "Uzel narazil na neočekávanou chybu a běží dál."
+  },
+  "nodeTerminal": {
+    "connecting": "Připojování…",
+    "ended": "Terminál byl ukončen."
+  },
+  "nodeDashboard": {
+    "noSessions": "Žádné relace.",
+    "noWorkspaces": "Žádné pracovní prostory."
+  },
+  "nodeAudit": {
+    "filterAll": "Všechny události",
+    "filterSignin": "Přihlášení",
+    "filterSignup": "Registrace",
+    "filterTerminal": "Terminály",
+    "filterKeys": "Klíče",
+    "filterNode": "Uzel",
+    "filterGit": "Git",
+    "filterApproval": "Schválení",
+    "allowed": "Povoleno",
+    "refused": "Odmítnuto",
+    "noEntries": "Žádné záznamy auditu."
+  },
+  "nodeHelp": {
+    "title": "Nápověda uzlu",
+    "files": "Soubory prostoru: procházejte, upravujte, nahrávejte a stahujte.",
+    "terminal": "Terminál: shell v tomto prostoru. Otevření ověří vaši identitu.",
+    "dashboard": "Přehled: měření, relace a prostory na tomto uzlu.",
+    "audit": "Protokol auditu: přihlášení a každá auditovaná událost, nejnovější nejdříve.",
+    "git": "Změny Gitu: stav, příprava, revize a větve; síť ověří vaši identitu.",
+    "sandbox": "Všechny prostory sdílejí jeden sandbox, dokud nepřijdou sandboxy prostorů."
+  },
+  "nodeWhatsNew": {
+    "title": "Novinky na tomto uzlu",
+    "terminal": "Terminál: shell v prostoru, s auditem přihlášení pro každou relaci.",
+    "dashboard": "Přehled: měření CPU, paměti a disku s relacemi a prostory.",
+    "audit": "Protokol auditu: přihlášení a události uzlu, nejnovější nejdříve.",
+    "sandbox": "Náhled pro dva uživatele: všechny prostory zatím sdílejí jeden sandbox."
   },
   "nodeErrors": {
     "invalidRequest": "Požadavek není platný.",

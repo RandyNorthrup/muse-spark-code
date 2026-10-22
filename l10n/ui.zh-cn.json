@@ -70,6 +70,17 @@
     "screenReader": "屏幕阅读器模式",
     "terminalPerson": "你的终端",
     "terminalModel": "模型终端",
+    "terminalShared": "共享终端",
+    "newTerminal": "新建终端",
+    "attachTerminal": "附加终端",
+    "terminalId": "终端 ID",
+    "close": "关闭",
+    "sessions": "会话",
+    "workspaces": "工作区",
+    "version": "版本",
+    "challenges": "待处理的登录质询",
+    "help": "节点帮助",
+    "whatsNew": "新增功能",
     "upload": "上传文件",
     "download": "下载文件",
     "trustWorkspace": "信任工作区"
@@ -96,6 +107,43 @@
     "auditRetention": "审计存储上限为 {size}，保留期限为 {days}。",
     "unofficial": "此节点为非官方产品，未获得 Meta 认可。",
     "unexpectedFailure": "节点发生意料之外的故障，但仍在继续运行。"
+  },
+  "nodeTerminal": {
+    "connecting": "正在连接…",
+    "ended": "终端已结束。"
+  },
+  "nodeDashboard": {
+    "noSessions": "没有会话。",
+    "noWorkspaces": "没有工作区。"
+  },
+  "nodeAudit": {
+    "filterAll": "所有事件",
+    "filterSignin": "登录",
+    "filterSignup": "注册",
+    "filterTerminal": "终端",
+    "filterKeys": "密钥",
+    "filterNode": "节点",
+    "filterGit": "Git",
+    "filterApproval": "审批",
+    "allowed": "已允许",
+    "refused": "已拒绝",
+    "noEntries": "没有审计条目。"
+  },
+  "nodeHelp": {
+    "title": "节点帮助",
+    "files": "工作区文件:浏览、编辑、上传和下载。",
+    "terminal": "终端:此工作区中的 shell。打开时需要验证身份。",
+    "dashboard": "仪表板:此节点上的读数、会话和工作区。",
+    "audit": "审计日志:登录和所有审计事件,按最新优先排序。",
+    "git": "Git 变更:状态、暂存、提交和分支;网络操作需要验证身份。",
+    "sandbox": "在工作区沙盒落地之前,所有工作区共用一个沙盒。"
+  },
+  "nodeWhatsNew": {
+    "title": "此节点的新增功能",
+    "terminal": "终端:工作区中的 shell,每个会话都有登录审计。",
+    "dashboard": "仪表板:CPU、内存和磁盘读数,以及会话和工作区。",
+    "audit": "审计日志:登录和节点事件,按最新优先排序。",
+    "sandbox": "双用户预览:目前所有工作区共用一个沙盒。"
   },
   "nodeErrors": {
     "invalidRequest": "请求无效。",

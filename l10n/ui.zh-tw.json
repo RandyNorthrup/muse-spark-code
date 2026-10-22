@@ -70,6 +70,17 @@
     "screenReader": "螢幕閱讀器模式",
     "terminalPerson": "你的終端機",
     "terminalModel": "模型終端機",
+    "terminalShared": "共用終端機",
+    "newTerminal": "新增終端機",
+    "attachTerminal": "附加終端機",
+    "terminalId": "終端機 ID",
+    "close": "關閉",
+    "sessions": "工作階段",
+    "workspaces": "工作區",
+    "version": "版本",
+    "challenges": "待處理的登入質詢",
+    "help": "節點說明",
+    "whatsNew": "最新功能",
     "upload": "上傳檔案",
     "download": "下載檔案",
     "trustWorkspace": "信任工作區"
@@ -96,6 +107,43 @@
     "auditRetention": "稽核儲存空間上限為 {size}，保留期限為 {days}。",
     "unofficial": "此節點為非官方產品，未獲得 Meta 認可。",
     "unexpectedFailure": "節點發生意料之外的故障，但仍在繼續運作。"
+  },
+  "nodeTerminal": {
+    "connecting": "正在連線…",
+    "ended": "終端機已結束。"
+  },
+  "nodeDashboard": {
+    "noSessions": "沒有工作階段。",
+    "noWorkspaces": "沒有工作區。"
+  },
+  "nodeAudit": {
+    "filterAll": "所有事件",
+    "filterSignin": "登入",
+    "filterSignup": "註冊",
+    "filterTerminal": "終端機",
+    "filterKeys": "金鑰",
+    "filterNode": "節點",
+    "filterGit": "Git",
+    "filterApproval": "核准",
+    "allowed": "已允許",
+    "refused": "已拒絕",
+    "noEntries": "沒有稽核項目。"
+  },
+  "nodeHelp": {
+    "title": "節點說明",
+    "files": "工作區檔案:瀏覽、編輯、上傳和下載。",
+    "terminal": "終端機:此工作區中的 shell。開啟時需要驗證身分。",
+    "dashboard": "儀表板:此節點上的讀數、工作階段和工作區。",
+    "audit": "稽核記錄:登入和所有稽核事件,依最新優先排序。",
+    "git": "Git 變更:狀態、預存、提交和分支;網路操作需要驗證身分。",
+    "sandbox": "在工作區沙盒落地之前,所有工作區共用一個沙盒。"
+  },
+  "nodeWhatsNew": {
+    "title": "此節點的最新功能",
+    "terminal": "終端機:工作區中的 shell,每個工作階段都有登入稽核。",
+    "dashboard": "儀表板:CPU、記憶體和磁碟讀數,以及工作階段和工作區。",
+    "audit": "稽核記錄:登入和節點事件,依最新優先排序。",
+    "sandbox": "雙使用者預覽:目前所有工作區共用一個沙盒。"
   },
   "nodeErrors": {
     "invalidRequest": "要求無效。",

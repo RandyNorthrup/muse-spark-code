@@ -70,6 +70,17 @@
     "screenReader": "Modalità lettore di schermo",
     "terminalPerson": "Il tuo terminale",
     "terminalModel": "Terminale del modello",
+    "terminalShared": "Terminale condiviso",
+    "newTerminal": "Nuovo terminale",
+    "attachTerminal": "Collega terminale",
+    "terminalId": "ID terminale",
+    "close": "Chiudi",
+    "sessions": "Sessioni",
+    "workspaces": "Aree di lavoro",
+    "version": "Versione",
+    "challenges": "Verifiche di accesso in sospeso",
+    "help": "Guida del nodo",
+    "whatsNew": "Novità",
     "upload": "Carica file",
     "download": "Scarica file",
     "trustWorkspace": "Considera attendibile l’area di lavoro"
@@ -96,6 +107,43 @@
     "auditRetention": "Lo spazio del registro di controllo è limitato a {size} e conservato per {days}.",
     "unofficial": "Questo nodo non è ufficiale e non è approvato da Meta.",
     "unexpectedFailure": "Il nodo ha rilevato un errore imprevisto e continua a funzionare."
+  },
+  "nodeTerminal": {
+    "connecting": "Connessione…",
+    "ended": "Terminale terminato."
+  },
+  "nodeDashboard": {
+    "noSessions": "Nessuna sessione.",
+    "noWorkspaces": "Nessuna area di lavoro."
+  },
+  "nodeAudit": {
+    "filterAll": "Tutti gli eventi",
+    "filterSignin": "Accessi",
+    "filterSignup": "Registrazioni",
+    "filterTerminal": "Terminali",
+    "filterKeys": "Chiavi",
+    "filterNode": "Nodo",
+    "filterGit": "Git",
+    "filterApproval": "Approvazioni",
+    "allowed": "Consentito",
+    "refused": "Rifiutato",
+    "noEntries": "Nessuna voce di controllo."
+  },
+  "nodeHelp": {
+    "title": "Guida del nodo",
+    "files": "File dell’area: sfoglia, modifica, carica e scarica.",
+    "terminal": "Terminale: una shell in quest’area. L’apertura verifica la tua identità.",
+    "dashboard": "Cruscotto: letture, sessioni e aree su questo nodo.",
+    "audit": "Registro di controllo: accessi e ogni evento controllato, prima i più recenti.",
+    "git": "Modifiche Git: stato, staging, commit e branch; la rete verifica la tua identità.",
+    "sandbox": "Tutte le aree condividono una sandbox finché non arrivano le sandbox per area."
+  },
+  "nodeWhatsNew": {
+    "title": "Novità su questo nodo",
+    "terminal": "Terminale: una shell nell’area, con controllo degli accessi per ogni sessione.",
+    "dashboard": "Cruscotto: letture di CPU, memoria e disco con sessioni e aree.",
+    "audit": "Registro di controllo: accessi ed eventi del nodo, prima i più recenti.",
+    "sandbox": "Anteprima per due utenti: tutte le aree condividono una sandbox per ora."
   },
   "nodeErrors": {
     "invalidRequest": "La richiesta non è valida.",

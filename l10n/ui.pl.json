@@ -70,6 +70,17 @@
     "screenReader": "Tryb czytnika ekranu",
     "terminalPerson": "Twój terminal",
     "terminalModel": "Terminal modelu",
+    "terminalShared": "Współdzielony terminal",
+    "newTerminal": "Nowy terminal",
+    "attachTerminal": "Dołącz terminal",
+    "terminalId": "ID terminala",
+    "close": "Zamknij",
+    "sessions": "Sesje",
+    "workspaces": "Obszary robocze",
+    "version": "Wersja",
+    "challenges": "Oczekujące wyzwania logowania",
+    "help": "Pomoc węzła",
+    "whatsNew": "Co nowego",
     "upload": "Prześlij plik",
     "download": "Pobierz plik",
     "trustWorkspace": "Zaufaj obszarowi roboczemu"
@@ -96,6 +107,43 @@
     "auditRetention": "Pamięć dziennika audytu jest ograniczona do {size}, a okres przechowywania to {days}.",
     "unofficial": "Ten węzeł jest nieoficjalny i nie jest zatwierdzony przez Meta.",
     "unexpectedFailure": "Węzeł napotkał nieoczekiwany błąd i działa dalej."
+  },
+  "nodeTerminal": {
+    "connecting": "Łączenie…",
+    "ended": "Terminal zakończony."
+  },
+  "nodeDashboard": {
+    "noSessions": "Brak sesji.",
+    "noWorkspaces": "Brak obszarów roboczych."
+  },
+  "nodeAudit": {
+    "filterAll": "Wszystkie zdarzenia",
+    "filterSignin": "Logowania",
+    "filterSignup": "Rejestracje",
+    "filterTerminal": "Terminale",
+    "filterKeys": "Klucze",
+    "filterNode": "Węzeł",
+    "filterGit": "Git",
+    "filterApproval": "Zatwierdzenia",
+    "allowed": "Dozwolone",
+    "refused": "Odmówione",
+    "noEntries": "Brak wpisów inspekcji."
+  },
+  "nodeHelp": {
+    "title": "Pomoc węzła",
+    "files": "Pliki obszaru: przeglądaj, edytuj, przesyłaj i pobieraj.",
+    "terminal": "Terminal: powłoka w tym obszarze. Otwarcie weryfikuje tożsamość.",
+    "dashboard": "Panel: odczyty, sesje i obszary w tym węźle.",
+    "audit": "Dziennik inspekcji: logowania i każde zdarzenie, od najnowszych.",
+    "git": "Zmiany Gita: stan, przechowalnia, zatwierdzenia i gałęzie; sieć weryfikuje tożsamość.",
+    "sandbox": "Wszystkie obszary współdzielą jedną piaskownicę do czasu piaskownic obszarów."
+  },
+  "nodeWhatsNew": {
+    "title": "Co nowego w tym węźle",
+    "terminal": "Terminal: powłoka w obszarze, z inspekcją logowania każdej sesji.",
+    "dashboard": "Panel: odczyty CPU, pamięci i dysku z sesjami i obszarami.",
+    "audit": "Dziennik inspekcji: logowania i zdarzenia węzła, od najnowszych.",
+    "sandbox": "Podgląd dla dwóch użytkowników: wszystkie obszary na razie współdzielą jedną piaskownicę."
   },
   "nodeErrors": {
     "invalidRequest": "Żądanie jest nieprawidłowe.",

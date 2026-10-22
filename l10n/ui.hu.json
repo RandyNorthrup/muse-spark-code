@@ -70,6 +70,17 @@
     "screenReader": "Képernyőolvasó mód",
     "terminalPerson": "Saját terminál",
     "terminalModel": "Modell terminálja",
+    "terminalShared": "Megosztott terminál",
+    "newTerminal": "Új terminál",
+    "attachTerminal": "Terminál csatlakoztatása",
+    "terminalId": "Terminálazonosító",
+    "close": "Bezárás",
+    "sessions": "Munkamenetek",
+    "workspaces": "Munkaterületek",
+    "version": "Verzió",
+    "challenges": "Függőben lévő bejelentkezési kihívások",
+    "help": "Csomóponti súgó",
+    "whatsNew": "Újdonságok",
     "upload": "Fájl feltöltése",
     "download": "Fájl letöltése",
     "trustWorkspace": "Megbízható munkaterület"
@@ -96,6 +107,43 @@
     "auditRetention": "Az ellenőrzési napló tárhelykorlátja {size}, megőrzési ideje {days}.",
     "unofficial": "Ez a csomópont nem hivatalos, és a Meta nem támogatja.",
     "unexpectedFailure": "A csomópont váratlan hibába ütközött, de tovább fut."
+  },
+  "nodeTerminal": {
+    "connecting": "Csatlakozás…",
+    "ended": "A terminál véget ért."
+  },
+  "nodeDashboard": {
+    "noSessions": "Nincs munkamenet.",
+    "noWorkspaces": "Nincs munkaterület."
+  },
+  "nodeAudit": {
+    "filterAll": "Minden esemény",
+    "filterSignin": "Bejelentkezések",
+    "filterSignup": "Regisztrációk",
+    "filterTerminal": "Terminálok",
+    "filterKeys": "Kulcsok",
+    "filterNode": "Csomópont",
+    "filterGit": "Git",
+    "filterApproval": "Jóváhagyások",
+    "allowed": "Engedélyezve",
+    "refused": "Elutasítva",
+    "noEntries": "Nincs naplóbejegyzés."
+  },
+  "nodeHelp": {
+    "title": "Csomóponti súgó",
+    "files": "Munkaterület fájljai: böngésszen, szerkesszen, töltsön fel és le.",
+    "terminal": "Terminál: parancssor ebben a munkaterületben. Megnyitása igazolja személyazonosságát.",
+    "dashboard": "Irányítópult: mérések, munkamenetek és munkaterületek ezen a csomóponton.",
+    "audit": "Napló: bejelentkezések és minden naplózott esemény, legfrissebb elöl.",
+    "git": "Git-változások: állapot, előkészítés, véglegesítés és ágak; a hálózat igazolja személyazonosságát.",
+    "sandbox": "Minden munkaterület egy homokozón osztozik, amíg meg nem érkeznek a területenkénti homokozók."
+  },
+  "nodeWhatsNew": {
+    "title": "Újdonságok ezen a csomóponton",
+    "terminal": "Terminál: parancssor a munkaterületben, minden munkamenet bejelentkezési naplózásával.",
+    "dashboard": "Irányítópult: CPU-, memória- és lemezmérések munkamenetekkel és munkaterületekkel.",
+    "audit": "Napló: bejelentkezések és csomóponti események, legfrissebb elöl.",
+    "sandbox": "Kétfelhasználós előzetes: minden munkaterület egyelőre egy homokozón osztozik."
   },
   "nodeErrors": {
     "invalidRequest": "A kérés érvénytelen.",

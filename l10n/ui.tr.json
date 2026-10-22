@@ -70,6 +70,17 @@
     "screenReader": "Ekran okuyucu modu",
     "terminalPerson": "Senin terminalin",
     "terminalModel": "Model terminali",
+    "terminalShared": "Paylaşılan terminal",
+    "newTerminal": "Yeni terminal",
+    "attachTerminal": "Terminal ekle",
+    "terminalId": "Terminal kimliği",
+    "close": "Kapat",
+    "sessions": "Oturumlar",
+    "workspaces": "Çalışma alanları",
+    "version": "Sürüm",
+    "challenges": "Bekleyen oturum açma doğrulamaları",
+    "help": "Düğüm yardımı",
+    "whatsNew": "Yenilikler",
     "upload": "Dosya yükle",
     "download": "Dosya indir",
     "trustWorkspace": "Çalışma alanına güven"
@@ -96,6 +107,43 @@
     "auditRetention": "Denetim depolaması {size} ile sınırlıdır ve {days} boyunca saklanır.",
     "unofficial": "Bu düğüm resmî değildir ve Meta tarafından onaylanmamıştır.",
     "unexpectedFailure": "Düğümde beklenmedik bir hata oluştu, çalışmaya devam ediyor."
+  },
+  "nodeTerminal": {
+    "connecting": "Bağlanıyor…",
+    "ended": "Terminal sona erdi."
+  },
+  "nodeDashboard": {
+    "noSessions": "Oturum yok.",
+    "noWorkspaces": "Çalışma alanı yok."
+  },
+  "nodeAudit": {
+    "filterAll": "Tüm olaylar",
+    "filterSignin": "Oturum açmalar",
+    "filterSignup": "Kayıtlar",
+    "filterTerminal": "Terminaller",
+    "filterKeys": "Anahtarlar",
+    "filterNode": "Düğüm",
+    "filterGit": "Git",
+    "filterApproval": "Onaylar",
+    "allowed": "İzin verildi",
+    "refused": "Reddedildi",
+    "noEntries": "Denetim kaydı yok."
+  },
+  "nodeHelp": {
+    "title": "Düğüm yardımı",
+    "files": "Çalışma alanı dosyaları: göz atın, düzenleyin, yükleyin ve indirin.",
+    "terminal": "Terminal: bu çalışma alanında bir kabuk. Açmak kimliğinizi doğrular.",
+    "dashboard": "Pano: bu düğümde ölçümler, oturumlar ve çalışma alanları.",
+    "audit": "Denetim günlüğü: oturum açmalar ve denetlenen her olay, en yeniden eskiye.",
+    "git": "Git değişiklikleri: durum, hazırlama, işleme ve dallar; ağ kimliğinizi doğrular.",
+    "sandbox": "Çalışma alanı korumalı alanları gelene dek tüm alanlar tek korumalı alanı paylaşır."
+  },
+  "nodeWhatsNew": {
+    "title": "Bu düğümde yenilikler",
+    "terminal": "Terminal: çalışma alanında bir kabuk, her oturum için oturum açma denetimiyle.",
+    "dashboard": "Pano: oturumlar ve çalışma alanlarıyla CPU, bellek ve disk ölçümleri.",
+    "audit": "Denetim günlüğü: oturum açmalar ve düğüm olayları, en yeniden eskiye.",
+    "sandbox": "İki kullanıcılı önizleme: tüm alanlar şimdilik tek korumalı alanı paylaşıyor."
   },
   "nodeErrors": {
     "invalidRequest": "İstek geçersiz.",
