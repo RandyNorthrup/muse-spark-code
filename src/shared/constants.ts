@@ -3023,6 +3023,12 @@ export type TabTrigger = (typeof TAB_TRIGGER_MODES)[number]
 // `museSpark.tabWithCopilot`: yield automatic requests to Copilot, or run both.
 export const TAB_WITH_COPILOT_MODES = ['yield', 'both'] as const
 export type TabWithCopilot = (typeof TAB_WITH_COPILOT_MODES)[number]
+// Next edit suggestions (M94b): the first stable VS Code release whose
+// `vscode.d.ts` carries the `inlineCompletionsAdditions` proposal's
+// `isInlineEdit`/`showRange`, or undefined while no stable release does.
+// Verified absent through @types/vscode 1.140.0 on 2026-10-22; when a
+// stable release carries them, it names itself here and the switch flips.
+export const TAB_NEXT_EDIT_STABLE_SINCE: string | undefined = undefined
 // A `beforeTabFileRead` answer waits this long, since a suggestion waits for it.
 export const TAB_HOOK_TIMEOUT_MS = 1500
 // Allow/deny verdicts kept per path and content digest.
