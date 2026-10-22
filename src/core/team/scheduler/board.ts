@@ -13,6 +13,7 @@ import {
   type TeamBoardTaskState,
 } from '../../../shared/team'
 import { fill } from '../../../shared/l10n/text'
+import { isDependencySatisfied } from './dependencies'
 
 export interface BoardSubmission {
   id: string
@@ -25,6 +26,12 @@ export interface BoardContext {
   workspaceFor(taskId: string): string | undefined
   workspaceMode(taskId: string): BoardSubmission['workspaceMode']
   report(taskId: string): string
+  /**
+  The dependency's finished head, as an opaque token: stacked tasks
+  start from it and refresh when it moves. Required only for boards
+  with stacked edges; tasks without them never call it.
+  */
+  head?(taskId: string): string
   countAttempt(task: TeamBoardTask, attempt: TeamAttempt): boolean
   /** The team ledger keeps terminal rows beside the board; journal both before dispatch. */
   archive(tasks: readonly TeamBoardTask[]): void
@@ -100,6 +107,12 @@ export class TaskBoard {
     const task = this.findTask(id)
     if (!task) throw new BoardRefusal('unknownTask', [id])
     return task
+  }
+
+  private requireHead(taskId: string): string {
+    const head = this.context.head?.(taskId)
+    if (head === undefined) throw new BoardRefusal('dependencies', [taskId])
+    return head
   }
 
   private retainOpen(tasks: readonly TeamBoardTask[]): TeamBoardTask[] {
@@ -290,9 +303,7 @@ export class TaskBoard {
         })
       } else if (
         dependencies.every(({ edge, task: dependency }) =>
-          edge.on === 'merged'
-            ? dependency.state === 'merged'
-            : dependency.state === 'done' || dependency.state === 'merged',
+          isDependencySatisfied(edge.on, dependency.state),
         )
       ) {
         task.state = 'ready'
@@ -307,6 +318,7 @@ export class TaskBoard {
   dependencyInput(id: string): {
     integrationTasks: string[]
     reports: { taskId: string; kind: 'data'; text: string }[]
+    stackedBases: { task: string; base: string }[]
   } {
     const task = this.requireTask(id)
     if (task.state !== 'ready') throw new BoardRefusal('dependencies', [id])
@@ -321,12 +333,60 @@ export class TaskBoard {
           kind: 'data',
           text: this.context.report(edge.task),
         })),
+      stackedBases: (task.depends_on ?? [])
+        .filter((edge) => edge.on === 'stacked')
+        .map((edge) => ({ task: edge.task, base: this.requireHead(edge.task) })),
     }
+  }
+
+  /**
+  The stacked bases the launcher must (re)base the worktree on before
+  the next begin: every stacked dependency whose current head differs
+  from the recorded one. Empty for tasks without stacked edges, which
+  never touch the head provider.
+  */
+  stackRefreshDue(id: string): readonly { task: string; base: string }[] {
+    const task = this.requireTask(id)
+    const recorded = new Map((task.stackBases ?? []).map((entry) => [entry.task, entry.base]))
+    const due: { task: string; base: string }[] = []
+    const edges = task.depends_on ?? []
+    for (const edge of edges) {
+      if (edge.on !== 'stacked') continue
+      const base = this.requireHead(edge.task)
+      if (recorded.get(edge.task) !== base) due.push({ task: edge.task, base })
+    }
+    return due
+  }
+
+  /**
+  Record the stacked bases the launcher based the worktree on. Every
+  base must still equal the dependency's current head: a dependency
+  that moved again fails the acknowledgement, and the launcher
+  refreshes once more. Never records a base the worktree does not have.
+  */
+  acknowledgeStackRefresh(id: string, bases: readonly { task: string; base: string }[]): boolean {
+    const task = this.requireTask(id)
+    const given = new Map(bases.map((entry) => [entry.task, entry.base]))
+    const recorded: { task: string; base: string }[] = []
+    const edges = task.depends_on ?? []
+    for (const edge of edges) {
+      if (edge.on !== 'stacked') continue
+      const base = this.requireHead(edge.task)
+      if (given.get(edge.task) !== base) return false
+      recorded.push({ task: edge.task, base })
+    }
+    task.stackBases = recorded
+    return true
   }
 
   begin(id: string, attempt: TeamAttempt, isReplacementQuarantined = false): boolean {
     const task = this.requireTask(id)
     if (this.paused || task.held || task.state !== 'ready') return false
+    // A stacked task whose bases moved waits for its refresh: the
+    // launcher reads stackRefreshDue, rebases the worktree, and
+    // acknowledges before this attempt. Throws when a stacked task has
+    // no head provider: a wiring bug, never a stall.
+    if (this.stackRefreshDue(id).length > 0) return false
     const prior = task.attempts.at(-1)
     if (
       prior &&

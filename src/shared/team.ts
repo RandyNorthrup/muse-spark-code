@@ -590,13 +590,21 @@ export const teamOnStallSchema = /* @__PURE__ */ z.enum(['reassign', 'ask', 'sto
 export const teamSharedFileSchema = /* @__PURE__ */ z.strictObject({
   pattern: path,
   kind: z.enum(['text', 'json-table', 'changelog']),
+  // Named regions (folding markers or anchors) that lease and predict
+  // independently; whole-file work still overlaps every region (M96d).
+  regions: z.optional(
+    z
+      .array(z.string().check(z.minLength(1), z.maxLength(TEAM_SCHED_ID_MAX_CHARS)))
+      .check(z.maxLength(TEAM_BOARD_MAX)),
+  ),
 })
 
 // Missing `on` is resolved from the dependency's workspace mode by the board,
-// never guessed as `merged` for every task by the boundary parser.
+// never guessed as `merged` for every task by the boundary parser. `stacked`
+// starts the dependent from its dependency's finished head (M96d).
 export const teamDependencySchema = /* @__PURE__ */ z.strictObject({
   task: id,
-  on: z.optional(z.enum(['merged', 'done'])),
+  on: z.optional(z.enum(['merged', 'done', 'stacked'])),
 })
 export const teamSchedulerFieldsSchema = /* @__PURE__ */ z.strictObject({
   key: z.optional(id),
@@ -605,6 +613,9 @@ export const teamSchedulerFieldsSchema = /* @__PURE__ */ z.strictObject({
   size: z._default(teamSizeSchema, 'M'),
   writes: z.optional(paths),
   overlap: z._default(z.enum(['serialize', 'allow']), 'serialize'),
+  // Roles besides the task's own whose free lanes may steal it, under the
+  // stolen policy both roles admit (M96d cross-role stealing).
+  alt_roles: z.optional(z.array(id).check(z.maxLength(TEAM_BOARD_MAX))),
 })
 export type TeamSchedulerFields = z.infer<typeof teamSchedulerFieldsSchema>
 
@@ -680,6 +691,18 @@ export const teamBoardTaskSchema = /* @__PURE__ */ z
     // continues until it converges or the person stops it (D121).
     reassignments: count,
     reviewRounds: count,
+    // The stacked dependency heads this task started from; a changed head
+    // refreshes the dependent at its next attempt boundary (M96d).
+    stackBases: z.optional(
+      z
+        .array(
+          z.strictObject({
+            task: id,
+            base: z.string().check(z.minLength(1), z.maxLength(TEAM_SCHED_ID_MAX_CHARS)),
+          }),
+        )
+        .check(z.maxLength(TEAM_BOARD_MAX)),
+    ),
   })
   .check(
     z.refine(
