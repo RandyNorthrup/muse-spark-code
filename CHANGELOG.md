@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- `Lock Vault Now` and `Open Estimator` are back in the Command Palette, and Help offers to run the vault and estimator commands.
+- Reports say there are no custom keybindings where the install contributes none instead of calling the keybindings source invalid; only a manifest that really fails to parse still reads invalid.
+- A report's checks source names its cause: no check runs recorded yet, how many runs could not be read, a cancelled read, or a read it could not complete.
+- Bare `providers usage` says a provider id is needed and lists the configured ids, and the help line shows `usage <id>`.
+- `providers accounts` names a provider with no accounts entry instead of reporting the account service as unconnected.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
