@@ -7,6 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Muse Wonder 1.0 is listed on the Model API backend at its own
+  Standard-mode tariff ($4.00 in, $0.20 cached, $20.00 out per million
+  tokens), with the same consent, budget and usage accounting as every
+  priced model.
+
+### Changed
+
+- The Muse Code SDK is at 1.4.11 and the Agent Client Protocol SDK at
+  2.0.1, following the ACP migration notes; every editor keeps working.
+- The reasoning effort slider offers each model only the tiers it
+  serves: `max` where the docs serve it, `ultra` on the Muse Code
+  backend only.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

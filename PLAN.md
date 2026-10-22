@@ -16606,6 +16606,14 @@ every branch.
   `session/set_config_option` and the panel list and accept them through the
   existing contributor confirmation; a person not entitled hears the
   provider's own refusal.
+- **Currency 2026-10-22 (lane `rec/rlsdkmuse`, recovery).**
+  `@muse-code/sdk` 1.4.11 (schema `sha256:f282ad16…1082` admitted;
+  `approval/decide` feedback gated on `acceptsFeedback`; the
+  `session/leave` handshake tolerated), `@agentclientprotocol/sdk`
+  2.0.1 (agent side on `/unstable`, so editors sending ACP-transport
+  servers keep working), `muse-wonder-1.0` listed and priced on the
+  Model API backend, and reasoning effort offered per exact model and
+  backend from the docs. Record: `docs/certification/rlsdkmuse.md`.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
