@@ -103,6 +103,7 @@ import {
 } from './keyStore'
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
+import type { SpendEstimate } from '../core/providers/providerSpend'
 import { takeCredentials } from './credentialVariables'
 import { keepGitCredentialRoutes } from './gitUserEnvironment'
 import { displayLanguage } from './locale'
@@ -2097,16 +2098,23 @@ async function main(): Promise<number> {
           // provider-grouped read the usage page serves. A journal failure
           // shows the provider's figures alone, never against a zero.
           readSpendEstimate: (provider, startMs, endMs) =>
-            (async () => {
-              const access = usageFor(log).access()
-              const state = await access.read({
-                range: 'custom',
-                from: usageLocalDay(startMs),
-                to: usageLocalDay(endMs),
-                groupBy: 'provider',
-                metric: 'cost',
-              })
-              return spendEstimateFromBreakdown(state.breakdown, [provider])
+            (async (): Promise<SpendEstimate | undefined> => {
+              try {
+                const access = usageFor(log).access()
+                const state = await access.read({
+                  range: 'custom',
+                  from: usageLocalDay(startMs),
+                  to: usageLocalDay(endMs),
+                  groupBy: 'provider',
+                  metric: 'cost',
+                })
+                return spendEstimateFromBreakdown(state.breakdown, [provider])
+              } catch (error: unknown) {
+                log.warn(
+                  `Spend estimate unreadable (${failureForLog(error)}); showing provider figures alone`,
+                )
+                return undefined
+              }
             })(),
         },
         { provider: command.provider, days: command.days, json: command.json },

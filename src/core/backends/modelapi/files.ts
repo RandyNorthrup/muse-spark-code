@@ -244,6 +244,23 @@ export function parseUploadReceipt(
 export class FilesApi {
   public constructor(private readonly deps: FilesApiDeps) {}
 
+  /**
+  Best-effort receipt cleanup, as a value: the upload failure stays the
+  thrown cause either way. The cleanup answers the operation's own
+  signal (PR #214 review): a stalled DELETE no longer outlives Stop. A
+  closed transport or a failed request still can leave the receipt
+  behind: the id travels with the failure so the ledger records it
+  durably instead of losing it (RVM105 1).
+  */
+  private async deleteReceipt(id: string, signal: AbortSignal): Promise<unknown> {
+    try {
+      await this.delete(id, signal)
+      return undefined
+    } catch (error: unknown) {
+      return error
+    }
+  }
+
   /** Bind every request at final dispatch to the ledger's key digest. */
   public forAccount(accountId: string): FilesApi {
     return new FilesApi({ ...this.deps, expectedAccountId: accountId })
@@ -378,16 +395,8 @@ export class FilesApi {
     } catch (error: unknown) {
       // A known receipt is attributable; a lost receipt is bounded by expiry.
       if (createdId !== undefined) {
-        try {
-          // The receipt cleanup answers the operation's own signal (PR #214
-          // review): a stalled DELETE no longer outlives Stop.
-          await this.delete(createdId, signal)
-        } catch {
-          // A closed transport or a failed request still can leave the
-          // receipt behind: the id travels with the failure so the ledger
-          // records it durably instead of losing it (RVM105 1).
-          throw new UploadCleanupPendingError(createdId, { cause: error })
-        }
+        const cleanup = await this.deleteReceipt(createdId, signal)
+        if (cleanup !== undefined) throw new UploadCleanupPendingError(createdId, { cause: error })
       }
       throw error
     } finally {

@@ -12,6 +12,7 @@ import {
   type PayerCredential,
   type ConversationOwner,
 } from './billingRoute'
+import { failureForLog } from '../musecode/logText'
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
@@ -5931,8 +5932,8 @@ export class ModelApiSession implements ScheduledAgentSession {
                 let feature: AttemptFeature = isCompaction ? 'compaction' : 'ordinary'
                 if (isPaidRoute) feature = paidFeature ?? 'webSearch'
                 current = await this.attemptBillingRoute(body.model, feature)
-              } catch {
-                throw new Error(UI_TEXT.subscriptionKey.billingChanged)
+              } catch (error: unknown) {
+                throw new Error(UI_TEXT.subscriptionKey.billingChanged, { cause: error })
               }
               if (
                 current?.kind !== route.kind ||
@@ -8006,6 +8007,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       budgetScope = await unlessStopped(this.ownedBudgetScope(route), signal)
     } catch (error: unknown) {
       if (signal.aborted) throw new AbortedError()
+      this.deps.log.warn(`Auto reviewer admission failed (${failureForLog(error)}); asking instead`)
       return {
         decision: 'ask',
         note:

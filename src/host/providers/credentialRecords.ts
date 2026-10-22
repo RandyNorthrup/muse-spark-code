@@ -136,8 +136,10 @@ export async function readProviderAdminCredential(
   let parsed: unknown
   try {
     parsed = JSON.parse(stored)
-  } catch {
-    throw new Error(`The stored admin credential for provider ${id} is not valid JSON`)
+  } catch (error: unknown) {
+    throw new Error(`The stored admin credential for provider ${id} is not valid JSON`, {
+      cause: error,
+    })
   }
   const record = credentialRecordSchema.safeParse(parsed)
   if (!record.success) {

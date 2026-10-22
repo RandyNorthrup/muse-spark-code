@@ -21,6 +21,8 @@ import {
   setUiText as setProvidersUiText,
 } from '../host/backend/providersEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
+import type { Logger } from '../host/logger'
+import { failureForLog } from '../core/backends/musecode/logText'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl } = endpointPolicy
 import type { TransportResponse } from '../core/backends/modelapi/transport'
@@ -104,7 +106,9 @@ export interface ProvidersDeps {
   /**
   Our own estimate for the period, from the usage journal (PROVSPEND).
   Undefined when the journal recorded no spend for the provider: the
-  provider's figures are then shown alone, never against a zero.
+  provider's figures are then shown alone, never against a zero. The
+  reader never throws: a journal failure resolves undefined, recorded
+  where it happens.
   */
   readonly readSpendEstimate?: (
     provider: string,
@@ -227,7 +231,10 @@ export async function commitProviderChange(
           else await deps.secrets.store(entry, value)
         }
         return true
-      } catch {
+      } catch (error: unknown) {
+        // Only a store failure fails the rollback this way; anything else
+        // is not this restore's answer to give.
+        if (!(error instanceof StoreUnavailableError)) throw error
         return false
       }
     }
@@ -471,8 +478,8 @@ function ignoreProbeLog(): void {
 /**
 One pinned, authenticated provider GET as JSON: the shared read behind
 `getProviderJson` (D119) and `probeProvider` (D74). It answers the status
-with its parsed body, or the raw transport error with its signal for the
-caller to map; transport detail never reaches the terminal.
+with its parsed body, or the raw transport failure as `cause` with its
+signal for the caller to map; transport detail never reaches the terminal.
 */
 async function readProviderJson(
   fetchImpl: typeof fetch,
@@ -483,7 +490,7 @@ async function readProviderJson(
   failures: Pick<TransportDeps, 'parseError' | 'sendFailure'>,
 ): Promise<
   | { readonly status: number; readonly body: unknown }
-  | { readonly error: unknown; readonly signal: AbortSignal }
+  | { readonly cause: unknown; readonly signal: AbortSignal }
 > {
   const shared = await import('../host/backend/modelApiEntry')
   const auth = await import('../host/backend/configuredProvidersEntry')
@@ -545,7 +552,7 @@ async function readProviderJson(
       signal,
     )
   } catch (error: unknown) {
-    return { error, signal }
+    return { cause: error, signal }
   }
   try {
     return {
@@ -567,6 +574,7 @@ export async function getPinnedJsonPage(
   send: () => Promise<TransportResponse>,
   read: (result: TransportResponse) => Promise<unknown>,
   httpStatusOf: (error: unknown) => number | undefined,
+  log?: Logger,
 ): Promise<{ readonly status: number; readonly body: unknown }> {
   let result: TransportResponse
   try {
@@ -574,11 +582,17 @@ export async function getPinnedJsonPage(
   } catch (error: unknown) {
     const status = httpStatusOf(error)
     if (status === undefined) throw error
+    // The page itself reaches the caller, who reports it; the log, when
+    // the caller passes one, keeps the failure's kind beside the status.
+    log?.warn(`Pinned provider read answered HTTP ${String(status)} (${failureForLog(error)})`)
     return { status, body: undefined }
   }
   try {
     return { status: result.response.status, body: await read(result) }
-  } catch {
+  } catch (error: unknown) {
+    // The shared reader wraps a damaged body as the transport's own
+    // error; anything else is not this page's answer to give.
+    if (!(error instanceof Error) || error.name !== 'ModelApiError') throw error
     return { status: result.response.status, body: undefined }
   }
 }
@@ -600,8 +614,8 @@ async function getProviderJson(
   const via =
     transport ?? pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
   const read = await readProviderJson(via, provider, key, url, headers, {})
-  if ('error' in read) {
-    const error = read.error
+  if ('cause' in read) {
+    const error = read.cause
     if (error instanceof shared.ModelApiError && error.status !== 0) {
       return { status: error.status, body: undefined }
     }
@@ -739,8 +753,8 @@ async function probeWithTransport(
       parseError: reader.parseError,
       sendFailure: reader.sendFailure,
     })
-    if ('error' in read) {
-      const error = read.error
+    if ('cause' in read) {
+      const error = read.cause
       if (shared.isModelApiError(error) && error.status !== 0) {
         return { status: error.status, body: undefined, refusal: reader.refusal(error) }
       }

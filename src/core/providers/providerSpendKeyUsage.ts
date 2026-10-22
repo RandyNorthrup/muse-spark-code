@@ -4,7 +4,7 @@ first shared-shape spend report. This module stays small on purpose: the
 Models panel imports only this (never the admin/balance parsers), so its
 bundle does not carry them. No model call, no network request here.
 */
-import { Usd } from '../../shared/usd'
+import { Usd, UsdParseError } from '../../shared/usd'
 import type { ProviderSpendReport } from './providerSpend'
 
 /** Why a spend report is shown as a fixed sentence instead of figures. */
@@ -84,7 +84,8 @@ export function openRouterSpendReport(
 function snapshotDollars(value: number): string | SpendFailure {
   try {
     return Usd.from(value).toString()
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof UsdParseError)) throw error
     return unreadable()
   }
 }

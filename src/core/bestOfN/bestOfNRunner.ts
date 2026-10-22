@@ -28,6 +28,7 @@ import type {
 import { modelApiPaidTier, type PaidUseRequest } from '../../shared/paid'
 import type { SubagentUsage } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
+import { failureForLog } from '../backends/musecode/logText'
 import { isSamePath } from '../paths'
 import { pathModule } from '../workspaceRoot'
 import { worktreeAddArgs, worktreeHookPath, worktreeRemoveArgs } from '../worktrees'
@@ -521,6 +522,7 @@ export class BestOfNRunner {
         ...(sessionId !== undefined && { sessionId }),
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N attempt failed to start (${failureForLog(error)})`)
       if (!isTerminal(entry.attempt.status)) {
         const reason = error instanceof Error ? error.message : String(error)
         entry.attempt = { ...entry.attempt, status: 'failed', failureReason: reason }

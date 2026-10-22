@@ -4,6 +4,7 @@ import {
   type ConversationOwner,
   type BillingRoute,
 } from '../../core/backends/modelapi/billingRoute'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
@@ -464,6 +465,9 @@ export class ModelApiBackendManager {
               const route = await this.deps.getBillingRoute()
               if (route !== undefined) return route.accountId
             } catch (error: unknown) {
+              this.deps.log.warn(
+                `Billing route read failed (${failureForLog(error)}); trying the provider account`,
+              )
               const fallback = await this.deps.getProviderAccountId?.()
               if (fallback !== undefined) return fallback
               throw error
@@ -478,6 +482,7 @@ export class ModelApiBackendManager {
             // A refused subscription key reads as no key here, so an
             // unrelated provider's own account can still make the host
             // ready; the turn path surfaces the refusal itself.
+            this.deps.log.warn(`API key read failed (${failureForLog(error)}); reading as no key`)
             refusal = error instanceof Error ? error : new Error(String(error))
             key = undefined
           }
@@ -763,9 +768,10 @@ export class ModelApiBackendManager {
     let key: string | undefined
     try {
       key = await (this.deps.getPaidApiKey ?? this.deps.getApiKey)()
-    } catch {
+    } catch (error: unknown) {
       // A refused subscription key reads as no key here; the turn path
       // surfaces the refusal itself, and paid scopes stay unavailable.
+      this.deps.log.warn(`Paid key read failed (${failureForLog(error)}); paid scopes stay off`)
       const provider = await this.deps.getProviderAccountId?.()
       return provider === undefined ? undefined : payerCredentialSchema.parse(provider)
     }

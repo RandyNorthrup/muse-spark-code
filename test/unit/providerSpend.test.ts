@@ -387,7 +387,9 @@ const planFetch: SpendFetcher = () =>
   Promise.resolve({ status: 403, body: { error: 'unavailable for individual accounts' } })
 const forbiddenFetch: SpendFetcher = () => Promise.resolve({ status: 403, body: { error: 'nope' } })
 const brokenFetch: SpendFetcher = () => Promise.resolve({ status: 200, body: { nonsense: true } })
-const downFetch: SpendFetcher = () => Promise.reject(new Error('socket hang up'))
+// Undici's network-down shape: a TypeError with the socket failure as its cause.
+const downFetch: SpendFetcher = () =>
+  Promise.reject(new TypeError('fetch failed', { cause: new Error('socket hang up') }))
 
 describe('pagination, failures and the polling floor', () => {
   it('stops at the stated page bound instead of looping', async () => {
