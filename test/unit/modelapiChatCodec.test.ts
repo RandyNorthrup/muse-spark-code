@@ -686,8 +686,13 @@ describe('chat codec request goldens', () => {
       strict: true,
       parameters: {
         additionalProperties: false,
-        required: ['path', 'offset', 'limit'],
-        properties: { offset: { type: ['integer', 'null'] } },
+        // Strict mode requires every property, read_file's byte-range
+        // fields (RLLIMITS) among them; an optional one becomes nullable.
+        required: ['path', 'offset', 'limit', 'byteOffset', 'byteLength'],
+        properties: {
+          offset: { type: ['integer', 'null'] },
+          byteOffset: { type: ['integer', 'null'] },
+        },
       },
     })
     const before = encodeChatRequest(body, 'm', GROQ)
