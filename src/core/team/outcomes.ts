@@ -22,11 +22,11 @@ import {
 const idSchema = z.string().check(z.minLength(1))
 
 /**
- * One finished task that went through review. Findings ride as one entry
- * per finding (the history row's `findingSeverities` shape); the recorder
- * counts them by severity. Only reviewed tasks are recorded: every metric
- * the stats keep (acceptance, findings, rounds, time, redesigns) needs one.
- */
+One finished task that went through review. Findings ride as one entry
+per finding (the history row's `findingSeverities` shape); the recorder
+counts them by severity. Only reviewed tasks are recorded: every metric
+the stats keep (acceptance, findings, rounds, time, redesigns) needs one.
+*/
 export const teamTaskOutcomeSchema = z.object({
   roleId: idSchema,
   candidateId: idSchema,
@@ -55,11 +55,11 @@ function zeroStats(roleId: string, candidateId: string): TeamOutcomeStats {
 }
 
 /**
- * Folds one finished task into its role and candidate record. A record for
- * another role or candidate is refused, never merged: mixing pairs would
- * teach the wrong lesson. Findings add to their severities; first-review
- * acceptance is rounds of exactly one.
- */
+Folds one finished task into its role and candidate record. A record for
+another role or candidate is refused, never merged: mixing pairs would
+teach the wrong lesson. Findings add to their severities; first-review
+acceptance is rounds of exactly one.
+*/
 export function recordOutcome(
   current: TeamOutcomeStats | undefined,
   outcome: TeamTaskOutcome,
@@ -143,9 +143,9 @@ function isClearImprovement(challenger: ScoredCandidate, incumbent: ScoredCandid
 }
 
 /**
- * The first misplaced pair in current order: the most preferred qualifying
- * candidate that a clearly better one stands behind, with that better one.
- */
+The first misplaced pair in current order: the most preferred qualifying
+candidate that a clearly better one stands behind, with that better one.
+*/
 function findPassingPair(
   placed: readonly string[],
   scored: ReadonlyMap<string, ScoredCandidate>,
@@ -169,13 +169,13 @@ function findPassingPair(
 }
 
 /**
- * Suggests a reorder when one candidate is clearly better for the role: both
- * it and the candidate it passes have at least TEAM_LEARNED_MIN_TASKS tasks,
- * and its first-review acceptance rate leads by TEAM_OUTCOME_MIN_RATE_GAP.
- * Candidates below the evidence bar keep their slots, so thin evidence never
- * moves anyone. Returns undefined when the current order already holds, or
- * when no gap is clear. Deterministic on every platform: no locale compare.
- */
+Suggests a reorder when one candidate is clearly better for the role: both
+it and the candidate it passes have at least TEAM_LEARNED_MIN_TASKS tasks,
+and its first-review acceptance rate leads by TEAM_OUTCOME_MIN_RATE_GAP.
+Candidates below the evidence bar keep their slots, so thin evidence never
+moves anyone. Returns undefined when the current order already holds, or
+when no gap is clear. Deterministic on every platform: no locale compare.
+*/
 export function suggestRoleReorder(input: RoleReorderInput): RoleReorderSuggestion | undefined {
   const roleId = idSchema.parse(input.roleId)
   const order = input.order.map((id) => idSchema.parse(id))
@@ -227,10 +227,10 @@ export function suggestRoleReorder(input: RoleReorderInput): RoleReorderSuggesti
 }
 
 /**
- * Applies the suggestion to a preference list, but only while the role opted
- * in with `autoOrder`: anything else returns the list unchanged. The pool is
- * reordered exactly as the suggestion orders it; unknown ids never appear.
- */
+Applies the suggestion to a preference list, but only while the role opted
+in with `autoOrder`: anything else returns the list unchanged. The pool is
+reordered exactly as the suggestion orders it; unknown ids never appear.
+*/
 export function applyRoleAutoOrder(
   list: TeamPreferenceList,
   stats: readonly TeamOutcomeStats[],

@@ -72,10 +72,10 @@ export function candidateAgent(
 }
 
 /**
- * The live refusal for one candidate, before any capacity: authorship,
- * conditions, then the availability probe. `snapshot.conditions` must already
- * include the authorship (`selectionConditions`).
- */
+The live refusal for one candidate, before any capacity: authorship,
+conditions, then the availability probe. `snapshot.conditions` must already
+include the authorship (`selectionConditions`).
+*/
 export function liveCandidateSkip(
   candidate: TeamCandidate,
   agent: TeamAgentProfile,
@@ -199,13 +199,13 @@ export function selectionConditions(snapshot: TeamSelectionSnapshot) {
 }
 
 /**
- * The first entry with headroom, in pool order. Headroom means all of
- * D75's hold: `concurrent` has room, every `day` and `lifetime` cap (and
- * any `task` cap the entry sets) has room for the task's first request, the
- * agent is not marked or unavailable, and the per-agent, global, process,
- * turn and team limits have room. A pool with no entries answers
- * "not staffed" at once, under every policy.
- */
+The first entry with headroom, in pool order. Headroom means all of
+D75's hold: `concurrent` has room, every `day` and `lifetime` cap (and
+any `task` cap the entry sets) has room for the task's first request, the
+agent is not marked or unavailable, and the per-agent, global, process,
+turn and team limits have room. A pool with no entries answers
+"not staffed" at once, under every policy.
+*/
 export function selectTeamEntry(
   pool: TeamRolePool,
   snapshot: TeamSelectionSnapshot,
