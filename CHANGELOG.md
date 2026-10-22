@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A vault no longer reports itself lost when it was never set up.** The
+  vault's rollback record in the operating system's credential store is now
+  keyed to the vault it protects, so nothing outside that vault can read
+  or write it; existing vaults keep their record exactly where it was.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

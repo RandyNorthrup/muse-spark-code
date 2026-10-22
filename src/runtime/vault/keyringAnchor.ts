@@ -83,19 +83,15 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
       return
     }
     if (this.adoptionResolved || this.legacyAccount === undefined) return
-    let legacy: AnchorRecord | null
-    try {
-      legacy = await this.readAccount(this.legacyAccount)
-    } catch (error: unknown) {
-      // A root with no files owns nothing, so another root's damaged
-      // record reads as absent for it; a root with files fails closed.
-      if (!(error instanceof VaultError)) throw error
-      if (this.filesVaultId != null) throw error
+    if (this.filesVaultId == null) {
+      // A root with no files owns nothing: the shared account is never
+      // read for it, damaged or not.
       this.adopted = false
       this.adoptionResolved = true
       return
     }
-    this.adopted = this.filesVaultId != null && legacy?.vaultId === this.filesVaultId
+    const legacy = await this.readAccount(this.legacyAccount)
+    this.adopted = legacy?.vaultId === this.filesVaultId
     this.adoptionResolved = true
   }
 
@@ -162,11 +158,10 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
   }
   /**
   Binds this root's files' vault id for the pre-scoping record's adoption
-  (no store IO): the legacy account is consulted only when it names this
-  vault, and only while this root has no scoped record of its own. A root
-  with no files never adopts, so a fresh vault can never read the shared
-  account; a damaged legacy record fails closed for a root with files, and
-  reads as absent for a root without.
+  (no store IO): the legacy account is read only for a root with files,
+  adopted only when it names this vault, and only while this root has no
+  scoped record of its own. A root with no files never touches the shared
+  account; a damaged legacy record fails its owning root closed.
   */
   adoptLegacyScope(filesVaultId: string | null): void {
     this.filesVaultId = filesVaultId
