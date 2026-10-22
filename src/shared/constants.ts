@@ -840,7 +840,6 @@ export const SETTING_DEFAULTS = {
   // locked); only a budget the person sets caps the local day.
   tabDailyBudgetUsd: 0,
   editorChatModels: [],
-  editorChatDailyBudgetUsd: 0,
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
@@ -977,7 +976,6 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiTab',
   'tabModel',
   'editorChatModels',
-  'editorChatDailyBudgetUsd',
   'tabDailyBudgetUsd',
   'tabLanguages',
   'tabMultiline',

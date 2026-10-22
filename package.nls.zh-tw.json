@@ -265,6 +265,5 @@
   "config.reports.agentSources.description": "選擇讀取您自己的 Claude Code 或 Codex 用量和限制檔案。預設不啟用任何來源。絕不將對話本文與認證資料檔案作為報告來源讀取。",
   "config.reports.planMaxBytes.description": "報告讀取的最大計畫檔案（位元組）。除非您自行設定，否則不限：0（預設值）表示無論多大都讀取整個計畫，超過設定值的計畫將以註明您的限制的 input-size 偏差被拒絕。僅使用本機的設定。",
   "config.linuxDictationModel.description": "在本機 Linux x64/arm64 上啟用免費離線英語聽寫。首次下載 74 MiB 模型前會詢問。關閉將停止聽寫並刪除模型和未完成的下載；再次開啟並重新載入視窗即可啟用。Windows/macOS 不變。",
-  "config.editorChatModels.description": "明確提供給編輯器聊天的模型參照。任何已安裝的擴充功能都可透過這些模型使用您的供應商金鑰產生費用。預設關閉；需要已知價格或本機模型以及正數每日上限。請在模型與代理程式中設定。",
-  "config.editorChatDailyBudgetUsd.description": "所提供模型及所有編輯器視窗共用的每日美元上限。零停用請求。中斷的呼叫保留預留費用。在模型與代理程式中啟用模型時設定此上限。"
+  "config.editorChatModels.description": "明確提供給編輯器聊天的模型參照。任何已安裝的擴充功能都可透過這些模型使用您的供應商金鑰產生費用。預設關閉；需要已知價格或本機模型。請在模型與代理程式中設定。"
 }

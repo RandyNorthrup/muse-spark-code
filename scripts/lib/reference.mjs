@@ -633,7 +633,6 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     'modelApiSessionBudgetUsd',
     'paidDailyBudgetUsd',
     'tabDailyBudgetUsd',
-    'editorChatDailyBudgetUsd',
   ])
   const isSameSetting = (key, actual, expected) =>
     moneySettings.has(key)
