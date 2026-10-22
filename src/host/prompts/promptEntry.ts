@@ -3,7 +3,7 @@ import { pageConverter } from '../web/pageConverter'
 import type { Logger } from '../logger'
 import { uiLocale } from '../../shared/l10n/text'
 import { PromptInsertion } from './promptInsertion'
-import { isPromptStoreDamaged } from './promptFailure'
+import { isPromptStoreDamaged, safePromptMessages } from './promptFailure'
 import { createChatSharing } from './chatSharing'
 import { createChatSharePrivacy } from '../../core/sharing/privacy'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -344,27 +344,11 @@ async function hostCommands(deps: PromptHostDeps): Promise<PromptCommands> {
 /** The headless command boundary's failure words (unlike the panel boundary, the original fault rides along as `cause` so the log the reason points at can name it). */
 function safePromptCommandFailure(error: unknown, log?: Logger): Error {
   // The defined refusals every sharing surface reports (the same list the
-  // ACP adapter and the headless commands keep), read at use time so the
-  // installed language is the one shown. Anything else is an unexpected
-  // fault, never a prompt-file error: the boundary passes no raw text on,
-  // and the original fault rides along as `cause` (never shown) so the log
-  // the reason points at can name it.
-  const safeMessages = [
-    UI_TEXT.promptFileInvalid,
-    UI_TEXT.promptLimits,
-    UI_TEXT.promptStoreDamaged,
-    UI_TEXT.promptStoreBusy,
-    UI_TEXT.promptWorkspaceRequired,
-    UI_TEXT.shareRangeInvalid,
-    UI_TEXT.shareTooLarge,
-    UI_TEXT.shareAttachmentUnavailable,
-    UI_TEXT.sharePreviewExpired,
-    UI_TEXT.exportNothing,
-    UI_TEXT.exportHistoryUnavailable,
-    UI_TEXT.exportWaitForTurn,
-    UI_TEXT.shareConfidential,
-    UI_TEXT.shareCancelled,
-  ]
+  // panel boundary keeps). Anything else is an unexpected fault, never a
+  // prompt-file error: the boundary passes no raw text on, and the original
+  // fault rides along as `cause` (never shown) so the log the reason points
+  // at can name it.
+  const safeMessages = safePromptMessages()
   if (
     error instanceof Error &&
     (safeMessages.includes(error.message) ||
