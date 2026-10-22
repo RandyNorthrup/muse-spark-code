@@ -164,10 +164,25 @@ all sandbox-caused, in files nothing in the lane touches:
 
 ## Gate record (this lane's final runs)
 
-`tsc` (host, webview), `eslint --max-warnings=0`, `prettier --check`,
-`jscpd` (0 clones), `check:catches` (baseline regenerated for the
-three moved runner sites; counts unchanged), `check:l10n` (0
-problems), `check:reference` (66 commands, 103 settings, 306 CLI),
-`check:roadmap` (current). Full `npm run quality` in the final lane
-message. Live sign-in, live catalogue and live refresh remain open
+`npm run quality` run 1 stopped at `deadcode`: the new
+`subscriptionCommandsEntry.ts` barrel was missing from knip's entry
+list (fixed in `54d430cc7c`, knip exit 0). Run 2 passed every gate
+through `deadcode`/`cycles`/`duplication` and stopped at `test:unit`
+(10 files, 34 failed): the sandbox set above plus load-flake
+timeouts. A repeat full run failed 19 instead of 34 — the suite is
+nondeterministic on this loaded rig. Every non-sandbox failure in
+both runs was a default-timeout expiry (5 s test / 10 s hook), and
+each passes with less load in this tree: `githubWorkflowReleaseIsolation`
+and `legalTemplateSlots2` green in a 3-file run, `reportEngineBounds`
+green in a 2-file run, `legalLocalization` 1/1 alone (3.8 s),
+`noLimitsInput` 16/16 alone (slow test 3.9 s). None touches this
+lane's files, and none was changed. `npm run build` exit 0.
+`security:secrets`: the lane's 15 commits scan clean; the 3
+full-history findings predate the base. `security:sast` is
+sandbox-blocked (semgrep hardcodes `~/.cache/semgrep_version` on a
+read-only filesystem; hosted CI runs it). `test:a11y` on
+`models-empty` and `models-providers` (the lane's UI scenes):
+4 pages × 4 themes each, 0 violations (run with TMPDIR under the
+worktree: the sandbox TMPDIR path exceeds Chrome's socket limit).
+Live sign-in, live catalogue and live refresh remain open
 until xAI registers the app and the owner signs in.
