@@ -15,9 +15,8 @@ import {
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_MINUTE,
   MINUTES_PER_HOUR,
-  UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
+import { EstimateDiagnosticError } from '../diagnostic'
 import {
   usdNanos,
   scaleUsdNanos,
@@ -43,7 +42,8 @@ function fundedMilliseconds(hours: number): number {
   const milliseconds = Number(
     (duration.numerator * NANO_UNIT.denominator) / (duration.denominator * NANO_UNIT.numerator),
   )
-  if (!Number.isSafeInteger(milliseconds) || milliseconds <= 0) fail('invalid-funded-duration')
+  if (!Number.isSafeInteger(milliseconds) || milliseconds <= 0)
+    throw new EstimateDiagnosticError('provision: invalid-funded-duration')
   return milliseconds
 }
 const id = z.string().check(z.minLength(1), z.maxLength(ESTIMATE_ID_MAX_CHARS))
@@ -113,40 +113,6 @@ interface PreparedQuote {
   consumed: boolean
 }
 
-function fail(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
-}
-
-/** A failure that carries the step's own error for the catch gate. */
-function failWith(detail: string, cause: unknown): Error {
-  return new Error(fill(UI_TEXT.estimateFailed, { detail }), { cause })
-}
-
-/** A create/install/pair step that failed with the step's own error: the
-loop ends the server uncertain or failed naming the step instead of
-dropping the error. */
-export class ProvisionStepFailed extends Error {
-  readonly step: 'create' | 'install' | 'pair'
-  readonly server?: ProvisionedServer
-  constructor(step: 'create' | 'install' | 'pair', cause: unknown, server?: ProvisionedServer) {
-    super(`provision ${step} failed`, { cause })
-    this.step = step
-    if (server !== undefined) this.server = server
-  }
-}
-
-export function isProvisionStepFailed(error: unknown): error is ProvisionStepFailed {
-  return error instanceof ProvisionStepFailed
-}
-
-function provisionStepFailed(
-  step: 'create' | 'install' | 'pair',
-  cause: unknown,
-  server?: ProvisionedServer,
-): ProvisionStepFailed {
-  return new ProvisionStepFailed(step, cause, server)
-}
-
 function sumCosts(costs: Iterable<UsdNanos>, initial = usdNanos(0)): UsdNanos {
   let total = initial
   for (const cost of costs) total = addUsdNanos(total, cost)
@@ -172,17 +138,21 @@ export class EstimateProvisionRun {
     budgetUsd: number | undefined,
   ) {
     const budget = z.number().check(z.nonnegative()).safeParse(budgetUsd)
-    if (!budget.success) throw new Error(UI_TEXT.estimateBudgetRequired)
+    if (!budget.success)
+      throw new EstimateDiagnosticError('provision: budget-required', undefined, {
+        cause: budget.error,
+      })
     this.budgetUsd = budget.data
     this.budget = usdNanos(budget.data)
     this.clock = new EstimateProvisionClock(bindings.now, 'invalid-provision-clock')
     this.providers = new Map(bindings.providers.map((provider) => [provider.id, provider]))
-    if (this.providers.size !== bindings.providers.length) fail('duplicate-provider')
+    if (this.providers.size !== bindings.providers.length)
+      throw new EstimateDiagnosticError('provision: duplicate-provider')
   }
 
   private nodes(): EstimateProvisionNodeBindings {
     if (this.availability() === 'adviceOnly' || this.bindings.nodes === undefined)
-      throw new Error(UI_TEXT.estimateAdvice)
+      throw new EstimateDiagnosticError('advice-only')
     return this.bindings.nodes
   }
 
@@ -190,61 +160,79 @@ export class EstimateProvisionRun {
     return sumCosts(this.reservations.values())
   }
 
-  /** Create and register one server; a rejected step throws branded. */
+  /** Create and register one server; a failed step returns its error with the
+  partial server instead of throwing, so the loop can end it uncertain. */
   private async createServer(
     provider: EstimateProviderPort,
     serverQuote: EstimateServerQuote,
     cloudInit: string,
     expiresAt: string,
     nodes: EstimateProvisionNodeBindings,
-  ): Promise<ProvisionedServer> {
+  ): Promise<
+    | { server: ProvisionedServer }
+    | { failure: 'create'; cause: unknown; server?: ProvisionedServer }
+  > {
     let server: ProvisionedServer | undefined
     try {
-      server = provisionedServerSchema.parse(
+      const parsed = provisionedServerSchema.safeParse(
         await provider.create(
           structuredClone(serverQuote.size),
           structuredClone(serverQuote.image),
           cloudInit,
         ),
       )
+      if (!parsed.success)
+        throw new EstimateDiagnosticError('provision: invalid-receipt', undefined, {
+          cause: parsed.error,
+        })
+      server = parsed.data
       if (server.sizeId !== serverQuote.size.id || server.imageId !== serverQuote.image.id)
-        fail('created-server-identity')
+        throw new EstimateDiagnosticError('provision: created-server-identity')
       // The mandatory lifecycle validates the created state before
       // registration or installation.
       nodes.lifecycle.track(provider, server, expiresAt)
-      return server
+      return { server }
     } catch (error) {
-      throw provisionStepFailed('create', error, server)
+      return { failure: 'create', cause: error, ...(server !== undefined && { server }) }
     }
   }
 
-  /** Install and pair one created server; a rejected step throws branded. */
+  /** Install and pair one created server; a failed step returns its error
+  with the phase instead of throwing, so the loop can end it failed. */
   private async installServer(
     provider: EstimateProviderPort,
     created: ProvisionedServer,
     expiresAt: string,
     nodes: EstimateProvisionNodeBindings,
-  ): Promise<ProvisionedServer> {
+  ): Promise<{ status: ProvisionedServer } | { failure: 'install' | 'pair'; cause: unknown }> {
     let phase: 'install' | 'pair' = 'install'
     try {
-      if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
+      if (this.clock.now() >= Date.parse(expiresAt))
+        throw new EstimateDiagnosticError('provision: funded-lifetime-expired')
       await nodes.node.install(structuredClone(created))
-      const status = provisionedServerSchema.parse(await provider.status(created.id))
+      const parsed = provisionedServerSchema.safeParse(await provider.status(created.id))
+      if (!parsed.success)
+        throw new EstimateDiagnosticError('provision: invalid-receipt', undefined, {
+          cause: parsed.error,
+        })
+      const status = parsed.data
       if (
         status.id !== created.id ||
         status.sizeId !== created.sizeId ||
         status.imageId !== created.imageId ||
         status.state !== 'running'
       )
-        fail('node-not-ready')
-      if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
+        throw new EstimateDiagnosticError('provision: node-not-ready')
+      if (this.clock.now() >= Date.parse(expiresAt))
+        throw new EstimateDiagnosticError('provision: funded-lifetime-expired')
       phase = 'pair'
       await nodes.node.pair(structuredClone(status))
-      if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
+      if (this.clock.now() >= Date.parse(expiresAt))
+        throw new EstimateDiagnosticError('provision: funded-lifetime-expired')
       nodes.lifecycle.activity(provider.id, created.id, false)
-      return status
+      return { status }
     } catch (error) {
-      throw provisionStepFailed(phase, error)
+      return { failure: phase, cause: error }
     }
   }
 
@@ -265,7 +253,12 @@ export class EstimateProvisionRun {
   catalog is never substituted for a connected provider's selected size.
   */
   quote(input: readonly EstimateServerRequest[]): Promise<EstimateProvisionQuote> {
-    const requests = requestsSchema.parse(input)
+    const parsedInput = requestsSchema.safeParse(input)
+    if (!parsedInput.success)
+      throw new EstimateDiagnosticError('provision: invalid-request', undefined, {
+        cause: parsedInput.error,
+      })
+    const requests = parsedInput.data
     return this.owner.run(async () => {
       this.nodes()
       const costs = new Map<string, UsdNanos>()
@@ -275,33 +268,51 @@ export class EstimateProvisionRun {
       for (const request of requests) {
         fundedMilliseconds(request.billedHours)
         const provider = this.providers.get(request.providerId)
-        if (!provider) fail('provider-not-connected')
+        if (!provider) throw new EstimateDiagnosticError('provision: provider-not-connected')
         let selection = selections.get(provider.id)
         if (!selection) {
+          let rawSizes: unknown
+          let rawImages: unknown
           try {
-            selection = {
-              sizes: z.array(providerSizeSchema).parse(await provider.sizes()),
-              images: z.array(providerImageSchema).parse(await provider.images()),
-            }
+            rawSizes = await provider.sizes()
+            rawImages = await provider.images()
           } catch (error) {
-            throw failWith('provider-catalog', error)
+            throw new EstimateDiagnosticError(
+              'provision: provider-catalog-unavailable',
+              undefined,
+              {
+                cause: error,
+              },
+            )
           }
+          const sizes = z.array(providerSizeSchema).safeParse(rawSizes)
+          const images = z.array(providerImageSchema).safeParse(rawImages)
+          if (!sizes.success || !images.success)
+            throw new EstimateDiagnosticError(
+              'provision: provider-catalog-unavailable',
+              undefined,
+              {
+                cause: sizes.success ? images.error : sizes.error,
+              },
+            )
+          selection = { sizes: sizes.data, images: images.data }
           if (
             new Set(selection.sizes.map((size) => size.id)).size !== selection.sizes.length ||
             new Set(selection.images.map((image) => image.id)).size !== selection.images.length
           )
-            fail('duplicate-selection')
+            throw new EstimateDiagnosticError('provision: duplicate-selection')
           selections.set(provider.id, selection)
         }
         const size = selection.sizes.find((size) => size.id === request.sizeId)
         const image = selection.images.find((image) => image.id === request.imageId)
-        if (!size || !image) fail('unknown-size-image')
+        if (!size || !image) throw new EstimateDiagnosticError('provision: unknown-size-image')
         const machineClass = machineClasses.find((entry) => entry.id === size.classId)
         if (machineClass?.os !== image.os || machineClass.architecture !== image.architecture)
-          fail('incompatible-image')
+          throw new EstimateDiagnosticError('provision: incompatible-image')
         const cost = scaleUsdNanos(usdNanos(size.hourlyUsd), request.billedHours)
         const priceUsd = displayUsdNanos(cost)
-        if (!Number.isFinite(priceUsd)) fail('unrepresentable-price')
+        if (!Number.isFinite(priceUsd))
+          throw new EstimateDiagnosticError('provision: unrepresentable-price')
         costs.set(request.id, cost)
         const serverQuote: EstimateServerQuote = {
           id: request.id,
@@ -316,7 +327,8 @@ export class EstimateProvisionRun {
       }
       const total = sumCosts(costs.values())
       const totalUsd = displayUsdNanos(total)
-      if (!Number.isFinite(totalUsd)) fail('unrepresentable-total')
+      if (!Number.isFinite(totalUsd))
+        throw new EstimateDiagnosticError('provision: unrepresentable-total')
       const quote: EstimateProvisionQuote = {
         id: `quote-${String(this.nextQuote++)}`,
         servers,
@@ -332,34 +344,42 @@ export class EstimateProvisionRun {
     return this.owner.run(async () => {
       const nodes = this.nodes()
       const prepared = this.quotes.get(quoteId)
-      if (!prepared || prepared.consumed) fail('unknown-or-consumed-quote')
+      if (!prepared || prepared.consumed)
+        throw new EstimateDiagnosticError('provision: unknown-or-consumed-quote')
       const { quote, costs } = prepared
       const total = sumCosts(costs.values(), this.reserved())
       // Refuse before preview, confirmation, cloud-init or any create request.
-      if (compareUsdNanos(total, this.budget) > 0) throw new Error(UI_TEXT.estimateCapExceeded)
+      if (compareUsdNanos(total, this.budget) > 0)
+        throw new EstimateDiagnosticError('provision: budget-exceeded')
       prepared.consumed = true
       try {
         await this.bindings.showPrices(structuredClone(quote))
       } catch (error) {
-        throw failWith('price-preview', error)
+        throw new EstimateDiagnosticError('provision: price-preview-failed', undefined, {
+          cause: error,
+        })
       }
       const outcomes: EstimateProvisionOutcome[] = []
       // The whole quote's nonnegative liabilities were admitted atomically.
       // Only this serialized owner can add a reservation during execution.
       for (const { quote: serverQuote, provider, cost } of prepared.servers) {
-        let isAllowed: boolean
+        let rawAllowed: unknown
         try {
-          isAllowed = z
-            .boolean()
-            .parse(
-              await this.bindings.confirmServer(
-                structuredClone(serverQuote),
-                structuredClone(quote),
-              ),
-            )
+          rawAllowed = await this.bindings.confirmServer(
+            structuredClone(serverQuote),
+            structuredClone(quote),
+          )
         } catch (error) {
-          throw failWith('server-confirmation', error)
+          throw new EstimateDiagnosticError('provision: confirmation-prompt-failed', undefined, {
+            cause: error,
+          })
         }
+        const parsedAllowed = z.boolean().safeParse(rawAllowed)
+        if (!parsedAllowed.success)
+          throw new EstimateDiagnosticError('provision: confirmation-prompt-failed', undefined, {
+            cause: parsedAllowed.error,
+          })
+        const isAllowed = parsedAllowed.data
         if (!isAllowed) {
           const denied: EstimateProvisionOutcome = {
             id: serverQuote.id,
@@ -372,63 +392,60 @@ export class EstimateProvisionRun {
         }
         const deadline = this.clock.now() + fundedMilliseconds(serverQuote.billedHours)
         if (!Number.isSafeInteger(deadline) || !Number.isFinite(new Date(deadline).getTime()))
-          fail('invalid-funded-lifetime')
+          throw new EstimateDiagnosticError('provision: invalid-funded-lifetime')
         const expiresAt = new Date(deadline).toISOString()
-        let cloudInit: string
+        let rawCloudInit: unknown
         try {
-          cloudInit = z
-            .string()
-            .check(z.minLength(1))
-            .parse(
-              await nodes.cloudInit(
-                structuredClone(serverQuote.size),
-                structuredClone(serverQuote.image),
-                expiresAt,
-              ),
-            )
+          rawCloudInit = await nodes.cloudInit(
+            structuredClone(serverQuote.size),
+            structuredClone(serverQuote.image),
+            expiresAt,
+          )
         } catch (error) {
-          throw failWith('cloud-init', error)
+          throw new EstimateDiagnosticError('provision: cloud-init-failed', undefined, {
+            cause: error,
+          })
         }
+        const parsedInit = z.string().check(z.minLength(1)).safeParse(rawCloudInit)
+        if (!parsedInit.success)
+          throw new EstimateDiagnosticError('provision: cloud-init-failed', undefined, {
+            cause: parsedInit.error,
+          })
+        const cloudInit = parsedInit.data
         if (cloudInit.trim().length === 0 || this.clock.now() >= Date.parse(expiresAt))
-          fail('expired-cloud-init')
+          throw new EstimateDiagnosticError('provision: expired-cloud-init')
         // Claim before create; the broker may create even if its reply is lost.
         this.reservations.set(`${quote.id}:${serverQuote.id}`, cost)
-        let created: ProvisionedServer
-        try {
-          created = await this.createServer(provider, serverQuote, cloudInit, expiresAt, nodes)
-        } catch (error) {
-          if (!isProvisionStepFailed(error)) throw error
+        const created = await this.createServer(provider, serverQuote, cloudInit, expiresAt, nodes)
+        if ('failure' in created) {
           const uncertain: EstimateProvisionOutcome = {
             id: serverQuote.id,
             providerId: provider.id,
             state: 'uncertain',
             failure: 'create',
-            ...(error.server !== undefined && { server: error.server }),
+            ...(created.server !== undefined && { server: created.server }),
           }
           this.outcomes.push(uncertain)
           outcomes.push(uncertain)
           break
         }
-        let status: ProvisionedServer
-        try {
-          status = await this.installServer(provider, created, expiresAt, nodes)
-        } catch (error) {
-          if (!isProvisionStepFailed(error)) throw error
-          await nodes.lifecycle.retire(provider.id, created.id)
+        const installed = await this.installServer(provider, created.server, expiresAt, nodes)
+        if ('failure' in installed) {
+          await nodes.lifecycle.retire(provider.id, created.server.id)
           const isCleaned = nodes.lifecycle
             .snapshots()
             .some(
               (lease) =>
                 lease.providerId === provider.id &&
-                lease.server.id === created.id &&
+                lease.server.id === created.server.id &&
                 lease.state === 'deleted',
             )
           const failed: EstimateProvisionOutcome = {
             id: serverQuote.id,
             providerId: provider.id,
             state: 'failed',
-            server: created,
-            failure: isCleaned ? error.step : 'cleanup',
+            server: created.server,
+            failure: isCleaned ? installed.failure : 'cleanup',
           }
           this.outcomes.push(failed)
           outcomes.push(failed)
@@ -438,7 +455,7 @@ export class EstimateProvisionRun {
           id: serverQuote.id,
           providerId: provider.id,
           state: 'ready',
-          server: status,
+          server: installed.status,
         }
         this.outcomes.push(ready)
         outcomes.push(ready)

@@ -10,15 +10,10 @@ import {
   type EstimateLimitFact,
   type EstimateAccountOwner,
 } from '../../shared/estimateFacts'
+import { EstimateDiagnosticError } from './diagnostic'
 
-export class EstimateFactSourceError extends Error {
-  constructor(readonly source: string) {
-    super(source)
-    this.name = 'EstimateFactSourceError'
-  }
-}
 function refuse(source: string): never {
-  throw new EstimateFactSourceError(source)
+  throw new EstimateDiagnosticError(`fact-source-invalid: ${source}`)
 }
 function instant(value: number, source: string): string {
   if (!Number.isSafeInteger(value) || value < 0 || !Number.isFinite(new Date(value).getTime()))

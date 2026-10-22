@@ -24,13 +24,25 @@ export function isLimitContextEvidence(value: string): boolean {
   return value.startsWith(CONTEXT_PREFIX)
 }
 export function encodeLimitContext(context: EstimateLimitContext): string {
-  return `${CONTEXT_PREFIX}${JSON.stringify(estimateLimitContextSchema.parse(context))}`
+  const parsed = estimateLimitContextSchema.safeParse(context)
+  if (!parsed.success)
+    throw new EstimateDiagnosticError('invalid-input: invalid-limit-context', undefined, {
+      cause: parsed.error,
+    })
+  return `${CONTEXT_PREFIX}${JSON.stringify(parsed.data)}`
 }
 export function resolveLimitContext(
   fleet: FleetSnapshot,
   supplied?: EstimateLimitContext,
 ): EstimateLimitContext {
-  if (supplied !== undefined) return estimateLimitContextSchema.parse(supplied)
+  if (supplied !== undefined) {
+    const parsed = estimateLimitContextSchema.safeParse(supplied)
+    if (!parsed.success)
+      throw new EstimateDiagnosticError('invalid-input: invalid-limit-context', undefined, {
+        cause: parsed.error,
+      })
+    return parsed.data
+  }
   const records = new Set(
     fleet.accounts
       .flatMap((account) => account.statedLimits ?? [])
@@ -39,9 +51,11 @@ export function resolveLimitContext(
   if (records.size === 0) return { facts: [], labels: [] }
   let value: unknown
   try {
-    if (records.size !== 1) throw new Error('conflicting-context')
+    if (records.size !== 1)
+      throw new EstimateDiagnosticError('invalid-input: invalid-limit-context')
     const encoded = records.values().next().value
-    if (encoded === undefined) throw new Error('missing-context')
+    if (encoded === undefined)
+      throw new EstimateDiagnosticError('invalid-input: invalid-limit-context')
     value = JSON.parse(encoded.slice(CONTEXT_PREFIX.length))
   } catch (error) {
     throw new EstimateDiagnosticError('invalid-input: invalid-limit-context', undefined, {

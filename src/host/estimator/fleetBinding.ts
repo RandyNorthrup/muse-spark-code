@@ -12,7 +12,7 @@ import {
 // The existing fleet contract carries scheduling projections only; current
 // allowance never invents a renewal period. Machine parallelism stays the
 // certified serial row, and missing CI remains demand-scoped uncertainty.
-import { ESTIMATE_FACT_TRANSLATORS, EstimateFactSourceError } from '../../core/estimator/limitFacts'
+import { ESTIMATE_FACT_TRANSLATORS } from '../../core/estimator/limitFacts'
 import type { EstimateLimitFact, EstimateAccountOwner } from '../../shared/estimateFacts'
 import type { OwnedUsageLimitSnapshot } from '../../core/usage/recording'
 import {
@@ -24,7 +24,7 @@ import { fleetSnapshotSchema, type FleetSnapshot } from '../../shared/estimate'
 import type { Account } from '../../shared/accounts'
 import { type AccountLimitsSnapshot } from '../../core/accounts/thresholds'
 import { subscriptionUsageSchema, type SubscriptionUsage } from '../../shared/usage'
-import { fleetFailure } from '../../runtime/estimator/command'
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 
 type FleetMachine = FleetSnapshot['machines'][number]
 type FleetAccount = FleetSnapshot['accounts'][number]
@@ -94,13 +94,7 @@ export interface FleetBindingIo {
 }
 
 function refuse(detail: string): never {
-  throw fleetFailure(detail)
-}
-
-/** A refusal that keeps the probe's error as its cause: the fixed diagnostic
-stays the contract; the cause preserves what the probe reported. */
-function refuseWith(detail: string, cause: unknown): Error {
-  return Object.assign(fleetFailure(detail), { cause })
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** A corrupt machine reading refuses instead of widening the forecast. */
@@ -227,7 +221,14 @@ function translate<T>(read: () => T): T {
   try {
     return read()
   } catch (error: unknown) {
-    if (error instanceof EstimateFactSourceError) refuse(`fleet-account-invalid: ${error.source}`)
+    // A fact-source refusal names its source; the fleet refusal keeps it.
+    if (
+      error instanceof EstimateDiagnosticError &&
+      error.estimateDiagnostic.startsWith('fact-source-invalid: ')
+    )
+      throw new EstimateDiagnosticError(
+        `fleet-account-invalid: ${error.estimateDiagnostic.slice('fact-source-invalid: '.length)}`,
+      )
     throw error
   }
 }
@@ -456,7 +457,9 @@ function currentOwner(deps: FleetUsageOwners) {
   try {
     value = deps.currentOwner?.()
   } catch (error: unknown) {
-    throw refuseWith('fleet-account-invalid: owner unavailable', error)
+    throw new EstimateDiagnosticError('fleet-account-invalid: owner unavailable', undefined, {
+      cause: error,
+    })
   }
   if (value === undefined) return
   const parsed = currentOwnerSchema.safeParse(value)
@@ -482,7 +485,9 @@ async function liveAccountSource(deps: FleetUsageOwners): Promise<FleetAccountSo
     observations = parsed.data
   } catch (error: unknown) {
     if (typeof error === 'object' && error !== null && 'estimateDiagnostic' in error) throw error
-    throw refuseWith('fleet-account-invalid: usage-read unavailable', error)
+    throw new EstimateDiagnosticError('fleet-account-invalid: usage-read unavailable', undefined, {
+      cause: error,
+    })
   }
   const after = currentOwner(deps) ?? before
   if (
@@ -607,7 +612,7 @@ export function extensionFleetSources(
               : 'configured',
         })
       } catch (error: unknown) {
-        throw refuseWith('fleet-caps-invalid', error)
+        throw new EstimateDiagnosticError('fleet-caps-invalid', undefined, { cause: error })
       }
     },
     activeAccount: async () => {
@@ -653,7 +658,7 @@ export function headlessFleetSources(
         }
         return machineReading(await deps.readSettings())
       } catch (error: unknown) {
-        throw refuseWith('fleet-caps-invalid', error)
+        throw new EstimateDiagnosticError('fleet-caps-invalid', undefined, { cause: error })
       }
     },
     activeAccount: async () => {
@@ -669,7 +674,9 @@ export function headlessFleetSources(
           error.code === 'unavailable'
             ? 'unavailable'
             : 'invalidAccount'
-        throw refuseWith(`fleet-account-invalid: registry ${reason}`, error)
+        throw new EstimateDiagnosticError(`fleet-account-invalid: registry ${reason}`, undefined, {
+          cause: error,
+        })
       }
       const owner = currentOwner(deps)
       const live = await liveAccountSource(deps)
