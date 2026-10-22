@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   NODE_CHALLENGE_TTL_MS,
   NODE_LISTENER_MAX_SOURCES,
   NODE_SETUP_TTL_MS,
   NODE_SIGNIN_BACKOFF_MAX_MS,
   NODE_SIGNIN_MAX_FAILURES,
+  UI_TEXT,
 } from '../../src/shared/constants'
 import { NodePasskeyAuth } from '../../src/runtime/node/auth/service'
 import { nodeStepUpSchema } from '../../src/shared/nodeAuth'
@@ -25,7 +26,7 @@ describe('H04 console enrollment', () => {
       return result
     }
     await expect(f.auth.consoleSetup()).rejects.toThrow('expired')
-    expect(f.console).not.toHaveBeenCalled()
+    expect(f.console.calls).toHaveLength(0)
   })
   it('does not extend the setup window by a slow persistence write', async () => {
     const f = authFixture()
@@ -40,13 +41,16 @@ describe('H04 console enrollment', () => {
     const challenge = await port.begin('enroll', f.code())
     f.advance(1)
     await expect(port.enroll(challenge.id, registrationProof)).rejects.toThrow()
-    expect(f.verifier.enroll).not.toHaveBeenCalled()
+    expect(f.verifier.enroll.calls).toHaveLength(0)
   })
   it('refuses a wrong console code before allocating a challenge', async () => {
     const f = authFixture()
     await f.auth.consoleSetup()
     await expect(f.auth.forSource('127.0.0.1').begin('enroll', 'b'.repeat(43))).rejects.toThrow()
-    expect(f.verifier.enroll).not.toHaveBeenCalled()
+    expect(f.verifier.enroll.calls).toHaveLength(0)
+    expect(
+      f.console.calls.filter(([line]) => line === UI_TEXT.nodeMessages.unexpectedFailure),
+    ).toEqual([])
   })
   it('stores only a code hash, enrolls once and refuses replay', async () => {
     const f = authFixture()
@@ -87,7 +91,7 @@ describe('H04 console enrollment', () => {
     f.advance(NODE_SETUP_TTL_MS)
     f.wall(-NODE_SETUP_TTL_MS)
     await expect(port.begin('enroll', f.code())).rejects.toThrow()
-    expect(f.verifier.enroll).not.toHaveBeenCalled()
+    expect(f.verifier.enroll.calls).toHaveLength(0)
   })
   it('rotates the console code and invalidates outstanding enrollments', async () => {
     const f = authFixture()
@@ -99,7 +103,7 @@ describe('H04 console enrollment', () => {
     await expect(port.begin('enroll', code)).rejects.toThrow()
     f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
     await expect(port.enroll(pending.id, registrationProof)).rejects.toThrow()
-    expect(f.verifier.enroll).not.toHaveBeenCalled()
+    expect(f.verifier.enroll.calls).toHaveLength(0)
   })
   it('refuses healthy-owner recovery and a restored setup window after wall rollback', async () => {
     const enrolled = await enrolledFixture()
@@ -124,7 +128,7 @@ describe('H04 console enrollment', () => {
     await expect(f.auth.consoleSetup()).rejects.toThrow()
     expect(f.store.read()).toEqual(before)
     expect(signal.aborted).toBe(false)
-    expect(f.lifecycle.ended).not.toHaveBeenCalled()
+    expect(f.lifecycle.ended.calls).toHaveLength(0)
     await expect(
       f.auth.sessions.verifyBearer(f.session.bearer, new AbortController().signal),
     ).resolves.toMatchObject({ id: f.session.session.id })
@@ -140,13 +144,13 @@ describe('H04 console enrollment', () => {
     const port = f.auth.forSource('127.0.0.1')
     const challenge = await port.begin('enroll', f.code())
     const key = await f.verifier.enroll()
-    f.verifier.enroll.mockImplementationOnce(() => {
+    f.verifier.enroll.once(() => {
       f.advance(NODE_CHALLENGE_TTL_MS)
       return Promise.resolve(key)
     })
     await expect(port.enroll(challenge.id, registrationProof)).rejects.toThrow()
     expect(f.store.read().passkeys).toEqual([])
-    expect(f.lifecycle.attached).not.toHaveBeenCalled()
+    expect(f.lifecycle.attached.calls).toHaveLength(0)
   })
   it('mints no session when enrollment audit outlasts the challenge', async () => {
     const f = authFixture()
@@ -160,7 +164,7 @@ describe('H04 console enrollment', () => {
       return result
     }
     await expect(port.enroll(challenge.id, registrationProof)).rejects.toThrow()
-    expect(f.lifecycle.attached).not.toHaveBeenCalled()
+    expect(f.lifecycle.attached.calls).toHaveLength(0)
     expect(f.audit).not.toContainEqual(expect.objectContaining({ outcome: 'allowed' }))
     expect(f.audit).toContainEqual(
       expect.objectContaining({ action: 'enroll', outcome: 'verified' }),
@@ -209,12 +213,25 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
   it('H05 refuses replay after a successful proof and retains nothing after a failed proof', async () => {
     const f = await enrolledFixture()
     const challenge = await f.port.begin('signin')
-    f.verifier.assert.mockRejectedValueOnce(new Error('invalid'))
+    f.verifier.assert.once(() => Promise.reject(new Error('invalid')))
     await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow()
+    // Attempt failures convert to unauthenticated before the journal sees them.
+    expect(
+      f.console.calls.filter(([line]) => line === UI_TEXT.nodeMessages.unexpectedFailure),
+    ).toEqual([])
     f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
     await expect(f.port.signIn(challenge.id, assertionProof)).resolves.toHaveProperty('bearer')
     await expect(f.auth.forSource('replay').signIn(challenge.id, assertionProof)).rejects.toThrow()
-    expect(f.verifier.assert).toHaveBeenCalledTimes(2)
+    expect(f.verifier.assert.calls).toHaveLength(2)
+    f.auth.endAll()
+  })
+  it('reports a broken audit write to the console without printing its text', async () => {
+    const f = await enrolledFixture()
+    f.store.append = () => Promise.reject(new Error('test disk failure with private text'))
+    const challenge = await f.port.begin('signin')
+    await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow('test disk failure')
+    expect(f.console.calls.at(-1)).toEqual([UI_TEXT.nodeMessages.unexpectedFailure])
+    expect(JSON.stringify(f.console.calls)).not.toContain('private text')
     f.auth.endAll()
   })
   it('refuses another session at begin/end and does not treat an unknown credential as the owner', async () => {
@@ -227,7 +244,10 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     await expect(
       f.port.signIn(challenge.id, { ...assertionProof, id: 'dW5rbm93bg', rawId: 'dW5rbm93bg' }),
     ).rejects.toThrow()
-    expect(f.verifier.assert).not.toHaveBeenCalled()
+    expect(f.verifier.assert.calls).toHaveLength(0)
+    expect(
+      f.console.calls.filter(([line]) => line === UI_TEXT.nodeMessages.unexpectedFailure),
+    ).toEqual([])
     f.auth.endAll()
   })
   it('persists counters, keeps sessions transient and binds step-up to its session', async () => {
@@ -246,10 +266,10 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     const bound = f.auth.forSource('127.0.0.1', f.session.session.id)
     const challenge = await bound.beginStepUp(f.session.session.id, 'maker.action', 'a'.repeat(64))
     await expect(f.port.stepUp(challenge.id, assertionProof)).rejects.toThrow()
-    expect(f.verifier.assert).not.toHaveBeenCalled()
+    expect(f.verifier.assert.calls).toHaveLength(0)
     f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
     const signin = await f.port.begin('signin')
-    f.verifier.assert.mockRejectedValueOnce(new Error('UV absent with sensitive bytes'))
+    f.verifier.assert.once(() => Promise.reject(new Error('UV absent with sensitive bytes')))
     await expect(f.port.signIn(signin.id, assertionProof)).rejects.toThrow('Sign in')
     expect(f.store.read().passkeys[0]?.failures).toBe(2)
     expect(JSON.stringify(f.audit)).not.toContain('sensitive')
@@ -259,27 +279,27 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     const f = await enrolledFixture()
     const attacker = f.auth.forSource('attacker')
     const challenge = await attacker.begin('signin')
-    f.verifier.assert.mockRejectedValueOnce(new Error('invalid'))
+    f.verifier.assert.once(() => Promise.reject(new Error('invalid')))
     await expect(attacker.signIn(challenge.id, assertionProof)).rejects.toThrow()
     const retry = await attacker.begin('signin')
     await expect(attacker.signIn(retry.id, assertionProof)).rejects.toThrow('Too many')
     const owner = await f.port.begin('signin')
     await expect(f.port.signIn(owner.id, assertionProof)).resolves.toHaveProperty('bearer')
-    expect(f.verifier.assert).toHaveBeenCalledTimes(2)
+    expect(f.verifier.assert.calls).toHaveLength(2)
     f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
     await expect(attacker.signIn(retry.id, assertionProof)).resolves.toHaveProperty('bearer')
     f.auth.endAll()
   })
   it('locks at 100, survives restart, and recovers only with a fresh console code', async () => {
     const f = await enrolledFixture()
-    f.verifier.assert.mockRejectedValue(new Error('invalid'))
+    f.verifier.assert.use(() => Promise.reject(new Error('invalid')))
     for (let index = 0; index < NODE_SIGNIN_MAX_FAILURES; index++) {
       f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
       const challenge = await f.port.begin('signin')
       await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow()
     }
     expect(f.store.read().passkeys[0]).toMatchObject({ disabled: true, failures: 100 })
-    expect(f.console).toHaveBeenCalledWith(expect.stringContaining('console'))
+    expect(f.console.calls).toContainEqual([expect.stringContaining('console')])
     const restarted = new NodePasskeyAuth(f.options)
     await expect(restarted.forSource('new-source').begin('signin')).rejects.toThrow()
     await restarted.consoleSetup()
@@ -321,13 +341,19 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
         : append(details)
     const signin = await f.port.begin('signin')
     await expect(f.port.signIn(signin.id, assertionProof)).rejects.toThrow()
-    expect(f.lifecycle.ended).toHaveBeenCalledOnce()
+    expect(f.lifecycle.ended.calls).toHaveLength(1)
     f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
     const bound = f.auth.forSource('127.0.0.1', f.session.session.id)
     const step = await bound.beginStepUp(f.session.session.id, 'maker.action', 'a'.repeat(64))
-    const issue = vi.spyOn(f.auth.sessions, 'issueProof')
+    const inner = f.auth.sessions.issueProof.bind(f.auth.sessions)
+    const issued: unknown[] = []
+    f.auth.sessions.issueProof = (...args) => {
+      const value = inner(...args)
+      issued.push(value)
+      return value
+    }
     await expect(bound.stepUp(step.id, assertionProof)).rejects.toThrow()
-    const proof = nodeStepUpSchema.parse(issue.mock.results[0]?.value)
+    const proof = nodeStepUpSchema.parse(issued[0])
     await expect(
       f.auth.sessions.consumeStepUp(proof, new AbortController().signal),
     ).rejects.toThrow()
@@ -343,7 +369,7 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
       return result
     }
     await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow()
-    expect(f.lifecycle.attached).toHaveBeenCalledOnce()
+    expect(f.lifecycle.attached.calls).toHaveLength(1)
     expect(f.audit).not.toContainEqual(
       expect.objectContaining({ action: 'signin', outcome: 'allowed' }),
     )
@@ -361,17 +387,17 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
       passkeys: value.passkeys.map((key) => ({ ...key, failures: NODE_SIGNIN_MAX_FAILURES - 1 })),
     }))
     const challenge = await f.port.begin('signin')
-    f.verifier.assert.mockRejectedValueOnce(new Error('invalid'))
+    f.verifier.assert.once(() => Promise.reject(new Error('invalid')))
     f.store.append = () => Promise.reject(new Error('audit unavailable'))
     await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow()
     expect(f.store.read().passkeys[0]?.disabled).toBe(true)
-    expect(f.console).toHaveBeenCalledWith(expect.stringContaining('console'))
-    expect(f.lifecycle.ended).toHaveBeenCalledOnce()
+    expect(f.console.calls).toContainEqual([expect.stringContaining('console')])
+    expect(f.lifecycle.ended.calls).toHaveLength(1)
   })
   it('does not resurrect an in-flight sign-in after lock', async () => {
     const f = await enrolledFixture()
     const challenge = await f.port.begin('signin')
-    f.verifier.assert.mockImplementationOnce(() => {
+    f.verifier.assert.once(() => {
       f.auth.endAll()
       return Promise.resolve(1)
     })
@@ -379,7 +405,7 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     await expect(
       f.auth.sessions.verifyBearer(f.session.bearer, new AbortController().signal),
     ).rejects.toThrow()
-    expect(f.lifecycle.attached).toHaveBeenCalledOnce()
+    expect(f.lifecycle.attached.calls).toHaveLength(1)
   })
   it('refuses bare IP, unconfigured names and HTTP origins', () => {
     const f = authFixture()

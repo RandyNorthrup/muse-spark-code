@@ -29,6 +29,19 @@ export async function checkTuiSocket(socketPath: string, uid: number | undefined
   }
 }
 
+// Malformed peer bytes end the connection as invalid; binding failures report.
+// A decoder TypeError is conservatively treated as peer garbage: decoders
+// throw it for bad bytes, and an adapter bug throwing it stays silent. The
+// loop's own bound throw carries the invalid-frame sentence.
+function isExpectedFrameError(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError ||
+    error instanceof TypeError ||
+    (error instanceof Error && error.name === 'ZodError') ||
+    (error instanceof Error && error.message === UI_TEXT.tuiInvalidFrame)
+  )
+}
+
 /** JSONL is framing only; the required binding owns every MHP payload schema. */
 export async function connectTuiSocket(options: {
   socketPath: string
@@ -36,6 +49,7 @@ export async function connectTuiSocket(options: {
   binding: TuiWireBinding
   receive: (event: TuiEvent) => void
   signal: AbortSignal
+  report(error: unknown): void
 }): Promise<TuiConnection> {
   options.signal.throwIfAborted()
   await checkTuiSocket(options.socketPath, options.uid)
@@ -52,10 +66,6 @@ export async function connectTuiSocket(options: {
         else rejectClosed(error)
       }
     })
-    // A connect failure has no consumer yet; closed is still observed by runTui.
-    void closed.catch(() => {
-      /* The connect promise owns the failure until a connection is returned. */
-    })
     const cleanup = () => {
       clearTimeout(timer)
       options.signal.removeEventListener('abort', abort)
@@ -67,7 +77,9 @@ export async function connectTuiSocket(options: {
       buffer = Buffer.alloc(0)
       socket.destroy()
       if (!isConnected) reject(error ?? new Error(UI_TEXT.tuiDisconnected))
-      finish?.(error)
+      // Nobody holds closed before a connection is returned, so a connect
+      // failure settles it instead of rejecting it unobserved.
+      finish?.(isConnected ? error : undefined)
     }
     const abort = () => {
       end(new Error(UI_TEXT.tuiDisconnected))
@@ -119,7 +131,9 @@ export async function connectTuiSocket(options: {
           options.receive(tuiEventSchema.parse(options.binding.decode(raw)))
           offset = newline + 1
         }
-      } catch {
+      } catch (error: unknown) {
+        // Any frame failure ends the connection as invalid; binding failures report.
+        if (!isExpectedFrameError(error)) options.report(error)
         end(new Error(UI_TEXT.tuiInvalidFrame))
       }
     })

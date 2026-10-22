@@ -66,7 +66,8 @@
     "terminalOpened": "已在 {workspace} 中開啟終端機 {id}。",
     "terminalEnded": "終端機 {id} 已結束，結束代碼為 {code}。",
     "auditRetention": "稽核儲存空間上限為 {size}，保留期限為 {days}。",
-    "unofficial": "此節點為非官方產品，未獲得 Meta 認可。"
+    "unofficial": "此節點為非官方產品，未獲得 Meta 認可。",
+    "unexpectedFailure": "節點發生意料之外的故障，但仍在繼續運作。"
   },
   "nodeErrors": {
     "invalidRequest": "要求無效。",
@@ -108,6 +109,7 @@
   "tuiUsage": "用法：muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "終端機轉譯器尚未安裝。",
   "tuiLineKeys": "Esc：停止全部。/stop /chat /diff /tasks /status。Enter 傳送。依編號選擇核准；只按 Enter 絕不會核准。",
+  "tuiUnexpectedFailure": "終端機發生意料之外的故障，已停止。",
   "companionVoiceCancel": "取消",
   "companionVoiceFailed": "聽寫失敗或遭拒絕。請檢查麥克風權限、所選引擎和每日預算，然後重新錄音。已傳送的付費請求仍可能產生費用。",
   "companionVoiceFree": "作業系統（免費）",

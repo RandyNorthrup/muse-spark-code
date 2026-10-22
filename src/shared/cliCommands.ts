@@ -87,6 +87,13 @@ export function cliCommands(shouldIncludeHeld = false) {
       'watch',
     ].map((action) => ['vault', action]),
     vaultHelp: [['vault']],
+    node: [
+      ['node'],
+      ...['init', 'serve', 'status', 'stop', 'lock', 'unlock', 'wipe'].map((action) => [
+        'node',
+        action,
+      ]),
+    ],
     acp: [],
     version: [],
   }
@@ -370,6 +377,12 @@ export function cliCommands(shouldIncludeHeld = false) {
       name: 'vault --help',
       description: UI_TEXT.referenceVaultHelp,
       text: { ui: 'referenceVaultHelp' },
+    },
+    {
+      route: 'node',
+      name: 'node <init|serve|status|stop|lock|unlock|wipe>',
+      description: UI_TEXT.referenceNode,
+      text: { ui: 'referenceNode' },
     },
   ].map((entry) => ({ ...entry, invocations: invocations[entry.route] ?? [[entry.route]] }))
 }

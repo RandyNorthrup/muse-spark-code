@@ -27,9 +27,9 @@ import { createNodeGitSnapshot, type NodeGitSnapshot } from './gitSnapshot'
 type GitMethod = Extract<NodeMethodName, `node/git/${string}`>
 type NetworkParams = NodeMethodParams<'node/git/push'>
 export interface NodeGitNetworkPort {
-  /** Atomically consumes/rechecks step-up, service registration, destination,
-   * host key, ref and head immediately before giving the trusted runner a socket.
-   * The wrapper pins that host key and refuses SSH config/proxy/forwarding. */
+  // Atomically consumes/rechecks step-up, service registration, destination,
+  // host key, ref and head immediately before giving the trusted runner a socket.
+  // The wrapper pins that host key and refuses SSH config/proxy/forwarding.
   use<T>(
     params: NetworkParams,
     signal: AbortSignal,

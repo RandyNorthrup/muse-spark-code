@@ -41,11 +41,29 @@ export function NodePairing(props: NodePairingProps) {
       } else await props.auth.signIn()
       props.signedIn(props.auth)
     } catch (error: unknown) {
-      setError(
-        error instanceof NodeBrowserAuthError
-          ? UI_TEXT.nodeErrors[error.code]
-          : UI_TEXT.nodeAuth.trustRequired,
-      )
+      // Pairing fails with Errors only: protocol (brand), transport (TypeError),
+      // payload (SyntaxError or ZodError) or the client's own refusals (Error).
+      if (error instanceof NodeBrowserAuthError) {
+        setError(UI_TEXT.nodeErrors[error.code])
+        return
+      }
+      if (error instanceof TypeError) {
+        setError(UI_TEXT.nodeAuth.trustRequired)
+        return
+      }
+      if (error instanceof SyntaxError) {
+        setError(UI_TEXT.nodeAuth.trustRequired)
+        return
+      }
+      if (error instanceof Error && error.name === 'ZodError') {
+        setError(UI_TEXT.nodeAuth.trustRequired)
+        return
+      }
+      if (error instanceof Error && error.name === 'Error') {
+        setError(UI_TEXT.nodeAuth.trustRequired)
+        return
+      }
+      throw error
     } finally {
       setBusy(false)
     }

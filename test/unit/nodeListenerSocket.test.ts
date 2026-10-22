@@ -1,7 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { upgradeNodeTerminal } from '../../src/runtime/node/listenerSocket'
-import { guardNodeRequest } from '../../src/runtime/node/listenerGuard'
-import { NODE_WS_AUTH_MS, NODE_TERMINAL_INPUT_BYTES } from '../../src/shared/constants'
+import { guardNodeRequest, NodeListenerError } from '../../src/runtime/node/listenerGuard'
+import { NODE_WS_AUTH_MS, NODE_TERMINAL_INPUT_BYTES, UI_TEXT } from '../../src/shared/constants'
+import type { NodeSession } from '../../src/shared/nodeAuth'
+import type { NodeEvent } from '../../src/shared/node'
+import { scripted } from './helpers/recordCalls'
 import {
   ListenerSocket,
   listenerFixture,
@@ -9,11 +12,12 @@ import {
   maskedFrame,
   flushListener,
 } from './helpers/node/listener'
-import { nodeBearer, nodeEvent } from './helpers/node/records'
+import { nodeBearer, nodeEvent, nodeSession } from './helpers/node/records'
 
-afterEach(() => {
-  vi.useRealTimers()
-})
+const sleep = (ms: number): Promise<void> =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms)
+  })
 function stream() {
   const fixture = listenerFixture()
   const socket = new ListenerSocket()
@@ -28,31 +32,49 @@ function stream() {
 const auth = { type: 'auth', bearer: nodeBearer, terminalId: 'terminal-1' }
 
 describe('M110-N WebSocket first-frame boundary', () => {
-  it('H07 closes at the actual five-second first-frame deadline without dispatch', async () => {
-    vi.useFakeTimers()
+  it(
+    'H07 closes at the actual five-second first-frame deadline without dispatch',
+    // The five-second first-frame deadline is the behavior under test.
+    { timeout: 15_000 },
+    async (): Promise<void> => {
+      expect(NODE_WS_AUTH_MS).toBe(5000)
+      const test = stream()
+      test.verifier.verifyBearer.use(
+        () =>
+          new Promise<never>(() => {
+            /* Never settles; the deadline must close the socket. */
+          }),
+      )
+      const start = Date.now()
+      test.open(maskedFrame(auth))
+      await flushListener()
+      await sleep(4500)
+      expect(test.socket.destroyed).toBe(false)
+      while (!test.socket.destroyed && Date.now() - start < 10_000) await sleep(50)
+      expect(test.socket.destroyed).toBe(true)
+      expect(Date.now() - start).toBeGreaterThanOrEqual(4900)
+      expect(test.verifier.verifyBearer.calls).toHaveLength(1)
+      expect(test.request.calls).toHaveLength(0)
+    },
+  )
+  it('H07 a verifier that resolves after the deadline cannot dispatch', async () => {
     const test = stream()
-    test.open()
-    await vi.advanceTimersByTimeAsync(NODE_WS_AUTH_MS - 1)
-    expect(test.socket.destroyed).toBe(false)
-    await vi.advanceTimersByTimeAsync(1)
-    expect(test.socket.destroyed).toBe(true)
-    expect(test.verifier.verifyBearer).not.toHaveBeenCalled()
-    expect(test.request).not.toHaveBeenCalled()
-  })
-  it('H07 an unfinished verifier cannot outrun the first-frame deadline', async () => {
-    vi.useFakeTimers()
-    const test = stream()
-    test.verifier.verifyBearer.mockImplementation(
-      () =>
-        new Promise(() => {
-          /* Wedged verifier. */
-        }),
+    let time = 0
+    const clock = { ...test.options.clock, monotonicMs: () => time }
+    test.verifier.verifyBearer.use(() => {
+      time = NODE_WS_AUTH_MS + 1
+      return Promise.resolve(nodeSession())
+    })
+    upgradeNodeTerminal(
+      test.handshake,
+      test.socket,
+      maskedFrame(auth),
+      { ...test.options, clock },
+      test.lifetime.signal,
     )
-    test.open(maskedFrame(auth))
     await flushListener()
-    await vi.advanceTimersByTimeAsync(NODE_WS_AUTH_MS)
     expect(test.socket.destroyed).toBe(true)
-    expect(test.request).not.toHaveBeenCalled()
+    expect(test.request.calls).toHaveLength(0)
   })
   it.each([
     { type: 'input', data: 'canary' },
@@ -63,8 +85,8 @@ describe('M110-N WebSocket first-frame boundary', () => {
     test.open(maskedFrame(frame))
     await flushListener()
     expect(test.socket.destroyed).toBe(true)
-    expect(test.request).not.toHaveBeenCalled()
-    expect(test.verifier.verifyBearer).not.toHaveBeenCalled()
+    expect(test.request.calls).toHaveLength(0)
+    expect(test.verifier.verifyBearer.calls).toHaveLength(0)
   })
   it.each(['Origin', 'Sec-Fetch-Site', 'Sec-Fetch-Mode', 'Sec-Fetch-Dest'])(
     'H07 rejects handshake with bad %s',
@@ -110,19 +132,19 @@ describe('M110-N WebSocket first-frame boundary', () => {
   it('H08 authenticates fragmented network chunks, scopes attach/input/resize/close to the shared port, and disposes on lock', async () => {
     const test = stream()
     test.open()
-    const methods = vi.fn(test.options.methods)
+    const methods = scripted(test.options.methods)
     Object.defineProperty(test.options, 'methods', { value: methods })
     Object.defineProperty(test.handshake.socket, 'remoteAddress', { value: 'fd42::25' })
     const bytes = maskedFrame(auth)
     test.socket.emit('data', bytes.subarray(0, 1))
     test.socket.emit('data', bytes.subarray(1))
     await flushListener()
-    expect(methods).toHaveBeenCalledWith(expect.objectContaining({ ownerId: 'owner' }), 'fd42::25')
-    expect(test.request).toHaveBeenCalledWith(
+    expect(methods.calls[0]).toEqual([expect.objectContaining({ ownerId: 'owner' }), 'fd42::25'])
+    expect(test.request.calls).toContainEqual([
       'node/terminal/attach',
       { terminalId: 'terminal-1' },
       expect.any(AbortSignal),
-    )
+    ])
     test.socket.emit(
       'data',
       Buffer.concat([
@@ -131,46 +153,75 @@ describe('M110-N WebSocket first-frame boundary', () => {
       ]),
     )
     await flushListener()
-    expect(test.request).toHaveBeenCalledWith(
+    expect(test.request.calls).toContainEqual([
       'node/terminal/write',
       { terminalId: 'terminal-1', data: 'canary' },
       expect.any(AbortSignal),
-    )
-    expect(test.request).toHaveBeenCalledWith(
+    ])
+    expect(test.request.calls).toContainEqual([
       'node/terminal/resize',
       { terminalId: 'terminal-1', size: { cols: 80, rows: 24 } },
       expect.any(AbortSignal),
-    )
+    ])
     test.ended.abort()
     expect(test.socket.destroyed).toBe(true)
-    expect(test.options.terminal).toHaveBeenCalledTimes(1)
+    expect(test.terminal.calls).toHaveLength(1)
     const stopped = stream()
     stopped.open(maskedFrame(auth))
     await flushListener()
     stopped.socket.emit('data', maskedFrame({ type: 'close' }))
     await flushListener()
-    expect(stopped.request).toHaveBeenCalledWith(
+    expect(stopped.request.calls).toContainEqual([
       'node/terminal/close',
       { terminalId: 'terminal-1' },
       expect.any(AbortSignal),
-    )
+    ])
     expect(stopped.socket.destroyed).toBe(true)
   })
   it('H08 ownership rejection and expired/revoked session never open or write a PTY', async () => {
     const test = stream()
-    test.request.mockRejectedValueOnce(new Error('not owned'))
+    test.request.once(() => Promise.reject(new NodeListenerError('forbidden')))
     test.open(maskedFrame(auth))
     await flushListener()
     expect(test.socket.destroyed).toBe(true)
-    expect(test.options.terminal).not.toHaveBeenCalled()
+    expect(test.terminal.calls).toHaveLength(0)
+    expect(test.print.calls).toEqual([])
     const expired = stream()
     expired.open(maskedFrame(auth))
     await flushListener()
-    expired.verifier.verifyBearer.mockRejectedValue(new Error('expired'))
+    expired.verifier.verifyBearer.use(() => Promise.reject(new Error('expired')))
     expired.socket.emit('data', maskedFrame({ type: 'input', data: 'secret' }))
     await flushListener()
     expect(expired.socket.destroyed).toBe(true)
-    expect(expired.request).toHaveBeenCalledTimes(1)
+    expect(expired.request.calls).toHaveLength(1)
+    expect(expired.print.calls).toEqual([])
+  })
+  it('H08 a non-protocol dispatch failure closes and reports without its text', async () => {
+    const test = stream()
+    test.request.use(() => Promise.reject(new Error('test dispatch bug with private text')))
+    test.open(maskedFrame(auth))
+    await flushListener()
+    expect(test.socket.destroyed).toBe(true)
+    expect(test.terminal.calls).toHaveLength(0)
+    expect(test.print.calls).toEqual([[UI_TEXT.nodeMessages.unexpectedFailure]])
+    expect(JSON.stringify(test.print.calls)).not.toContain('private text')
+  })
+  it('H08 a clock fault during ingest closes and reports', async () => {
+    const test = stream()
+    test.open()
+    const clock = test.options.clock
+    Object.defineProperty(test.options, 'clock', {
+      value: {
+        now: clock.now,
+        monotonicMs: () => {
+          throw new Error('test clock fault')
+        },
+      },
+    })
+    test.socket.emit('data', maskedFrame(auth))
+    await flushListener()
+    expect(test.socket.destroyed).toBe(true)
+    expect(test.print.calls).toEqual([[UI_TEXT.nodeMessages.unexpectedFailure]])
   })
   it.each([
     Buffer.from([0x81, 0x00]),
@@ -186,7 +237,8 @@ describe('M110-N WebSocket first-frame boundary', () => {
       test.open(bytes)
       await flushListener()
       expect(test.socket.destroyed).toBe(true)
-      expect(test.request).not.toHaveBeenCalled()
+      expect(test.request.calls).toHaveLength(0)
+      expect(test.print.calls).toEqual([])
     },
   )
   it('H09 bounds UTF8 input, queued bytes and terminal frame rate before dispatch', async () => {
@@ -199,7 +251,7 @@ describe('M110-N WebSocket first-frame boundary', () => {
     )
     await flushListener()
     expect(large.socket.destroyed).toBe(true)
-    expect(large.request).toHaveBeenCalledTimes(1)
+    expect(large.request.calls).toHaveLength(1)
     const queued = stream()
     queued.open(Buffer.alloc(2 * 1024 * 1024 + 1))
     await flushListener()
@@ -213,29 +265,35 @@ describe('M110-N WebSocket first-frame boundary', () => {
     )
     await flushListener()
     expect(flood.socket.destroyed).toBe(true)
-    expect(flood.request).toHaveBeenCalledTimes(1)
+    expect(flood.request.calls).toHaveLength(1)
   })
   it('H13 parses/scopes outbound events and disconnect aborts the authorized subscription', async () => {
     const test = stream()
-    const terminal = vi.fn<NonNullable<typeof test.options.terminal>>()
-    terminal.mockImplementation(async (_session, _id, emit, signal) => {
-      await emit({
-        ...nodeEvent(),
-        type: 'terminalOutput',
-        terminalId: 'terminal-1',
-        data: 'output',
-      })
-      expect(signal.aborted).toBe(false)
-      await new Promise<void>((resolve) => {
-        signal.addEventListener(
-          'abort',
-          () => {
-            resolve()
-          },
-          { once: true },
-        )
-      })
-    })
+    const terminal = scripted(
+      async (
+        _session: NodeSession,
+        _terminalId: string,
+        emit: (event: NodeEvent) => Promise<void>,
+        signal: AbortSignal,
+      ): Promise<void> => {
+        await emit({
+          ...nodeEvent(),
+          type: 'terminalOutput',
+          terminalId: 'terminal-1',
+          data: 'output',
+        })
+        expect(signal.aborted).toBe(false)
+        await new Promise<void>((resolve) => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve()
+            },
+            { once: true },
+          )
+        })
+      },
+    )
     upgradeNodeTerminal(
       test.handshake,
       test.socket,
@@ -247,7 +305,7 @@ describe('M110-N WebSocket first-frame boundary', () => {
     expect(test.socket.writes[1]?.toString()).toContain('output')
     test.socket.destroy()
     await flushListener()
-    expect(terminal).toHaveBeenCalledTimes(1)
+    expect(terminal.calls).toHaveLength(1)
     const wrong = stream()
     upgradeNodeTerminal(
       wrong.handshake,
@@ -281,7 +339,7 @@ describe('M110-N WebSocket first-frame boundary', () => {
       test.lifetime.signal,
     )
     await flushListener()
-    test.request.mockImplementationOnce(
+    test.request.once(
       (_method, _params, signal) =>
         new Promise<never>((_resolve, reject) => {
           signal.addEventListener(

@@ -66,7 +66,8 @@
     "terminalOpened": "Se abrió el terminal {id} en {workspace}.",
     "terminalEnded": "El terminal {id} terminó con el código de salida {code}.",
     "auditRetention": "El almacenamiento de auditoría se limita a {size} y se conserva durante {days}.",
-    "unofficial": "Este nodo no es oficial y no cuenta con el respaldo de Meta."
+    "unofficial": "Este nodo no es oficial y no cuenta con el respaldo de Meta.",
+    "unexpectedFailure": "El nodo encontró un error inesperado y sigue funcionando."
   },
   "nodeErrors": {
     "invalidRequest": "La solicitud no es válida.",
@@ -108,6 +109,7 @@
   "tuiUsage": "Uso: muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "El renderizador de terminal no está instalado.",
   "tuiLineKeys": "Esc: detener todo. /stop /chat /diff /tasks /status. Enter envía. Elige una aprobación por número; Enter solo nunca aprueba.",
+  "tuiUnexpectedFailure": "El terminal encontró un error inesperado y se detuvo.",
   "companionVoiceCancel": "Cancelar",
   "companionVoiceFailed": "El dictado falló o fue rechazado. Comprueba el permiso del micrófono, el motor elegido y el presupuesto diario, y vuelve a grabar. Una solicitud de pago ya enviada aún puede generar un cargo.",
   "companionVoiceFree": "Sistema operativo (gratis)",

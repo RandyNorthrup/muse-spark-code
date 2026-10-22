@@ -2,7 +2,7 @@ import { generateKeyPairSync, X509Certificate } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { readFile, rm, readdir } from 'node:fs/promises'
-import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import {
   checkNodeCertificate,
@@ -259,11 +259,19 @@ describe('H02 pinned non-CA certificate', () => {
       const root = await nodeTempRoot('m110-a2-cert-failure-')
       const files = new NodePrivateFiles(root)
       const write = NodePrivateFiles.prototype.write
-      const spy = vi
-        .spyOn(NodePrivateFiles.prototype, 'write')
-        .mockImplementationOnce(write)
-        .mockImplementationOnce(write)
-        .mockRejectedValueOnce(new Error('injected certificate-write failure'))
+      let writes = 0
+      const seen: string[][] = []
+      // Fail exactly the certificate commit while the two key writes pass through.
+      NodePrivateFiles.prototype.write = async function (
+        this: NodePrivateFiles,
+        name: string,
+        text: string,
+      ): Promise<void> {
+        writes += 1
+        seen.push([name, text])
+        if (writes === 3) throw new Error('injected certificate-write failure')
+        await write.call(this, name, text)
+      }
       try {
         await expect(
           issueNodeCertificate(
@@ -274,8 +282,8 @@ describe('H02 pinned non-CA certificate', () => {
             new AbortController().signal,
           ),
         ).rejects.toThrow()
-        expect(spy.mock.calls[2]?.[0]).toBe(NODE_TLS_CERT_FILE)
-        spy.mockRestore()
+        expect(seen[2]?.[0]).toBe(NODE_TLS_CERT_FILE)
+        NodePrivateFiles.prototype.write = write
         expect(await readdir(root)).toEqual([])
         const issued = await issueNodeCertificate(
           files,
@@ -295,7 +303,7 @@ describe('H02 pinned non-CA certificate', () => {
           ),
         ).toBe(issued.fingerprint)
       } finally {
-        spy.mockRestore()
+        NodePrivateFiles.prototype.write = write
         await rm(root, { recursive: true, force: true })
       }
     },

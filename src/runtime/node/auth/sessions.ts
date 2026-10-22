@@ -44,6 +44,18 @@ function tokenHash(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
+/** consumeStepUp rejects with session or proof failures; the proof is already failed closed. */
+export function isFailedProof(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    [
+      UI_TEXT.nodeErrors.expired,
+      UI_TEXT.nodeErrors.unauthenticated,
+      UI_TEXT.nodeErrors.stepUpRequired,
+    ].includes(error.message)
+  )
+}
+
 /** Only memory holds capabilities. Session IDs are public metadata, never credentials. */
 export class NodeMemorySessions implements NodeListenerVerifier {
   private readonly sessions = new Map<string, SessionRecord>()
@@ -53,6 +65,7 @@ export class NodeMemorySessions implements NodeListenerVerifier {
     private readonly clock: NodeClock,
     private readonly ownerId: string,
     private readonly lifecycle: NodeSessionLifecycle,
+    private readonly report: (error: unknown) => void,
   ) {}
 
   private required(id: string): SessionRecord {
@@ -78,8 +91,9 @@ export class NodeMemorySessions implements NodeListenerVerifier {
         try {
           this.required(record.session.id)
           this.schedule(record)
-        } catch {
-          /* Expiry already aborted and detached. */
+        } catch (error: unknown) {
+          // required() already detached the expired session; lifecycle failures are reported.
+          if (!isFailedProof(error)) this.report(error)
         }
       },
       Math.min(record.started + NODE_SESSION_MAX_MS, record.touched + NODE_SESSION_IDLE_MS) - now,
@@ -91,8 +105,9 @@ export class NodeMemorySessions implements NodeListenerVerifier {
     for (const id of this.sessions.keys()) {
       try {
         this.required(id)
-      } catch {
-        /* Expired sessions are removed. */
+      } catch (error: unknown) {
+        // Missing or expired sessions are already detached; creation fails loudly otherwise.
+        if (!isFailedProof(error)) throw error
       }
     }
     for (const [id, record] of this.proofs)
@@ -229,7 +244,9 @@ export class NodeMemorySessions implements NodeListenerVerifier {
     for (const id of this.sessions.keys()) {
       try {
         this.end(id)
-      } catch {
+      } catch (error: unknown) {
+        // Detach failures are reported per session; endAll still throws unavailable below.
+        this.report(error)
         isFailed = true
       }
     }

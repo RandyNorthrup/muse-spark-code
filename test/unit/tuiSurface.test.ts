@@ -39,7 +39,13 @@ async function waitForOutput(
       check()
       return
     } catch (error) {
-      if (Date.now() > deadline) throw error
+      if (Date.now() > deadline)
+        throw new Error(
+          `${description}: ${error instanceof Error ? error.message : String(error)}`,
+          {
+            cause: error,
+          },
+        )
       await sleep(10)
     }
   }
@@ -661,7 +667,8 @@ describe('M110 T surfaces', () => {
     })
     c.fail()
     expect(await run).toBe(1)
-    expect(t.output).toEqual([`${UI_TEXT.tuiDisconnected}\n`])
+    expect(t.output).toEqual([`${UI_TEXT.tuiDisconnected}\n`, `${UI_TEXT.tuiUnexpectedFailure}\n`])
+    expect(t.output.join('')).not.toContain('private account text')
     expect(t.cleanupCount()).toBe(4)
     expect(f.renders[0]?.options).toEqual({ exitOnCtrlC: false, patchConsole: false })
     expect(f.unmountCount()).toBe(1)
@@ -693,6 +700,29 @@ describe('M110 T surfaces', () => {
     }
     expect(result).toBe(1)
     expect(t.output.join('')).not.toContain('private send failure')
+    expect(t.output.join('')).toContain(UI_TEXT.tuiUnexpectedFailure)
+  })
+  it('a dead pipe at shutdown fails quietly while a probe bug surfaces to the caller', async () => {
+    for (const failure of [
+      Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }),
+      new Error('test probe bug'),
+    ]) {
+      const input = new PassThrough()
+      const output = new PassThrough()
+      const c = fakeConnection()
+      const run = runNative(input, output, Promise.resolve(c.connection))
+      await waitForOutput('first line', () => {
+        expect(output.readableLength).toBeGreaterThan(0)
+      })
+      output.write = (): boolean => {
+        throw failure
+      }
+      input.end()
+      if ('code' in failure) expect(await run).toBe(1)
+      else await expect(run).rejects.toThrow('test probe bug')
+      input.destroy()
+      output.destroy()
+    }
   })
   it('requires Ink for a graphical terminal before connecting', async () => {
     const t = fakeTerminal()

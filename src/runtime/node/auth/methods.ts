@@ -16,7 +16,7 @@ export function nodeAuthMethods(
   source: string,
   session: NodeSession | null,
   next: NodeMethodPort,
-  failure: (code: NodeListenerErrorCode) => Error,
+  failure: (code: NodeListenerErrorCode, options?: { cause?: unknown }) => Error,
 ): NodeMethodPort {
   const port = auth.forSource(source, session?.id)
   return {
@@ -78,7 +78,9 @@ export function nodeAuthMethods(
         if (!isAuth) throw error
         signal.throwIfAborted()
         // N supplies its constructor: class identity differs across lazy bundles.
-        throw failure(error instanceof NodeListenerError ? error.code : 'unauthenticated')
+        throw failure(error instanceof NodeListenerError ? error.code : 'unauthenticated', {
+          cause: error,
+        })
       }
     },
   }

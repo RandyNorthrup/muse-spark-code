@@ -1,10 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { recordCalls } from './helpers/recordCalls'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { NodeMethodPort } from '../../src/shared/hostApi/nodeMethods'
 import { createNodePasskeyAuth, nodeAuthMethods } from '../../src/runtime/node/auth/entry'
 import { NodeListenerError } from '../../src/runtime/node/listenerGuard'
-import { dispatchNodeMethod, nodeActionDigest } from '../../src/runtime/node/listenerMethods'
+import {
+  dispatchNodeMethod,
+  nodeActionDigest,
+  type NodeListenerMethodFactory,
+} from '../../src/runtime/node/listenerMethods'
 import {
   authFixture,
   enrolledFixture,
@@ -19,25 +24,33 @@ function downstream(): NodeMethodPort {
 describe('A1 listener bindings', () => {
   it('constructs auth failures in the caller realm and preserves delegated errors', async () => {
     const f = authFixture()
-    const foreign = vi.fn<(code: string) => Error>(() => new Error('caller transport failure'))
+    const foreignCalls = recordCalls<[string]>()
+    const foreign = (code: string): Error => {
+      foreignCalls.fn(code)
+      return new Error('caller transport failure')
+    }
     const next: NodeMethodPort = { request: () => Promise.reject(new Error('downstream failure')) }
     const port = nodeAuthMethods(f.auth, '127.0.0.1', null, next, foreign)
     const signal = new AbortController().signal
     await expect(port.request('node/auth/begin', { purpose: 'signin' }, signal)).rejects.toThrow(
       'caller transport failure',
     )
-    expect(foreign).toHaveBeenCalledWith('unauthenticated')
+    expect(foreignCalls.calls).toContainEqual(['unauthenticated'])
     await expect(port.request('node/stop', {}, signal)).rejects.toThrow('downstream failure')
-    expect(foreign).toHaveBeenCalledOnce()
+    expect(foreignCalls.calls).toHaveLength(1)
     const cancelled = AbortSignal.abort()
     await expect(
       port.request('node/auth/begin', { purpose: 'signin' }, cancelled),
     ).rejects.toThrow()
-    expect(foreign).toHaveBeenCalledOnce()
+    expect(foreignCalls.calls).toHaveLength(1)
   })
   it('H09 dispatches the actual source into the auth factory', async () => {
     const f = authFixture()
-    const methods = vi.fn(() => downstream())
+    const methodCalls = recordCalls<Parameters<NodeListenerMethodFactory>>()
+    const methods: NodeListenerMethodFactory = (...args) => {
+      methodCalls.fn(...args)
+      return downstream()
+    }
     await expect(
       dispatchNodeMethod(
         'node/stop',
@@ -68,7 +81,7 @@ describe('A1 listener bindings', () => {
         new AbortController().signal,
       ),
     ).rejects.toThrow('unbound')
-    expect(methods).toHaveBeenCalledWith(session.session, 'fd42::25')
+    expect(methodCalls.calls).toContainEqual([session.session, 'fd42::25'])
     f.auth.endAll()
   })
   it('installs the caller language and parses enrollment and signout through the catalog', async () => {
@@ -77,9 +90,7 @@ describe('A1 listener bindings', () => {
     const auth = createNodePasskeyAuth(f.options, translated, 'fr')
     try {
       await auth.consoleSetup()
-      const printed = f.console.mock.calls.findLast(([line]) =>
-        line.startsWith('Code local: '),
-      )?.[0]
+      const printed = f.console.calls.findLast(([line]) => line.startsWith('Code local: '))?.[0]
       const code = printed?.slice('Code local: '.length) ?? ''
       const publicPort = nodeAuthMethods(
         auth,
@@ -127,10 +138,10 @@ describe('A1 listener bindings', () => {
 
   it('dispatches Stop without UV and dispatches exactly one payload-bound maker action', async () => {
     const f = await enrolledFixture()
-    const sink = vi.fn<(method: string) => void>()
+    const sink = recordCalls<[string]>()
     const next: NodeMethodPort = {
       request: (method) => {
-        sink(method)
+        sink.fn(method)
         return Promise.reject(new Error('sink-dispatched'))
       },
     }
@@ -151,7 +162,7 @@ describe('A1 listener bindings', () => {
     await expect(
       dispatchNodeMethod('node/stop', {}, f.session.session, binding, signal),
     ).rejects.toThrow('sink-dispatched')
-    expect(f.verifier.assert).not.toHaveBeenCalled()
+    expect(f.verifier.assert.calls).toHaveLength(0)
     const params = {
       deviceId: 'printer',
       operation: 'start',
@@ -173,14 +184,14 @@ describe('A1 listener bindings', () => {
         signal,
       ),
     ).rejects.toThrow()
-    expect(sink).toHaveBeenCalledTimes(1)
+    expect(sink.calls).toHaveLength(1)
     await expect(
       dispatchNodeMethod('node/maker/action', exact, f.session.session, binding, signal),
     ).rejects.toThrow('sink-dispatched')
     await expect(
       dispatchNodeMethod('node/maker/action', exact, f.session.session, binding, signal),
     ).rejects.toThrow()
-    expect(sink.mock.calls.map(([method]) => method)).toEqual(['node/stop', 'node/maker/action'])
+    expect(sink.calls.map(([method]) => method)).toEqual(['node/stop', 'node/maker/action'])
     f.auth.endAll()
   })
 })

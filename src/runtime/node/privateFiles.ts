@@ -1,6 +1,6 @@
 // Owner-only state, outside every tools workspace (D90.23).
-import { constants } from 'node:fs'
-import { mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
+import { constants, type BigIntStats } from 'node:fs'
+import { mkdir, open, realpath, rename, unlink, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
@@ -13,8 +13,23 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 
+// The platform identity source behind owner and substitution checks.
+// Production passes the real sampler; a refusal drill passes a source that
+// reports the tampered identity the check must refuse.
+export interface NodeIdentitySource {
+  lstatIdentity(file: string): Promise<BigIntStats>
+  handleIdentity(handle: FileHandle): Promise<BigIntStats>
+}
+
 export class NodePrivateFiles {
-  constructor(readonly root: string) {}
+  private readonly identity: NodeIdentitySource
+
+  constructor(
+    readonly root: string,
+    identity?: NodeIdentitySource,
+  ) {
+    this.identity = identity ?? { lstatIdentity, handleIdentity }
+  }
 
   private checkOwner(uid: bigint, mode: bigint): void {
     if (process.platform === 'win32' || process.getuid === undefined) {
@@ -31,7 +46,7 @@ export class NodePrivateFiles {
 
   async prepare(): Promise<void> {
     await mkdir(this.root, { recursive: true, mode: NODE_DIRECTORY_MODE })
-    const info = await lstatIdentity(this.root)
+    const info = await this.identity.lstatIdentity(this.root)
     const resolved = await realpath(this.root)
     if (
       !info.isDirectory() ||
@@ -52,7 +67,7 @@ export class NodePrivateFiles {
   async read(name: string, maxBytes: number): Promise<string> {
     await this.prepare()
     const file = this.file(name)
-    const before = await lstatIdentity(file)
+    const before = await this.identity.lstatIdentity(file)
     if (!before.isFile() || before.isSymbolicLink() || before.nlink !== NODE_SINGLE_LINK) {
       throw new Error(UI_TEXT.nodeErrors.forbidden)
     }
@@ -62,7 +77,7 @@ export class NodePrivateFiles {
       constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
     )
     try {
-      const held = await handleIdentity(handle)
+      const held = await this.identity.handleIdentity(handle)
       if (!sameFile(before, held) || held.size > BigInt(maxBytes)) {
         throw new Error(UI_TEXT.nodeErrors.tooLarge)
       }
@@ -100,14 +115,19 @@ export class NodePrivateFiles {
         await directory.close()
       }
     } finally {
-      // The temporary name is random and private; unlink errors do not replace
-      // a write/rename failure. The next boot never treats it as committed state.
-      try {
-        await unlink(temporary)
-      } catch {
-        /* A successful rename already removed this name. */
-      }
+      // The temporary name is random and private. The next boot never treats
+      // it as committed state.
+      await removeTemporary(temporary)
     }
+  }
+}
+
+// A successful rename already removed this name; anything else surfaces.
+async function removeTemporary(temporary: string): Promise<void> {
+  try {
+    await unlink(temporary)
+  } catch (error: unknown) {
+    if (!isMissingFile(error)) throw error
   }
 }
 

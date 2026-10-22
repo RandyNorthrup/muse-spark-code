@@ -16,7 +16,7 @@ export class FakeNodeClock implements NodeClock {
     this.elapsedMs += ms
   }
   shiftWall(ms: number): void {
-    if (!Number.isSafeInteger(ms)) throw new Error('invalid wall-clock shift')
+    if (!Number.isSafeInteger(ms)) throw new TypeError('invalid wall-clock shift')
     this.wallMs += ms
   }
 }

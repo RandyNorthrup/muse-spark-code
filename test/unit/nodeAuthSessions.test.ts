@@ -14,18 +14,17 @@ const digest = 'a'.repeat(64)
 const time = { now: 1000, monotonic: 0 }
 const attachedCalls = recordCalls<[]>()
 const endedCalls = recordCalls<[string]>()
+const reportedCalls = recordCalls<[unknown]>()
 const lifecycle = { attached: attachedCalls.fn, ended: endedCalls.fn }
-const sessions = new NodeMemorySessions(
-  { now: () => time.now, monotonicMs: () => time.monotonic },
-  'owner',
-  lifecycle,
-)
+const clock = { now: () => time.now, monotonicMs: () => time.monotonic }
+const sessions = new NodeMemorySessions(clock, 'owner', lifecycle, reportedCalls.fn)
 afterEach(() => {
   sessions.endAll()
   time.now = 1000
   time.monotonic = 0
   attachedCalls.calls.length = 0
   endedCalls.calls.length = 0
+  reportedCalls.calls.length = 0
 })
 
 describe('H06/H08 memory capabilities', () => {
@@ -97,6 +96,22 @@ describe('H06/H08 memory capabilities', () => {
       lifecycle.ended = ended
     }
     expect(signals.every((item) => item.aborted)).toBe(true)
+    expect(reportedCalls.calls).toHaveLength(2)
+  })
+  it('fails creation loudly when detaching an expired session breaks', () => {
+    sessions.create()
+    time.monotonic = NODE_SESSION_IDLE_MS
+    const ended = lifecycle.ended
+    lifecycle.ended = () => {
+      throw new Error('detach failed')
+    }
+    try {
+      expect(() => sessions.create()).toThrow('detach failed')
+    } finally {
+      lifecycle.ended = ended
+    }
+    expect(reportedCalls.calls).toHaveLength(0)
+    expect(() => sessions.create()).not.toThrow()
   })
   it('bounds simultaneous sessions and releases expired slots', () => {
     for (let index = 0; index < NODE_MAX_SESSIONS; index++) sessions.create()

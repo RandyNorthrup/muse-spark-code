@@ -66,7 +66,8 @@
     "terminalOpened": "Otwarto terminal {id} w {workspace}.",
     "terminalEnded": "Terminal {id} zakończył się z kodem wyjścia {code}.",
     "auditRetention": "Pamięć dziennika audytu jest ograniczona do {size}, a okres przechowywania to {days}.",
-    "unofficial": "Ten węzeł jest nieoficjalny i nie jest zatwierdzony przez Meta."
+    "unofficial": "Ten węzeł jest nieoficjalny i nie jest zatwierdzony przez Meta.",
+    "unexpectedFailure": "Węzeł napotkał nieoczekiwany błąd i działa dalej."
   },
   "nodeErrors": {
     "invalidRequest": "Żądanie jest nieprawidłowe.",
@@ -108,6 +109,7 @@
   "tuiUsage": "Użycie: muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "Moduł renderowania terminala nie jest zainstalowany.",
   "tuiLineKeys": "Esc: zatrzymaj wszystko. /stop /chat /diff /tasks /status. Enter wysyła. Wybierz zgodę numerem; sam Enter nigdy nie zatwierdza.",
+  "tuiUnexpectedFailure": "Terminal napotkał nieoczekiwany błąd i zatrzymał się.",
   "companionVoiceCancel": "Anuluj",
   "companionVoiceFailed": "Dyktowanie nie powiodło się lub zostało odrzucone. Sprawdź uprawnienie mikrofonu, wybrany silnik i dzienny budżet, a następnie nagraj ponownie. Wysłane płatne żądanie może nadal zostać naliczone.",
   "companionVoiceFree": "System operacyjny (bezpłatnie)",

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { build } from 'esbuild'
 import {
   NODE_DEFAULT_PORT,
@@ -20,6 +20,7 @@ import {
   type NodeMethodPort,
   type NodeMethodResult,
 } from '../../src/shared/hostApi/nodeMethods'
+import { recordCalls } from './helpers/recordCalls'
 import { nodeAuthentication, nodeBearer, nodeDashboard, nodeHash } from './helpers/node/records'
 import { nodeRegistrationSchema } from '../../src/shared/nodeAuth'
 import { nodeGitRepositoryConfigSchema } from '../../src/shared/node'
@@ -390,14 +391,18 @@ describe('node MHP method extension', () => {
     )
   })
   it('provides a typed injected transport seam without guessing the frozen MHP envelope', async () => {
+    const requests = recordCalls<Parameters<NodeMethodPort['request']>>()
     const port: NodeMethodPort = {
-      request: vi.fn(() => Promise.reject(new Error('unbound test transport'))),
+      request: (...args) => {
+        requests.fn(...args)
+        return Promise.reject(new Error('unbound test transport'))
+      },
     }
     const method: NodeMethodName = 'node/files/read'
     await expect(port.request(method, fileParams, new AbortController().signal)).rejects.toThrow(
       'unbound',
     )
-    expect(port.request).toHaveBeenCalledWith(method, fileParams, expect.any(AbortSignal))
+    expect(requests.calls).toContainEqual([method, fileParams, expect.any(AbortSignal)])
   })
   it('fixes first-frame, rate and sign-in defaults for the owning runtime lanes', () => {
     expect({

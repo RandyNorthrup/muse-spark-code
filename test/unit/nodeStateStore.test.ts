@@ -2,12 +2,13 @@ import * as identity from '../../src/core/fs/fileIdentity'
 import { nodeTempRoot, nodeNativeTest } from './helpers/nodeNative'
 import { readFile, writeFile, chmod, symlink, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { NODE_STATE_FILE, NODE_ZERO_DIGEST } from '../../src/shared/constants'
 import { NodeStateStore } from '../../src/runtime/node/state'
 import { migrateNodeState } from '../../src/runtime/node/migrations'
 import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import { nodeState } from './helpers/node/records'
+import { recordCalls } from './helpers/recordCalls'
 
 const roots: string[] = []
 async function root() {
@@ -22,9 +23,10 @@ function initial() {
 }
 async function store() {
   const dir = await root()
-  const state = new NodeStateStore(dir)
+  const reported = recordCalls<[unknown]>()
+  const state = new NodeStateStore(dir, reported.fn)
   await state.initialize(initial())
-  return { dir, state }
+  return { dir, state, reported }
 }
 afterEach(async () => {
   for (const dir of roots.splice(0)) await rm(dir, { recursive: true, force: true })
@@ -32,9 +34,10 @@ afterEach(async () => {
 
 describe('M110-N durable state and audit', () => {
   nodeNativeTest('H15 persists canonical state and refuses a second initialization', async () => {
-    const { dir, state } = await store()
+    const { dir, state, reported } = await store()
     await expect(state.initialize(initial())).rejects.toThrow()
-    const reopened = new NodeStateStore(dir)
+    expect(reported.calls).toHaveLength(1)
+    const reopened = new NodeStateStore(dir, reported.fn)
     expect(await reopened.load()).toEqual(initial())
     const fileInfo = await stat(path.join(dir, NODE_STATE_FILE))
     const dirInfo = await stat(dir)
@@ -44,7 +47,7 @@ describe('M110-N durable state and audit', () => {
   nodeNativeTest(
     'H06 refuses secret fields and leaves original bytes on failed writes',
     async () => {
-      const { dir, state } = await store()
+      const { dir, state, reported } = await store()
       const file = path.join(dir, NODE_STATE_FILE)
       const before = await readFile(file)
       await expect(
@@ -52,10 +55,11 @@ describe('M110-N durable state and audit', () => {
       ).rejects.toThrow()
       expect(await readFile(file)).toEqual(before)
       expect(state.read()).toEqual(initial())
+      expect(reported.calls).toHaveLength(1)
     },
   )
   nodeNativeTest('H15 serializes concurrent updates and rejects stale generation', async () => {
-    const { state } = await store()
+    const { state, reported } = await store()
     const writes = await Promise.allSettled([
       state.update(1, (value) => ({ ...value, setup: null })),
       state.update(1, (value) => ({ ...value, config: { ...value.config, label: 'Other' } })),
@@ -63,11 +67,12 @@ describe('M110-N durable state and audit', () => {
     expect(writes.map((item) => item.status)).toEqual(['fulfilled', 'rejected'])
     expect(state.read().generation).toBe(2)
     expect(state.read().config.label).toBe('Home')
+    expect(reported.calls).toHaveLength(1)
   })
   nodeNativeTest(
     'H15 verifies audit content, ordering and its state head after restart',
     async () => {
-      const { dir, state } = await store()
+      const { dir, state, reported } = await store()
       await state.append({
         time: 1,
         sessionId: null,
@@ -82,7 +87,7 @@ describe('M110-N durable state and audit', () => {
         action: 'lock',
         outcome: 'allowed',
       })
-      const reopened = new NodeStateStore(dir)
+      const reopened = new NodeStateStore(dir, reported.fn)
       await reopened.load()
       expect(reopened.audit().map((entry) => entry.seq)).toEqual([1, 2])
       const file = path.join(dir, NODE_STATE_FILE)
@@ -95,14 +100,15 @@ describe('M110-N durable state and audit', () => {
       ]) {
         expect(mutation).not.toBe(good)
         await writeFile(file, mutation)
-        await expect(new NodeStateStore(dir).load()).rejects.toThrow()
+        await expect(new NodeStateStore(dir, reported.fn).load()).rejects.toThrow()
       }
+      expect(reported.calls).toHaveLength(4)
     },
   )
   nodeNativeTest(
     'H09 retains a verified anchor while enforcing audit byte and age caps',
     async () => {
-      const { dir, state } = await store()
+      const { dir, state, reported } = await store()
       await state.update(1, (value) => ({
         ...value,
         config: { ...value.config, audit: { maxBytes: 700, retentionDays: 1 } },
@@ -130,32 +136,35 @@ describe('M110-N durable state and audit', () => {
         outcome: 'allowed',
       })
       expect(state.audit().map((entry) => entry.seq)).toEqual([3])
-      const reopened = new NodeStateStore(dir)
+      const reopened = new NodeStateStore(dir, reported.fn)
       await reopened.load()
       expect(reopened.audit()).toEqual(state.audit())
+      expect(reported.calls).toHaveLength(0)
     },
   )
   nodeNativeTest('H15 refuses newer and malformed state without mutation', async () => {
-    const { dir } = await store()
+    const { dir, reported } = await store()
     const file = path.join(dir, NODE_STATE_FILE)
     const good = await readFile(file, 'utf8')
     for (const text of [good.replace('"state":{"v":1', '"state":{"v":2'), '{']) {
       await writeFile(file, text)
-      await expect(new NodeStateStore(dir).load()).rejects.toThrow()
+      await expect(new NodeStateStore(dir, reported.fn).load()).rejects.toThrow()
       expect(await readFile(file, 'utf8')).toBe(text)
     }
+    expect(reported.calls).toHaveLength(2)
   })
   nodeNativeTest('H11 refuses a public state root and symlink state files', async () => {
-    const { dir } = await store()
+    const { dir, reported } = await store()
     await chmod(dir, 0o755)
-    await expect(new NodeStateStore(dir).load()).rejects.toThrow()
+    await expect(new NodeStateStore(dir, reported.fn).load()).rejects.toThrow()
     await chmod(dir, 0o700)
     const target = path.join(dir, 'outside.json')
     const file = path.join(dir, NODE_STATE_FILE)
     await writeFile(target, await readFile(file), { mode: 0o600 })
     await rm(file)
     await symlink(target, file)
-    await expect(new NodeStateStore(dir).load()).rejects.toThrow()
+    await expect(new NodeStateStore(dir, reported.fn).load()).rejects.toThrow()
+    expect(reported.calls).toHaveLength(2)
     expect(() => new NodePrivateFiles(dir).file('../outside.json')).toThrow()
     await expect(new NodePrivateFiles(dir).read('../outside.json', 100)).rejects.toThrow()
   })
@@ -187,13 +196,17 @@ describe('M110-N durable state and audit', () => {
     await files.write('identity.json', 'test')
     const info = await identity.lstatIdentity(dir)
     info.uid += 1n
-    const owner = vi.spyOn(identity, 'lstatIdentity').mockResolvedValueOnce(info)
-    await expect(files.prepare()).rejects.toThrow()
-    owner.mockRestore()
+    const foreign = new NodePrivateFiles(dir, {
+      lstatIdentity: () => Promise.resolve(info),
+      handleIdentity: identity.handleIdentity,
+    })
+    await expect(foreign.prepare()).rejects.toThrow()
     const held = await identity.lstatIdentity(path.join(dir, 'identity.json'))
     held.ino += 1n
-    const swapped = vi.spyOn(identity, 'handleIdentity').mockResolvedValueOnce(held)
-    await expect(files.read('identity.json', 100)).rejects.toThrow()
-    swapped.mockRestore()
+    const swapped = new NodePrivateFiles(dir, {
+      lstatIdentity: identity.lstatIdentity,
+      handleIdentity: () => Promise.resolve(held),
+    })
+    await expect(swapped.read('identity.json', 100)).rejects.toThrow()
   })
 })

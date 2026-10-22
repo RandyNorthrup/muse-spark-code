@@ -51,6 +51,8 @@ export interface NodeToolHostOptions {
   readonly toolsHome: string
   readonly shell: string
   readonly pty: NodePtyFactory
+  /** PTY and terminal failures the caller never sees, fixed text at the edge. */
+  readonly report: (error: unknown) => void
 }
 type TerminalSink = (event: NodeTerminalHostEvent) => Promise<void>
 interface TerminalDimensions {
@@ -63,6 +65,26 @@ interface Terminal {
   readonly controller: AbortController
   readonly done: Promise<void>
   reason: 'exit' | 'closed' | 'stopped' | 'locked' | 'lost'
+}
+
+/** process.kill throws ESRCH for an already reaped child; anything else surfaces. */
+function isProcessGone(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH'
+}
+
+// Open races the caller already handles: stop aborts the opening, unknown or
+// untrusted workspaces are refused. Forbidden paths and sizes are validated
+// upstream, so they report as service bugs with adapter and disk failures.
+function isRoutineOpenFailure(error: unknown): boolean {
+  return (
+    (error instanceof Error && error.name === 'AbortError') ||
+    (error instanceof Error &&
+      [
+        UI_TEXT.nodeErrors.cancelled,
+        UI_TEXT.nodeErrors.noSuchWorkspace,
+        UI_TEXT.nodeErrors.untrusted,
+      ].includes(error.message))
+  )
 }
 
 /** Constructed only after the process has dropped to C's separately assigned tools UID. */
@@ -190,13 +212,14 @@ export class NodeProcessToolHost implements NodeToolHostPort {
         controller.signal.removeEventListener('abort', dispose)
       }
     }
-    function dispose(): void {
+    const dispose = (): void => {
       terminal.reason = 'lost'
       void (async () => {
         try {
           await pty.close()
-        } catch {
-          /* consume reports failure through done. */
+        } catch (error: unknown) {
+          // PTY teardown must not fail the process; consume still reports through done.
+          this.options.report(error)
         }
       })()
     }
@@ -205,11 +228,13 @@ export class NodeProcessToolHost implements NodeToolHostPort {
     this.terminals.set(id, terminal)
     started.resolve?.()
     // Observe spontaneous failures even when nobody calls close after exit.
+    // The event sink absorbs a gone peer, so residual done failures are terminal faults.
     void (async () => {
       try {
         await terminal.done
-      } catch {
-        /* consume has already disposed the PTY. */
+      } catch (error: unknown) {
+        // Completion failures must not fail the observer; closeTerminal still awaits done.
+        this.options.report(error)
       }
     })()
     return { id, user: NODE_TOOLS_USER }
@@ -250,14 +275,16 @@ export class NodeProcessToolHost implements NodeToolHostPort {
           if (child.pid === undefined) return
           try {
             process.kill(-child.pid, 'SIGTERM')
-          } catch {
+          } catch (error: unknown) {
+            if (!isProcessGone(error)) throw error
             /* Already exited. */
           }
           timer ??= setTimeout(() => {
             if (child.pid === undefined) return
             try {
               process.kill(-child.pid, 'SIGKILL')
-            } catch {
+            } catch (error: unknown) {
+              if (!isProcessGone(error)) throw error
               /* Already disposed. */
             }
           }, NODE_FORCE_KILL_MS)
@@ -299,8 +326,13 @@ export class NodeProcessToolHost implements NodeToolHostPort {
                 stderr: Buffer.concat(stderr).toString('utf8'),
               }),
             )
-          } catch {
-            reject(new Error(UI_TEXT.nodeErrors.invalidRequest))
+          } catch (error: unknown) {
+            // Only the result shape throws here; anything else surfaces.
+            if (error instanceof Error && error.name === 'ZodError') {
+              reject(new Error(UI_TEXT.nodeErrors.invalidRequest))
+            } else {
+              throw error
+            }
           }
         })
         if (controller.signal.aborted || signal.aborted) cancel()
@@ -330,8 +362,10 @@ export class NodeProcessToolHost implements NodeToolHostPort {
     const settled = (async () => {
       try {
         await operation
-      } catch {
-        /* Caller receives opening errors. */
+      } catch (error: unknown) {
+        // The caller receives opening errors through the operation; the journal
+        // must not reject, and unexpected open failures are reported.
+        if (!isRoutineOpenFailure(error)) this.options.report(error)
       }
     })()
     this.openings.set(opening, settled)

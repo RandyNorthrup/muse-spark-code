@@ -1,25 +1,77 @@
-import { vi } from 'vitest'
 import { Duplex } from 'node:stream'
 import { IncomingMessage } from 'node:http'
 import { Socket } from 'node:net'
 import { performance } from 'node:perf_hooks'
-import type { NodeMethodPort } from '../../../../src/shared/hostApi/nodeMethods'
+import type {
+  NodeMethodName,
+  NodeMethodParams,
+  NodeMethodPort,
+  NodeMethodResult,
+} from '../../../../src/shared/hostApi/nodeMethods'
 import type { NodeListenerOptions } from '../../../../src/runtime/node/listener'
 import type { NodeListenerVerifier } from '../../../../src/runtime/node/listenerGuard'
+import { recordCalls, scripted } from '../recordCalls'
 import { nodeConfig, nodeHash, nodeSession } from './records'
+
+function defaultRequest(): Promise<unknown> {
+  return Promise.resolve({ done: true })
+}
 
 export function listenerFixture() {
   const lines: string[] = []
   const ended = new AbortController()
-  const port: NodeMethodPort = {
-    request: vi.fn(() => Promise.reject(new Error('unbound test method'))),
+  // The port is generic over method names, so it keeps a hand-written
+  // recorder with the same queued one-shot surface as scripted(). The one
+  // `as` below is the seam: a scripted double cannot narrow a method result
+  // the way the real dispatcher does (PLAN.md §8).
+  type RequestBehavior = (
+    method: NodeMethodName,
+    params: unknown,
+    signal: AbortSignal,
+  ) => Promise<unknown>
+  const requestCalls: [NodeMethodName, unknown, AbortSignal][] = []
+  const requestQueue: RequestBehavior[] = []
+  let requestBehavior: RequestBehavior = defaultRequest
+  async function request<M extends NodeMethodName>(
+    method: M,
+    params: NodeMethodParams<M>,
+    signal: AbortSignal,
+  ): Promise<NodeMethodResult<M>> {
+    requestCalls.push([method, params, signal])
+    const next = requestQueue.shift() ?? requestBehavior
+    return (await next(method, params, signal)) as NodeMethodResult<M>
   }
-  const request = vi.mocked(port.request).mockResolvedValue({ done: true })
+  const requestStub = Object.assign(request, {
+    calls: requestCalls,
+    once: (behavior: RequestBehavior): void => {
+      requestQueue.push(behavior)
+    },
+    use: (behavior: RequestBehavior): void => {
+      requestBehavior = behavior
+    },
+    reset: (behavior: RequestBehavior = defaultRequest): void => {
+      requestQueue.length = 0
+      requestCalls.length = 0
+      requestBehavior = behavior
+    },
+  })
+  const port: NodeMethodPort = { request: requestStub }
   const verifier = {
-    verifyBearer: vi.fn<NodeListenerVerifier['verifyBearer']>().mockResolvedValue(nodeSession()),
-    sessionSignal: vi.fn(() => ended.signal),
-    consumeStepUp: vi.fn<NodeListenerVerifier['consumeStepUp']>(),
+    verifyBearer: scripted((_bearer: string, _signal: AbortSignal) =>
+      Promise.resolve(nodeSession()),
+    ),
+    sessionSignal: scripted((_sessionId: string) => ended.signal),
+    consumeStepUp: scripted(
+      (
+        _binding: Parameters<NodeListenerVerifier['consumeStepUp']>[0],
+        _signal: AbortSignal,
+      ): ReturnType<NodeListenerVerifier['consumeStepUp']> =>
+        Promise.reject(new Error('unbound test step-up')),
+    ),
   }
+  const methods = scripted(() => port)
+  const terminal = scripted(() => Promise.resolve())
+  const print = recordCalls<[string]>()
   const options: NodeListenerOptions = {
     config: { ...nodeConfig(), listener: { address: '127.0.0.1', port: 7443 } },
     ownerId: 'owner',
@@ -31,13 +83,14 @@ export function listenerFixture() {
       fingerprint: nodeHash,
     },
     verifier,
-    methods: () => port,
-    terminal: vi.fn(() => Promise.resolve()),
-    print: vi.fn((line: string) => {
+    methods,
+    terminal,
+    print: (line) => {
+      print.fn(line)
       lines.push(line)
-    }),
+    },
   }
-  return { options, verifier, request, ended, lines }
+  return { options, port, request: requestStub, verifier, methods, terminal, print, ended, lines }
 }
 
 export function listenerRequest(isWebsocket = false): IncomingMessage {

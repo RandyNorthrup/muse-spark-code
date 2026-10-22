@@ -21,6 +21,11 @@ const attemptsSchema = z
   .check(z.maxLength(NODE_MAX_PAGE_ITEMS))
 type Attempts = z.infer<typeof attemptsSchema>
 
+/** A duplicate admission is answered to the caller; journal failures report. */
+function isAttemptConflict(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.nodeErrors.conflict
+}
+
 /** A durable running attempt becomes blocked on boot, never automatically replayed. */
 export class NodeAttempts {
   private attempts: Attempts = []
@@ -29,6 +34,7 @@ export class NodeAttempts {
   constructor(
     private readonly files: NodePrivateFiles,
     private readonly attendance: NodeAttendance,
+    private readonly report: (error: unknown) => void,
   ) {}
 
   private transaction(change: (attempts: Attempts) => void): Promise<void> {
@@ -44,8 +50,10 @@ export class NodeAttempts {
     this.queue = (async () => {
       try {
         await result
-      } catch {
-        /* Keep the journal usable after a refused admission. */
+      } catch (error: unknown) {
+        // The tail must never reject, so later requests still run; the caller
+        // keeps the failure and unexpected journal failures are reported.
+        if (!isAttemptConflict(error)) this.report(error)
       }
     })()
     return result
@@ -111,11 +119,15 @@ export interface NodeServiceInstance {
   stop(): Promise<void>
 }
 
-/** The deployment starts one service; every restart rebuilds it sealed and reconciles. */
+/**
+The deployment starts one service; every restart rebuilds it sealed and reconciles.
+Service failures are reported and retried with backoff; pass `report` to observe them.
+*/
 export async function superviseNode(
   create: () => Promise<NodeServiceInstance>,
   signal: AbortSignal,
   sleep: (ms: number, signal: AbortSignal) => Promise<void>,
+  report?: (error: Error) => void,
 ): Promise<void> {
   const isStopping = () => signal.aborted
   let delay = NODE_RESTART_DELAY_MS
@@ -126,15 +138,17 @@ export async function superviseNode(
       await service.run(signal)
       return
     } catch (error: unknown) {
-      if (isStopping()) return
+      // Shutdown returns; service failures are reported and retried; anything else surfaces.
+      if (signal.aborted && error instanceof Error) return
       if (!(error instanceof Error)) throw error
+      report?.(error)
     } finally {
       await service?.stop()
     }
     try {
       await sleep(delay, signal)
     } catch (error: unknown) {
-      if (isStopping()) return
+      if (signal.aborted && error instanceof Error) return
       throw error
     }
     delay = Math.min(delay * 2, NODE_RESTART_MAX_MS)

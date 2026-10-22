@@ -16,10 +16,11 @@ import {
 import { nodeDashboardSchema, type NodeState } from '../../shared/node'
 import * as z from 'zod/mini'
 import { fill, formatDateTime } from '../../shared/l10n/text'
-import { parseNodeArgs, type NodeCommand } from './args'
+import { isUsageError, parseNodeArgs, type NodeCommand } from './args'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { NodeStateStore } from './state'
+import { NodeListenerError } from './listenerGuard'
 import { isMissingFile } from './privateFiles'
 
 // The isolated bundle also exposes the real shared service pieces to the
@@ -119,7 +120,10 @@ async function init(
 }
 
 export async function runNodeCommand(command: NodeCommand, deps: NodeCommandDeps): Promise<number> {
-  const store = new NodeStateStore(deps.root)
+  const store = new NodeStateStore(deps.root, (error: unknown) => {
+    // A missing store is routine setup state each command already handles.
+    if (!isMissingFile(error)) deps.print(UI_TEXT.nodeMessages.unexpectedFailure)
+  })
   if (command.action === 'help') {
     deps.print(UI_TEXT.nodeLabels.title)
     deps.print(
@@ -188,13 +192,17 @@ export async function runNodeArgs(
   let command: NodeCommand
   try {
     command = parseNodeArgs(argv)
-  } catch {
+  } catch (error: unknown) {
+    // The parser only throws usage Errors; anything else surfaces.
+    if (!isUsageError(error)) throw error
     deps.print(UI_TEXT.nodeErrors.invalidRequest)
     return 2
   }
   try {
     return await runNodeCommand(command, { ...deps, root: command.dataRoot ?? deps.root })
-  } catch {
+  } catch (error: unknown) {
+    // Run failures are typed; anything else is a bug and surfaces.
+    if (!(error instanceof NodeListenerError)) throw error
     deps.print(UI_TEXT.nodeErrors.unavailable)
     return 1
   }

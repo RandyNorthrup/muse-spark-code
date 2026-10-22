@@ -60,12 +60,14 @@ function verify(snapshot: Snapshot): void {
 }
 
 export class NodeStateStore {
-  private readonly transactions = new NodeTransactions()
+  private readonly transactions: NodeTransactions
   private snapshot: Snapshot | undefined
   readonly files: NodePrivateFiles
 
-  constructor(root: string) {
+  constructor(root: string, report: (error: unknown) => void) {
     this.files = new NodePrivateFiles(root)
+    // State writes have no routine refusal: publish, verify and lock failures all report.
+    this.transactions = new NodeTransactions(report)
   }
 
   private required(): Snapshot {

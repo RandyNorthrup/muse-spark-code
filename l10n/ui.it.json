@@ -66,7 +66,8 @@
     "terminalOpened": "Terminale {id} aperto in {workspace}.",
     "terminalEnded": "Il terminale {id} è terminato con codice di uscita {code}.",
     "auditRetention": "Lo spazio del registro di controllo è limitato a {size} e conservato per {days}.",
-    "unofficial": "Questo nodo non è ufficiale e non è approvato da Meta."
+    "unofficial": "Questo nodo non è ufficiale e non è approvato da Meta.",
+    "unexpectedFailure": "Il nodo ha rilevato un errore imprevisto e continua a funzionare."
   },
   "nodeErrors": {
     "invalidRequest": "La richiesta non è valida.",
@@ -108,6 +109,7 @@
   "tuiUsage": "Uso: muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "Il renderer del terminale non è installato.",
   "tuiLineKeys": "Esc: ferma tutto. /stop /chat /diff /tasks /status. Enter invia. Scegli un’approvazione per numero; Enter da solo non approva mai.",
+  "tuiUnexpectedFailure": "Il terminale ha rilevato un errore imprevisto e si è fermato.",
   "companionVoiceCancel": "Annulla",
   "companionVoiceFailed": "La dettatura è fallita o è stata rifiutata. Controlla il permesso del microfono, il motore scelto e il budget giornaliero, poi registra di nuovo. Una richiesta a pagamento già inviata può ancora essere addebitata.",
   "companionVoiceFree": "Sistema operativo (gratuito)",

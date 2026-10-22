@@ -19,6 +19,37 @@ export interface TuiTerminal {
   onClose(handler: (isFailed: boolean) => void): () => void
 }
 
+// Teardown races and dead pipes end the run; anything else reports after shutdown.
+function isRoutineTuiFailure(error: unknown): boolean {
+  return (
+    (error instanceof Error && error.name === 'AbortError') ||
+    (typeof error === 'object' && error !== null && 'code' in error && error.code === 'EPIPE') ||
+    (error instanceof Error && error.message === UI_TEXT.tuiDisconnected)
+  )
+}
+
+// Connection failures end the run as disconnected; anything else reports after shutdown.
+function isExpectedTuiFailure(error: unknown): boolean {
+  return (
+    (error instanceof Error && error.name === 'AbortError') ||
+    (error instanceof Error &&
+      [UI_TEXT.tuiDisconnected, UI_TEXT.tuiInvalidFrame, UI_TEXT.tuiUnsafeSocket].includes(
+        error.message,
+      ))
+  )
+}
+
+// A dead pipe at shutdown ends the run; anything else surfaces to the caller.
+function isExpectedFlushFailure(error: unknown): boolean {
+  return (
+    (typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error.code === 'EPIPE' || error.code === 'ERR_STREAM_DESTROYED')) ||
+    (error instanceof Error && error.message === UI_TEXT.tuiDisconnected)
+  )
+}
+
 /** No fallback success: a missing renderer, broken socket or bad frame fails. */
 export async function runTui(deps: {
   options: TuiOptions
@@ -57,11 +88,19 @@ export async function runTui(deps: {
     connection?.close()
     finish?.()
   }
+  // Unexpected failures are collected for one fixed line after shutdown; their
+  // raw text never reaches the terminal.
+  const failures: unknown[] = []
+  const report = (error: unknown): void => {
+    failures.push(error)
+  }
   const protect = (operation: () => void) => {
     try {
       operation()
-    } catch {
+    } catch (error: unknown) {
+      // Protected teardowns end the run and continue; unexpected failures report.
       end(true)
+      if (!isRoutineTuiFailure(error)) report(error)
     }
   }
   const quiet = () => {
@@ -111,8 +150,10 @@ export async function runTui(deps: {
         await rendered.waitUntilRenderFlush()
         if (version === presentation && lifecycle.isActive && !lifecycle.isStopped)
           controller.presentAsk(ask)
-      } catch {
+      } catch (error: unknown) {
+        // Rendering failures end the run; unexpected failures report after shutdown.
         end(true)
+        if (!isRoutineTuiFailure(error)) report(error)
       }
     })()
   }
@@ -343,8 +384,11 @@ export async function runTui(deps: {
       })
       await Promise.race([connection.closed, stopped])
     }
-  } catch {
+  } catch (error: unknown) {
+    // Connection failures mark the run failed; unexpected failures are also
+    // reported after shutdown, never with their raw text.
     lifecycle.isFailed = true
+    if (!isExpectedTuiFailure(error)) report(error)
     protect(() => {
       deps.terminal.write(`${UI_TEXT.tuiDisconnected}\n`)
     })
@@ -357,15 +401,20 @@ export async function runTui(deps: {
       screen?.unmount()
       connection?.close()
     })
-    try {
-      await deps.terminal.flush()
-    } catch {
-      lifecycle.isFailed = true
-    }
-    removeClose?.()
-    controller.state.pairing = undefined
-    controller.state.asks = []
-    lineInput = ''
+    protect(() => {
+      if (failures.length > 0) deps.terminal.write(`${UI_TEXT.tuiUnexpectedFailure}\n`)
+    })
   }
+  try {
+    await deps.terminal.flush()
+  } catch (error: unknown) {
+    // A failed flush marks the run; anything else surfaces to the caller.
+    if (!isExpectedFlushFailure(error)) throw error
+    lifecycle.isFailed = true
+  }
+  removeClose?.()
+  controller.state.pairing = undefined
+  controller.state.asks = []
+  lineInput = ''
   return lifecycle.isFailed ? 1 : 0
 }

@@ -1488,6 +1488,8 @@ export function publishedReference(model, source) {
     'estimate',
     'vault',
     'vaultHelp',
+    // RLM110A0 (A3): the home node stays held until its phase is proven.
+    'node',
     ...(isScheduleReady ? [] : ['schedule']),
   ])
 

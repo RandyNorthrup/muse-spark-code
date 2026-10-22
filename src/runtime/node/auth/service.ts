@@ -20,10 +20,25 @@ import type { NodeStateStore } from '../state'
 import { NodeTransactions } from '../transactions'
 import { NodeChallenges } from './challenges'
 import { SimpleNodePasskeys, type NodePasskeyVerifier } from './passkeys'
-import { NodeMemorySessions, type NodeSessionLifecycle } from './sessions'
+import { isFailedProof, NodeMemorySessions, type NodeSessionLifecycle } from './sessions'
 
 function digest(text: string): string {
   return createHash('sha256').update(text).digest('hex')
+}
+
+// Attempt failures reach the journal converted to unauthenticated (or passed
+// through as rate-limited); console setup refuses as forbidden or expired.
+// Those are answered to the caller, while audit and persistence failures report.
+function isAuthRefusal(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    [
+      UI_TEXT.nodeErrors.unauthenticated,
+      UI_TEXT.nodeErrors.rateLimited,
+      UI_TEXT.nodeErrors.forbidden,
+      UI_TEXT.nodeErrors.expired,
+    ].includes(error.message)
+  )
 }
 export interface NodeAuthOptions {
   state: Pick<NodeStateStore, 'read' | 'update' | 'append'>
@@ -41,7 +56,9 @@ export interface NodeAuthOptions {
 /** One owner; every durable enrollment/counter/failure change is serialized. */
 export class NodePasskeyAuth {
   private readonly challenges: NodeChallenges
-  private readonly transactions = new NodeTransactions()
+  private readonly transactions = new NodeTransactions((error: unknown) => {
+    if (!isAuthRefusal(error)) this.options.console(UI_TEXT.nodeMessages.unexpectedFailure)
+  })
   private readonly admission: NodeListenerAdmission
   private readonly verifier: NodePasskeyVerifier
   private setupDeadline = 0
@@ -63,6 +80,9 @@ export class NodePasskeyAuth {
       options.clock,
       options.state.read().ownerId,
       options.lifecycle,
+      (_error: unknown) => {
+        options.console(UI_TEXT.nodeMessages.unexpectedFailure)
+      },
     )
     this.admission = new NodeListenerAdmission(() => options.clock.monotonicMs())
     this.verifier = options.verifier ?? new SimpleNodePasskeys()
@@ -164,7 +184,7 @@ export class NodePasskeyAuth {
           }
         }
         await this.audit(action, credentialId, 'denied')
-        throw new NodeListenerError('unauthenticated')
+        throw new NodeListenerError('unauthenticated', { cause: error })
       } finally {
         release?.(isFailed, isProof)
       }
@@ -197,6 +217,16 @@ export class NodePasskeyAuth {
     } catch (error: unknown) {
       this.sessions.end(result.session.id)
       throw error
+    }
+  }
+
+  /** Best-effort burn: a consumed proof is already failed closed, so only bugs surface. */
+  private async burnStepUpProof(proof: NodeStepUp | undefined): Promise<void> {
+    if (proof === undefined) return
+    try {
+      await this.sessions.consumeStepUp(proof, new AbortController().signal)
+    } catch (error: unknown) {
+      if (!isFailedProof(error)) throw error
     }
   }
 
@@ -322,14 +352,8 @@ export class NodePasskeyAuth {
             await this.auditStepUp(challenge, 'allowed')
             return proof
           } catch (error: unknown) {
-            if (proof !== undefined) {
-              // Consume burns even an expired proof; preserve the audit error.
-              try {
-                await this.sessions.consumeStepUp(proof, new AbortController().signal)
-              } catch {
-                /* Expired or revoked access has already failed closed. */
-              }
-            }
+            // Consume burns even an expired proof; preserve the audit error.
+            await this.burnStepUpProof(proof)
             await this.auditStepUp(challenge, 'denied')
             throw error
           }

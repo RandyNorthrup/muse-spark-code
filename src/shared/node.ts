@@ -64,7 +64,9 @@ function isHomeAddress(ip: string): boolean {
       canonical !== '[fd20:ce::254]' &&
       (canonical === '[::1]' || /^\[(?:f[cd][a-f0-9]{2}:|fe[89ab][a-f0-9]:)/iu.test(canonical))
     )
-  } catch {
+  } catch (error: unknown) {
+    // WHATWG URLs only throw TypeError; anything else surfaces.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }
@@ -337,13 +339,13 @@ export interface NodeToolHostPort {
   /** Direct Git uses NODE_GIT_OPTIONS/environment; no service credential crosses this port. */
   run(request: NodeToolRequest, signal: AbortSignal): Promise<z.infer<typeof nodeToolResultSchema>>
   /**
-   * Install the observer before starting the child; events include its ID even
-   * if it exits before open resolves. Await each onEvent acknowledgement in
-   * order, pause the PTY at the output-byte cap, and never drop output. Exactly
-   * one terminalEnded follows acknowledged output, then release the PTY,
-   * descendants and observer. Abort/disconnect ends it as lost; observer
-   * rejection also terminates it. A callback must settle promptly on abort.
-   */
+  Install the observer before starting the child; events include its ID even
+  if it exits before open resolves. Await each onEvent acknowledgement in
+  order, pause the PTY at the output-byte cap, and never drop output. Exactly
+  one terminalEnded follows acknowledged output, then release the PTY,
+  descendants and observer. Abort/disconnect ends it as lost; observer
+  rejection also terminates it. A callback must settle promptly on abort.
+  */
   openTerminal(
     workspaceId: string,
     size: z.infer<typeof nodeTerminalSizeSchema>,

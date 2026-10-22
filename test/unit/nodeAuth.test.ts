@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   NODE_CHALLENGE_TTL_MS,
   NODE_DNS_LABEL_CHARS,
@@ -28,6 +28,7 @@ import {
   nodeTokenSchema,
   type NodeAuthPort,
 } from '../../src/shared/nodeAuth'
+import { scripted } from './helpers/recordCalls'
 import { FakeNodeClock } from './helpers/node/clock'
 import { VirtualNodeAuthenticator } from './helpers/node/authenticator'
 import {
@@ -200,7 +201,7 @@ describe('node auth boundaries', () => {
     }).toThrow()
   })
   it('virtual authenticator configures resident keys and UV without a TLS bypass', async () => {
-    const send = vi.fn((method: string) =>
+    const send = scripted((method: string) =>
       Promise.resolve(
         method === 'WebAuthn.addVirtualAuthenticator'
           ? { authenticatorId: 'test-authenticator' }
@@ -208,26 +209,30 @@ describe('node auth boundaries', () => {
       ),
     )
     const authenticator = await VirtualNodeAuthenticator.create({ send })
-    expect(send).toHaveBeenNthCalledWith(1, 'WebAuthn.enable', { enableUI: false })
-    expect(send).toHaveBeenNthCalledWith(2, 'WebAuthn.addVirtualAuthenticator', {
-      options: {
-        protocol: 'ctap2',
-        transport: 'internal',
-        hasResidentKey: true,
-        hasUserVerification: true,
-        isUserVerified: true,
-        automaticPresenceSimulation: true,
+    expect(send.calls[0]).toEqual(['WebAuthn.enable', { enableUI: false }])
+    expect(send.calls[1]).toEqual([
+      'WebAuthn.addVirtualAuthenticator',
+      {
+        options: {
+          protocol: 'ctap2',
+          transport: 'internal',
+          hasResidentKey: true,
+          hasUserVerification: true,
+          isUserVerified: true,
+          automaticPresenceSimulation: true,
+        },
       },
-    })
+    ])
     await authenticator.setVerified(false)
     await authenticator.close()
-    expect(send).toHaveBeenNthCalledWith(3, 'WebAuthn.setUserVerified', {
-      authenticatorId: 'test-authenticator',
-      isUserVerified: false,
-    })
-    expect(send).toHaveBeenNthCalledWith(4, 'WebAuthn.removeVirtualAuthenticator', {
-      authenticatorId: 'test-authenticator',
-    })
+    expect(send.calls[2]).toEqual([
+      'WebAuthn.setUserVerified',
+      { authenticatorId: 'test-authenticator', isUserVerified: false },
+    ])
+    expect(send.calls[3]).toEqual([
+      'WebAuthn.removeVirtualAuthenticator',
+      { authenticatorId: 'test-authenticator' },
+    ])
   })
   it('virtual authenticator refuses a malformed CDP response', async () => {
     await expect(
@@ -235,9 +240,10 @@ describe('node auth boundaries', () => {
     ).rejects.toThrow()
   })
   it('exposes an injected auth seam without choosing a verifier or enrollment policy', async () => {
+    const end = scripted(() => Promise.resolve())
     const port: NodeAuthPort = {
-      begin: vi.fn(() => Promise.resolve(nodeChallenge())),
-      beginStepUp: vi.fn(() =>
+      begin: () => Promise.resolve(nodeChallenge()),
+      beginStepUp: () =>
         Promise.resolve(
           nodeAuthChallengeSchema.parse({
             ...nodeChallenge(),
@@ -247,11 +253,10 @@ describe('node auth boundaries', () => {
             actionDigest: nodeHash,
           }),
         ),
-      ),
-      enroll: vi.fn(() => Promise.resolve(nodeAuthentication())),
-      signIn: vi.fn(() => Promise.resolve(nodeAuthentication())),
-      stepUp: vi.fn(() => Promise.resolve(nodeStepUp())),
-      end: vi.fn(() => Promise.resolve()),
+      enroll: () => Promise.resolve(nodeAuthentication()),
+      signIn: () => Promise.resolve(nodeAuthentication()),
+      stepUp: () => Promise.resolve(nodeStepUp()),
+      end,
     }
     expect(await port.begin('signin')).toEqual(nodeChallenge())
     const stepChallenge = await port.beginStepUp('session-1', 'terminal.open', nodeHash)
@@ -266,6 +271,6 @@ describe('node auth boundaries', () => {
       nodeStepUp(),
     )
     await port.end('session-1')
-    expect(port.end).toHaveBeenCalledWith('session-1')
+    expect(end.calls).toEqual([['session-1']])
   })
 })

@@ -38,7 +38,9 @@ function isNodeDomain(name: string): boolean {
   try {
     // WHATWG normalizes numeric/hex IPv4 aliases: none is a domain RP id.
     return new URL(`https://${name}`).hostname === name
-  } catch {
+  } catch (error: unknown) {
+    // WHATWG URLs only throw TypeError; anything else surfaces.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }
@@ -111,7 +113,9 @@ function isNodeOrigin(origin: string, rpId: string): boolean {
   try {
     const url = new URL(origin)
     return url.protocol === 'https:' && url.origin === origin && url.hostname === rpId
-  } catch {
+  } catch (error: unknown) {
+    // WHATWG URLs only throw TypeError; anything else surfaces.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }
