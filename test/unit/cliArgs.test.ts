@@ -145,3 +145,19 @@ describe('scan-secrets deadline', () => {
     }
   })
 })
+
+describe('providers refresh parse (RLTESTDRIVE item 5)', () => {
+  it('routes providers refresh <id> to the refresh command', () => {
+    expect(parseCommandLine(['providers', 'refresh', 'anthropic-s2'])).toEqual({
+      command: 'providersRefresh',
+      provider: 'anthropic-s2',
+    })
+  })
+
+  it('refuses providers refresh without an id, naming the verb', () => {
+    const command = parseCommandLine(['providers', 'refresh'])
+    invalid(command)
+    expect(command.exitCode).toBe(2)
+    expect(command.reason).toContain('providers refresh')
+  })
+})

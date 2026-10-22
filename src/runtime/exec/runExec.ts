@@ -575,6 +575,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     // agent (never inlined here): dist/headless.js keeps its budget.
     const { assembleProviderRun, providersFilePath, resolveEndpointHost } =
       await import('../../host/backend/configuredProvidersEntry')
+    const { listProviderModels } = await import('./providerListEntry')
     const providerId = options.provider ?? ''
     // Past argument parsing: failures from here are the run's, not usage,
     // unless assembly says otherwise.
@@ -597,6 +598,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         providerId,
         model: options.model,
         keyFromStdin: options.keyFromStdin,
+        listLiveModels: (provider, key) =>
+          listProviderModels(deps.fetch, provider, key, resolveEndpointHost),
       }),
     )
     if (!assembled.ok) {
@@ -643,22 +646,56 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const parsed = modelRef.parseModelRef(options.model)
     if (parsed === undefined || parsed.providerId === modelRef.RESERVED_PROVIDER_ID)
       return undefined
-    const read = await providersFile.readProvidersFile(
-      providersFilePath({
-        platform: deps.platform,
-        homeDir: deps.homeDir,
-        xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
-      }),
-      async (filePath) =>
-        new TextDecoder('utf-8', { fatal: true }).decode(
-          await deps.readFile(filePath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal),
-        ),
-    )
+    const providersPath = providersFilePath({
+      platform: deps.platform,
+      homeDir: deps.homeDir,
+      xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+    })
+    const readProviderText = async (filePath: string): Promise<string> =>
+      new TextDecoder('utf-8', { fatal: true }).decode(
+        await deps.readFile(filePath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal),
+      )
+    const read = await providersFile.readProvidersFile(providersPath, readProviderText)
     if (!read.ok) return undefined
     const entry = read.file.providers.find((candidate) => candidate.id === parsed.providerId)
     if (entry === undefined)
       return fill(UI_TEXT.providerNotConfigured, { provider: parsed.providerId })
     if (entry.models.every((id) => options.model !== id && options.model !== `${entry.id}/${id}`)) {
+      // Refresh on use (RLTESTDRIVE item 5): the filed list freezes at
+      // add, so a stored key's live list gets the last word before the
+      // refusal. A piped key stays unread: stdin is one-shot and the
+      // run still needs its line. Anything unreadable keeps the filed
+      // refusal below.
+      const { isStoreUnavailable } = await import('../keyStore')
+      let key: string | undefined
+      try {
+        key = await deps.storeSecrets.get(parsed.providerId)
+      } catch (error: unknown) {
+        if (!isStoreUnavailable(error)) throw error
+        key = undefined
+      }
+      if (key !== undefined) {
+        const { refreshQualifiedModelOnUse, resolveEndpointHost } =
+          await import('../../host/backend/configuredProvidersEntry')
+        const { listProviderModels } = await import('./providerListEntry')
+        const { presets } = await import('../../host/backend/providersEntry')
+        const refreshed = await refreshQualifiedModelOnUse({
+          filePath: providersPath,
+          readFile: readProviderText,
+          file: read.file,
+          providerId: parsed.providerId,
+          modelId: parsed.modelId,
+          key,
+          presets: presets.presetById,
+          resolveHost: resolveEndpointHost,
+          listLive: (provider, liveKey) =>
+            listProviderModels(deps.fetch, provider, liveKey, resolveEndpointHost),
+        })
+        if (refreshed.ok) {
+          if (refreshed.note !== undefined) log.warn(refreshed.note)
+          return undefined
+        }
+      }
       return fill(UI_TEXT.execModelNeedsProvider, {
         model: options.model,
         provider: parsed.providerId,

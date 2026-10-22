@@ -3707,15 +3707,16 @@ These are defaults; editor customizations take precedence.
 
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
-- `providers list`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers list`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers connect openrouter`: Connect your OpenRouter account and view the key’s usage, limit and remaining balance.
 - `providers usage <id>`: API Key Usage
 - `providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]`: Add a model provider with an API key and pick a model.
-- `providers test <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
-- `providers remove <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
-- `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers test <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers refresh <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers remove <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `help <command>`: help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
-- `providers add|remove|status chatgpt [--new-account]`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers add|remove|status chatgpt [--new-account]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `[options]`: muse-spark-code-acp [options] Serve the Agent Client Protocol on stdin and stdout
 - `login`: Runs Muse Code’s own sign-in in a terminal. Your Muse subscription pays for the conversations.
 - `auth set`: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations.

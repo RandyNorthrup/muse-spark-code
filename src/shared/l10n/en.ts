@@ -382,7 +382,7 @@ export const EN = {
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceProviders:
-    'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
+    'List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
@@ -4856,6 +4856,22 @@ export const EN = {
     one: 'Key works · {count} model.',
     other: 'Key works · {count} models.',
   }),
+  // `providers refresh`: {provider}: the entry id; {models}: the added ids.
+  providerRefreshAdded: forms({
+    one: 'Stored 1 new model on {provider}: {models}.',
+    other: 'Stored {count} new models on {provider}: {models}.',
+  }),
+  // {provider}: the entry id; {models}: filed ids the live list lacks.
+  providerRefreshMissing: 'Still configured on {provider} but no longer listed: {models}.',
+  // {provider}: the entry id.
+  providerRefreshCurrent: forms({
+    one: '{provider} is already current: 1 model.',
+    other: '{provider} is already current: {count} models.',
+  }),
+  // Refresh on use: {model}: the native model id; {provider}: the entry id.
+  providerModelStoredOnUse: 'Stored {model} on {provider} from the provider’s live list.',
+  providerModelStoreFailed:
+    'Could not store {model} on {provider}; this run proceeds without updating the file.',
   // {model}: the `<provider>/<model>` ref whose tool calling is unconfirmed.
   providerModelNoToolCalling:
     '{model} cannot run the coding agent because tool calling is not confirmed for it.',

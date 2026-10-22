@@ -2073,6 +2073,10 @@ async function main(): Promise<number> {
       const { providersTest } = await import('./providersCommands')
       return await providersTest(await providersDeps(), command.provider)
     }
+    case 'providersRefresh': {
+      const { providersRefresh } = await import('./providersCommands')
+      return await providersRefresh(await providersDeps(), command.provider)
+    }
     case 'providersRemove': {
       const { providersRemove } = await import('./providersCommands')
       return await providersRemove(await providersDeps(), command.provider)

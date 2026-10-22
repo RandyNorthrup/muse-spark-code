@@ -174,11 +174,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'runtimeSubscriptionClient',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/exec/providerList.ts', symbol: 'readProviderJson', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
-      { importer: 'src/runtime/providersCommands.ts', symbol: 'readProviderJson', side: ['acp'] },
     ],
   },
   {
@@ -652,6 +652,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   { file: 'providerCatalog.js', side: 'both', requestedBy: [] },
+  {
+    file: 'providerList.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
+    ],
+  },
   { file: 'providerPolicy.js', side: 'both', requestedBy: [] },
   {
     file: 'providers.js',
@@ -1011,6 +1019,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'subscriptions.js',
     side: 'both',
     requestedBy: [
+      { importer: 'src/runtime/authCommands.ts', symbol: 'authStatusAll', side: ['acp'] },
+      { importer: 'src/runtime/authCommands.ts', symbol: 'authStatusProvider', side: ['acp'] },
       { importer: 'src/runtime/backends.ts', symbol: 'chatGptFactory', side: ['acp'] },
       { importer: 'src/runtime/backends.ts', symbol: 'subscriptionClient', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'chatGptDeps', side: ['acp'] },
@@ -1067,6 +1077,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'traffic-harness/chunk-QT5H2WSW.js', side: 'unreached', requestedBy: [] },
+  { file: 'traffic-harness/chunk-UXYT6M7Z.js', side: 'unreached', requestedBy: [] },
+  { file: 'traffic-harness/main.js', side: 'unreached', requestedBy: [] },
+  { file: 'traffic-harness/TrafficSurface-E4445LQQ.js', side: 'unreached', requestedBy: [] },
+  { file: 'traffic-harness/TrafficSurface-FYQZTI6U.js', side: 'unreached', requestedBy: [] },
   { file: 'uiText.js', side: 'both', requestedBy: [] },
   { file: 'uiTextHooks.js', side: 'both', requestedBy: [] },
   { file: 'uiTextMedia.js', side: 'both', requestedBy: [] },

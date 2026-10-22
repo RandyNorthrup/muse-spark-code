@@ -299,7 +299,7 @@
   "referenceDialogKeys": "Parcourir les résultats, activer la conversation sélectionnée ou fermer la boîte de dialogue.",
   "referencePopoverKeys": "Parcourir les options, ajuster une valeur, choisir une option ou fermer le menu.",
   "referenceExecImages": "Les images sans interface exigent --image-generation, acceptEdits et un budget strict suffisant. Aucune confirmation du prix ; les demandes nécessitant une autorisation sont refusées.",
-  "referenceProviders": "Lister, ajouter, tester ou supprimer des fournisseurs de modèles. Les clés utilisent le coffre d’identifiants. Les tests de jetons payants nécessitent l’éditeur ; la CLI les refuse.",
+  "referenceProviders": "Lister, ajouter, tester, actualiser ou supprimer des fournisseurs de modèles. Les clés utilisent le coffre d’identifiants. Les tests de jetons payants nécessitent l’éditeur ; la CLI les refuse.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Saisissez la fenêtre de contexte chargée sur le serveur local. Les valeurs manuelles remplacent les limites détectées.",
     "resource-governor": "--resource-governor on|off: Préserve la réactivité de cette machine en ralentissant ou en différant le travail lancé par l’environnement d’agent. Activé par défaut.",
@@ -3963,6 +3963,19 @@
     "other": "La clé fonctionne · {count} modèles.",
     "many": "La clé fonctionne · {count} modèles."
   },
+  "providerRefreshAdded": {
+    "one": "{count} nouveau modèle enregistré sur {provider} : {models}.",
+    "other": "{count} nouveaux modèles enregistrés sur {provider} : {models}.",
+    "many": "{count} nouveaux modèles enregistrés sur {provider} : {models}."
+  },
+  "providerRefreshMissing": "Toujours configuré sur {provider}, mais ne figure plus dans la liste : {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} est déjà à jour : {count} modèle.",
+    "other": "{provider} est déjà à jour : {count} modèles.",
+    "many": "{provider} est déjà à jour : {count} modèles."
+  },
+  "providerModelStoredOnUse": "{model} enregistré sur {provider} depuis la liste en direct du fournisseur.",
+  "providerModelStoreFailed": "Impossible d’enregistrer {model} sur {provider} ; l’exécution continue sans mettre à jour le fichier.",
   "providerModelNoToolCalling": "«{model}» ne peut pas exécuter l’agent de codage car les appels d’outils ne sont pas confirmés pour ce modèle.",
   "providerAddPickModel": "Ajoutez un ou plusieurs de ces modèles avec --model <id> (répétable) :",
   "providerAddNeedsModel": "Indiquez au moins un modèle avec --model <id> (répétable).",

@@ -220,9 +220,13 @@ pinned request factory as VS Code, reading the user-level `providers.json`
 and origin-bound records from this agent's OS credential store. Mistral's
 captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
-inference. General `providers list|add|test|remove` commands,
+inference. General `providers list|add|test|refresh|remove` commands,
 `providers models <entry> [--add <model>] [--remove <model>]` and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
+A provider's model list freezes at `providers add`: `providers refresh <id>`
+stores every live id the file lacks (filed ids the list lacks stay, reported
+as still configured), and a run asked for a model the live list has admits it
+and files it on use.
 `muse-spark-code-acp providers connect openrouter` prints OpenRouter’s
 PKCE authorization URL. Open it, authorize, then paste the displayed
 single-use code at the hidden prompt; the returned key is never printed.

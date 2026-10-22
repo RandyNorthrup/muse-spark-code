@@ -4880,7 +4880,7 @@
     {
       "route": "providersList",
       "name": "providers list",
-      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" },
       "invocations": [["providers", "list"]]
     },
@@ -4912,21 +4912,28 @@
     {
       "route": "providersTest",
       "name": "providers test <id>",
-      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" },
       "invocations": [["providers", "test"]]
     },
     {
+      "route": "providersRefresh",
+      "name": "providers refresh <id>",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "text": { "ui": "referenceProviders" },
+      "invocations": [["providers", "refresh"]]
+    },
+    {
       "route": "providersRemove",
       "name": "providers remove <id>",
-      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" },
       "invocations": [["providers", "remove"]]
     },
     {
       "route": "providersModels",
       "name": "providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]",
-      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" },
       "invocations": [["providersModels"]]
     },
@@ -4940,7 +4947,7 @@
     {
       "route": "chatGptProvider",
       "name": "providers add|remove|status chatgpt [--new-account]",
-      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" },
       "invocations": [
         ["providers", "add", "chatgpt"],

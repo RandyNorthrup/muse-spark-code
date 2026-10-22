@@ -299,7 +299,7 @@
   "referenceDialogKeys": "Recorrer resultados, activar la conversación seleccionada o cerrar el diálogo.",
   "referencePopoverKeys": "Recorrer opciones, ajustar un valor, elegir una opción o cerrar el menú.",
   "referenceExecImages": "Las imágenes sin interfaz requieren --image-generation, acceptEdits y un presupuesto estricto suficiente. No se pregunta por el precio; se rechazan las solicitudes que requieren permiso.",
-  "referenceProviders": "Listar, añadir, probar o eliminar proveedores de modelos. Las claves usan el almacén de credenciales. Las pruebas de tokens de pago requieren el editor; la CLI las rechaza.",
+  "referenceProviders": "Listar, añadir, probar, actualizar o eliminar proveedores de modelos. Las claves usan el almacén de credenciales. Las pruebas de tokens de pago requieren el editor; la CLI las rechaza.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Introduce la ventana de contexto cargada en el servidor local. Los valores manuales prevalecen sobre los límites detectados.",
     "resource-governor": "--resource-governor on|off: Mantiene la capacidad de respuesta del equipo ralentizando o aplazando el trabajo iniciado por el entorno del agente. Activado de forma predeterminada.",
@@ -3963,6 +3963,19 @@
     "other": "La clave funciona · {count} modelos.",
     "many": "La clave funciona · {count} modelos."
   },
+  "providerRefreshAdded": {
+    "one": "Guardado 1 modelo nuevo en {provider}: {models}.",
+    "other": "Guardados {count} modelos nuevos en {provider}: {models}.",
+    "many": "Guardados {count} modelos nuevos en {provider}: {models}."
+  },
+  "providerRefreshMissing": "Sigue configurado en {provider}, pero ya no aparece en la lista: {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} ya está actualizado: 1 modelo.",
+    "other": "{provider} ya está actualizado: {count} modelos.",
+    "many": "{provider} ya está actualizado: {count} modelos."
+  },
+  "providerModelStoredOnUse": "{model} guardado en {provider} desde la lista en vivo del proveedor.",
+  "providerModelStoreFailed": "No se pudo guardar {model} en {provider}; la ejecución continúa sin actualizar el archivo.",
   "providerModelNoToolCalling": "{model} no puede ejecutar el agente de codificación porque las llamadas a herramientas no están confirmadas para él.",
   "providerAddPickModel": "Agregue uno o más de estos modelos con --model <id> (repetible):",
   "providerAddNeedsModel": "Pase al menos un modelo con --model <id> (repetible).",

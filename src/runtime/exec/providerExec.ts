@@ -31,7 +31,7 @@ import type {
   ProviderFormat,
   ProvidersFile,
 } from '../../core/providers/providersFile'
-const { readProvidersFile, refusalDetail } = providersFile
+const { readProvidersFile, refusalDetail, writeProvidersFileAtomic } = providersFile
 import { UserRefusalError } from '../../core/refusal'
 import { unlessAborted } from '../../core/timeouts'
 import {
@@ -137,6 +137,22 @@ function requestPathFor(preset: ProviderPreset): ProviderRequestPath | undefined
   }
 }
 
+/**
+A live model list against the filed one (RLTESTDRIVE item 5): `added`
+is every live id the file lacks, in live order; `missing` is every
+filed id the list lacks, in filed order. Refresh stores the added ids
+and reports the missing ones; it never removes the person's selection.
+*/
+export function diffLiveModels(
+  configured: readonly string[],
+  live: readonly string[],
+): { readonly added: readonly string[]; readonly missing: readonly string[] } {
+  return {
+    added: live.filter((id) => !configured.includes(id)),
+    missing: configured.filter((id) => !live.includes(id)),
+  }
+}
+
 /** The request path for a custom server's format (research §1's defaults). */
 function customBasePath(entry: ProviderEntry, format: ProviderFormat): string {
   const path = new URL(entry.address ?? '').pathname.replace(/\/+$/u, '')
@@ -148,9 +164,11 @@ function customBasePath(entry: ProviderEntry, format: ProviderFormat): string {
 /** Custom addresses name the API base, including its version/prefix. */
 export function providerModelsPath(provider: ResolvedProvider): string {
   if (provider.preset.id !== 'custom') {
-    // Below the address root: bare origins join nothing, while an Azure
-    // entry lists below its `/openai/v1` root (research §1.2 [AZ6]).
-    const base = new URL(provider.entry.address ?? '').pathname.replace(/\/+$/u, '')
+    // Below the resolved origin's root: the entry's address is optional
+    // (and an Azure resource name is not a URL), while the origin always
+    // is — bare origins join nothing, and an Azure entry lists below its
+    // `/openai/v1` root (research §1.2 [AZ6]).
+    const base = new URL(provider.origin).pathname.replace(/\/+$/u, '')
     return `${base}${provider.preset.modelsList.path}`
   }
   const format = provider.entry.format ?? provider.preset.format
@@ -699,6 +717,16 @@ export interface ProviderRunInput {
   /** The qualified model ref (`parseExec` qualifies a bare id). */
   readonly model: string | undefined
   readonly keyFromStdin: boolean
+  /**
+  The provider's live model list with the run's key, for refresh on use
+  (RLTESTDRIVE item 5); undefined where the list cannot be read. Called
+  only when the requested model is not in the providers file. Absent on
+  hosts that cannot reach the provider: the filed list decides alone.
+  */
+  readonly listLiveModels?: (
+    provider: ResolvedProvider,
+    key: string | undefined,
+  ) => Promise<readonly string[] | undefined>
 }
 
 export type ProviderAssemblyFailure =
@@ -712,6 +740,98 @@ re-checked endpoint, and the pinned fetch. Usage failures are the
 caller's mistake; auth failures need a key. The turn itself is lane T/I's
 `ProviderExecRunner` seam (`runExec.ts`); this function never sends one.
 */
+/**
+Refresh on use (RLTESTDRIVE item 5): the requested model against the
+provider's live list. A live id is stored in the providers file
+(best effort: the run proceeds either way) and admitted with the note
+the run prints; anything else yields undefined and the caller refuses.
+The file re-reads fresh before the write, so a concurrent edit wins.
+*/
+async function refreshModelOnUse(
+  input: ProviderRunInput,
+  provider: ResolvedProvider,
+  requested: string,
+  key: string | undefined,
+): Promise<{ readonly model: string; readonly note: string | undefined } | undefined> {
+  if (input.listLiveModels === undefined) return undefined
+  const live = await input.listLiveModels(provider, key)
+  if (live === undefined) return undefined
+  const hit = live.find((id) => requested === id || requested === `${provider.entry.id}/${id}`)
+  if (hit === undefined) return undefined
+  const note = await fileLiveModelOnUse(input.filePath, input.readFile, provider, hit)
+  return { model: hit, note }
+}
+
+/**
+Refresh on use for a qualified `--model <provider>/<id>` the filed list
+misses (RLTESTDRIVE item 5): resolve the provider, read its live list
+with the run's key, and file a live id best effort — the run proceeds
+either way. Anything unresolvable, unreadable or not live refuses, and
+the caller keeps the filed refusal.
+*/
+export async function refreshQualifiedModelOnUse(input: {
+  readonly filePath: string
+  readonly readFile: (path: string) => Promise<string>
+  readonly file: ProvidersFile
+  readonly providerId: string
+  readonly modelId: string
+  readonly key: string
+  readonly presets: (id: string) => ProviderPreset | undefined
+  readonly resolveHost: (hostname: string) => Promise<readonly string[]>
+  readonly listLive: (
+    provider: ResolvedProvider,
+    key: string,
+  ) => Promise<readonly string[] | undefined>
+}): Promise<{ readonly ok: true; readonly note: string | undefined } | { readonly ok: false }> {
+  const resolved = await resolveProvider(
+    input.file,
+    input.providerId,
+    input.presets,
+    input.resolveHost,
+  )
+  if (!resolved.ok) return { ok: false }
+  const live = await input.listLive(resolved.provider, input.key)
+  const hit = live?.find((id) => input.modelId === id)
+  if (hit === undefined) return { ok: false }
+  const note = await fileLiveModelOnUse(input.filePath, input.readFile, resolved.provider, hit)
+  return { ok: true, note }
+}
+
+/**
+File a live model id the run admitted (RLTESTDRIVE item 5): the
+providers file re-reads fresh, so a concurrent edit wins, and the id is
+appended to its provider best effort — the run proceeds either way. The
+note the run prints, or undefined when the id is already filed.
+*/
+export async function fileLiveModelOnUse(
+  filePath: string,
+  readFile: (path: string) => Promise<string>,
+  provider: ResolvedProvider,
+  modelId: string,
+): Promise<string | undefined> {
+  const reread = await readProvidersFile(filePath, readFile)
+  const filed = reread.ok
+    ? reread.file.providers.find((candidate) => candidate.id === provider.entry.id)
+    : undefined
+  if (filed?.models.includes(modelId)) return undefined
+  let wasStored = false
+  if (filed !== undefined && reread.ok) {
+    const written = await writeProvidersFileAtomic(filePath, {
+      ...reread.file,
+      providers: reread.file.providers.map((candidate) =>
+        candidate.id === provider.entry.id
+          ? { ...candidate, models: [...candidate.models, modelId] }
+          : candidate,
+      ),
+    })
+    wasStored = written.ok
+  }
+  return fill(wasStored ? UI_TEXT.providerModelStoredOnUse : UI_TEXT.providerModelStoreFailed, {
+    model: modelId,
+    provider: provider.entry.id,
+  })
+}
+
 export async function assembleProviderRun(input: ProviderRunInput): Promise<
   | {
       readonly ok: true
@@ -762,25 +882,9 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
       `${UI_TEXT.execProviderModelRequired}: ${provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', ')}`,
     )
   }
-  const matches = provider.entry.models.filter(
-    (id) => requested === id || requested === `${provider.entry.id}/${id}`,
-  )
-  if (matches.length > 1) return usage(UI_TEXT.execUnknownModel)
-  // D4: a model that is not on this provider names what is, instead of the
-  // generic sentence (which stays for a truly ambiguous id).
-  if (matches.length === 0)
-    return usage(
-      fill(UI_TEXT.execModelNotOnProvider, {
-        model: requested,
-        provider: provider.entry.id,
-        available: provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', '),
-      }),
-    )
-  const modelRef = `${provider.entry.id}/${matches[0] ?? ''}`
-  const parsedRef = parseModelRef(modelRef)
-  if (parsedRef?.providerId !== provider.entry.id) {
-    return usage(UI_TEXT.execUnknownModel)
-  }
+  // The key reads before the model check: refresh on use consults the
+  // provider's live list with the run's key, so a missing key refuses
+  // here even when the file also lacks the model.
   let key: string | undefined
   let memory: MemorySecretStore | undefined =
     provider.preset.auth === 'none' ? memorySecretStoreFor({}) : undefined
@@ -836,6 +940,34 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
         [account]: formatStoredProviderSecret(stored.record, key),
       })
     }
+  }
+  const matches = provider.entry.models.filter(
+    (id) => requested === id || requested === `${provider.entry.id}/${id}`,
+  )
+  if (matches.length > 1) return usage(UI_TEXT.execUnknownModel)
+  let modelId = matches[0]
+  if (modelId === undefined) {
+    // Refresh on use (RLTESTDRIVE item 5): the file's list freezes at
+    // `providers add`, so a miss consults the provider's live list with
+    // the run's key before refusing. D4's sentence stays for a model the
+    // live list lacks too.
+    const stored = await refreshModelOnUse(input, provider, requested, key)
+    if (stored === undefined)
+      return usage(
+        fill(UI_TEXT.execModelNotOnProvider, {
+          model: requested,
+          provider: provider.entry.id,
+          available: provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', '),
+        }),
+      )
+    modelId = stored.model
+    if (stored.note !== undefined)
+      notice = notice === undefined ? stored.note : `${notice} ${stored.note}`
+  }
+  const modelRef = `${provider.entry.id}/${modelId}`
+  const parsedRef = parseModelRef(modelRef)
+  if (parsedRef?.providerId !== provider.entry.id) {
+    return usage(UI_TEXT.execUnknownModel)
   }
   const answers = await input.resolveHost(new URL(provider.origin).hostname)
   if (!isEndpointBindingCurrent(provider, answers)) {

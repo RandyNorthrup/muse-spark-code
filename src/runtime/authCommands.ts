@@ -162,10 +162,9 @@ export async function authStatusAll(
     if (record === undefined && entry.id === 'chatgpt') {
       // A ChatGPT sign-in is a subscription grant, not an API-key
       // envelope: read it as the grant, with `providers status chatgpt`'s
-      // verdict and remedy. The subscription lane stays lazy (as D6's
-      // presets do); this branch alone loads it.
+      // verdict and remedy, through the subscriptions entry (D207).
       const { chatGptGrantStatus, chatGptRecordSchema } =
-        await import('../core/providers/subscriptions/chatgpt')
+        await import('../host/backend/subscriptionsEntry')
       const grant = chatGptRecordSchema.safeParse(parsed)
       if (!grant.success) {
         deps.printError(UI_TEXT.acpChatGpt.grantUnreadable)
@@ -342,7 +341,7 @@ export async function authStatusProvider(
     // As the file loop above: a ChatGPT sign-in is a subscription
     // grant, read with `providers status chatgpt`'s verdict and remedy.
     const { chatGptGrantStatus, chatGptRecordSchema } =
-      await import('../core/providers/subscriptions/chatgpt')
+      await import('../host/backend/subscriptionsEntry')
     const grant = chatGptRecordSchema.safeParse(value)
     if (!grant.success) {
       deps.printError(UI_TEXT.acpChatGpt.grantUnreadable)
