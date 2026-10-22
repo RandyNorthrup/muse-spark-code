@@ -119,7 +119,12 @@
       "vault.ceilingHint",
       "teamToolGroups.shell",
       "teamToolGroups.skills",
-      "teamReportShapes.qa"
+      "teamReportShapes.qa",
+      "playbookNoChecks",
+      "playbookUnknownCheck",
+      "playbookSettingsInvalid",
+      "playbookChecksInvalid",
+      "playbookExits"
     ],
     "cs": [
       "groupModel",

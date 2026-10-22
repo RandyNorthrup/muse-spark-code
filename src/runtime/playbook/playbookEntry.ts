@@ -13,6 +13,7 @@ import {
   type PlaybookSurfacePort,
 } from './command'
 import { createPlaybookSurface as createSurface, type PlaybookSurfaceDeps } from './surface'
+import { runPlaybookCheckCli as runCheck, type PlaybookCheckCliDeps } from './runCheck'
 
 export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand | undefined {
   return parse(argv)
@@ -49,4 +50,14 @@ export function runPlaybookCli(
 ): Promise<number> {
   setUiText(table, locale)
   return runCli(argv, deps)
+}
+
+export function runPlaybookCheckCli(
+  argv: readonly string[],
+  deps: PlaybookCheckCliDeps,
+  table: UiText,
+  locale: string,
+): Promise<number> {
+  setUiText(table, locale)
+  return runCheck(argv, deps)
 }

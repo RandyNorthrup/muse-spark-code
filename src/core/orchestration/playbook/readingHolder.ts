@@ -16,7 +16,7 @@ export interface ReadingHolder<T> {
   Refresh from a sync or async read: the holder takes the read value, or
   unknown when the read fails or finds nothing.
   */
-  refresh(read: () => T | Promise<T> | undefined): Promise<ReadingRefresh>
+  refresh(read: () => T | Promise<T | undefined> | undefined): Promise<ReadingRefresh>
 }
 
 export function createReadingHolder<T>(): ReadingHolder<T> {

@@ -15487,6 +15487,35 @@ restore paths are proven by live probes. Manual's words stand unchanged;
 they hold on Muse Code 1.4.7 and later. Record:
 `docs/certification/manualmode.md`.
 
+### D212 — The team runner's playbook board reads live team facts (lead, 2026-10-22; lane RLM116 Q1)
+
+`readBoard` is supplied from real team facts, all of them. `workers` are
+the team's entry worker states (`available` when the worker is idle and
+admitted), under the team worker ids the offloading caller (M115w) uses,
+so `beforeCheck`'s pick is meaningful there. `mergedPrerequisites` are
+the team's unmerged branches: a prerequisite counts as merged only when
+its branch is merged into the integration target. `hasCi` is whether the
+repository really has CI, read from the same source M113's `checkRuns`
+uses; unknown reads as unknown, never as true. The integration's
+construction site is the team runner (M96's team delegate/merge paths,
+merged as `1abea8ad7c`); `start`/`pick`/`merge` are called at the team's
+real effect sites. Record: `docs/certification/rlm116.md`.
+
+### D213 — Check admission reads host capacity; headless `playbook run` (lead, 2026-10-22; lane RLM116 Q2)
+
+Real capacity comes from the hosts that offload work (the ACP agent and
+the extension host's team runner), never the panel (its `() => false`
+stays). `checkAdmission` gets a sync capacity holder serving the latest
+M107 resource-governor reading; the async refresh updates the holder,
+and while a reading is unknown admission does not pause work for it
+(owner rule). Headless surface: `muse-spark-code-acp playbook run
+<name>` (and the existing ACP `/playbook`, unchanged) through the same
+admission, journal and report path as the panel, with no limits of ours
+(D121): the run admits against the holder over a workerless, CI-less
+board, journals the decision's note either way, spawns the check only on
+allow, and exits with the check's own exit code. Record:
+`docs/certification/rlm116.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
