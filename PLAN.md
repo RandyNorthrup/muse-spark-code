@@ -29966,6 +29966,29 @@ and the headless installer ISO uses M111i's daemon and pages.
   secret. The runtime's settings store (M104 lane B) holds the shared
   settings; headless runs take flags as D65 does.
 
+**Lane C review fixes (FIXM110C, 2026-10-05).** RVM110C's two P2 findings
+are in scope: compare the current stable/preview channel's release tags by
+SemVer before promotion, so recovery and reruns cannot downgrade it; and
+apply OCI file/directory and opaque whiteouts against lower layers at every
+depth, including the root, before installing this layer's files. Each fix
+requires a failing regression on the reviewed code, a passing fixed suite,
+and deliberate guard mutations with byte-exact SHA-256 restoration recorded
+in `docs/certification/m110-c.md`. No rollback input is added to this release
+workflow; deliberate rollback requires a separate explicit audited workflow.
+J owns the CHANGELOG/operator documentation handoff. No dependency or gate
+changes, registry writes, live model calls, merges or pushes are authorized.
+
+**Lane C Windows test repair (FIXM110C3, 2026-10-09).** RVF110C2's remaining
+P2 is in scope: a `.cmd` stub cannot run through shell-free Node spawning.
+Make the channel helper's executable and argument prefix an explicit,
+zod-validated dependency. The workflow supplies `docker` with no prefix;
+tests supply the absolute Node executable and a fake `.mjs` script, and
+exercise the same shell-free inspection path without any Docker PATH lookup.
+Remove the simulated Windows resolution test. Record regression failures,
+red drills with byte-exact restoration, and the Node documentation's Windows
+spawning constraint in `docs/certification/m110-c.md`. No shell is enabled,
+and hosted Windows execution remains a lead qualification.
+
 **Roadmap.** Each phase lands on its own integration branch and ships in the
 train named. Estimates are lane-hours of implementation, review and
 certification at the fleet's usual split (Muse implements, Codex reviews by
@@ -30443,6 +30466,13 @@ required here. `check:host-api` still fails only the existing T-HOST-RECORD
 generated built-in delta documented in `docs/certification/m110-t.md`.
 The record is J's owned file; J/lead regenerates it before integration.
 No test, threshold, ignore or gate is relaxed.
+
+**FIXM110C bounded rig certification (2026-10-05).** The rig/shared brief
+prohibits aggregate `npm run quality` and full `npm test`; the lead retains
+those integration gates. Run the complete owned test files in batches of at
+most three with three workers, plus typecheck, changed-file lint/format,
+deadcode, duplication, localization, host API and production build directly
+on Kubuntu. Hooks remain enabled. No gate or threshold is weakened.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -39001,6 +39031,19 @@ review findings and terminal settlement-pricing failure.
   claim that protection. T-HOST-RECORD remains a stale generated-record gate
   failure with exactly the previously recorded built-in delta; J/lead must
   regenerate it before release. No admission guard or gate is weakened.
+
+- **FIXM110C / RVM110C (lane C, 2026-10-05).** Both review P2s are
+  resolved: automatic stable/preview promotion compares the current digest's
+  validated release aliases by SemVer before writing, and OCI reconstruction
+  applies every whiteout form to lower layers, including root opacity, before
+  adding current-layer files. No review finding remains as a residual. The
+  existing workflow concurrency group serializes channel writes and retention;
+  any future explicit audited rollback workflow must share that group.
+  Hosted GHCR/OIDC/retention and final-runtime/platform qualification remain
+  the named lead/N/0/J handoffs in `docs/certification/m110-c.md`; this repair
+  certifies crafted OCI layers and the actual promotion shell on local fakes.
+  No registry operation or model call runs here. J carries the CHANGELOG and
+  operator-documentation update at integration.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

@@ -1,0 +1,61 @@
+FROM node:24.18.0-trixie-slim@sha256:ae91dcc111a68c9d2d81ff2a17bda61be126426176fde6fe7d08ab13b7f50573 AS native
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential=12.12 python3=3.13.5-1 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/muse
+COPY runtime/package.json runtime/package-lock.json ./
+COPY native-notices.mjs ./
+# Only the pinned PTY's compilation runs; arbitrary dependency scripts do not.
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
+    && node /usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js rebuild --directory /opt/muse/node_modules/node-pty \
+    && rm -rf node_modules/node-pty/deps node_modules/node-pty/src node_modules/node-pty/prebuilds \
+    && find node_modules/node-pty/build -type f ! -name pty.node -delete \
+    && npm audit --omit=dev --audit-level=high \
+    && node native-notices.mjs
+
+FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
+
+# Only Node and its complete bundled-library licence enter the runtime layer.
+# npm, headers, Corepack and compiler tooling belong to toolchain packs/builds.
+COPY --from=native /usr/local/bin/node /usr/local/bin/node
+COPY --from=native /usr/local/LICENSE /usr/local/LICENSE
+
+LABEL org.opencontainers.image.title="Muse Spark Code Node (Unofficial)" \
+      org.opencontainers.image.source="https://github.com/RandyNorthrup/muse-spark-code" \
+      org.opencontainers.image.licenses="MIT"
+
+# Debian package pins are refreshed for security updates and inventoried in
+# the SBOM. Keep copyright files, including the base image's, in every layer.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       bash=5.2.37-2+b10 ca-certificates=20250419 coreutils=9.7-3 \
+       git=1:2.47.3-0+deb13u1 openssh-client=1:10.0p1-7+deb13u4 \
+       tini=0.19.0-3+b8 util-linux=2.41.5-0+deb13u1 podman=5.4.2+ds1-2+b2 \
+       uidmap=1:4.17.4-2 slirp4netns=1.2.1-1.1 fuse-overlayfs=1.14-1+b1 \
+       bubblewrap=0.12.0-1~deb13u1 \
+       libstdc++6=14.2.0-19 libatomic1=14.2.0-19 \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /usr/libexec/podman/podman-testing \
+    && find /usr/lib -path '*/perl/*/CORE/*.h' -delete \
+    && groupadd --gid 10001 muse-node \
+    && groupadd --gid 10002 muse-tools \
+    && groupadd --gid 10003 muse-bridge \
+    && useradd --uid 10001 --gid muse-node --groups muse-bridge --no-create-home --home-dir /var/lib/muse-spark-code-node --shell /usr/sbin/nologin muse-node \
+    && useradd --uid 10002 --gid muse-tools --groups muse-bridge --no-create-home --home-dir /workspaces/.muse-tools --shell /usr/sbin/nologin muse-tools \
+    && printf 'muse-tools:100000:65536\n' > /etc/subuid \
+    && printf 'muse-tools:100000:65536\n' > /etc/subgid
+
+# This context is staged from an explicit package, never the working tree.
+COPY runtime/ /opt/muse/
+COPY --from=native /opt/muse/node_modules/ /opt/muse/node_modules/
+COPY --from=native /opt/muse/native-notices.json /opt/muse/native-notices.json
+COPY entrypoint.sh /usr/local/bin/muse-node-entrypoint
+COPY muse-spark-code-acp /usr/local/bin/muse-spark-code-acp
+COPY layer-notices.sh /usr/local/lib/muse-layer-notices
+RUN chmod 0555 /usr/local/bin/muse-node-entrypoint /usr/local/bin/muse-spark-code-acp /usr/local/lib/muse-layer-notices \
+    && /usr/local/lib/muse-layer-notices
+
+# Root is used only by the volume/UID bootstrap. Both long-lived processes
+# irrevocably drop it, all capabilities and inherited environment before exec.
+ENTRYPOINT ["/usr/local/bin/muse-node-entrypoint"]
+CMD ["serve"]
