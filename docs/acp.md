@@ -595,7 +595,10 @@ when their metadata cannot be read.
 
 The terminal's `providers accounts` commands manage metadata, ordering,
 thresholds and stored API keys. Keys are read only from standard input,
-never an argument or file.
+never an argument or file. Meta's Model API entry is built in, so it works
+with no pre-existing file; any other provider needs its stored metadata
+row, and the command names a provider that has none instead of reporting
+the account service as unconnected.
 
 ## Paid features
 

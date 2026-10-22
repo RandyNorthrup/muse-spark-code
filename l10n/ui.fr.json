@@ -5673,6 +5673,7 @@
     "execHelp": "Comptes sans interaction : {command} exec --account <id> [--account-pool]. CI avec --key-stdin utilise uniquement le compte par défaut et ne change jamais de compte.",
     "unavailable": "Les comptes seront disponibles lorsque cet environnement sera connecté au service partagé des comptes.",
     "unavailableReason": "Les comptes sont indisponibles ({reason}).",
+    "noAccountsEntry": "{provider} n'a aucune entrée de comptes dans cet environnement.",
     "changed": "Les comptes ont changé pendant la mise à jour. Réessayez.",
     "notReady": "Les comptes ne sont pas encore prêts. Réessayez.",
     "invalidReply": "Le service de comptes a répondu de manière inattendue.",

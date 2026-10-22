@@ -5517,6 +5517,7 @@
     "execHelp": "Etkileşimsiz hesaplar: {command} exec --account <id> [--account-pool]. --key-stdin kullanan CI yalnızca varsayılan hesabı kullanır ve asla hesap değiştirmez.",
     "unavailable": "Bu çalışma ortamı paylaşılan hesap hizmetine bağlanana kadar hesaplar kullanılamaz.",
     "unavailableReason": "Hesaplar kullanılamıyor ({reason}).",
+    "noAccountsEntry": "{provider} sağlayıcısının bu çalışma ortamında hesap kaydı yok.",
     "changed": "Güncelleme sırasında hesaplar değişti. Yeniden deneyin.",
     "notReady": "Hesaplar henüz hazır değil. Yeniden deneyin.",
     "invalidReply": "Hesap hizmeti beklenmeyen bir yanıt verdi.",

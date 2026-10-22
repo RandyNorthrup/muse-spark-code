@@ -5361,6 +5361,7 @@
     "execHelp": "非互動式帳戶：{command} exec --account <id> [--account-pool]。使用 --key-stdin 的CI僅使用預設帳戶，永不切換帳戶。",
     "unavailable": "此執行環境連線至共用帳戶服務後，帳戶才可使用。",
     "unavailableReason": "帳戶無法使用 ({reason})。",
+    "noAccountsEntry": "{provider} 在此執行環境中沒有帳戶項目。",
     "changed": "更新期間帳戶發生了變化，請重試。",
     "notReady": "帳戶尚未就緒，請重試。",
     "invalidReply": "帳戶服務傳回了非預期的回覆。",

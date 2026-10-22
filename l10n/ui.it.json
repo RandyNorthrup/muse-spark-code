@@ -5673,6 +5673,7 @@
     "execHelp": "Account senza interazione: {command} exec --account <id> [--account-pool]. CI con --key-stdin usa solo l’account predefinito e non cambia mai account.",
     "unavailable": "Gli account saranno disponibili quando questo ambiente sarà collegato al servizio condiviso degli account.",
     "unavailableReason": "Gli account non sono disponibili ({reason}).",
+    "noAccountsEntry": "{provider} non ha voci account in questo runtime.",
     "changed": "Gli account sono cambiati durante l'aggiornamento. Riprova.",
     "notReady": "Gli account non sono ancora pronti. Riprova.",
     "invalidReply": "Il servizio account ha risposto in modo imprevisto.",

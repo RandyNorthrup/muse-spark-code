@@ -6995,6 +6995,7 @@ export const EN = {
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
     unavailableReason: 'Accounts are unavailable ({reason}).',
+    noAccountsEntry: '{provider} has no accounts entry in this runtime.',
     changed: 'Accounts changed while updating. Try again.',
     notReady: 'Accounts are not ready yet. Try again.',
     invalidReply: 'The account service answered with an unexpected reply.',

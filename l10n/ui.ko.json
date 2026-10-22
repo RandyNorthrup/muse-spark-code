@@ -5361,6 +5361,7 @@
     "execHelp": "비대화형 계정: {command} exec --account <id> [--account-pool]. --key-stdin을 사용하는 CI는 기본 계정만 사용하며 계정을 전환하지 않습니다.",
     "unavailable": "이 런타임이 공유 계정 서비스에 연결될 때까지 계정을 사용할 수 없습니다.",
     "unavailableReason": "계정을 사용할 수 없습니다 ({reason}).",
+    "noAccountsEntry": "{provider}에는 이 런타임에 계정 항목이 없습니다.",
     "changed": "업데이트 중에 계정이 변경되었습니다. 다시 시도하세요.",
     "notReady": "계정이 아직 준비되지 않았습니다. 다시 시도하세요.",
     "invalidReply": "계정 서비스에서 예상치 못한 응답을 반환했습니다.",
