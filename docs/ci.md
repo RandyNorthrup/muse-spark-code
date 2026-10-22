@@ -734,8 +734,11 @@ uses event envelope version 2 with a `resource` variant; nested results use
 M106’s version 2 contract with decimal USD and optional structured output. It validates the entire union, keeps the existing update-egress
 restrictions, monotonic sequence and output backpressure. The M80 runner uses this v2 sink; the Action accepts version 2,
 validates each resource variant and the nested v2 result invariants.
-Active runtime spawn leases and complete resource enforcement remain a named
-integration binding; event validation alone does not certify that enforcement.
+The run's own governed launches share the run's one governor (M107 H–C1):
+the flags govern them, and their deferrals and pause refusals are v2
+`resource` events beside the level changes. Native containment and
+installed-runner receipts remain named; event validation alone does not
+certify them.
 
 Resource events contain levels, reason codes, aggregate counts and numeric
 readings, never PID/birth identity, commands, paths, names or environment.

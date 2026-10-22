@@ -5491,29 +5491,40 @@ controls your own terminals, editor or other applications. Model requests,
 Tab, approvals, paid consent and Stop do not wait for it. It does not change
 provider capabilities, permissions, paid consent or budgets.
 
-On macOS, memory headroom is unknown when the runtime's libuv is older than
-1.52 (including Node 22), or its available-memory API is absent. Those older
-readings count only free pages and can falsely pause new ACP sessions despite
-reclaimable memory. Newer runtimes include inactive and purgeable pages.
+On macOS, memory headroom includes free, inactive and purgeable pages. Runtimes
+with libuv 1.52 or newer use Node's available-memory API. Older runtimes
+(including Node 22 and older VS Code extension hosts) use the packaged signed
+helper, with one idle child per governor and one request per sample. It asks
+for no privacy permission and exits when the governor closes. If the helper
+is missing, fails or times out, or a newer runtime has no available-memory
+API, the reading stays unknown; free pages alone never stand in for headroom.
+The shared sampler applies to the extension and ACP/headless hosts, including
+editors that embed an older Node runtime.
 
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
 
-| Setting                      | Default | Range or meaning                                                                    |
-| ---------------------------- | ------- | ----------------------------------------------------------------------------------- |
-| `resourceGovernor`           | `true`  | Enable this machine's governor                                                      |
-| `resourceCpuMaxPercent`      | `null`  | 0–100%; no CPU limit until configured; sustained for 30 seconds                     |
-| `resourceMemoryMaxPercent`   | `null`  | 0–100% in use; no memory-use limit until configured                                 |
-| `resourceMemoryMinFreeGiB`   | `null`  | 0 GiB or more; no memory floor until configured; effective floor at most 15% of RAM |
-| `resourceGpuMaxPercent`      | `null`  | 1–100%; no GPU probe until configured                                               |
-| `resourceDiskBusyMaxPercent` | `null`  | 1–100%; no disk-busy probe until configured                                         |
-| `resourceDiskMinFreeGiB`     | `null`  | No floor until configured; a set floor of zero or more is honoured as set           |
+| Setting                      | Default  | Range or meaning                                                                                                             |
+| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                                               |
+| `resourceCpuMaxPercent`      | `null`   | 0–100%; no CPU limit until configured; sustained for 30 seconds                                                              |
+| `resourceMemoryMaxPercent`   | `null`   | 0–100% in use; no memory-use limit until configured                                                                          |
+| `resourceMemoryMinFreeGiB`   | `null`   | 0 GiB or more; no memory floor until configured; effective floor at most 15% of RAM                                          |
+| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                                        |
+| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                                                  |
+| `resourceDiskMinFreeGiB`     | `null`   | No floor until configured; a set floor of zero or more is honoured as set                                                    |
+| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; needs a paired device or runner route, not available yet. Paired-device relocation is unavailable. |
 
 Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
 background capacity narrows to one per kind; at pause, new background work
-waits. This release binds no paired-device or runner route, so sustained
-pressure goes from throttle to pause and never to relocate; resource status
-and the pause notice show that work stays on this machine. Foreground work has a twenty-second maximum wait at pause. **Run Now**
+waits. With an active approved runner route, sustained pressure can move queued
+heavy checks to that SSH runner. The check keeps its existing command, repository,
+snapshot and permission guards; the receiver rechecks load while reserving its
+slot. Without an active route, pressure goes directly from throttle to pause,
+and status says that work stays here. **Ask** asks before dispatch; **Keep here**
+withdraws work until the receiver admits it. Lost admission replies retain
+ownership and never trigger a duplicate local check. Paired-device relocation
+remains unavailable. Foreground work has a twenty-second maximum wait at pause. **Run Now**
 releases that wait; **Resume Now** overrides pressure for fifteen minutes,
 without turning on an explicitly disabled governor. Unknown readings are shown
 as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
@@ -5529,13 +5540,17 @@ the integration record names the remaining native delivery and storage qualifica
 
 The CLI accepts `muse-spark-code-acp resources status --json` and
 `muse-spark-code-acp resources resume --json`. Status describes that command
-process, rather than another running session's queue. Resume writes the
+process, rather than another running session's queue. Each
+`muse-spark-code-acp` process has one governor, which the ACP agent, a
+headless run and terminal commands share; the processes it starts are that
+governor's work, so at throttle one background item per kind runs. Resume writes the
 machine's bounded marker, read by loaded runtime hosts on their next refresh.
 `resources history` and `usage resources` print the machine's resource
 history, the same summary the usage page's **Resources** section shows
 (`--json` gives the validated aggregate). The VS Code window's governor and
-the ACP agent record minute readings, level and override events and the
-harness's own CPU time into a local journal under the usage folder, with the
+the ACP agent record minute readings, level and override events and the CPU
+time and peak memory of the processes each started (not yet on macOS) into a
+local journal under the usage folder, with the
 usage-history setting as consent, checked when each reading is collected. It
 keeps seven recorded days of detail (at most 10,080 minute readings and 1,000
 events), shows the open minute as "This minute so far", and keeps one row per
@@ -5585,11 +5600,14 @@ them (M104); none does yet. The usage page (VS Code, the companion page and
 native hosts' embedded page) mounts the usage-history section lazily from the
 usage service's validated state. The actuator lifecycle, runtime spawn
 binding, M96/M96c slots and M100 paired-device dispatch remain explicit
-integration handoffs. Once those routes join, relocation will move only eligible queued
-tasks/checks, or a running check after explicit **Move to** and proven
-retirement. Pairing, offers,
-repository mapping, receiver permissions and paid consent remain required;
-headless relocation is refused. **Keep Here** cancels before receiver admission.
+integration handoffs. The runner factory consumes the scheduler's complete
+approval, ownership and task/Traffic ports; those production ports are not
+joined in an installed editor yet, so no runner route is active and queued
+checks stay on this machine. The [runner binding record](docs/certification/cm1073.md) names the
+adapter contract and checks. Moving team tasks to paired devices, or moving a
+running check after explicit **Move to** and proven retirement, remains with
+the device route. Pairing, offers, repository mapping, receiver permissions and
+paid consent remain required; headless relocation is refused.
 The [M107 integration record](docs/certification/m107.md) and
 [editor resource matrix](docs/ide-compatibility/resources.md) distinguish
 component receipts from installed-editor acceptance.

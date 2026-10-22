@@ -28,6 +28,8 @@ function normalized(file: string, platform: NodeJS.Platform): string {
 export async function scheduleWindowsOwner(run: DefinitionDeps['run']): Promise<string> {
   const script =
     "$ErrorActionPreference = 'Stop'; $identity = [Security.Principal.WindowsIdentity]::GetCurrent(); $principal = [Security.Principal.WindowsPrincipal]::new($identity); ConvertTo-Json -Compress -InputObject @{ sid = $identity.User.Value; elevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator); service = $identity.IsSystem -or ($identity.Groups.Value -contains 'S-1-5-6') }"
+  // Inline `-EncodedCommand`, no script file: the execution policy does not
+  // gate it, so this probe does not use the shared Bypass list.
   const result = await run('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',
@@ -115,6 +117,8 @@ async function systemdFiles(deps: DefinitionDeps): Promise<string[]> {
 /** Export through IRegisteredTask.Xml and trust both folder and task descriptors. */
 async function windowsTask(deps: DefinitionDeps): Promise<string> {
   const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $folder = $scheduler.GetFolder('${path.win32.join(path.win32.sep, deps.id)}'); $task = $folder.GetTask('${deps.id}'); $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($folder.GetSecurityDescriptor(7)); $taskAcl = [Security.AccessControl.FileSecurity]::new(); $taskAcl.SetSecurityDescriptorSddlForm($task.GetSecurityDescriptor(7)); $actions = $task.Definition.Actions; if ($actions.Count -ne 1 -or $actions.Item(1).Type -ne 0) { throw 'invalid action' }; ConvertTo-Json -Compress -InputObject @{ xml = $task.Xml; actionPath = $actions.Item(1).Path; folderTrusted = (Test-TrustedAcl $acl $false $true $true); taskTrusted = (Test-TrustedAcl $taskAcl $false $false $true) }`
+  // Inline `-EncodedCommand`, no script file: the execution policy does not
+  // gate it, so this probe does not use the shared Bypass list.
   const result = await deps.run('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',

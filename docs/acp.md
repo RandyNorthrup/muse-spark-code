@@ -988,7 +988,11 @@ tool `_meta`. It needs the injected runtime resource port. `/usage resources`,
 `resources history` and `usage resources` print the machine's resource journal,
 the same summary as the usage page's Resources section (`--json`: the
 validated aggregate). The agent records its own governor's minute readings and
-events there while usage history is on; one-shot commands only read. An
+events there while usage history is on, with the CPU time and peak memory of
+the processes it started as harness work (not yet on macOS); one-shot commands
+only read. Each agent process has one governor: a conversation's turn hears
+about its own waiting work, and a headless run's own spawns share its v2
+resource events. An
 unreadable journal is an explicit error, never empty history. Zed, Xcode,
 Neovim, Emacs, Sublime and native editor plugins
 have equivalent routes; see the [resource matrix](ide-compatibility/resources.md).
@@ -996,8 +1000,8 @@ These component receipts do not certify installed-editor resource behavior.
 
 Stop and permission/paid prompts remain responsive at pause. Unknown readings
 are neither a fabricated zero nor evidence of recovery. No resource action
-changes model capabilities, paid consent or the shared budget. Runtime spawn,
-native control, journal and relocation bindings remain named in
+changes model capabilities, paid consent or the shared budget. Native control,
+tool-call correlation and relocation bindings remain named in
 [M107's integration record](certification/m107.md).
 
 ## Structured headless answers

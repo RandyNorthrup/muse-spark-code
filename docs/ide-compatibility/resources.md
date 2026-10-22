@@ -5,14 +5,26 @@ W delivers artifacts and settings without inventing missing native wire fields.
 The table records the required equivalent route and what is still unbound.
 Existing host support status is unchanged.
 
+The shared macOS machine sampler counts free, inactive and purgeable pages on
+every runtime. Below libuv 1.52 it requests the reading from the packaged signed
+helper, with one idle child per governor; newer runtimes use Node's API. This
+applies to the VS Code family and every editor using the ACP/headless runtime,
+including Arduino IDE's older Node runtime. Missing/failed native helpers stay
+unknown. The Mac mini parity and lifecycle receipts are in
+[C-M107-2's record](../certification/m107-darwin-memory.md). Windows and Linux
+keep their existing native readings. Installed native chip/status receipts for
+JetBrains, Visual Studio, Eclipse and the companion, and ACP editor receipts
+for Zed, Xcode, Neovim, Emacs, Sublime and JupyterLab, remain with
+C-M104-1/C-M107-8 and C-M107-9; this sampler change adds no editor-specific UI.
+
 | Host                                                                   | Equivalent route                                                                                  | Integration handoff                                                                                                                   |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | VS Code family, remote/WSL                                             | Status item, shared chip/popover, Resume now/Settings/Show resources, Resources history           | Chip, status item, pause notice and both commands bound to the window governor (M107 W chip); history is bound (journal + usage page) |
 | JetBrains, Visual Studio, Eclipse                                      | MHP native status widget plus the same embedded chip/controls/history                             | M104b–d bind the supplied status port and machine store; capture real bridge shapes and test installed hosts                          |
 | Companion page                                                         | Same chip/controls/history in shared React                                                        | M104 B binds source and callbacks; serve the independent entries through its CSP/asset origin                                         |
-| ACP clients: Zed, Xcode, Neovim, Emacs, Sublime, JupyterLab and others | `/resources`, notices/deferred-tool metadata, `/resources resume`, `/usage resources`             | H binds the active runtime/spawn source; the agent records and reads the machine journal; editor receipts remain open                 |
+| ACP clients: Zed, Xcode, Neovim, Emacs, Sublime, JupyterLab and others | `/resources`, notices/deferred-tool metadata, `/resources resume`, `/usage resources`             | Bound (H–C1): one governor per agent process; its launches are notices, occupancy and harness rows. Editor receipts remain open       |
 | Any terminal/native TUI                                                | `resources status`, `resources resume`, `resources history`, `usage resources`, optional `--json` | Status/resume/history CLI tested; process-local snapshot, machine marker and the machine resource journal                             |
-| Headless/CI                                                            | Exec flags, version-2 resource event envelope, stderr and run ledger                              | H binds the active lease/resource sink; relocation refused; M80 live support limits remain                                            |
+| Headless/CI                                                            | Exec flags, version-2 resource event envelope, stderr and run ledger                              | Bound (H–C1): the run's spawns share its governor and v2 sink; relocation refused; M80 live support limits remain                     |
 | Traffic/tasks/paired devices                                           | Deferred rows, Move to/Keep here, headroom buckets                                                | M96/M96c TeamCapacityPort and runner ports, M100 offer/receiver dispatch, U/J rows/notices/journal                                    |
 
 `dist/webview/resourceSurface.js` is a named-export browser entry for U's
@@ -39,3 +51,10 @@ do not pass a registered launch host yet: that is the H–C1 runtime binding in
 must keep one governor per process. Until H–C1 joins, the agent records no
 harness-work rows rather than an estimate; its machine minutes and events are
 recorded as in every other host.
+
+**Closed by M107 H–C1 (2026-10-09).** Each runtime process has one governor,
+and its launch host is built around it: the agent's governed spawns are its
+harness-work rows (Windows attested settlements, Linux registered trees),
+read by every history surface above. macOS records none until T–C1's native
+identity binds portable launches, as in the VS Code window; nothing is
+estimated. See [the H–C1 record](../certification/m107.md#m107-hc1--the-runtime-spawn-binding).

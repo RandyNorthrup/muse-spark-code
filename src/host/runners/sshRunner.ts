@@ -15,11 +15,21 @@ import {
   TEAM_SCHED_ID_MAX_CHARS,
   GIT_OUTPUT_MAX_BYTES,
   TEAM_SCHED_TICK_MS,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { isErrno } from '../../core/fs/errno'
 import { runnerHealthSchema, type RunnerHealth, RunnerHealthStore } from '../../core/runners/health'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
-import type { CheckJob, RunnerDispatch } from '../../core/runners/routing'
+import {
+  RunnerOfflineError,
+  RunnerPolicyRefusedError,
+  RunnerTestFailedError,
+  RunnerUntrustedError,
+  WindowsCommandTooLongError,
+  type CheckJob,
+  type RunnerDispatch,
+} from '../../core/runners/routing'
 import { posixQuoted, powerShellQuoted } from '../../core/shellQuote'
 import { captureCheckSnapshot, type CheckGit } from '../team/checkSlots'
 
@@ -50,10 +60,19 @@ export interface SshRunnerDeps extends CheckGit {
   readonly wait: (ms: number) => Promise<void>
 }
 
-class WindowsCommandTooLongError extends Error {
-  public constructor() {
-    super(UI_TEXT.teamRunners.commandTooLong)
-  }
+/**
+A transport failure, never a bug: the machine, the network or the cancelled
+wait failed, not the check. System errors, cancel and the transport's own
+offline sentence read this way; anything else stays loud. Routine hangs
+surface this way too: OpenSSH's own ConnectTimeout exits first, so a wait
+that outlives it is already one of these.
+*/
+function isTransportError(error: unknown): boolean {
+  return (
+    isErrno(error) ||
+    (error instanceof DOMException && error.name === 'AbortError') ||
+    (error instanceof Error && error.message === UI_TEXT.teamRunners.offline)
+  )
 }
 
 /** The same fixed policy is used by health, upload, run, end checks and Git's SSH. */
@@ -72,11 +91,66 @@ export function runnerSshArgs(runner: Runner): string[] {
     runner.destination,
   ]
 }
+// ONE WAY to start Windows PowerShell for our own script files: the
+// runner's remote command is built from the shared
+// WINDOWS_POWERSHELL_COMMAND_ARGS, never a second copy of the flags.
+// `-ExecutionPolicy Bypass` is process scope: it changes nothing on the
+// machine, so a Windows receiver left at Windows' default (every scope
+// Undefined, effectively Restricted, which refuses .ps1 FILES) still runs
+// the helper. `-Command` becomes `-EncodedCommand` because the script
+// crosses SSH as base64; `-InputFormat None` with `< NUL` keeps a remote
+// shell from waiting on stdin. Where Group Policy overrides the flag, the
+// helper is still refused, and the invocation wrapper below says so.
+export function runnerWindowsLaunchArgs(script: string): readonly string[] {
+  return [
+    ...WINDOWS_POWERSHELL_COMMAND_ARGS.filter((arg) => arg !== '-Command'),
+    '-InputFormat',
+    'None',
+    '-EncodedCommand',
+    Buffer.from(script, 'utf16le').toString('base64'),
+  ]
+}
+
+/** The remote shell line for a Windows receiver: PowerShell with the launch args, stdin closed. */
+export function runnerWindowsRemoteCommand(script: string): string {
+  return `powershell.exe ${runnerWindowsLaunchArgs(script).join(' ')} < NUL`
+}
+
+// The fixed marker the Windows invocation wrapper prints to the helper
+// launch's stderr beside the error record's own category and fully qualified
+// id, so a Group Policy script refusal is read from those identifiers, never
+// from English message text and never from an exit code alone.
+export const RUNNER_EXECUTION_POLICY_MARKER = 'MUSE_SPARK_RUNNER_POLICY'
+
+/** Whether the helper launch's stderr carries the wrapper's policy-refusal marker. */
+export function isRunnerPolicyRefusal(stderr: string | undefined): boolean {
+  return (
+    stderr?.includes(
+      `${RUNNER_EXECUTION_POLICY_MARKER} category=SecurityError fqid=UnauthorizedAccess`,
+    ) ?? false
+  )
+}
+
+/** The helper call for a receiver: `& 'helper' ...` on Windows, `bash 'helper' ...` elsewhere. */
+export function runnerInvocation(
+  runner: Runner,
+  helper: string,
+  action: string,
+  args: readonly string[],
+): string {
+  const quote = runner.os === 'win32' ? powerShellQuoted : posixQuoted
+  const call = `${runner.os === 'win32' ? '&' : 'bash'} ${quote(helper)} ${[action, runner.workFolder, ...args].map((value) => quote(value)).join(' ')}`
+  if (runner.os !== 'win32') return call
+  // The helper is a script FILE: a policy that forbids scripts refuses it
+  // before its first line. The wrapper relays the error record's category
+  // and fully qualified id to stderr behind the fixed marker and rethrows,
+  // so the launch reports the refusal instead of a bare failure; the success
+  // path is byte-for-byte the call above, and the helper itself is untouched.
+  return `try { ${call} } catch { [Console]::Error.WriteLine("${RUNNER_EXECUTION_POLICY_MARKER} category=$($_.CategoryInfo.Category) fqid=$($_.FullyQualifiedErrorId)"); throw }`
+}
+
 function remoteCommand(runner: Runner, script: string): string {
-  const command =
-    runner.os === 'win32'
-      ? `powershell.exe -NoProfile -NonInteractive -InputFormat None -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')} < NUL`
-      : script
+  const command = runner.os === 'win32' ? runnerWindowsRemoteCommand(script) : script
   if (runner.os === 'win32' && command.length >= RUNNER_WINDOWS_COMMAND_MAX_CHARS)
     throw new WindowsCommandTooLongError()
   return command
@@ -90,9 +164,14 @@ export class SshRunner {
   }
   private admit(signal?: AbortSignal): void {
     signal?.throwIfAborted()
-    if (!this.deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+    if (!this.deps.isTrusted()) throw new RunnerUntrustedError()
   }
-  private async ssh(runner: Runner, script: string, signal?: AbortSignal): Promise<string> {
+  private async ssh(
+    runner: Runner,
+    script: string,
+    signal?: AbortSignal,
+    onSend?: () => void,
+  ): Promise<string> {
     this.admit(signal)
     const args = [...runnerSshArgs(runner), remoteCommand(runner, script)]
     if (process.platform === 'win32') {
@@ -105,6 +184,9 @@ export class SshRunner {
         .join(' ')
       if (line.length >= RUNNER_WINDOWS_COMMAND_MAX_CHARS) throw new WindowsCommandTooLongError()
     }
+    // The single sent fact: only the start command reports it, immediately
+    // before its bytes leave, after every length refusal has thrown.
+    onSend?.()
     const result = await this.deps.run({
       file: this.deps.ssh,
       args,
@@ -114,8 +196,13 @@ export class SshRunner {
       ...(signal !== undefined && { signal }),
     })
     this.admit(signal)
-    if (!result.descendantsEnded || result.exitCode !== 0)
-      throw new Error(UI_TEXT.teamRunners.offline)
+    if (!result.descendantsEnded || result.exitCode !== 0) {
+      // A Group Policy script refusal is a different fact from offline: the
+      // receiver answered and forbade the helper, so it says so.
+      if (runner.os === 'win32' && isRunnerPolicyRefusal(result.stderr))
+        throw new RunnerPolicyRefusedError()
+      throw new RunnerOfflineError()
+    }
     return result.output
   }
   private async install(runner: Runner, signal?: AbortSignal): Promise<string> {
@@ -129,7 +216,7 @@ export class SshRunner {
     const temporary = `${target}.${randomUUID()}.new`
     const script =
       runner.os === 'win32'
-        ? `$ErrorActionPreference='Stop';$root=${powerShellQuoted(runner.workFolder)};[IO.Directory]::CreateDirectory($root)|Out-Null;$temporary=Join-Path $root '${separator.basename(temporary)}';$source=[IO.MemoryStream]::new([Convert]::FromBase64String('${gzipSync(bytes).toString('base64')}'));$zip=[IO.Compression.GZipStream]::new($source,[IO.Compression.CompressionMode]::Decompress);$file=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew);try{$zip.CopyTo($file)}finally{$file.Dispose();$zip.Dispose();$source.Dispose()};Move-Item -Force -LiteralPath $temporary -Destination (Join-Path $root '${separator.basename(target)}')`
+        ? `$ErrorActionPreference='Stop';$root=${powerShellQuoted(runner.workFolder)};[IO.Directory]::CreateDirectory($root)|Out-Null;$target=Join-Path $root '${separator.basename(target)}';$temporary=$target+'${temporary.slice(target.length)}';$source=[IO.MemoryStream]::new([Convert]::FromBase64String('${gzipSync(bytes).toString('base64')}'));$zip=[IO.Compression.GZipStream]::new($source,[IO.Compression.CompressionMode]::Decompress);$file=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew);try{$zip.CopyTo($file)}finally{$file.Dispose();$zip.Dispose();$source.Dispose()};Move-Item -Force -LiteralPath $temporary -Destination $target`
         : `mkdir -p ${posixQuoted(runner.workFolder)} && printf '%s' ${posixQuoted(bytes.toString('utf8'))} > ${posixQuoted(temporary)} && mv -f ${posixQuoted(temporary)} ${posixQuoted(target)}`
     await this.ssh(runner, script, signal)
     return target
@@ -140,8 +227,7 @@ export class SshRunner {
     action: string,
     args: readonly string[],
   ): string {
-    const quote = runner.os === 'win32' ? powerShellQuoted : posixQuoted
-    return `${runner.os === 'win32' ? '&' : 'bash'} ${quote(helper)} ${[action, runner.workFolder, ...args].map((value) => quote(value)).join(' ')}`
+    return runnerInvocation(runner, helper, action, args)
   }
   public async test(
     runnerValue: Runner,
@@ -195,13 +281,30 @@ export class SshRunner {
             this.invocation(runner, helper, 'selftest', [String(RUNNER_SELFTEST_TIMEOUT_MS)]),
           ),
         )
-        z.strictObject({ inputReady: z.literal(true) }).parse(answer)
-      } catch {
+        if (!z.strictObject({ inputReady: z.literal(true) }).safeParse(answer).success)
+          return { ok: false, notice: UI_TEXT.teamRunners.inputHangNotice }
+      } catch (error: unknown) {
         this.admit()
+        // A proved policy refusal says policy. Anything else that never
+        // proved input readiness reads as a hang: only transport failures
+        // and an unreadable answer read that way.
+        if (error instanceof RunnerPolicyRefusedError)
+          return { ok: false, notice: UI_TEXT.teamRunners.executionPolicy }
+        if (error instanceof SyntaxError)
+          return { ok: false, notice: UI_TEXT.teamRunners.inputHangNotice }
+        if (!isTransportError(error)) throw error
         return { ok: false, notice: UI_TEXT.teamRunners.inputHangNotice }
       }
     }
-    const health = await this.sample(runner)
+    let health: RunnerHealth | undefined
+    try {
+      health = await this.sample(runner)
+    } catch (error: unknown) {
+      // Unreachable once the selftest above ran the same helper: a policy
+      // change in between still says policy, never a hang.
+      if (!(error instanceof RunnerPolicyRefusedError)) throw error
+      return { ok: false, notice: UI_TEXT.teamRunners.executionPolicy }
+    }
     return health === undefined
       ? {
           ok: false,
@@ -223,9 +326,17 @@ export class SshRunner {
         this.invocation(runner, helper, 'health', [String(runner.maxJobs)]),
       )
       const value: unknown = JSON.parse(text)
-      return this.health.record(runner.id, runnerHealthSchema.parse(value))
-    } catch {
+      const parsed = runnerHealthSchema.safeParse(value)
+      return this.health.record(runner.id, parsed.success ? parsed.data : undefined)
+    } catch (error: unknown) {
       this.admit()
+      // A proved policy refusal is not an unreachable runner: it propagates
+      // so the router reports the policy sentence instead of going silent.
+      if (error instanceof RunnerPolicyRefusedError) throw error
+      // Every other health failure reads as unknown health: only transport
+      // failures and an unreadable answer read that way.
+      if (error instanceof SyntaxError) return this.health.record(runner.id, undefined)
+      if (!isTransportError(error)) throw error
       return this.health.record(runner.id, undefined)
     }
   }
@@ -241,7 +352,7 @@ export class SshRunner {
       await this.ssh(runner, this.invocation(runner, helper, 'status', [runId])),
     )
     const result = runStateSchema.parse(value)
-    if (result.runId !== runId) throw new Error(UI_TEXT.teamRunners.testFailed)
+    if (result.runId !== runId) throw new RunnerTestFailedError()
     return result
   }
   public async run(runnerValue: Runner, job: CheckJob): Promise<RunnerDispatch> {
@@ -250,23 +361,36 @@ export class SshRunner {
     this.admit(job.signal)
     await this.deps.assertWorkingCopy(job.cwd)
     this.admit(job.signal)
-    if (this.active.has(job.runId)) throw new Error(UI_TEXT.teamRunners.busy)
+    // A live copy with this id is already leaving or running: never start a
+    // second one locally or remotely. Uncertain retains ownership, never local.
+    if (this.active.has(job.runId)) return { kind: 'uncertain' }
     this.active.add(job.runId)
-    let isDispatched = false
+    const sendState = { sent: false }
     let pushCopy: string | undefined
     let hasPushProof = false
     try {
       const helper = await this.install(runner, job.signal)
       await this.ssh(runner, this.invocation(runner, helper, 'init', []), job.signal)
-      const snapshot = await captureCheckSnapshot(
-        job.cwd,
-        this.deps.scratch,
-        this.deps,
-        () => {
-          this.admit(job.signal)
-        },
-        job.timeoutMs,
-      )
+      let snapshot: string
+      try {
+        snapshot = await captureCheckSnapshot(
+          job.cwd,
+          this.deps.scratch,
+          this.deps,
+          () => {
+            this.admit(job.signal)
+          },
+          job.timeoutMs,
+        )
+      } catch (error) {
+        // A snapshot without descendants proof reads as a failed check,
+        // never a lost one.
+        if (!(
+          error instanceof Error && error.message === UI_TEXT.teamTrafficNotices.uncertainAttempt
+        ))
+          throw error
+        throw new RunnerTestFailedError({ cause: error })
+      }
       // A source repository's url.*.insteadOf must never redirect a runner push.
       pushCopy = await mkdtemp(path.join(this.deps.scratch, 'push-'))
       const gitEnvironment = {
@@ -296,7 +420,7 @@ export class SshRunner {
         signal: job.signal,
       })
       hasPushProof = cloned.descendantsEnded
-      if (!hasPushProof || cloned.exitCode !== 0) throw new Error(UI_TEXT.teamRunners.testFailed)
+      if (!hasPushProof || cloned.exitCode !== 0) throw new RunnerTestFailedError()
       const sshCommand = [this.deps.ssh, ...runnerSshArgs(runner).slice(1, -1)]
         .map((value) => posixQuoted(value))
         .join(' ')
@@ -333,7 +457,7 @@ export class SshRunner {
         .update(runner.setupCommand)
       for (const file of job.lockfiles) {
         if (path.isAbsolute(file) || file.split(/[\\/]/u).includes('..'))
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         this.admit(job.signal)
         const blob = await this.deps.run({
           file: this.deps.file,
@@ -344,8 +468,7 @@ export class SshRunner {
           timeoutMs: job.timeoutMs,
           signal: job.signal,
         })
-        if (!blob.descendantsEnded || blob.exitCode !== 0)
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+        if (!blob.descendantsEnded || blob.exitCode !== 0) throw new RunnerTestFailedError()
         key.update('\0').update(file).update(blob.output)
       }
       const environment = runnerEnvironment(this.deps.env, runner.environmentNames)
@@ -365,15 +488,37 @@ export class SshRunner {
         encode(runner.setupCommand),
         encode(job.command),
         String(Math.ceil(job.timeoutMs / MILLISECONDS_PER_SECOND)),
+        ...(job.relocation === undefined ? [] : ['resource']),
       ])
       // Check before dispatch uncertainty: every Windows transport command is bounded.
       remoteCommand(runner, start)
-      isDispatched = true
-      const started: unknown = JSON.parse(await this.ssh(runner, start, job.signal))
-      const initial = runStateSchema.parse(started)
-      if (initial.runId !== job.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
+      const started: unknown = JSON.parse(
+        await this.ssh(runner, start, job.signal, () => {
+          sendState.sent = true
+          try {
+            job.onSent?.()
+          } catch (error) {
+            // A broken sent observer reads as a failed run, never a lost one.
+            throw new RunnerTestFailedError({ cause: error })
+          }
+        }),
+      )
+      const startedParsed = runStateSchema.safeParse(started)
+      if (!startedParsed.success) throw new RunnerTestFailedError()
+      const initial = startedParsed.data
+      if (initial.runId !== job.runId) throw new RunnerTestFailedError()
       if (initial.state === 'busy') return { kind: 'busy' }
-      if (initial.state === 'refused') throw new WindowsCommandTooLongError()
+      // The receiver got the start and proved it admitted nothing: run locally
+      // once, keeping the true refusal reason so the source can say why.
+      if (initial.state === 'refused') return { kind: 'busy', reason: initial.reason }
+      if (initial.state === 'running' || initial.state === 'ended') {
+        try {
+          job.onAdmitted?.()
+        } catch (error) {
+          // A broken admission observer reads as a failed run, never a lost one.
+          throw new RunnerTestFailedError({ cause: error })
+        }
+      }
       const deadline = this.deps.now() + job.timeoutMs + RUNNER_CONNECT_TIMEOUT_MS
       let output = ''
       let bytes = Buffer.alloc(0)
@@ -387,18 +532,27 @@ export class SshRunner {
           job.signal,
         )
         const value: unknown = JSON.parse(text)
-        const encoded = z.strictObject({ bytes: z.string() }).parse(value).bytes
+        const encodedParsed = z.strictObject({ bytes: z.string() }).safeParse(value)
+        if (!encodedParsed.success) throw new RunnerTestFailedError()
+        const encoded = encodedParsed.data.bytes
         if (Buffer.byteLength(encoded, 'base64') > GIT_OUTPUT_MAX_BYTES)
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         const next = Buffer.from(encoded, 'base64')
         if (next.toString('base64') !== encoded || next.length > GIT_OUTPUT_MAX_BYTES)
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         if (next.length < bytes.length || !next.subarray(0, bytes.length).equals(bytes))
-          throw new Error(UI_TEXT.teamRunners.testFailed)
+          throw new RunnerTestFailedError()
         const appended = decoder.decode(next.subarray(bytes.length), {
           stream: state.state !== 'ended',
         })
-        if (appended !== '') job.onOutput(appended)
+        if (appended !== '') {
+          try {
+            job.onOutput(appended)
+          } catch (error) {
+            // A broken output observer reads as a failed run, never a lost one.
+            throw new RunnerTestFailedError({ cause: error })
+          }
+        }
         output += appended
         bytes = next
         if (state.state === 'ended' && state.reason === 'cacheBusy') return { kind: 'busy' }
@@ -412,9 +566,32 @@ export class SshRunner {
       } while (this.deps.now() < deadline)
       return { kind: 'uncertain' }
     } catch (error: unknown) {
-      this.admit(job.signal)
-      if (error instanceof WindowsCommandTooLongError) throw error
-      return { kind: isDispatched ? 'uncertain' : 'offline' }
+      if (!sendState.sent) {
+        // Nothing left this machine: cancel and the length refusal propagate
+        // with their own sentences; every other pre-send failure reads
+        // offline. Only transport failures, untrusted receivers and proved
+        // lockfile sentences read that way.
+        if (error instanceof WindowsCommandTooLongError) throw error
+        // The receiver refused the helper by policy before anything was
+        // sent: a proved refusal with its own reason, never offline.
+        if (error instanceof RunnerPolicyRefusedError)
+          return { kind: 'busy', reason: 'executionPolicy' }
+        if (error instanceof RunnerUntrustedError) return { kind: 'offline' }
+        this.admit(job.signal)
+        if (error instanceof RunnerOfflineError) return { kind: 'offline' }
+        if (error instanceof RunnerTestFailedError) return { kind: 'offline' }
+        if (!isTransportError(error)) throw error
+        return { kind: 'offline' }
+      }
+      // The start command went onto the wire, or its proof was lost: never
+      // local. Only policy, proved protocol sentences, untrusted receivers,
+      // transport failures and an unreadable answer read that way.
+      if (error instanceof RunnerPolicyRefusedError) return { kind: 'uncertain' }
+      if (error instanceof RunnerTestFailedError) return { kind: 'uncertain' }
+      if (error instanceof RunnerUntrustedError) return { kind: 'uncertain' }
+      if (error instanceof SyntaxError) return { kind: 'uncertain' }
+      if (!isTransportError(error)) throw error
+      return { kind: 'uncertain' }
     } finally {
       this.active.delete(job.runId)
       if (pushCopy !== undefined && hasPushProof)

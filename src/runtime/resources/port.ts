@@ -35,6 +35,11 @@ export interface RuntimeResources {
   ): Promise<ResourceAdmission>
   /** T calls this when its occupancy becomes known or registered work retires. */
   workChanged(): void
+  /**
+  H–C1: governed spawns started inside `action` notify this session (local
+  correlation only). Hosts without the process's spawn port leave it out.
+  */
+  inSession?<T>(sessionId: string, action: () => T): T
   subscribe(sessionId: string, listener: (notice: RuntimeResourceNotice) => void): () => void
   subscribeEvents(
     listener: (event: ResourceEvent, status: ResourceStatus, text: string) => void,

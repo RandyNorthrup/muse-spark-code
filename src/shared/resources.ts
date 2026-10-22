@@ -167,6 +167,8 @@ export const resourceSampleSchema = /* @__PURE__ */ (() =>
 export type ResourceSample = z.infer<typeof resourceSampleSchema>
 export interface ResourceSampler {
   sample(): Promise<ResourceSample>
+  /** Release sampler-owned infrastructure, including the older-Darwin helper. */
+  dispose?(): void
 }
 export interface ResourceClock {
   now(): number
