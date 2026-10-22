@@ -1268,3 +1268,36 @@ mentions "completed". The committed (old) lib exits 0 on the dir; the
 rewritten lib exits 1 naming `any-name.ts:4 (verdict)`,
 `split-lines.ts:3 (verdict2)` and `switch-terminal.ts:2 (word)`, with
 the control clean.
+
+## Round 9 — the 200 default is gone (D109 correction) and the Windows leg (RLFINISH, 2026-10-22)
+
+The "default 200" rows above are history: `MODEL_API_MAX_TOOL_ROUNDS`
+no longer exists in `src/` (removed under D121/D208; the turn's own
+limit is its caller allowance or unbounded,
+`src/core/backends/modelapi/ModelApiHost.ts:15393`), and the README
+plus the packed reference already say no round count of ours ends a
+turn. PLAN.md D109's text is corrected to match (RLFINISH commit
+`4ff9bc9e4`); earlier rounds keep their wording as written.
+
+Windows leg, rig MINI-DT (the owner's Windows PC), repo default
+timeouts, `--maxWorkers=3`, one command at a time, no live or paid
+call:
+
+- `toolRoundsWrapUpGuard`, `toolRoundsUsableReplyGuard`,
+  `usableReply`, `invariants`, `capabilityRecord`: 91 passed, 2
+  failed. Both failures are `passes through a symlinked directory`
+  with `EPERM` on `symlinkSync` (`test/unit/helpers/guardProcess.ts`):
+  this account holds no symlink privilege. Per the recovery rule that
+  is the account's limit, not the change's failure; hosted CI owns
+  those two cases.
+- `execArgs`, `execExactCount`, `execLimits`, `execProtocol`,
+  `execHumanReason`, `bestOfN`, `bestOfNAttemptWords`,
+  `bestOfNWorktreeFailed`, `sessionBudgetApply`, `sessionBudgetFit`,
+  `actionExecBounds`, `actionMaxRequests`: 119 passed, 0 failed.
+
+No new test: the unbounded interactive turn (`?? Infinity`, the only
+turn-limit construction site) has no observable real-code probe — no
+suite drives a live turn by design, and a test that cannot fail would
+be decoration. It stands on the exec/ACP no-default suites above, the
+two guard suites, and the `10-turn-limit-wrap-up` invariants golden.
+The Linux and browser legs stay hosted-CI-owned.

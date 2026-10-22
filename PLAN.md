@@ -16567,6 +16567,12 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 wrap-up second; caller-aware default of 200 third. Certification and dependent
 suites: [toolrounds](docs/certification/toolrounds.md). Next slice: release-train
 integration and cross-platform certification after these three pieces pass.
+**Status 2026-10-22 (RLFINISH): building.** The three pieces ship on main in
+0.19.0 with no default (D109 corrected: the 200 default was removed under
+D121/D208). The Windows leg of cross-platform certification ran green
+(round 9 in the record above; two symlinked-directory cases hit this
+account's EPERM limit and stay with hosted CI). The Linux and browser legs
+stay hosted-CI-owned; the milestone flips when they report.
 **LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair). Superseded
 2026-10-17 by D208:** the versioned ledger, its atomic admission and its
 journal files are removed; spending is checked only against a limit the
