@@ -29,6 +29,8 @@ import type { LocalReportSourceDeps } from '../../core/reporting/sources'
 import { emptyPlanFacts, readPlan } from '../../core/reporting/plan/reader'
 import { createReportCollector } from '../../core/reporting/collect'
 import { ReportScopeNotFound } from '../../core/reporting/collect/plan'
+import type { PlaybookReportOrderer } from '../../core/reporting/collect/playbookOrder'
+import type { PlaybookWhyNote } from '../../shared/playbook'
 import { createReportRenderers } from '../../core/reporting/render'
 import {
   canonicalReportJson,
@@ -75,6 +77,12 @@ export interface ReportingContext {
   /** Normalized source ports shared by embedded hosts and engine certification. */
   readonly sources?: Partial<ReportSourcePorts>
   readonly playbook?: LocalReportSourceDeps['playbook']
+  /** D214: the playbook ordering for the playbook, milestone and fleet kinds,
+  bound by the facades from the journal the report read. Absent, those kinds
+  keep their own order. */
+  readonly playbookOrder?: PlaybookReportOrderer
+  /** D214: where the ordering note goes; the facades bind their own log. */
+  readonly playbookNote?: (note: PlaybookWhyNote) => void
   readonly schedules?: LocalReportSourceDeps['schedules']
   readonly estimate?: LocalReportSourceDeps['estimate']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
@@ -382,6 +390,8 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       const collector = createReportCollector({
         nextStepLimit: REPORT_NEXT_STEP_LIMIT,
         selections,
+        ...(context.playbookOrder !== undefined && { playbookOrder: context.playbookOrder }),
+        ...(context.playbookNote !== undefined && { playbookNote: context.playbookNote }),
         finalize: (draft) =>
           finalizeReport(
             { ...draft, header: { ...draft.header, contentHash: REPORT_EMPTY_HASH } },

@@ -8,7 +8,11 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatDateTime, formatNumber, formatUnit, plural } from '../../shared/l10n/text'
-import { comparePlaybookReportItems, playbookRecordReportFlags } from '../../shared/playbook'
+import {
+  comparePlaybookReportItems,
+  playbookRecordReportFlags,
+  playbookReportBucket,
+} from '../../shared/playbook'
 import type {
   PlaybookFindingClass,
   PlaybookRecord,
@@ -89,13 +93,8 @@ function reportFlagsOf(entry: PlaybookRecord | { readonly kind: 'counter' }): {
     : playbookRecordReportFlags(entry)
 }
 
-function failingBucket(isFailing: boolean): number {
-  return isFailing ? 1 : 2
-}
-
 function prioritized(entry: PlaybookRecord | { readonly kind: 'counter' }): number {
-  const flags = reportFlagsOf(entry)
-  return flags.needsUser ? 0 : failingBucket(flags.failing)
+  return playbookReportBucket(reportFlagsOf(entry))
 }
 
 /** Every surface shares this stable order: owner/unresolved designs, warnings,
