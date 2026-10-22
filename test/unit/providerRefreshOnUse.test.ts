@@ -91,7 +91,7 @@ function assemblyInput(
     providerId: PROVIDER,
     model: REQUESTED,
     keyFromStdin: false,
-    listLiveModels,
+    ...(listLiveModels !== undefined && { listLiveModels }),
   }
 }
 

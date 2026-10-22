@@ -392,7 +392,7 @@ describe('schedules report contention waits', () => {
       // A real revision the writer wrote: the returned triple agreed, so it
       // names one store state, never a torn mix of two.
       expect(result.schedules).toHaveLength(1)
-      const revision = result.schedules[0]?.revision ?? -1
+      const revision = scheduleV2Schema.parse(result.schedules[0]).revision
       expect(revision).toBeGreaterThan(seeded.revision)
       expect(revision).toBeLessThanOrEqual(seeded.revision + 20)
       // And the quiesced store reads exactly what the writer left.

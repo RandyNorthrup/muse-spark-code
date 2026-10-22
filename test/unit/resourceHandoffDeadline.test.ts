@@ -22,7 +22,7 @@ const QUICK_SCRIPT = 'process.exit(0)'
 
 const fixture: {
   root: string
-  dispose?: () => void
+  dispose?: (() => void) | undefined
 } = { root: '' }
 
 beforeAll(async () => {
