@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The internal M110 terminal surface now requires freshly focused approval
+  keys after complete request presentation, ignores buffered and pasted
+  decisions, and disables choices when the action and paid terms cannot fit.
+  Terminal escape sequences, setup-time EOF, failed output and numeric chat
+  are handled correctly; socket tests now use real Windows named pipes.
+  The node/TUI launcher and Ink integration remain unshipped.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
@@ -2850,6 +2859,7 @@ Correction (2026-10-10): Live argument previews did not work for users in this r
   before walking the mount hierarchy.
 - Its optional probes preserve missing/null Windows counters as unknown
   and combine Linux DRM and Nvidia readings so the busiest GPU is counted.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

@@ -151,7 +151,29 @@ export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
 // never match a durable revocation epoch.
 export const ACCOUNT_QUOTE_GRANT_VERSION = 2
 
-// Must match package.json `publisher` and `name`.
+// M110 T: local terminal surface only; the MHP binding is injected by lane N.
+export const TUI_LIMITS = {
+  frameBytes: 256 * 1024,
+  transcriptChars: 32 * 1024,
+  transcriptEntries: 100,
+  pendingAsks: 100,
+  tasks: 100,
+  inputChars: 8000,
+  setupCodeChars: 128,
+  statusHeaderRows: 2,
+  connectMs: 5000,
+  refreshMs: 1000,
+  escapeMs: 100,
+  decisionQuietMs: 100,
+  outputMs: 5000,
+  terminalColumns: 80,
+  terminalRows: 24,
+  permissionMask: 0o077,
+  currencyDigits: 2,
+} as const
+
+// Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
+// fails if they drift.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'
 export const EXTENSION_NAME = 'muse-spark-code'
 export const EXTENSION_QUALIFIED_ID = `${EXTENSION_PUBLISHER}.${EXTENSION_NAME}`
