@@ -1247,6 +1247,11 @@
       "note": "release preparation (0.16.0)"
     },
     {
+      "id": "RLGROKAUTH",
+      "public": false,
+      "note": "Grok subscription sign-in (xAI OAuth), pending xAI's registration"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
