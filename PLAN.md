@@ -28712,6 +28712,26 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**RLM108 recovery (2026-10-22, macmini).** Re-merged msm108 onto main at
+0.19.0 after RLM95 and RLM106 (`git merge --no-ff` throughout; paid-consent
+epochs, `selectedModel` host and the retry-budget API kept from main) and
+opened `ACCOUNT_REQUEST_CERTIFICATION`: runtime pools admit, editor turns
+take request leases, the Models panel mounts accounts, session switching
+and `exec --account-pool` serve, and Help/reference publish the accounts
+surfaces via the cm1082 walk-back register (two dropped README newlines in
+the register's restored texts fixed in the same change).
+`accounts.severalOnThisDevice` stays held for C-M108-7/C-M126-INT: its
+isolated-profile effect needs M109's broker. Lead note answered: an
+unknown provider id refuses by name instead of the connection sentence,
+and a 429 on a leased attempt drops the payer pin and retries within
+budget so the pool fails over mid-turn (the Judge keeps its deliberate
+pin). Proof is real-code suites (pool 14, consent 6, truth 14, restore,
+help/catalog pins) with red/green drills; the host failover wiring awaits
+the packed drill. Activation growth is -112,290 B against the 3,072 B
+lane-K cap (see §7). Still waiting: Q-M108 captures (M, replay/cache),
+lane D (M100/M107), X profiles and M95 foreign joins. Record:
+`docs/certification/rlm108.md`.
+
 **MSM108 main integration (2026-10-17, macmini).** Merged `main-now`
 3d30a7321 (568 commits) into the lane tip a79ed4c1f with `git merge
 --no-ff`; all 45 conflicted files resolved by meaning and main's test
@@ -34722,7 +34742,15 @@ after that inherited content is repaired.
 The zero-clone gate also retains the accepted base's unchanged six-line clone
 in `test/unit/windowsTrustedPath.test.ts`; owned clones are removed rather
 than ignored, and that independent Windows-test repair belongs to the lead.
-**MSM108 activation-budget overage (2026-10-17, macmini, open).** `test/unit/modelsActivationBudget.test.ts` (lane-K cap: at most 3 KiB over the immutable pre-K activation bundle) measures growth 6069 B on the MSM108 tree: main alone already grows 2863 B, and the lane's sanctioned wiring (per-account consent route, account-services factory, lazy loader, required tunables) adds 3206 B minified. Slimming cannot cover the 2997 B gap (removing the whole factory closure saves only 1620 B, measured); deferring the factory needs the M95/M109 async seams. No cap, threshold or assertion changed. Owner decision pending: raise the lane-K cap or schedule the deferral. Receipts: `docs/certification/msm108.md` §6.
+**MSM108 activation-budget overage (2026-10-17, macmini; resolved 2026-10-22 below).** `test/unit/modelsActivationBudget.test.ts` (lane-K cap: at most 3 KiB over the immutable pre-K activation bundle) measures growth 6069 B on the MSM108 tree: main alone already grows 2863 B, and the lane's sanctioned wiring (per-account consent route, account-services factory, lazy loader, required tunables) adds 3206 B minified. Slimming cannot cover the 2997 B gap (removing the whole factory closure saves only 1620 B, measured); deferring the factory needs the M95/M109 async seams. No cap, threshold or assertion changed. Owner decision pending: raise the lane-K cap or schedule the deferral. Receipts: `docs/certification/msm108.md` §6.
+
+**RLM108 activation-budget resolution (2026-10-22, macmini).** The overage
+above is resolved without touching any cap: on the recovery tree
+(main at 0.19.0 plus RLM95/RLM106/msm108) the same test measures growth
+-112,290 B (current 443,470 B, immutable pre-K baseline 555,760 B),
+against the unchanged 3,072 B lane-K cap. Main's diet work since October
+carries the margin; the lane's wiring fits by weight. No owner decision
+remains. Receipts: `docs/certification/rlm108.md`.
 
 **C-M108-2 build overage resolved (2026-10-11, continuation).** Deferring the optional provider import editor reduces the original Models body from 77,698 to 76,274 B under its unchanged 76,800 B cap. Its new lazy closure measures 2,128 B under an independent 25 KiB cap; loading, failure, retry and dismissal retain the section label. Account chunk failures now use the same section boundary. Production build passes without adding Model API bytes. Availability stays false pending complete dependents and external visual/editor/review receipts. See `docs/certification/cm1082.md`.
 
