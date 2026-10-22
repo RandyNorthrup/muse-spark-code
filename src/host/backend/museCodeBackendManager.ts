@@ -1,7 +1,6 @@
 import type { HardwareStop } from '../../core/maker/guard/hardwareCommands'
 import { createHardwareContexts } from '../../core/maker/hardwareContext'
 import type { HardwareContext } from '../../core/maker/guard/httpCommands'
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure

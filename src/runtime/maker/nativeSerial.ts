@@ -9,9 +9,14 @@ import { prepareWindowsSerialHelper } from '../../core/maker/serial/windowsHelpe
 import { listenNativeOwnerPipe, type NativeLeaseHelper } from '../../core/maker/serial/nativeLease'
 import type { MakerHost } from '../../core/maker/ports'
 import { stopAllHardwareLeases, type LeaseDependencies } from '../../core/maker/lease'
-import { killTree, sweepExitedTree, runProgram, windowsPowerShell } from '../../host/processTree'
+import { killTree, sweepExitedTree, runProgram } from '../../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from '../credentialVariables'
-import { environmentValue } from '../../core/backends/musecode/launch'
+import {
+  environmentValue,
+  noWorkspaceChildEnvironment,
+  windowsPowerShell,
+} from '../../core/execGuard'
+import { realpathSync } from 'node:fs'
 import { runtimeLeaseIdentity } from './stop'
 import {
   RUNTIME_MAKER_APPROVAL_MS,
@@ -108,7 +113,8 @@ export function nativeSerial(deps: NativeSerialDeps) {
       maxBytes: RUNTIME_MAKER_MAX_BYTES,
       maxPorts: RUNTIME_MAKER_MAX_ITEMS,
       maxAncestors: RUNTIME_MAKER_MAX_ITEMS,
-      run: (file, args) => runProgram(file, args, env),
+      run: (file, args) =>
+        runProgram(file, args, noWorkspaceChildEnvironment(deps.platform, env, realpathSync)),
       ...(deps.platform === 'win32' &&
         systemRoot !== undefined && {
           powershell: windowsPowerShell(systemRoot).file,
@@ -151,7 +157,7 @@ export function nativeSerial(deps: NativeSerialDeps) {
             await runProgram(
               deps.platform === 'darwin' ? '/usr/sbin/lsof' : '/usr/bin/fuser',
               [deps.platform === 'darwin' ? '-t' : '-s', '--', identity.port],
-              env,
+              noWorkspaceChildEnvironment(deps.platform, env, realpathSync),
               RUNTIME_MAKER_TIMEOUT_MS,
             )
             return true

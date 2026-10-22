@@ -31,7 +31,6 @@ import {
   WINDOWS_ARGUMENT_SYNTAX,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { checkCommandSchema } from '../../shared/checkCommandSchema'
 import { posixQuoted, powerShellQuoted } from '../shellQuote'
 
 export const checkCommandSchema = z.object({

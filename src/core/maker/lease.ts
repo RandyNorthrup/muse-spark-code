@@ -11,6 +11,7 @@ import {
   realpath,
   unlink,
 } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -21,6 +22,8 @@ import {
   MAKER_LEASE_SOCKET_PATH_BYTES,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
+import { noWorkspaceChildEnvironment } from '../execGuard'
+import type { GuardedChildEnv } from '../executables'
 import type { RunProgram } from '../../host/processTree'
 import { powerShellQuoted } from '../shellQuote'
 import type { SerialIdentity } from './serial/identity'
@@ -575,21 +578,21 @@ export interface LeaseIdentityQuery {
   readonly platform: NodeJS.Platform
   readonly run: RunProgram
   /** `windowsPowerShell(SystemRoot)`; without it every Windows answer is unknown. */
-  readonly powershell?: { readonly file: string; readonly env: NodeJS.ProcessEnv } | undefined
+  readonly powershell?: { readonly file: string; readonly env: GuardedChildEnv } | undefined
 }
 
 // ps state and lstart; the C locale and UTC make one process print one fixed string.
 const PS_START = /^(\S+)\s+(\w{3} \w{3} [ \d]\d \d\d:\d\d:\d\d \d{4})$/
 
 /**
- * Holder identity and, on Windows, the private-folder check (PLAN M103
- * REDM103P). `processStartTime`: undefined proves the pid absent or a zombie;
- * any doubt throws. Linux: the /proc starttime ticks. macOS: ps lstart, to
- * the second; a pid is not reused within its start second. Windows: the
- * creation FILETIME, as the process tree's checked kill compares it.
- * `isOwnerDirectory`: the current user owns the folder and only that user,
- * SYSTEM and Administrators are allowed any access; it never repairs one.
- */
+Holder identity and, on Windows, the private-folder check (PLAN M103
+REDM103P). `processStartTime`: undefined proves the pid absent or a zombie;
+any doubt throws. Linux: the /proc starttime ticks. macOS: ps lstart, to
+the second; a pid is not reused within its start second. Windows: the
+creation FILETIME, as the process tree's checked kill compares it.
+`isOwnerDirectory`: the current user owns the folder and only that user,
+SYSTEM and Administrators are allowed any access; it never repairs one.
+*/
 export function leaseIdentity(
   query: LeaseIdentityQuery,
 ): Pick<LeaseDependencies, 'processStartTime' | 'isOwnerDirectory'> {
@@ -622,10 +625,11 @@ export function leaseIdentity(
       } else {
         let output: string
         try {
-          output = await query.run('/bin/ps', ['-o', 'stat=,lstart=', '-p', String(pid)], {
-            LC_ALL: 'C',
-            TZ: 'UTC',
-          })
+          output = await query.run(
+            '/bin/ps',
+            ['-o', 'stat=,lstart=', '-p', String(pid)],
+            noWorkspaceChildEnvironment(query.platform, { LC_ALL: 'C', TZ: 'UTC' }, realpathSync),
+          )
         } catch (error: unknown) {
           // ps also fails for a missing pid; only the kernel's ESRCH proves absence.
           try {
