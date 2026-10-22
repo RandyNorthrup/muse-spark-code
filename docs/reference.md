@@ -1560,6 +1560,12 @@ Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, 
 
 Turn paid Judge advice on or off.
 
+Both models
+
+Same model: held-out paired evaluation evidence is missing
+
+An embedding request to {model} costs at most {price}, billed to your provider key. The shared daily budget is {budget}. Your subscription does not pay for this request. Allow once covers this window; switching from a free source or changing the price asks again.
+
 The structured answer was not valid. Repairing it again (repair {count})…
 
 The structured request failed. Trying again (attempt {count})…
@@ -1633,15 +1639,21 @@ The structured answer could not be validated. Using the text fallback.
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
+Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.separate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
 ### Judge
 
 Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.
 
+Both models
+
+Same model: held-out paired evaluation evidence is missing
+
+An embedding request to {model} costs at most {price}, billed to your provider key. The shared daily budget is {budget}. Your subscription does not pay for this request. Allow once covers this window; switching from a free source or changing the price asks again.
+
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
+Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.separate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
 ### Orchestrator Playbook
 
@@ -2996,6 +3008,39 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 }
 ```
 
+### museSpark.judge.engine
+
+`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.
+
+Type: `"string"`. Default: `"auto"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["auto", "same", "separate", "both", "off"],
+  "default": "auto"
+}
+```
+
+- `"auto"`: judgeEngine: Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.
+- `"same"`: Only your own chat model judges; it never switches models.
+- `"separate"`: Use only the configured separate judge after that source passes verification and permission. This selection alone does not enable a source.
+- `"both"`: Use the separate judge and your own chat model through the measured cascade. Requires a verified source and suitable calibration profiles.
+- `"off"`: No judge: approvals behave exactly as without one.
+
+### museSpark.judge.separate
+
+Separate judge source/model identifier. Empty keeps your current single-model setup. Sources require their own verification and consent; paid calls ask once before the first charge, showing the price and shared museSpark.paidDailyBudgetUsd.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": ""
+}
+```
+
 ### museSpark.browserCheckExtraHosts
 
 browserNetworkAdmission: Hosts beyond this computer that the browser check may open and reach, as plain host names or IP addresses, with no port, path or wildcard; listing a loopback name also lets a local page use https and WebSockets. Empty means plain-http local pages only, unless you allow a host on a card or in the confirmation, for that one check. https and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer’s account (on Windows in particular). Only you can widen this, never the model, and a repository’s settings cannot.
@@ -3180,24 +3225,6 @@ Type: `"string"`. Default: `"yield"`. Scope: `machine`.
 
 - `"yield"`: Send no automatic Tab request for a language Copilot serves; explicit Invoke still works.
 - `"both"`: Send automatic Tab requests even where Copilot serves the language.
-
-### museSpark.judge.engine
-
-`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.
-
-Type: `"string"`. Default: `"auto"`. Scope: `machine`.
-
-```json
-{
-  "type": "string",
-  "enum": ["auto", "same", "off"],
-  "default": "auto"
-}
-```
-
-- `"auto"`: judgeEngine: Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.
-- `"same"`: Only your own chat model judges; it never switches models.
-- `"off"`: No judge: approvals behave exactly as without one.
 
 ### museSpark.shell.passEnvironmentVariables
 
@@ -3705,6 +3732,7 @@ These are defaults; editor customizations take precedence.
 
 ## ACP / CLI commands
 
+- `judge ask|calibrate|report|mcp|serve|lint`: Muse Judge suggests caution. You decide; it cannot approve this action.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.

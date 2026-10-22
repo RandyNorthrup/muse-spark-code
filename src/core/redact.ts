@@ -2,6 +2,8 @@
 // pure detection table through src/shared/redact.ts (M92e, PLAN.md D71).
 export {
   countSecretMatches,
+  isSecretFieldName,
+  MAY_HOLD_SECRET,
   redactableSlices,
   redactSecrets,
   registerSecretValue,

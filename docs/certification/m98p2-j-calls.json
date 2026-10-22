@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-05",
+  "rig": "win11",
+  "workspace": "C:/lanes/M98J2",
+  "runtime": "Ollama 0.35.1",
+  "model": "tev1:4b",
+  "priorSpikeInferenceAttempts": 27,
+  "phase2InferenceAttempts": 2,
+  "phase2Returned": 1,
+  "phase2Uncertain": 1,
+  "phase2MetadataAttempts": 3,
+  "paidOrCloudAttempts": 0,
+  "pulls": 0,
+  "removals": 0,
+  "receipts": [
+    { "order": 1, "route": "/api/tags", "kind": "metadata", "outcome": "returned" },
+    {
+      "order": 2,
+      "route": "/v1/systemone",
+      "kind": "inference",
+      "outcome": "uncertain",
+      "reason": "unchanged 60-second transport deadline"
+    },
+    { "order": 3, "route": "/api/tags", "kind": "metadata", "outcome": "returned" },
+    {
+      "order": 4,
+      "route": "/v1/systemone",
+      "kind": "inference",
+      "outcome": "returned",
+      "retry": "one manual warm retry from planned tev smoke allowance"
+    },
+    { "order": 5, "route": "/api/ps", "kind": "metadata", "outcome": "returned" }
+  ],
+  "capture": "test/unit/fixtures/localJudgeSystemOneCapture.json",
+  "proof": "Runtime peer and captured wire shape only; no full weight provenance or CPU-only latency claim"
+}

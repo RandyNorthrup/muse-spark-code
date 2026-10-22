@@ -1,0 +1,523 @@
+[
+  {
+    "guard": "generation-pbi_pid",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses reused/changed identity pid"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "generation-pbi_uid",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses reused/changed identity uid"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "generation-pbi_ruid",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses reused/changed identity realUid"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "generation-pbi_start_tvsec",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses reused/changed identity seconds"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "generation-pbi_start_tvusec",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses reused/changed identity microseconds"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "generation-path",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses reused/changed identity path"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "libproc-pid",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample pid"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "libproc-uid",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample uid"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "libproc-realUid",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample realUid"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "libproc-start",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample start"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "libproc-microseconds",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample microseconds"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "libproc-zombie",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample zombie"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-smbfs",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"smbfs\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume smbfs"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-nfs",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"nfs\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume nfs"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-afpfs",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"afpfs\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume afpfs"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-webdav",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"webdav\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume webdav"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-macfuse",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"macfuse\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume macfuse"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-fusefs",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"fusefs\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume fusefs"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-overlay",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"overlay\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume overlay"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-exfat",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "strcmp(volume->f_fstypename, \"hfs\") == 0 || strcmp(volume->f_fstypename, \"exfat\") == 0)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume exfat"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-local-flag",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume nonlocal"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-union-flag",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "1",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > checks native volume union"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-owner",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses a native foreign-owned root"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "volume-root-mode",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > proves local owned roots and refuses links, insecure ownership modes and scope changes"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "kernel-exit-exec-watch",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "return kevent(queue, NULL, 0, &event, 1, &immediate) >= 0;",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts", "test/e2e/judgeLocalDarwinPid.e2e.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/e2e/judgeLocalDarwinPid.e2e.test.ts > M98 native macOS actual PID reuse > keeps the original kernel watch invalid after the PID is reused"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["42 passed (42)"]
+  },
+  {
+    "guard": "helper-pid",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "false",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > invalidates exec even when the watched PID survives",
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses helper pid faults and closes its process"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "helper-uid",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "false",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses helper uid faults and closes its process"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "helper-realUid",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "false",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses helper realUid faults and closes its process"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "helper-generation",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "false",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > invalidates exec even when the watched PID survives",
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses helper generation faults and closes its process"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "helper-output-bound",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "if (true)",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses helper oversized faults and closes its process"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "apple-signature-requirement",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses ad-hoc signatures impersonating the Ollama identifiers"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "descendant-mode",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "false",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > proves local owned roots and refuses links, insecure ownership modes and scope changes"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "host-default-native",
+    "source": "src/host/judge/local.ts",
+    "mutation": "false",
+    "suites": ["test/unit/judgeLocalDarwinHost.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwinHost.test.ts > M98 macOS host native default > creates the real platform adapter lazily when no override is supplied"
+    ],
+    "sha256Before": "9790d72c998677fb47cbc494d04ce92d134051f23790a3e28d3d8f5bd6052ecc",
+    "sha256Restored": "9790d72c998677fb47cbc494d04ce92d134051f23790a3e28d3d8f5bd6052ecc",
+    "greenExit": 0,
+    "greenTests": ["1 passed (1)"]
+  },
+  {
+    "guard": "small-model-auto-calibration",
+    "source": "src/core/judge/local/recommendations.ts",
+    "mutation": "evidence: 'docs/certification/m98p2-j.md',\n    requiresCalibrationForAuto: false",
+    "suites": ["test/unit/judgeLocalSource.test.ts", "test/unit/judgeLocalPull.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalPull.test.ts > M98 J2 explicit consented model download boundary > publishes measured tev and qwen recommendations as data only",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > accepts the captured macOS small decision model only by explicit selection"
+    ],
+    "sha256Before": "85fda70833d3f5cb19f6556553cb501b7fba0c4c19c1942482ea757f9c81b4b9",
+    "sha256Restored": "85fda70833d3f5cb19f6556553cb501b7fba0c4c19c1942482ea757f9c81b4b9",
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "libproc-info",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &out->info, sizeof(out->info)) < 0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample info"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "libproc-path",
+    "source": "native/darwin/LocalJudgePeer.c",
+    "mutation": "proc_pidpath(pid, out->executable, sizeof(out->executable)) < 0",
+    "suites": ["test/unit/judgeLocalDarwin.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwin.test.ts > M98 macOS native proofs > refuses invalid libproc sample path"
+    ],
+    "sha256Before": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "sha256Restored": "60f69192407015f115e427a47153f21712ee4e9297b6aaac40ef9ae6b11fc8d1",
+    "greenExit": 0,
+    "greenTests": ["41 passed (41)"]
+  },
+  {
+    "guard": "default-helper-deadline",
+    "source": "src/core/judge/local/darwinPeer.ts",
+    "mutation": "signal,\n    timeout: 0,",
+    "suites": ["test/unit/judgeLocalDarwinDeadline.test.ts"],
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeLocalDarwinDeadline.test.ts > M98 macOS default native deadline > kills a nonresponsive helper at its own deadline before the caller fallback"
+    ],
+    "sha256Before": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "sha256Restored": "d7d5af442447b278f683ddfeb7bd9605f6b1d2aaf6a6b3675807fdfc29c14c46",
+    "greenExit": 0,
+    "greenTests": ["1 passed (1)"]
+  }
+]

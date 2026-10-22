@@ -1960,12 +1960,15 @@
       "summary": { "tip": "paid:judge" },
       "description": { "tip": "paid:judge" },
       "commands": [],
-      "settings": ["museSpark.judge.engine"],
+      "settings": ["museSpark.judge.engine", "museSpark.judge.separate"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-judge",
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
       "details": [
+        { "ui": "judgeStatusBoth" },
+        { "ui": "judgeAutoNoEvidence" },
+        { "ui": "paidConfirmJudgeEmbedding" },
         { "ui": "structuredOutputRepair" },
         { "ui": "structuredOutputRetry" },
         { "ui": "structuredOutputFallback" }
@@ -2030,12 +2033,16 @@
       "summary": { "ui": "judgeSubscriptionNotice" },
       "description": { "ui": "judgeSubscriptionNotice" },
       "commands": [],
-      "settings": ["museSpark.judge.engine"],
+      "settings": ["museSpark.judge.engine", "museSpark.judge.separate"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-judge",
       "backends": ["museCode"],
       "paid": false,
       "surfaces": ["vscode:museCode"],
-      "details": [],
+      "details": [
+        { "ui": "judgeStatusBoth" },
+        { "ui": "judgeAutoNoEvidence" },
+        { "ui": "paidConfirmJudgeEmbedding" }
+      ],
       "facts": {},
       "editors": ["vscode"]
     },
@@ -3742,6 +3749,60 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "id": "museSpark.judge.engine",
+      "name": "museSpark.judge.engine",
+      "description": "`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.",
+      "descriptionKey": "config.judge.engine.description",
+      "type": "string",
+      "default": "auto",
+      "enum": ["auto", "same", "separate", "both", "off"],
+      "enumDescriptions": [
+        "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
+        "Only your own chat model judges; it never switches models.",
+        "Use only the configured separate judge after that source passes verification and permission. This selection alone does not enable a source.",
+        "Use the separate judge and your own chat model through the measured cascade. Requires a verified source and suitable calibration profiles.",
+        "No judge: approvals behave exactly as without one."
+      ],
+      "enumDescriptionKeys": [
+        "config.judge.engine.enumDescriptions.auto",
+        "config.judge.engine.enumDescriptions.same",
+        "config.judge.engine.enumDescriptions.separate",
+        "config.judge.engine.enumDescriptions.both",
+        "config.judge.engine.enumDescriptions.off"
+      ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "judgeEngine",
+              "text": {
+                "fallbackKey": "config.judge.engine.enumDescriptions.auto",
+                "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+              }
+            }
+          ]
+        }
+      },
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["auto", "same", "separate", "both", "off"],
+        "default": "auto"
+      }
+    },
+    {
+      "id": "museSpark.judge.separate",
+      "name": "museSpark.judge.separate",
+      "description": "Separate judge source/model identifier. Empty keeps your current single-model setup. Sources require their own verification and consent; paid calls ask once before the first charge, showing the price and shared museSpark.paidDailyBudgetUsd.",
+      "descriptionKey": "config.judge.separate.description",
+      "type": "string",
+      "default": "",
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "" }
+    },
+    {
       "text": {
         "conditions": [
           { "when": "browserNetworkAdmission", "text": { "setting": "browserCheckExtraHosts" } }
@@ -3969,41 +4030,6 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["yield", "both"], "default": "yield" }
-    },
-    {
-      "id": "museSpark.judge.engine",
-      "name": "museSpark.judge.engine",
-      "description": "`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.",
-      "descriptionKey": "config.judge.engine.description",
-      "type": "string",
-      "default": "auto",
-      "enum": ["auto", "same", "off"],
-      "enumDescriptions": [
-        "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
-        "Only your own chat model judges; it never switches models.",
-        "No judge: approvals behave exactly as without one."
-      ],
-      "enumDescriptionKeys": [
-        "config.judge.engine.enumDescriptions.auto",
-        "config.judge.engine.enumDescriptions.same",
-        "config.judge.engine.enumDescriptions.off"
-      ],
-      "enumTexts": {
-        "0": {
-          "conditions": [
-            {
-              "when": "judgeEngine",
-              "text": {
-                "fallbackKey": "config.judge.engine.enumDescriptions.auto",
-                "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
-              }
-            }
-          ]
-        }
-      },
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "string", "enum": ["auto", "same", "off"], "default": "auto" }
     },
     {
       "text": {
@@ -4855,6 +4881,13 @@
     }
   ],
   "cli": [
+    {
+      "route": "judge",
+      "name": "judge ask|calibrate|report|mcp|serve|lint",
+      "description": "Muse Judge suggests caution. You decide; it cannot approve this action.",
+      "text": { "ui": "judgeCaution" },
+      "invocations": [["judge"]]
+    },
     {
       "route": "usage",
       "name": "usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json",

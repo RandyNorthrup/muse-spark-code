@@ -1,0 +1,889 @@
+[
+  {
+    "id": 1,
+    "guard": "loopback literal bind",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects nonapproved bind localhost before creating a token",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects nonapproved bind 0.0.0.0 before creating a token",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects nonapproved bind :: before creating a token",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects nonapproved bind 127.0.0.2 before creating a token",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects nonapproved bind 192.0.2.1 before creating a token",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects nonapproved bind [::1] before creating a token"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 2,
+    "guard": "duplicate security header",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses missing and repeated security headers before inference"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 3,
+    "guard": "bearer length",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > requires the bearer token with no Origin ()",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > requires the bearer token with no Origin (wrong)",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > requires the bearer token with no Origin (Basic wrong)"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 4,
+    "guard": "bearer equality without Origin",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > requires the bearer token with no Origin (wrong)",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > requires the bearer token with no Origin (Basic wrong)",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rotates credentials across restarts and deletes the old file and listener"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 5,
+    "guard": "foreign Host",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > binds IPv6 literally and requires brackets in its Host",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses foreign or incomplete Host attacker.example:1234",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses foreign or incomplete Host localhost:1234",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses foreign or incomplete Host 127.0.0.1",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses foreign or incomplete Host 127.0.0.1:1"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 6,
+    "guard": "Origin including null and empty",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses any Origin including https://attacker.example",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses any Origin including null",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses any Origin including "
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 7,
+    "guard": "request path",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects invalid method/path/body before inference (404)",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects invalid method/path/body before inference (404)"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 8,
+    "guard": "request method",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects invalid method/path/body before inference (405)"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 9,
+    "guard": "streamed byte cap",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > caps actual streamed bytes without Content-Length and includes discarded unknown fields"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 10,
+    "guard": "incoming zod schema",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects invalid method/path/body before inference (400)"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 11,
+    "guard": "outgoing zod schema",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects malformed or misaligned runtime output and never reflects thrown content"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 12,
+    "guard": "answer count alignment",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects malformed or misaligned runtime output and never reflects thrown content"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 13,
+    "guard": "answer id/type alignment",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects malformed or misaligned runtime output and never reflects thrown content"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 14,
+    "guard": "native SystemOne response",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > answers the captured contract with native answers and sibling muse unchanged"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 15,
+    "guard": "no-answer is not HTTP success",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > creates distinct per-request claims before dispatch for concurrent clients and retries",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects malformed or misaligned runtime output and never reflects thrown content"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 16,
+    "guard": "each request invokes independent admission",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > creates distinct per-request claims before dispatch for concurrent clients and retries",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rejects malformed or misaligned runtime output and never reflects thrown content"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 17,
+    "guard": "shutdown abort before closing sockets",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > aborts active inference and closes incomplete sockets on shutdown"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 18,
+    "guard": "shutdown raw sockets",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > aborts active inference and closes incomplete sockets on shutdown",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > aborts active inference and closes incomplete sockets on shutdown"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 19,
+    "guard": "startup cancellation",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > cancels startup before any credential is created"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 20,
+    "guard": "per-start token rotation",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > rotates credentials across restarts and deletes the old file and listener"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 21,
+    "guard": "private POSIX mode verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses POSIX permissions that remain broad after chmod"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 22,
+    "guard": "POSIX owner verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses POSIX foreign ownership"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 23,
+    "guard": "Windows protected DACL",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses unprotected DACL and removes startup artifacts",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a file ACL failure after a valid directory receipt without writing the token",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses invalid actual Windows helper output ({\"ownerSid\":\"S-1-5-21-100-200-300-1001\",\"currentSid\":\"S-1-5-21-100-200-300-1001\",\"protected\":false,\"rules\":[{\"sid\":\"S-1-5-21-100-200-300-1001\",\"inherited\":false,\"allow\":true,\"fullControl\":true}]})"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 24,
+    "guard": "Windows owner SID",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses foreign owner and removes startup artifacts"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 25,
+    "guard": "Windows foreign grants",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses broad explicit grant and removes startup artifacts"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 26,
+    "guard": "Windows inherited grants",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses inherited owner grant and removes startup artifacts"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 27,
+    "guard": "Windows allow grant",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses deny owner grant and removes startup artifacts"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 28,
+    "guard": "Windows full-control grant",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses insufficient owner grant and removes startup artifacts"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 29,
+    "guard": "nonempty Windows DACL",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses empty DACL and removes startup artifacts"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 30,
+    "guard": "Windows receipt schema",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses empty DACL and removes startup artifacts",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses nonboolean descriptor and removes startup artifacts"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 31,
+    "guard": "ACL before bearer write",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses an exclusive private file and verifies permissions before its single write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a file ACL failure after a valid directory receipt without writing the token",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a hard-linked token path before its write"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 32,
+    "guard": "exclusive token creation",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > never overwrites a preexisting token path"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 33,
+    "guard": "single token write",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses an exclusive private file and verifies permissions before its single write"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 34,
+    "guard": "symlink refusal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a symlink token path before its write"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 35,
+    "guard": "hard-link refusal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a hard-linked token path before its write"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 36,
+    "guard": "synchronous exit cleanup",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServeTokenFile.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > removes the private directory through synchronous exit cleanup"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 37,
+    "guard": "private directory cleanup",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > cleans up when cancellation occurs during startup ACL waits",
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > cleans up its token when a chosen port cannot listen"
+    ],
+    "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
+    "greenExit": 0,
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 38,
+    "guard": "cancellation after startup wait",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > cleans up when cancellation occurs during startup ACL waits"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 39,
+    "guard": "caller lifecycle abort",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > closes its listener and deletes its bearer when the caller lifecycle aborts"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "35 passed (35)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 40,
+    "guard": "hard request deadline abort",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > aborts an inference at the hard request deadline without trusting late output"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "35 passed (35)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 41,
+    "guard": "process exit handler registration",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServeLifecycle.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > runs synchronous bearer cleanup on a fatal Node exit"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "4 passed (4)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 42,
+    "guard": "SIGINT handler registration",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServeLifecycle.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > deletes its bearer and closes the listener on SIGINT"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "4 passed (4)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 43,
+    "guard": "SIGTERM handler registration",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServeLifecycle.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > deletes its bearer and closes the listener on SIGTERM",
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > never authenticates a crash token when the same port restarts"
+    ],
+    "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
+    "greenExit": 0,
+    "greenTests": "4 passed (4)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 44,
+    "guard": "strict UTF-8 request decoding",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses malformed UTF-8 instead of charging for replacement characters"
+    ],
+    "beforeSha256": "7336db6a5b081a038e6f7e063d1603a4835a246e87822c1628eb4ecae2068f65",
+    "afterSha256": "7336db6a5b081a038e6f7e063d1603a4835a246e87822c1628eb4ecae2068f65",
+    "greenExit": 0,
+    "greenTests": "36 passed (36)",
+    "sourceVersion": "strict UTF-8 follow-up"
+  },
+  {
+    "id": 45,
+    "guard": "macOS ACL refusal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses real inherited macOS ACL grants that survive 0700 chmod",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses real macOS file ACL grants before writing a bearer",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS file ACL grant added during the bearer write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS directory ACL grant added during the bearer write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses empty macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses malformed macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL marker macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL entry macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses wrong mode macOS ACL inspection output"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 46,
+    "guard": "macOS ACL entry lines",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL entry macOS ACL inspection output"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 47,
+    "guard": "macOS mode/marker receipt",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses empty macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses malformed macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL marker macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses wrong mode macOS ACL inspection output"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 48,
+    "guard": "macOS post-write directory verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS directory ACL grant added during the bearer write"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 49,
+    "guard": "macOS post-write file verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS file ACL grant added during the bearer write"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 50,
+    "guard": "macOS pre-write file verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses an exclusive private file and verifies permissions before its single write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses real macOS file ACL grants before writing a bearer",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a file ACL failure after a valid directory receipt without writing the token",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses the bounded Windows launcher with encoded paths and no bearer in arguments or environment",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a symlink token path before its write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a hard-linked token path before its write"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 51,
+    "guard": "installed-language refusal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > reads the installed translation when token protection refuses startup"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 52,
+    "guard": "exit cleanup before bearer write",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts", "test/unit/judgeServeLifecycle.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > runs synchronous bearer cleanup on a fatal Node exit",
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > removes a written startup bearer on fatal exit while sync is pending",
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > removes a written startup bearer on fatal exit while close is pending",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > registers synchronous exit cleanup before the written bearer waits for sync",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > registers synchronous exit cleanup before the written bearer waits for close"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "45 passed (45)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 53,
+    "guard": "close promise before synchronous reentry",
+    "source": "src/runtime/judge/serve.ts",
+    "testFiles": ["test/unit/judgeServe.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > publishes one close promise before synchronous owner cancellation reentry"
+    ],
+    "beforeSha256": "fe97944a090595cf9596e8bfd288c1a50a0c8c036debd9f0466925f805c7ad39",
+    "afterSha256": "fe97944a090595cf9596e8bfd288c1a50a0c8c036debd9f0466925f805c7ad39",
+    "greenExit": 0,
+    "greenTests": "37 passed (37)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 54,
+    "guard": "cleanup ignores only missing directories",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > propagates directory cleanup errors other than ENOENT"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 55,
+    "guard": "async cleanup after synchronous removal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > remains idempotent after synchronous cleanup and async removal"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 56,
+    "guard": "exclusive 0600 creation",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses an exclusive private file and verifies permissions before its single write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > never overwrites a preexisting token path"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  }
+]

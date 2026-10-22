@@ -1,0 +1,398 @@
+{
+  "rig": "Kubuntu",
+  "ci": true,
+  "version": "0.15.0",
+  "node": "22.23.3",
+  "mergeProof": {
+    "releaseBase": "9d1ab33c3",
+    "requiredAncestors": ["f105c2a42", "1cdd79464", "368d34ede", "fa9683b59"],
+    "languageTablesUnionChecked": 14
+  },
+  "verifiedHead": "f9609a89118efa2f39f4249c3253478570685fc2",
+  "productionTree": "4fa78bb15963fc6a89ba5117b2771afab2b9145c",
+  "staticGates": [
+    {
+      "name": "npm-ci",
+      "args": ["npm", "ci"],
+      "exit": 0,
+      "seconds": 9.07
+    },
+    {
+      "name": "node",
+      "args": ["/var/tmp/m98p2z-node22-9t1gyr0e/package/bin/node", "--version"],
+      "exit": 0,
+      "seconds": 0.0
+    },
+    {
+      "name": "typecheck-host",
+      "args": ["npm", "run", "typecheck:host"],
+      "exit": 0,
+      "seconds": 18.78
+    },
+    {
+      "name": "typecheck-webview",
+      "args": ["npm", "run", "typecheck:webview"],
+      "exit": 0,
+      "seconds": 11.25
+    },
+    {
+      "name": "typecheck-unit",
+      "args": ["npm", "run", "typecheck:unit"],
+      "exit": 0,
+      "seconds": 60.44
+    },
+    {
+      "name": "typecheck-e2e",
+      "args": ["npm", "run", "typecheck:e2e"],
+      "exit": 0,
+      "seconds": 28.24
+    },
+    {
+      "name": "typecheck-integration",
+      "args": ["npm", "run", "typecheck:integration"],
+      "exit": 0,
+      "seconds": 10.25
+    },
+    {
+      "name": "lint",
+      "args": ["npm", "run", "lint"],
+      "exit": 0,
+      "seconds": 416.47
+    },
+    {
+      "name": "format",
+      "args": ["npm", "run", "format:check"],
+      "exit": 0,
+      "seconds": 114.71
+    },
+    {
+      "name": "knip",
+      "args": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 4.79
+    },
+    {
+      "name": "duplication",
+      "args": ["npm", "run", "duplication"],
+      "exit": 0,
+      "seconds": 1.14
+    },
+    {
+      "name": "cycles",
+      "args": ["npm", "run", "cycles"],
+      "exit": 0,
+      "seconds": 9.18
+    },
+    {
+      "name": "reference",
+      "args": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 2.95
+    },
+    {
+      "name": "l10n",
+      "args": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 3.17
+    },
+    {
+      "name": "host-api",
+      "args": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 27.52
+    },
+    {
+      "name": "exec-schema",
+      "args": ["npm", "run", "schema:exec", "--", "--check"],
+      "exit": 0,
+      "seconds": 0.72
+    },
+    {
+      "name": "build",
+      "args": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 9.67
+    }
+  ],
+  "staticHead": "7f638f2e3b83e32e83eb585824df3e75f7a5cfcc",
+  "fixtureRevalidation": {
+    "head": "f9609a89118efa2f39f4249c3253478570685fc2",
+    "gates": [
+      {
+        "name": "typecheck-unit",
+        "args": ["npm", "run", "typecheck:unit"],
+        "exit": 0,
+        "seconds": 59.88
+      },
+      {
+        "name": "lint-setup-fixtures",
+        "args": [
+          "npm",
+          "exec",
+          "--",
+          "eslint",
+          "test/unit/helpers/modelApiBundle.ts",
+          "test/unit/helpers/judgeFactoryBundles.ts",
+          "test/unit/judgeP2Round3.test.ts",
+          "test/unit/judgeP2Round4.test.ts",
+          "test/unit/judgeValidationSchema.test.ts",
+          "test/unit/checkpointHost.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 13.62
+      },
+      {
+        "name": "format-changed",
+        "args": [
+          "npm",
+          "exec",
+          "--",
+          "prettier",
+          "--check",
+          "CHANGELOG.md",
+          "docs/certification/m98.md",
+          "test/unit/checkpointHost.test.ts",
+          "test/unit/helpers/judgeFactoryBundles.ts",
+          "test/unit/helpers/modelApiBundle.ts",
+          "test/unit/judgeP2Round3.test.ts",
+          "test/unit/judgeP2Round4.test.ts",
+          "test/unit/judgeValidationSchema.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.15
+      },
+      {
+        "name": "knip",
+        "args": ["npm", "run", "deadcode"],
+        "exit": 0,
+        "seconds": 4.63
+      },
+      {
+        "name": "duplication",
+        "args": ["npm", "run", "duplication"],
+        "exit": 0,
+        "seconds": 1.17
+      },
+      {
+        "name": "cycles",
+        "args": ["npm", "run", "cycles"],
+        "exit": 0,
+        "seconds": 9.21
+      }
+    ],
+    "replay": {
+      "head": "f9609a89118efa2f39f4249c3253478570685fc2",
+      "initialHead": "7f638f2e3b83e32e83eb585824df3e75f7a5cfcc",
+      "changedPaths": [
+        "CHANGELOG.md",
+        "docs/certification/m98.md",
+        "test/unit/checkpointHost.test.ts",
+        "test/unit/helpers/judgeFactoryBundles.ts",
+        "test/unit/helpers/modelApiBundle.ts",
+        "test/unit/judgeP2Round3.test.ts",
+        "test/unit/judgeP2Round4.test.ts",
+        "test/unit/judgeValidationSchema.test.ts"
+      ],
+      "owningFiles": [
+        "test/unit/acpModelApi.test.ts",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/agentImportBundle.test.ts",
+        "test/unit/bundledSkillsInstall.test.ts",
+        "test/unit/checkpointHost.test.ts",
+        "test/unit/cliUsageProcess.test.ts",
+        "test/unit/conversationController.test.ts",
+        "test/unit/execFetch.test.ts",
+        "test/unit/execRun.test.ts",
+        "test/unit/judgeP2Round3.test.ts",
+        "test/unit/judgeP2Round4.test.ts",
+        "test/unit/judgeValidationSchema.test.ts",
+        "test/unit/legalScanBundle.test.ts",
+        "test/unit/modelApiBundle.test.ts",
+        "test/unit/tabBundle.test.ts",
+        "test/unit/whatsNewBundle.test.ts"
+      ],
+      "wholeBatchesReplayed": [
+        "shard-3-batch-030",
+        "shard-3-batch-072",
+        "shard-1-batch-026",
+        "shard-1-batch-034",
+        "shard-1-batch-065",
+        "shard-1-batch-066",
+        "shard-1-batch-068",
+        "shard-4-batch-051",
+        "shard-4-batch-061",
+        "shard-4-batch-064",
+        "shard-4-batch-076",
+        "shard-2-batch-011",
+        "shard-2-batch-021",
+        "shard-2-batch-035",
+        "shard-2-batch-043",
+        "shard-2-batch-058"
+      ]
+    }
+  },
+  "readinessDrill": {
+    "redExit": 1,
+    "redSeconds": 2.23,
+    "greenExit": 0,
+    "greenSeconds": 2.05,
+    "restoredSha256": "d115f6aeb136b9c8e5e6f6a86896671cefba230054cee757b01b16676902a6d7",
+    "files": 1,
+    "timeoutOverride": false
+  },
+  "unitMerge": {
+    "mergedExit": 0,
+    "inventory": 893,
+    "failedBatches": 0,
+    "head": "f9609a89118efa2f39f4249c3253478570685fc2"
+  },
+  "tests": {
+    "inventory": 893,
+    "batches": 322,
+    "maxFilesPerBatch": 3,
+    "workers": 3,
+    "timeoutOverride": false,
+    "thresholds": {
+      "statements": 90,
+      "branches": 85,
+      "functions": 90,
+      "lines": 90
+    },
+    "summary": [
+      "Test Files  875 passed | 18 skipped (893)",
+      "Tests  17852 passed | 133 skipped (17985)",
+      "All files          |    92.6 |    87.72 |   93.68 |   93.27 |"
+    ],
+    "shards": [
+      {
+        "index": 1,
+        "files": 224,
+        "inventorySha256": "67794071defb33cd5f56b568eab0064f6f8ee43dd5b34c753d5702ba239fe2f5",
+        "coverageBlobSha256": "60006ca09e06b07a353521c99fcd505bf564b77ead97c7fa0eda0884a95d240d"
+      },
+      {
+        "index": 2,
+        "files": 223,
+        "inventorySha256": "93e0ba4230f8d3fc13aad27c80562b43a447f8d92c4d517ba351a3fcce42826e",
+        "coverageBlobSha256": "f1b84b03b3b7749858acfce0a498c7f4a0e22c695c2c9e0568fd8beaef18d93a"
+      },
+      {
+        "index": 3,
+        "files": 223,
+        "inventorySha256": "6dcbcb0f3b3e504ceea4fbf23e504d1a72494cf56cc60497d21e52debaee16ff",
+        "coverageBlobSha256": "4ae7f20a88e2f97878214dc7d7d62d0d2ac4af94eef875fa5e779d19bd8fda0e"
+      },
+      {
+        "index": 4,
+        "files": 223,
+        "inventorySha256": "1f86f1a9c86967c128f4522ec1d93eb7ffd95c076848e07999fdcaa1b197f76b",
+        "coverageBlobSha256": "be03faa96502580347af12948d99a09296581b79804a7143897449fcb3715f21"
+      }
+    ]
+  },
+  "packages": [
+    {
+      "name": "package-vsix",
+      "args": ["npm", "run", "package"],
+      "exit": 0,
+      "seconds": 84.31
+    },
+    {
+      "name": "package-acp",
+      "args": ["/var/tmp/m98p2z-node22-9t1gyr0e/package/bin/node", "scripts/package-acp.mjs"],
+      "exit": 1,
+      "seconds": 1.53
+    },
+    {
+      "name": "packaged-cli-help",
+      "args": ["/var/tmp/m98p2z-node22-9t1gyr0e/package/bin/node", "dist/acp.js", "help"],
+      "exit": 0,
+      "seconds": 0.19
+    },
+    {
+      "name": "integration-build",
+      "args": ["npm", "run", "build:dev"],
+      "exit": 0,
+      "seconds": 3.41
+    },
+    {
+      "name": "installed-fake-cli",
+      "args": ["sh", "test/hosts/fake-muse.sh", "/tmp/m98p2z-ci-btcjxtkz/temp/ci/editor-muse"],
+      "exit": 0,
+      "seconds": 0.01
+    },
+    {
+      "name": "installed-vscode",
+      "args": [
+        "xvfb-run",
+        "-a",
+        "/var/tmp/m98p2z-node22-9t1gyr0e/package/bin/node",
+        "node_modules/@vscode/test-cli/out/bin.mjs",
+        "--config",
+        "test/hosts/installed.vscode-test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 22.29
+    },
+    {
+      "name": "restored-production-build",
+      "args": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 9.64
+    },
+    {
+      "name": "tracked-tree",
+      "args": ["git", "diff", "--exit-code"],
+      "exit": 0,
+      "seconds": 0.0
+    }
+  ],
+  "inferenceAttempts": {
+    "live": 0,
+    "paid": 0,
+    "local": 0
+  },
+  "freshInstallAdvisories": {
+    "low": 2,
+    "high": 9,
+    "auditGateRun": false
+  },
+  "artifacts": [
+    {
+      "name": "muse-spark-code-0.15.0.vsix",
+      "bytes": 2741008,
+      "sha256": "905cfca32dafb50445bd915657372d713dcd5e7187eb1bf1818baf3d970e6364"
+    }
+  ],
+  "verifiedAtUtc": "2026-10-08 07:05:21 UTC",
+  "coveragePct": {
+    "statements": 92.6,
+    "branches": 87.72,
+    "functions": 93.68,
+    "lines": 93.27
+  },
+  "vsixEntryPredicate": {
+    "exit": 1,
+    "workflow": ".github/workflows/build.yml",
+    "checkedEntries": 62,
+    "missingEntries": [
+      "extension/native/darwin/muse-local-judge-peer",
+      "extension/native/darwin/muse-dictate"
+    ],
+    "archiveEntries": 285
+  },
+  "installedHost": {
+    "name": "Visual Studio Code",
+    "version": "1.130.0",
+    "testsPassed": 40,
+    "exit": 0,
+    "privateProfile": true,
+    "backend": "test-owned fake Muse Code CLI",
+    "extensionLoading": "extensionDevelopmentPath",
+    "concreteSeparateByoDispatchCertified": false
+  },
+  "blocked": [
+    "Captured native logprob/JSON-schema request wrappers and complete canonical M95 ledger/client bindings",
+    "Universal macOS muse-local-judge-peer and muse-dictate artifacts"
+  ]
+}

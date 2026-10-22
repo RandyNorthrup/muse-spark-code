@@ -1,0 +1,262 @@
+[
+  {
+    "guard": "parse-error",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "syntax.hasError || -> false ||",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "integer-limit",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "!Number.isSafeInteger(maxRegions) -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "positive-limit",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "maxRegions < 1 -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "parent-order",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "node.parent >= index -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "previous-order",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "node.previous >= index -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "byte-boundary",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "end === undefined -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "reversed-range",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "end < start -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "parent-containment",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "(parent !== undefined && (node.start < parent.start || node.end > parent.end)) -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "previous-containment",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "(previous !== undefined && (previous.parent !== node.parent || previous.end > node.start)) -> false",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "query-reference",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "if (node === undefined) throw new Error('lint-extraction-invalid') -> if (false) throw new Error('lint-extraction-invalid')",
+    "test": "rejects parse errors, invalid references and invalid byte boundaries",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "utf16",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "offset += character.length -> offset += 1",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "doc-category",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "kind = 'docComment' -> kind = 'comment'",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "related-types",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "if (related.length > 0) -> if (false)",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "decorated-anchor",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "parent?.kind === 'decorated_definition' -> false",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "comment-gap",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "gap.split('\\n').length > 2 -> false",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "region-limit",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": ".slice(0, maxRegions) -> ",
+    "test": "keeps missing syntax kinds visibly unchecked and bounds localized regions",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "nested-calls",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "inner !== unit -> false",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "call-dedup",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "if (seen.has(spelling)) return [] -> if (false) return []",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "closest-parent",
+    "file": "src/core/judge/lint/syntax.ts",
+    "mutation": "current.parent.end - current.parent.start > unit.end - unit.start -> false",
+    "test": "matches ",
+    "exit": 1,
+    "before": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "after": "52541067b96203a8ebb6b44455461c9720a0bc01291bb0c2796607d1b34e8f3f",
+    "restored": true
+  },
+  {
+    "guard": "type-state",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": "(parent ?? unit).types !== undefined -> false",
+    "test": "retains captured grammar node kinds and related types in base and localized requests",
+    "exit": 1,
+    "before": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "after": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "restored": true
+  },
+  {
+    "guard": "base-parent-state",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": "unit.parentSource !== undefined -> false",
+    "test": "retains captured grammar node kinds and related types in base and localized requests",
+    "exit": 1,
+    "before": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "after": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "restored": true
+  },
+  {
+    "guard": "base-region-state",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": "unit.regionKind !== undefined -> false",
+    "test": "retains captured grammar node kinds and related types in base and localized requests",
+    "exit": 1,
+    "before": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "after": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "restored": true
+  },
+  {
+    "guard": "localized-region-state",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": "regionKind: unit.regionKind ?? unit.kind -> regionKind: unit.kind",
+    "test": "retains captured grammar node kinds and related types in base and localized requests",
+    "exit": 1,
+    "before": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "after": "aeda4484032ae65fedf40b2abafdc237ace1bc97b24ddc21d677e062351a812a",
+    "restored": true
+  },
+  {
+    "guard": "type-boundary",
+    "file": "src/core/judge/lint/units.ts",
+    "mutation": "types: z.optional(z.array(z.strictObject({ name: z.string(), source: z.string() }))) -> types: z.optional(z.array(z.unknown()))",
+    "test": "rejects malformed captured context metadata",
+    "exit": 1,
+    "before": "403f958629a2a32d280eb01ba64d115475fa4a94c8c2b4c2a5201fcaff397d97",
+    "after": "403f958629a2a32d280eb01ba64d115475fa4a94c8c2b4c2a5201fcaff397d97",
+    "restored": true
+  },
+  {
+    "guard": "parentSource-boundary",
+    "file": "src/core/judge/lint/units.ts",
+    "mutation": "parentSource: z.optional(z.string()) -> parentSource: z.optional(z.unknown())",
+    "test": "rejects malformed captured context metadata",
+    "exit": 1,
+    "before": "403f958629a2a32d280eb01ba64d115475fa4a94c8c2b4c2a5201fcaff397d97",
+    "after": "403f958629a2a32d280eb01ba64d115475fa4a94c8c2b4c2a5201fcaff397d97",
+    "restored": true
+  },
+  {
+    "guard": "regionKind-boundary",
+    "file": "src/core/judge/lint/units.ts",
+    "mutation": "regionKind: z.optional(z.string()) -> regionKind: z.optional(z.unknown())",
+    "test": "rejects malformed captured context metadata",
+    "exit": 1,
+    "before": "403f958629a2a32d280eb01ba64d115475fa4a94c8c2b4c2a5201fcaff397d97",
+    "after": "403f958629a2a32d280eb01ba64d115475fa4a94c8c2b4c2a5201fcaff397d97",
+    "restored": true
+  }
+]

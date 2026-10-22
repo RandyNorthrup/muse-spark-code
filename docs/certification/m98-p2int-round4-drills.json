@@ -1,0 +1,561 @@
+{
+  "sourceControls": [
+    {
+      "name": "helper-canceled-start",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "  signal.throwIfAborted()\n",
+      "new": "",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "refuses an already canceled preparation",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > refuses an already canceled preparation before platform or file work"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-absolute",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "if (!path.isAbsolute(paths.packageRoot) || !path.isAbsolute(paths.storageRoot))",
+      "new": "if (false)",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "refuses relative storage with a valid packaged source",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > refuses relative storage with a valid packaged source before compiling"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-platform",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "if (platform !== 'win32' && platform !== 'linux' && platform !== 'darwin')",
+      "new": "if (false)",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "refuses unknown platforms and relative paths",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > refuses unknown platforms and relative paths before invoking a compiler"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-canonical",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "(await realpath(source)) !== source || !sourceStat.isFile()",
+      "new": "!sourceStat.isFile()",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "refuses symlinked packaged source",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > refuses symlinked packaged source before compiling"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-file",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "(await realpath(source)) !== source || !sourceStat.isFile()",
+      "new": "(await realpath(source)) !== source",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "refuses a directory in place",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > refuses a directory in place of the packaged helper before spawning"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-environment",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "env: platform === 'win32' ? { SystemRoot: process.env['SystemRoot'] } : {}",
+      "new": "env: {}",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "compiles Windows source with only SystemRoot",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > compiles Windows source with only SystemRoot and the fixed framework compiler"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-signature",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "await run('/usr/bin/codesign', ['--verify', '--strict', source], options)",
+      "new": "await Promise.resolve()",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "verifies the packaged macOS helper",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > verifies the packaged macOS helper and propagates signature failure"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-compiler",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "if (!systemRoot || !path.win32.isAbsolute(systemRoot))",
+      "new": "if (!systemRoot)",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "compiles Windows source with only SystemRoot",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > compiles Windows source with only SystemRoot and the fixed framework compiler"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-canceled-result",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "    signal.throwIfAborted()\n    await rename(output, target)",
+      "new": "    await rename(output, target)",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "refuses cancellation after compilation",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > refuses cancellation after compilation and removes the partial helper"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "helper-cleanup",
+      "file": "src/runtime/judge/localHelper.ts",
+      "old": "    await rm(output, { force: true })",
+      "new": "    await Promise.resolve()",
+      "test": "test/unit/judgeLocalHelper.test.ts",
+      "expected": "refuses cancellation after compilation",
+      "failures": [
+        "test/unit/judgeLocalHelper.test.ts > same-build local helper preparation > refuses cancellation after compilation and removes the partial helper"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1",
+      "restoredSha256": "14aaf5b0cd442b4f62673a07b2444a1a7eefbdd79bd082813cf15b5dda4ebee1"
+    },
+    {
+      "name": "json-export",
+      "file": "src/shared/validationEntry.ts",
+      "old": "  json,\n",
+      "new": "",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "088eafcd92b351b5fd5b17cfc296e27aedfd866dc1a4af1e802e74fac4aabe16",
+      "restoredSha256": "088eafcd92b351b5fd5b17cfc296e27aedfd866dc1a4af1e802e74fac4aabe16"
+    },
+    {
+      "name": "factory-local",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "old": "  loadLocal() {",
+      "new": "  removedLocal() {",
+      "test": "test/unit/judgeP2Round3.test.ts",
+      "expected": "retries judgeLocal.js",
+      "failures": [
+        "test/unit/judgeP2Round3.test.ts > round-3 production judge factories > retries judgeLocal.js after a missing or malformed child is repaired"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "03324235084bd7b953426d9b173e7ca6727c55d61b93395446a52fee27f08ea6",
+      "restoredSha256": "03324235084bd7b953426d9b173e7ca6727c55d61b93395446a52fee27f08ea6"
+    },
+    {
+      "name": "factory-uses",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "old": "  loadUses() {",
+      "new": "  removedUses() {",
+      "test": "test/unit/judgeP2Round3.test.ts",
+      "expected": "retries judgeUses.js",
+      "failures": [
+        "test/unit/judgeP2Round3.test.ts > round-3 production judge factories > retries judgeUses.js after a missing or malformed child is repaired"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "03324235084bd7b953426d9b173e7ca6727c55d61b93395446a52fee27f08ea6",
+      "restoredSha256": "03324235084bd7b953426d9b173e7ca6727c55d61b93395446a52fee27f08ea6"
+    },
+    {
+      "name": "factory-callable",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "old": "typeof Reflect.get(value, field) === 'function'",
+      "new": "true",
+      "test": "test/unit/judgeP2Round3.test.ts",
+      "expected": "retries judgeLocal.js",
+      "failures": [
+        "test/unit/judgeP2Round3.test.ts > round-3 production judge factories > retries judgeLint.js after a missing or malformed child is repaired",
+        "test/unit/judgeP2Round3.test.ts > round-3 production judge factories > retries judgeHook.js after a missing or malformed child is repaired",
+        "test/unit/judgeP2Round3.test.ts > round-3 production judge factories > retries judgeLocal.js after a missing or malformed child is repaired",
+        "test/unit/judgeP2Round3.test.ts > round-3 production judge factories > retries judgeUses.js after a missing or malformed child is repaired"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "03324235084bd7b953426d9b173e7ca6727c55d61b93395446a52fee27f08ea6",
+      "restoredSha256": "03324235084bd7b953426d9b173e7ca6727c55d61b93395446a52fee27f08ea6"
+    },
+    {
+      "name": "json-export",
+      "file": "src/shared/validationEntry.ts",
+      "old": "  json,\n",
+      "new": "",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "088eafcd92b351b5fd5b17cfc296e27aedfd866dc1a4af1e802e74fac4aabe16",
+      "restoredSha256": "088eafcd92b351b5fd5b17cfc296e27aedfd866dc1a4af1e802e74fac4aabe16"
+    },
+    {
+      "name": "factory-pull-entry",
+      "file": "src/runtime/judge/judgeLocalEntry.ts",
+      "old": "  hostLocalModelPullAction,\n  pullLocalJudgeModel,\n  localJudgeStatus,",
+      "new": "  hostLocalModelPullAction,\n  localJudgeStatus,",
+      "test": "test/unit/judgeP2Round4.test.ts",
+      "expected": "installs current language",
+      "failures": [
+        "test/unit/judgeP2Round4.test.ts > round-4 production J/FU factories > installs current language and refuses local inference without opt-in"
+      ],
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "308d78f6eed6636e759614efbc1a4e8ce8668b2c519e7c78ec5ac21df752194b",
+      "restoredSha256": "308d78f6eed6636e759614efbc1a4e8ce8668b2c519e7c78ec5ac21df752194b"
+    }
+  ],
+  "initialSurvivors": [
+    {
+      "name": "factory-callable-initial",
+      "mutation": "typeof Reflect.get(value, field) === 'function' -> true",
+      "exit": 0,
+      "reason": "Malformed fixture contained no named property, so the Object.hasOwn guard still refused it. Updated the fixture to contain each named export with a non-callable boolean. Source restored byte-exact; this first candidate is not counted as a red proof."
+    },
+    {
+      "name": "helper-absolute-initial",
+      "exit": 0,
+      "reason": "Relative package source was still refused by canonical-source guard. Added a valid-package/relative-storage fixture to prove the independent storage-path guard; source restored byte-exact and first candidate not counted."
+    }
+  ],
+  "nativePidReuse": {
+    "pid": 50596,
+    "attempts": 88913,
+    "differentStart": true,
+    "exitWatchStillInvalid": true,
+    "beforeCreationTime": "1791236956076229",
+    "afterCreationTime": "1791237008371015",
+    "elapsedMs": 52742.24509
+  },
+  "deliveryMatrix": {
+    "file": "test/unit/judgeP2Delivery.test.ts",
+    "testsPassed": 49,
+    "durationSeconds": 1193.95,
+    "newChildSplitFaults": 100,
+    "newCapGlobalAllowlistFaults": 6,
+    "method": "Every mutation receives its named failure or actual allowlist exclusion, is restored to the original SHA-256, and the owning script/list reruns green. Whole file passes with unchanged 120000 ms per-test timeout."
+  },
+  "proceduralOverlap": {
+    "deferredFile": "test/unit/deferredBundles.test.ts",
+    "discardedRunLog": "temp/round4/final-tests-2.log",
+    "assertionsFailed": 2,
+    "cause": "Package build regenerated deliberately mutated metadata while expected-red split controls were running. Package process group stopped; whole unchanged file and packaging rerun serially.",
+    "sourceOrGateChanged": false,
+    "serialGreenLog": "temp/round4/final-deferred-serial.log",
+    "serialGreenTests": 21
+  },
+  "packageInventoryControls": [
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/dist/judgeLocal.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/dist/judgeUses.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/native/windows/MuseSparkLocalJudgePeer.cs",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/native/linux/MuseSparkLocalJudgePeer.c",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/native/darwin/muse-local-judge-peer",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "bytes": 2418240,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f",
+      "entries": 160,
+      "inventoryExit": 0
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/dist/judgeLocal.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/dist/judgeUses.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/native/windows/MuseSparkLocalJudgePeer.cs",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/native/linux/MuseSparkLocalJudgePeer.c",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/native/darwin/muse-local-judge-peer",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "bytes": 1280879,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a",
+      "entries": 41,
+      "inventoryExit": 0
+    }
+  ],
+  "archiveSmoke": {
+    "nativeHelpers": [
+      {
+        "file": "native/darwin/muse-dictate",
+        "bytes": 290816,
+        "sha256": "96d650e2d282219e58dbed4206fe199da7b6b4188af20e9e54bd66676e7564a4",
+        "architecture": "Architectures in the fat file: /Users/randy/lanes/M98P2INT/native/darwin/muse-dictate are: x86_64 arm64",
+        "codesignExit": 0
+      },
+      {
+        "file": "native/darwin/muse-local-judge-peer",
+        "bytes": 118496,
+        "sha256": "3cccb1211d1b9e3c38f114928b147c05ca88f8a7777b0896c3ea7de6a9859916",
+        "architecture": "Architectures in the fat file: /Users/randy/lanes/M98P2INT/native/darwin/muse-local-judge-peer are: x86_64 arm64",
+        "codesignExit": 0
+      }
+    ],
+    "packagedVersion": "0.13.0",
+    "factorySmoke": [
+      {
+        "root": "/Users/randy/lanes/M98P2INT/temp/round4/extracted/vsix/extension",
+        "factory": "loaded",
+        "usesWithoutEvidence": 9,
+        "helperSha256": "3cccb1211d1b9e3c38f114928b147c05ca88f8a7777b0896c3ea7de6a9859916",
+        "inferenceAttempts": 0
+      },
+      {
+        "root": "/Users/randy/lanes/M98P2INT/temp/round4/extracted/acp/package",
+        "factory": "loaded",
+        "usesWithoutEvidence": 9,
+        "helperSha256": "3cccb1211d1b9e3c38f114928b147c05ca88f8a7777b0896c3ea7de6a9859916",
+        "inferenceAttempts": 0
+      }
+    ],
+    "inferenceAttempts": 0
+  },
+  "owningTests": [
+    {
+      "files": [
+        "test/unit/judgeLocalDarwin.test.ts",
+        "test/unit/judgeLocalDarwinDeadline.test.ts",
+        "test/unit/judgeLocalDarwinHost.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/unit-0.log",
+      "passedTests": 43,
+      "platformInapplicableTests": 0
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalDarwinPeer.test.ts",
+        "test/unit/judgeLocalExecutable.test.ts",
+        "test/unit/judgeLocalHelper.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/unit-1.log",
+      "passedTests": 15,
+      "platformInapplicableTests": 0
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalHost.test.ts",
+        "test/unit/judgeLocalLinuxNative.test.ts",
+        "test/unit/judgeLocalLinuxVolume.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/unit-2.log",
+      "passedTests": 4,
+      "platformInapplicableTests": 38
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalModel.test.ts",
+        "test/unit/judgeLocalPeer.test.ts",
+        "test/unit/judgeLocalPosix.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/unit-3.log",
+      "passedTests": 49,
+      "platformInapplicableTests": 12
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalPosixNative.test.ts",
+        "test/unit/judgeLocalPull.test.ts",
+        "test/unit/judgeLocalSource.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/unit-4.log",
+      "passedTests": 36,
+      "platformInapplicableTests": 0
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalTransport.test.ts",
+        "test/unit/judgeLocalWire.test.ts",
+        "test/unit/judgeUses.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/unit-5.log",
+      "passedTests": 63,
+      "platformInapplicableTests": 0
+    },
+    {
+      "files": [
+        "test/unit/judgeUsesReview.test.ts",
+        "test/unit/judgeFences.test.ts",
+        "test/unit/judgeP2Round4.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/unit-6.log",
+      "passedTests": 43,
+      "platformInapplicableTests": 0,
+      "historicalFactoryTests": 5
+    }
+  ],
+  "finalIntegrationTests": [
+    {
+      "files": [
+        "test/unit/judgeP2Round3.test.ts",
+        "test/unit/judgeLocalHelper.test.ts",
+        "test/unit/judgeLocalSource.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/round4/final-tests-0.log",
+      "passedTests": 43
+    },
+    {
+      "files": ["test/unit/judgeP2Bundle.test.ts", "test/unit/judgeActivation.test.ts"],
+      "exit": 0,
+      "log": "temp/round4/final-tests-1.log",
+      "passedTests": 20
+    },
+    {
+      "files": ["test/unit/deferredBundles.test.ts"],
+      "exit": 0,
+      "log": "temp/round4/final-deferred-serial.log",
+      "supersedesOverlappedRun": "temp/round4/final-tests-2.log",
+      "passedTests": 21
+    },
+    {
+      "files": ["test/unit/judgeP2Round4.test.ts"],
+      "exit": 0,
+      "log": "temp/round4/factory-pull-entry-green.log",
+      "passedTests": 3
+    }
+  ],
+  "gates": [
+    {
+      "name": "eslint",
+      "exit": 0,
+      "log": "temp/round4/final-eslint.log"
+    },
+    {
+      "name": "prettier",
+      "exit": 0,
+      "log": "temp/round4/final-prettier.log"
+    },
+    {
+      "name": "typecheck",
+      "exit": 0,
+      "log": "temp/round4/final-typecheck.log"
+    },
+    {
+      "name": "deadcode",
+      "exit": 0,
+      "log": "temp/round4/final-deadcode.log"
+    },
+    {
+      "name": "duplication",
+      "exit": 0,
+      "log": "temp/round4/final-duplication.log"
+    },
+    {
+      "name": "l10n",
+      "exit": 0,
+      "log": "temp/round4/final-l10n.log"
+    },
+    {
+      "name": "cycles",
+      "exit": 0,
+      "log": "temp/round4/final-cycles.log"
+    },
+    {
+      "name": "host-api-write",
+      "exit": 0,
+      "log": "temp/round4/final-host-api-write.log"
+    },
+    {
+      "name": "host-api",
+      "exit": 0,
+      "log": "temp/round4/final-host-api.log"
+    },
+    {
+      "name": "build",
+      "exit": 0,
+      "log": "temp/round4/final-build.log"
+    }
+  ]
+}

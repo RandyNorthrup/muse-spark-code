@@ -1,0 +1,369 @@
+{
+  "rig": "macmini",
+  "baseCommit": "3e19233184941e33f4ad286780273e3924bc96a6",
+  "sourceControls": [
+    {
+      "id": "factory-language",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "mutation": {
+        "before": "  setUiText(language.uiText, language.uiLocale)",
+        "after": "  void language"
+      },
+      "namedAssertion": "installs the current caller language",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70",
+      "mutatedSha256": "92152b418fc88ea2ae70673e4c3c77409561832a0ba35350a2754021489d7d16",
+      "restoredSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70"
+    },
+    {
+      "id": "factory-identity",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "mutation": {
+        "before": "  return features",
+        "after": "  return { ...features }"
+      },
+      "namedAssertion": "requires the shipped bundle on the first call only",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70",
+      "mutatedSha256": "6ddfa350fc4cc886b7aaacf637cdacaf349e576205476b48332a46fe88933e1e",
+      "restoredSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70"
+    },
+    {
+      "id": "factory-calibration",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "mutation": {
+        "before": "  applyCalibration,",
+        "after": "  applyCalibration: fitCalibration,"
+      },
+      "namedAssertion": "fits and reports offline",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70",
+      "mutatedSha256": "afb732ac638b62b64fb07b34f06c036aafa14fba8773caaa15f5a47edc82962e",
+      "restoredSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70"
+    },
+    {
+      "id": "factory-sampling",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "mutation": {
+        "before": "  sampleJudge,",
+        "after": "  sampleJudge: contrastiveJudge,"
+      },
+      "namedAssertion": "preserves sampling opt-in",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70",
+      "mutatedSha256": "24ff60cab7dda7bdac31aba285162cece643b31c449c4b98d7956c14f663cb2d",
+      "restoredSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70"
+    },
+    {
+      "id": "factory-contrastive",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "mutation": {
+        "before": "  contrastiveJudge,",
+        "after": "  contrastiveJudge: sampleJudge,"
+      },
+      "namedAssertion": "dispatches both contrastive framings",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70",
+      "mutatedSha256": "c7d8aaa5e1a18c46a5842dcaa4657ca3056d5a17ae7e8e8925b9072e3e285d3c",
+      "restoredSha256": "dd014a284ecf756b7aa725aab41292b1ecf901cf86e9523720fb9e46c4cc0a70"
+    },
+    {
+      "id": "loader-lazy",
+      "file": "src/runtime/judge/judgeBundle.ts",
+      "mutation": {
+        "before": "  return () => load().createJudgeFeatures",
+        "after": "  load()\n  return () => load().createJudgeFeatures"
+      },
+      "namedAssertion": "requires the shipped bundle on the first call only",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "8728f714e474c2956fd2889c39a00095a28396524f030931a2ae20f748137a32",
+      "mutatedSha256": "e66809b828b7fffa1f59a136b231815cc6313d18d592728190ad8f9db51cdbc1",
+      "restoredSha256": "8728f714e474c2956fd2889c39a00095a28396524f030931a2ae20f748137a32"
+    },
+    {
+      "id": "loader-callable",
+      "file": "src/runtime/judge/judgeBundle.ts",
+      "mutation": {
+        "before": "typeof value.createJudgeFeatures === 'function'",
+        "after": "true"
+      },
+      "namedAssertion": "does not accept a module without its callable factory",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "8728f714e474c2956fd2889c39a00095a28396524f030931a2ae20f748137a32",
+      "mutatedSha256": "02abc862d1d0e7f69e49fde54444107ecb1fc83cae5e03a1372acb9c0f44dafc",
+      "restoredSha256": "8728f714e474c2956fd2889c39a00095a28396524f030931a2ae20f748137a32"
+    },
+    {
+      "id": "split-leak",
+      "file": "scripts/check-bundle-split.mjs",
+      "mutation": {
+        "before": "bundle.output !== JUDGE.output && inputsOf(bundle).has(file)",
+        "after": "false && inputsOf(bundle).has(file)"
+      },
+      "namedAssertion": "fires each phase-2 leak guard",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "f6dd23b4bd7abad5b0769811cfd9e832b17697d4adadd5ee9e751b1acb3a0b58",
+      "mutatedSha256": "22a23b2d4a975c4771d3e3da0447442e5baf1682f0a86a46237951fa5d437926",
+      "restoredSha256": "f6dd23b4bd7abad5b0769811cfd9e832b17697d4adadd5ee9e751b1acb3a0b58"
+    },
+    {
+      "id": "split-members",
+      "file": "scripts/check-bundle-split.mjs",
+      "mutation": {
+        "before": "if (!judge.has(file)) problems.push",
+        "after": "if (false) problems.push"
+      },
+      "namedAssertion": "fires every missing implementation guard",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "f6dd23b4bd7abad5b0769811cfd9e832b17697d4adadd5ee9e751b1acb3a0b58",
+      "mutatedSha256": "bed02c502911f923d2b970f3adb0fbb143426cc551f9da2c4ac677f029a3fd97",
+      "restoredSha256": "f6dd23b4bd7abad5b0769811cfd9e832b17697d4adadd5ee9e751b1acb3a0b58"
+    },
+    {
+      "id": "size-members",
+      "file": "scripts/check-bundle-size.mjs",
+      "mutation": {
+        "before": "  { path: 'dist/judge.js', budgetKiB: 75 },\n",
+        "after": ""
+      },
+      "namedAssertion": "fires the new size and host-global guards",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "b4a2100f16afbdf5a1ea58c85adb1314ae2b75f22653d0669ba0399028480dad",
+      "mutatedSha256": "476e1b35ff2d6b5e2b6a91307846841b73e2083fcc5264705e406fdd9cda9fdd",
+      "restoredSha256": "b4a2100f16afbdf5a1ea58c85adb1314ae2b75f22653d0669ba0399028480dad"
+    },
+    {
+      "id": "host-globals",
+      "file": "scripts/check-host-globals.mjs",
+      "mutation": {
+        "before": "  'dist/judge.js',\n",
+        "after": ""
+      },
+      "namedAssertion": "fires the new size and host-global guards",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "6219e8d3d008dbd552f3a9ea95572e99c3e3de0eced53de03ec12db7caf7a605",
+      "mutatedSha256": "60aff229afd6028dce242bd625b4b36fcdcd4e0b3a77ba89d5c1eea8d3b11494",
+      "restoredSha256": "6219e8d3d008dbd552f3a9ea95572e99c3e3de0eced53de03ec12db7caf7a605"
+    },
+    {
+      "id": "npm-member",
+      "file": "scripts/package-acp.mjs",
+      "mutation": {
+        "before": "  'judge.js',\n",
+        "after": ""
+      },
+      "namedAssertion": "fires the new size and host-global guards",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "ef11a4a9e1c84b2e75a8ca5117f095ba5f131677f57228ed012c40cc42f8ecfc",
+      "mutatedSha256": "49f9d246f62aa69d0a04b97f4b265aa02b690287cbf6eb652c157c39daabf989",
+      "restoredSha256": "ef11a4a9e1c84b2e75a8ca5117f095ba5f131677f57228ed012c40cc42f8ecfc"
+    },
+    {
+      "id": "vsix-allowlist",
+      "file": ".vscodeignore",
+      "mutation": {
+        "before": "!dist/judge.js\n",
+        "after": ""
+      },
+      "namedAssertion": "includes the new member in the actual VSIX list",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "ace7a3295c1c4dcd13bd9a6ffb761c496ac12e974e708ea37d8f9dbb9b4d23c7",
+      "mutatedSha256": "c2e34a341138aca2ce2fdc03ad17d23156af30dd2f1dd7aef120c75f8a6d9d06",
+      "restoredSha256": "ace7a3295c1c4dcd13bd9a6ffb761c496ac12e974e708ea37d8f9dbb9b4d23c7"
+    },
+    {
+      "id": "ci-vsix-member",
+      "file": ".github/workflows/build.yml",
+      "mutation": {
+        "before": "extension/dist/uiText.js extension/dist/judge.js",
+        "after": "extension/dist/uiText.js"
+      },
+      "namedAssertion": "lists judge.js as required in both CI package inventories",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "2d260e9eefa75b89c441b7c0c36387d561e20ef1cbac103a968183c1f1019e6d",
+      "mutatedSha256": "44a00d67e77aaa9540176ac78a848e4e73d06b47d51c680ae06ac29a2d3c1086",
+      "restoredSha256": "2d260e9eefa75b89c441b7c0c36387d561e20ef1cbac103a968183c1f1019e6d"
+    },
+    {
+      "id": "ci-npm-member",
+      "file": ".github/workflows/build.yml",
+      "mutation": {
+        "before": "package/dist/pageWorker.js package/dist/judge.js",
+        "after": "package/dist/pageWorker.js"
+      },
+      "namedAssertion": "lists judge.js as required in both CI package inventories",
+      "redExit": 1,
+      "greenExit": 0,
+      "originalSha256": "2d260e9eefa75b89c441b7c0c36387d561e20ef1cbac103a968183c1f1019e6d",
+      "mutatedSha256": "024a394d49c487d202ad5c4a27aad3c2da9cc29e52168f80bec56355ff837bb3",
+      "restoredSha256": "2d260e9eefa75b89c441b7c0c36387d561e20ef1cbac103a968183c1f1019e6d"
+    }
+  ],
+  "artifactControls": {
+    "testFile": "test/unit/judgeP2Delivery.test.ts",
+    "redControlsPerWholeFile": 43,
+    "restoration": "Every control saves bytes and asserts full SHA-256 equality before a whole-gate green rerun.",
+    "finalArtifacts": {
+      "dist/meta/extension.json": {
+        "sha256": "57cdde554c656c866e6ff9c2f129f31d6c47ef2a34a5257cee8d6d83d9a3038c"
+      },
+      "dist/meta/modelApi.json": {
+        "sha256": "e81e86205c8536ab40b5bee8e39c61d3bc70655239bdbd1bee960e602728030a"
+      },
+      "dist/meta-acp/acp.json": {
+        "sha256": "58086bff76877625ec9e276e2b0de138ce2c3095f21de71c31839ce6c828b0a1"
+      },
+      "dist/meta/judge.json": {
+        "sha256": "9a6f7f1a74e5559a8ab96fbd6faaffce23df0f23781b84594d28b8ad740ae87d"
+      },
+      "dist/judge.js": {
+        "sha256": "83980ce89a2126f8f0a54050fdb13f3eb1a1c25ae044d4dae3283c2e7c840dfc"
+      },
+      ".vscodeignore": {
+        "sha256": "ace7a3295c1c4dcd13bd9a6ffb761c496ac12e974e708ea37d8f9dbb9b4d23c7"
+      }
+    }
+  },
+  "archiveInventoryControls": [
+    {
+      "name": "the .vsix carries the notices, the helpers, the bundles and the manifest's text",
+      "member": "extension/dist/judge.js",
+      "green": 0,
+      "red": 1,
+      "restored": 0,
+      "originalListingSha256": "e97dc426fc1a8b918d0d678fbe4f8d1d2b71041a3894973259f14182d65ad73d",
+      "restoredListingSha256": "e97dc426fc1a8b918d0d678fbe4f8d1d2b71041a3894973259f14182d65ad73d",
+      "namedFailure": "::error::extension/dist/judge.js is missing from the .vsix"
+    },
+    {
+      "name": "the agent's package carries its bundles, tables, notices and manifest",
+      "member": "package/dist/judge.js",
+      "green": 0,
+      "red": 1,
+      "restored": 0,
+      "originalListingSha256": "7c5fd0a000ac553102ef4e4d20707f8f28666bf8459db18f161bcc389dc3ba75",
+      "restoredListingSha256": "7c5fd0a000ac553102ef4e4d20707f8f28666bf8459db18f161bcc389dc3ba75",
+      "namedFailure": "::error::package/dist/judge.js is missing from the agent's package"
+    }
+  ],
+  "fakePackagePrerequisiteControl": {
+    "file": "dist/acp-package/dist/judge.js",
+    "redExit": 1,
+    "greenExit": 0,
+    "namedFailure": "ENOENT on the production judge.js prerequisite",
+    "originalSha256": "83980ce89a2126f8f0a54050fdb13f3eb1a1c25ae044d4dae3283c2e7c840dfc",
+    "restoredSha256": "83980ce89a2126f8f0a54050fdb13f3eb1a1c25ae044d4dae3283c2e7c840dfc"
+  },
+  "unchangedProductionArtifacts": {
+    "dist/acp.js": {
+      "bytes": 805585,
+      "sha256": "c47b4b34caa4a446f99406fc3993015b4a8be39e421ed6decdf19f53eee073ca"
+    },
+    "dist/agentImport.js": {
+      "bytes": 93023,
+      "sha256": "0e368566116ba20c6d394c24b1ebbc3d685613cf587f841d03c34f7dc001b832"
+    },
+    "dist/bundledSkills.js": {
+      "bytes": 23420,
+      "sha256": "1fbfce617cf9840d6194a686a2c5d58f4f2cf55a5b7cf2d7bd132e76ea6f8978"
+    },
+    "dist/checkpointStore.js": {
+      "bytes": 111723,
+      "sha256": "fad988ae0093884df83a41d4bff594694aa807ca997699c3102913b480edc32d"
+    },
+    "dist/codeIntel.js": {
+      "bytes": 55969,
+      "sha256": "fb9cb49f8d4eb9da2eb9e5f28730bbef1835a2da24b0c2aa50e4edc85af03e66"
+    },
+    "dist/extension.js": {
+      "bytes": 566548,
+      "sha256": "6e727bf9a55eca03554a00611c835682777c9f35e1f17a5cd5b07fa222a30d5d"
+    },
+    "dist/modelApi.js": {
+      "bytes": 436630,
+      "sha256": "5da31911fb8c118e5cd339733ae6c299cada188d6c50a67acb944615550fda01"
+    },
+    "dist/museCodeReviewer.js": {
+      "bytes": 17316,
+      "sha256": "38599ff46115a0d5a2a6a46be2a6c733003de2c6351071885bbc161d79baa55e"
+    },
+    "dist/pageWorker.js": {
+      "bytes": 208040,
+      "sha256": "2173acf326f7ef29f168241d40eb4fe0c81f4b0b3c23ee8d29fe1ea8e86095fb"
+    },
+    "dist/planMarkdown.js": {
+      "bytes": 147608,
+      "sha256": "5d8760b833c795e1a0cf1d0398e3b5849c6743dadc53d9421fcd56035ec1ea31"
+    },
+    "dist/review.js": {
+      "bytes": 44186,
+      "sha256": "9dd75263f3dbd6fac947d20004658f216a0394595a525ba5e1e04ebddd7b95a4"
+    },
+    "dist/reviewer.js": {
+      "bytes": 29562,
+      "sha256": "cd969f52e684078b28457bf93222374fc3e101537c145285f0529153612f7c6e"
+    },
+    "dist/searchWorker.js": {
+      "bytes": 18571,
+      "sha256": "56c76dd3085b7df1b4ad38d2c56d63ccea609c5877afe1a48832b06900408fb6"
+    },
+    "dist/sessionBoard.js": {
+      "bytes": 63617,
+      "sha256": "68969c97ed65d25d589222d9523c8ed6de1963740bcdcc8aaae1d5b82c312c6c"
+    },
+    "dist/uiText.js": {
+      "bytes": 108461,
+      "sha256": "7bb529038f3e2028272e749759386da5fe9bc0b99b2f2518a1f29adcbe0bd274"
+    },
+    "dist/voice.js": {
+      "bytes": 35516,
+      "sha256": "911bbacdf0e33951925e75724e21e500b6d0f3de07436e3244ed4ef6f55b0950"
+    },
+    "dist/webFetch.js": {
+      "bytes": 47802,
+      "sha256": "285f5d6fc8a5a539e10299bc52ac3c7f6ccaaa4468e81a9c745d157f0d5b5393"
+    },
+    "dist/webview/main.css": {
+      "bytes": 44036,
+      "sha256": "1d1b0e71730799c9000a50b1defde645beb13103f61db11473b7e36254ff217a"
+    },
+    "dist/webview/main.js": {
+      "bytes": 881917,
+      "sha256": "978644f660ca4a3ba5bf8f976c22521aebf4c5ac65c35f36850c8eacfb74990a"
+    }
+  },
+  "newBundle": {
+    "file": "dist/judge.js",
+    "bytes": 61039,
+    "capBytes": 76800,
+    "sha256": "83980ce89a2126f8f0a54050fdb13f3eb1a1c25ae044d4dae3283c2e7c840dfc"
+  },
+  "archives": {
+    "muse-spark-code-0.12.1.vsix": {
+      "bytes": 2212467,
+      "sha256": "75b7e5ff37537e2791140586d551629cf175c21c3733af278785baa6f0f1c46e"
+    },
+    "dist/muse-spark-code-acp-0.12.1.tgz": {
+      "bytes": 1037810,
+      "sha256": "3459c943a0c8998399d5bd4def51b6c1d74eff09f4d7cefaf0837a803941eb5c"
+    },
+    "dist/muse-spark-code-acp-test-0.12.1.tgz": {
+      "bytes": 1096430,
+      "sha256": "e033b681e8328722d0779fa8b7cc56233b88882042f49cb06ab31de5cb3cd799"
+    }
+  }
+}

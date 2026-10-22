@@ -1,0 +1,3 @@
+async function readReport(readText, path) {
+  try { return await readText(path) } catch { return '' }
+}

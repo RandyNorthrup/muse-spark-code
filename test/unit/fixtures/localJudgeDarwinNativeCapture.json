@@ -1,0 +1,19 @@
+{
+  "tuple": "127.0.0.1:11434->127.0.0.1:49657",
+  "lsofNulFields": "p41733\u0000u502\u0000\nf7\u0000n127.0.0.1:11434->127.0.0.1:49657\u0000TST=ESTABLISHED\u0000TQR=0\u0000TQS=0\u0000\n",
+  "libproc": {
+    "pid": 41733,
+    "uid": 502,
+    "realUid": 502,
+    "creationTime": "1791227123536208",
+    "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama"
+  },
+  "volume": {
+    "filesystem": "apfs",
+    "flags": 76582912,
+    "device": "16777220",
+    "uid": 502
+  },
+  "bytesWrittenBeforeHttp": 0,
+  "inferenceAttempts": 0
+}

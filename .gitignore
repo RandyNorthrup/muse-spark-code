@@ -5,6 +5,8 @@ dist/
 native/darwin/muse-dictate
 native/darwin/muse-dictate-*
 native/darwin/muse-vault-peer*
+native/darwin/muse-local-judge-peer
+native/darwin/muse-local-judge-peer-*
 
 # dependencies
 node_modules/

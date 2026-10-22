@@ -12,8 +12,12 @@ import type {
   ModelsPanelState,
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
-import { CodeIcon, LockIcon, PlusIcon } from '../components/icons'
-import { DeferredModelsSection, DeferredProvidersSection } from './DeferredSections'
+import { BoltIcon, CodeIcon, LockIcon, PlusIcon } from '../components/icons'
+import {
+  DeferredJudgeSection,
+  DeferredModelsSection,
+  DeferredProvidersSection,
+} from './DeferredSections'
 import { VaultSectionMount } from './sections/vault/VaultSectionMount'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 
@@ -97,6 +101,10 @@ function reduceVault(state: PanelUiState, _action: PanelUiAction): PanelUiState 
   return state
 }
 
+function reduceJudge(state: PanelUiState, _action: PanelUiAction): PanelUiState {
+  return state
+}
+
 export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
   {
     id: 'providers',
@@ -119,6 +127,13 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     isOffered: (panelState) => panelState?.vaultOffered === true,
     Component: VaultSectionMount,
     reduceSection: reduceVault,
+  },
+  {
+    id: 'judge',
+    getTitle: () => UI_TEXT.paidJudgeName,
+    icon: BoltIcon,
+    Component: DeferredJudgeSection,
+    reduceSection: reduceJudge,
   },
 ]
 

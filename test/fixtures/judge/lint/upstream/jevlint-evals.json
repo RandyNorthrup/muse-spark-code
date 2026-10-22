@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "rule": "no-silent-fallback",
+      "file": "../standards/no-silent-fallback-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "rule": "no-silent-fallback",
+      "file": "../standards/no-silent-fallback-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "rule": "no-placeholder-production-code",
+      "file": "../standards/no-placeholder-production-code-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "rule": "no-placeholder-production-code",
+      "file": "../standards/no-placeholder-production-code-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "rule": "no-production-mock-data",
+      "file": "../standards/no-production-mock-data-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "rule": "no-production-mock-data",
+      "file": "../standards/no-production-mock-data-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "rule": "actionable-errors",
+      "file": "../standards/actionable-errors-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "rule": "actionable-errors",
+      "file": "../standards/actionable-errors-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "rule": "explained-values",
+      "file": "../standards/explained-values-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "rule": "explained-values",
+      "file": "../standards/explained-values-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "rule": "honest-function-names",
+      "file": "../standards/honest-function-names-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "rule": "honest-function-names",
+      "file": "../standards/honest-function-names-fail.txt",
+      "expect": "fail"
+    }
+  ]
+}

@@ -1,0 +1,303 @@
+{
+  "minConfidence": 0.8,
+  "languages": {
+    "c": {},
+    "cpp": {},
+    "csharp": {},
+    "go": {},
+    "java": {},
+    "javascript": {},
+    "kotlin": {},
+    "php": {},
+    "python": {},
+    "ruby": {},
+    "rust": {},
+    "tsx": {},
+    "typescript": {}
+  },
+  "rules": [
+    {
+      "id": "database-joins",
+      "description": "Fail only when the code clearly retrieves related records from the same database and joins, matches, merges, or enriches them in application code instead of in the query. If database-backed records cannot be established from the supplied code, pass. AST processing, parsing, and general in-memory collection operations pass.",
+      "severity": "error",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "exceptions": [
+        "The data comes from different services or databases.",
+        "The join cannot reasonably be expressed by the database or ORM."
+      ],
+      "localize": ["statement"]
+    },
+    {
+      "id": "boolean-property-naming",
+      "description": "Boolean property and field names should make the true state clear while following the language's conventions. Predicate prefixes such as Is, Has, Can, or Should and positive state names such as Enabled, Ready, or Visible pass. Concise domain names also pass when the containing type makes their meaning unambiguous. Fail vague names such as Flag, Value, or Data, misleading names, and negative names that create confusing double negatives. Do not require an Is or Should prefix.",
+      "severity": "error",
+      "kinds": ["field"],
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "comment-quality",
+      "description": "Comments should explain intent, constraints, non-obvious reasoning, surprising behavior, or important context rather than merely restating the adjacent code. Fail comments that closely paraphrase what the code already says without adding useful information. Documentation comments describing public APIs, TODOs with meaningful context, warnings, and explanations of non-obvious algorithms pass.",
+      "severity": "warning",
+      "kinds": ["comment"],
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "accurate-doc-comments",
+      "description": "The doc comment accurately describes what the code does. Code with no doc comment passes. Fail when the comment claims behavior the code does not have, promises results the code does not produce, or describes a different purpose.",
+      "severity": "warning",
+      "kinds": ["docComment"],
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "redundant-if-statements",
+      "description": "Fail conditionals whose branches unnecessarily convert a condition directly into a boolean value, duplicate the same outcome, or perform logic that can be expressed more clearly without branching. Examples include returning true or false solely based on an existing boolean condition, or branches that return or assign identical values. Do not fail conditionals with meaningful side effects, distinct error handling, or cases where removing the branch would make the code harder to understand.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    },
+    {
+      "id": "function-control-flow",
+      "description": "Functions should have one clear control-flow responsibility. Fail functions with deeply nested control flow, especially three or more nested decisions or loops, when the nesting represents multiple distinct responsibilities or makes the execution path difficult to follow. Also fail functions with several unrelated branching phases that would be clearer as named helpers. Guard clauses, validation sequences, straightforward retry loops, parsers, state machines, and focused concurrency coordination pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "redundant-type-properties",
+      "description": "Fail types that store multiple fields representing the same information when one can be reliably and cheaply derived from the others. Do not fail intentionally cached derived values, denormalized data required for performance, serialized or database-backed schemas, compatibility fields, or fields maintained for an external API contract.",
+      "severity": "warning",
+      "kinds": ["type"],
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["field"]
+    },
+    {
+      "id": "unnecessary-abstraction",
+      "description": "Fail abstractions that add indirection without providing meaningful reuse, encapsulation, substitution, domain meaning, or separation of responsibility. Examples include one-use abstractions that merely forward behavior, interfaces with a single implementation created without a clear boundary, and types that only delegate to another object. Small named helpers that improve readability, adapters, stable API boundaries, and abstractions isolating likely change pass.",
+      "severity": "warning",
+      "kinds": ["function", "type"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "speculative-generalization",
+      "description": "Fail code that introduces configurability, extension points, generic machinery, abstraction layers, or multiple implementation paths without evidence that the flexibility is currently needed. Do not fail normal dependency boundaries, public library APIs, framework-required abstractions, or simple designs that naturally support multiple implementations without significant added complexity.",
+      "severity": "warning",
+      "kinds": ["function", "type"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "wrapper-without-value",
+      "description": "Fail functions or methods whose only meaningful behavior is forwarding an operation to another function or object without adding domain meaning, validation, transformation, policy, error handling, instrumentation, or a useful abstraction boundary. Adapters, compatibility layers, dependency boundaries, framework hooks, and intentionally stable public APIs pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "mixed-levels-of-abstraction",
+      "description": "Functions should operate mostly at one conceptual level. Fail functions that mix high-level orchestration with substantial low-level implementation details when the low-level work has a coherent responsibility and useful name of its own. Small calculations, simple property access, validation, and incidental implementation details pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "function-name-behavior-mismatch",
+      "description": "Fail functions whose names substantially understate or misrepresent their observable behavior. Query-like names should not unexpectedly mutate state, simple getters should not perform significant unrelated work or I/O, and narrowly named operations should not perform unrelated side effects. Conventional lazy initialization, caching, instrumentation, and framework-required behavior pass when unsurprising in context.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "invalid-state-representation",
+      "description": "Fail types that use several independent fields to represent mutually exclusive states when the representation permits contradictory or impossible combinations. Prefer an enum, tagged union, sum type, state object, or equivalent representation when appropriate for the language. Independent fields representing genuinely independent properties pass.",
+      "severity": "warning",
+      "kinds": ["type"],
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["field"]
+    },
+    {
+      "id": "stringly-typed-control-flow",
+      "description": "Fail strings used as a closed set of control-flow, mode, type, or state values when misspellings or unsupported values could silently change behavior. Prefer enums, named constants, literal unions, tagged types, or equivalent language features. Free-form user input, external protocol values, serialization formats, database values, and genuinely open-ended strings pass.",
+      "severity": "warning",
+      "kinds": ["function", "type"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    },
+    {
+      "id": "boolean-parameter",
+      "description": "Fail boolean parameters when true and false select substantially different behaviors and the meaning is unclear at the call site. Prefer separate methods, an enum, an options object, or another representation that communicates intent. Boolean parameters representing obvious domain properties such as enabled, recursive, visible, or caseSensitive pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "unnecessary-mutation",
+      "description": "Fail mutation when a local value is repeatedly reassigned across unrelated phases of a function and this obscures what the value represents. Prefer distinct names or narrower scopes when the conceptual meaning of a value changes. Normal accumulators, counters, state machines, parsers, loops, builders, and performance-sensitive mutation pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    },
+    {
+      "id": "duplicate-domain-logic",
+      "description": "Fail when substantially the same domain rule or decision is independently implemented multiple times within the supplied context and those implementations could diverge. Syntactically similar code implementing different domain concepts passes. Small mechanical duplication also passes when extracting it would create an abstraction weaker than the duplication itself.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "coincidental-abstraction",
+      "description": "Fail shared abstractions that combine code which is currently structurally similar but represents different domain concepts that may evolve independently. Duplication is preferable when sharing would couple unrelated behavior. Do not fail abstractions built around a genuine shared concept, invariant, protocol, policy, or domain responsibility.",
+      "severity": "warning",
+      "kinds": ["function", "type"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "temporal-coupling",
+      "description": "Fail APIs where callers must invoke multiple methods in a specific fragile or non-obvious order for an object to become valid or usable. Prefer construction or APIs that make valid states explicit when practical. Lifecycle APIs, builders, transactions, streams, framework callbacks, and protocols whose ordering is inherent to the domain pass.",
+      "severity": "warning",
+      "kinds": ["type"],
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "hidden-global-dependency",
+      "description": "Fail domain logic that depends on mutable global state, process-wide configuration, environment variables, or other hidden dependencies when those dependencies materially affect behavior and could reasonably be passed explicitly. Application startup code, framework configuration, constants, logging, metrics, and language-standard global facilities pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    },
+    {
+      "id": "swallowed-errors",
+      "description": "Fail errors or exceptions that are caught, ignored, discarded, or converted into success without a clear reason. Handling may include recovery, logging with sufficient context, wrapping, propagation, fallback behavior, or an explicitly intentional best-effort operation. Empty catch blocks and discarded errors with no evident justification should fail.",
+      "severity": "error",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    },
+    {
+      "id": "magic-domain-values",
+      "description": "Fail unexplained literal values when they encode a meaningful domain rule, mode, threshold, timeout, status, sentinel, or business concept and a named constant or type would communicate the meaning better. Obvious values such as zero, one, empty strings, simple loop bounds, formatting literals, and values whose meaning is immediately clear from local context pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    },
+    {
+      "id": "constructor-side-effects",
+      "description": "Fail constructors or initialization functions that unexpectedly perform substantial network, database, filesystem, process, or other external side effects when callers would reasonably expect object construction to be cheap and predictable. Dependency wiring, lightweight validation, local initialization, resource wrappers, and APIs whose construction semantics clearly imply resource acquisition pass.",
+      "severity": "warning",
+      "kinds": ["function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    },
+    {
+      "id": "parallel-data-structures",
+      "description": "Fail multiple collections that represent parts of the same entities and must remain synchronized by index, key, or insertion order when a single structure or type could represent the relationship directly. Separate indexes, performance-oriented data layouts, ECS-style designs, columnar data, and intentionally normalized representations pass.",
+      "severity": "warning",
+      "kinds": ["type", "function"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"]
+    },
+    {
+      "id": "excessive-optional-configuration",
+      "description": "Fail configuration objects or function signatures with many unrelated optional switches when the options represent distinct modes, responsibilities, or behaviors that would be clearer as separate APIs or structured sub-options. Cohesive configuration objects, framework configuration, serialization settings, and genuinely independent options pass.",
+      "severity": "warning",
+      "kinds": ["function", "type"],
+      "context": {
+        "callees": true
+      },
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "exceptions": [
+        "The options are independent command-line flags or a CLI argument parser."
+      ]
+    },
+    {
+      "id": "unnecessary-complexity",
+      "description": "The snippet of code is not unnecessarily complicated.",
+      "severity": "warning",
+      "kinds": ["function", "type"],
+      "include": ["**/*"],
+      "exclude": ["**/examples/**"],
+      "localize": ["statement"]
+    }
+  ]
+}

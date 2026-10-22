@@ -23,7 +23,10 @@ separate providers, calibration, cascade, CLI/MCP and other uses are phase 2.
 ## Settings and fences
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) resolves to
-`same`, `same` is explicit, and `off` stops future judgments. The source
+`same`, `same` is explicit, and `off` stops future judgments. The settings
+also accept passive `separate` and `both` configuration, with an empty
+`museSpark.judge.separate` source/model identifier by default. These values
+cannot dispatch until their source and adoption gates pass. The same-model source
 resolves at an eligible approval and its bundle loads only then. An unused
 or off Judge creates no request, temporary folder or Judge log. The small
 setting predicate and existing approval glue stay in activation; sources,
@@ -119,3 +122,151 @@ wiring only.
 The [aggregate record](certification/m98.md) links the lane captures, red
 drills, integration checks and remaining ledger/host receipts. Unchecked
 PLAN certification items stay unchecked until their receipts exist.
+
+# Phase 2 libraries
+
+Muse Judge is advisory: an answer never grants an action, skips a question
+or replaces a deterministic check. This integration packages B's
+offline calibration, D's sampling/contrastive techniques and CS's loopback
+boundary, plus G's reviewed bounded CLI/MCP implementation. An explicit
+judge command loads the shared factory without starting an ACP connection
+or chat backend. Source, admission and offline/surface command adapters
+remain required; MCP initialization and tool listing work without inference.
+GH, H, J and FU are packaged as lazy children; C/E/A/I/FP remain pending. TypeSafe/Jev remains
+experimental, untested and opt-in; historical research is not product
+certification.
+
+`dist/judgeP2.js` is a CommonJS bundle beside shared `dist/uiText.js` and
+`dist/validation.js`,
+included in both the VSIX and the ACP npm package. The type-only
+`judgeFeaturesLoader` in `src/runtime/judge/judgeBundle.ts` loads it on the
+first explicit call, retries missing/corrupt files, and installs the caller's
+current language before every use. Its factory exposes:
+
+- `parseCalibrationDataset`, `parseCalibrationProfile`, `fitCalibration`,
+  `reportCalibration` and `applyCalibration`, with required caller-supplied
+  limits. Fitting/tuning/evaluation groups stay disjoint. Profiles bind the
+  provider, source, model/version/endpoint, technique, family and prompt,
+  criteria and fit versions. Synthetic or partial evidence cannot activate
+  a calibrated label. Reports measure evaluation groups only.
+- `sampleJudge` and `contrastiveJudge`, with the captured source,
+  measurement and per-attempt admission dependencies required by D.
+  Sampling requires explicit opt-in and refuses forced reasoning; the cold
+  run's first sample establishes the prefix without an extra inference.
+  Contrastive sends each binary question and its explicit inverse together
+  in one admitted request. Neither technique inherits a calibrated label.
+- `startJudgeServer` (from the `judgeServe.js` child through the parent's `loadServe`, not from the parent factory itself), with a required `JudgeRuntime` and existing token
+  parent directory. It accepts only literal `127.0.0.1`/`::1`, exact bound
+  Host, no Origin, and a per-start bearer from a private owner-only file.
+  Input/output validation and streamed size limits precede inference.
+  Shutdown cancels calls, closes sockets and removes the token. A hard kill
+  can leave a private stale token, which never authenticates a restart.
+- `runJudgeCommand` and `runJudgeMcp`, preserving G's validated argument,
+  request, result and cancellation boundaries, deadlines and bounded stdio.
+  Paid dispatch requires the injected durable admission adapter and a positive
+  run cap; no fake source or ledger is installed. The CLI refreshes the lazy
+  factory's language after its initialization reads the caller's table.
+
+The factory selects no model, creates no backend, reads no API key, starts
+no listener and makes no inference call. Phase 1 retains its shipped `dist/judge.js` factory and synchronous approval
+fences. Phase 2 uses the distinct explicit-action factory; shared parser,
+English fallback regions and wire schemas retain main's delivery boundaries. The judge retains its
+75 KiB cap; the build rejects phase-2 implementations in any other bundle,
+missing implementations and duplicated English fallback. Both package
+inventories require the new member, and its dependencies enter notices and
+SBOM inventories through the production metafile.
+
+Before a dispatcher enables inference, it must inject the canonical D78
+durable daily ledger and source policy: a new uncached worst-case claim
+before every attempt/retry, first-charge consent with price and shared daily
+budget, rebinding after waits, idempotent settlement, known-nonsend refunds
+only, and retained uncertain liability. Repeated per-answer cost metadata
+must not be summed as separate charges. No production fake or fallback
+substitutes for these dependencies.
+
+Independent calibration and paired M75 technique measurements, captured
+eligible sources, real-ledger/M80/FIXDEF checks, installed Windows ACLs and
+the integrated CLI/VS Code/npm receipts remain open with their owners.
+macOS Node/socket/ACL tests and Linux's prior receipts do not certify Windows.
+Full quality, coverage and hosted checks run on the lead's final integrated
+tree. This slice made zero live, paid or local model calls; the
+[round-2 integration receipt](certification/m98-p2int-round2.md) records its exact checks,
+drills and artifact hashes.
+
+Round 3 exposes `loadLint()` and `loadHook()` through the same lazy factory.
+Their separate bundles install the caller's language before use. Lint keeps
+its captured-tree/symbol and admission dependencies; the hook adapter borrows
+the parent's existing ask runner. Cursor's five blocking rows are excluded
+from the registration list regardless of later neutral-parser changes;
+observation rows retain validated caution/neutral delivery. Installed command
+and real-source/grammar receipts remain separate acceptance work.
+
+Round 4 exposes `loadLocal()` and `loadUses()` in separate lazy children.
+`createLocalJudge` supplies the packaged platform helper; vetted installation
+records, per-platform certification, full serialized-request token measurement
+and captured model wording remain mandatory caller dependencies. Its factory
+and helper preparation start no listener or inference. Windows and Linux
+sources compile into caller-owned storage with a fixed compiler, empty
+credential environment and a bounded deadline; the universal macOS helper is
+verified in its package. Downloads remain a separate explicit, consented action.
+
+FU exposes independent use admission, hint/advice helpers, deadline fences and
+`JudgeUses` caution holders. No production policy or source is injected into
+conversations: all nine uses remain inactive without their own matching paired
+M75 and borrowed-golden evidence. Immediate/native actions still have no new
+fence. Held review actions never await judge output, share one dispatch and keep
+each approval's lifetime independent. The shared portable libraries serve VS
+Code, ACP/headless and future editor bridges with the same evidence rules.
+No C/E/A/I/FP surface is implemented by this round. Round 4's universal package
+exceeded the existing VSIX cap. The 0.16.0 train must verify the integrated
+universal archive against that same cap and complete the hosted and installed receipts.
+
+Phase-2 integration keeps the repaired SystemOne and BYO adapters behind the
+explicit `judgeP2.js` → `judgeSources.js` loader. Every source replacement or
+revocation advances the assembly generation; the host still supplies M95's
+client and D78's durable claims. Missing captured native codecs refuse a route.
+No separate provider is auto-selected or certified by this merge. The Models
+panel keeps its honest unavailable state until a source port is connected.
+Account & usage receives the current same-model judge status through the shared
+validated bridge; unavailable accounting amounts remain unknown. The shared
+React rows also apply to hosts using that bridge; ACP/headless expose the
+portable assembly but have no Models panel. Installed-editor receipts remain
+required before claiming those source routes are supported.
+
+The phase-2 fix round (RVM98P2R) settles how the experimental SystemOne route
+is admitted. Its consent is a window grant bound to the route's recipient,
+model and captured price ceiling (`PaidUseConsent.allowsRoute`); no
+feature-level Judge grant covers it, and "Ask again" or a price change revokes
+it. The window fences its admission, key read and POST on the action's trigger
+generation (owner, chat model, engine, separate source, turn), so a change
+refunds before anything is sent. Every sent call settles into a paid Judge row
+at the route's rates. The request uses the M95 providers' pinned transport
+behind their endpoint policy, and the reply is scrubbed of the active key
+before any result. The CLI checks the key before any claim and settles into
+the D78 daily journal on top of its hard run budget. One served-model rule
+(`isServedJudgeModel`) serves the cascade and the CLI/MCP checks.
+
+The route is gated by its own availability only (multi-vendor rule): an
+explicit `separate`/`both` engine and its key, never the Meta judge's paid
+gate, price acceptance or the window's backend. An explicit `separate` run on
+a buildable route needs no Meta judge consent and never shows its popup. The
+settings stay machine-scoped; a separate judge selected only in the
+workspace's settings files is named with gap `scope` in the status line and
+logged once, never honoured.
+
+Fix round 2 (RVM98P2R2) closes the waits. The route's grant stays
+window-scoped by the lead's decision (as Tab's), and its popup now says so:
+"Allow in this window" or Deny. The run's identity (owner, chat model, source,
+turn and the route grant's revocation count) is captured before the popup and
+read again after the popup, the key read, name resolution and once the
+connection is up, before any request byte is written (`pinnedPostRequest`'s
+`shouldWrite` fence); the same fence reads the durable D78 claim's live check
+(Stop, day change, reduced cap). A withdrawn request refunds; an answer whose
+grant was revoked in flight is charged but never answers. The paid row opens
+at dispatch, credential-bearing property names are dropped at every depth,
+and workspace settings files are read within bounds (regular files only, 256
+KiB each, 1 MiB and 32 files in all). Money on this path is exact nano-USD:
+the route's tariff and receipts, the CLI's `--budget-usd` (nine decimals) and
+run cap, and the D78 journal's totals. A C-only run's status and Account &
+usage project the route's own source, model, tariff and grant, with its own
+Ask again.

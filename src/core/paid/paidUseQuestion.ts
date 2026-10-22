@@ -1,5 +1,5 @@
 // The paid popup's formatter loads with the existing imported-hook runtime on first use.
-import { UI_TEXT } from '../../shared/constants'
+import { EXEC_USD_DECIMALS, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
 import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import { Usd } from '../../shared/usd'
@@ -29,6 +29,31 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
       }
     }
     case 'judge': {
+      // A priced judge route (paid embeddings, an experimental SystemOne
+      // judge) names its per-request ceiling and the shared daily budget.
+      const ceiling = request.systemOne ?? request.embedding
+      if (ceiling !== undefined) {
+        if (
+          Usd.from(ceiling.worstCaseUsd).compare(Usd.from(0)) <= 0 ||
+          Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0
+        )
+          throw new Error('Judge route needs a verified tariff and daily budget')
+        const values = {
+          model: request.modelId,
+          price: formatUsd(ceiling.worstCaseUsd, EXEC_USD_DECIMALS),
+          budget: formatDailyBudget(request.dailyBudgetUsd),
+        }
+        return {
+          title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
+          detail:
+            request.systemOne === undefined
+              ? fill(UI_TEXT.paidConfirmJudgeEmbedding, values)
+              : fill(UI_TEXT.paidConfirmJudgeSystemOne, {
+                  ...values,
+                  recipient: request.systemOne.recipient,
+                }),
+        }
+      }
       const price = autoReviewPrice(request.modelId)
       if (price === undefined || Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0)
         throw new Error('Judge use needs a verified tariff and daily budget')

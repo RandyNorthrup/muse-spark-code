@@ -400,7 +400,22 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
-  // Used Node mini-parser API: 39.5 KiB + 15%, rounded up to 25 KiB.
+  // M98 B/D/CS/G: offline calibration, bounded CLI/MCP and authenticated
+  // boundary, required on an explicit judge action. 59.6 KiB + 15%, rounded
+  // up to 25 KiB; no pre-existing cap changes (PLAN.md D6).
+  { path: 'dist/judgeP2.js', budgetKiB: 75 },
+  { path: 'dist/judgeSources.js', budgetKiB: 75 },
+  { path: 'dist/judgeLint.js', budgetKiB: 50 },
+  { path: 'dist/judgeHook.js', budgetKiB: 100 },
+  { path: 'dist/judgeLocal.js', budgetKiB: 75 },
+  { path: 'dist/judgeUses.js', budgetKiB: 25 },
+  // M98P2F: the authenticated serve factory loads only on an explicit
+  // serve action. 20.1 KiB + 15%, rounded up to 25 KiB.
+  // RLM98P2: merged judge schema grows the serve closure to 25.2 KiB;
+  // 25.2 KiB + 15%, rounded up to 25 KiB.
+  { path: 'dist/judgeServe.js', budgetKiB: 30 },
+  // M98 integration: JSON Schema conversion loads only on explicit tool listing.
+  { path: 'dist/validationSchema.js', budgetKiB: 50 },
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
   { path: 'dist/uiTextHooks.js', budgetKiB: 25 },
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
