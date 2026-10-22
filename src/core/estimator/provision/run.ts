@@ -18,6 +18,7 @@ import {
 } from '../../../shared/constants'
 import { EstimateDiagnosticError } from '../diagnostic'
 import {
+  Usd,
   usdNanos,
   scaleUsdNanos,
   addUsdNanos,
@@ -25,6 +26,8 @@ import {
   displayUsdNanos,
   type UsdNanos,
 } from '../../../shared/usd'
+import { USD_LIABILITY_DECIMALS } from '../../../shared/usdConstants'
+import { canonicalUsd, legacyUsdSchema, type UsdAmount } from '../../../shared/usdSchema'
 import { type EstimateServerLifecycle } from './lifecycle'
 import { EstimateSerialOwner } from './owner'
 import { EstimateProvisionClock } from './clock'
@@ -68,13 +71,13 @@ export interface EstimateServerQuote {
   readonly image: ProviderImage
   readonly billedHours: number
   /** Display only; admission uses the retained exact fraction. */
-  readonly priceUsd: number
+  readonly priceUsd: UsdAmount
 }
 export interface EstimateProvisionQuote {
   readonly id: string
   readonly servers: readonly EstimateServerQuote[]
-  readonly totalUsd: number
-  readonly budgetUsd: number
+  readonly totalUsd: UsdAmount
+  readonly budgetUsd: UsdAmount
 }
 export interface EstimateProvisionOutcome {
   readonly id: string
@@ -128,22 +131,25 @@ export class EstimateProvisionRun {
   private readonly reservations = new Map<string, UsdNanos>()
   private readonly outcomes: EstimateProvisionOutcome[] = []
   private readonly budget: UsdNanos
-  private readonly budgetUsd: number
+  private readonly budgetUsd: UsdAmount
   private readonly owner = new EstimateSerialOwner()
   private nextQuote = 0
   private readonly clock: EstimateProvisionClock
 
   constructor(
     private readonly bindings: EstimateProvisionBindings,
-    budgetUsd: number | undefined,
+    budgetUsd: unknown,
   ) {
-    const budget = z.number().check(z.nonnegative()).safeParse(budgetUsd)
+    const budget = legacyUsdSchema.safeParse(budgetUsd)
     if (!budget.success)
       throw new EstimateDiagnosticError('provision: budget-required', undefined, {
         cause: budget.error,
       })
     this.budgetUsd = budget.data
-    this.budget = usdNanos(budget.data)
+    this.budget = {
+      numerator: Usd.from(budget.data).units(USD_LIABILITY_DECIMALS),
+      denominator: 1n,
+    }
     this.clock = new EstimateProvisionClock(bindings.now, 'invalid-provision-clock')
     this.providers = new Map(bindings.providers.map((provider) => [provider.id, provider]))
     if (this.providers.size !== bindings.providers.length)
@@ -310,9 +316,10 @@ export class EstimateProvisionRun {
         if (machineClass?.os !== image.os || machineClass.architecture !== image.architecture)
           throw new EstimateDiagnosticError('provision: incompatible-image')
         const cost = scaleUsdNanos(usdNanos(size.hourlyUsd), request.billedHours)
-        const priceUsd = displayUsdNanos(cost)
-        if (!Number.isFinite(priceUsd))
+        const priceUsdNumber = displayUsdNanos(cost)
+        if (!Number.isFinite(priceUsdNumber))
           throw new EstimateDiagnosticError('provision: unrepresentable-price')
+        const priceUsd = canonicalUsd(priceUsdNumber)
         costs.set(request.id, cost)
         const serverQuote: EstimateServerQuote = {
           id: request.id,
@@ -326,9 +333,10 @@ export class EstimateProvisionRun {
         preparedServers.push({ quote: serverQuote, provider, cost })
       }
       const total = sumCosts(costs.values())
-      const totalUsd = displayUsdNanos(total)
-      if (!Number.isFinite(totalUsd))
+      const totalUsdNumber = displayUsdNanos(total)
+      if (!Number.isFinite(totalUsdNumber))
         throw new EstimateDiagnosticError('provision: unrepresentable-total')
+      const totalUsd = canonicalUsd(totalUsdNumber)
       const quote: EstimateProvisionQuote = {
         id: `quote-${String(this.nextQuote++)}`,
         servers,

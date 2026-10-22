@@ -128,6 +128,26 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     reason: 'Hourly catalog rate, display and comparison only.',
     plan: SANCTIONED_RATE,
   },
+  'core/estimator/priceCatalogs.ts:retailPrice': {
+    category: 'sanctioned',
+    reason: 'Hourly catalog rate, display and comparison only.',
+    plan: SANCTIONED_RATE,
+  },
+  'core/estimator/priceCatalogs.ts:hourlyUsd': {
+    category: 'sanctioned',
+    reason: 'Hourly catalog rate, display and comparison only.',
+    plan: SANCTIONED_RATE,
+  },
+  'core/estimator/provision/lifecycle.ts:hourlyUsd': {
+    category: 'sanctioned',
+    reason: 'Hourly catalog rate read into exact nano-USD admission math.',
+    plan: SANCTIONED_RATE,
+  },
+  'core/estimator/provision/run.ts:hourlyUsd': {
+    category: 'sanctioned',
+    reason: 'Hourly catalog rate read into exact nano-USD quote math.',
+    plan: SANCTIONED_RATE,
+  },
   'shared/estimate.ts:accountUsdPerHour': {
     category: 'sanctioned',
     reason: 'Estimator USD/hour demand forecast, scheduling math.',

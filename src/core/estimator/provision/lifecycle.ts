@@ -27,7 +27,7 @@ import {
   type UsdNanos,
 } from '../../../shared/usd'
 import { USD_LIABILITY_DECIMALS } from '../../../shared/usdConstants'
-import { nonnegativeUsdSchema, type UsdAmount } from '../../../shared/usdSchema'
+import { canonicalUsd, nonnegativeUsdSchema, type UsdAmount } from '../../../shared/usdSchema'
 import { EstimateDiagnosticError } from '../diagnostic'
 import { EstimateSerialOwner } from './owner'
 import { EstimateProvisionClock } from './clock'
@@ -59,16 +59,16 @@ export interface ProvisionQuote {
   readonly maxBilledHours: number
   /** Exact nano-USD fraction: hourly rate times maximum billed hours. */
   readonly cost: UsdNanos
-  /** Display only: the fraction rounded up to nano-USD. Never arithmetic. */
-  readonly costUsd: number
+  /** Display only: the fraction rounded to a canonical decimal. Never arithmetic. */
+  readonly costUsd: UsdAmount
 }
 
 export interface ProvisionPreview {
   readonly quotes: readonly ProvisionQuote[]
   /** Exact nano-USD fraction over the whole batch. */
   readonly total: UsdNanos
-  /** Display only: the fraction rounded up to nano-USD. Never arithmetic. */
-  readonly totalUsd: number
+  /** Display only: the fraction rounded to a canonical decimal. Never arithmetic. */
+  readonly totalUsd: UsdAmount
 }
 
 export interface ManagedProvisionedServer {
@@ -76,7 +76,7 @@ export interface ManagedProvisionedServer {
   /** The funded lifetime chosen at admission. Keep never extends it. */
   readonly maxBilledHours: number
   readonly cost: UsdNanos
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
 }
 
 /** One question per spend, answered by the surface that owns the run. */
@@ -133,14 +133,14 @@ export function quoteProvisioning(selections: readonly ProvisionRequest[]): Prov
       image: request.image,
       maxBilledHours: request.maxBilledHours,
       cost,
-      costUsd: displayUsdNanos(cost),
+      costUsd: canonicalUsd(displayUsdNanos(cost)),
     }
   })
   const [first, ...rest] = quotes
   if (first === undefined) throw new EstimateDiagnosticError('provision: no-servers')
   let total = first.cost
   for (const quote of rest) total = addUsdNanos(total, quote.cost)
-  return { quotes, total, totalUsd: displayUsdNanos(total) }
+  return { quotes, total, totalUsd: canonicalUsd(displayUsdNanos(total)) }
 }
 
 /** Slice 2's portable provisioning lifecycle, on fakes until M109, M110d
@@ -312,8 +312,8 @@ export class EstimateProvisioner {
         const snapshot = snapshotQuote(quote)
         const message = fill(UI_TEXT.estimateConfirmServer, {
           server: `${snapshot.size.id}/${snapshot.image.id}`,
-          price: String(snapshot.costUsd),
-          total: String(preview.totalUsd),
+          price: snapshot.costUsd,
+          total: preview.totalUsd,
           budget: this.budget,
         })
         let isConfirmed: boolean

@@ -21,6 +21,7 @@ import { resourceSettingsSchema } from '../../src/shared/resources'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { parseEstimateGoal } from '../../src/shared/estimate'
 import { USAGE_JOURNAL_VERSION } from '../../src/shared/constants'
+import { legacyUsdSchema, type UsdAmount } from '../../src/shared/usdSchema'
 import { resolveLimitContext } from '../../src/core/estimator/limitContext'
 import { simulateEstimate } from '../../src/core/estimator/simulate'
 import { estimateFailureText } from '../../src/runtime/estimator/command'
@@ -35,6 +36,7 @@ import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
 const AS_OF = '2026-10-06T12:00:00.000Z'
 const NOW = Date.parse(AS_OF)
 const HOST = { platform: 'linux', arch: 'x64', cores: 4, ramGiB: 8 }
+const usd = (value: number): UsdAmount => legacyUsdSchema.parse(value)
 // The plan behind the exhausted-balance run: real plan text, never invented lanes.
 const EXHAUSTED_PLAN = `## 6. Milestones
 
@@ -132,7 +134,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       const port = recording()
       const observed = observation(source, {
         windows: [],
-        account: { usedUsd: 100, limitUsd: 100, remainingUsd: 0, period: 'month' },
+        account: { usedUsd: usd(100), limitUsd: usd(100), remainingUsd: usd(0), period: 'month' },
       })
       port
         .scopeLimits?.({ backend: observed.backend, accountId: 'private-id', generation: '1' })
@@ -168,7 +170,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
     const port = recording()
     const observed = observation('openRouter', {
       windows: [],
-      account: { remainingUsd: 1, period: 'unknown' },
+      account: { remainingUsd: usd(1), period: 'unknown' },
     })
     port.scopeLimits?.({ backend: 'modelApi', accountId: 'work', generation: '1' }).limit(observed)
     const lane = scheduleLane('A')
@@ -322,7 +324,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
     const port = recording()
     const observed = observation('openRouter', {
       windows: [],
-      account: { remainingUsd: 1, period: 'unknown' },
+      account: { remainingUsd: usd(1), period: 'unknown' },
     })
     port.scopeLimits?.({ accountId: 'work', generation: '1', backend: 'modelApi' }).limit(observed)
     const lane = scheduleLane('A')
@@ -340,7 +342,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
     const port = recording()
     const observed = observation('openRouter', {
       windows: [],
-      account: { remainingUsd: 0, period: 'month' },
+      account: { remainingUsd: usd(0), period: 'month' },
     })
     port.scopeLimits?.({ accountId: 'work', generation: '1', backend: 'modelApi' }).limit(observed)
     const owners = {
@@ -431,7 +433,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
     const scope = port.scopeLimits?.({ accountId: 'work', generation: '1', backend: 'modelApi' })
     const router = observation('openRouter', {
       windows: [],
-      account: { remainingUsd: 0, period: 'month' },
+      account: { remainingUsd: usd(0), period: 'month' },
     })
     scope?.limit(router)
     scope?.limit({
@@ -439,7 +441,7 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       provider: 'meta',
       source: 'headers',
       observedAt: NOW + 1,
-      account: { remainingUsd: 100, period: 'month' },
+      account: { remainingUsd: usd(100), period: 'month' },
     })
     const lane = scheduleLane('A')
     lane.resources.accountUsdPerHour = amount(1)

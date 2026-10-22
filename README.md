@@ -2515,7 +2515,7 @@ current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
 `muse-spark-code-acp estimate` use one lazy engine. The snapshot reads your
 workspace `PLAN.md` with its git and `gh` evidence: lane hours, Starts
 dependencies, rigs, file affinities, the delivery order and §10 releases.
-Every declared prerequisite and release member must resolve, including references
+Every declared prerequisite and release member must resolve, even those
 outside the selected goal; duplicate lane identities and unknown unfinished rigs
 refuse with all unresolved references named. Completed lanes remain addressable
 with zero remaining work and require no placement. Merge evidence uses origin's
