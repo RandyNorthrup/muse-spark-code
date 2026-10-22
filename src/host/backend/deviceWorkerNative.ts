@@ -7,6 +7,9 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { DEVICE_LIMITS, POSIX_TREE_EXIT_POLL_MS, SHELL_JOB_FOLDER } from '../../shared/constants'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { isErrno } from '../../core/fs/errno'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { workerEnvironment } from '../../core/team/refFence'
 import { compileJob, jobFileName, type JobBuild } from './jobBuild'
@@ -31,8 +34,9 @@ const build: JobBuild = {
     try {
       await access(file)
       return true
-    } catch {
-      return false
+    } catch (error) {
+      if (isErrno(error) && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return false
+      throw error
     }
   },
 }
@@ -75,11 +79,16 @@ const run: RunProgram = (file, args, env) =>
     child.stdin?.end()
   })
 
+function isHelperUnusable(error: unknown): boolean {
+  return isErrno(error) || error instanceof DeviceWorkerHostError || error instanceof SyntaxError
+}
+
 export interface DeviceWorkerNativeDeps {
   readonly storageDir: string
   readonly systemRoot: string
   readonly sourceFile: string
   readonly environment: NodeJS.ProcessEnv
+  readonly log: Logger
   /** Helper calls, bounded by the frame deadline. */
   readonly run?: RunProgram
   /** The compiler; omitted, compileJob's own runner and its longer compiler deadline. */
@@ -133,11 +142,12 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
       if (!(await build.isPresent(target)))
         await compileJob(build, target, source, deps.systemRoot, deps.compile)
       const answer: unknown = JSON.parse(await invoke(target, ['--self-test'], env))
-      selfTestSchema.parse(answer)
+      if (!selfTestSchema.safeParse(answer).success) return false
       executable = target
       return true
-    } catch {
-      return false
+    } catch (error) {
+      if (isHelperUnusable(error)) return false
+      throw error
     }
   }
   const call = async (args: string[]): Promise<string> => {
@@ -194,18 +204,59 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
       } catch (error) {
         return deviceWorkerRefused(error)
       }
+      const didRemoveAttemptDirectory = async (): Promise<boolean> => {
+        try {
+          await rm(directory, { recursive: true, force: true })
+          return true
+        } catch (error) {
+          if (isErrno(error)) return false
+          throw error
+        }
+      }
+      const writeStopFile = async (): Promise<void> => {
+        try {
+          await writeFile(file('stop'), '')
+        } catch (error) {
+          deps.log.error(`Devices native stop file failed: ${failureForLog(error)}`)
+        }
+      }
+      const stopTask = async (): Promise<void> => {
+        try {
+          await call(['--stop', id])
+        } catch (error) {
+          deps.log.error(`Devices native stop failed: ${failureForLog(error)}`)
+        }
+      }
+      const didRemoveTask = async (): Promise<boolean> => {
+        try {
+          await call(['--remove', id])
+          return true
+        } catch (error) {
+          if (error instanceof DeviceWorkerHostError) {
+            deps.log.error(`Devices native remove failed: ${failureForLog(error)}`)
+            return false
+          }
+          throw error
+        }
+      }
+      const didRemoveHeapDirectory = async (): Promise<boolean> => {
+        try {
+          await rm(directory, { recursive: true, force: true })
+          return true
+        } catch (error) {
+          if (isErrno(error)) return false
+          throw error
+        }
+      }
       try {
         // A refused helper is known before any helper call, so nothing can have started.
         if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
         await writeFile(file('request.json'), encoded, { flag: 'wx', mode: Number('0o600') })
       } catch (error) {
         // No helper was called: removing the directory proves nothing remains.
-        try {
-          await rm(directory, { recursive: true, force: true })
-        } catch {
-          return deviceWorkerUncertain(error)
-        }
-        return deviceWorkerRefused(error)
+        return (await didRemoveAttemptDirectory())
+          ? deviceWorkerRefused(error)
+          : deviceWorkerUncertain(error)
       }
       // Set only by the task's own last result: it ran once and failed in DLL initialization.
       const startup = { isHeap: false }
@@ -248,8 +299,10 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
             await delay(POSIX_TREE_EXIT_POLL_MS)
           }
         })()
-        void retirement.catch(() => {
-          /* The host attaches its consumer after readiness validation. */
+        // The host attaches its consumer after readiness validation.
+        void retirement.catch((error: unknown) => {
+          if (error instanceof DeviceWorkerHostError) return
+          deps.log.error(`Devices native retirement failed: ${failureForLog(error)}`)
         })
         return {
           kind: 'launched',
@@ -269,33 +322,16 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
           },
         }
       } catch (error) {
-        let isRemoved = false
-        try {
-          await writeFile(file('stop'), '')
-        } catch {
-          /* A late helper start is still refused by the removed task below, or retained. */
-        }
-        try {
-          await call(['--stop', id])
-        } catch {
-          /* Uncertainty is retained; no fallback spawn or PID kill. */
-        }
-        try {
-          await call(['--remove', id])
-          isRemoved = true
-        } catch {
-          /* A failed task removal is retained for local recovery. */
-        }
+        // A late helper start is still refused by the removed task below, or retained.
+        await writeStopFile()
+        // Uncertainty is retained; no fallback spawn or PID kill.
+        await stopTask()
+        // A failed task removal is retained for local recovery.
+        const isRemoved = await didRemoveTask()
         // The single on-demand run ended in DLL initialization, before any job or child, and its
         // task cannot start again: removing the directory then proves nothing remains.
-        if (isRemoved && startup.isHeap) {
-          try {
-            await rm(directory, { recursive: true, force: true })
-            return deviceWorkerRefused(error)
-          } catch {
-            /* The directory stays as retained evidence. */
-          }
-        }
+        if (isRemoved && startup.isHeap && (await didRemoveHeapDirectory()))
+          return deviceWorkerRefused(error)
         // Preserve evidence; no timer or failed query proves an empty job.
         return deviceWorkerUncertain(error)
       }

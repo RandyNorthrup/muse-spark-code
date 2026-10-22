@@ -1,6 +1,7 @@
 // Required only by an explicit Devices action. No editor API or runtime fallback.
 import { randomBytes, X509Certificate } from 'node:crypto'
 import { DevicePanel } from '../../core/devices/devicePanel'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { DevicePairingError } from '../../core/devices/pairing'
 import type { AttemptJournal } from '../../core/devices/attemptJournal'
 import { DEVICE_LIMITS, DEVICE_MODEL_TEXT } from '../../shared/constants'
@@ -22,6 +23,7 @@ import {
 import { DeviceTransport, type DeviceTransportPair } from './deviceTransport'
 import type { DeviceChannel, DeviceChannelPort } from './deviceChannel'
 import { handleDeviceRequest } from './deviceMessageHandler'
+import type { Logger } from '../logger'
 
 // Storage is provisioned/opened by the qualified editor after loading this bundle.
 export { DeviceStore } from './deviceStore'
@@ -51,13 +53,14 @@ export interface DeviceServiceDeps extends Omit<DevicePairingDeps, 'disconnectPa
   readonly snapshot: () => Promise<DevicesPanelState>
   readonly publish: (message: DeviceHostMessage) => void
   readonly report: (reason: Failure) => void
+  readonly log: Logger
 }
 
 /** All callers supply actual local authorities; construction grants no listener or execution. */
 export async function createDeviceService(deps: DeviceServiceDeps, table: UiText, locale: string) {
   setUiText(table, locale)
   assertLocalDeviceHost(deps.host)
-  const transport = new DeviceTransport()
+  const transport = new DeviceTransport(deps.log)
   const active = new Set<string>()
   const lifetime = { isDisposed: false }
   const isDisposed = () => lifetime.isDisposed
@@ -83,6 +86,7 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
         return grant
       },
     },
+    deps.log,
   )
   const panel = new DevicePanel({
     perform: (request) => {
@@ -111,8 +115,12 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
           shouldObserve = false
           try {
             await observe()
-          } catch {
-            deps.report('storage')
+          } catch (error) {
+            if (error instanceof DevicePairingError) deps.report('storage')
+            else {
+              deps.report('uncertain')
+              deps.log.error(`Devices observation failed: ${failureForLog(error)}`)
+            }
           }
         }
       } finally {
@@ -134,8 +142,13 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
             body: { kind: 'offers', offers: row.grants.map((grant) => grant.offer) },
           })
           void observed()
-        } catch {
+        } catch (error) {
+          if (error instanceof DevicePairingError) {
+            channel.close()
+            return
+          }
           channel.close()
+          deps.log.error(`Devices connect failed: ${failureForLog(error)}`)
         }
       })()
     },

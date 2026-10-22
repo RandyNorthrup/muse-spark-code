@@ -13,8 +13,9 @@ export function parsePublicInviteText(text: string): DeviceInvitation | undefine
   let raw: unknown
   try {
     raw = JSON.parse(text)
-  } catch {
-    return undefined
+  } catch (error) {
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
   const parsed = deviceInvitationSchema.safeParse(raw)
   return parsed.success ? parsed.data : undefined

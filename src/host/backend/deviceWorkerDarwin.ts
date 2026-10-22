@@ -6,6 +6,8 @@ import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../shared/l10n/text'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { workerEnvironment } from '../../core/team/refFence'
 import {
   handleIdentity,
@@ -46,6 +48,15 @@ const spawnErrnos: Readonly<Record<string, 'capacity' | 'helper' | undefined>> =
   ENAMETOOLONG: 'helper',
   E2BIG: 'helper',
   EINVAL: 'helper',
+}
+function isSpawnErrno(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    spawnErrnos[error.code] !== undefined
+  )
 }
 
 // Compile beside the private attempt store. No SDK, shell, inherited credential,
@@ -334,6 +345,7 @@ function program(
     try {
       child = spawnChild(file, [...args], { env, stdio: ['ignore', 'pipe', 'pipe'] })
     } catch (error) {
+      if (!isSpawnErrno(error)) throw error
       resolve({ kind: 'failure', error: spawnFailure(error) })
       return
     }
@@ -447,6 +459,7 @@ function reclaimedSignal(): DarwinAttempt['reclaimed'] {
 export interface DeviceWorkerDarwinDeps {
   readonly storageDir: string
   readonly environment: NodeJS.ProcessEnv
+  readonly log: Logger
   readonly spawn?: SpawnChild
   readonly uid?: number
 }
@@ -639,7 +652,8 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           ...(result !== undefined && { result }),
           error: failure,
         })
-        throw failure
+        // The transition above keeps the record; the throw carries the cause's kind.
+        throw attemptFailure(error)
       } finally {
         delete attempt.reclamation
       }
@@ -650,9 +664,11 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   const pendingReclaim = async (service: string, attempt: DarwinAttempt): Promise<void> => {
     try {
       await reclaim(service, attempt)
-    } catch {
+    } catch (error) {
       // reclaim records the failed observation and its furthest progress. The
       // primary launch/retirement failure remains the caller's outcome.
+      if (error instanceof DeviceWorkerHostError) return
+      throw error
     }
   }
   const sweep = async (shouldInspectRunning = true) => {
@@ -669,6 +685,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         try {
           if ((await call(['print', service])) === undefined) await pendingReclaim(service, attempt)
         } catch (error) {
+          if (!(error instanceof DeviceWorkerHostError)) throw error
           const reached = progress(attempt)
           if (reached !== undefined) transition(attempt, { kind: 'pendingReclaim', reached, error })
         }
@@ -780,6 +797,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       // All failures, including request/plist writes, use the same lifecycle.
       // No activation was issued. Reclamation itself records pending evidence.
       await pendingReclaim(service, attempt)
+      if (!(error instanceof DeviceWorkerHostError)) throw error
       const failure = attemptFailure(error)
       // Refused only once reclaimed; a pending attempt is settled by a later sweep.
       return attempt.state.kind === 'reclaimed'
@@ -817,13 +835,13 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
             reached: { kind: 'running', ready },
             error,
           })
-        const failure = new DeviceWorkerHostError('result')
-        failure.cause = error
-        throw failure
+        throw new DeviceWorkerHostError('result', { cause: error })
       }
     })()
-    void retirement.catch(() => {
-      /* The host attaches after readiness validation. */
+    // The host attaches after readiness validation.
+    void retirement.catch((error: unknown) => {
+      if (error instanceof DeviceWorkerHostError) return
+      deps.log.error(`Devices darwin retirement failed: ${failureForLog(error)}`)
     })
     const job = {
       query,
@@ -905,6 +923,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       // Retry cleanup once before publishing a cached outcome. A one-shot
       // cleanup failure must not leave a definitive failure half alive.
       await sweep(false)
+      if (!(error instanceof DeviceWorkerHostError)) throw error
       const failure = attemptFailure(error)
       const isRetryable =
         failure instanceof DarwinProgramError

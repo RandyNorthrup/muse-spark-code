@@ -25,6 +25,7 @@ import { createInterface } from 'node:readline'
 import { build } from 'esbuild'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
 import { workerEnvironment } from '../../src/core/team/refFence'
+import type { Logger } from '../../src/host/logger'
 
 const usage = {
   settlementId: 'a'.repeat(32),
@@ -37,6 +38,21 @@ const usage = {
 } as const
 const scratch = { directory: '' }
 const check = deviceCheck(deviceGrant('a'.repeat(32)))
+const logged: { level: 'trace' | 'info' | 'warn' | 'error'; message: string }[] = []
+const log: Logger = {
+  trace: (message: string): void => {
+    logged.push({ level: 'trace', message })
+  },
+  info: (message: string): void => {
+    logged.push({ level: 'info', message })
+  },
+  warn: (message: string): void => {
+    logged.push({ level: 'warn', message })
+  },
+  error: (message: string): void => {
+    logged.push({ level: 'error', message })
+  },
+}
 function admitted(processes: number): DeviceWorkerAttempt {
   return { identity: check.identity, caps: { ...check.caps, processes } }
 }
@@ -46,6 +62,7 @@ function driver() {
     systemRoot: process.env['SystemRoot'] ?? '',
     sourceFile: path.resolve('native/windows/MuseSparkDeviceWorker.cs'),
     environment: process.env,
+    log,
   })
 }
 function launchScript(native: DeviceWorkerDriver, script: string, attempt = admitted(2)) {
@@ -181,6 +198,7 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
     const deps: DeviceWorkerHostDeps = {
       driver: native,
       environment: process.env,
+      log,
       retain: () => Promise.resolve(),
       reserve: () =>
         Promise.resolve({
@@ -337,6 +355,7 @@ function linuxControlEnvironment() {
 function linuxDriver() {
   return deviceWorkerLinux({
     environment: process.env,
+    log,
     start: (file, args, env) => {
       const unit = args.find((arg) => arg.startsWith('--unit='))?.slice('--unit='.length)
       if (unit !== undefined) linux.units.add(unit)
@@ -383,7 +402,7 @@ describe.skipIf(process.platform !== 'linux' || process.env['XDG_RUNTIME_DIR'] =
       const source = String.raw`const {deviceWorkerLinux}=require('./driver.cjs');
 const {workerEnvironment}=require('./environment.cjs');
 (async()=>{
- const driver=deviceWorkerLinux({environment:process.env});
+ const driver=deviceWorkerLinux({environment:process.env,log:{trace:()=>{},info:()=>{},warn:()=>{},error:()=>{}}});
  const launched=await driver.launch({executable:'/bin/sh',args:['-c',process.argv[2]],cwd:process.cwd(),requiredTools:[]},workerEnvironment(process.env,'linux'),${JSON.stringify(admitted(DEVICE_LIMITS.processes))});
  if(launched.kind!=='launched')throw launched.error;
  const job=launched.job;
@@ -640,7 +659,7 @@ const {workerEnvironment}=require('./environment.cjs');
       }
     })
     it('injected missing manager refuses cleanly and never creates a real unit', async () => {
-      const native = deviceWorkerLinux({ environment: {} })
+      const native = deviceWorkerLinux({ environment: {}, log })
       expect(await native.selfTest()).toBe(false)
       await expect(linuxLaunch(native, 'printf forbidden')).rejects.toMatchObject({
         launch: 'refused',

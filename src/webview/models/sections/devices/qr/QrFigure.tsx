@@ -12,6 +12,12 @@ import { qrGeneratorEncoder } from './qrGeneratorEncoder'
 const FIELD = 'var(--ms-qr-field)'
 const MODULE = 'var(--ms-qr-module)'
 const MODULE_PX = 4
+// qrcode-generator throws strings (capacity overflow, bad mode), never
+// Errors: a string throw is the library refusing the text, so the figure
+// keeps its text-only fallback.
+function isQrRefusal(error: unknown): boolean {
+  return typeof error === 'string'
+}
 
 export default function QrFigure({
   text,
@@ -24,8 +30,10 @@ export default function QrFigure({
   let matrix
   try {
     matrix = encoder(text)
-  } catch {
-    return null
+  } catch (error) {
+    if (isQrRefusal(error)) return null
+    if (error instanceof Error && error.message === 'qr-matrix-invalid') return null
+    throw error
   }
   if (!isQrModuleMatrix(matrix)) return null
   const quiet = DEVICE_LIMITS.qrQuietZoneModules

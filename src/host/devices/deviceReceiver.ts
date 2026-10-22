@@ -1,5 +1,7 @@
 // M100's receiver adapts the local M96 owner; it does not schedule or infer exit.
 import { randomBytes } from 'node:crypto'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   type AttemptJournal,
   DeviceJournalError,
@@ -101,6 +103,10 @@ export function bindDeviceReceiverActionGrants(
     },
   }
 }
+function isTypedDeviceFailure(error: unknown): error is DeviceJournalError | DevicePairingError {
+  return error instanceof DeviceJournalError || error instanceof DevicePairingError
+}
+
 export class DeviceActionGrantError extends DevicePairingError {
   public constructor(
     public readonly refusal: DeviceGrantRefusal,
@@ -144,9 +150,10 @@ export class DeviceReceiver implements DeviceExecutionPort {
     journal: AttemptJournal,
     execution: DeviceReceiverExecution,
     policy: DeviceReceiverPolicy,
+    log: Logger,
   ): Promise<DeviceReceiver> {
     if (!/^[a-f0-9]{32}$(?![\s\S])/.test(incarnationId)) throw new DeviceJournalError('storage')
-    const receiver = new DeviceReceiver(incarnationId, journal, execution, policy)
+    const receiver = new DeviceReceiver(incarnationId, journal, execution, policy, log)
     const cancellations = await journal.cancellations()
     for (const identity of cancellations)
       receiver.cancelled.set(identity.attemptId, Object.freeze(identity))
@@ -188,6 +195,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
     private readonly journal: AttemptJournal,
     private readonly execution: DeviceReceiverExecution,
     private readonly policy: DeviceReceiverPolicy,
+    private readonly log: Logger,
   ) {}
   private owns(live: LiveAttempt): boolean {
     return this.live.get(live.identity.attemptId) === live && live.phase !== 'retiring'
@@ -314,6 +322,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
               await effect.live.lease.cancel()
               confirmation = { kind: 'cancel-confirmed', live: effect.live }
             } catch (error) {
+              this.log.warn(`Devices cancel failed: ${failureForLog(error)}`)
               confirmation = { kind: 'cancel-failed', live: effect.live, error }
             }
             await this.effects(this.transition(confirmation))
@@ -323,7 +332,10 @@ export class DeviceReceiver implements DeviceExecutionPort {
             try {
               await this.journal.recordCancellation(effect.identity)
             } catch (error) {
-              if (effect.live !== undefined && !this.owns(effect.live)) return
+              if (effect.live !== undefined && !this.owns(effect.live)) {
+                this.log.warn(`Devices stale effect failed: ${failureForLog(error)}`)
+                return
+              }
               if (error instanceof DeviceJournalError && error.reason !== 'payload-changed')
                 this.transition({
                   kind: 'failed',
@@ -446,7 +458,12 @@ export class DeviceReceiver implements DeviceExecutionPort {
         try {
           resolve(await work())
         } catch (error) {
-          reject(error instanceof Error ? error : new DevicePairingError('uncertain'))
+          if (error instanceof DevicePairingError) {
+            reject(error)
+            return
+          }
+          this.log.error(`Devices control wait failed: ${failureForLog(error)}`)
+          reject(new DevicePairingError('uncertain', { cause: error }))
         } finally {
           signal.removeEventListener('abort', stop)
         }
@@ -507,6 +524,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
       for (const identity of identities.values()) {
         if (this.live.has(identity.attemptId)) this.pendingReconciliation.add(identity.attemptId)
         void this.cancel(identity).catch((error: unknown) => {
+          this.log.warn(`Devices reconcile cancel failed: ${failureForLog(error)}`)
           this.transition({
             kind: 'failed',
             reason: error instanceof DeviceJournalError ? error.reason : 'uncertain',
@@ -518,7 +536,8 @@ export class DeviceReceiver implements DeviceExecutionPort {
     for (const [attemptId, live] of this.live) {
       if (pairId !== undefined && live.identity.pairId !== pairId) continue
       this.pendingReconciliation.add(attemptId)
-      void live.lease.pause().catch(() => {
+      void live.lease.pause().catch((error: unknown) => {
+        this.log.warn(`Devices pause failed: ${failureForLog(error)}`)
         this.transition({ kind: 'failed', reason: 'uncertain', live })
       })
     }
@@ -558,17 +577,20 @@ export class DeviceReceiver implements DeviceExecutionPort {
             let result: Awaited<DeviceLocalAttempt['retirement']>
             try {
               result = await lease.retirement
-            } catch {
+            } catch (error) {
+              this.log.error(`Devices retirement failed: ${failureForLog(error)}`)
               this.transition({ kind: 'failed', reason: 'uncertain', live })
               await this.effects([{ kind: 'record-uncertain', live }])
               return
             }
             await this.effects(this.transition({ kind: 'retirement-observed', live, result }))
-          })().catch(() => {
+          })().catch((error: unknown) => {
+            this.log.error(`Devices retirement observation failed: ${failureForLog(error)}`)
             this.transition({ kind: 'failed', reason: 'storage', live })
           })
           // Journal the late reservation without waiting for Stop confirmation.
           void this.effects(reservationEffects).catch((error: unknown) => {
+            this.log.error(`Devices reservation failed: ${failureForLog(error)}`)
             this.transition({
               kind: 'failed',
               reason: error instanceof DeviceJournalError ? error.reason : 'uncertain',
@@ -606,10 +628,9 @@ export class DeviceReceiver implements DeviceExecutionPort {
           )
           return this.frame(request.identity.pairId, { kind: 'outcome', outcome })
         } catch (error) {
-          const reportedReason =
-            error instanceof DeviceJournalError || error instanceof DevicePairingError
-              ? error.reason
-              : 'uncertain'
+          let reportedReason: DeviceJournalError['reason'] | DevicePairingError['reason']
+          if (isTypedDeviceFailure(error)) reportedReason = error.reason
+          else throw error
           // A late refusal cannot claim that no admission/reservation happened.
           const reason = hasReserved && reportedReason !== 'storage' ? 'uncertain' : reportedReason
           if (reason === 'storage' || reason === 'uncertain') {
@@ -619,20 +640,20 @@ export class DeviceReceiver implements DeviceExecutionPort {
           // A failed start proves nothing; occupancy stays until retirement settles it. Queued
           // after this dispatch: an already observed retirement is journaled first and wins.
           if (started !== undefined)
-            void this.effects([{ kind: 'record-uncertain', live: started }]).catch(() => {
-              /* The effect latches its own failure. */
-            })
+            void this.effects([{ kind: 'record-uncertain', live: started }]).catch(
+              (effectError: unknown) => {
+                this.log.error(`Devices record-uncertain failed: ${failureForLog(effectError)}`)
+              },
+            )
           return this.frame(request.identity.pairId, { kind: 'failure', reason })
         } finally {
           this.policy.finishAdmission?.(request)
         }
       })
     } catch (error) {
-      const reason =
-        error instanceof DeviceJournalError || error instanceof DevicePairingError
-          ? error.reason
-          : 'uncertain'
-      return this.frame(request.identity.pairId, { kind: 'failure', reason })
+      if (isTypedDeviceFailure(error))
+        return this.frame(request.identity.pairId, { kind: 'failure', reason: error.reason })
+      throw error
     } finally {
       this.transition({ kind: 'dispatch-finished', pending })
     }
@@ -699,11 +720,12 @@ export class DeviceReceiver implements DeviceExecutionPort {
         try {
           await this.cancel(frame.body.identity)
         } catch (error) {
-          const reason =
-            error instanceof DeviceJournalError || error instanceof DevicePairingError
-              ? error.reason
-              : 'uncertain'
-          reply(this.frame(frame.pairId, { kind: 'failure', reason }))
+          if (isTypedDeviceFailure(error))
+            reply(this.frame(frame.pairId, { kind: 'failure', reason: error.reason }))
+          else {
+            this.log.error(`Devices cancel failed: ${failureForLog(error)}`)
+            reply(this.frame(frame.pairId, { kind: 'failure', reason: 'uncertain' }))
+          }
         }
         return
       }

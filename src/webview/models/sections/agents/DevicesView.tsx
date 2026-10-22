@@ -109,9 +109,16 @@ export function DevicesView({
     try {
       live.viewId ??= newViewId()
       requestId = newViewId()
-    } catch {
-      setInvalid(true)
-      return { ok: false, reason: 'failed' }
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setInvalid(true)
+        return { ok: false, reason: 'failed' }
+      }
+      if (error instanceof ReferenceError) {
+        setInvalid(true)
+        return { ok: false, reason: 'failed' }
+      }
+      throw error
     }
     const request = parseDeviceWebviewRequest({
       type: 'deviceRequest',
@@ -189,12 +196,15 @@ export function DevicesView({
       return response.message.setup.failure === undefined
         ? { ok: true, message: response.message }
         : { ok: false, reason: 'failed' }
-    } catch {
-      if (isCurrentWait()) {
-        setInvalid(true)
-        return { ok: false, reason: 'failed' }
+    } catch (error) {
+      if (error instanceof Error && error.message === 'invalid-device-message') {
+        if (isCurrentWait()) {
+          setInvalid(true)
+          return { ok: false, reason: 'failed' }
+        }
+        return { ok: false, reason: cancellation }
       }
-      return { ok: false, reason: cancellation }
+      throw error
     } finally {
       window.clearTimeout(timeout)
       if (rejectAbort !== undefined) signal.removeEventListener('abort', rejectAbort)

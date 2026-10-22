@@ -3,6 +3,9 @@ import path from 'node:path'
 import { access, realpath } from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
 import * as z from 'zod/mini'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { isErrno } from '../../core/fs/errno'
 import { workerEnvironment } from '../../core/team/refFence'
 import { DevicePairingError } from '../../core/devices/pairing'
 import { DEVICE_LIMITS, WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
@@ -192,6 +195,7 @@ export interface DeviceWorkerHostDeps {
   /** Restore unresolved occupancy, never adopt or relaunch a previous job. */
   retain(records: readonly DeviceJournalRecord[]): Promise<void>
   reserve(request: DeviceDispatch): Promise<DeviceWorkerReservation>
+  readonly log: Logger
   /** Bind M96's local engine and every action/paid boundary before returning its command. */
   command(request: DeviceDispatch, boundary: DeviceExecutionBoundary): Promise<DeviceWorkerCommand>
   recordEnvironment(request: DeviceDispatch, env: Readonly<Record<string, string>>): Promise<void>
@@ -222,8 +226,14 @@ async function resolveTool(
     try {
       await access(candidate, platform === 'win32' ? fsConstants.F_OK : fsConstants.X_OK)
       return await realpath(candidate)
-    } catch {
-      continue
+    } catch (error) {
+      if (
+        isErrno(error) &&
+        error.code !== undefined &&
+        ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM', 'ELOOP'].includes(error.code)
+      )
+        continue
+      throw error
     }
   }
   throw new DeviceWorkerHostError('preflight')
@@ -256,12 +266,21 @@ function retirementWait() {
 export class DeviceWorkerHost implements DeviceReceiverExecution {
   private running = 0
   public constructor(private readonly deps: DeviceWorkerHostDeps) {}
+  /** Keep the original failure; cleanup is still reported as uncertain. */
+  private async removeAfterFailure(job: DeviceWorkerJob | undefined): Promise<void> {
+    try {
+      await job?.remove()
+    } catch (error) {
+      this.deps.log.error(`Devices worker remove failed: ${failureForLog(error)}`)
+    }
+  }
   public async facts(): Promise<{ power: Power; sleepInhibited: boolean }> {
     try {
       const query = querySchema.parse(await this.deps.driver.query())
       return { power: query.power, sleepInhibited: this.running > 0 && query.sleepInhibited }
-    } catch {
-      return { power: 'unknown', sleepInhibited: false }
+    } catch (error) {
+      if (error instanceof DeviceWorkerHostError) return { power: 'unknown', sleepInhibited: false }
+      throw error
     }
   }
   public async retain(records: readonly DeviceJournalRecord[]): Promise<void> {
@@ -277,8 +296,10 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
     const reservation = await this.deps.reserve(request)
     const retired = retirementWait()
     // Admission need not attach a consumer until start; prevent unhandled rejection.
-    void retired.promise.catch(() => {
-      /* The receiver attaches its retirement consumer after admission. */
+    // The receiver attaches its retirement consumer after admission.
+    void retired.promise.catch((error: unknown) => {
+      if (error instanceof DeviceWorkerHostError) return
+      this.deps.log.error(`Devices worker retired failed: ${failureForLog(error)}`)
     })
     let job: DeviceWorkerJob | undefined
     let isStarted = false
@@ -339,11 +360,8 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
           ...(record.outcome.artifact !== undefined && { artifact: record.outcome.artifact }),
         })
       } catch (error) {
-        try {
-          await job?.remove()
-        } catch {
-          /* Keep the original failure; cleanup is still reported as uncertain. */
-        }
+        await this.removeAfterFailure(job)
+        this.deps.log.error(`Devices worker finish failed: ${failureForLog(error)}`)
         retired.reject(
           error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('result'),
         )
@@ -358,6 +376,7 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
           isRunning = false
         }
         // Helper loss releases its inhibitor but never proves retirement.
+        this.deps.log.error(`Devices worker observe failed: ${failureForLog(error)}`)
         retired.reject(error)
       }
     }
@@ -377,7 +396,8 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
       // A rejected launch or an unobservable retained attempt keeps its occupancy.
       if (reclaimed === undefined) retired.reject(uncertain)
       else
-        void reclaimed.then(refuse).catch(() => {
+        void reclaimed.then(refuse).catch((error: unknown) => {
+          this.deps.log.error(`Devices worker reclamation failed: ${failureForLog(error)}`)
           retired.reject(uncertain)
         })
     }

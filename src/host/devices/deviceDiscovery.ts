@@ -1,5 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import { deviceEndpointSchema } from '../../shared/devices'
 import { checkedDeviceAddress, checkedDeviceInterface } from '../../core/devices/deviceAddress'
@@ -64,6 +66,7 @@ export class DeviceDiscovery {
   constructor(
     private readonly mdns: DeviceMdnsPort,
     private readonly interfaces: () => readonly string[],
+    private readonly log: Logger,
   ) {}
 
   private publish(status: DeviceDiscoveryStatus): void {
@@ -151,13 +154,16 @@ export class DeviceDiscovery {
             port: parsed.data.port,
             observedAt: Date.now(),
           })
-        } catch {
-          /* Ignore untrusted discovery data without reflecting its text. */
+        } catch (error) {
+          // Ignore untrusted discovery data without reflecting its text.
+          if (error instanceof Error && error.message === 'invalid-device-address') return
+          if (error instanceof Error && error.message === 'invalid-frame') return
+          throw error
         }
       })
-    } catch {
+    } catch (error) {
       this.haltBlocked(generation)
-      throw new Error('blocked-or-unreachable')
+      throw new Error('blocked-or-unreachable', { cause: error })
     }
     if (!isCurrent()) {
       session.close()
@@ -183,8 +189,13 @@ export class DeviceDiscovery {
       serviceId = randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex')
       try {
         session.advertise({ serviceId, port, version: DEVICE_LIMITS.protocolVersion })
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.message === 'blocked-or-unreachable') {
+          this.haltBlocked(generation)
+          return
+        }
         this.haltBlocked(generation)
+        this.log.error(`Devices discovery announce failed: ${failureForLog(error)}`)
       }
     }
     announce()

@@ -333,6 +333,7 @@ export async function openDeviceProductionDeps(
       store,
       secrets,
       host: context.host,
+      log: context.log,
       now,
       receiverIncarnationId: randomId(),
       setup: ports.setup,

@@ -29,7 +29,8 @@ const DevicesSurface = lazy(async () => {
   try {
     const { DevicesSurface } = await import('./models/sections/agents/DevicesApp')
     return { default: DevicesSurface }
-  } catch {
+  } catch (error: unknown) {
+    vsCodeHostBridge(window).post(webviewErrorReport('promise', error))
     return { default: DevicesUnavailable }
   }
 })

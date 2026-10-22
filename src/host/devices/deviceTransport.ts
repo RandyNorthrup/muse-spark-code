@@ -12,6 +12,8 @@ import {
   type DeviceLookup,
 } from '../../core/devices/deviceAddress'
 import { openDeviceChannel, type DeviceChannel, type DeviceChannelPort } from './deviceChannel'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 
 // P binds only after bilateral confirmation and durable storage. Active is
 // the current pairing/offer state, re-read for each queued request and send.
@@ -93,7 +95,10 @@ export class DeviceTransport {
   private readonly pending = new Map<() => void, string>()
   private total = 0
 
-  constructor(private readonly network: DeviceNetworkPort = nodeNetwork) {}
+  constructor(
+    private readonly log: Logger,
+    private readonly network: DeviceNetworkPort = nodeNetwork,
+  ) {}
 
   private acquire(pairId: string): () => void {
     const count = this.counts.get(pairId) ?? 0
@@ -162,6 +167,7 @@ export class DeviceTransport {
           pair.receiverIncarnationId,
           () => pair.isActive() && pair.isOffered(),
           handler,
+          this.log,
         )
       },
     )
@@ -183,8 +189,21 @@ export class DeviceTransport {
           this.sockets.delete(socket)
           release()
         })
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.message === 'revoked') {
+          socket.destroy()
+          return
+        }
+        if (error instanceof Error && error.message === 'invalid-device-address') {
+          socket.destroy()
+          return
+        }
+        if (error instanceof Error && error.message === 'capacity') {
+          socket.destroy()
+          return
+        }
         socket.destroy()
+        this.log.error(`Devices inbound failed: ${failureForLog(error)}`)
       }
     })
     let failure = 'blocked-or-unreachable'
@@ -337,6 +356,7 @@ export class DeviceTransport {
                 undefined,
                 () => pair.isActive() && (isReady || isWithinDeadline()),
                 handler,
+                this.log,
                 (channel) => {
                   if (!isWithinDeadline()) return
                   isReady = true
@@ -346,7 +366,8 @@ export class DeviceTransport {
               )
             })
           })
-          .catch(() => {
+          .catch((error: unknown) => {
+            this.log.error(`Devices resolve failed: ${failureForLog(error)}`)
             reject(new Error('blocked-or-unreachable'))
           })
       })
