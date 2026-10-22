@@ -70,6 +70,8 @@
 !dist/uiText.js
 !dist/validation.js
 !dist/makerContracts.js
+!dist/makerPreviewHost.js
+!dist/makerHost.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/judge.js

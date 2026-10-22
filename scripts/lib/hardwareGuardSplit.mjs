@@ -19,7 +19,14 @@ const EXPORTS = new Map(
     ],
     [
       'src/core/agent/approvalRules.ts',
-      ['childPermissionMode', 'allowOnceChoice', 'isReviewableApproval', 'editAutomaticallyChoice'],
+      [
+        'childPermissionMode',
+        'allowOnceChoice',
+        'isReviewableApproval',
+        'editAutomaticallyChoice',
+        'isSideChatClickRefused',
+        'sideChatRefusalChoice',
+      ],
     ],
     [
       'src/core/maker/guard/hardwareCommands.ts',

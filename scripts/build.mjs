@@ -640,9 +640,12 @@ const teamRunnersOptions = {
 
 // The Muse Code backend's own bundle (PR206, PLAN.md D6): the same plugins
 // as the team bundles, which already carry the host today, so what the entry
-// pulls in splits the same way.
+// pulls in splits the same way. RLM103: the host also carries the maker
+// session guard, so it takes the guard split and shared maker contracts the
+// Model API bundle uses; without them the protocol inlines here.
 const museCodeOptions = {
   ...teamOptions,
+  plugins: [...teamOptions.plugins, hardwareGuardSplit, sharedMakerContracts],
   entryPoints: [MUSE_CODE_ENTRY],
   outfile: MUSE_CODE_OUTFILE,
 }
