@@ -24,7 +24,7 @@
     "runtime": {
       "SWALLOW": 34,
       "GENERIC": 203,
-      "CLEANUP": 125
+      "CLEANUP": 124
     },
     "shared": {
       "SWALLOW": 0,
@@ -5451,11 +5451,6 @@
     {
       "file": "src/runtime/usage/nodeUsageFs.ts",
       "identity": "bee2ca71b0a54ab5d5940398df251513ac4c523f9b416ba4c234cb7462c13be9",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/usage/traceLogs.ts",
-      "identity": "ab63fe7c570e7bf58a0ae2e6a06dd1bb58d396d1565689d43ac9c3e1e2719fa4",
       "class": "CLEANUP"
     },
     {

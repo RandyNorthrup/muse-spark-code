@@ -1110,6 +1110,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     account: z.optional(accountFactsSchema),
     /** From the CLI's trace logs on this machine (M14); absent on the Model API. */
     insights: z.optional(z.object({ day: usageInsightsSchema, week: usageInsightsSchema })),
+    /**
+    The trace read's state for the same sentences the usage page shows:
+    `empty` (the listing found no file) is the only case for the "no
+    trace logs" sentence; `behind` and `unavailable` carry the page's
+    notices. Absent when the read was clean.
+    */
+    insightsState: z.optional(z.enum(['empty', 'behind', 'unavailable'])),
     /** This window's tallies per BYO provider (M95); absent until one is used. */
     providers: z.optional(z.array(providerUsageRowSchema)),
     /** The Usage Team section (M96 lane U2); absent where the team cannot run. */

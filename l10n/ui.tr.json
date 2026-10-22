@@ -3296,6 +3296,8 @@
   "usageInsightNone": "Bu pencerede kaydedilmiş CLI etkinliği yok.",
   "usageInsightUnavailable": "Bu arka uçta kullanılamaz: Model API için yerel izleme günlükleri yoktur.",
   "usageInsightNoLogs": "Bu makinede henüz Muse Code izleme günlüğü bulunamadı.",
+  "usageInsightsBehindNote": "Bu sayılar güncel olmayabilir: bir izleme günlüğü okunamadı, bu nedenle önceki bir sayı gösteriliyor.",
+  "usageInsightsUnavailableNote": "İzleme günlükleri okunamadı, bu nedenle CLI etkinliği gösterilmiyor.",
   "usageInsightTotals": "{sessions} genelinde {attempts}",
   "modelAttemptsCount": {
     "one": "{count} model denemesi",

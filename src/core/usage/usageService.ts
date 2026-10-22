@@ -77,7 +77,8 @@ export interface UsageServiceDeps {
   at all).
   */
   readonly currentCredentialId?: (providerId: string) => Promise<string | undefined>
-  readonly readAttempts: () => Promise<UsagePageState['attempts']>
+  /** A failed trace read leaves the cost journal visible with its own notice. */
+  readonly readAttempts: () => Promise<UsageAttemptRead>
   /** M107 J: the machine resource journal's aggregate; a failure shows as unavailable. */
   readonly readResources?: () => Promise<ResourceHistory>
   /** Every stored resource history entry, which Delete history also removes. */
@@ -114,6 +115,11 @@ export interface UsageServiceDeps {
     model: string,
   ) => Promise<NonNullable<UsagePageState['modelDetail']>['price']>
 }
+export interface UsageAttemptRead {
+  readonly attempts: UsagePageState['attempts']
+  readonly stale: boolean
+}
+
 export interface UsageService {
   readonly snapshot: (query?: UsageQuery) => Promise<UsagePageState>
   /** Native postMessage, stdio and HTTP all use this checked boundary. */
@@ -174,6 +180,27 @@ async function readResources(deps: UsageServiceDeps): Promise<ResourceHistory | 
     return null
   }
 }
+
+/** A settled read: the two sources fail independently in both directions. */
+type Settled<T> =
+  { readonly ok: true; readonly value: T } | { readonly ok: false; readonly cause: unknown }
+async function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
+  try {
+    return { ok: true, value: await promise }
+  } catch (error) {
+    return { ok: false, cause: error }
+  }
+}
+
+/** The journal read's shape with no records: shown only with its notice. */
+const EMPTY_JOURNAL: UsageJournalRead = {
+  records: [],
+  rollups: [],
+  limits: [],
+  recordCount: 0,
+  newerVersionRecords: 0,
+  tornLines: 0,
+}
 export function createUsageService(deps: UsageServiceDeps): UsageService {
   let query = DEFAULT_QUERY
   let selection: { provider: string; model: string } | undefined
@@ -182,13 +209,26 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     selected: UsageQuery,
   ): Promise<{ journal: UsageJournalRead; state: UsagePageState }> {
     const now = deps.now()
-    const [journal, budgets, live, attempts, resources] = await Promise.all([
-      deps.journal.read(),
+    // The journal and the trace read run concurrently and fail
+    // independently in BOTH directions: a journal failure shows the
+    // attempts with the journal's own notice, and a trace failure shows
+    // the journal with the trace notice.
+    const [journalSettled, budgets, live, resources, attemptSettled] = await Promise.all([
+      settle(deps.journal.read()),
       deps.readBudgets(),
       deps.readLiveLimits(),
-      deps.readAttempts(),
       readResources(deps),
+      settle(deps.readAttempts()),
     ])
+    const journal = journalSettled.ok ? journalSettled.value : EMPTY_JOURNAL
+    const journalNotice: UsagePageState['journalNotice'] = journalSettled.ok
+      ? undefined
+      : 'unavailable'
+    let attemptRead: UsageAttemptRead = { attempts: [], stale: false }
+    let traceNotice: UsagePageState['traceNotice']
+    if (attemptSettled.ok) attemptRead = attemptSettled.value
+    else traceNotice = 'unavailable'
+    if (traceNotice === undefined && attemptRead.stale) traceNotice = 'stale'
     const aggregated = aggregateUsage(journal.records, journal.rollups, selected, now)
     const limits = limitHistory(
       await selectCredentialLimits(
@@ -248,9 +288,11 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       unreportedLimits: deps
         .providerConsoles()
         .filter((provider) => limits.every((limit) => limit.provider !== provider.provider)),
-      attempts: attempts.filter(
+      attempts: attemptRead.attempts.filter(
         (attempt) => attempt.day >= aggregated.from && attempt.day <= aggregated.to,
       ),
+      ...(traceNotice !== undefined && { traceNotice }),
+      ...(journalNotice !== undefined && { journalNotice }),
       savings: {
         ...(aggregated.totals.tokens.cached !== undefined && {
           cachedTokens: aggregated.totals.tokens.cached,

@@ -336,6 +336,20 @@ export const DEFERRED = [
     ],
   },
   {
+    // RLUSAGE: the usage export encoders, required by dist/usageService.js
+    // on the first export (D6). The service must not carry them statically.
+    output: 'dist/usageExport.js',
+    metafile: 'dist/meta/usageExport.json',
+    use: 'the first usage export',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/usageService.js', metafile: 'dist/meta/usageService.json' },
+    ],
+    files: ['src/core/usage/usageExportEntry.ts', 'src/core/usage/usageExport.ts'],
+  },
+  {
     output: 'dist/usageCompanion.js',
     metafile: 'dist/meta/usageCompanion.json',
     files: ['src/runtime/usage/usageCompanionEntry.ts', 'src/runtime/companion/server.ts'],
@@ -1180,6 +1194,11 @@ export function checkDeferredBundles(inputsOf) {
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/reportInputs.js'
         ) &&
+        // RLUSAGE: the usage export encoders read the same journal store
+        // schemas; the export never prices either.
+        !(
+          source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageExport.js'
+        ) &&
         !(
           source === 'src/core/providers/keyInspection.ts' &&
           (bundle.output === 'dist/modelsPanel.js' || bundle.output === 'dist/runtimeAccounts.js')
@@ -1325,6 +1344,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/modelApiMcpEntry.ts'), 'dist/modelApiMcp.js'],
   [path.resolve('src/runtime/exec/runExec.ts'), 'dist/headless.js'],
   [path.resolve('src/runtime/usage/usageAcp.ts'), 'dist/usageService.js'],
+  [path.resolve('src/core/usage/usageExportEntry.ts'), 'dist/usageExport.js'],
   [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
   [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
@@ -1411,7 +1431,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
