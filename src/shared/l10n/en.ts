@@ -5217,8 +5217,12 @@ export const EN = {
   teamResumeBriefBorrow:
     'Task {task} continues with {candidate}: borrowed from {lender} for {role}.',
   teamResumeBriefRecall:
-    'Task {task} returns to {candidate}: the recall ended {ending}; new files: {files}.',
-  teamResumeBriefMove: 'Task {task} moves from {from} to {candidate}: {trigger}.',
+    'Task {task} returns to {candidate}: the recall ended {ending}. Resume from {diff}: {commits}; new files: {files}.',
+  teamResumeBriefMove:
+    'Task {task} moves from {from} to {candidate}: {trigger}. Resume from {diff}: {commits}; new files: {files}.',
+  teamResumeBriefNoDiff: 'no diff',
+  teamResumeBriefNoCommits: 'no commits',
+  teamResumeBriefNoFiles: 'none',
   teamCodingRoleFrontend: 'Build what the person sees: panels, pages, styles and interactions.',
   teamCodingRoleBackend: 'Build what serves it: APIs, storage, workers and their contracts.',
   teamCodingRoleEngineering: 'Build the shared core both sides run on: logic, tools and wiring.',

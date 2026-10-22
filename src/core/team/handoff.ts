@@ -121,12 +121,13 @@ export function resumeBrief(record: TeamHandoffRecord, toCandidateId: string): s
     })
   }
   if (last.kind === 'recall') {
-    const files = last.work?.newFiles.join(', ') ?? ''
     return fill(UI_TEXT.teamResumeBriefRecall, {
       task: record.taskId,
       candidate: toCandidateId,
       ending: last.ending,
-      files,
+      diff: last.work?.diffRef ?? UI_TEXT.teamResumeBriefNoDiff,
+      commits: last.work?.commits.join(', ') ?? UI_TEXT.teamResumeBriefNoCommits,
+      files: last.work?.newFiles.join(', ') ?? UI_TEXT.teamResumeBriefNoFiles,
     })
   }
   return fill(UI_TEXT.teamResumeBriefMove, {
@@ -134,5 +135,8 @@ export function resumeBrief(record: TeamHandoffRecord, toCandidateId: string): s
     candidate: toCandidateId,
     from: last.fromCandidateId,
     trigger: last.trigger,
+    diff: last.work.diffRef ?? UI_TEXT.teamResumeBriefNoDiff,
+    commits: last.work.commits.join(', ') || UI_TEXT.teamResumeBriefNoCommits,
+    files: last.work.newFiles.join(', ') || UI_TEXT.teamResumeBriefNoFiles,
   })
 }
