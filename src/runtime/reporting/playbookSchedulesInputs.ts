@@ -11,7 +11,6 @@ import {
   FilePlaybookJournal,
   PlaybookHistoryLostError,
 } from '../../core/orchestration/playbook/journal'
-import { SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
@@ -114,7 +113,10 @@ export function createSchedulesReportReader(input: {
         lock: (key, work) => raw.lock(key, work, { signal }),
       }
       const store = createScheduleStore(fs)
-      for (let attempt = 0; attempt < SCHEDULE_FS_RETRY_ATTEMPTS; attempt += 1) {
+      // No attempt count of ours (D121): the snapshot loop re-reads until a
+      // list/fires/list triple agrees, another writer's churn settling, or
+      // the person's cancel stops the read.
+      for (;;) {
         signal.throwIfAborted()
         try {
           const schedules = await store.list(input.workspaceKey)
@@ -133,7 +135,6 @@ export function createSchedulesReportReader(input: {
           throw new LocalSourceError(failure)
         }
       }
-      throw new LocalSourceError('busy')
     },
   }
 }

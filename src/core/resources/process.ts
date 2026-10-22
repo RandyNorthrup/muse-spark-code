@@ -17,7 +17,6 @@ import type { ResourceProcessIdentity } from '../../shared/resources'
 import {
   CLI_OUTPUT_MAX_BYTES,
   MILLISECONDS_PER_SECOND,
-  RESOURCE_HANDOFF_TIMEOUT_MS,
   RESOURCE_JOB_EMPTY_MS,
   RESOURCE_JOB_SAMPLE_MS,
   RESOURCE_TREE_PROCESS_CAP,
@@ -33,6 +32,7 @@ import { execFileGuarded, spawnGuarded } from '../guardedChildProcess'
 import { setTimeout as delay } from 'node:timers/promises'
 import { admitBootstrap, admitResource, resourceWindowsJob, stopResourceTree } from './admission'
 import { withoutCredentials } from '../credentialEnvironment'
+import { callerStop } from '../timeouts'
 
 /** Ends only this caller's wait at its deadline or cancellation; shared work keeps running. */
 async function untilAborted<T>(pending: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
@@ -261,13 +261,13 @@ function spawnHandoff(
   options: ResourceProcessOptions,
   resource: ResourceLease,
   cancel: AbortSignal | undefined,
-  deadline: AbortSignal,
+  deadline: AbortSignal | undefined,
   until: ResourceHandoffUntil,
 ): ResourceHandoffProcess {
   const isLaunchedAtSpawn = until === 'spawn'
   // The caller's own environment, never the lease's temporary root: a browser the
   // OS starts outlives this lease and must not keep TMPDIR under governed cleanup.
-  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, named deadline, root-only stop on cancel (PLAN SPAWN017C, section 8).
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, caller-only deadline, root-only stop on cancel (PLAN SPAWN017C, section 8).
   const child = spawnGuarded(file, [...args], {
     ...options,
     signal: undefined,
@@ -295,20 +295,20 @@ function spawnHandoff(
     const detach = () => {
       if (state.isComplete) return
       cancel?.removeEventListener('abort', onCancel)
-      deadline.removeEventListener('abort', detach)
+      deadline?.removeEventListener('abort', detach)
       child.stdin?.destroy()
       child.unref()
       complete(false)
       resolve()
     }
     const onCancel = () => {
-      deadline.removeEventListener('abort', detach)
+      deadline?.removeEventListener('abort', detach)
       if (!state.isComplete) void stop()
       failed(cancel?.reason)
     }
     child.once('exit', (code) => {
       cancel?.removeEventListener('abort', onCancel)
-      deadline.removeEventListener('abort', detach)
+      deadline?.removeEventListener('abort', detach)
       if (state.isComplete) return
       if (code === 0) {
         complete(false)
@@ -320,9 +320,9 @@ function spawnHandoff(
     })
     if (isLaunchedAtSpawn) child.once('spawn', detach)
     cancel?.addEventListener('abort', onCancel, { once: true })
-    deadline.addEventListener('abort', detach, { once: true })
+    deadline?.addEventListener('abort', detach, { once: true })
     if (cancel?.aborted === true) onCancel()
-    else if (deadline.aborted) detach()
+    else if (deadline?.aborted === true) detach()
   })
   void handedOff.catch(() => {
     // The caller awaits handedOff; a rejection nobody awaited must not crash the host.
@@ -510,12 +510,14 @@ export async function spawnResourceProcess(
   extraDescriptors: readonly number[] = [],
 ): Promise<ResourceInteractiveProcess | ResourceHandoffProcess | ResourcePipedProcess> {
   // The memory cap is the attested job's, never a spawn option.
-  const { jobMemoryBytes, handoffUntil = 'exit', ...options } = launchOptions
+  const { jobMemoryBytes, handoffUntil = 'exit', handoffTimeoutMs, ...options } = launchOptions
   if (profile === 'handoff') {
-    // The named deadline covers the handoff's admission and the adapter's run.
-    const deadline = AbortSignal.timeout(RESOURCE_HANDOFF_TIMEOUT_MS)
+    // No deadline of ours (D121): only a deadline the caller passes bounds
+    // the wait for the adapter. Otherwise the handoff ends at the
+    // adapter's exit, its start, or the caller's cancel.
     const cancel = options.signal
-    const signal = cancel === undefined ? deadline : AbortSignal.any([cancel, deadline])
+    const deadline = callerStop(undefined, handoffTimeoutMs)
+    const signal = deadline === undefined ? cancel : callerStop(cancel, handoffTimeoutMs)
     return await withLease(profile, signal, (resource, spawned) => {
       spawned.value = true
       return Promise.resolve(
