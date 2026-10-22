@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 267,
+      "GENERIC": 266,
       "CLEANUP": 235
     },
     "host": {
@@ -1777,11 +1777,6 @@
       "file": "src/core/providers/subscriptions/registry.ts",
       "identity": "69999f4e9aacf384dfc982ad98741aeeed705e74507855fdcbc790bf62aaeeac",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/providers/subscriptions/registry.ts",
-      "identity": "1caa30864940acf94e7fc433d4296bd8ba820d3919b38d9c5cfd79c505a6532a",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/questions/registry.ts",

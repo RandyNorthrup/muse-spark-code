@@ -6531,6 +6531,13 @@ the provider lane. Provider capability records and captured transport bindings
 remain required before an agent-loop enhancement is enabled for a non-Meta
 model. A single-model setup retains its current selection and controls.
 
+### Editor chat
+
+Opt chosen priced or local models into VS Code chat; calls appear in Usage
+& cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace.
+Offering a model asks first and names its rates; all installed extensions
+can then call it on the stored key.
+
 ### Headless runs
 
 The headless parser accepts `--output-schema <file>` and the explicit

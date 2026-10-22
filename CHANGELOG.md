@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Subscriptions
+
+- ChatGPT plan refusals read in plain words: a usage limit, an ineligible
+  account and an unknown refusal each get their own sentence, and the
+  plan's reported limit windows appear in Plan Usage.
+- A plan-key provider (MiniMax, Alibaba, Mistral once captured) shows
+  "Plan" instead of a price and links the plan's own limits page.
+- Hugging Face sign-in is ready in the providers list; it opens once the
+  project's OAuth app is registered.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

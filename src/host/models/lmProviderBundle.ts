@@ -86,6 +86,7 @@ export function registerEditorChat(deps: {
         await previous
       } catch {
         // The earlier caller owns its failure; this update still runs in order.
+        deps.log.warn('Editor chat confirmation write failed before this update')
       }
       const next = { ...confirmations }
       if (evidence === undefined) Reflect.deleteProperty(next, ref)
@@ -117,6 +118,7 @@ export function registerEditorChat(deps: {
       if (!isBundle(bundle)) throw new Error(UI_TEXT.editorChatRefused)
       bundle.setUiText(deps.table.table, deps.table.locale)
       loaded = bundle.createEditorChat({
+        log: deps.log,
         models: await deps.models(),
         recording: deps.recording,
         selected,
@@ -134,6 +136,7 @@ export function registerEditorChat(deps: {
     engine = pending
     void pending.catch(() => {
       if (engine === pending) engine = undefined
+      deps.log.warn('Editor chat engine failed to load')
     })
     return pending
   }

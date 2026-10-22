@@ -2,6 +2,7 @@
 // or editor model call. The 1.99 typings stay pinned for older supported hosts.
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import type { Logger } from '../logger'
 import type { ModelResolver, ResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 import type { CreateResponseBody, InputItem, Usage } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
@@ -77,6 +78,7 @@ const optionsSchema = z.object({
 const idSchema = z.object({ id: z.string() })
 
 export interface EditorChatDeps {
+  readonly log: Logger
   readonly models: ModelResolver
   readonly recording: UsageRecording
   readonly selected: () => unknown
@@ -118,8 +120,18 @@ function isCancelled(token: vscode.CancellationToken): boolean {
   return token.isCancellationRequested
 }
 
-function fail(): never {
-  throw new Error(UI_TEXT.editorChatRefused)
+/**
+The provider's own refusal, distinct from anything unexpected: callers
+skip a refused model and rethrow anything else. The cause stays on the
+thrown refusal for the record; only the fixed sentence reaches the person.
+*/
+class EditorChatRefusalError extends Error {
+  constructor(cause?: unknown) {
+    super(UI_TEXT.editorChatRefused, cause === undefined ? undefined : { cause })
+  }
+}
+function fail(cause?: unknown): never {
+  throw new EditorChatRefusalError(cause)
 }
 function limits(model: ResolvedModel): { input: number; output: number } {
   const input = model.contextTokens
@@ -393,8 +405,9 @@ export function createEditorChat(deps: EditorChatDeps) {
               imageInput: model.policy.input.images.state === 'yes',
             },
           })
-        } catch {
+        } catch (error) {
           // A removed/unpriced/stale entry is withdrawn, never offered optimistically.
+          if (!(error instanceof EditorChatRefusalError)) throw error
         }
       }
       return isCancelled(token) ? [] : rows
@@ -497,9 +510,9 @@ export function createEditorChat(deps: EditorChatDeps) {
           } else if (event.type === 'response.failed' || event.type === 'error') return fail()
         }
         if (!state.isCompleted) return fail()
-      } catch {
+      } catch (error) {
         outcome = abort.signal.aborted ? 'cancelled' : 'failed'
-        return fail()
+        return fail(error)
       } finally {
         clearTimeout(timer)
         subscription.dispose()
@@ -529,6 +542,7 @@ export function createEditorChat(deps: EditorChatDeps) {
         } catch {
           // A failed pricing still gets a tally, with the worst case held
           // as uncertain liability.
+          deps.log.warn('Editor chat pricing failed; the worst case is held as uncertain')
           actual = undefined
           outcome = 'failed'
         }
@@ -575,7 +589,9 @@ export function createEditorChat(deps: EditorChatDeps) {
       reasoningEffortFor(model, {})
       try {
         await confirm(ref, model, false)
-      } catch {
+      } catch (error) {
+        // A declined grant (or a raced removal) leaves the model unselected.
+        if (!(error instanceof EditorChatRefusalError)) throw error
         return
       }
       if (!deps.allowed() || !model.isCurrent() || !isConfirmed(ref, model)) return fail()

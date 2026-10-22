@@ -9,6 +9,7 @@ import type * as vscode from 'vscode'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
+import type { Logger } from '../logger'
 import type {
   CredentialRecord,
   ProviderCredentialStore as CredentialStore,
@@ -76,6 +77,7 @@ export interface ProvidersHostUi {
 }
 
 export interface ProvidersHostDeps {
+  readonly log: Logger
   readonly credentials: CredentialStore
   readonly secrets: SecretStore
   readonly store: ProvidersStore
@@ -371,6 +373,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       try {
         const connection = await huggingface.connectHuggingFaceAccount({
           clientId,
+          log: deps.log,
           pkce: deps.pkce,
           exchange: exchanger,
           openBrowser: deps.ui.openBrowser,
@@ -380,9 +383,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           ...(signal !== undefined && { signal }),
         })
         return { key: connection.key }
-      } catch {
+      } catch (error) {
         if (signal?.aborted) return
-        throw new Error(UI_TEXT.huggingfaceConnectFailed)
+        throw new Error(UI_TEXT.huggingfaceConnectFailed, { cause: error })
       }
     },
     connectOpenRouter: async (isRemote, signal) => {
