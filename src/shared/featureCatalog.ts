@@ -224,7 +224,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
   showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
-  estimate: { description: { ui: 'referenceEstimate' }, canRun: false },
+  estimate: { description: { ui: 'referenceEstimate' }, canRun: true },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -292,8 +292,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   },
   // Import completions reconcile changes on failure too; Lock cancels sent imports.
   // Reset detects impossible public framing/anchor state, needs a terminal, and retires the exact anchor.
-  vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
-  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
+  vault: { description: { ui: 'referenceVaultPanel' }, canRun: true },
+  lockVault: { description: { ui: 'referenceVaultLock' }, canRun: true },
 }
 
 function feature(

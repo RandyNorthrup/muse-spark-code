@@ -399,9 +399,9 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.schedulePrompt]: CONTEXT_KEYS.scheduleDeliveryCertified,
       [COMMAND_IDS.showSchedules]: CONTEXT_KEYS.scheduleDeliveryCertified,
       [COMMAND_IDS.showScheduleTimeline]: CONTEXT_KEYS.scheduleDeliveryCertified,
-      [COMMAND_IDS.vault]: 'false',
-      [COMMAND_IDS.lockVault]: 'false',
-      [COMMAND_IDS.estimate]: 'false',
+      // The vault and estimator commands stay palette-visible (RLTESTDRIVE
+      // 10, RLTESTDRIVE2 11): hiding them reintroduces the 0.19.0
+      // findability defect, so this map must not name them at all.
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {

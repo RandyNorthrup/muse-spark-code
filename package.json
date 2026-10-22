@@ -589,18 +589,6 @@
         {
           "command": "museSpark.showScheduleTimeline",
           "when": "museSpark.scheduleDeliveryCertified"
-        },
-        {
-          "command": "museSpark.vault",
-          "when": "false"
-        },
-        {
-          "command": "museSpark.lockVault",
-          "when": "false"
-        },
-        {
-          "command": "museSpark.estimate",
-          "when": "false"
         }
       ],
       "view/title": [
