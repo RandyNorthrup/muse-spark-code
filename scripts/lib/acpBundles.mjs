@@ -66,6 +66,8 @@ export const ACP_BUNDLES = [
   'approvalModes.js',
   'mcpPool.js',
   'exec.js',
+  // RLTESTDRIVE item 5: the live list read headless refresh on use loads.
+  'providerList.js',
   'execGuard.js',
   'modelApiCodeIntel.js',
   'structuredSchema.js',

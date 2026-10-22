@@ -812,9 +812,12 @@ before sending. Configured API-key and local providers share the captured
 Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
 are refused and each request pins checked DNS answers. ACP reads the same
 user-level `providers.json`, using its own OS credential store. The terminal
-offers `providers list`, `providers add`, `providers test`, `providers remove`,
-`providers models <entry> [--add <model>] [--remove <model>]`
-and `auth set|status|clear --provider <id>`. Free checks use the shared
+offers `providers list`, `providers add`, `providers test`, `providers refresh <id>`,
+`providers remove`, `providers models <entry> [--add <model>] [--remove <model>]`
+and `auth set|status|clear --provider <id>`. A provider's model list freezes at
+`providers add`: `providers refresh <id>` stores every live id the file lacks
+(filed ids the list lacks stay, reported as still configured), and a run asked
+for a model the live list has admits it and files it on use. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
 A provider key is never refused for how it looks: any non-blank key is
 sent to the provider's own free key test, and a refusal shows the
@@ -911,6 +914,11 @@ outcome visible. A budget-only partial save with a fresh snapshot can retry;
 a failed refresh retires that form to prevent retries against stale values.
 Two editor windows saving the same provider at the same moment can overwrite
 fields both changed. Cross-window serialization is a planned follow-up.
+The panel and the terminal agent share the provider list but keep keys
+separately: keys you enter here stay in the editor's secret storage, and
+keys entered through `muse-spark-code-acp` stay in the agent's own OS
+credential store entries — so this panel reads "No Key Stored in the
+Editor" for a provider whose key only the terminal agent holds.
 
 ## Questions
 
@@ -5349,7 +5357,10 @@ Accept edits the only other mode; trust, bypass and hosted search are refused.
 Every ordinary approval is denied and questions are declined. A Model API run
 stays untrusted, so it starts no shell, check, hook, MCP, Git or web-fetch tool
 process. Muse Code exec uses the existing sign-in, never starts a login and
-takes no USD budget.
+takes no USD budget. Headless `exec` offers no subagent tools, by design:
+child tasks are paid and headless has no one to consent, so the agent has
+no flag for them — the built-in explore/second-opinion agents and custom
+agents (roles) cannot run headless.
 
 `exec` takes one literal prompt, `--prompt-file <path>` or `-` for stdin, plus
 up to eight `--untrusted-file <path>` resources. `--output` is `text`, `json`

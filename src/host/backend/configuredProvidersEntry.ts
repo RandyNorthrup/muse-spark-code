@@ -9,5 +9,5 @@ export { ApiKeyAuthSource, NoAuthSource } from '../../core/backends/modelapi/aut
 export { isPaidStop, isUserRefusal } from '../../core/refusal'
 // One headless run's provider assembly rides here too, so dist/headless.js
 // stays on its budget: the packed agent ships this bundle beside it.
-export { assembleProviderRun } from '../../runtime/exec/providerExec'
+export { assembleProviderRun, refreshQualifiedModelOnUse } from '../../runtime/exec/providerExec'
 export { providersFilePath, resolveEndpointHost } from '../../runtime/providerPaths'

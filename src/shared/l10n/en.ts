@@ -384,7 +384,7 @@ export const EN = {
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceProviders:
-    'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
+    'List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
@@ -3884,13 +3884,6 @@ export const EN = {
   },
   workflowAgentsLabel: 'Workflow Agents',
   // A workflow agent's status before it ends; one not listed shows as it came.
-  workflowChildStatuses: {
-    scheduled: 'Queued',
-    started: 'Running',
-    usage: 'Running',
-    completed: 'Completed',
-    terminal: 'Finished',
-  },
   // An agent the workflow gave no label; {number} counts from 1.
   workflowChildUntitled: 'Agent {number}',
   workflowAttempt: 'Attempt {attempt}',
@@ -4875,6 +4868,22 @@ export const EN = {
     one: 'Key works · {count} model.',
     other: 'Key works · {count} models.',
   }),
+  // `providers refresh`: {provider}: the entry id; {models}: the added ids.
+  providerRefreshAdded: forms({
+    one: 'Stored 1 new model on {provider}: {models}.',
+    other: 'Stored {count} new models on {provider}: {models}.',
+  }),
+  // {provider}: the entry id; {models}: filed ids the live list lacks.
+  providerRefreshMissing: 'Still configured on {provider} but no longer listed: {models}.',
+  // {provider}: the entry id.
+  providerRefreshCurrent: forms({
+    one: '{provider} is already current: 1 model.',
+    other: '{provider} is already current: {count} models.',
+  }),
+  // Refresh on use: {model}: the native model id; {provider}: the entry id.
+  providerModelStoredOnUse: 'Stored {model} on {provider} from the provider’s live list.',
+  providerModelStoreFailed:
+    'Could not store {model} on {provider}; this run proceeds without updating the file.',
   // {model}: the `<provider>/<model>` ref whose tool calling is unconfirmed.
   providerModelNoToolCalling:
     '{model} cannot run the coding agent because tool calling is not confirmed for it.',
@@ -6302,7 +6311,12 @@ export const EN = {
   importUntrusted: 'This file is untrusted: check every address before importing.',
   openRouterOrder: 'Preferred Provider Order',
   openRouterFallback: 'Fall Back to Other Providers',
-  keyMissing: 'No Key Stored',
+  keyMissing: 'No Key Stored in the Editor',
+  // Provider keys live in two separate stores (RLTESTDRIVE item 6): the
+  // editor's secret storage for keys entered here, the agent's own OS
+  // credential store entries for keys entered in the terminal.
+  providerKeysSplitStores:
+    'Keys entered here stay in the editor’s secret storage; the terminal agent keeps its own keys in the OS credential store.',
   testRunning: 'Testing…',
   // {shown}: the filtered rows; {count}: every row.
   modelsShownCount: forms({

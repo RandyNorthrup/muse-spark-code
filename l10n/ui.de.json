@@ -299,7 +299,7 @@
   "referenceDialogKeys": "Treffer durchlaufen, die gewählte Unterhaltung aktivieren oder den Dialog schließen.",
   "referencePopoverKeys": "Optionen durchlaufen, einen Wert ändern, eine Option wählen oder das Menü schließen.",
   "referenceExecImages": "Bilder ohne Oberfläche erfordern --image-generation, acceptEdits und ein ausreichendes festes Budget. Es gibt keine Preisabfrage; Anfragen mit Genehmigungspflicht werden abgelehnt.",
-  "referenceProviders": "Modellanbieter auflisten, hinzufügen, testen oder entfernen. Schlüssel liegen im Anmeldedatenspeicher. Kostenpflichtige Tokenprüfungen benötigen den Editor; die CLI verweigert sie.",
+  "referenceProviders": "Modellanbieter auflisten, hinzufügen, testen, aktualisieren oder entfernen. Schlüssel liegen im Anmeldedatenspeicher. Kostenpflichtige Tokenprüfungen benötigen den Editor; die CLI verweigert sie.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Geben Sie das auf dem lokalen Server geladene Kontextfenster ein. Manuelle Werte haben Vorrang vor erkannten Limits.",
     "resource-governor": "--resource-governor on|off: Hält diesen Rechner reaktionsfähig, indem von der Agentenumgebung gestartete Arbeit verlangsamt oder verschoben wird. Standardmäßig aktiviert.",
@@ -3168,13 +3168,6 @@
     "guidanceAuto": "vom Modell gestartet"
   },
   "workflowAgentsLabel": "Workflow-Agenten",
-  "workflowChildStatuses": {
-    "scheduled": "in der Warteschlange",
-    "started": "läuft",
-    "usage": "läuft",
-    "completed": "abgeschlossen",
-    "terminal": "beendet"
-  },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "Versuch {attempt}",
   "workflowsCount": {
@@ -3893,6 +3886,17 @@
     "one": "Schlüssel funktioniert · {count} Modell.",
     "other": "Schlüssel funktioniert · {count} Modelle."
   },
+  "providerRefreshAdded": {
+    "one": "1 neues Modell auf {provider} gespeichert: {models}.",
+    "other": "{count} neue Modelle auf {provider} gespeichert: {models}."
+  },
+  "providerRefreshMissing": "Weiterhin auf {provider} konfiguriert, aber nicht mehr gelistet: {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} ist bereits aktuell: 1 Modell.",
+    "other": "{provider} ist bereits aktuell: {count} Modelle."
+  },
+  "providerModelStoredOnUse": "{model} auf {provider} aus der Live-Liste des Anbieters gespeichert.",
+  "providerModelStoreFailed": "{model} konnte auf {provider} nicht gespeichert werden; der Lauf fährt ohne Aktualisierung der Datei fort.",
   "providerModelNoToolCalling": "{model} kann den Coding-Agenten nicht ausführen, weil Tool-Aufrufe dafür nicht bestätigt sind.",
   "providerAddPickModel": "Fügen Sie eines oder mehrere dieser Modelle mit --model <id> hinzu (wiederholbar):",
   "providerAddNeedsModel": "Geben Sie mindestens ein Modell mit --model <id> an (wiederholbar).",
@@ -4921,7 +4925,8 @@
   "importUntrusted": "Diese Datei ist nicht vertrauenswürdig: Prüfen Sie jede Adresse vor dem Importieren.",
   "openRouterOrder": "Bevorzugte Anbieterreihenfolge",
   "openRouterFallback": "Auf andere Anbieter zurückgreifen",
-  "keyMissing": "Kein Schlüssel gespeichert",
+  "keyMissing": "Kein Schlüssel im Editor gespeichert",
+  "providerKeysSplitStores": "Hier eingegebene Schlüssel bleiben im geheimen Speicher des Editors; der Terminal-Agent bewahrt seine eigenen Schlüssel im Anmeldedatenspeicher des Betriebssystems auf.",
   "testRunning": "Wird getestet…",
   "modelsShownCount": {
     "one": "{shown} von {count} Modell",

@@ -298,7 +298,7 @@
   "referenceDialogKeys": "瀏覽符合項目、開啟所選對話或關閉對話框。",
   "referencePopoverKeys": "瀏覽選項、調整值、選取選項或關閉選單。",
   "referenceExecImages": "無介面圖像需要 --image-generation、acceptEdits 和充足的硬性預算。不顯示價格確認問題；需要許可的請求會被拒絕。",
-  "referenceProviders": "列出、新增、測試或移除模型供應商。金鑰儲存在認證存放區。付費權杖探測需要編輯器；CLI 會拒絕這些探測。",
+  "referenceProviders": "列出、新增、測試、重新整理或移除模型供應商。金鑰儲存在認證存放區。付費權杖探測需要編輯器；CLI 會拒絕這些探測。",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: 輸入本機伺服器載入的上下文視窗。手動值優先於掃描取得的限制。ACP 使用 providers.json 中相同的 modelLimits。",
     "resource-governor": "--resource-governor on|off: 透過減慢或延後代理程式執行環境啟動的工作，保持此電腦回應順暢。預設開啟。",
@@ -3107,13 +3107,6 @@
     "guidanceAuto": "由模型啟動"
   },
   "workflowAgentsLabel": "工作流程代理程式",
-  "workflowChildStatuses": {
-    "scheduled": "排入佇列",
-    "started": "執行中",
-    "usage": "執行中",
-    "completed": "已完成",
-    "terminal": "已結束"
-  },
   "workflowChildUntitled": "代理程式 {number}",
   "workflowAttempt": "第 {attempt} 次嘗試",
   "workflowsCount": {
@@ -3808,6 +3801,15 @@
   "providerTestOk": {
     "other": "金鑰有效 · {count} 個模型。"
   },
+  "providerRefreshAdded": {
+    "other": "已在 {provider} 上儲存 {count} 個新模型：{models}。"
+  },
+  "providerRefreshMissing": "仍在 {provider} 上設定，但不再列出：{models}。",
+  "providerRefreshCurrent": {
+    "other": "{provider} 已是最新：{count} 個模型。"
+  },
+  "providerModelStoredOnUse": "已從提供商的即時清單中將 {model} 儲存到 {provider}。",
+  "providerModelStoreFailed": "無法將 {model} 儲存到 {provider}；本次執行將在不更新檔案的情況下繼續。",
   "providerModelNoToolCalling": "{model} 無法執行編碼代理，因為尚未確認其工具呼叫能力。",
   "providerAddPickModel": "使用 --model <id> 新增其中一個或多個模型（可重複）：",
   "providerAddNeedsModel": "請使用 --model <id> 至少指定一個模型（可重複）。",
@@ -4796,7 +4798,8 @@
   "importUntrusted": "此檔案不可信任：匯入前請檢查每個位址。",
   "openRouterOrder": "慣用供應商順序",
   "openRouterFallback": "回復到其他供應商",
-  "keyMissing": "未儲存金鑰",
+  "keyMissing": "編輯器中未儲存金鑰",
+  "providerKeysSplitStores": "在此處輸入的金鑰保留在編輯器的機密儲存區中；終端代理會將自己的金鑰保存在作業系統的認證儲存區中。",
   "testRunning": "正在測試…",
   "modelsShownCount": {
     "other": "共 {count} 個模型，顯示 {shown} 個"

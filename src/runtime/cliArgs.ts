@@ -195,6 +195,7 @@ export type RuntimeCommand =
   | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
   | { readonly command: 'providersModels'; readonly options: ProvidersModelsOptions }
   | { readonly command: 'providersTest'; readonly provider: string }
+  | { readonly command: 'providersRefresh'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
   | { readonly command: 'openRouterConnect' }
   | { readonly command: 'providerKeyUsage'; readonly provider: string }
@@ -864,6 +865,7 @@ function parseProviders(
         : { ...invalid('providers list'), exitCode: 2 }
     }
     case 'test':
+    case 'refresh':
     case 'remove': {
       const [provider] = rest
       if (provider === undefined || rest.length !== 1) {
@@ -876,7 +878,17 @@ function parseProviders(
           exitCode: 2,
         }
       }
-      return { command: verb === 'test' ? 'providersTest' : 'providersRemove', provider }
+      switch (verb) {
+        case 'test': {
+          return { command: 'providersTest', provider }
+        }
+        case 'refresh': {
+          return { command: 'providersRefresh', provider }
+        }
+        default: {
+          return { command: 'providersRemove', provider }
+        }
+      }
     }
     case 'add': {
       return parseProvidersAdd(values, rest)

@@ -60,7 +60,9 @@ import {
 } from '../state/uiState'
 import type { NoticeAction, ReportEventRef } from '../../shared/protocol'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
-import { agentStatusLabel, formatDurationMs } from '../agentFormat'
+import { agentStateText } from '../../shared/agentOutcome'
+import { useAgentClock } from '../useAgentClock'
+import { formatDurationMs } from '../agentFormat'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
 import { ExternalLink } from './ExternalLink'
@@ -920,6 +922,42 @@ function ReportThisButton({
   )
 }
 
+/**
+A subagent's transcript row: one true status, as the Agent map reads it.
+The raw status field can lag the controls (a closed Muse Code child
+still reads inProgress), so the derived activity and outcome render, and
+the row's own clock expires the activity window without another event.
+*/
+function SubagentRow({
+  entry,
+}: {
+  readonly entry: Extract<TranscriptEntry, { kind: 'subagent' }>
+}) {
+  const now = useAgentClock()
+  return (
+    <li className="activity activity-subagent" data-status={entry.status}>
+      <span className="activity-kind">{UI_TEXT.subagentRowLabel}</span>
+      {entry.paid === undefined ? null : <PaidBadge feature={entry.paid} />}
+      <span className="activity-status" dir="auto">
+        {[
+          entry.objective ?? entry.role ?? UI_TEXT.agentUntitled,
+          entry.durationMs === undefined ? undefined : formatDurationMs(entry.durationMs),
+          agentStateText(
+            {
+              status: entry.status,
+              controlStatus: entry.controlStatus,
+              evidence: entry.agentEvidence,
+            },
+            now,
+          ),
+        ]
+          .filter((part) => part !== undefined)
+          .join(' · ')}
+      </span>
+    </li>
+  )
+}
+
 function OtherRow({
   entry,
   onReportProblem,
@@ -944,25 +982,7 @@ function OtherRow({
 }) {
   switch (entry.kind) {
     case 'subagent': {
-      return (
-        <li className="activity activity-subagent" data-status={entry.status}>
-          <span className="activity-kind">{UI_TEXT.subagentRowLabel}</span>
-          {entry.paid === undefined ? null : <PaidBadge feature={entry.paid} />}
-          <span className="activity-status" dir="auto">
-            {[
-              entry.objective ?? entry.role ?? UI_TEXT.agentUntitled,
-              entry.durationMs === undefined ? undefined : formatDurationMs(entry.durationMs),
-              agentStatusLabel(
-                entry.status === 'inProgress'
-                  ? entry.status
-                  : (entry.controlStatus ?? entry.status),
-              ),
-            ]
-              .filter((part) => part !== undefined)
-              .join(' · ')}
-          </span>
-        </li>
-      )
+      return <SubagentRow entry={entry} />
     }
     case 'item': {
       return (

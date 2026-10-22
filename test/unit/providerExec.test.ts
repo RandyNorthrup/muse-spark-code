@@ -3,11 +3,13 @@
 // and a failed resolve reads as unreachable with nothing sent.
 import { describe, expect, it } from 'vitest'
 import { UserRefusalError } from '../../src/core/refusal'
-import { presetById } from '../../src/core/providers/presets'
+import { azureOrigin, presetById } from '../../src/core/providers/presets'
 import type { ProviderEntry, ProvidersFile } from '../../src/core/providers/providersFile'
 import {
   allowedProviderPaths,
+  diffLiveModels,
   pinProviderFetch,
+  providerModelsPath,
   readProviderKey,
   resolveProvider,
   type ResolvedProvider,
@@ -40,6 +42,12 @@ async function resolved(): Promise<ResolvedProvider> {
   const result = await resolveProvider(FILE, 'testprovider', presetById, resolveAnswers)
   if (!result.ok) throw new Error(result.error)
   return result.provider
+}
+
+function resolvedOver(entry: ProviderEntry, presetId: string, origin: string): ResolvedProvider {
+  const preset = presetById(presetId)
+  if (preset === undefined) throw new Error(`missing preset ${presetId}`)
+  return { entry, preset, origin, network: 'public', request: undefined }
 }
 
 describe('providerExec boundary rules', () => {
@@ -105,5 +113,40 @@ describe('providerExec boundary rules', () => {
     const plain = new Error('boom')
     const passing = pinProviderFetch(() => Promise.reject(plain), provider, rules, resolveAnswers)
     await expect(passing(url)).rejects.toBe(plain)
+  })
+})
+
+describe('live-list refresh diff (RLTESTDRIVE item 5)', () => {
+  it('adds live ids the file lacks in live order, and names filed ids the list lacks', () => {
+    expect(diffLiveModels(['b', 'stale'], ['a', 'b', 'c'])).toEqual({
+      added: ['a', 'c'],
+      missing: ['stale'],
+    })
+  })
+
+  it('reads current when the file already carries every live id', () => {
+    expect(diffLiveModels(['a', 'b'], ['b', 'a'])).toEqual({ added: [], missing: [] })
+  })
+})
+
+describe('providerModelsPath (RLTESTDRIVE item 5)', () => {
+  it('lists below the fixed origin where the entry names no address', () => {
+    const provider = resolvedOver(
+      { id: 'x', preset: 'anthropic', auth: 'apiKey', models: [] },
+      'anthropic',
+      'https://api.anthropic.com',
+    )
+    expect(providerModelsPath(provider)).toBe('/v1/models')
+  })
+
+  it('lists below the /openai/v1 root for an Azure resource-name address', () => {
+    const origin = azureOrigin('myresource')
+    if (origin === undefined) throw new Error('bad azure resource name')
+    const provider = resolvedOver(
+      { id: 'x', preset: 'azure', address: 'myresource', auth: 'apiKey', models: [] },
+      'azure',
+      origin,
+    )
+    expect(providerModelsPath(provider)).toBe('/openai/v1/models')
   })
 })

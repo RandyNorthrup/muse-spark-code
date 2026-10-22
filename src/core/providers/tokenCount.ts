@@ -76,10 +76,16 @@ export function buildExactCountRequest(
       if (!encoded.path.endsWith('/messages')) return undefined
       const body = asRecord(encoded.body)
       if (body === undefined) return undefined
-      return {
-        path: `${encoded.path}/count_tokens`,
-        body: without(body, ['max_tokens', 'stream', 'metadata']),
-      }
+      const countBody = without(body, ['max_tokens', 'stream', 'metadata'])
+      // Manual thinking (`type: enabled`) carries budget_tokens, which the
+      // count endpoint documents as requiring max_tokens — a parameter the
+      // count endpoint does not accept — so a manual-thinking count is
+      // rejected on every request (RLTESTDRIVE item 2, 2026-10-22). The
+      // thinking parameter is configuration, not input content, so dropping
+      // it does not change the counted tokens; adaptive, disabled and
+      // between-tools thinking stay, as documented without max_tokens.
+      if (asRecord(countBody['thinking'])?.['type'] === 'enabled') delete countBody['thinking']
+      return { path: `${encoded.path}/count_tokens`, body: countBody }
     }
   }
 }

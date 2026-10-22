@@ -21,6 +21,7 @@ export function cliCommands(shouldIncludeHeld = false) {
     providersList: [['providers', 'list']],
     providersAdd: [['providers', 'add']],
     providersTest: [['providers', 'test']],
+    providersRefresh: [['providers', 'refresh']],
     providersRemove: [['providers', 'remove']],
     chatGptProvider: ['add', 'remove', 'status'].map((action) => ['providers', action, 'chatgpt']),
     serve: [[]],
@@ -146,6 +147,12 @@ export function cliCommands(shouldIncludeHeld = false) {
     {
       route: 'providersTest',
       name: 'providers test <id>',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'providersRefresh',
+      name: 'providers refresh <id>',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
     },

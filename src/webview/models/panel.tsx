@@ -188,9 +188,9 @@ export function ModelsPanel({
     })
   }
   const wizardLife = useWizardLife(ui)
-  // The vault's navigation stays hidden until the host offers it
-  // (C-M109-1 P1): a hidden section is never rendered and never navigable,
-  // so the panel reads exactly as before while the gate is off.
+  // A section with a gate hides until the host offers it; none gates any
+  // more (RLTESTDRIVE 10: the vault tab is always present, with its state
+  // or its reason).
   const visible = MODEL_SECTIONS.filter((section) => section.isOffered?.(panelState) ?? true)
   const active = visible.find((section) => section.id === ui.section) ?? visible[0]
   if (active === undefined) {

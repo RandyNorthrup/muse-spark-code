@@ -5,6 +5,7 @@ import { uiLocale } from '../shared/l10n/text'
 import {
   ChatGptSignIn,
   ChatGptSignInError,
+  chatGptGrantStatus,
   chatGptRecordSchema,
   type ChatGptHostPort,
 } from '../core/providers/subscriptions/chatgpt'
@@ -136,7 +137,7 @@ export async function runChatGptProviderCommand(
         if (stored === undefined) return 'signed-out'
         const parsed = chatGptRecordSchema.safeParse(stored)
         if (!parsed.success) throw new ChatGptSignInError('grant-unreadable')
-        return parsed.data.expiresAt > host.now() ? 'signed-in' : 'expired'
+        return chatGptGrantStatus(parsed.data, host.now())
       })
       deps.print(deps.text.status(state))
       return state === 'signed-out' ? 1 : 0

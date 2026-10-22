@@ -55,6 +55,11 @@ export const vaultStatusSchema = z.strictObject({
       'watchLost',
       'unreachable',
       'storeUnavailable',
+      // RLTESTDRIVE 10: host-synthesized, like the transient reasons above
+      // (the broker never sends it): the panel cannot build its binding
+      // because the vault is switched off in settings. The tab shows the
+      // settings sentence instead of borrowing the repair message.
+      'switchedOff',
     ]),
   ),
 })
