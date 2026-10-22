@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 267,
+      "GENERIC": 264,
       "CLEANUP": 235
     },
     "host": {
@@ -1737,21 +1737,6 @@
       "file": "src/core/providers/providersFile.ts",
       "identity": "a18a77269a33bcebe34abf0f784c7909addfac43b8b1110fd8af299bf5946527",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "8dc2b91469c546face0d6e2ffd81d65b813c1f0e910773a8f537a8da50c57dac",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "c81997a0bee51522b46c8dd82e5af61f941cc8d7174b98709112bb6bb55b778a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "3caf2ceee86701aeade4df474269650377a60007f6f3be1bb88dc3a636095772",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/providers/subscriptions/chatgpt.ts",

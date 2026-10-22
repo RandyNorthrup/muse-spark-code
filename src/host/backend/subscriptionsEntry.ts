@@ -11,6 +11,23 @@ export {
   isChatGptHostId,
 } from '../../core/providers/subscriptions/chatgptHostId'
 export {
+  GrokSignIn,
+  GrokSignInError,
+  buildGrokAuthorizeUrl,
+  grokAccountIdHash,
+  grokRecordSchema,
+  parseGrokCallback,
+  parseGrokDeviceCode,
+  requireGrokClientId,
+  resolveGrokScopes,
+  verifyGrokIdToken,
+} from '../../core/providers/subscriptions/grok'
+export type {
+  GrokDevicePrompt,
+  GrokHostPort,
+  GrokRecord,
+} from '../../core/providers/subscriptions/grok'
+export {
   createSubscriptionClient,
   chatGptCatalog,
   chatGptModels,
