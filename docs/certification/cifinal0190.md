@@ -803,3 +803,10 @@ open, two failure toasts) it is the second hosted-runner vault flow failure
 with an empty log. The step message now also names how many frames the
 panel published and its last states, so the next one shows whether the
 step ever ran; the defect is a recovery lane's to find and fix.
+
+PR #258's second run, head `d0a39a70ed` (CI run 39724540034, capacity run
+39724610207): macOS shard 8 ended "The runner has received a shutdown
+signal. This can happen when the runner service is stopped, or a manually
+started runner is canceled." and "The operation was canceled." No test
+failed; every other job passed. A rerun on the same commit is refused
+(AGENTS.md rule 2), so this record is the new commit.
