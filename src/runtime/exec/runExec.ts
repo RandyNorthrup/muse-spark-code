@@ -1413,6 +1413,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw error_
     }
   } catch (error_: unknown) {
+    // Terminal classification for finish(): the kind feeds setup.isUsageError
+    // and the status/error the result carries, and finish() logs the redacted
+    // failure there; a second log line here would double-report.
     if (
       error_ instanceof Error &&
       'code' in error_ &&
