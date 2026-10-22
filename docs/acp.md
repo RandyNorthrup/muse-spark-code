@@ -753,6 +753,10 @@ resolved output cap (1024 by default), including cache-write premiums. The refus
 shows the arithmetic. Contributor requires explicit
 opt-in and training eligibility. Images require Model API, explicit flag,
 acceptEdits, budget and per-use admission/tally; no grant store is used.
+Headless `exec` offers no subagent tools, by design: child tasks are paid
+and headless has no one to consent, so the agent has no flag for them —
+the built-in explore/second-opinion agents and custom agents (roles)
+cannot run headless.
 
 Outputs are text, one JSON result, or versioned JSONL. Exits: completed 0,
 internal 1, usage/input 2 (no result), auth/backend unavailable 3, failed 4,

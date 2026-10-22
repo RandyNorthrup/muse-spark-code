@@ -5503,7 +5503,10 @@ Accept edits the only other mode; trust, bypass and hosted search are refused.
 Every ordinary approval is denied and questions are declined. A Model API run
 stays untrusted, so it starts no shell, check, hook, MCP, Git or web-fetch tool
 process. Muse Code exec uses the existing sign-in, never starts a login and
-takes no USD budget.
+takes no USD budget. Headless `exec` offers no subagent tools, by design:
+child tasks are paid and headless has no one to consent, so the agent has
+no flag for them — the built-in explore/second-opinion agents and custom
+agents (roles) cannot run headless.
 
 `exec` takes one literal prompt, `--prompt-file <path>` or `-` for stdin, plus
 up to eight `--untrusted-file <path>` resources. `--output` is `text`, `json`
