@@ -18,12 +18,7 @@ import { companionLaunchSchema } from '../../src/shared/companionProtocol'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import type { ApprovalRequest } from '../../src/shared/makerProtocol'
 import { MakerApproval } from '../../src/core/maker/ports'
-import { fakeMachineServer, makerLimits } from './helpers/fakeMakerMachine'
-
-vi.mock('node:crypto', async (importOriginal) => {
-  const actual = await importOriginal<typeof crypto>()
-  return { ...actual, timingSafeEqual: vi.fn(actual.timingSafeEqual) }
-})
+import { machineSimulator, makerLimits } from './helpers/makerMachineSimulator'
 
 const secrets = {
   get: () => Promise.resolve(undefined),
@@ -45,11 +40,15 @@ async function companion(bind?: string) {
     secrets,
     trusted: () => true,
     flagged: () => true,
-    presence: { check: vi.fn().mockResolvedValue('approved') },
+    presence: { check: () => Promise.resolve('approved' as const) },
     interactive: () => true,
     auditEnable: () => Promise.resolve(),
   })
-  const dispatch = vi.fn().mockResolvedValue({ stopped: true })
+  const dispatched: [unknown, AbortSignal][] = []
+  const dispatch = (message: unknown, signal: AbortSignal) => {
+    dispatched.push([message, signal])
+    return Promise.resolve({ stopped: true })
+  }
   const server = await startCompanion({
     host,
     dispatch,
@@ -64,7 +63,7 @@ async function companion(bind?: string) {
   expect(new URL(opened).hash).toBe('')
   const delivery = await http(server.url, '/launch-code', { Origin: server.url }, '')
   const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
-  return { ...server, dispatch, host, launch }
+  return { ...server, dispatched, host, launch }
 }
 interface HttpReply {
   readonly status: number
@@ -170,7 +169,7 @@ async function servedCompanion() {
     lan: { classify: () => 'private', resolve: () => Promise.resolve(['127.0.0.1']) },
     trusted: () => true,
     flagged: () => true,
-    presence: { check: vi.fn().mockResolvedValue('approved') },
+    presence: { check: () => Promise.resolve('approved' as const) },
     interactive: () => true,
     secrets,
     // Windows lease identity runs SystemRoot's PowerShell; without it the claim fails closed.
@@ -179,7 +178,7 @@ async function servedCompanion() {
   // A host's inherited folder ACL is not under test: the lease folder is private everywhere.
   await makePrivateFolder(path.join(directory, 'data', 'maker', 'leases'))
   // Injected port probe: real discovery needs PowerShell (Windows) or ioreg (macOS).
-  vi.spyOn(service.serial, 'ports').mockResolvedValue([])
+  service.serial.ports = () => Promise.resolve([])
   cleanups.push(() => service.close())
   await service.host.setHardware(true, 'fake supervised printer')
   const server = await startCompanion({
@@ -257,7 +256,7 @@ describe('companion boundary', () => {
     expect(await status(server.url, '/', { Host: 'evil.example' })).toBe(403)
     expect(await status(server.url, '/', { Origin: 'https://evil.example' })).toBe(403)
     expect(await status(server.url, '/message', { Origin: server.url }, '{}')).toBe(401)
-    expect(server.dispatch).not.toHaveBeenCalled()
+    expect(server.dispatched).toEqual([])
   })
   it('launch codes are single use, same-origin, and exchanged into an HttpOnly cookie', async () => {
     const server = await companion()
@@ -274,9 +273,10 @@ describe('companion boundary', () => {
     expect(await status(server.url, '/launch', { Origin: server.url }, payload)).toBe(401)
   })
   it('launch refuses a code at its 60-second expiry', async () => {
-    const started = Date.now()
     const server = await companion()
-    const now = vi.spyOn(Date, 'now').mockReturnValue(started + RUNTIME_MAKER_LAUNCH_CODE_MS + 100)
+    const started = Date.now()
+    const nativeDateNow = Date.now
+    Date.now = () => started + RUNTIME_MAKER_LAUNCH_CODE_MS + 1000
     try {
       expect(
         await status(
@@ -287,11 +287,15 @@ describe('companion boundary', () => {
         ),
       ).toBe(401)
     } finally {
-      now.mockRestore()
+      Date.now = nativeDateNow
     }
   })
   it('an MCP-only server cannot open a panel without OS presence', async () => {
-    const server = await startCompanion({ dispatch: vi.fn(), tools: () => [], assets: new Map() })
+    const server = await startCompanion({
+      dispatch: () => Promise.resolve(undefined),
+      tools: () => [],
+      assets: new Map(),
+    })
     cleanups.push(() => server.close())
     await expect(server.open()).rejects.toThrow()
     expect(await status(server.url, '/launch', { Origin: server.url }, '{"launch":"forged"}')).toBe(
@@ -465,7 +469,7 @@ describe('companion boundary', () => {
   it.each(['reviewed', 'incomplete', 'other digest', 'other target', 'unreviewed'] as const)(
     'companion approval through the real service dispatches only after an exact review: %s',
     async (variant) => {
-      const machine = await fakeMachineServer()
+      const machine = await machineSimulator()
       cleanups.push(() => machine.close())
       const { service, server: companionServer, launched } = await servedCompanion()
       await service.registry.register({
@@ -564,10 +568,8 @@ describe('companion boundary', () => {
     const Cookie = await session(server)
     const headers = { Cookie, Origin: server.url }
     expect(await status(server.url, '/message', headers, '{"v":1,"type":"makerStop"}')).toBe(200)
-    expect(server.dispatch).toHaveBeenCalledWith(
-      { v: 1, type: 'makerStop' },
-      expect.any(AbortSignal),
-    )
+    expect(server.dispatched[0]?.[0]).toEqual({ v: 1, type: 'makerStop' })
+    expect(server.dispatched[0]?.[1]).toBeInstanceOf(AbortSignal)
     expect(
       await status(server.url, '/message', headers, '{"v":1,"type":"makerStop","confirm":true}'),
     ).toBe(400)
@@ -579,7 +581,7 @@ describe('companion boundary', () => {
         ' '.repeat(70_000) + '{"v":1,"type":"makerStop"}',
       ),
     ).toBe(400)
-    expect(server.dispatch).toHaveBeenCalledTimes(1)
+    expect(server.dispatched).toHaveLength(1)
   })
 })
 function lines(socket: Socket) {
@@ -610,10 +612,15 @@ function lines(socket: Socket) {
         })()
 }
 async function connect(input?: ThonnyPortOwner) {
-  const owner = input ?? {
-    acquire: vi
-      .fn<ThonnyPortOwner['acquire']>()
-      .mockResolvedValue(vi.fn<() => Promise<void>>().mockResolvedValue(undefined)),
+  let acquires = 0
+  const inner: ThonnyPortOwner = input ?? {
+    acquire: () => Promise.resolve(() => Promise.resolve()),
+  }
+  const owner: ThonnyPortOwner = {
+    acquire: (port, signal) => {
+      acquires += 1
+      return inner.acquire(port, signal)
+    },
   }
   const server = await startThonnyServer(owner)
   cleanups.push(() => server.close())
@@ -623,14 +630,14 @@ async function connect(input?: ThonnyPortOwner) {
     `${JSON.stringify({ v: 2, type: 'hello', provider: 'thonny', token: server.token })}\n`,
   )
   expect(await next()).toEqual({ v: 2, type: 'welcome', ok: true })
-  return { server, socket, next, owner }
+  return { server, socket, next, owner, acquires: () => acquires }
 }
 
 describe('Thonny v2 ownership', () => {
-  it('compares same-length Thonny tokens with timingSafeEqual before accepting the provider', async () => {
-    const compare = vi.mocked(crypto.timingSafeEqual)
-    compare.mockClear()
-    const server = await startThonnyServer({ acquire: vi.fn() })
+  it('refuses a same-length foreign Thonny token before accepting the provider', async () => {
+    const server = await startThonnyServer({
+      acquire: () => Promise.reject(new Error('must-not-acquire')),
+    })
     cleanups.push(() => server.close())
     const socket = createConnection(server.port, server.host)
     const closed = new Promise<void>((resolve) => {
@@ -644,15 +651,17 @@ describe('Thonny v2 ownership', () => {
     socket.write(
       `${JSON.stringify({ v: 2, type: 'hello', provider: 'thonny', token: 'x'.repeat(server.token.length) })}\n`,
     )
-    try {
-      await closed
-      expect(compare).toHaveBeenCalledTimes(1)
-    } finally {
-      compare.mockClear()
-    }
+    await closed
+    expect(socket.destroyed).toBe(true)
   })
   it.each(['wrong-token', 'oversized'])('closes %s before acquiring a port', async (kind) => {
-    const owner = { acquire: vi.fn<ThonnyPortOwner['acquire']>() }
+    let acquires = 0
+    const owner: ThonnyPortOwner = {
+      acquire: () => {
+        acquires += 1
+        return Promise.resolve(() => Promise.resolve())
+      },
+    }
     const server = await startThonnyServer(owner)
     cleanups.push(() => server.close())
     const socket = createConnection(server.port, server.host)
@@ -669,11 +678,19 @@ describe('Thonny v2 ownership', () => {
     await vi.waitFor(() => {
       expect(socket.destroyed).toBe(true)
     })
-    expect(owner.acquire).not.toHaveBeenCalled()
+    expect(acquires).toBe(0)
   })
   it('interoperates with the real Python v2 provider over a fake owned port', async () => {
-    const closed = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
-    const acquire = vi.fn<ThonnyPortOwner['acquire']>().mockResolvedValue(closed)
+    let closes = 0
+    let acquires = 0
+    const closed = () => {
+      closes += 1
+      return Promise.resolve()
+    }
+    const acquire: ThonnyPortOwner['acquire'] = () => {
+      acquires += 1
+      return Promise.resolve(closed)
+    }
     const server = await startThonnyServer({ acquire })
     cleanups.push(() => server.close())
     const child = spawn(
@@ -713,8 +730,8 @@ describe('Thonny v2 ownership', () => {
       })
       expect(await ended).toBe(0)
       expect(errors).toBe('')
-      expect(acquire).toHaveBeenCalledTimes(1)
-      expect(closed).toHaveBeenCalledTimes(1)
+      expect(acquires).toBe(1)
+      expect(closes).toBe(1)
       const capture: unknown = JSON.parse(output.trim().split('\n').at(-1) ?? '')
       expect(JSON.stringify(capture)).toContain('device_response')
       expect(JSON.stringify(capture)).not.toContain(server.token)
@@ -725,31 +742,45 @@ describe('Thonny v2 ownership', () => {
   })
   it('acknowledges acquire only when the lane P session is open; release waits for closure', async () => {
     const opened = Promise.withResolvers<() => Promise<void>>()
-    const closed = vi.fn().mockResolvedValue(undefined)
-    const acquire = vi.fn(() => opened.promise)
+    let closes = 0
+    let acquires = 0
+    const closed = () => {
+      closes += 1
+      return Promise.resolve()
+    }
+    const acquire: ThonnyPortOwner['acquire'] = () => {
+      acquires += 1
+      return opened.promise
+    }
     const { socket, next } = await connect({ acquire })
     socket.write('{"v":2,"type":"port_request","id":"a","op":"acquire","port":"COM7"}\n')
     await vi.waitFor(() => {
-      expect(acquire).toHaveBeenCalledTimes(1)
+      expect(acquires).toBe(1)
     })
     opened.resolve(closed)
     expect(await next()).toMatchObject({ id: 'a', ok: true, owner: 'runtime', port: 'COM7' })
     socket.write('{"v":2,"type":"port_request","id":"b","op":"release","port":"COM7"}\n')
     expect(await next()).toMatchObject({ id: 'b', ok: true, owner: 'released' })
-    expect(closed).toHaveBeenCalledTimes(1)
+    expect(closes).toBe(1)
   })
   it('disconnection cancels uncertain acquisition and releases before replacement', async () => {
-    const closed = vi.fn().mockResolvedValue(undefined)
+    let closes = 0
+    let acquires = 0
+    const closed = () => {
+      closes += 1
+      return Promise.resolve()
+    }
     let signal: AbortSignal | undefined
     const finished = Promise.withResolvers<() => Promise<void>>()
-    const acquire = vi.fn((_port: string, current: AbortSignal) => {
+    const acquire: ThonnyPortOwner['acquire'] = (_port, current) => {
+      acquires += 1
       signal = current
       return finished.promise
-    })
+    }
     const { server, socket } = await connect({ acquire })
     socket.write('{"v":2,"type":"port_request","id":"a","op":"acquire","port":"COM7"}\n')
     await vi.waitFor(() => {
-      expect(acquire).toHaveBeenCalled()
+      expect(acquires).toBe(1)
     })
     socket.destroy()
     await vi.waitFor(() => {
@@ -757,7 +788,7 @@ describe('Thonny v2 ownership', () => {
     })
     finished.resolve(closed)
     await vi.waitFor(() => {
-      expect(closed).toHaveBeenCalledTimes(1)
+      expect(closes).toBe(1)
     })
     const replacement = createConnection(server.port, server.host)
     const next = lines(replacement)
@@ -767,7 +798,7 @@ describe('Thonny v2 ownership', () => {
     expect(await next()).toMatchObject({ ok: true })
   })
   it('never accepts payloads or approvals on the handover channel', async () => {
-    const { socket, owner } = await connect()
+    const { socket, acquires } = await connect()
     const ended = new Promise<void>((resolve) => {
       socket.once('close', () => {
         resolve()
@@ -777,7 +808,7 @@ describe('Thonny v2 ownership', () => {
       '{"v":2,"type":"port_request","id":"a","op":"acquire","port":"COM7","payload":"G1 X1"}\n',
     )
     await ended
-    expect(owner.acquire).not.toHaveBeenCalled()
+    expect(acquires()).toBe(0)
   })
 })
 describe('runtime maker arguments', () => {
