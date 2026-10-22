@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   CHATGPT_REFRESH_LOCK_TIMEOUT_MS,
   withChatGptRefreshLock,
-} from '../../src/runtime/chatGptRefreshLock'
+} from '../../src/runtime/subscriptionRefreshLock'
 import { ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgptHostId'
 import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
 import { CHATGPT_GRANT_LOCK_FILE, OAUTH_CODE_TTL_MS } from '../../src/shared/constants'
@@ -27,7 +27,7 @@ beforeAll(async () => {
   await mkdir(temp, { recursive: true })
   scratch.folder = await mkdtemp(path.join(temp, 'm95b-x-lock-'))
   await build({
-    entryPoints: [path.resolve('src/runtime/chatGptRefreshLock.ts')],
+    entryPoints: [path.resolve('src/runtime/subscriptionRefreshLock.ts')],
     outfile: path.join(scratch.folder, 'lock.cjs'),
     bundle: true,
     platform: 'node',

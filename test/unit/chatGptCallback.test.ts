@@ -5,7 +5,7 @@ import { get } from 'node:http'
 import { connect } from 'node:net'
 import { describe, expect, it } from 'vitest'
 import { ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgpt'
-import { startChatGptCallback } from '../../src/runtime/chatGptCallback'
+import { startChatGptCallback } from '../../src/runtime/subscriptionCallback'
 
 const STATE = 'abcdefghijklmnopqrst'
 const pageText = () => 'callback page'

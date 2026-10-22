@@ -11,7 +11,7 @@
 // entry: a live one means another holder, and it gives its own up and waits.
 // Dead entries are removed only after the PID in their name is proven gone.
 // Age cannot prove death: a process can be suspended between bind and listen.
-// A live process's not-yet-listening entry must never be unlinked. The grant lock (chatGptRefreshLock.ts) and the credential store's
+// A live process's not-yet-listening entry must never be unlinked. The grant lock (subscriptionRefreshLock.ts) and the credential store's
 // per-account owner (keyStore.ts) are two names on this mechanism.
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { lstat, mkdir, readdir, unlink } from 'node:fs/promises'
