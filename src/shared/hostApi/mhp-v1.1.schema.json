@@ -7572,7 +7572,7 @@
                         "type": { "type": "string", "const": "setEffort" },
                         "effort": {
                           "type": "string",
-                          "enum": ["minimal", "low", "medium", "high", "xhigh", "max"]
+                          "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
                         }
                       },
                       "required": ["type", "effort"],
@@ -7582,6 +7582,15 @@
                       "type": "object",
                       "properties": {
                         "type": { "type": "string", "const": "setThinking" },
+                        "enabled": { "type": "boolean" }
+                      },
+                      "required": ["type", "enabled"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "setFast" },
                         "enabled": { "type": "boolean" }
                       },
                       "required": ["type", "enabled"],
@@ -10376,7 +10385,7 @@
                         "type": { "type": "string", "const": "attachImageData" },
                         "name": { "type": "string" },
                         "mediaType": { "type": "string" },
-                        "base64": { "type": "string", "maxLength": 42666668 },
+                        "base64": { "type": "string", "maxLength": 66666668 },
                         "requestId": { "type": "string" },
                         "attachmentEpoch": { "type": "number" }
                       },
@@ -10912,6 +10921,16 @@
                     {
                       "type": "object",
                       "properties": {
+                        "type": { "type": "string", "const": "startPlayback" },
+                        "localId": { "type": "string" },
+                        "text": { "type": "string" }
+                      },
+                      "required": ["type", "localId", "text"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
                         "type": { "type": "string", "const": "readReviewChanges" },
                         "requestId": { "type": "string" },
                         "edits": {
@@ -11299,6 +11318,15 @@
                     {
                       "type": "object",
                       "properties": {
+                        "type": { "type": "string", "const": "deleteSession" },
+                        "sessionId": { "type": "string" }
+                      },
+                      "required": ["type", "sessionId"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
                         "type": { "type": "string", "const": "forkSession" },
                         "lastTurnId": { "type": "string" },
                         "attachmentEpoch": { "type": "number" }
@@ -11359,6 +11387,23 @@
                     {
                       "type": "object",
                       "properties": {
+                        "type": { "type": "string", "const": "deleteUploadedFile" },
+                        "fileId": { "type": "string" }
+                      },
+                      "required": ["type", "fileId"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "deleteAllUploadedFiles" }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
                         "type": { "type": "string", "const": "dictation" },
                         "action": { "type": "string", "enum": ["start", "stop"] }
                       },
@@ -11372,6 +11417,7 @@
                         "feature": {
                           "type": "string",
                           "enum": [
+                            "autoCompaction",
                             "webSearch",
                             "imageGeneration",
                             "voice",
@@ -11409,6 +11455,9 @@
                             "openPullRequest",
                             "refreshPullRequest",
                             "signInGitHub",
+                            "signInGitHubWithCode",
+                            "cancelGitHubSignIn",
+                            "signOutGitHub",
                             "trustWorktree",
                             "cancel"
                           ]
@@ -11986,7 +12035,11 @@
                     },
                     {
                       "type": "object",
-                      "properties": { "type": { "type": "string", "const": "focusInput" } },
+                      "properties": {
+                        "type": { "type": "string", "const": "focusInput" },
+                        "token": { "type": "string" },
+                        "issuedAt": { "type": "number" }
+                      },
                       "required": ["type"],
                       "additionalProperties": false
                     },
@@ -12204,7 +12257,6 @@
                               "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
                             },
                             "findings": {
-                              "maxItems": 500,
                               "type": "array",
                               "items": {
                                 "type": "object",
@@ -12289,7 +12341,6 @@
                               }
                             },
                             "evidenceFiles": {
-                              "maxItems": 20000,
                               "type": "array",
                               "items": {
                                 "type": "object",
@@ -12635,7 +12686,8 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           }
-                        }
+                        },
+                        "canDeleteSessions": { "type": "boolean" }
                       },
                       "required": ["type", "sessions", "archivedIds"],
                       "additionalProperties": false
@@ -12749,6 +12801,7 @@
                               "paid": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -12989,7 +13042,14 @@
                                 "properties": {
                                   "stopReason": {
                                     "type": "string",
-                                    "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                    "enum": [
+                                      "normal",
+                                      "budget",
+                                      "limit",
+                                      "error",
+                                      "cancelled",
+                                      "unknown"
+                                    ]
                                   },
                                   "reportedComplete": { "type": "boolean" },
                                   "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -13068,6 +13128,7 @@
                                               "enum": [
                                                 "normal",
                                                 "budget",
+                                                "limit",
                                                 "error",
                                                 "cancelled",
                                                 "unknown"
@@ -13106,7 +13167,14 @@
                                   "properties": {
                                     "stopReason": {
                                       "type": "string",
-                                      "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                      "enum": [
+                                        "normal",
+                                        "budget",
+                                        "limit",
+                                        "error",
+                                        "cancelled",
+                                        "unknown"
+                                      ]
                                     },
                                     "reportedComplete": { "type": "boolean" },
                                     "unfinished": {
@@ -13188,6 +13256,7 @@
                                                 "enum": [
                                                   "normal",
                                                   "budget",
+                                                  "limit",
                                                   "error",
                                                   "cancelled",
                                                   "unknown"
@@ -13393,14 +13462,74 @@
                               },
                               "inputTokens": { "type": "number" },
                               "outputTokens": { "type": "number" },
-                              "costUsd": { "type": "number" },
+                              "costUsd": {
+                                "anyOf": [
+                                  { "type": "number", "minimum": 0 },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                  }
+                                ]
+                              },
+                              "keyUsageError": { "type": "string" },
                               "keyUsage": {
                                 "type": "object",
                                 "properties": {
-                                  "todayUsd": { "type": "number" },
-                                  "monthUsd": { "type": "number" },
-                                  "limitUsd": { "type": "number" },
-                                  "remainingUsd": { "type": "number" }
+                                  "totalUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
+                                  "unlimited": { "type": "boolean" },
+                                  "weekUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
+                                  "todayUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
+                                  "monthUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
+                                  "limitUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
+                                  "remainingUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  }
                                 },
                                 "required": ["todayUsd", "monthUsd"],
                                 "additionalProperties": false
@@ -13425,7 +13554,15 @@
                                 "tasks": { "type": "number" },
                                 "inputTokens": { "type": "number" },
                                 "outputTokens": { "type": "number" },
-                                "costUsd": { "type": "number" },
+                                "costUsd": {
+                                  "anyOf": [
+                                    { "type": "number", "minimum": 0 },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                    }
+                                  ]
+                                },
                                 "estimated": { "type": "boolean" }
                               },
                               "required": [
@@ -13443,7 +13580,15 @@
                                 "tasks": { "type": "number" },
                                 "inputTokens": { "type": "number" },
                                 "outputTokens": { "type": "number" },
-                                "costUsd": { "type": "number" },
+                                "costUsd": {
+                                  "anyOf": [
+                                    { "type": "number", "minimum": 0 },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                    }
+                                  ]
+                                },
                                 "estimated": { "type": "boolean" }
                               },
                               "required": [
@@ -13469,7 +13614,15 @@
                                       "tasks": { "type": "number" },
                                       "inputTokens": { "type": "number" },
                                       "outputTokens": { "type": "number" },
-                                      "costUsd": { "type": "number" },
+                                      "costUsd": {
+                                        "anyOf": [
+                                          { "type": "number", "minimum": 0 },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                          }
+                                        ]
+                                      },
                                       "estimated": { "type": "boolean" }
                                     },
                                     "required": [
@@ -13505,7 +13658,15 @@
                                       "tasks": { "type": "number" },
                                       "inputTokens": { "type": "number" },
                                       "outputTokens": { "type": "number" },
-                                      "costUsd": { "type": "number" },
+                                      "costUsd": {
+                                        "anyOf": [
+                                          { "type": "number", "minimum": 0 },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                          }
+                                        ]
+                                      },
                                       "estimated": { "type": "boolean" }
                                     },
                                     "required": [
@@ -13687,7 +13848,15 @@
                                               "elapsedMs": { "type": "number" },
                                               "inputTokens": { "type": "number" },
                                               "outputTokens": { "type": "number" },
-                                              "costUsd": { "type": "number" },
+                                              "costUsd": {
+                                                "anyOf": [
+                                                  { "type": "number", "minimum": 0 },
+                                                  {
+                                                    "type": "string",
+                                                    "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                                  }
+                                                ]
+                                              },
                                               "estimated": { "type": "boolean" }
                                             },
                                             "required": ["taskId", "brief", "status"],
@@ -13722,7 +13891,15 @@
                                         "elapsedMs": { "type": "number" },
                                         "inputTokens": { "type": "number" },
                                         "outputTokens": { "type": "number" },
-                                        "costUsd": { "type": "number" },
+                                        "costUsd": {
+                                          "anyOf": [
+                                            { "type": "number", "minimum": 0 },
+                                            {
+                                              "type": "string",
+                                              "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                            }
+                                          ]
+                                        },
                                         "estimated": { "type": "boolean" }
                                       },
                                       "required": ["taskId", "brief", "status"],
@@ -13743,7 +13920,15 @@
                                         "elapsedMs": { "type": "number" },
                                         "inputTokens": { "type": "number" },
                                         "outputTokens": { "type": "number" },
-                                        "costUsd": { "type": "number" },
+                                        "costUsd": {
+                                          "anyOf": [
+                                            { "type": "number", "minimum": 0 },
+                                            {
+                                              "type": "string",
+                                              "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                            }
+                                          ]
+                                        },
                                         "estimated": { "type": "boolean" }
                                       },
                                       "required": ["taskId", "brief", "status"],
@@ -13764,7 +13949,15 @@
                                         "elapsedMs": { "type": "number" },
                                         "inputTokens": { "type": "number" },
                                         "outputTokens": { "type": "number" },
-                                        "costUsd": { "type": "number" },
+                                        "costUsd": {
+                                          "anyOf": [
+                                            { "type": "number", "minimum": 0 },
+                                            {
+                                              "type": "string",
+                                              "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                            }
+                                          ]
+                                        },
                                         "estimated": { "type": "boolean" }
                                       },
                                       "required": ["taskId", "brief", "status"],
@@ -13785,8 +13978,24 @@
                                 "additionalProperties": false
                               }
                             },
-                            "spentUsdToday": { "type": "number" },
-                            "budgetUsdToday": { "type": "number" }
+                            "spentUsdToday": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            },
+                            "budgetUsdToday": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            }
                           },
                           "required": ["orchestrator", "roles"],
                           "additionalProperties": false
@@ -13910,6 +14119,7 @@
                               "paid": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -14150,7 +14360,14 @@
                                 "properties": {
                                   "stopReason": {
                                     "type": "string",
-                                    "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                    "enum": [
+                                      "normal",
+                                      "budget",
+                                      "limit",
+                                      "error",
+                                      "cancelled",
+                                      "unknown"
+                                    ]
                                   },
                                   "reportedComplete": { "type": "boolean" },
                                   "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -14229,6 +14446,7 @@
                                               "enum": [
                                                 "normal",
                                                 "budget",
+                                                "limit",
                                                 "error",
                                                 "cancelled",
                                                 "unknown"
@@ -14267,7 +14485,14 @@
                                   "properties": {
                                     "stopReason": {
                                       "type": "string",
-                                      "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                      "enum": [
+                                        "normal",
+                                        "budget",
+                                        "limit",
+                                        "error",
+                                        "cancelled",
+                                        "unknown"
+                                      ]
                                     },
                                     "reportedComplete": { "type": "boolean" },
                                     "unfinished": {
@@ -14349,6 +14574,7 @@
                                                 "enum": [
                                                   "normal",
                                                   "budget",
+                                                  "limit",
                                                   "error",
                                                   "cancelled",
                                                   "unknown"
@@ -14514,6 +14740,7 @@
                               "paid": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -14754,7 +14981,14 @@
                                 "properties": {
                                   "stopReason": {
                                     "type": "string",
-                                    "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                    "enum": [
+                                      "normal",
+                                      "budget",
+                                      "limit",
+                                      "error",
+                                      "cancelled",
+                                      "unknown"
+                                    ]
                                   },
                                   "reportedComplete": { "type": "boolean" },
                                   "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -14833,6 +15067,7 @@
                                               "enum": [
                                                 "normal",
                                                 "budget",
+                                                "limit",
                                                 "error",
                                                 "cancelled",
                                                 "unknown"
@@ -14871,7 +15106,14 @@
                                   "properties": {
                                     "stopReason": {
                                       "type": "string",
-                                      "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                      "enum": [
+                                        "normal",
+                                        "budget",
+                                        "limit",
+                                        "error",
+                                        "cancelled",
+                                        "unknown"
+                                      ]
                                     },
                                     "reportedComplete": { "type": "boolean" },
                                     "unfinished": {
@@ -14953,6 +15195,7 @@
                                                 "enum": [
                                                   "normal",
                                                   "budget",
+                                                  "limit",
                                                   "error",
                                                   "cancelled",
                                                   "unknown"
@@ -15040,6 +15283,7 @@
                               "items": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -15058,6 +15302,11 @@
                             "tally": {
                               "type": "object",
                               "properties": {
+                                "autoCompactionRequests": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
                                 "webSearches": { "type": "number" },
                                 "webSearchCharges": {
                                   "type": "array",
@@ -15258,6 +15507,7 @@
                               "items": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -15914,6 +16164,7 @@
                                     "paid": {
                                       "type": "string",
                                       "enum": [
+                                        "autoCompaction",
                                         "webSearch",
                                         "imageGeneration",
                                         "voice",
@@ -16163,6 +16414,7 @@
                                           "enum": [
                                             "normal",
                                             "budget",
+                                            "limit",
                                             "error",
                                             "cancelled",
                                             "unknown"
@@ -16254,6 +16506,7 @@
                                                     "enum": [
                                                       "normal",
                                                       "budget",
+                                                      "limit",
                                                       "error",
                                                       "cancelled",
                                                       "unknown"
@@ -16295,6 +16548,7 @@
                                             "enum": [
                                               "normal",
                                               "budget",
+                                              "limit",
                                               "error",
                                               "cancelled",
                                               "unknown"
@@ -16386,6 +16640,7 @@
                                                       "enum": [
                                                         "normal",
                                                         "budget",
+                                                        "limit",
                                                         "error",
                                                         "cancelled",
                                                         "unknown"
@@ -16543,6 +16798,7 @@
                                     "paid": {
                                       "type": "string",
                                       "enum": [
+                                        "autoCompaction",
                                         "webSearch",
                                         "imageGeneration",
                                         "voice",
@@ -16914,6 +17170,7 @@
                                     "paid": {
                                       "type": "string",
                                       "enum": [
+                                        "autoCompaction",
                                         "webSearch",
                                         "imageGeneration",
                                         "voice",
@@ -17163,6 +17420,7 @@
                                           "enum": [
                                             "normal",
                                             "budget",
+                                            "limit",
                                             "error",
                                             "cancelled",
                                             "unknown"
@@ -17254,6 +17512,7 @@
                                                     "enum": [
                                                       "normal",
                                                       "budget",
+                                                      "limit",
                                                       "error",
                                                       "cancelled",
                                                       "unknown"
@@ -17295,6 +17554,7 @@
                                             "enum": [
                                               "normal",
                                               "budget",
+                                              "limit",
                                               "error",
                                               "cancelled",
                                               "unknown"
@@ -17386,6 +17646,7 @@
                                                       "enum": [
                                                         "normal",
                                                         "budget",
+                                                        "limit",
                                                         "error",
                                                         "cancelled",
                                                         "unknown"
@@ -17543,6 +17804,7 @@
                                     "paid": {
                                       "type": "string",
                                       "enum": [
+                                        "autoCompaction",
                                         "webSearch",
                                         "imageGeneration",
                                         "voice",
@@ -17792,6 +18054,7 @@
                                           "enum": [
                                             "normal",
                                             "budget",
+                                            "limit",
                                             "error",
                                             "cancelled",
                                             "unknown"
@@ -17883,6 +18146,7 @@
                                                     "enum": [
                                                       "normal",
                                                       "budget",
+                                                      "limit",
                                                       "error",
                                                       "cancelled",
                                                       "unknown"
@@ -17924,6 +18188,7 @@
                                             "enum": [
                                               "normal",
                                               "budget",
+                                              "limit",
                                               "error",
                                               "cancelled",
                                               "unknown"
@@ -18015,6 +18280,7 @@
                                                       "enum": [
                                                         "normal",
                                                         "budget",
+                                                        "limit",
                                                         "error",
                                                         "cancelled",
                                                         "unknown"
@@ -18088,16 +18354,13 @@
                                 "attempt": { "type": "number" },
                                 "maxAttempts": { "type": "number" },
                                 "retryDelayMs": { "type": "number" },
-                                "reason": { "type": "string" }
+                                "reason": { "type": "string" },
+                                "nextAttempt": { "type": "number" },
+                                "system": { "type": "string" },
+                                "errorKind": { "type": "string" },
+                                "httpStatus": { "type": "number" }
                               },
-                              "required": [
-                                "type",
-                                "turnId",
-                                "attempt",
-                                "maxAttempts",
-                                "retryDelayMs",
-                                "reason"
-                              ],
+                              "required": ["type", "turnId", "attempt", "retryDelayMs", "reason"],
                               "additionalProperties": false
                             },
                             {
@@ -18114,6 +18377,20 @@
                                   "type": "integer",
                                   "minimum": 0,
                                   "maximum": 9007199254740991
+                                },
+                                "completion": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inputTokens": { "type": "number" },
+                                    "outputTokens": { "type": "number" },
+                                    "cachedTokens": { "type": "number" },
+                                    "reasoningTokens": { "type": "number" },
+                                    "cacheWriteTokens": { "type": "number" },
+                                    "durationMs": { "type": "number" },
+                                    "modelId": { "type": "string" }
+                                  },
+                                  "required": ["inputTokens", "outputTokens"],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": ["type", "inputTokens", "outputTokens"],
@@ -18761,12 +19038,43 @@
                               "outputUsdPerMTokens": { "type": "number" },
                               "isPinned": { "type": "boolean" },
                               "trainsOnContent": { "type": "boolean" },
+                              "agentLimit": { "type": "string" },
                               "effortLevels": {
                                 "type": "array",
                                 "items": {
                                   "type": "string",
-                                  "enum": ["minimal", "low", "medium", "high", "xhigh", "max"]
+                                  "enum": [
+                                    "minimal",
+                                    "low",
+                                    "medium",
+                                    "high",
+                                    "xhigh",
+                                    "max",
+                                    "ultra"
+                                  ]
                                 }
+                              },
+                              "defaultEffort": {
+                                "type": "string",
+                                "enum": [
+                                  "minimal",
+                                  "low",
+                                  "medium",
+                                  "high",
+                                  "xhigh",
+                                  "max",
+                                  "ultra"
+                                ]
+                              },
+                              "fastTier": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string" },
+                                  "name": { "type": "string" },
+                                  "description": { "type": "string" }
+                                },
+                                "required": ["id", "name", "description"],
+                                "additionalProperties": false
                               }
                             },
                             "required": ["modelId", "displayLabel", "isDefault"],
@@ -21955,15 +22263,22 @@
                         "type": { "type": "string", "const": "composerState" },
                         "effort": {
                           "type": "string",
-                          "enum": ["minimal", "low", "medium", "high", "xhigh", "max"]
+                          "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
                         },
                         "isThinkingEnabled": { "type": "boolean" },
+                        "isFastEnabled": { "type": "boolean" },
                         "permissionMode": {
                           "type": "string",
                           "enum": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"]
                         }
                       },
-                      "required": ["type", "effort", "isThinkingEnabled", "permissionMode"],
+                      "required": [
+                        "type",
+                        "effort",
+                        "isThinkingEnabled",
+                        "isFastEnabled",
+                        "permissionMode"
+                      ],
                       "additionalProperties": false
                     },
                     {
@@ -22507,8 +22822,7 @@
                                       "type": "array",
                                       "items": { "type": "string" }
                                     },
-                                    "other": { "type": "array", "items": { "type": "string" } },
-                                    "notRead": { "type": "number" }
+                                    "other": { "type": "array", "items": { "type": "string" } }
                                   },
                                   "required": [
                                     "passed",
@@ -22517,8 +22831,7 @@
                                     "skipped",
                                     "cancelled",
                                     "failedNames",
-                                    "other",
-                                    "notRead"
+                                    "other"
                                   ],
                                   "additionalProperties": false
                                 },
@@ -22527,6 +22840,34 @@
                                 "checkedAt": { "type": "number" }
                               },
                               "required": ["repository", "number", "title", "url"],
+                              "additionalProperties": false
+                            },
+                            "github": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "object",
+                                  "properties": {
+                                    "userCode": { "type": "string" },
+                                    "verificationUri": { "type": "string" },
+                                    "expiresAt": { "type": "number" }
+                                  },
+                                  "required": ["userCode", "verificationUri", "expiresAt"],
+                                  "additionalProperties": false
+                                },
+                                "account": {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "enum": ["editorLease", "deviceFlow", "ghLogin"]
+                                    },
+                                    "login": { "type": "string" }
+                                  },
+                                  "required": ["source"],
+                                  "additionalProperties": false
+                                }
+                              },
                               "additionalProperties": false
                             }
                           },
@@ -22815,6 +23156,59 @@
                       "type": "object",
                       "properties": { "type": { "type": "string", "const": "openEstimator" } },
                       "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "uploadedFilesReport" },
+                        "report": {
+                          "type": "object",
+                          "properties": {
+                            "provider": { "type": "string" },
+                            "isReadOnly": { "type": "boolean" },
+                            "poolBytes": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "usedBytes": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "files": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "fileId": { "type": "string" },
+                                  "name": { "type": "string" },
+                                  "bytes": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "expiresAt": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "ours": { "type": "boolean" },
+                                  "sessions": { "type": "array", "items": { "type": "string" } }
+                                },
+                                "required": ["fileId", "name", "bytes", "ours", "sessions"],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": ["provider", "isReadOnly", "poolBytes", "usedBytes", "files"],
+                          "additionalProperties": false
+                        },
+                        "accountId": { "type": "string" },
+                        "generation": { "type": "number" }
+                      },
+                      "required": ["type", "report"],
                       "additionalProperties": false
                     }
                   ]
@@ -23379,7 +23773,8 @@
                                                   "medium",
                                                   "high",
                                                   "xhigh",
-                                                  "max"
+                                                  "max",
+                                                  "ultra"
                                                 ]
                                               }
                                             },
@@ -23390,6 +23785,15 @@
                                             "type": "object",
                                             "properties": {
                                               "type": { "type": "string", "const": "setThinking" },
+                                              "enabled": { "type": "boolean" }
+                                            },
+                                            "required": ["type", "enabled"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": { "type": "string", "const": "setFast" },
                                               "enabled": { "type": "boolean" }
                                             },
                                             "required": ["type", "enabled"],
@@ -26713,7 +27117,7 @@
                                               },
                                               "name": { "type": "string" },
                                               "mediaType": { "type": "string" },
-                                              "base64": { "type": "string", "maxLength": 42666668 },
+                                              "base64": { "type": "string", "maxLength": 66666668 },
                                               "requestId": { "type": "string" },
                                               "attachmentEpoch": { "type": "number" }
                                             },
@@ -27414,6 +27818,19 @@
                                             "properties": {
                                               "type": {
                                                 "type": "string",
+                                                "const": "startPlayback"
+                                              },
+                                              "localId": { "type": "string" },
+                                              "text": { "type": "string" }
+                                            },
+                                            "required": ["type", "localId", "text"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
                                                 "const": "readReviewChanges"
                                               },
                                               "requestId": { "type": "string" },
@@ -27936,6 +28353,18 @@
                                           {
                                             "type": "object",
                                             "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "deleteSession"
+                                              },
+                                              "sessionId": { "type": "string" }
+                                            },
+                                            "required": ["type", "sessionId"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
                                               "type": { "type": "string", "const": "forkSession" },
                                               "lastTurnId": { "type": "string" },
                                               "attachmentEpoch": { "type": "number" }
@@ -28015,6 +28444,29 @@
                                           {
                                             "type": "object",
                                             "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "deleteUploadedFile"
+                                              },
+                                              "fileId": { "type": "string" }
+                                            },
+                                            "required": ["type", "fileId"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "deleteAllUploadedFiles"
+                                              }
+                                            },
+                                            "required": ["type"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
                                               "type": { "type": "string", "const": "dictation" },
                                               "action": {
                                                 "type": "string",
@@ -28034,6 +28486,7 @@
                                               "feature": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "autoCompaction",
                                                   "webSearch",
                                                   "imageGeneration",
                                                   "voice",
@@ -28073,6 +28526,9 @@
                                                   "openPullRequest",
                                                   "refreshPullRequest",
                                                   "signInGitHub",
+                                                  "signInGitHubWithCode",
+                                                  "cancelGitHubSignIn",
+                                                  "signOutGitHub",
                                                   "trustWorktree",
                                                   "cancel"
                                                 ]
@@ -28291,7 +28747,7 @@
                               "type": "object",
                               "properties": {
                                 "ok": { "type": "boolean", "const": true },
-                                "text": { "type": "string", "maxLength": 262144 }
+                                "text": { "type": "string", "maxLength": 16384 }
                               },
                               "required": ["ok"],
                               "additionalProperties": false
@@ -28864,7 +29320,7 @@
                   "type": { "type": "string", "const": "setEffort" },
                   "effort": {
                     "type": "string",
-                    "enum": ["minimal", "low", "medium", "high", "xhigh", "max"]
+                    "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
                   }
                 },
                 "required": ["type", "effort"],
@@ -28874,6 +29330,15 @@
                 "type": "object",
                 "properties": {
                   "type": { "type": "string", "const": "setThinking" },
+                  "enabled": { "type": "boolean" }
+                },
+                "required": ["type", "enabled"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "setFast" },
                   "enabled": { "type": "boolean" }
                 },
                 "required": ["type", "enabled"],
@@ -31524,7 +31989,7 @@
                   "type": { "type": "string", "const": "attachImageData" },
                   "name": { "type": "string" },
                   "mediaType": { "type": "string" },
-                  "base64": { "type": "string", "maxLength": 42666668 },
+                  "base64": { "type": "string", "maxLength": 66666668 },
                   "requestId": { "type": "string" },
                   "attachmentEpoch": { "type": "number" }
                 },
@@ -32056,6 +32521,16 @@
               {
                 "type": "object",
                 "properties": {
+                  "type": { "type": "string", "const": "startPlayback" },
+                  "localId": { "type": "string" },
+                  "text": { "type": "string" }
+                },
+                "required": ["type", "localId", "text"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
                   "type": { "type": "string", "const": "readReviewChanges" },
                   "requestId": { "type": "string" },
                   "edits": {
@@ -32389,6 +32864,15 @@
               {
                 "type": "object",
                 "properties": {
+                  "type": { "type": "string", "const": "deleteSession" },
+                  "sessionId": { "type": "string" }
+                },
+                "required": ["type", "sessionId"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
                   "type": { "type": "string", "const": "forkSession" },
                   "lastTurnId": { "type": "string" },
                   "attachmentEpoch": { "type": "number" }
@@ -32449,6 +32933,21 @@
               {
                 "type": "object",
                 "properties": {
+                  "type": { "type": "string", "const": "deleteUploadedFile" },
+                  "fileId": { "type": "string" }
+                },
+                "required": ["type", "fileId"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "type": { "type": "string", "const": "deleteAllUploadedFiles" } },
+                "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
                   "type": { "type": "string", "const": "dictation" },
                   "action": { "type": "string", "enum": ["start", "stop"] }
                 },
@@ -32462,6 +32961,7 @@
                   "feature": {
                     "type": "string",
                     "enum": [
+                      "autoCompaction",
                       "webSearch",
                       "imageGeneration",
                       "voice",
@@ -32499,6 +32999,9 @@
                       "openPullRequest",
                       "refreshPullRequest",
                       "signInGitHub",
+                      "signInGitHubWithCode",
+                      "cancelGitHubSignIn",
+                      "signOutGitHub",
                       "trustWorktree",
                       "cancel"
                     ]
@@ -33035,7 +33538,11 @@
               },
               {
                 "type": "object",
-                "properties": { "type": { "type": "string", "const": "focusInput" } },
+                "properties": {
+                  "type": { "type": "string", "const": "focusInput" },
+                  "token": { "type": "string" },
+                  "issuedAt": { "type": "number" }
+                },
                 "required": ["type"],
                 "additionalProperties": false
               },
@@ -33243,7 +33750,6 @@
                         "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
                       },
                       "findings": {
-                        "maxItems": 500,
                         "type": "array",
                         "items": {
                           "type": "object",
@@ -33320,7 +33826,6 @@
                         }
                       },
                       "evidenceFiles": {
-                        "maxItems": 20000,
                         "type": "array",
                         "items": {
                           "type": "object",
@@ -33660,7 +34165,8 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     }
-                  }
+                  },
+                  "canDeleteSessions": { "type": "boolean" }
                 },
                 "required": ["type", "sessions", "archivedIds"],
                 "additionalProperties": false
@@ -33774,6 +34280,7 @@
                         "paid": {
                           "type": "string",
                           "enum": [
+                            "autoCompaction",
                             "webSearch",
                             "imageGeneration",
                             "voice",
@@ -34008,7 +34515,7 @@
                           "properties": {
                             "stopReason": {
                               "type": "string",
-                              "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                              "enum": ["normal", "budget", "limit", "error", "cancelled", "unknown"]
                             },
                             "reportedComplete": { "type": "boolean" },
                             "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -34087,6 +34594,7 @@
                                         "enum": [
                                           "normal",
                                           "budget",
+                                          "limit",
                                           "error",
                                           "cancelled",
                                           "unknown"
@@ -34125,7 +34633,14 @@
                             "properties": {
                               "stopReason": {
                                 "type": "string",
-                                "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                "enum": [
+                                  "normal",
+                                  "budget",
+                                  "limit",
+                                  "error",
+                                  "cancelled",
+                                  "unknown"
+                                ]
                               },
                               "reportedComplete": { "type": "boolean" },
                               "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -34204,6 +34719,7 @@
                                           "enum": [
                                             "normal",
                                             "budget",
+                                            "limit",
                                             "error",
                                             "cancelled",
                                             "unknown"
@@ -34409,14 +34925,71 @@
                         },
                         "inputTokens": { "type": "number" },
                         "outputTokens": { "type": "number" },
-                        "costUsd": { "type": "number" },
+                        "costUsd": {
+                          "anyOf": [
+                            { "type": "number", "minimum": 0 },
+                            { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" }
+                          ]
+                        },
+                        "keyUsageError": { "type": "string" },
                         "keyUsage": {
                           "type": "object",
                           "properties": {
-                            "todayUsd": { "type": "number" },
-                            "monthUsd": { "type": "number" },
-                            "limitUsd": { "type": "number" },
-                            "remainingUsd": { "type": "number" }
+                            "totalUsd": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            },
+                            "unlimited": { "type": "boolean" },
+                            "weekUsd": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            },
+                            "todayUsd": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            },
+                            "monthUsd": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            },
+                            "limitUsd": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            },
+                            "remainingUsd": {
+                              "anyOf": [
+                                { "type": "number", "minimum": 0 },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                }
+                              ]
+                            }
                           },
                           "required": ["todayUsd", "monthUsd"],
                           "additionalProperties": false
@@ -34441,7 +35014,12 @@
                           "tasks": { "type": "number" },
                           "inputTokens": { "type": "number" },
                           "outputTokens": { "type": "number" },
-                          "costUsd": { "type": "number" },
+                          "costUsd": {
+                            "anyOf": [
+                              { "type": "number", "minimum": 0 },
+                              { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" }
+                            ]
+                          },
                           "estimated": { "type": "boolean" }
                         },
                         "required": [
@@ -34459,7 +35037,12 @@
                           "tasks": { "type": "number" },
                           "inputTokens": { "type": "number" },
                           "outputTokens": { "type": "number" },
-                          "costUsd": { "type": "number" },
+                          "costUsd": {
+                            "anyOf": [
+                              { "type": "number", "minimum": 0 },
+                              { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" }
+                            ]
+                          },
                           "estimated": { "type": "boolean" }
                         },
                         "required": [
@@ -34485,7 +35068,15 @@
                                 "tasks": { "type": "number" },
                                 "inputTokens": { "type": "number" },
                                 "outputTokens": { "type": "number" },
-                                "costUsd": { "type": "number" },
+                                "costUsd": {
+                                  "anyOf": [
+                                    { "type": "number", "minimum": 0 },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                    }
+                                  ]
+                                },
                                 "estimated": { "type": "boolean" }
                               },
                               "required": [
@@ -34521,7 +35112,15 @@
                                 "tasks": { "type": "number" },
                                 "inputTokens": { "type": "number" },
                                 "outputTokens": { "type": "number" },
-                                "costUsd": { "type": "number" },
+                                "costUsd": {
+                                  "anyOf": [
+                                    { "type": "number", "minimum": 0 },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                    }
+                                  ]
+                                },
                                 "estimated": { "type": "boolean" }
                               },
                               "required": [
@@ -34700,7 +35299,15 @@
                                         "elapsedMs": { "type": "number" },
                                         "inputTokens": { "type": "number" },
                                         "outputTokens": { "type": "number" },
-                                        "costUsd": { "type": "number" },
+                                        "costUsd": {
+                                          "anyOf": [
+                                            { "type": "number", "minimum": 0 },
+                                            {
+                                              "type": "string",
+                                              "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                            }
+                                          ]
+                                        },
                                         "estimated": { "type": "boolean" }
                                       },
                                       "required": ["taskId", "brief", "status"],
@@ -34735,7 +35342,15 @@
                                   "elapsedMs": { "type": "number" },
                                   "inputTokens": { "type": "number" },
                                   "outputTokens": { "type": "number" },
-                                  "costUsd": { "type": "number" },
+                                  "costUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
                                   "estimated": { "type": "boolean" }
                                 },
                                 "required": ["taskId", "brief", "status"],
@@ -34756,7 +35371,15 @@
                                   "elapsedMs": { "type": "number" },
                                   "inputTokens": { "type": "number" },
                                   "outputTokens": { "type": "number" },
-                                  "costUsd": { "type": "number" },
+                                  "costUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
                                   "estimated": { "type": "boolean" }
                                 },
                                 "required": ["taskId", "brief", "status"],
@@ -34777,7 +35400,15 @@
                                   "elapsedMs": { "type": "number" },
                                   "inputTokens": { "type": "number" },
                                   "outputTokens": { "type": "number" },
-                                  "costUsd": { "type": "number" },
+                                  "costUsd": {
+                                    "anyOf": [
+                                      { "type": "number", "minimum": 0 },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                                      }
+                                    ]
+                                  },
                                   "estimated": { "type": "boolean" }
                                 },
                                 "required": ["taskId", "brief", "status"],
@@ -34798,8 +35429,18 @@
                           "additionalProperties": false
                         }
                       },
-                      "spentUsdToday": { "type": "number" },
-                      "budgetUsdToday": { "type": "number" }
+                      "spentUsdToday": {
+                        "anyOf": [
+                          { "type": "number", "minimum": 0 },
+                          { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" }
+                        ]
+                      },
+                      "budgetUsdToday": {
+                        "anyOf": [
+                          { "type": "number", "minimum": 0 },
+                          { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" }
+                        ]
+                      }
                     },
                     "required": ["orchestrator", "roles"],
                     "additionalProperties": false
@@ -34923,6 +35564,7 @@
                         "paid": {
                           "type": "string",
                           "enum": [
+                            "autoCompaction",
                             "webSearch",
                             "imageGeneration",
                             "voice",
@@ -35157,7 +35799,7 @@
                           "properties": {
                             "stopReason": {
                               "type": "string",
-                              "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                              "enum": ["normal", "budget", "limit", "error", "cancelled", "unknown"]
                             },
                             "reportedComplete": { "type": "boolean" },
                             "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -35236,6 +35878,7 @@
                                         "enum": [
                                           "normal",
                                           "budget",
+                                          "limit",
                                           "error",
                                           "cancelled",
                                           "unknown"
@@ -35274,7 +35917,14 @@
                             "properties": {
                               "stopReason": {
                                 "type": "string",
-                                "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                "enum": [
+                                  "normal",
+                                  "budget",
+                                  "limit",
+                                  "error",
+                                  "cancelled",
+                                  "unknown"
+                                ]
                               },
                               "reportedComplete": { "type": "boolean" },
                               "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -35353,6 +36003,7 @@
                                           "enum": [
                                             "normal",
                                             "budget",
+                                            "limit",
                                             "error",
                                             "cancelled",
                                             "unknown"
@@ -35518,6 +36169,7 @@
                         "paid": {
                           "type": "string",
                           "enum": [
+                            "autoCompaction",
                             "webSearch",
                             "imageGeneration",
                             "voice",
@@ -35752,7 +36404,7 @@
                           "properties": {
                             "stopReason": {
                               "type": "string",
-                              "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                              "enum": ["normal", "budget", "limit", "error", "cancelled", "unknown"]
                             },
                             "reportedComplete": { "type": "boolean" },
                             "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -35831,6 +36483,7 @@
                                         "enum": [
                                           "normal",
                                           "budget",
+                                          "limit",
                                           "error",
                                           "cancelled",
                                           "unknown"
@@ -35869,7 +36522,14 @@
                             "properties": {
                               "stopReason": {
                                 "type": "string",
-                                "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                "enum": [
+                                  "normal",
+                                  "budget",
+                                  "limit",
+                                  "error",
+                                  "cancelled",
+                                  "unknown"
+                                ]
                               },
                               "reportedComplete": { "type": "boolean" },
                               "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -35948,6 +36608,7 @@
                                           "enum": [
                                             "normal",
                                             "budget",
+                                            "limit",
                                             "error",
                                             "cancelled",
                                             "unknown"
@@ -36035,6 +36696,7 @@
                         "items": {
                           "type": "string",
                           "enum": [
+                            "autoCompaction",
                             "webSearch",
                             "imageGeneration",
                             "voice",
@@ -36053,6 +36715,11 @@
                       "tally": {
                         "type": "object",
                         "properties": {
+                          "autoCompactionRequests": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
                           "webSearches": { "type": "number" },
                           "webSearchCharges": {
                             "type": "array",
@@ -36248,6 +36915,7 @@
                         "items": {
                           "type": "string",
                           "enum": [
+                            "autoCompaction",
                             "webSearch",
                             "imageGeneration",
                             "voice",
@@ -36889,6 +37557,7 @@
                               "paid": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -37129,7 +37798,14 @@
                                 "properties": {
                                   "stopReason": {
                                     "type": "string",
-                                    "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                    "enum": [
+                                      "normal",
+                                      "budget",
+                                      "limit",
+                                      "error",
+                                      "cancelled",
+                                      "unknown"
+                                    ]
                                   },
                                   "reportedComplete": { "type": "boolean" },
                                   "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -37208,6 +37884,7 @@
                                               "enum": [
                                                 "normal",
                                                 "budget",
+                                                "limit",
                                                 "error",
                                                 "cancelled",
                                                 "unknown"
@@ -37246,7 +37923,14 @@
                                   "properties": {
                                     "stopReason": {
                                       "type": "string",
-                                      "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                      "enum": [
+                                        "normal",
+                                        "budget",
+                                        "limit",
+                                        "error",
+                                        "cancelled",
+                                        "unknown"
+                                      ]
                                     },
                                     "reportedComplete": { "type": "boolean" },
                                     "unfinished": {
@@ -37328,6 +38012,7 @@
                                                 "enum": [
                                                   "normal",
                                                   "budget",
+                                                  "limit",
                                                   "error",
                                                   "cancelled",
                                                   "unknown"
@@ -37485,6 +38170,7 @@
                               "paid": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -37844,6 +38530,7 @@
                               "paid": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -38084,7 +38771,14 @@
                                 "properties": {
                                   "stopReason": {
                                     "type": "string",
-                                    "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                    "enum": [
+                                      "normal",
+                                      "budget",
+                                      "limit",
+                                      "error",
+                                      "cancelled",
+                                      "unknown"
+                                    ]
                                   },
                                   "reportedComplete": { "type": "boolean" },
                                   "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -38163,6 +38857,7 @@
                                               "enum": [
                                                 "normal",
                                                 "budget",
+                                                "limit",
                                                 "error",
                                                 "cancelled",
                                                 "unknown"
@@ -38201,7 +38896,14 @@
                                   "properties": {
                                     "stopReason": {
                                       "type": "string",
-                                      "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                      "enum": [
+                                        "normal",
+                                        "budget",
+                                        "limit",
+                                        "error",
+                                        "cancelled",
+                                        "unknown"
+                                      ]
                                     },
                                     "reportedComplete": { "type": "boolean" },
                                     "unfinished": {
@@ -38283,6 +38985,7 @@
                                                 "enum": [
                                                   "normal",
                                                   "budget",
+                                                  "limit",
                                                   "error",
                                                   "cancelled",
                                                   "unknown"
@@ -38440,6 +39143,7 @@
                               "paid": {
                                 "type": "string",
                                 "enum": [
+                                  "autoCompaction",
                                   "webSearch",
                                   "imageGeneration",
                                   "voice",
@@ -38680,7 +39384,14 @@
                                 "properties": {
                                   "stopReason": {
                                     "type": "string",
-                                    "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                    "enum": [
+                                      "normal",
+                                      "budget",
+                                      "limit",
+                                      "error",
+                                      "cancelled",
+                                      "unknown"
+                                    ]
                                   },
                                   "reportedComplete": { "type": "boolean" },
                                   "unfinished": { "type": "array", "items": { "type": "string" } },
@@ -38759,6 +39470,7 @@
                                               "enum": [
                                                 "normal",
                                                 "budget",
+                                                "limit",
                                                 "error",
                                                 "cancelled",
                                                 "unknown"
@@ -38797,7 +39509,14 @@
                                   "properties": {
                                     "stopReason": {
                                       "type": "string",
-                                      "enum": ["normal", "budget", "error", "cancelled", "unknown"]
+                                      "enum": [
+                                        "normal",
+                                        "budget",
+                                        "limit",
+                                        "error",
+                                        "cancelled",
+                                        "unknown"
+                                      ]
                                     },
                                     "reportedComplete": { "type": "boolean" },
                                     "unfinished": {
@@ -38879,6 +39598,7 @@
                                                 "enum": [
                                                   "normal",
                                                   "budget",
+                                                  "limit",
                                                   "error",
                                                   "cancelled",
                                                   "unknown"
@@ -38952,16 +39672,13 @@
                           "attempt": { "type": "number" },
                           "maxAttempts": { "type": "number" },
                           "retryDelayMs": { "type": "number" },
-                          "reason": { "type": "string" }
+                          "reason": { "type": "string" },
+                          "nextAttempt": { "type": "number" },
+                          "system": { "type": "string" },
+                          "errorKind": { "type": "string" },
+                          "httpStatus": { "type": "number" }
                         },
-                        "required": [
-                          "type",
-                          "turnId",
-                          "attempt",
-                          "maxAttempts",
-                          "retryDelayMs",
-                          "reason"
-                        ],
+                        "required": ["type", "turnId", "attempt", "retryDelayMs", "reason"],
                         "additionalProperties": false
                       },
                       {
@@ -38978,6 +39695,20 @@
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
+                          },
+                          "completion": {
+                            "type": "object",
+                            "properties": {
+                              "inputTokens": { "type": "number" },
+                              "outputTokens": { "type": "number" },
+                              "cachedTokens": { "type": "number" },
+                              "reasoningTokens": { "type": "number" },
+                              "cacheWriteTokens": { "type": "number" },
+                              "durationMs": { "type": "number" },
+                              "modelId": { "type": "string" }
+                            },
+                            "required": ["inputTokens", "outputTokens"],
+                            "additionalProperties": false
                           }
                         },
                         "required": ["type", "inputTokens", "outputTokens"],
@@ -39573,12 +40304,27 @@
                         "outputUsdPerMTokens": { "type": "number" },
                         "isPinned": { "type": "boolean" },
                         "trainsOnContent": { "type": "boolean" },
+                        "agentLimit": { "type": "string" },
                         "effortLevels": {
                           "type": "array",
                           "items": {
                             "type": "string",
-                            "enum": ["minimal", "low", "medium", "high", "xhigh", "max"]
+                            "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
                           }
+                        },
+                        "defaultEffort": {
+                          "type": "string",
+                          "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
+                        },
+                        "fastTier": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "name": { "type": "string" },
+                            "description": { "type": "string" }
+                          },
+                          "required": ["id", "name", "description"],
+                          "additionalProperties": false
                         }
                       },
                       "required": ["modelId", "displayLabel", "isDefault"],
@@ -42612,15 +43358,22 @@
                   "type": { "type": "string", "const": "composerState" },
                   "effort": {
                     "type": "string",
-                    "enum": ["minimal", "low", "medium", "high", "xhigh", "max"]
+                    "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
                   },
                   "isThinkingEnabled": { "type": "boolean" },
+                  "isFastEnabled": { "type": "boolean" },
                   "permissionMode": {
                     "type": "string",
                     "enum": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"]
                   }
                 },
-                "required": ["type", "effort", "isThinkingEnabled", "permissionMode"],
+                "required": [
+                  "type",
+                  "effort",
+                  "isThinkingEnabled",
+                  "isFastEnabled",
+                  "permissionMode"
+                ],
                 "additionalProperties": false
               },
               {
@@ -43135,8 +43888,7 @@
                               "skipped": { "type": "number" },
                               "cancelled": { "type": "number" },
                               "failedNames": { "type": "array", "items": { "type": "string" } },
-                              "other": { "type": "array", "items": { "type": "string" } },
-                              "notRead": { "type": "number" }
+                              "other": { "type": "array", "items": { "type": "string" } }
                             },
                             "required": [
                               "passed",
@@ -43145,8 +43897,7 @@
                               "skipped",
                               "cancelled",
                               "failedNames",
-                              "other",
-                              "notRead"
+                              "other"
                             ],
                             "additionalProperties": false
                           },
@@ -43155,6 +43906,34 @@
                           "checkedAt": { "type": "number" }
                         },
                         "required": ["repository", "number", "title", "url"],
+                        "additionalProperties": false
+                      },
+                      "github": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "object",
+                            "properties": {
+                              "userCode": { "type": "string" },
+                              "verificationUri": { "type": "string" },
+                              "expiresAt": { "type": "number" }
+                            },
+                            "required": ["userCode", "verificationUri", "expiresAt"],
+                            "additionalProperties": false
+                          },
+                          "account": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string",
+                                "enum": ["editorLease", "deviceFlow", "ghLogin"]
+                              },
+                              "login": { "type": "string" }
+                            },
+                            "required": ["source"],
+                            "additionalProperties": false
+                          }
+                        },
                         "additionalProperties": false
                       }
                     },
@@ -43425,6 +44204,55 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "openEstimator" } },
                 "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "uploadedFilesReport" },
+                  "report": {
+                    "type": "object",
+                    "properties": {
+                      "provider": { "type": "string" },
+                      "isReadOnly": { "type": "boolean" },
+                      "poolBytes": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "usedBytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "fileId": { "type": "string" },
+                            "name": { "type": "string" },
+                            "bytes": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "expiresAt": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "ours": { "type": "boolean" },
+                            "sessions": { "type": "array", "items": { "type": "string" } }
+                          },
+                          "required": ["fileId", "name", "bytes", "ours", "sessions"],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": ["provider", "isReadOnly", "poolBytes", "usedBytes", "files"],
+                    "additionalProperties": false
+                  },
+                  "accountId": { "type": "string" },
+                  "generation": { "type": "number" }
+                },
+                "required": ["type", "report"],
                 "additionalProperties": false
               }
             ]
@@ -43933,7 +44761,8 @@
                                             "medium",
                                             "high",
                                             "xhigh",
-                                            "max"
+                                            "max",
+                                            "ultra"
                                           ]
                                         }
                                       },
@@ -43944,6 +44773,15 @@
                                       "type": "object",
                                       "properties": {
                                         "type": { "type": "string", "const": "setThinking" },
+                                        "enabled": { "type": "boolean" }
+                                      },
+                                      "required": ["type", "enabled"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "const": "setFast" },
                                         "enabled": { "type": "boolean" }
                                       },
                                       "required": ["type", "enabled"],
@@ -47102,7 +47940,7 @@
                                         "type": { "type": "string", "const": "attachImageData" },
                                         "name": { "type": "string" },
                                         "mediaType": { "type": "string" },
-                                        "base64": { "type": "string", "maxLength": 42666668 },
+                                        "base64": { "type": "string", "maxLength": 66666668 },
                                         "requestId": { "type": "string" },
                                         "attachmentEpoch": { "type": "number" }
                                       },
@@ -47722,6 +48560,16 @@
                                     {
                                       "type": "object",
                                       "properties": {
+                                        "type": { "type": "string", "const": "startPlayback" },
+                                        "localId": { "type": "string" },
+                                        "text": { "type": "string" }
+                                      },
+                                      "required": ["type", "localId", "text"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
                                         "type": { "type": "string", "const": "readReviewChanges" },
                                         "requestId": { "type": "string" },
                                         "edits": {
@@ -48181,6 +49029,15 @@
                                     {
                                       "type": "object",
                                       "properties": {
+                                        "type": { "type": "string", "const": "deleteSession" },
+                                        "sessionId": { "type": "string" }
+                                      },
+                                      "required": ["type", "sessionId"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
                                         "type": { "type": "string", "const": "forkSession" },
                                         "lastTurnId": { "type": "string" },
                                         "attachmentEpoch": { "type": "number" }
@@ -48245,6 +49102,26 @@
                                     {
                                       "type": "object",
                                       "properties": {
+                                        "type": { "type": "string", "const": "deleteUploadedFile" },
+                                        "fileId": { "type": "string" }
+                                      },
+                                      "required": ["type", "fileId"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "deleteAllUploadedFiles"
+                                        }
+                                      },
+                                      "required": ["type"],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
                                         "type": { "type": "string", "const": "dictation" },
                                         "action": { "type": "string", "enum": ["start", "stop"] }
                                       },
@@ -48258,6 +49135,7 @@
                                         "feature": {
                                           "type": "string",
                                           "enum": [
+                                            "autoCompaction",
                                             "webSearch",
                                             "imageGeneration",
                                             "voice",
@@ -48297,6 +49175,9 @@
                                             "openPullRequest",
                                             "refreshPullRequest",
                                             "signInGitHub",
+                                            "signInGitHubWithCode",
+                                            "cancelGitHubSignIn",
+                                            "signOutGitHub",
                                             "trustWorktree",
                                             "cancel"
                                           ]
@@ -48498,7 +49379,7 @@
                         "type": "object",
                         "properties": {
                           "ok": { "type": "boolean", "const": true },
-                          "text": { "type": "string", "maxLength": 262144 }
+                          "text": { "type": "string", "maxLength": 16384 }
                         },
                         "required": ["ok"],
                         "additionalProperties": false
