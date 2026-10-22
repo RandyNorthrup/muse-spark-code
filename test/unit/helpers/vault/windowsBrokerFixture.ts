@@ -81,7 +81,14 @@ export async function startWindowsBrokerFixture(prefix: string): Promise<Windows
         entryPoints: [entry],
         outfile: path.join(dist, outfile),
         bundle: true,
-        external: ['@napi-rs/keyring'],
+        // This fixture stages the VSIX, which ships no keyring binding.
+        // Bind that optional import to its own absent package entry: Node
+        // must never walk up from an in-checkout TEMP into the developer's
+        // node_modules and open the person's native rollback anchor.
+        alias: {
+          '@napi-rs/keyring': path.join(root, 'node_modules', '@napi-rs', 'keyring', 'index.js'),
+        },
+        external: [path.join(root, 'node_modules', '@napi-rs', 'keyring', 'index.js')],
         platform: 'node',
         format: 'cjs',
       }),
