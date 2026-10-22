@@ -55,6 +55,9 @@ const TEST_TIMEOUT_MS = 180_000
 // The broker appends audit rows beside the read that caused them, so the
 // checkpoint settles after the read returns; polls below wait for it.
 const AUDIT_SETTLE_TIMEOUT_MS = 60_000
+// The checkpoint must read back identical across this window before the
+// test relocates it, so no append lands mid-move.
+const AUDIT_QUIESCE_MS = 1000
 
 /** Linux's OS store is the Secret Service over the session bus; without one there is no store. */
 function hasStore(): boolean {
@@ -138,18 +141,23 @@ async function driveScopedVault(
   const anchorRaw = await readPassword(vaultAnchorAccount(brokerDataDir))
   expect(anchorRaw, `${label}: scoped anchor exists`).not.toBeNull()
   expect((JSON.parse(anchorRaw ?? '') as { vaultId: string }).vaultId).toBe(vaultId)
+  const checkpointAccount = vaultAuditAccount(brokerDataDir, vaultId)
+  let checkpointRaw = ''
   await vi.waitFor(
     async () => {
-      const checkpointRaw = await readPassword(vaultAuditAccount(brokerDataDir, vaultId))
-      expect(checkpointRaw, `${label}: scoped checkpoint exists`).not.toBeNull()
+      const before = await readPassword(checkpointAccount)
+      expect(before, `${label}: scoped checkpoint exists`).not.toBeNull()
+      await new Promise((resolve) => setTimeout(resolve, AUDIT_QUIESCE_MS))
+      const after = await readPassword(checkpointAccount)
+      expect(after, `${label}: audit settled`).toBe(before)
+      checkpointRaw = before ?? ''
       expect(
-        (JSON.parse(checkpointRaw ?? '') as { generation: number }).generation,
+        (JSON.parse(checkpointRaw) as { generation: number }).generation,
         `${label}: the read audited`,
       ).toBeGreaterThanOrEqual(1)
     },
     { timeout: AUDIT_SETTLE_TIMEOUT_MS, interval: 100 },
   )
-  const checkpointRaw = (await readPassword(vaultAuditAccount(brokerDataDir, vaultId))) ?? ''
   const checkpoint = JSON.parse(checkpointRaw) as { generation: number }
   expect(
     await readPassword(legacyVaultAuditAccount(vaultId)),
@@ -170,10 +178,9 @@ async function driveScopedVault(
   )
 
   // A checkpoint moved to the pre-scoping account is adopted and migrated
-  // by the next audited read: the bytes are the product's own, relocated.
-  const moved = await readPassword(vaultAuditAccount(brokerDataDir, vaultId))
-  if (moved === null) throw new Error('the checkpoint vanished before the move')
-  await openEntry(legacyVaultAuditAccount(vaultId)).setPassword(moved)
+  // by the next audited read: the bytes are the settled checkpoint above,
+  // the product's own, relocated.
+  await openEntry(legacyVaultAuditAccount(vaultId)).setPassword(checkpointRaw)
   await openEntry(vaultAuditAccount(brokerDataDir, vaultId)).deletePassword()
   const second = await readBack()
   expect(second.equals(Buffer.from('scope-probe-value'))).toBe(true)
@@ -191,6 +198,7 @@ async function driveScopedVault(
     },
     { timeout: AUDIT_SETTLE_TIMEOUT_MS, interval: 100 },
   )
+  // The log still opens after the migration: any rollback would throw here.
   await session.audit()
   expect(await readPassword(VAULT_ANCHOR_ACCOUNT), `${label}: shared anchor still untouched`).toBe(
     sharedBefore,

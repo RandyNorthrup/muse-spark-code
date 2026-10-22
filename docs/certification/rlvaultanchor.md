@@ -108,8 +108,8 @@ a store is green here.
 already-provisioned stores; the Windows and macOS unit shards run it too
 where their store answers. What it proves with a real store: setup writes
 the scoped anchor, audit and slot records while the shared
-`vault-anchor-v1` reads back byte-identical; a checkpoint relocated to the
-pre-scoping account is adopted and migrated; a pre-scoping anchor stays
+`vault-anchor-v1` reads back byte-identical; a settled checkpoint relocated
+to the pre-scoping account is adopted and migrated; a pre-scoping anchor stays
 with the vault that owns it and is invisible to any other; slots wrap
 scoped references and still open pre-scoping ones; disposal removes every
 record the vault wrote and nothing else.
