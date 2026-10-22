@@ -342,11 +342,11 @@ export async function runRuntimeSharing(
     }
     // A defined refusal keeps its own sentence (an empty chat, a damaged
     // store, a prompt-file format error). Anything else is an unexpected
-    // fault: the fixed could-not-complete reason on stderr, and the
-    // underlying fault's name in the log the reason points at.
+    // fault: the fixed could-not-complete reason on stderr. Either way the
+    // underlying fault's name is in the log the reason points at.
+    log?.warn(`sharing command failed: ${internalFaultForLog(error)}`)
     let refusal = error instanceof Error ? sharingRefusal(error.message) : undefined
     if (error instanceof SharingArgumentError) refusal = error.message
-    if (refusal === undefined) log?.warn(`sharing command failed: ${internalFaultForLog(error)}`)
     process.stderr.write(`${refusal ?? UI_TEXT.actionFailed}\n`)
     return EXEC_EXIT.denied
   } finally {

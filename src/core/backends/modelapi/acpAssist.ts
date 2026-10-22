@@ -15,6 +15,7 @@ import type { ModelPricing } from '../../providers/priceCard'
 import type { Usage } from './schemas'
 import type { ToolContext, ToolOutcome } from './tools'
 import { isBelow, resolveWorkspacePath, type RealPathIo } from '../../workspacePath'
+import { isCodedError } from '../../workspaceRoot'
 
 /** The fixed clause a confinement reason carries when a link escape was refused. */
 const LINK_ESCAPE_CLAUSE = 'leads outside the workspace through a link'
@@ -124,8 +125,11 @@ async function resolveGlobAlias(
     if (relative !== '' && !isBelow(relative, p)) return undefined
     const rewritten = relative === '' ? rest : `${relative.split(p.sep).join('/')}/${rest}`
     return { ok: true, glob: rewritten === '' ? undefined : rewritten }
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // Only a shaped store failure leaves the alias unresolved (the caller
+    // keeps its spelling refusal): anything else keeps its kind.
+    if (isCodedError(error)) return undefined
+    throw error
   }
 }
 

@@ -86,6 +86,22 @@ describe('catch-inventory classifier', () => {
       }`),
     ).toEqual(['REPORTED'])
     expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        log.warn('sharing command failed: ' + internalFaultForLog(error))
+        throw new Error('unavailable')
+      }`),
+    ).toEqual(['REPORTED'])
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        options.onError(new Error('fixed', { cause: error }))
+      }`),
+    ).toEqual(['REPORTED'])
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        options.onError(new Error('fixed'))
+      }`),
+    ).toEqual(['SWALLOW'])
+    expect(
       classesOf(`try { a() } catch {
         observeError(deps, 'updateNotSent')
         return fallback
