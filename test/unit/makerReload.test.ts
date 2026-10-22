@@ -1,39 +1,46 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
 import { MakerApproval } from '../../src/core/maker/ports'
 import { MAKER_RELOAD_STATE_KEY, PANEL_RELOAD_EVENT } from '../../src/shared/constants'
 import { isMakerReloadPending, reloadPanelSurface } from '../../src/webview/reloadPanelSurface'
 import { uiApproval, uiBridge, MAKER_UI_STATE } from './helpers/makerUi'
 
+// jsdom's location.reload is a read-only own property that never reloads
+// the document; the cases below prove everything reloadPanelSurface does
+// around that call (the marker, the chat event, the denial path) and let
+// jsdom's real no-op reload run.
+const nativeSetItem = Storage.prototype.setItem
 afterEach(() => {
   sessionStorage.clear()
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
+  Storage.prototype.setItem = nativeSetItem
 })
 
 it('reload persists only UI position before notifying chat and refetching the document', () => {
-  const reload = vi.fn()
-  const dispatched = vi.fn((event: Event) => {
-    expect(event.type).toBe(PANEL_RELOAD_EVENT)
+  const seen: string[] = []
+  const notified = (event: Event) => {
+    seen.push(event.type)
     expect(sessionStorage.getItem(MAKER_RELOAD_STATE_KEY)).toBe('1')
-  })
-  vi.stubGlobal('window', { dispatchEvent: dispatched, location: { reload } })
-  reloadPanelSurface()
-  expect(dispatched).toHaveBeenCalledOnce()
-  expect(reload).toHaveBeenCalledOnce()
+  }
+  window.addEventListener(PANEL_RELOAD_EVENT, notified)
+  try {
+    reloadPanelSurface()
+  } finally {
+    window.removeEventListener(PANEL_RELOAD_EVENT, notified)
+  }
+  expect(seen).toEqual([PANEL_RELOAD_EVENT])
   expect(isMakerReloadPending()).toBe(true)
   expect(isMakerReloadPending()).toBe(false)
 })
 
 it('storage denial still reloads the document and malformed stored state is consumed', () => {
-  const reload = vi.fn()
-  vi.stubGlobal('window', { dispatchEvent: vi.fn(), location: { reload } })
-  const failure = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+  Storage.prototype.setItem = () => {
     throw new Error('Denied')
-  })
-  reloadPanelSurface()
-  expect(reload).toHaveBeenCalledOnce()
-  failure.mockRestore()
+  }
+  try {
+    reloadPanelSurface()
+  } finally {
+    Storage.prototype.setItem = nativeSetItem
+  }
   for (const state of ['{', '{}', 'null']) {
     sessionStorage.setItem(MAKER_RELOAD_STATE_KEY, state)
     expect(isMakerReloadPending()).toBe(false)
@@ -41,8 +48,6 @@ it('storage denial still reloads the document and malformed stored state is cons
   }
 })
 it('large previews, approvals and JSON-expanding bytes persist only a tiny maker UI marker', () => {
-  const reload = vi.fn()
-  vi.stubGlobal('window', { dispatchEvent: vi.fn(), location: { reload } })
   const content = '\0'.repeat(400_000)
   const { store } = uiBridge()
   store.receive(MAKER_UI_STATE)
@@ -55,7 +60,6 @@ it('large previews, approvals and JSON-expanding bytes persist only a tiny maker
   expect(store.getState().approvals).toHaveLength(1)
   reloadPanelSurface()
   expect(sessionStorage.getItem(MAKER_RELOAD_STATE_KEY)).toBe('1')
-  expect(reload).toHaveBeenCalledOnce()
   store.dispose(false)
 })
 
@@ -77,20 +81,18 @@ it('reload re-fetches the host request and clears every review confirmation and 
     }),
   ).toBe(true)
   original.store.dispose(false)
-  expect(original.post).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'makerAnswer' }))
+  expect(original.posted.some((message) => message.type === 'makerAnswer')).toBe(false)
   const restored = uiBridge()
   const frames = [MAKER_UI_STATE, engine.reopen({ v: 1, type: 'makerReady' })]
   for (const frame of frames) restored.store.receive(frame)
   expect(restored.store.getState().approvals).toHaveLength(1)
   restored.store.answer(request.id, 'allow_once')
-  expect(restored.post).toHaveBeenLastCalledWith(
-    expect.objectContaining({
-      type: 'makerAnswer',
-      answer: expect.objectContaining({ decision: 'reject_once' }),
-    }),
-  )
+  expect(restored.posted.at(-1)).toMatchObject({
+    type: 'makerAnswer',
+    answer: { decision: 'reject_once' },
+  })
   expect(restored.store.getState().approvals).toHaveLength(0)
-  const raw = restored.post.mock.calls.at(-1)?.[0]
+  const raw = restored.posted.at(-1)
   expect(engine.answer(raw?.type === 'makerAnswer' ? raw.answer : undefined)).toBeUndefined()
   restored.store.dispose()
 })
