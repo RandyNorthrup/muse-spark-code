@@ -198,6 +198,7 @@
   "rateLimits": "Limites de débit des requêtes et jetons",
   "asReported": "Tel que signalé",
   "noLimitReported": "{provider} ne signale aucune limite ici.",
+  "limitNotReadYet": "Pas encore lu pour ce compte.",
   "providerConsole": "Ouvrir la console du fournisseur",
   "retries": "Nouvelles tentatives",
   "rateLimited": "Appels limités",

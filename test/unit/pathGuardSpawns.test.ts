@@ -90,6 +90,12 @@ const KNOWN: Record<string, KnownSpawn> = {
     anchor: 'resolveExecutable',
     reason: 'gh/git resolved through the guarded lookup; scrubbed env, bounded output',
   },
+  'src/core/estimator/calibration/sources.ts': {
+    kind: 'guarded',
+    anchor: 'noWorkspaceChildEnvironment',
+    reason:
+      'git resolved through the guarded lookup outside the history root; execFile takes only the branded credential-free child env, bounded output, hidden window',
+  },
   'src/host/media/recordingLatest.ts': {
     kind: 'reviewed',
     anchor: 'windowsPowerShell',

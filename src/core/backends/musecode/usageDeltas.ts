@@ -5,7 +5,7 @@
 // dist/usageService.js on the first session.
 import type { AgentEvent, TokenUsageCompletion } from '../../../shared/agentEvents'
 import type { SubscriptionUsage } from '../../../shared/usage'
-import type { UsageRecording } from '../../usage/recording'
+import type { OwnedLimitInput, UsageRecording } from '../../usage/recording'
 
 /** What dist/usageService.js serves the activation bundle for live journaling. */
 export interface UsageNotesBundle {
@@ -13,12 +13,28 @@ export interface UsageNotesBundle {
   readonly museCodeLimitInput: typeof museCodeLimitInput
 }
 
+/** The two usage windows (current + weekly) every Muse Code limit snapshot
+carries: one builder so the host and the journal cannot drift apart. */
+export function museCodeLimitWindows(usage: SubscriptionUsage): OwnedLimitInput['windows'] {
+  return [
+    {
+      id: 'window',
+      usedPercent: usage.window.usedPercent,
+      resetsAt: usage.window.resetsAtMs,
+      windowMins: usage.window.windowDurationMins,
+    },
+    {
+      id: 'weekly',
+      usedPercent: usage.weekly.usedPercent,
+      resetsAt: usage.weekly.resetsAtMs,
+    },
+  ]
+}
+
 /** The journal's limit snapshot for one `usage/changed` meter reading: the
 meter's tier names the subscription plan, except an empty tier, which the
 label reader falls back from. Exported for the exact-assertion test. */
-export function museCodeLimitInput(
-  usage: SubscriptionUsage,
-): Parameters<UsageRecording['limit']>[0] {
+export function museCodeLimitInput(usage: SubscriptionUsage): OwnedLimitInput {
   return {
     backend: 'museCode',
     provider: 'museCode',
@@ -26,19 +42,7 @@ export function museCodeLimitInput(
     observedAt: usage.observedAtMs,
     // An empty tier names no plan; the label reader falls back then.
     ...(usage.tier !== '' && { plan: usage.tier }),
-    windows: [
-      {
-        id: 'window',
-        usedPercent: usage.window.usedPercent,
-        resetsAt: usage.window.resetsAtMs,
-        windowMins: usage.window.windowDurationMins,
-      },
-      {
-        id: 'weekly',
-        usedPercent: usage.weekly.usedPercent,
-        resetsAt: usage.weekly.resetsAtMs,
-      },
-    ],
+    windows: museCodeLimitWindows(usage),
   }
 }
 

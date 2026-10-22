@@ -28,13 +28,18 @@ const resetAt = z.nullable(z.iso.datetime())
 const windowSchema = z.strictObject({
   usedPercent: z.number().check(z.minimum(0), z.maximum(100)),
   resetAt,
+  // The provider's own window length in minutes, when captured (Muse Code's
+  // short window reports windowDurationMins; its weekly window reports none).
+  // The estimator shapes a fixed window only from this captured period, never
+  // from the time remaining until the reset (M117 C-M117-3R3).
+  windowDurationMins: z.optional(z.int().check(z.positive())),
 })
 const bucketSchema = z.strictObject({
   limit: z.int().check(z.positive()),
   remaining: count,
   resetAt: z.iso.datetime(),
 })
-const limitsSchema = z.strictObject({
+export const accountLimitsSnapshotSchema = z.strictObject({
   planWindows: z.optional(z.record(accountIdSchema, windowSchema)),
   rateLimits: z.optional(
     z.strictObject({ requests: z.optional(bucketSchema), tokens: z.optional(bucketSchema) }),
@@ -45,7 +50,7 @@ const limitsSchema = z.strictObject({
 })
 
 /** Normalized local snapshots, produced only by each provider's captured codec. */
-export type AccountLimitsSnapshot = z.infer<typeof limitsSchema>
+export type AccountLimitsSnapshot = z.infer<typeof accountLimitsSnapshotSchema>
 export interface AccountLimitsReader {
   /** Must be scoped by both identities; an absent configured metric refuses admission. */
   read(provider: string, account: string): AccountLimitsSnapshot
@@ -115,7 +120,9 @@ export function evaluateAccountThresholds(deps: {
     Object.values(thresholds.rateLimitHeadroomPercent ?? {}).some((value) => value !== undefined)
   if (requiresLimits && deps.limits === undefined) unavailable()
   if (deps.limits !== undefined) {
-    const result = limitsSchema.safeParse(deps.limits.read(deps.provider, deps.account.id))
+    const result = accountLimitsSnapshotSchema.safeParse(
+      deps.limits.read(deps.provider, deps.account.id),
+    )
     if (!result.success) unavailable()
     const snapshot = result.data
     const isActive = (reset: string | null) => reset === null || Date.parse(reset) > deps.now

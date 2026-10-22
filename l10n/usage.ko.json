@@ -172,6 +172,7 @@
   "rateLimits": "요청 및 토큰 속도 제한",
   "asReported": "보고된 대로",
   "noLimitReported": "{provider}에서 여기에 한도를 보고하지 않습니다.",
+  "limitNotReadYet": "이 계정에서 아직 읽지 않았습니다.",
   "providerConsole": "공급자 콘솔 열기",
   "retries": "재시도",
   "rateLimited": "속도 제한된 호출",

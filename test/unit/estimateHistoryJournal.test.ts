@@ -83,4 +83,25 @@ describe('estimate calibration history', () => {
       expect(await readdir(path.join(root, 'history'))).toHaveLength(2)
     })
   })
+
+  it('clears observations, identity claims and staging files but keeps foreign files', async () => {
+    await usingTempDir('muse-estimate-history-', async (root) => {
+      const journal = new EstimateHistoryJournal(path.join(root, 'history'))
+      await journal.append(record())
+      const folder = path.join(root, 'history')
+      await writeFile(path.join(folder, 'interrupted.tmp'), 'interrupted', 'utf8')
+      await writeFile(path.join(folder, 'owner-note.txt'), 'not the journal', 'utf8')
+      await journal.clear()
+      expect(await journal.list()).toEqual([])
+      expect(await readdir(folder)).toEqual(['owner-note.txt'])
+    })
+  })
+
+  it('clears a missing journal without failing', async () => {
+    await usingTempDir('muse-estimate-history-', async (root) => {
+      const journal = new EstimateHistoryJournal(path.join(root, 'history'))
+      await journal.clear()
+      expect(await journal.list()).toEqual([])
+    })
+  })
 })

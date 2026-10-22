@@ -37,6 +37,7 @@ import { reportCommandArguments } from '../reporting/reportCommand'
 // (permission mode, effort, thinking) and for the images waiting to be sent.
 
 import type { EstimateSection } from '../../shared/estimate'
+import { presentEstimate } from '../../runtime/estimator/command'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
@@ -547,6 +548,13 @@ export interface ConversationDeps {
   readonly playbook?: (() => PanelPlaybookPort) | undefined
   /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
   readonly estimator?: EstimatorRun
+  /**
+  Edge 4: the credential-identity generation the estimate was read under.
+  When the generation moves, a forecast computed under the replaced
+  credential is withdrawn, never delivered, displayed or spun up. Absent,
+  an unbound held estimate still spins up: only a proven change withdraws.
+  */
+  readonly estimatorGeneration?: () => string
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -1045,6 +1053,12 @@ function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
 }
 
+/** The account provider a validated model reference reads its limits from. */
+function providerOfModel(modelId: string): string {
+  const slash = modelId.indexOf('/')
+  return slash === -1 ? 'meta' : modelId.slice(0, slash)
+}
+
 /**
 The webview's model row for one host summary (C-M106-3R3): everything the
 picker shows plus the served catalogue's tiers, so the sliders render the
@@ -1350,6 +1364,7 @@ export class ConversationController implements DeferredSend {
   /** The last estimate's inputs on this surface: what Spin it up submits. */
   private lastEstimateInputs: EstimateInputs | undefined
   private lastEstimateSection: EstimateSection | undefined
+  private lastEstimateGeneration: string | undefined
   private estimatePending: AbortController | undefined
 
   /** User cards whose file bytes rewind cannot restore across every backend/history path. */
@@ -9498,6 +9513,7 @@ export class ConversationController implements DeferredSend {
         if (appliedModel !== modelId && this.session.fireExtensionHook !== undefined) {
           this.modelId = appliedModel
           this.postSessionInfo(appliedModel)
+          this.invalidateEstimateOnProviderSwitch(previous)
           return
         }
       } catch (error: unknown) {
@@ -9507,6 +9523,7 @@ export class ConversationController implements DeferredSend {
         return
       }
     }
+    this.invalidateEstimateOnProviderSwitch(previous)
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
     // (muse-spark-1.2 has no `max`); drop to the model's own default where
@@ -10842,6 +10859,34 @@ export class ConversationController implements DeferredSend {
     this.estimatePending = undefined
     this.lastEstimateInputs = undefined
     this.lastEstimateSection = undefined
+    this.lastEstimateGeneration = undefined
+  }
+
+  /**
+  Edge 4: what was computed under a generation dies with it. A forecast
+  read under a replaced credential is withdrawn with a true sentence and
+  can never be delivered, displayed or spun up here.
+  */
+  private withdrawEstimate(correlation: { readonly requestId?: string } = {}): void {
+    this.lastEstimateInputs = undefined
+    this.lastEstimateSection = undefined
+    this.lastEstimateGeneration = undefined
+    this.post({
+      type: 'estimatorFailure',
+      ...correlation,
+      diagnostic: { estimateDiagnostic: 'estimate-credential-changed' },
+    })
+    this.notice('warning', UI_TEXT.estimateCredentialChanged)
+  }
+
+  /**
+  A provider switch retires the pending and the displayed estimate: the
+  old forecast was read under another owner and must never be delivered
+  here.
+  */
+  private invalidateEstimateOnProviderSwitch(previousModelId: string): void {
+    if (providerOfModel(this.modelId) !== providerOfModel(previousModelId))
+      this.invalidateEstimate()
   }
 
   private async handleEstimateMessage(
@@ -10852,6 +10897,12 @@ export class ConversationController implements DeferredSend {
   ): Promise<void> {
     const estimator = this.deps.estimator
     const generation = this.sendInvalidationEpoch
+    // The owner this request was read under: a provider switch meanwhile
+    // retires it, so a late forecast is never delivered to another owner.
+    const provider = this.estimateProviderId
+    // Edge 4: the credential-identity generation this request reads under.
+    // A replaced credential meanwhile withdraws the forecast below.
+    const estimateGeneration = this.deps.estimatorGeneration?.()
     const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
     if (message.type !== 'estimateSpinUp') {
       this.invalidateEstimate()
@@ -10865,11 +10916,24 @@ export class ConversationController implements DeferredSend {
             : estimator.parseCommand?.(message.command, message.context)
         if (request === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
         const section = await estimator.estimate(request, pending.signal)
-        if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
+        if (
+          pending.signal.aborted ||
+          generation !== this.sendInvalidationEpoch ||
+          provider !== this.estimateProviderId ||
+          this.isDisposed
+        )
           return
+        if (
+          estimateGeneration !== undefined &&
+          estimateGeneration !== this.deps.estimatorGeneration?.()
+        ) {
+          this.withdrawEstimate(correlation)
+          return
+        }
         this.lastEstimateInputs = section.inputs
         this.lastEstimateSection = section
-        this.post({ type: 'estimatorSection', ...correlation, section })
+        this.lastEstimateGeneration = estimateGeneration
+        this.post({ type: 'estimatorSection', ...correlation, section: presentEstimate(section) })
       } catch (error: unknown) {
         this.deps.log.error(`The estimate failed: ${failureForLog(error)}`)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
@@ -10886,6 +10950,16 @@ export class ConversationController implements DeferredSend {
     }
     try {
       if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
+      // Edge 4: a held forecast cannot be spun up under a replaced
+      // credential. An unbound held estimate (no generation reader) still
+      // spins up: only a proven change withdraws.
+      if (
+        this.lastEstimateGeneration !== undefined &&
+        this.lastEstimateGeneration !== this.deps.estimatorGeneration?.()
+      ) {
+        this.withdrawEstimate(correlation)
+        return
+      }
       const section = this.lastEstimateSection
       const kind = message.setup ?? 'current'
       const setup = section?.setups.find((setup) => setup.kind === kind)
@@ -12652,6 +12726,11 @@ export class ConversationController implements DeferredSend {
     capture: (session: AgentSession) => WorkspaceEditRecorder | undefined,
   ): WorkspaceEditRecorder | undefined {
     return this.isDisposed || this.session === undefined ? undefined : capture(this.session)
+  }
+
+  /** The account provider selected by this composer's validated model reference. */
+  public get estimateProviderId(): string {
+    return providerOfModel(this.modelId)
   }
 
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */

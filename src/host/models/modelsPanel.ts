@@ -87,7 +87,7 @@ export interface ModelsPanelDeps {
   readonly writeExportFile: (text: string) => Promise<void>
   readonly readImportFile: () => Promise<string | undefined>
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
-  readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
+  readonly onWizardSaved: (outcome: WizardSaveOutcome) => void | Promise<void>
   /**
   The vault binding factory (C-M109-1 P1). Without it the section stays
   hidden; a factory that throws leaves the panel without the section too.
@@ -1261,7 +1261,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
               : [state.notice, UI_TEXT.providerRefreshFailed].join(' ')
         if (outcome.composerSet) {
           try {
-            deps.onWizardSaved(outcome)
+            await deps.onWizardSaved(outcome)
           } catch (error: unknown) {
             // A host that cannot be told still keeps the save; anything that
             // is not an error keeps its kind past the queue.

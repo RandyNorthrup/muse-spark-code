@@ -109,6 +109,92 @@ happened, not what was planned; superseded entries are kept.
 - **The usage companion page now matches the Muse design.** It follows
   your computer's light or dark mode, and uses your installed fonts once
   `fonts install` has run.
+- **Estimator provisioning lifecycle** (M117 C-M117-6). The portable core
+  behind Spin it up is complete on fakes: exact per-server quotes with the
+  batch total shown before any confirmation, one confirmation per spend, a
+  hard run budget refused before any request, liability reserved before
+  create and retained on uncertain outcomes, install-then-pair through the
+  node bindings, idle Keep that never extends funding, and wipe-before-delete
+  with a deleted status receipt. Review hardening: the confirmation sees a
+  frozen quote copy while admission spends the quoted values, a duplicate
+  provider id keeps both liabilities, confirmations and idle checks run
+  without holding the serial lock so they can call back into the
+  provisioner, deletion receipts must name the torn-down server, and an
+  unrepresentable budget reports honestly. The confirmed run seals
+  connected-provider tariffs (advising while providers or node bindings are
+  missing), and server leases track activity, funded expiry and deletion
+  receipts with wipe before delete. Rented provisioning stays
+  advice-only until the M109 broker and M110d/M110f bindings land; no new
+  command or surface.
+- **Estimator owned limit facts** (M117 C-M117-3R5). Account and machine
+  translators preserve independently unknown measurements, UTC windows and
+  observation ownership for every normalized vendor source. Known percentage
+  allowance now constrains work without a captured period, and Model API
+  balances retain their current limits. Account/sign-in changes fence old
+  observations, forecasts are independent of ambient time zone, and typed
+  scheduling refusals survive every surface. Explanations use account labels;
+  invalid owner fields refuse with their source. The panel receives no new code
+  or schema dependency.
+- **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
+  from your workspace `PLAN.md` with its git and `gh` evidence — lane hours,
+  Starts dependencies, rigs, file affinities, the delivery order and §10
+  releases — in the VS Code extension and headless, instead of refusing with
+  `M117-W-M113-plan-reader`. A goal whose lanes lack hour estimates is refused
+  naming the lanes; per-lane metered demands the plan never carries are
+  disclosed zero-sample assumptions until calibration replaces them per kind.
+  Starting lanes, price catalogs, history and multi-machine fleets still refuse
+  with their handoff names until their lanes land.
+- **Estimator history journal** (M117 C-M117-2). `/estimate` reads calibration
+  history from a durable journal in the agent data folder
+  (`estimator/history`), shared by every workspace, instead of always
+  starting empty — so observations persist across windows and processes.
+  Concrete builders project git lane-branch elapsed time, M116 review rounds
+  and CI job-hours; skipped journal records are disclosed by opaque id and
+  fixed code in the estimate. With no observations yet the estimate still
+  reports the uncalibrated prior with its sample size. The M96c board's
+  active-agent time and the M115 lane-finished collection trigger arrive with
+  their lanes.
+- **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
+  and the ACP agent's `/estimate` accept `--check-plan`, which lists every
+  estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
+  cells (naming cell and line), unknown prerequisites, unknown rigs and
+  unknown release members — one per line, printing nothing when the plan is
+  clean. The exit code carries the verdict: 0 clean, 1 problems, 2 usage.
+- **Strict `Starts` grammar** (M117 CM1171R4). A `Starts` cell is `day 0`,
+  `first`, `last`, or `after` lane, qualified-lane and whole-milestone refs;
+  parenthetical text is a note and is ignored; anything else refuses with
+  `malformed-starts` instead of inventing or dropping dependencies. Strictness
+  applies to the goal's dependency closure, so rows outside it never block a
+  forecast. A planned lane with `Hours 0` is refused as a missing estimate,
+  and a `MERGED` pull request without a merge timestamp is refused as
+  malformed evidence.
+- **Estimator fleet binding** (M117 C-M117-3). The `fleet` and `candidatePool`
+  ports accept M107 capacity caps, M108 account rows and GitHub CI concurrency
+  through injected readers and apply them fail-closed onto this machine's
+  measured fleet. With no readers attached the forecast fleet is unchanged:
+  one serial local row, a demand-budgeted account, no CI rows and no device
+  or node rows. A lane whose affinity names a paired device or node stays
+  unschedulable with its reason.
+- **Estimator fleet binding R2** (M117 C-M117-3R2). Both production assemblies
+  now pass the binding: the extension reads M107's resource ceilings live from
+  the workspace configuration and headless applies the configured defaults, so
+  the ceilings shape admission — the local machine offers cores scaled by the
+  tighter ceiling (two 1-hour lanes finish in 2 h under 1/1, 1 h under
+  100/100). M108's active account is selected (active wins, else first, never
+  an ambiguous refusal) and translated to allowance rates with
+  measured-remaining windows; corrupt readers refuse with named details instead
+  of a raw parse error. No CI row is carried yet (no captured shape names
+  concurrency), so a lane declaring CI demand refuses with the schedule's
+  reason.
+- **Estimator fleet owner constraints** (M117 C-M117-3R4). Panel and ACP
+  forecasts read the existing subscription usage feed and retain blocking
+  plan windows. Current request/token allowance no longer invents a repeating
+  period or sustainable rate. Full captured windows retain their allowance
+  after reset; simultaneous blocks wait for the latest reset, and an unknown
+  reset refuses. Corrupt owners return named source errors. Concurrent estimates
+  each share their own fleet/pool snapshot. Missing CI qualifies only work
+  that uses CI. Default/configured thresholds retain their provenance and
+  explanations use the installed language.
 
 ### Changed
 
@@ -307,6 +393,9 @@ happened, not what was planned; superseded entries are kept.
   moment before each git starts. When git cannot run, the error says why
   (a busy machine, an unavailable helper, or the tree's memory limit),
   and a failed git shows git's own message with secrets removed.
+- Keep the Estimator panel within its existing byte budget, retain safe host
+  refusal details through the panel, and load headless settings from their
+  existing resource bundle on first estimate.
 
 ### Release infrastructure
 

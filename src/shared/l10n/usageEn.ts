@@ -179,6 +179,7 @@ export const USAGE_EN = {
   rateLimits: 'Request & Token Rate Limits',
   asReported: 'As Reported',
   noLimitReported: '{provider} does not report a limit here.',
+  limitNotReadYet: 'Not read yet for this account.',
   providerConsole: 'Open Provider Console',
   retries: 'Retries',
   rateLimited: 'Rate-Limited Calls',

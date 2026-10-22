@@ -185,6 +185,7 @@
   "rateLimits": "İstek ve belirteç hız sınırları",
   "asReported": "Bildirildiği gibi",
   "noLimitReported": "{provider} burada bir limit bildirmedi.",
+  "limitNotReadYet": "Bu hesap için henüz okunmadı.",
   "providerConsole": "Sağlayıcı konsolunu aç",
   "retries": "Yeniden denemeler",
   "rateLimited": "Hız sınırlamasına takılan çağrılar",

@@ -56,6 +56,7 @@ interface ReviewerContext {
     | 'newId'
     | 'log'
     | 'noteReviewerUsage'
+    | 'usageScope'
     | 'sideCallFormats'
     | 'forceSideCallTool'
     | 'now'
@@ -290,24 +291,33 @@ async function requestReviewer(
             ...next,
             rateLimited: observation.rateLimited === true || next.rateLimited === true,
           }
+          const headers = next.headers
           if (
-            next.headers !== undefined &&
-            (Object.keys(next.headers).length > 0 || next.rateLimited === true)
-          ) {
-            context.deps.usageRecording?.limit(
-              {
-                backend: 'modelApi',
-                provider: context.resolved.policy.identity.provider,
-                source: 'headers',
-                observedAt: context.deps.now(),
-                windows: [],
-                raw: next.headers,
-                // The account that paid for this response (RVCM963J 7).
-                observedAccount: budgetScope?.accountId,
-              },
-              next.rateLimited === true,
-            )
-          }
+            headers === undefined ||
+            (Object.keys(headers).length === 0 && next.rateLimited !== true)
+          )
+            return
+          // The owner is bound per observation through the live scope, so a
+          // reviewer that survives a credential change publishes under the
+          // new generation, never the retired one.
+          const scope = context.deps.usageScope?.()
+          const producer =
+            scope === undefined
+              ? undefined
+              : context.deps.usageRecording?.scopeLimits?.({ ...scope, backend: 'modelApi' })
+          producer?.limit(
+            {
+              backend: 'modelApi',
+              provider: context.resolved.policy.identity.provider,
+              source: 'headers',
+              observedAt: context.deps.now(),
+              windows: [],
+              raw: headers,
+              // The account that paid for this response (RVCM963J 7).
+              observedAccount: budgetScope?.accountId,
+            },
+            next.rateLimited === true,
+          )
         },
         paidFeature: 'autoReviewer' as const,
         ...(required.paidEstimatedInputTokens !== undefined && {

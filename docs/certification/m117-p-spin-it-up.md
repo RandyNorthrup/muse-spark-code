@@ -135,3 +135,210 @@ fake-only estimator e2e files, repository default timeout. Earlier host/unit
 typechecks passed; enabled commit hooks lint/format this slice. The e2e
 resolves a fixture milestone through G, schedules it through S and submits
 its audited contract wave before the next merged-prerequisite wave.
+
+## Slice 2 receipts (C-M117-6, 2026-10-11, linuxlt)
+
+Portable provisioning lifecycle in `src/core/estimator/provision/lifecycle.ts`
+(`quoteProvisioning`, `EstimateProvisioner`), tested by
+`test/unit/estimatorProvision.test.ts` (16 tests on the lane; rewritten
+without fakes in the RLM117 port note below, repository default timeout).
+Behavior: exact nano-USD quotes per server
+(`hourlyUsd × maxBilledHours`, `scaleUsdNanos`, never binary arithmetic)
+with the batch total fixed before any confirmation; one confirmation per
+spend through the injected callback, denied when it answers false or throws;
+an explicit non-negative run budget with no default, enforced before any
+provider request or confirmation; liability reserved before create and
+retained on every uncertain outcome (failed create, failed install/pair,
+failed wipe, unconfirmed deletion); install then pair through the injected
+`EstimateNodePort`; idle `Keep` returning without touching the funded
+lifetime; teardown answers rechecking activity first; wipe before provider
+deletion with a `deleted` status receipt before liability release. No
+timers, no provider network client, no payment field (the brokered create
+path is covered by Slice 1's payment-field drills), no command, no UI, no
+new string, no new dependency. Unknown servers refuse without touching the
+provider. Rented provisioning stays advice-only behind `M117-P-M109-provider`
+until the M109 broker and M110d/M110f bindings land (handoffs above
+unchanged); no editor rows are owed by this lane — U/W bind the preview,
+modal and notice surfaces later.
+
+Slice 2 guard-fire drills (each mutation exits 1 at its named test; source
+restored byte-exact, SHA-256 `d309a716e3f9b9640b104fb404f697a2532144031856b5c7ac371422b6ec86d9`
+before and after; the first drill pass ran pre-lint and was repeated on the
+final source after the lint fixes, and `L5` was fired a third time after its
+stub became a `FakeEstimateProvider` subclass (exactly 1 failed, 15 passed,
+same restore hash):
+
+| Drill                            | Intended named failing regression                                  | Exit |
+| -------------------------------- | ------------------------------------------------------------------ | ---- |
+| `L1-no-unconfirmed-spend`        | denies without confirmation                                        | 1    |
+| `L2-cap-never-refuses`           | refuses a server past the cap before any request or confirmation   | 1    |
+| `L3-delete-before-wipe`          | wipes before provider deletion and requires the deleted receipt    | 1    |
+| `L4-release-on-uncertain-create` | retains liability on an uncertain create                           | 1    |
+| `L5-no-deletion-receipt`         | keeps liability when the status receipt never shows deleted        | 1    |
+| `L6-keep-tears-down`             | keeps an idle server on Keep without extending its funded lifetime | 1    |
+| `L7-no-batch-total`              | shows every price and the total before any confirmation            | 1    |
+
+Billing/payment/sign-up/account endpoint refusal stays Slice 1's P03–P06
+drills; the lifecycle's broker integration test provisions and
+decommissions through the allow-listed broker. Gates for this slice:
+`tsc` host and unit projects, `eslint --max-warnings=0`, `prettier --check`,
+`check:l10n` (0 problems, no new keys), `npm run build` (exit 1 only on the
+pre-existing `dist/webview` estimator panel OVER, 25.3 KiB vs 25 KiB on the
+untouched base: the module has no production importer and none of its
+strings appear in any bundle, so this lane adds zero bytes; cap changes are
+the owner's call),
+`knip`, `check:reference` and `check:host-api` unchanged, plus the
+neighbour provider/start/fakes suites. Self review, one pass by class:
+validation (zod batch/size/image/hours/cloudInit/budget boundaries),
+security (cap before request, no credential or payment surface, errors name
+only the operation), failure paths (deny, retain, refuse-unknown, all
+covered above), concurrency/lifecycle (one `EstimateSerialOwner`,
+clone-before-queue, no timers). Codex + Grok review remains lead-owned.
+
+## RVCM1176 fixes (CM1176R2, 2026-10-11, linuxlt)
+
+All six findings fixed, no residuals. One class: every outcome sequence
+keeps the liability invariant (reserved before create; kept on every
+uncertain outcome; released only on a deleted receipt for the torn-down
+id; never released twice; never below zero), and every input feeding a
+price or budget is validated before use. The review's outcome-sequence
+table is now a table-driven suite (`outcome-sequence liability` in
+`test/unit/estimatorProvision.test.ts`: 10 rows asserting `liabilityUsd`
+and tracked-server count after each sequence, plus the single-case
+regressions below). 32 tests, fakes only, repository default timeout
+(no `--testTimeout`). No new dependency, no new l10n key (the honest
+budget error reuses `estimateFailed` with a technical detail), no guard
+widened, no `as` cast, no eslint-disable.
+
+| Finding                            | Fix (`lifecycle.ts`)                                                                                                                                                                                                               | Regression test                                                                                                                                                            | Drill (guard broken → named failure, exit 1)                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| P2 quote mutation (`:175`)         | `snapshotQuote`: the callback receives a frozen copy; `admit` reserves, creates and records the pre-confirmation values (`admit`, `provision`)                                                                                     | `hands the confirmation a frozen copy and spends the quoted values` (write attempts fail via `Reflect.set`; spend keeps `small`/`0.06`; copy + cost + size + image frozen) | R1 unfreeze: the named test fails                                                                                  |
+| P2 duplicate create id (`:185`)    | `admit` refuses an already-tracked id with `duplicate-server-id`; the earlier record keeps its cost and the new reservation stays pending                                                                                          | `keeps both liabilities when create returns an already-tracked id` (liability `0.12`, one tracked server)                                                                  | R2 guard removed: the named test fails                                                                             |
+| P2 re-entrant callback (`:168`)    | confirmations (`provision`) and the idle check (`settleIdle`) run without holding `EstimateSerialOwner`; each confirmed server is cap-checked and reserved atomically in `admit`, and teardown re-reads the record under the owner | `lets a confirmation tear down an earlier server without deadlocking` (deny-after-teardown leaves no servers, liability `0`)                                               | R3 confirm back under the lock: the named test times out at the repo default (5000 ms), the review's exact symptom |
+| P3 foreign receipt (`:199`)        | `teardown` releases only on `state === 'deleted'` **and** `receipt.id` matching the torn-down server                                                                                                                               | `keeps the server on a foreign deletion receipt` + `status-foreign` table row (kept, liability `0.06`)                                                                     | R4 id check removed: the named test fails                                                                          |
+| P3 sub-nano budget (`:149`)        | the constructor's precision failure throws `estimateFailed` with `budget-unrepresentable`, not the "no default" sentence                                                                                                           | `reports an unrepresentable budget honestly instead of "no default"`                                                                                                       | R5 second catch restored to `refusedBudget()`: the named test fails                                                |
+| P3 install/pair retention (`:184`) | order kept (reserve → create → track → install → pair); the suite now covers the reviewer's named mutation                                                                                                                         | `install-throws` / `pair-throws` / `delete-throws` / `confirm-throws` table rows (all keep `0.06`; confirms keep `0`)                                                      | R6 `managed.set` moved after `pair`: both named rows fail                                                          |
+
+Drill restores byte-exact: `lifecycle.ts` `ead9efa7836bdd5709c677e89c1e3f0285f31316fbda0d36da4221be9446bf28`
+and `estimatorProvision.test.ts`
+`50c23e84aa11f4e297877b23ada3ef00f92f9b762e917bd034fa29738172d0e6`
+before and after every drill (R1–R6; R3's red run ends in the 5 s repo
+timeout). Post-drill lint/type fixes touched both files again; final
+hashes: `lifecycle.ts`
+`fdf88c07bb4b8373070f2677cc7f0863753349a036d9310f7e805c68ebe424d3`,
+`estimatorProvision.test.ts`
+`c76f3eb24b73525068f14c0b35830210d7f2b94e0a90157adc5674877cb7e2de`.
+
+Sweep for siblings: `settleIdle`'s activity check got the same
+outside-the-lock treatment as the spend confirmation (it awaited
+`isIdleNow` on the turn); the check now receives a copy of the server
+record. `quoteProvisioning` inputs were already zod-validated
+(size/image schemas, finite positive hours, non-empty cloud-init);
+budget precision is the remaining price/budget input and is now
+validated in the constructor. No other `managed.set` / `pending` /
+receipt-release sites exist in the lane.
+
+Planned call sites (review §"Planned call sites") are still a handoff:
+no production importer of `lifecycle.ts` exists, so none of this is
+reachable from Spin it up today. The callback contract the call sites
+must keep is now enforced in code, not only prose: the quote cannot be
+rewritten through the copy, and a callback may await `decommission` /
+`settleIdle` on the same instance.
+
+## RLM117 port note (2026-10-22, macbook, C-M117-6)
+
+True merge onto `rec/rlm117`: `lifecycle.ts` added clean (no content
+conflict; the implementation is unchanged from the branch). The suite is
+rewritten, not carried: the branch's 16 fake-only tests (scripted provider,
+`vi.fn` confirmations, spied-on methods) are replaced by 7 tests that run
+the real core with tripwire ports — every provider/node method throws on
+contact, so a test that touches a port fails loudly instead of proving a
+double. Covered for real: exact nano-USD quotes and batch total, request
+validation, representable-budget admission, cap refusal before any
+confirmation, denial, the frozen confirmation copy, the confirmation text,
+and unknown-server refusals. Not run (no provider exists to run them
+against): create/install/pair/status/delete flows, idle-teardown execution
+and decommission. Those wait for the M109 broker and the M110d/M110f
+bindings, with live-provider drills; until then the core stays
+advice-only behind `M117-P-M109-provider` and no surface calls it. The
+never-pays drill holds for what exists: no spend path runs without a
+per-spend confirmation under the hard cap, and the suite proves the cap
+refuses before the question is asked. Never-creates-accounts holds
+structurally: the core has no account, sign-up or payment path (accounts
+stay with M108; payment fields stay refused in the broker).
+
+## Slice 2 implementation and inspection
+
+`EstimateProvisionRun` seals connected-provider selections, shows the full
+quote before each fresh boolean confirmation, atomically admits all positive
+liabilities under the explicit run cap and reserves before create. Decimal
+hourly rates, sums and billed durations use exact fractions; only display
+rounds up to nano-USD. Funded durations floor exact milliseconds. A lost or
+malformed create retains liability and stops further creates; a known returned
+identity remains available in its uncertain outcome. Failed install/pairing
+is cleaned up through the lifecycle; unconfirmed cleanup stays visible.
+
+`EstimateServerLifecycle` tracks provider-scoped identities, activity,
+funded expiry and deletion receipts. Busy work gets no idle notice. Every
+activity invalidates the notice generation. Wipe completes before deletion;
+pending/failed deletion is reconciled without repeating a successful wipe.
+Keep postpones idle cleanup, while expiry still binds. Inspection found that
+awaiting a notice inside the shared owner could block a future expiry sweep.
+The notice now waits outside that owner, then re-enters with its generation;
+retirement invalidates late replies. A dedicated unanswered-notice/expiry
+regression and a late-Keep/explicit-retire regression protect both paths.
+M110f must drive expiry events independently while a notice is pending;
+a sequential loop that waits for a user's answer before scheduling the next
+sweep is not an acceptable binding.
+
+The expanded pre-drill budget/lifecycle suites passed 40/40; the next two
+concurrency/boundary regressions are included in final verification below.
+All five TypeScript projects passed on this rig. Exact final post-drill and
+post-hook receipts follow. No CLI test-timeout override is used.
+
+The M96/M116 start binding must also enforce M110/M100's verified input/base
+manifest and hook environment, fresh worker leases and acknowledged outcome
+receipts (gotchas G1/G2/G5/G6/G14/G15/G19/G27). P submits IDs through the
+frozen port and never fabricates their absent worker transport. Base-age and
+account-headroom estimate disclosures remain G/U/W's ownership (G4/G25).
+
+## RLM117 port record (2026-10-22, macbook, C-M117-6 + P)
+
+True merge of both branches onto `rec/rlm117`. `lifecycle.ts` holds both
+classes with no symbol overlap: 05's `EstimateProvisioner` (quotes,
+per-spend confirmation, hard cap, reserve-before-create, install-then-pair,
+Keep, wipe-before-delete) beside 07's `EstimateServerLifecycle` (track,
+activity, snapshots, expiry sweep, wipe/delete classification); 07's
+`run.ts` (`EstimateProvisionRun`: connected-provider tariffs, advice-only
+gating, per-server outcomes) and `clock.ts` (`EstimateProvisionClock`)
+landed unchanged. The fake-certified suites both branches carried
+(`FakeEstimateProvider`, `vi.fn` confirmations, spied-on methods, scripted
+clocks, the 106-test/100-drill record above) are not carried: inventing
+provider wire is banned with no recorded exchange to replay, and no
+provider exists until the M109 broker and the M110d/M110f bindings land.
+They are replaced by real suites over tripwire ports:
+
+- `test/unit/estimatorProvision.test.ts` (7 tests): exact nano-USD quotes
+  and totals, request validation, representable-budget admission, cap
+  refusal before any confirmation, denial, the frozen confirmation copy,
+  the confirmation text, unknown-server refusals.
+- `test/unit/estimatorProvisionRun.test.ts` (9 tests): budget validation,
+  duplicate-provider refusal, advice-only gating and quote refusal,
+  unknown-provider and malformed-request refusals, funded-duration
+  flooring refusal, the real monotonic clock and its malformed-input
+  refusal.
+- `test/unit/estimatorProvisionLifecycle.test.ts` (5 tests): track and
+  snapshot copies, unknown/duplicate/malformed input refusals, activity,
+  busy/fresh-lease sweeps with no port contact, and wipe-failure
+  classification on expiry with an unreachable node.
+
+Unrun and named as waiting: quotes past the tariff read, confirmations,
+cloud-init and execution, install/pair/status/delete flows, idle-notice
+paths (unreachable in real time), and decommission/teardown against a live
+provider — with live-provider drills when M109/M110d/M110f bind. Until
+then the core stays advice-only behind `M117-P-M109-provider` and no
+surface calls it. The never-pays drill holds for what exists (cap refuses
+before the question is asked; no remembered grants); never-creates-accounts
+holds structurally (no account, sign-up or payment path in the core).
+Determinism: fixed math, the real clock, no locale text; temp state under
+the rig's `$TMPDIR` via `os.tmpdir()`.
