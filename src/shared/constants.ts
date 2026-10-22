@@ -7569,18 +7569,6 @@ export const MODEL_API_MODEL_TEXT = {
   pagesKnown: 'page count {count}',
   notPdf: 'is named as a PDF but is not one (it has no %PDF- header)',
   notImage: 'is named as an image but is not a PNG, JPEG, GIF or WebP image',
-  // Replays keep newer media within page and encoded-size budgets, naming
-  // older media instead of sending the bytes again.
-  imageLeftOut:
-    '[An image attached earlier is left out of this request because newer media fill the request limit.]',
-  pdfLeftOut:
-    '[The PDF {name}, attached earlier, is left out of this request because newer media fill the request limit.]',
-  mediaLeftOut: '[Media is left out of this request because {reason}.]',
-  mediaSourceUnavailable:
-    '[The attachment {name} is unavailable in this request; attach the file again to use it.]',
-  mediaSupportRefused: 'the selected model does not have established support for this media',
-  mediaMimeRefused: 'the selected model does not support this image MIME type',
-  mediaLimitExceeded: 'the media exceeds the selected model media limits',
   // M67 (PLAN.md D49): the code intelligence tools in the system prompt, and
   // rename_symbol's write, which only the Model API backend applies itself.
   codeIntelInstructions:
@@ -7761,6 +7749,25 @@ export const MODEL_API_MODEL_TEXT = {
     'The screenshot the browser check took of {url} was not delivered because that tool round ended early.',
   browserCheckRestrictedMode:
     'the browser check is off while the workspace is in Restricted Mode; trust the workspace to enable it',
+} as const
+
+// Media omission sentences for the model, English whatever the display
+// language. A block of its own beside MODEL_API_MODEL_TEXT: replays keep
+// newer media within page and encoded-size budgets, naming older media
+// instead of sending the bytes again, and both the Model API budget and
+// the providers-bundle codecs read them, so neither bundle carries the
+// other's whole block.
+export const MEDIA_MODEL_TEXT = {
+  imageLeftOut:
+    '[An image attached earlier is left out of this request because newer media fill the request limit.]',
+  pdfLeftOut:
+    '[The PDF {name}, attached earlier, is left out of this request because newer media fill the request limit.]',
+  mediaLeftOut: '[Media is left out of this request because {reason}.]',
+  mediaSourceUnavailable:
+    '[The attachment {name} is unavailable in this request; attach the file again to use it.]',
+  mediaSupportRefused: 'the selected model does not have established support for this media',
+  mediaMimeRefused: 'the selected model does not support this image MIME type',
+  mediaLimitExceeded: 'the media exceeds the selected model media limits',
 } as const
 
 // The verify loop's text for the model (M68, PLAN.md D49), English whatever

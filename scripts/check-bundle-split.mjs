@@ -1244,7 +1244,7 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
           (input.startsWith('src/core/providers/') &&
             !(
               output === 'dist/providerPolicy.js' &&
-              ['credentialRecord.ts', 'modelRef.ts', 'endpointPolicy.ts'].some(
+              ['credentialRecord.ts', 'endpointPolicy.ts'].some(
                 (file) => input === `src/core/providers/${file}`,
               )
             ) &&
@@ -1256,10 +1256,8 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             // provider records, so the migration chunk carries their
             // schemas beside the engine.
             !(
-              output === VAULT_MIGRATION.output &&
-              ['modelRef.ts', 'accountCredentialRecord.ts'].some(
-                (file) => input === `src/core/providers/${file}`,
-              )
+              input === 'src/core/providers/accountCredentialRecord.ts' &&
+              output === VAULT_MIGRATION.output
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             // C-M113-2: the session and usage inputs read M102's journal
@@ -1428,12 +1426,13 @@ const TEXT_BLOCKS = [
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyAccessRefused'],
     // The verify chunk reads two skip/outcome keys of this block, so it
     // carries the block whole (one object is carried whole, D6).
+    // RLM95: productionMedia read only the media omission sentences, now
+    // MEDIA_MODEL_TEXT's own block below.
     readers: [
       BUNDLES.modelApi.output,
       'dist/mcpPool.js',
       'dist/modelApiMcp.js',
       'dist/modelApiVerify.js',
-      'dist/productionMedia.js',
     ],
   },
   // The verify loop's own words (M68): the loop, its ledger and the
@@ -1443,6 +1442,14 @@ const TEXT_BLOCKS = [
     block: 'VERIFY_MODEL_TEXT',
     sentinels: ['verifyChecksHeading', 'verifyUncheckedCodeLoading'],
     readers: ['dist/modelApiVerify.js'],
+  },
+  // RLM95: media omission sentences, split out of MODEL_API_MODEL_TEXT.
+  // Both the Model API budget and the providers-bundle codecs read them,
+  // so neither bundle carries the other's whole block.
+  {
+    block: 'MEDIA_MODEL_TEXT',
+    sentinels: ['mediaLeftOut', 'imageLeftOut'],
+    readers: [BUNDLES.modelApi.output, BUNDLES.providers.output, 'dist/productionMedia.js'],
   },
   // The packing store's own words (M73): the placeholder, the recalled
   // pages and the background-note lead read through the lazy tools chunk.

@@ -25,7 +25,7 @@ import type { AuthSource } from './authSource'
 import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
 import { PROVIDER_CONNECTION_LOST_CODE, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { streamEventSchema, usageSchema } from '../../../host/backend/modelApiEntry'
+import { streamEventSchema, usageSchema } from './schemas'
 import {
   estimatedStreamTokens,
   modelPricedUsage,

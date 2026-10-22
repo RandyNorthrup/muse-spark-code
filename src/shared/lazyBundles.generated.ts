@@ -179,6 +179,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'readProviderJson', side: ['acp'] },
+      { importer: 'src/runtime/providersSpend.ts', symbol: 'spendFetcherFor', side: ['acp'] },
     ],
   },
   {
@@ -668,11 +669,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'autoCompactionAdmission',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/host/providers/providersHost.ts',
+        symbol: 'createProvidersHost',
+        side: ['vscode'],
+      },
       { importer: 'src/host/schedules/paidBinding.ts', symbol: 'quote', side: ['acp', 'vscode'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'providerLabel', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
+      { importer: 'src/runtime/providersSpend.ts', symbol: 'providersUsage', side: ['acp'] },
+      { importer: 'src/runtime/providersSpend.ts', symbol: 'spendStoredKey', side: ['acp'] },
     ],
   },
   {
@@ -1012,6 +1020,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       { importer: 'src/runtime/backends.ts', symbol: 'chatGptFactory', side: ['acp'] },
+      { importer: 'src/runtime/backends.ts', symbol: 'modelApiReadiness', side: ['acp'] },
       { importer: 'src/runtime/backends.ts', symbol: 'subscriptionClient', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'chatGptDeps', side: ['acp'] },
     ],

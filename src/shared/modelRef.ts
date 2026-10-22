@@ -5,7 +5,7 @@
 // session and hook payload keeps its bytes. Provider ids match
 // `^[a-z][a-z0-9-]{0,31}$`; `meta` is reserved. Pure.
 
-import { PROVIDER_MODEL_LABEL_MAX_CHARS } from '../../shared/constants'
+import { PROVIDER_MODEL_LABEL_MAX_CHARS } from './constants'
 
 // D74: provider ids match `^[a-z][a-z0-9-]{0,31}$`; `meta` is reserved.
 export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/

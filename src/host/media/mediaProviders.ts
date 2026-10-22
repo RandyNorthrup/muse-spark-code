@@ -16,7 +16,7 @@ import {
 import type { MediaModelCapabilities } from '../../core/media/modalityGate'
 import { reopeningSource, type AttachedMedia } from '../../core/media/attachedMedia'
 import { MediaContributorConsent } from '../../core/media/contributorConsent'
-import { parseModelRef } from '../../core/providers/modelRef'
+import { parseModelRef } from '../../shared/modelRef'
 import type { MediaLimits } from '../../core/media/limits'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { isPrivateFileName } from '../../shared/privateFiles'

@@ -11,7 +11,7 @@ import {
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
   HTTP_STATUS,
-  MODEL_API_MODEL_TEXT,
+  MEDIA_MODEL_TEXT,
 } from '../../../../shared/constants'
 import { isModelApiError } from '../transport'
 export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
@@ -671,16 +671,16 @@ export const responsesMediaCodec: ResponsesMediaCodec = {
   },
   omittedText: (media, _model, reason) => {
     if (reason === 'source')
-      return fill(MODEL_API_MODEL_TEXT.mediaSourceUnavailable, { name: media.name })
+      return fill(MEDIA_MODEL_TEXT.mediaSourceUnavailable, { name: media.name })
     if (reason === 'files')
-      return fill(MODEL_API_MODEL_TEXT.mediaLeftOut, {
-        reason: MODEL_API_MODEL_TEXT.mediaSupportRefused,
+      return fill(MEDIA_MODEL_TEXT.mediaLeftOut, {
+        reason: MEDIA_MODEL_TEXT.mediaSupportRefused,
       })
-    if (media.info.kind === 'image') return MODEL_API_MODEL_TEXT.imageLeftOut
+    if (media.info.kind === 'image') return MEDIA_MODEL_TEXT.imageLeftOut
     if (media.info.kind === 'document')
-      return fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: media.name })
-    return fill(MODEL_API_MODEL_TEXT.mediaLeftOut, {
-      reason: MODEL_API_MODEL_TEXT.mediaSupportRefused,
+      return fill(MEDIA_MODEL_TEXT.pdfLeftOut, { name: media.name })
+    return fill(MEDIA_MODEL_TEXT.mediaLeftOut, {
+      reason: MEDIA_MODEL_TEXT.mediaSupportRefused,
     })
   },
   encodeInline: (media, inline, _model) => {

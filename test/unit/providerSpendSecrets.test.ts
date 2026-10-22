@@ -23,7 +23,7 @@ import {
 import { mapSecrets } from './helpers/mapSecrets'
 import type { ProviderEntry, ProvidersStore } from '../../src/host/providers/providerPorts'
 import { providerEntrySchema } from '../../src/core/providers/providersFile'
-import { parseModelRef } from '../../src/core/providers/modelRef'
+import { parseModelRef } from '../../src/shared/modelRef'
 import { providerAdminSecretAccount, providerSecretAccount } from '../../src/runtime/keyStore'
 import { providersRemove } from '../../src/runtime/providersCommands'
 import type { ProvidersFile } from '../../src/core/providers/providersFile'

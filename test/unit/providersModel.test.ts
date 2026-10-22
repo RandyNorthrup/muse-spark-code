@@ -16,7 +16,7 @@ import {
   isProviderId,
   parseModelRef,
   sanitizeModelLabel,
-} from '../../src/core/providers/modelRef'
+} from '../../src/shared/modelRef'
 import {
   isValidPriceCard,
   isValidUsage,
