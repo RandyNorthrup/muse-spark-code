@@ -5849,6 +5849,7 @@
     "remoteWarning": "Von einem anderen Gerät können nur Signaturen oder Einmalcodes angefordert werden. Dort muss der Benutzer jeder Nutzung zustimmen.",
     "approvalExpired": "Diese Zustimmung ist abgelaufen. Fordern Sie die Nutzung erneut an.",
     "useChanged": "Die Nutzung hat sich nach der Zustimmung geändert. Fordern Sie eine Zustimmung für die neue Nutzung an.",
+    "editConflict": "Der Tresor hat sich geändert, während der Editor geöffnet war. Prüfen Sie den aktuellen Stand und versuchen Sie es erneut.",
     "osStoreWarning": "Durch den Zugangsdaten-Speicher Ihres Betriebssystems geschützt. Programme unter Ihrem Benutzerkonto können ihn ebenfalls entsperren.",
     "unknownTierWarning": "Die Schutzstufe ist unbekannt, weil der Tresor gesperrt ist. Entsperren Sie ihn, um zu sehen, wie er geschützt ist.",
     "tierUnknown": "Die Schutzstufe ist unbekannt.",

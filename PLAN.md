@@ -28991,6 +28991,8 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**RLVAULTCI (2026-10-22, macmini; recovery: the vault panel flow's intermittent hosted failures).** The POSIX panel flow (macOS shard 15, capacity run 39722575285) stuck on Locked after Unlock with no toast and no log: a lock, revocation or change the broker emitted before the operation was sent retired it without a word. Broker events no longer retire the person's in-flight operation — only the person's own barrier (their Lock or Revoke click, disposal) does; the broker validates every commit, and add/edit keep a draft guard that reports conflicts (`vault.editConflict`, all 15 tables) instead of dropping them. The Windows panel flow (Windows shard 6, capacity run 39703535342) settled on `uncreated` with two `operationFailed` toasts: the cold broker launch exceeded the launch budget inside the flow; the fixture now warms the broker until it answers in its unbounded hook. Proof: a real-broker hammer (temp/rlvaultci/hammer.ts, kept as scratch) racing stale lock events against Unlock: 20/40 and 14/40 swallowed pre-fix (exit 1), 0/40 three times post-fix (exit 0). The panel suites themselves skip in the lane sandbox (the MACVAULTFLOW wall: no /bin/ps, long TMPDIR) and Windows-only paths skip on macOS; hosted CI is their proof. No limit of ours added (D121). Certification: docs/certification/rlvaultci.md.
+
 **CM109LEASER2 (2026-10-11, RVCM109LEASE redesign).**
 Record the installation machine id, boot id, Linux PID namespace, PID and
 birth; hostnames are display only. Death requires comparable machine/boot/

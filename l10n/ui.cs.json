@@ -6165,6 +6165,7 @@
     "remoteWarning": "Z jiného zařízení lze požádat jen o podpis nebo jednorázový kód. Jeho uživatel musí každé použití schválit tam.",
     "approvalExpired": "Platnost schválení vypršela. Požádejte o použití znovu.",
     "useChanged": "Použití se po schválení změnilo. Požádejte o schválení nového použití.",
+    "editConflict": "Trezor se změnil, zatímco byl editor otevřený. Zkontrolujte nejnovější stav a zkuste to znovu.",
     "osStoreWarning": "Chráněno úložištěm přihlašovacích údajů operačního systému. Programy běžící pod vaším účtem je také mohou odemknout.",
     "unknownTierWarning": "Úroveň ochrany není známa, protože je trezor uzamčen. Odemknutím zjistíte, jak je chráněn.",
     "tierUnknown": "Úroveň ochrany není známa.",

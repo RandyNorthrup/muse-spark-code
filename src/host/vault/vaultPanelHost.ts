@@ -150,7 +150,11 @@ function classifySnapshotError(error: unknown): VaultUnavailableReason {
   return 'unreachable'
 }
 
-/** One serialized owner. Lock and disposal synchronously invalidate every older effect. */
+/**
+One serialized owner. The person's own barrier (their Lock or Revoke
+click, disposal) synchronously invalidates every older effect; broker
+events never do (see absorbExternalChange).
+*/
 export class VaultPanelHost {
   private generation = 0
   /** Every reload request's own sequence inside the machine (RVCM1091G P2). */
@@ -164,7 +168,15 @@ export class VaultPanelHost {
   private lastLockState: boolean | null = null
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private readonly answered = new Set<string>()
-  private cancellation = new AbortController()
+  /**
+  The draft guard: every broker state change and every barrier moves it,
+  and add/edit commit only the draft their own load read (RLVAULTCI).
+  */
+  private draftGeneration = 0
+  /** The confirm dialogs' own signal: only a barrier aborts them, never a mere change. */
+  private confirmCancellation = new AbortController()
+  /** The editor dialog's own signal: a broker change aborts it, while confirm dialogs stand. */
+  private editCancellation = new AbortController()
   // A receipt is bound to imported items, so ordinary metadata notifications
   // cannot withdraw Keep/Delete. Lock, revocation and disposal still do.
   private importAbort = new AbortController()
@@ -185,24 +197,32 @@ export class VaultPanelHost {
           this.refreshNow()
           return
         }
-        // Metadata changes retire older native editors too: a draft finished
-        // after another window's change must not restore the older policy.
-        // A `locked` event from anywhere (idle auto-lock, screen lock,
-        // another window, the CLI) locks THIS window at once and reloads —
+        // A broker event never retires the person's in-flight operation
+        // (RLVAULTCI): a lock, revocation or change the broker emitted
+        // before the operation was sent used to drop it without a word —
+        // the panel sat on Locked after Unlock with no toast and no log.
+        // Only the person's own barrier retires (their Lock or Revoke
+        // click, disposal); the broker validates every commit, so a
+        // change an operation genuinely conflicts with comes back as a
+        // refusal and is shown. The event still aborts open dialogs
+        // (their base view is stale), drops a scheduled retry (it
+        // reloads fresh instead) and marks drafts stale. A `locked`
+        // event from anywhere (idle auto-lock, screen lock, another
+        // window, the CLI) locks THIS window at once and reloads —
         // later events are never gated on it (RVCM1091F P2).
         switch (event.kind) {
           case 'locked': {
-            this.retire(true)
+            this.absorbExternalChange(false)
             this.applyAndReload({ kind: 'brokerLocked', lockEpoch: event.lockEpoch })
             return
           }
           case 'revoked': {
-            this.retire(true)
+            this.absorbExternalChange(false)
             this.applyAndReload({ kind: 'brokerRevoked' })
             return
           }
           case 'changed': {
-            this.retire(false)
+            this.absorbExternalChange(true)
             // The importing owner reloads after Keep/Delete. Starting another
             // snapshot now would compete with its writer transaction — but the
             // event is still published, never ignored.
@@ -351,8 +371,8 @@ export class VaultPanelHost {
   connection (RVCM1091F P3) and a channel error from a connection our own
   barrier aborted mid-Import or mid-Delete (RVAPP-CM1091D5 P2-1). The
   barrier owns the view and reloads it, so the log names no failure either
-  (a first open, overtaken by the broker's own events, once logged one
-  each time). Decided from the recorded retirement (the generation) and the
+  (a first open, overtaken by the person's own Lock, once logged one each
+  time). Decided from the recorded retirement (the generation) and the
   typed error, never from a sentence.
   */
   private isRetiredByBarrier(error: unknown, generation: number): boolean {
@@ -407,20 +427,48 @@ export class VaultPanelHost {
     }
   }
 
-  /** One retirement path keeps Lock, revocation and disposal equivalent. */
-  private retire(isBarrier: boolean): void {
+  /**
+  One retirement path for the person's own barriers: their Lock or Revoke
+  click, disposal. Nothing else retires: a broker event that arrives while
+  an operation is in flight is absorbed, never a veto (see
+  absorbExternalChange), so the operation is sent and its answer shown.
+  */
+  private retire(): void {
     this.generation += 1
+    this.draftGeneration += 1
     if (this.retryTimer !== null) {
       clearTimeout(this.retryTimer)
       this.retryTimer = null
     }
-    this.cancellation.abort()
-    this.cancellation = new AbortController()
-    if (isBarrier) {
-      this.importAbort.abort()
-      this.importAbort = new AbortController()
+    this.confirmCancellation.abort()
+    this.confirmCancellation = new AbortController()
+    this.editCancellation.abort()
+    this.editCancellation = new AbortController()
+    this.importAbort.abort()
+    this.importAbort = new AbortController()
+    this.queue = Promise.resolve()
+  }
+
+  /**
+  A broker state change lands without retiring the person's work: open
+  dialogs are aborted (their base view is stale), a scheduled retry is
+  dropped (the event's own reload follows instead) and drafts are marked
+  stale, but in-flight operations run on — the broker validates every
+  commit. A mere change leaves confirm dialogs standing (their pending
+  setup or reset is this window's own); a lock or revocation aborts them
+  too, as the pending state they confirm may be gone.
+  */
+  private absorbExternalChange(isEditorsOnly: boolean): void {
+    this.draftGeneration += 1
+    if (this.retryTimer !== null) {
+      clearTimeout(this.retryTimer)
+      this.retryTimer = null
     }
-    if (isBarrier || this.importsInFlight === 0) this.queue = Promise.resolve()
+    this.editCancellation.abort()
+    this.editCancellation = new AbortController()
+    if (isEditorsOnly) return
+    this.confirmCancellation.abort()
+    this.confirmCancellation = new AbortController()
   }
 
   private enqueue(task: (generation: number) => Promise<void>): Promise<void> {
@@ -469,7 +517,7 @@ export class VaultPanelHost {
   /** Break glass bypasses the queue; no password box or stalled snapshot may delay it. */
   async lock(): Promise<void> {
     if (this.disposed) return
-    this.retire(true)
+    this.retire()
     // Optimistic Locked (labels stripped); the lock-then-load below settles
     // the truth, and a failed Lock publishes the real snapshot instead.
     this.apply({ kind: 'userLock' })
@@ -498,7 +546,7 @@ export class VaultPanelHost {
     if (message.type === 'vaultLock') return this.lock()
     // Revocation is also a barrier; pending edits cannot commit with older authority.
     if (message.type === 'vaultRevoke') {
-      this.retire(true)
+      this.retire()
       this.apply({ kind: 'userRevoke' })
       return this.enqueue(async (generation) => {
         await this.deps.service.revoke(message.grantId)
@@ -527,7 +575,7 @@ export class VaultPanelHost {
         const challenge = await this.deps.service.resetBegin()
         const typed = await this.deps.confirmReset(
           challenge.word,
-          this.cancellation.signal,
+          this.confirmCancellation.signal,
           vaultWriterRecoveryMessage(challenge.writer),
         )
         if (typed !== null)
@@ -542,7 +590,7 @@ export class VaultPanelHost {
         try {
           const isSaved = await this.deps.showRecoveryCode(
             shown.code.toString('ascii'),
-            this.cancellation.signal,
+            this.confirmCancellation.signal,
           )
           if (isSaved) {
             try {
@@ -581,6 +629,9 @@ export class VaultPanelHost {
       }
       const state = await this.load(generation, this.beginReload())
       if (state.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
+      // The draft guard's base: the broker state this operation read. A
+      // change that lands after it marks the draft stale below.
+      const draftAtLoad = this.draftGeneration
       switch (message.type) {
         case 'vaultAdd':
         case 'vaultEdit': {
@@ -590,19 +641,29 @@ export class VaultPanelHost {
               : undefined
           if (current === undefined && message.type === 'vaultEdit')
             throw new Error(UI_TEXT.vault.useChanged)
-          const entered = await this.deps.editItem(current, this.cancellation.signal)
+          const entered = await this.deps.editItem(current, this.editCancellation.signal)
           if (entered === null) return
-          try {
+          // A draft finished after another window's change must not
+          // restore the older policy — but the refusal is said, never
+          // silent (RLVAULTCI). Checked again after the connection is
+          // acquired (the composed closure the service runs after every
+          // await), so a change during the commit's own round trip is
+          // caught too.
+          const authorizeDraft = (): void => {
             authorize()
+            if (draftAtLoad !== this.draftGeneration) throw new Error(UI_TEXT.vault.editConflict)
+          }
+          try {
+            authorizeDraft()
             if ('material' in entered) {
               const item = vaultItemSchema.parse(entered)
               if (message.type === 'vaultEdit' && item.metadata.id !== current?.id)
                 throw new Error(UI_TEXT.vault.useChanged)
-              await this.deps.service.write(item, authorize)
+              await this.deps.service.write(item, authorizeDraft)
             } else {
               const item = vaultItemMetadataSchema.parse(entered)
               if (item.id !== current?.id) throw new Error(UI_TEXT.vault.useChanged)
-              await this.deps.service.updateMetadata(item, authorize)
+              await this.deps.service.updateMetadata(item, authorizeDraft)
             }
           } finally {
             if ('material' in entered) wipe(entered)
@@ -720,7 +781,7 @@ export class VaultPanelHost {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
-    this.retire(true)
+    this.retire()
     this.view = { kind: 'loading', generation: this.generation }
     this.answered.clear()
     this.unsubscribe()

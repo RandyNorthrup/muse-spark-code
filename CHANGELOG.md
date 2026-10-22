@@ -42,6 +42,11 @@ happened, not what was planned; superseded entries are kept.
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read
   or write it; existing vaults keep their record exactly where it was.
+- The vault panel no longer drops an Unlock (or any other panel action)
+  without a word when a vault event arrives while it is being sent: the
+  action is delivered and its answer shown. An edit that another change
+  overtakes now says the vault changed instead of discarding the draft
+  silently.
 
 ### Release infrastructure
 
