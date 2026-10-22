@@ -9310,6 +9310,9 @@ export const VAULT_TOTP_PERIOD_SECONDS = 30
 // agents. The proposed policy limits of docs/design/mcp-connector.md §6;
 // they are ours, not any client's promise.
 export const CONNECTOR_BUNDLE_FILE = 'connector.js'
+// M124 (D106, RVM124 finding 15): the storage guard's own lazy chunk,
+// loaded only by `muse-spark-code-acp mcp` beside the connector bundle.
+export const CONNECTOR_STORE_GUARD_BUNDLE_FILE = 'connectorStoreGuard.js'
 export const CONNECTOR_SERVER_NAME = 'muse-spark-code'
 export const CONNECTOR_SCHEMA_VERSION = 1
 /** Newest first: the MCP revisions whose tools subset this server speaks. */

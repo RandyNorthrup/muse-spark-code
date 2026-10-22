@@ -5984,6 +5984,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (treść)",
     "noGrants": "Brak jeszcze uprawnień połączeń.",
+    "storageRefused": "Folder łącznika nie jest prywatny dla Twojego konta ({folder}), więc nic nie zrobiono. Uczyń go prywatnym dla Twojego konta (albo usuń go i nadaj uprawnienie ponownie) i spróbuj jeszcze raz.",
     "unavailable": "Nie udało się uruchomić konektora.",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },

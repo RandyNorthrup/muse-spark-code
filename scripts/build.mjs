@@ -153,6 +153,10 @@ const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
 // M124 (D106): the MCP connector, loaded only by `muse-spark-code-acp mcp`.
 const CONNECTOR_ENTRY = 'src/runtime/connector/entry.ts'
 const CONNECTOR_OUTFILE = 'dist/connector.js'
+// M124 (D106, RVM124 finding 15): the connector's storage guard, loaded by
+// the `mcp` command beside the connector bundle.
+const CONNECTOR_STORE_GUARD_ENTRY = 'src/runtime/connector/storageGuard.ts'
+const CONNECTOR_STORE_GUARD_OUTFILE = 'dist/connectorStoreGuard.js'
 const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -434,6 +438,13 @@ const connectorOptions = {
   ...sharingRuntimeOptions,
   entryPoints: [CONNECTOR_ENTRY],
   outfile: CONNECTOR_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const connectorStoreGuardOptions = {
+  ...sharingRuntimeOptions,
+  entryPoints: [CONNECTOR_STORE_GUARD_ENTRY],
+  outfile: CONNECTOR_STORE_GUARD_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1692,6 +1703,7 @@ if (isWatch) {
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(connectorOptions),
+    esbuild.context(connectorStoreGuardOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
     esbuild.context(resourceProcessOptions),
@@ -1861,6 +1873,7 @@ if (isWatch) {
     prompts: recorded('prompts', promptsOptions),
     sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
     connector: recorded('connector', connectorOptions),
+    connectorStoreGuard: recorded('connectorStoreGuard', connectorStoreGuardOptions),
     modelApi: recorded('modelApi', modelApiOptions),
     resourceGovernor: recorded('resourceGovernor', resourceGovernorOptions),
     resourceProcess: recorded('resourceProcess', resourceProcessOptions),
@@ -2100,6 +2113,7 @@ if (isWatch) {
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)
   reportSize(CONNECTOR_OUTFILE)
+  reportSize(CONNECTOR_STORE_GUARD_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(RESOURCE_OUTFILE)
   reportSize(RESOURCE_ADMISSION_OUTFILE)

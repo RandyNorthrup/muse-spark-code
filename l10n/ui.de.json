@@ -5670,6 +5670,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (Inhalte)",
     "noGrants": "Noch keine Verbindungsberechtigungen.",
+    "storageRefused": "Der Connector-Ordner ist für Ihr Konto nicht privat ({folder}), daher wurde nichts ausgeführt. Machen Sie ihn für Ihr Konto privat (oder löschen Sie ihn und erteilen Sie die Berechtigung erneut) und versuchen Sie es erneut.",
     "unavailable": "Der Konnektor konnte nicht gestartet werden.",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },

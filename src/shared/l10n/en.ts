@@ -7176,6 +7176,8 @@ export const EN = {
     statusWorkspace: '  {id}: {root}{content}',
     statusContent: ' (content)',
     noGrants: 'No connection grants yet.',
+    storageRefused:
+      'The connector folder is not private to your account ({folder}), so nothing was done. Make it private to your account (or delete it and grant again) and try again.',
     unavailable: 'The connector could not start.',
     usage:
       'muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status',

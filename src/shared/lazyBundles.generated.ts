@@ -189,6 +189,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'connectorStoreGuard.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'CONNECTOR_STORE_GUARD_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
     file: 'conversation.js',
     side: 'vscode',
     requestedBy: [

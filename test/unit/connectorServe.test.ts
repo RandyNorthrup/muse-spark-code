@@ -22,6 +22,8 @@ import { EN, type UiText } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { SavedPrompt } from '../../src/shared/prompts'
 import { PromptStore } from '../../src/core/prompts/promptStore'
+import { CONNECTOR_FOLDER } from '../../src/shared/constants'
+import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
 import { startApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { runConnector, type ConnectorRuntimeDeps } from '../../src/runtime/connector/entry'
@@ -41,15 +43,19 @@ async function granted(data: string, scopes: readonly string[]): Promise<void> {
     ...scopes.flatMap((scope) => ['--scope', scope]),
   ])
   if (command?.kind !== 'grant') throw new Error('grant parse')
-  const code = await runConnectorCommand(new ConnectorStore(data), command, {
-    isInteractive: true,
-    now: Date.now,
-    print: () => undefined,
-    printError: (line) => {
-      throw new Error(line)
+  const code = await runConnectorCommand(
+    new ConnectorStore(data, connectorStorageGuard(path.join(data, CONNECTOR_FOLDER))),
+    command,
+    {
+      isInteractive: true,
+      now: Date.now,
+      print: () => undefined,
+      printError: (line) => {
+        throw new Error(line)
+      },
+      confirm: () => Promise.resolve(true),
     },
-    confirm: () => Promise.resolve(true),
-  })
+  )
   expect(code).toBe(0)
 }
 
@@ -84,6 +90,7 @@ function serve(data: string, openBrowser: (url: string) => Promise<void>): Servi
     openBrowser,
     schedules: { list: unbound, pause: unbound },
     reports: { generate: unbound },
+    storageGuard: connectorStorageGuard(path.join(data, CONNECTOR_FOLDER)),
   }
   const running = runConnector(deps)
   stdin.write(

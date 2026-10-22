@@ -5670,6 +5670,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (tartalom)",
     "noGrants": "Még nincs kapcsolatengedély.",
+    "storageRefused": "A csatlakozó mappája nem privát az Ön fiókja számára ({folder}), ezért semmi sem történt. Tegye priváttá az Ön fiókja számára (vagy törölje, és adja meg újra az engedélyt), majd próbálja újra.",
     "unavailable": "Az összekötőt nem sikerült elindítani.",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },

@@ -56,6 +56,8 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
+  CONNECTOR_FOLDER,
+  CONNECTOR_STORE_GUARD_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -140,6 +142,7 @@ import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInpu
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
 import { connectorLoader } from './connector/connectorBundle'
+import { storageGuardLoader } from './connector/storageGuardBundle'
 import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
 import { settleScheduleCommand } from './schedules/settle'
@@ -2231,17 +2234,24 @@ async function main(): Promise<number> {
         keepHistory: false,
         allowEgress: () => Promise.resolve(false),
       })
+      const dataFolder = agentDataFolder({
+        platform: process.platform,
+        env: process.env,
+        homeDir: homedir(),
+      })
+      // Finding 15: storage that cannot be verified is not served; a guard
+      // that cannot load fails the command before the connector starts.
+      const storageGuard = storageGuardLoader(
+        path.join(distDir, CONNECTOR_STORE_GUARD_BUNDLE_FILE),
+        log,
+      )().connectorStorageGuard(path.join(dataFolder, CONNECTOR_FOLDER))
       try {
         return await connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector(
           {
             argv: command.argv,
             table: UI_TEXT,
             locale: uiLocale(),
-            dataFolder: agentDataFolder({
-              platform: process.platform,
-              env: process.env,
-              homeDir: homedir(),
-            }),
+            dataFolder,
             homeDir: homedir(),
             version: packageVersion(),
             stdin: process.stdin,
@@ -2254,6 +2264,7 @@ async function main(): Promise<number> {
               list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
               pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
             },
+            storageGuard,
             reports: {
               generate: async (root, kind, subjectId, signal) => {
                 // M113's own grammar: a positional subject, except playbook's --milestone.
