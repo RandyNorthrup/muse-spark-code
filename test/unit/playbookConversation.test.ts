@@ -3,20 +3,7 @@
 // asks about and the notice's button do, over a scripted window, scripted
 // pickers and a scripted backend. No worker, no git and no model is involved.
 import { describe, expect, it, vi } from 'vitest'
-
-/** A function that runs `impl` and keeps the calls it saw, in order. */
-function keepCalls<T extends unknown[], R>(
-  impl: (...args: T) => R,
-): ((...args: T) => R) & {
-  calls: T[]
-} {
-  const calls: T[] = []
-  const fn = (...args: T): R => {
-    calls.push(args)
-    return impl(...args)
-  }
-  return Object.assign(fn, { calls })
-}
+import { keepCalls } from './helpers/playbook/keepCalls'
 
 /** A log sink that keeps nothing: the scenes assert on notices, not log lines. */
 const noopLog = (_message: string): void => undefined

@@ -157,6 +157,28 @@ export async function handoffResourceFile(
   })
 }
 
+/**
+The spawn both exec flavors share: resolve the command, guard the
+child's environment, launch with the caller's directory and stop.
+*/
+async function launchGovernedCommand(
+  profile: 'contained' | 'probe',
+  command: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+  workspace: GovernedWorkspace | undefined,
+  cwd: ExecFileOptionsWithStringEncoding['cwd'],
+  signal: AbortSignal | undefined,
+) {
+  const file = resolveCommand(command, env, workspace)
+  const childEnv = childEnvironment(env, workspace)
+  return await spawnResourceProcess(profile, file, args, {
+    env: childEnv,
+    ...(cwd !== undefined && { cwd }),
+    ...(signal !== undefined && { signal }),
+  })
+}
+
 /** execFile-compatible bounded results, using the ordinary governed command runner. */
 export async function execResourceFile(
   profile: 'contained' | 'probe',
@@ -175,17 +197,19 @@ export async function execResourceFile(
     options.workspaceRoot === undefined
       ? defaultGovernedWorkspace(typeof options.cwd === 'string' ? options.cwd : process.cwd())
       : { workspaceRoot: options.workspaceRoot }
-  const file = resolveCommand(command, env, workspace)
-  const childEnv = childEnvironment(env, workspace)
   // Only the caller's own cancel or `timeout` stops the command, as with
   // execFile: no deadline of ours (a cold Windows PowerShell can take longer).
   // An absent, 0 or Infinity timeout names none (as `src/host/git.ts` reads it).
   const signal = callerStop(options.signal, options.timeout)
-  const launched = await spawnResourceProcess(profile, file, args, {
-    env: childEnv,
-    ...(options.cwd !== undefined && { cwd: options.cwd }),
-    ...(signal !== undefined && { signal }),
-  })
+  const launched = await launchGovernedCommand(
+    profile,
+    command,
+    args,
+    env,
+    workspace,
+    options.cwd,
+    signal,
+  )
   const { child, stop } = launched
   child.stdin.end()
   return await new Promise((resolve, reject) => {
@@ -266,18 +290,20 @@ export async function execResourceFileBytes(
   const workspace = defaultGovernedWorkspace(
     typeof options.cwd === 'string' ? options.cwd : process.cwd(),
   )
-  const file = resolveCommand(command, env, workspace)
-  const childEnv = childEnvironment(env, workspace)
   // Only the caller's own cancel or `timeout` stops the command, as with
   // execFile: no deadline of ours (a cold Windows PowerShell can take longer).
   const signal = callerStop(options.signal, options.timeout)
   return await new Promise((resolve, reject) => {
     void (async () => {
-      const launched = await spawnResourceProcess(profile, file, args, {
-        env: childEnv,
-        ...(options.cwd !== undefined && { cwd: options.cwd }),
-        ...(signal !== undefined && { signal }),
-      })
+      const launched = await launchGovernedCommand(
+        profile,
+        command,
+        args,
+        env,
+        workspace,
+        options.cwd,
+        signal,
+      )
       const { child, stop } = launched
       child.stdin.end(options.input)
       const out: Buffer[] = []

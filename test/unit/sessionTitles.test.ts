@@ -14,15 +14,14 @@ import * as acp from '@agentclientprotocol/sdk'
 import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
-import { AcpPaidUse } from '../../src/acp/paid'
 import type { SessionListEvent, SessionRecord } from '../../src/core/agent/agentBackend'
 import { toSessionRow } from '../../src/core/agent/sessionRows'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { sessionEnvelopeSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { buildSessionBoard } from '../../src/core/sessionBoard'
-import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import { UI_TEXT } from '../../src/shared/constants'
+import { agentDriveDeps } from './helpers/acpAgentDeps'
 import { type Answer, refuseUnscripted, ReplayWire } from './helpers/museReplay'
 import { titleCapture as capture, recordedAnswer as recorded } from './helpers/sessionTitleCapture'
 
@@ -157,35 +156,13 @@ describe('Muse Code session titles, end to end', () => {
     const { host } = replayHost()
     const folder = mkdtempSync(path.join(tmpdir(), 'session-titles-'))
     folders.push(folder)
-    const agent = createAcpAgent({
-      backend: {
+    const agent = createAcpAgent(
+      agentDriveDeps(folder, log, {
         kind: 'museCode',
         readiness: () => Promise.resolve({ state: 'ready' }),
         hostFor: () => Promise.resolve(host),
-      },
-      version: '0.19.0',
-      options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
-      signIn: {
-        id: 'login',
-        name: 'Muse Code',
-        description: 'Muse Code',
-        args: [],
-        command: 'muse login',
-      },
-      defaultCwd: folder,
-      paid: new AcpPaidUse({
-        flagged: [],
-        canRemember: () => false,
-        grants: paidGrantFile({
-          file: path.join(folder, 'paid-grants.json'),
-          log,
-          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-        }),
-        log,
       }),
-      log,
-      questions: 'decline',
-    })
+    )
     const listed = await acp
       .client({ name: 'session-titles' })
       .connectWith(agent, async (editor) => {

@@ -11,20 +11,8 @@ import {
   SUBAGENT_PAUSED_REASON,
 } from '../../src/runtime/playbook/admission'
 import { UI_TEXT } from '../../src/shared/constants'
-import {
-  resourceStatusSchema,
-  type ResourceLevel,
-  type ResourceStatus,
-} from '../../src/shared/resources'
-
-const status = (level: ResourceLevel): ResourceStatus =>
-  resourceStatusSchema.parse({
-    level,
-    sample: null,
-    settings: {},
-    queued: [],
-    overrideUntilMs: null,
-  })
+import type { ResourceLevel, ResourceStatus } from '../../src/shared/resources'
+import { resourceStatus as status } from './helpers/playbook/resourceStatus'
 
 function refusedValue(reason: string, shown: string): string {
   return `${reason} / ${shown}`
