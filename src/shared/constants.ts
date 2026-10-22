@@ -331,7 +331,7 @@ reconciliation names it as the catalogue our estimate's prices come
 from. Pinned by test against `vendor/models-dev/VENDOR.json`
 (`fetchedAt`); bump both together when the snapshot refreshes.
 */
-export const MODELS_DEV_CATALOGUE_DATE = '2026-10-05'
+export const MODELS_DEV_CATALOGUE_DATE = '2026-10-17'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
 /**
@@ -1007,6 +1007,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
+  // C-M95-SUB: opting the machine into subscription billing is the user's
+  // choice (D15: what is billed is machine-scoped).
+  'useMuseCodeSubscription',
   // Reading the user's `gh` token is the user's choice (M123, D104 source c).
   'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,

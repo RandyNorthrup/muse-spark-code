@@ -164,6 +164,9 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'core/usage/journalRecord.ts:costInUsdTicks': WIRE,
   'core/backends/modelapi/modelPolicy.ts:costInUsdTicks': WIRE,
   'core/providers/priceCard.ts:costInUsdTicks': WIRE,
+  // --- sanctioned: the provider-spend report's vendor cost pages (PROVSPEND).
+  'core/providers/providerSpend.ts:openAiCostLine': WIRE,
+  'core/providers/providerSpend.ts:openAiCostPage': WIRE,
   // --- sanctioned: VS Code number settings and their declared defaults/limits.
   'shared/constants.ts:paidDailyBudgetUsd': SETTING,
   'shared/constants.ts:tabDailyBudgetUsd': SETTING,

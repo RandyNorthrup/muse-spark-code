@@ -235,6 +235,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     options: [
       ...SERVE_FAMILY_OPTIONS,
       { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
+      { name: 'subscription', shape: '' },
       { name: 'scheduled-prompts', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
@@ -266,6 +267,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     options: [
       { name: 'provider', shape: '<id>' },
       { name: 'account', shape: '<id>' },
+      { name: 'admin', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
     ],
@@ -359,6 +361,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'resource-governor', shape: '', fact: factFor('resource-governor') },
       { name: 'cpu-max', shape: '<percent>' },
       { name: 'memory-max', shape: '<percent>' },
+      { name: 'subscription', shape: '' },
       { name: 'help', shape: '' },
     ],
     examples: [
@@ -804,6 +807,10 @@ const AUTH_STATUS_CLEAR_NON_TOPIC: readonly string[] = [
   'private-ok',
   'key-stdin',
   'context-window',
+  // PROVSPEND: refused beside auth's own targeting (days/output);
+  // `--admin` passes through and is shown on the auth topic.
+  'days',
+  'output',
 ]
 
 export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> = {
@@ -820,6 +827,11 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'key-stdin',
     'context-window',
     'maintenance',
+    // PROVSPEND: parsed for providers usage, forbidden for serve, so the
+    // serve topic maps them instead of showing them.
+    'days',
+    'admin',
+    'output',
   ],
   login: [
     'provider',
@@ -834,6 +846,11 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'key-stdin',
     'context-window',
     'maintenance',
+    // PROVSPEND: parsed for providers usage, forbidden for login, so the
+    // login topic maps them instead of showing them.
+    'days',
+    'admin',
+    'output',
   ],
   authSet: [
     'usage-history',
@@ -860,6 +877,10 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'private-ok',
     'key-stdin',
     'context-window',
+    // PROVSPEND: refused beside auth's own targeting (days/output);
+    // `--admin` passes through and is shown on the auth topic.
+    'days',
+    'output',
   ],
   authStatus: AUTH_STATUS_CLEAR_NON_TOPIC,
   authClear: AUTH_STATUS_CLEAR_NON_TOPIC,
@@ -887,6 +908,10 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'image-generation',
     'muse-voice',
     'questions-defer-after',
+    // PROVSPEND: parsed (COMMON_OPTIONS) but meaningless for setup.
+    'days',
+    'admin',
+    'output',
   ],
   exec: [
     'trust-workspace',
@@ -897,7 +922,9 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     // text carries the guard/spill/removal description (lane TOOLCAP).
     'max-tool-output-bytes',
   ],
-  providersAdd: [],
+  // PROVSPEND: parsed (PROVIDER_OPTIONS) but the strict add dispatch
+  // rejects it as unknown; the days/output spend flags are shown above.
+  providersAdd: ['admin'],
   providersModels: [],
   usage: [],
   legal: [],
