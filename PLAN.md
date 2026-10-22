@@ -29531,6 +29531,22 @@ source reconciliation and receipts: `docs/certification/rlm109.md` and
 `.lane/RLM109.report.md`. No provider/model calls, real vault access, new
 dependency, budget increase or restored fake-driven test is authorized.
 
+**RLM109 recovery (2026-10-22, macmini): building.** Increments 2–3:
+the ChatGPT subscription slot migrates through its own opaque,
+origin-bound, byte-exact codec (the controller probes the slot; the
+record schema is a leaf the sign-in re-exports, keeping
+`dist/vaultMigration.js` at 41.4/45 KiB), and pooled accounts migrate
+from an optional per-provider listing with the existing account codec
+(43.2/45 KiB; the window passes no pool until the M108 host bindings
+land). Sources 01–06 are superseded or evidence-only; 07 is declined
+verbatim with a reconciled one-owner design recorded. Open: retire/undo
+(authoritative reads first — the retire trigger must not land before
+them), T5 runtime migration (needs its own lazy chunk), the companion
+surface (owner question), and the macOS/Windows broker proofs, which
+this lane's sandbox cannot run (`/bin/ps` denied, 148-byte TMPDIR over
+the 103-byte socket limit, no default keychain). Receipts:
+`docs/certification/rlm109.md`. M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are

@@ -285,6 +285,9 @@ happened, not what was planned; superseded entries are kept.
   records, and the default account saved over a provider slot) now move
   into the vault with everything else on unlock, and stay working there
   through rotation, lock and sign-out.
+- The ChatGPT subscription's stored tokens move into the vault the same
+  way, and pooled (non-default) accounts migrate from the account pool
+  where their host lists one.
 
 ### Release infrastructure
 
