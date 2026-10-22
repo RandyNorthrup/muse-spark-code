@@ -47,6 +47,7 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   SECRET_KEYS,
   THINKING_OFF_EFFORT,
+  PROVIDER_SECRET_PREFIX,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
@@ -96,6 +97,8 @@ import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
+import type { ExecTeam } from './execTeamEntry'
+import { areHeadlessTeamsAvailable } from '../../acp/teamAdmission'
 
 /** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
 export interface ExecOutputSchemaPort {
@@ -419,6 +422,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
           outputCap,
+          concurrent: options.team,
         })
       : undefined
   // A plan model runs on its subscription sign-in, not the Meta key: it
@@ -435,6 +439,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let providerFilePath: string | undefined
   let memory: MemorySecretStore | undefined
   let runtime: RuntimeBackend | undefined
+  let team: ExecTeam | undefined
   let tap: SessionTap | undefined
   let transport: ExecTransport | undefined
   let vaultSession: ExecVaultSession | undefined
@@ -571,10 +576,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   pinned fetch — then the ordinary ACP engine runs the turn.
   */
   async function runWithProvider(): Promise<number | undefined> {
-    // Provider assembly rides the lazy provider bundle beside the packed
+    // Provider assembly rides the lazy engine bundle beside the packed
     // agent (never inlined here): dist/headless.js keeps its budget.
-    const { assembleProviderRun, providersFilePath, resolveEndpointHost } =
-      await import('../../host/backend/configuredProvidersEntry')
+    const providerEngine = await import('../runtimeEngineEntry')
+    providerEngine.setUiText(UI_TEXT, uiLocale())
+    const { assembleProviderRun, providersFilePath, resolveEndpointHost } = providerEngine
     const { listProviderModels } = await import('./providerListEntry')
     const providerId = options.provider ?? ''
     // Past argument parsing: failures from here are the run's, not usage,
@@ -726,6 +732,17 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    // RVCM96B2D P2-9: stale team runs are recovered at every headless
+    // start, not only after a new team is admitted. Best effort: failures
+    // stay on disk for the next sweep and never fail the run they precede.
+    const { sweepStaleTeamRuns } = await import('./execTeamRecovery')
+    await sweepStaleTeamRuns({
+      git: async (args, folder) => new TextEncoder().encode(await deps.runGit(args, folder)),
+    })
+    // Behind the agent-teams availability switch `exec --team` does not
+    // exist: refuse before any ledger, request or money path is reached.
+    if (options.team && !areHeadlessTeamsAvailable())
+      throw new Error(fill(UI_TEXT.acpUnknownArgument, { argument: '--team' }))
     if (
       options.vault &&
       (options.keyFromStdin ||
@@ -829,10 +846,62 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (!isValidModelApiKey(value)) return
             if (!literals.includes(value)) literals.push(value)
           }
+          if (value !== undefined && name.startsWith(PROVIDER_SECRET_PREFIX)) {
+            const { parseStoredProviderSecret } = await import('../runtimeEngineEntry')
+            let envelope: unknown
+            try {
+              envelope = JSON.parse(value)
+            } catch (error: unknown) {
+              // A stored secret that is not JSON is skipped; JSON.parse on
+              // text throws only for malformed content.
+              if (error instanceof SyntaxError) return
+              throw error
+            }
+            const stored = parseStoredProviderSecret(envelope)
+            if (stored !== undefined && !literals.includes(stored.key)) literals.push(stored.key)
+          }
           return value
         },
         store: secrets.store.bind(secrets),
         delete: secrets.delete.bind(secrets),
+      }
+      if (ledger !== undefined && options.budgetUsd !== undefined && options.team) {
+        const { createExecTeam } = await import('./execTeamEntry')
+        team = await lifecycle.race(
+          createExecTeam(
+            {
+              dataFolder: agentDataFolder(deps),
+              cwd,
+              platform: deps.platform,
+              provider: options.provider,
+              defaultPays: providerRun?.provider.entry.auth === 'none' ? 'local' : 'key',
+              budgetUsd: options.budgetUsd,
+              signal: lifecycle.signal,
+              now: deps.now,
+              log,
+              readFile: deps.readFile,
+              listModels: async () => {
+                const host = await runtime?.backend.hostFor(cwd)
+                if (host === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+                const models = await host.listModels()
+                return models.map((entry) => entry.modelId)
+              },
+              startWorker: async (input) => {
+                if (runtime === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+                return await runtime.startTeamWorker(cwd, input)
+              },
+              onWritten: (files) => {
+                for (const file of files) filesChanged.add(file)
+              },
+              secretLiterals: () => literals,
+              lowerWorkerCap: (cap) => {
+                ledger.lowerWorkerCap(cap)
+              },
+            },
+            UI_TEXT,
+            uiLocale(),
+          ),
+        )
       }
       if (ledger !== undefined && providerRun === undefined && !isPlanRun)
         transport = execFetch({
@@ -848,6 +917,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             return model ?? ''
           },
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
+          responsesThroughEngine: options.team,
           lifecycle,
           onLatch: (cause, message) => {
             if (message !== undefined) {
@@ -895,6 +965,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       restoreUsageRecording = engine.installUsageRecording(usageRecording)
       const { createRuntimeBackend } = engine
       const runtimeDeps: RuntimeBackendDeps = {
+        ...(team !== undefined && { team }),
         options: serveOptionsFor(options),
         version: deps.version,
         distDir: deps.distDir,
@@ -911,6 +982,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         log,
         usageRecording,
         exec: {
+          secretLiterals: () => literals,
           isEphemeral: options.ephemeral,
           ...(ledger !== undefined &&
             options.maxRequests !== undefined && {
@@ -918,7 +990,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             }),
           outputCap,
           ...(providerRun !== undefined && { providerRun }),
-          ...((providerRun !== undefined || isPlanRun || options.model === undefined) &&
+          ...((providerRun !== undefined ||
+            isPlanRun ||
+            options.model === undefined ||
+            options.team) &&
             ledger !== undefined && {
               responseAccounting: {
                 ledger,
@@ -1178,7 +1253,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   return session
                 })()
                 vaultSession = await lifecycle.race(opening)
-              } catch {
+              } catch (error: unknown) {
+                // The denial is recorded for the run; the redacted kind is
+                // logged for the operator. Raw text can name keychain paths.
+                log.warn(failureForLog(error))
                 denyVault(UI_TEXT.vault.brokerBlocked)
                 return
               }
@@ -1384,6 +1462,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   )
               }
             }
+            if (model !== null) await lifecycle.race(team?.prepare(model) ?? Promise.resolve())
             tap?.beginResponse(1)
             unsubscribe = tap?.subscribe(created.sessionId, observe)
             sink.emit({
@@ -1409,6 +1488,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               )
               stopReason = answer.stopReason
             } catch (error_: unknown) {
+              // The run error carries the raw text for the operator's own
+              // output; the log records only the redacted kind.
+              log.warn(failureForLog(error_))
               error = error_ instanceof Error ? error_.message : String(error_)
               if (
                 error_ instanceof engine.RequestError &&
@@ -1444,6 +1526,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw error_
     }
   } catch (error_: unknown) {
+    // The run error carries the raw text for the operator's own output;
+    // the log records only the redacted kind.
+    log.warn(failureForLog(error_))
     if (
       error_ instanceof Error &&
       'code' in error_ &&
@@ -1681,6 +1766,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         await grace(
           Promise.all([
             closeSession?.(),
+            team?.close(),
             runtime?.close(),
             closingVault === undefined
               ? undefined

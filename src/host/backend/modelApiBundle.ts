@@ -38,7 +38,10 @@ export interface ModelApiBundleDeps {
   readonly uiLocale: string
   readonly client: ModelApiClientDeps
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
-  readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
+  readonly createProviderClient?: (
+    meta: ProviderClient,
+    usageKind?: ModelApiHostDeps['usageKind'],
+  ) => Promise<ProviderClient>
   /**
   The host's, but for what the bundle makes itself: the client, the hooks,
   the MCP pool and audio preparation, which is the bundle's own binding and

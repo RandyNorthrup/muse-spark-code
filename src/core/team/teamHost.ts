@@ -23,6 +23,7 @@ import { fill } from '../../shared/l10n/text'
 import { Usd, sumUsd } from '../../shared/usd'
 import { canonicalUsd, compareUsdAmounts, type UsdAmount } from '../../shared/usdSchema'
 import { usageLocalDay } from '../usage/localDay'
+import { failureForLog } from '../backends/musecode/logText'
 import { redactSecrets } from '../redact'
 import {
   teamSnapshotSchema,
@@ -338,6 +339,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const listeners = new Set<(tree: TeamTreeData | undefined) => void>()
   /** `collect` calls waiting for a task to change, each with its bound. */
   const waiters = new Set<() => void>()
+  const executions = new Map<string, Promise<void>>()
   /** "Waiting for you" cards, by id, until the user answers. */
   const waiting = new Map<string, (choice: TeamWaitingChoice | 'cancelled') => void>()
   /** The last conversation model seen: the orchestrator the tree and Default show. */
@@ -1171,19 +1173,28 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           outcome.report.status === 'failed' && outcome.folder === undefined ? 'failed' : 'done',
         )
       } catch (error: unknown) {
+        // The failure is recorded on the task; the log carries only the
+        // redacted kind (raw text can name paths).
+        deps.log.warn(failureForLog(error))
         await finish(task, 'failed', task.capped ?? describeError(error))
       } finally {
         task.lease?.release()
         changed()
       }
     }
-    void execute()
-      .then(pump)
-      .catch((error: unknown) => {
+    const executing = (async () => {
+      try {
+        await execute()
+        await pump()
+      } catch (error: unknown) {
         task.failure = describeError(error)
         deps.log.warn(`Team task ${task.taskId}: ${task.failure}`)
         changed()
-      })
+      } finally {
+        executions.delete(task.taskId)
+      }
+    })()
+    executions.set(task.taskId, executing)
   }
 
   async function pump(): Promise<void> {
@@ -1202,6 +1213,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         await launch(task)
         isLaunched = true
       } catch (error: unknown) {
+        deps.log.warn(failureForLog(error))
         if (task.lease !== undefined) {
           task.phase = 'failed'
           task.failure = describeError(error)
@@ -1510,6 +1522,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         ;({ runMergeFlow } = await import('./teamMergeFlow'))
       } catch (error: unknown) {
         // A missing lazy bundle is an install fault: refuse without hanging the card.
+        deps.log.warn(failureForLog(error))
         task.mergePhase = 'failed'
         task.failure = describeError(error)
         task.mergeReady?.()
@@ -1571,6 +1584,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           fill(TEAM_MODEL_TEXT.hostMaxWorkers, { max: String(deps.settings.maxWorkers()) }),
         )
       }
+      // NOLIMITS4: the queue itself is unbounded; every task waits for headroom.
       const parsedGroup = delegateArgs.parse(args)
       const delegateGroup = `${context.sessionId}:delegate:${String(++delegateOrdinal)}`
       const pipelineId = parsedGroup.pipeline ?? delegateGroup
@@ -1603,6 +1617,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             reserved.set(step, task)
             return step
           } catch (error: unknown) {
+            deps.log.warn(failureForLog(error))
             tasks.delete(task.taskId)
             return { item: step.item, refused: describeError(error) }
           }
@@ -1674,7 +1689,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           try {
             await persist()
           } catch (error: unknown) {
-            deps.log.warn(describeError(error))
+            deps.log.warn(failureForLog(error))
           }
           changed()
         }
@@ -1723,6 +1738,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           await stop(task)
           results.push({ task_id: id, state: workerStatus(task) })
         } catch (error: unknown) {
+          deps.log.warn(failureForLog(error))
           results.push({ task_id: id, refused: describeError(error) })
         }
       }
@@ -1870,7 +1886,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       snapshot = readStoredTeam(deps.state)
       changed()
     },
-    dispose: async () => {
+    dispose: async (options) => {
       isDisposed = true
       listeners.clear()
       for (const resolve of waiting.values()) resolve('cancelled')
@@ -1879,6 +1895,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         if (isActive(task.phase) || task.phase === 'queued') task.controller.abort()
       }
       for (const wake of waiters) wake()
+      if (options?.waitForWorkers === true)
+        await Promise.allSettled([
+          ...executions.values(),
+          ...allTasks().flatMap((task) =>
+            task.mergeCompletion === undefined ? [] : [task.mergeCompletion],
+          ),
+        ])
       await saveQueue
     },
   }

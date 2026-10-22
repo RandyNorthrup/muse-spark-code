@@ -8,23 +8,23 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 277,
+      "GENERIC": 270,
       "CLEANUP": 242
     },
     "host": {
       "SWALLOW": 19,
-      "GENERIC": 110,
-      "CLEANUP": 93
+      "GENERIC": 109,
+      "CLEANUP": 92
     },
     "root": {
       "SWALLOW": 1,
-      "GENERIC": 1,
+      "GENERIC": 0,
       "CLEANUP": 2
     },
     "runtime": {
-      "SWALLOW": 34,
-      "GENERIC": 200,
-      "CLEANUP": 125
+      "SWALLOW": 33,
+      "GENERIC": 198,
+      "CLEANUP": 130
     },
     "shared": {
       "SWALLOW": 0,
@@ -2415,36 +2415,6 @@
     },
     {
       "file": "src/core/team/teamHost.ts",
-      "identity": "515fd70fcca20a4163bb3e2c59e9dd7f5ac9259c6a885235ec8829a3998efaab",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamHost.ts",
-      "identity": "9ded1d957b3e0882440c644f830cd318a77040b1a0b58713af92cf861c54a12a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamHost.ts",
-      "identity": "5d23454b07c6cd0d62eb1da66325c65ddee402f337b6d145c8bd3307d65addaf",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamHost.ts",
-      "identity": "50170aa9de8d17a1adb139e197da11de08da93774af609e2d7cff2a8df6fb09f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamHost.ts",
-      "identity": "3c1896351dc692d3d9eb9e2184d47e97866a7f7c576ffd110bb66b740f9b05ab",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamHost.ts",
-      "identity": "769d0535670bc86c4d8e472f8153dbbde5b562ce2731dc6ad2111d54976b56f2",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamHost.ts",
       "identity": "16b87c7ff85255987e966fa1ed1bdaaf267ed907743967acd3c2dcaa3e1cbc3f",
       "class": "CLEANUP"
     },
@@ -2452,11 +2422,6 @@
       "file": "src/core/team/teamMerge.ts",
       "identity": "8860638ec5e676719fa61994e7bb282a4ddc3d34c8cd3dd6e4821d167c7c1026",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/team/teamMergeFlow.ts",
-      "identity": "268a7718005c1c888b772f295201bd576c59b84b07aeb973c06bbc59b1e0712f",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/team/teamPool.ts",
@@ -3127,11 +3092,6 @@
       "file": "src/extension.ts",
       "identity": "51ca2c9c2124952008114c3ff77943fbc4c51205e9905d766c3b2df179417d72",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/extension.ts",
-      "identity": "efc847b9633c206f0c659cf9999c2a37938a640872f1b8f262cd0b19e0931256",
-      "class": "GENERIC"
     },
     {
       "file": "src/extension.ts",
@@ -4089,16 +4049,6 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/team/teamEnginePorts.ts",
-      "identity": "2974c64f44e196841dbbe8e7cad209249a1c2290d0179755d30b4c8a4b6f0c70",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/team/teamEnginePorts.ts",
-      "identity": "75c9f91014063ecae40ce8892da27ab3fe4c580614a554a17677c187aa9b767c",
-      "class": "CLEANUP"
-    },
-    {
       "file": "src/host/team/teamJournal.ts",
       "identity": "2e185fdc1235d148b638d696fd86f071ee38a5ff28fcfdfe6bb4dda103f40314",
       "class": "GENERIC"
@@ -4549,6 +4499,31 @@
       "class": "CLEANUP"
     },
     {
+      "file": "src/runtime/exec/execTeamEntry.ts",
+      "identity": "bbd1ecb14cb4acb3ae57dc905ec78bf2196c7db88da7e37fbf7925b773768a0f",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "bbec5dd939ec12f4ab22625be7ec8112c8da879f9ebfb8b48d2f403abbc89a38",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "2a9f368bab4ec7ae01cff2ca4561da5df02f7f3d038f38fc156d1b28bbeaab0b",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "24bb20e4bf11ae337edfdee4e7ee48af50c5601608ef0f9f49b8d5b9e79d8b3f",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "db0b0b583acad4b54ecfecab7a976f5b161129a0561ebf0f2c0dc7d8a88fe225",
+      "class": "CLEANUP"
+    },
+    {
       "file": "src/runtime/exec/fdWriter.ts",
       "identity": "429405db5abeeedbc2e1ef7f8c562e89ae481c6fcc3149f96b79317cba8dae08",
       "class": "CLEANUP"
@@ -4582,21 +4557,6 @@
       "file": "src/runtime/exec/runExec.ts",
       "identity": "7f4924d6487c0b2994e2431353f2f0202f178020fbc1570d990dfd82c2604c2a",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/exec/runExec.ts",
-      "identity": "84b39e6d3050bba07edf630d5cd6e5891dc15738156dd6b4e75a70b69fce8a66",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/exec/runExec.ts",
-      "identity": "799e7eec795f07d8681f5329667a11660b574f62e0d264648d73894aa22da91e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/exec/runExec.ts",
-      "identity": "213f8c5ce4dd5a272f110d7ed9b90740223b7dc06dedf21e5f2c04a34f5f3ab9",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/exec/runLedger.ts",

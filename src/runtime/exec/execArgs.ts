@@ -34,6 +34,7 @@ import type { PaidUseRequest } from '../../shared/paid'
 
 /** No remaining run budget in the ledger's units: headless compaction needs some. */
 const NO_REMAINING_UNITS = 0n
+import { areHeadlessTeamsAvailable, teamExecAdmission } from '../../acp/teamAdmission'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -57,6 +58,8 @@ export interface ExecOptions {
   */
   readonly provider: string | undefined
   readonly model: string | undefined
+  /** M96b: explicit opt-in to bounded, in-process headless engine teams. */
+  readonly team: boolean
   /**
   The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
   the terminal agent can be told to send none; the record decides what
@@ -98,6 +101,7 @@ export interface ExecOptions {
 const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
   'fast',
+  'team',
   'image-generation',
   'auto-compaction',
   'no-auto-compaction',
@@ -390,12 +394,22 @@ export function parseExec(
   if (rawModel !== undefined && model === undefined) {
     return invalid(UI_TEXT.execUnknownModel)
   }
+  // Team admission follows the prompt, provider and hard-budget checks.
+  // Behind the agent-teams availability switch the flag is unknown: the
+  // parser answers as if `--team` did not exist.
+  if (values['team'] === true && !areHeadlessTeamsAvailable())
+    return invalid(fill(UI_TEXT.acpUnknownArgument, { argument: '--team' }))
+  if (values['team'] === true) {
+    const admission = teamExecAdmission({ mode, backend })
+    if (!admission.ok) return invalid(admission.reason)
+  }
   return {
     ok: true,
     options: {
       ...(typeof values['account'] === 'string' && { account: values['account'] }),
       ...(values['account-pool'] === true && { accountPool: true }),
       backend,
+      team: values['team'] === true,
       cwd: stringValue('cwd'),
       prompt,
       untrustedFiles,

@@ -3082,8 +3082,8 @@ async function activateWindow(
           let budgetScope
           try {
             budgetScope = await modelApi.bestOfNBudgetScope(parentSessionId)
-          } catch {
-            throw new Error(UI_TEXT.teamBudgetUnavailable)
+          } catch (error: unknown) {
+            throw new Error(UI_TEXT.teamBudgetUnavailable, { cause: error })
           }
           const host = await modelApi.buildTeamWorkerHost(
             folder,

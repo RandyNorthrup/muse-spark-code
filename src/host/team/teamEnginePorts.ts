@@ -20,6 +20,7 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { approvalModeFor } from '../../shared/permissionModes'
+import { type UsdAmount } from '../../shared/usd'
 import type { TeamAgentRef, TeamReport, TeamUsage } from '../../shared/team'
 import { sumUsd } from '../../shared/usd'
 import { canonicalUsd } from '../../shared/usdSchema'
@@ -41,7 +42,7 @@ import {
   scratchBreach,
   startTeamWorkspace,
 } from '../../core/team/teamWorkspaces'
-import type { TeamGit } from '../../core/team/teamGit'
+import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
 import type { WorkerReportOutcome } from '../../core/team/workers/report'
@@ -151,6 +152,35 @@ function workerApprovalMode(permissionMode: string | undefined = 'plan'): string
   const saved = PERMISSION_MODES.find((mode) => mode === permissionMode)
   if (saved === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
   return approvalModeFor(saved, false)
+}
+
+/**
+Best-effort removal of a copy the task made but never handed back. A
+failure warns with fixed words (never the raw error) and stays silent
+otherwise: the outer handler already rethrows the task's own failure.
+*/
+async function removeUnreturnedCopy(input: {
+  readonly runGit: TeamGit
+  readonly repositoryRoot: string
+  readonly storageRoot: string
+  readonly folder: string
+  readonly agentsRef: string | undefined
+  readonly noteWorkspace: () => Promise<void>
+  readonly warn: (message: string) => void
+  readonly taskId: string
+}): Promise<void> {
+  try {
+    await removeTeamWorkspace(
+      input.runGit,
+      input.repositoryRoot,
+      input.storageRoot,
+      input.folder,
+      input.agentsRef,
+    )
+    await input.noteWorkspace()
+  } catch {
+    input.warn(`Team task ${input.taskId}: its cleanup or recovery record could not be completed`)
+  }
 }
 
 /** A worker runs no goal or background work to stop at its turn's end. */
@@ -296,7 +326,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         reserveUsage: async (maximum: {
           inputTokens: number
           outputTokens: number
-          costUsd?: string | undefined
+          costUsd?: UsdAmount | undefined
         }) => {
           check()
           await meterWrites
@@ -536,20 +566,20 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       // A copy this task made and never handed back is removed; a reopened
       // task's copy stays with the finished task it came from.
       if (isNewCopy) {
-        try {
-          await removeTeamWorkspace(
-            runGit,
-            repositoryRoot,
-            await storage(),
-            workspace.folder,
-            workspace.agentsRef,
-          )
-          await spec.meter.noteWorkspace(undefined)
-        } catch {
-          deps.log.warn(
-            `Team task ${spec.taskId}: its cleanup or recovery record could not be completed`,
-          )
-        }
+        await removeUnreturnedCopy({
+          runGit,
+          repositoryRoot,
+          storageRoot: await storage(),
+          folder: workspace.folder,
+          agentsRef: workspace.agentsRef,
+          noteWorkspace: async () => {
+            await spec.meter.noteWorkspace(undefined)
+          },
+          warn: (message: string) => {
+            deps.log.warn(message)
+          },
+          taskId: spec.taskId,
+        })
       }
       throw error
     }
@@ -585,10 +615,11 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         actual = new TextDecoder()
           .decode(await runGit(['rev-parse', '--verify', outcome.agentsRef], repositoryRoot))
           .trim()
-      } catch {
-        // rev-parse failed: with no actual commit the ref check below
-        // refuses the merge as a moved ref.
-        actual = undefined
+      } catch (error: unknown) {
+        // An unknown ref (or unreadable repo) leaves the head unverified;
+        // anything else is loud.
+        if (isTeamGitError(error)) actual = undefined
+        else throw error
       }
       const writePaths = task.role.writePaths ?? builtin?.writePaths
       signal.throwIfAborted()

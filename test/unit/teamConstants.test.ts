@@ -1,6 +1,11 @@
 // M96 lane 0: the team schemas, protocol region and translated recovery
 // strings. Every test here can fail: each guards a value or shape another
 // lane builds on, with its red drill recorded in docs/certification/m96-0.md.
+import {
+  teamReportSchema,
+  teamReportStatusSchema,
+  teamReportStatuses,
+} from '../../src/shared/teamReport'
 
 import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
@@ -98,11 +103,8 @@ import {
   teamLedgerTotalsRowSchema,
   teamModelSettingsSchema,
   teamPoolEntrySchema,
-  teamReportSchema,
   teamReportShapeSchema,
   teamReportShapes,
-  teamReportStatusSchema,
-  teamReportStatuses,
   teamRoleConfigSchema,
   teamRolesSaveSchema,
   teamRolesUpdateSchema,

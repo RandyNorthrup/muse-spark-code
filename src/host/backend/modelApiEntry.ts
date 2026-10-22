@@ -235,7 +235,10 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     }
   }
   const meta = new ModelApiClient(deps.client)
-  const client = (await deps.createProviderClient?.(meta)) ?? meta
+  // The host's own usage kind (worker for team workers) travels with the
+  // request accounting, threaded here rather than through the always-loaded
+  // backend manager so headless-only bytes stay out of the activation bundle.
+  const client = (await deps.createProviderClient?.(meta, hostDeps.usageKind)) ?? meta
   // C-M95-4 R3: the configured registry owns every M95 model's live
   // window (scanned locals carry their server's report in `modelLimits`).
   // The host sizes compaction from `contextModel`, so feed it from the

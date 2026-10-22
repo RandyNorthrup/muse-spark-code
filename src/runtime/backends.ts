@@ -27,6 +27,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import type { AgentHost } from '../core/agent/agentBackend'
+import type { TeamHostSeams } from '../core/team/teamHostService'
+import type { EngineTeamPortsDeps } from '../host/team/teamEnginePorts'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import {
   checkScheduleOwnCap,
@@ -117,6 +119,7 @@ import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import { fill, uiLocale } from '../shared/l10n/text'
 import { walkFiles } from './fileWalk'
+import { openTeamWorkerSession } from '../host/backend/teamWorkerSession'
 import { paidGrantFile } from './paidGrants'
 
 const { readProvidersFile } = providersFile
@@ -124,6 +127,7 @@ const { readProvidersFile } = providersFile
 export interface ExecRuntimeOptions {
   readonly remainingModelCalls?: () => number
   readonly outputCap?: (policy: ModelPolicy) => number
+  readonly secretLiterals?: (() => readonly string[]) | undefined
   readonly providerRun?: AssembledProviderRun
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
   readonly isEphemeral: boolean
@@ -132,6 +136,7 @@ export interface ExecRuntimeOptions {
 }
 
 export interface RuntimeBackendDeps {
+  readonly team?: TeamHostSeams | undefined
   readonly usageRecording?: UsageRecording | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly exec?: ExecRuntimeOptions
@@ -157,6 +162,11 @@ export interface RuntimeBackend {
     modelId: string,
     caller?: ScheduleCallerContext,
   ) => Promise<ScheduleBillingPorts>
+  /** In-process engine worker; never launches Muse Code or an external agent. */
+  readonly startTeamWorker: (
+    cwd: string,
+    input: Parameters<EngineTeamPortsDeps['startWorker']>[0],
+  ) => ReturnType<EngineTeamPortsDeps['startWorker']>
   readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
@@ -193,6 +203,10 @@ export interface RuntimeBackend {
 // No editor proxy setting exists outside VS Code; the CLI reads the
 // environment's HTTPS_PROXY and NO_PROXY as it inherits them.
 const NO_EDITOR_PROXY: ProxySettings = { proxy: '', noProxy: [] }
+
+function ignoreWorkerTranscript(): void {
+  // Worker responses have their own reports; only the orchestrator enters exec output.
+}
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -496,7 +510,7 @@ function modelApiManager(
               if (!isStoreUnavailable(error)) throw error
             }
             const copy = structuredClone(snapshot)
-            redactSnapshot(copy, key === undefined ? [] : [key])
+            redactSnapshot(copy, deps.exec?.secretLiterals?.() ?? (key === undefined ? [] : [key]))
             await store.save(copy)
           },
         }
@@ -514,6 +528,7 @@ function modelApiManager(
       : undefined
   const providerRun = deps.exec?.providerRun
   return new ModelApiBackendManager({
+    team: deps.team,
     log,
     // The ready line names the provider a run actually uses (RLTESTDRIVE
     // item 3); without a provider run it names the Meta backend.
@@ -579,13 +594,13 @@ function modelApiManager(
       signal.throwIfAborted()
       return handle.result
     },
-    createProviderClient: async (meta: ProviderClient) => {
+    createProviderClient: async (meta: ProviderClient, usageKind) => {
       let client = meta
       const run = deps.exec?.providerRun
       if (run !== undefined) {
         const entry = await import('../host/backend/configuredProvidersEntry')
         entry.setUiText(UI_TEXT, uiLocale())
-        headlessProviders = entry.createConfiguredProviderServices(meta, {
+        headlessProviders ??= entry.createConfiguredProviderServices(meta, {
           configFile: providerConfigFile,
           catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
           secrets: run.secrets,
@@ -632,6 +647,18 @@ function modelApiManager(
           },
         })
         client = headlessProviders.client
+      } else if (deps.team !== undefined && existsSync(providerConfigFile)) {
+        // A Meta orchestrator may delegate to a configured keyless local engine.
+        // Only the user's provider file supplies origins; the repository cannot.
+        const entry = await import('../host/backend/configuredProvidersEntry')
+        entry.setUiText(UI_TEXT, uiLocale())
+        headlessProviders ??= entry.createConfiguredProviderServices(meta, {
+          configFile: providerConfigFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          secrets: deps.secrets,
+          hasMetaKey: async () => (await deps.secrets.get(SECRET_KEYS.modelApiKey)) !== undefined,
+        })
+        client = headlessProviders.client
       } else if (existsSync(providerConfigFile) || (await hasChatGptSecret())) {
         // The editor protocol and a terminal plan-model exec share this
         // construction: a plan model runs on its own subscription sign-in,
@@ -643,10 +670,18 @@ function modelApiManager(
       }
       const entry = await accountingEntry()
       entry.setUiText(UI_TEXT, uiLocale())
+      const accounting = deps.exec?.responseAccounting
       return entry.withRuntimeAccounting(
         client,
         await dailyBudget(),
-        deps.exec?.responseAccounting,
+        usageKind === 'worker' && accounting !== undefined
+          ? {
+              ...accounting,
+              isWorker: true,
+              started: ignoreWorkerTranscript,
+              settled: ignoreWorkerTranscript,
+            }
+          : accounting,
         deps.exec?.providerRun?.dispatch,
         deps.exec?.outputCap,
       )
@@ -1056,6 +1091,17 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return { state: 'signedOut', message: refusal }
   }
 
+  // A headless team run vouches for its workers (M96b): the team switch,
+  // not workspace trust, admits their delegate/merge tools. Set on each host
+  // after construction (ModelApiHost.setTeamTrusted), never through the
+  // always-loaded backend manager, so activation carries none of it.
+  const isTeamTrusted = (): boolean => deps.team?.teamDecisionSource()?.teamSwitchOn === true
+  const withTeamTrust = async (manager: ModelApiBackendManager) => {
+    const host = await manager.ensureHost()
+    if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
+    return host
+  }
+
   const modelApiHostFor = async (cwd: string) => {
     const identity = await captureWorkspaceIdentity(cwd)
     if (identity === undefined) {
@@ -1067,7 +1113,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (existing.identity !== key) {
         throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
-      return await existing.manager.ensureHost()
+      return await withTeamTrust(existing.manager)
     }
     const assertWorkspaceCurrent = () => {
       if (!identity.isCurrent()) {
@@ -1094,7 +1140,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       },
     )
     modelApiHosts.set(cwd, { manager, identity: key })
-    return await manager.ensureHost()
+    return await withTeamTrust(manager)
   }
 
   const hostFor = (cwd: string): Promise<AgentHost> => {
@@ -1152,6 +1198,22 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   })
   let isClosed = false
   return {
+    startTeamWorker: async (cwd, input) => {
+      if (deps.options.backend !== 'modelApi') throw new Error(UI_TEXT.execModelApiOnly)
+      await modelApiHostFor(cwd)
+      const manager = modelApiHosts.get(cwd)?.manager
+      if (manager === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+      const budgetScope = await manager.bestOfNBudgetScope(input.parentSessionId)
+      const host = await manager.buildTeamWorkerHost(
+        input.folder,
+        input.admit,
+        input.noteUsage,
+        budgetScope,
+        input.fenceIo,
+      )
+      if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
+      return await openTeamWorkerSession(host, input)
+    },
     readUsageBudgets: async () => {
       // The shared daily paid budget first, then the live session budgets:
       // the same pair VS Code passes (RVCM1132B finding 3). The ledger read
