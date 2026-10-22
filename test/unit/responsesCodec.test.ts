@@ -189,6 +189,17 @@ describe('responsesCodec encodeRequest', () => {
     })
   })
 
+  it('sends safety_identifier where the entry set one, and omits it elsewhere', () => {
+    // The entry's end-user id rides as `safety_identifier` (xAI's
+    // replacement for the legacy `user` field); without one the wire
+    // carries no such field.
+    const codec = createResponsesCodec(withRetention)
+    const sent = codec.encodeRequest(firstTurnBody(), { safetyIdentifier: 'coder-7' })
+    expect(sent).toMatchObject({ safety_identifier: 'coder-7' })
+    const omitted = codec.encodeRequest(firstTurnBody())
+    expect(omitted).not.toHaveProperty('safety_identifier')
+  })
+
   it('emits the captured U9 strict declaration without changing its schema (M106)', () => {
     const captured = z
       .object({

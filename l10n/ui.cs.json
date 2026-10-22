@@ -5147,7 +5147,8 @@
     "azureResource": "Prostředek Azure",
     "deployment": "Nasazení",
     "loopbackPort": "Místní port",
-    "customFormat": "Formát protokolu"
+    "customFormat": "Formát protokolu",
+    "safetyIdentifier": "ID koncového uživatele (bezpečnost xAI)"
   },
   "providerDocs": "Dokumentace",
   "providerDataUse": "Jak se používají vaše data",

@@ -1357,6 +1357,7 @@ export function createConfiguredProviderServices(
             // model (research §1.2 [AZ1, AZ3, AZ6]); the record above stays
             // keyed by the model family, never the deployment name.
             const isAzure = preset.id === 'azure'
+            const safetyIdentifier = presets.safetyIdentifierFor(entry)
             wire = responses
               .createResponsesCodec(
                 {
@@ -1368,11 +1369,16 @@ export function createConfiguredProviderServices(
                 // would send `auto` for every model, listed or not.
                 () => capabilities.capabilitiesOf({ capabilityRecord: record }),
               )
-              .encodeRequest({
-                ...body,
-                model: presets.wireModelFor(entry, native),
-                ...(shouldOmitReasoning && { reasoning: undefined }),
-              })
+              .encodeRequest(
+                {
+                  ...body,
+                  model: presets.wireModelFor(entry, native),
+                  ...(shouldOmitReasoning && { reasoning: undefined }),
+                },
+                {
+                  ...(safetyIdentifier !== undefined && { safetyIdentifier }),
+                },
+              )
             if (isAzure) path = '/responses'
           }
         }

@@ -19,6 +19,7 @@ import {
   quirksOf,
   replayFieldFor,
   isKeyShape,
+  safetyIdentifierFor,
   wireModelFor,
   FORMAT_QUIRKS,
   type ProviderPreset,
@@ -45,9 +46,15 @@ describe('the preset table', () => {
       state: 'yes',
       value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
     })
+    // The retired names carry no facts: DeepSeek serves them as Flash
+    // under the Flash price (api-docs.deepseek.com, read 2026-10-22),
+    // so presenting them as their own models would mislead.
+    const ids = facts.map((fact) => fact.modelId)
+    expect(ids).not.toContain('deepseek-v4-flash')
+    expect(ids).not.toContain('deepseek-v4-flash-vision-exp')
   })
 
-  it('declares Anthropic Thinking-off facts and grok-4.5 xhigh (round 2)', () => {
+  it('declares Anthropic Thinking-off facts and grok-4.5 through grok-4.7 levels (round 2)', () => {
     // GAPANTH-G02: the thinking table answers 400 to `disabled` on four
     // models (Sonnet 5.5 takes `between_tools` instead); Opus 5 and
     // Haiku 5.5 take `disabled`. XAI-G01: grok-4.5 takes `xhigh`.
@@ -75,10 +82,20 @@ describe('the preset table', () => {
       state: 'yes',
       value: true,
     })
+    // The reasoning page documents the same levels with a `high`
+    // default for grok-4.5 through grok-4.7
+    // (`docs.x.ai/developers/model-capabilities/text/reasoning`, read
+    // 2026-10-22): without the default a switched model would select
+    // the last level (`xhigh`) instead of the documented default.
     const xai = preset('xai').reasoningFacts ?? []
-    expect(
-      xai.find((entry) => entry.modelId === 'grok-4.5')?.fields.reasoning?.effortLevels,
-    ).toEqual({ state: 'yes', value: ['low', 'medium', 'high', 'xhigh'] })
+    for (const modelId of ['grok-4.5', 'grok-4.6', 'grok-4.7']) {
+      const entry = xai.find((candidate) => candidate.modelId === modelId)
+      expect(entry?.fields.reasoning?.effortLevels).toEqual({
+        state: 'yes',
+        value: ['low', 'medium', 'high', 'xhigh'],
+      })
+      expect(entry?.fields.reasoning?.defaultEffort).toBe('high')
+    }
   })
 
   it('holds eighteen presets with unique, valid ids', () => {
@@ -291,6 +308,15 @@ describe('the preset table', () => {
     )
     expect(() => wireModelFor({ preset: 'azure' }, 'gpt-5.4-nano')).toThrow()
     expect(() => wireModelFor({ preset: 'azure', deployment: '' }, 'gpt-5.4-nano')).toThrow()
+  })
+
+  it("sends the xAI entry's own end-user id as safety_identifier, nothing elsewhere", () => {
+    // OC5: xAI attributes a policy violation to the person's own id
+    // rather than to the API key. Only xAI entries send it, and an
+    // xAI entry without one sends nothing.
+    expect(safetyIdentifierFor({ preset: 'xai', safetyIdentifier: 'coder-7' })).toBe('coder-7')
+    expect(safetyIdentifierFor({ preset: 'xai' })).toBeUndefined()
+    expect(safetyIdentifierFor({ preset: 'openai', safetyIdentifier: 'coder-7' })).toBeUndefined()
   })
 
   it('never replays thinking to an unversioned local server (fail closed)', () => {

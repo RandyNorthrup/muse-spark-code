@@ -5023,7 +5023,8 @@
     "azureResource": "Ressource Azure",
     "deployment": "Déploiement",
     "loopbackPort": "Port local",
-    "customFormat": "Format du protocole"
+    "customFormat": "Format du protocole",
+    "safetyIdentifier": "ID d’utilisateur final (sécurité xAI)"
   },
   "providerDocs": "Guide du fournisseur",
   "providerDataUse": "Utilisation de vos données",

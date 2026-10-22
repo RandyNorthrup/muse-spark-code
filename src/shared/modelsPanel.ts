@@ -278,6 +278,7 @@ const endpointFields = {
   address: z.optional(z.string()),
   azureResource: z.optional(z.string()),
   deployment: z.optional(z.string()),
+  safetyIdentifier: z.optional(z.string()),
   loopbackPort: z.optional(z.number()),
   customFormat: z.optional(customFormatSchema),
 }

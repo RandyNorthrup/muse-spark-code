@@ -5147,7 +5147,8 @@
     "azureResource": "Ресурс Azure",
     "deployment": "Развертывание",
     "loopbackPort": "Локальный порт",
-    "customFormat": "Формат протокола"
+    "customFormat": "Формат протокола",
+    "safetyIdentifier": "ID конечного пользователя (безопасность xAI)"
   },
   "providerDocs": "Документация",
   "providerDataUse": "Как используются ваши данные",

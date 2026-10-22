@@ -4775,7 +4775,8 @@
     "azureResource": "Azure リソース",
     "deployment": "デプロイ",
     "loopbackPort": "ローカルポート",
-    "customFormat": "プロトコル形式"
+    "customFormat": "プロトコル形式",
+    "safetyIdentifier": "エンドユーザーID (xAIセーフティ)"
   },
   "providerDocs": "ドキュメント",
   "providerDataUse": "データの使用方法",
