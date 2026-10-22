@@ -8,8 +8,8 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 267,
-      "CLEANUP": 235
+      "GENERIC": 266,
+      "CLEANUP": 234
     },
     "host": {
       "SWALLOW": 19,
@@ -2380,11 +2380,6 @@
     },
     {
       "file": "src/core/tab/tabEngine.ts",
-      "identity": "6eaff5996e203eede81f8c44ca3486759e71c5e249500d19d15191f09f54e6e9",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/tab/tabEngine.ts",
       "identity": "0f53d48406f4007454b81d6b55bcdb3d2ebe59de1c54e61f76d7274ccd82d478",
       "class": "GENERIC"
     },
@@ -2406,11 +2401,6 @@
     {
       "file": "src/core/tab/tabHooks.ts",
       "identity": "f3e91cf740cdd067170624562cf92be79d4f2849a593db9ed4897e1fb2bb1d3a",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/tab/tabScheduler.ts",
-      "identity": "e7b940fdcd3e97fa807541fd9f2168525a053531bf1fd59a44d37107b24cc270",
       "class": "CLEANUP"
     },
     {

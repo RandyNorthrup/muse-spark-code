@@ -211,8 +211,12 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
         deps.onSent(request.model)
       },
     })
-    /** Reads the stream to its end; resolves its usage, rejects without one. */
-    const drain = async (): Promise<TabEngineUsage> => {
+    /**
+    Reads the stream to its end. A failure comes back as an outcome, not
+    a throw: the settlement below still owes a refused request its unsent
+    answer and a settled one its usage.
+    */
+    const readStream = async (): Promise<{ ok: true } | { ok: false; cause: unknown }> => {
       // Acceptance 7: no timeout of ours — the request runs until the
       // stream ends. The signal never aborts; only the provider's answer,
       // a network failure, or the usage settling below ends the read.
@@ -227,7 +231,15 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
           }
         }
       } catch (error: unknown) {
-        progress.failure = asError(error)
+        return { ok: false, cause: error }
+      }
+      return { ok: true }
+    }
+    /** Reads the stream to its end; resolves its usage, rejects without one. */
+    const drain = async (): Promise<TabEngineUsage> => {
+      const read = await readStream()
+      if (!read.ok) {
+        progress.failure = asError(read.cause)
       }
       if (gate.isRefused && !gate.isSent) {
         // Nothing was POSTed: no suggestion and no usage (the reply is empty).
@@ -301,6 +313,11 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
               } catch (error: unknown) {
                 reject(asError(error))
               }
+            },
+            // The run settles through send; this only fires if the run
+            // itself crashes first, so the trigger still settles.
+            report: (error: unknown) => {
+              reject(asError(error))
             },
           },
           { immediate: request.isInvoke },
