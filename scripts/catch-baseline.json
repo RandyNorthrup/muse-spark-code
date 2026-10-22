@@ -4174,21 +4174,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/chatGptProviderCommands.ts",
-      "identity": "4d0560b48ecea3fb7908e2de7d87a1849d96fd4d7aed009e53022ba966f7b124",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/chatGptProviderCommands.ts",
-      "identity": "55ddee15cd70ca8c96a5098c2d21118c1bf39d50de2e38a171ab2452e3b4fcb4",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/chatGptProviderCommands.ts",
-      "identity": "28103178ba9797a370463da6196895efe913d2d13856f6f941423ec3423756c5",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/cliArgs.ts",
       "identity": "c19318416121ee92db4193acbb6d2ef45f2871116ff07cb2018db3bba420ddf4",
       "class": "GENERIC"
@@ -5351,6 +5336,21 @@
     {
       "file": "src/runtime/subscriptionCallback.ts",
       "identity": "322edffa91dd68d3b25158a05bae2e2daecdf549dfee85c977d06602eaecee65",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/subscriptionProviderCommands.ts",
+      "identity": "a0c8da57f63097a32c584c0d681cb6bca977b737c9d20e2e4265ff52086aafc2",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/subscriptionProviderCommands.ts",
+      "identity": "849afc42fe896ebe333121cbae6ccff03df7ccf1724d3ef316e0c0c91230fbd3",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/subscriptionProviderCommands.ts",
+      "identity": "aca1f66842949fd04a51f16f0f97b460c11eef2adb66569a95ecc96ab0d0436c",
       "class": "GENERIC"
     },
     {

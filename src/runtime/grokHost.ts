@@ -56,8 +56,12 @@ export interface RuntimeGrokOptions {
   /** Terminal commands print the URL; editor adapters may open their browser. */
   readonly openBrowser: (url: string) => Promise<void>
   readonly callbackText: () => string
-  /** Show one device code; the terminal prints it, editors prompt for it. */
-  readonly presentDeviceCode: (prompt: GrokDevicePrompt) => Promise<void>
+  /**
+  Show one device code; the terminal prints it, editors prompt for it.
+  Absent where no surface can show one (session dispatch): the device
+  flow then refuses as unsupported.
+  */
+  readonly presentDeviceCode?: (prompt: GrokDevicePrompt) => Promise<void>
   readonly signal?: AbortSignal
   readonly lock?: NamedLockOptions
 }
@@ -110,7 +114,9 @@ export function createRuntimeGrokHost(options: RuntimeGrokOptions): GrokHostPort
     },
     startCallback: (state, timeoutMs) =>
       startGrokCallback(state, timeoutMs, options.callbackText, options.signal),
-    presentDeviceCode: options.presentDeviceCode,
+    ...(options.presentDeviceCode !== undefined && {
+      presentDeviceCode: options.presentDeviceCode,
+    }),
     sleep,
     readRecord: () => readStored(),
     // A grant that fails its own schema was built from xAI's token answer.
