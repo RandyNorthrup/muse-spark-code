@@ -5005,6 +5005,7 @@
   "teamSuggestFallback": "Nur ein Eintrag: Fügen Sie einen Ausweich hinzu ({model}).",
   "teamSuggestBudgetCaps": "Tagesobergrenzen, die ins restliche Tagesbudget passen: {amount}.",
   "teamSuggestLearned": "{median} aus Ihren letzten {count} {role}-Aufgaben.",
+  "teamOutcomeReorderReason": "{better}: {betterAccepted} von {betterTasks} {role}-Aufgaben auf Anhieb abgenommen; {worse}: {worseAccepted} von {worseTasks}.",
   "teamPreviewTitle": "Vorschau",
   "teamPreviewSample": "Beispielaufgabe",
   "teamTryWithOrchestrator": "Mit dem Orchestrator versuchen ({cost})",

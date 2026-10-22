@@ -3416,6 +3416,14 @@ export const TEAM_HANDOFF_TOOL_CALLS = 20
 export const TEAM_DIVERGE_REPEATS = 3
 export const TEAM_DIVERGE_SIZE_FACTOR = 3
 export const TEAM_START_STAGGER_MS = 5000
+// D212 borrow/recall timers (M120 lane 0): each role's defaults; the demand
+// wait never goes below its floor.
+export const TEAM_BORROW_DEMAND_WAIT_MS = 60_000
+export const TEAM_BORROW_DEMAND_WAIT_MIN_MS = 60_000
+export const TEAM_BORROW_LOOKAHEAD_MS = 10 * 60_000
+export const TEAM_BORROW_FINISH_GRACE_MS = 5 * 60_000
+export const TEAM_BORROW_RECALL_WAIT_MS = 2 * 60_000
+export const TEAM_BORROW_COOLDOWN_MS = 3 * 60_000
 export const TEAM_DIFF_POLL_MS = 30_000
 export const TEAM_MERGE_BATCH_MAX = 4
 export const TEAM_MERGE_BATCH_SMALL_LINES = 200
@@ -8530,6 +8538,10 @@ export type TeamIntensityLevel = keyof typeof TEAM_INTENSITY_LEVELS
 // A workspace that never picked a level runs here (D75).
 export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'max'] as const
 export const TEAM_LEARNED_MIN_TASKS = 5
+// A reorder suggestion needs a clear gap, not just a rank: the better
+// candidate's first-review acceptance rate must lead by this much (D103,
+// M120 lane 5). Both candidates still need TEAM_LEARNED_MIN_TASKS tasks.
+export const TEAM_OUTCOME_MIN_RATE_GAP = 0.25
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
 // The output share of a preview step's tokens, in whole percent (exact money, M121).
@@ -8611,6 +8623,7 @@ export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]
 // the exhausted policy, and `continue on next`.
 export const TEAM_TASKS_PER_TURN_DEFAULT = 6
 export const TEAM_TASK_MINUTES_DEFAULT = 30
+export const TEAM_MINUTE_MS = 60_000
 export const TEAM_EXHAUSTED_POLICIES = ['ask', 'queue', 'self'] as const
 export type TeamExhaustedPolicy = (typeof TEAM_EXHAUSTED_POLICIES)[number]
 export const TEAM_EXHAUSTED_DEFAULT: TeamExhaustedPolicy = 'ask'

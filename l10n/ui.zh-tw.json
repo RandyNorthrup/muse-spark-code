@@ -4880,6 +4880,7 @@
   "teamSuggestFallback": "僅有一個項目：請新增備用（{model}）。",
   "teamSuggestBudgetCaps": "符合剩餘日預算的日上限：{amount}。",
   "teamSuggestLearned": "最近 {count} 個 {role} 任務的 {median}。",
+  "teamOutcomeReorderReason": "{better}：{betterTasks} 個{role}任務中有 {betterAccepted} 個在首次審查時接受；{worse}：{worseTasks} 個中有 {worseAccepted} 個。",
   "teamPreviewTitle": "預覽",
   "teamPreviewSample": "範例任務",
   "teamTryWithOrchestrator": "用編排器試執行（{cost}）",

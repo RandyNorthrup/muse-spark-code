@@ -5130,6 +5130,7 @@
   "teamSuggestFallback": "Una sola voce: aggiungi un ripiego ({model}).",
   "teamSuggestBudgetCaps": "Tetti giornalieri che stanno nel budget residuo: {amount}.",
   "teamSuggestLearned": "{median} dalle tue ultime {count} attività {role}.",
+  "teamOutcomeReorderReason": "{better}: {betterAccepted} di {betterTasks} attività {role} accettate alla prima revisione; {worse}: {worseAccepted} di {worseTasks}.",
   "teamPreviewTitle": "Anteprima",
   "teamPreviewSample": "Attività di esempio",
   "teamTryWithOrchestrator": "Prova con l'orchestratore ({cost})",

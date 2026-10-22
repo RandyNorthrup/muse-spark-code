@@ -5130,6 +5130,7 @@
   "teamSuggestFallback": "Una sola entrada: añada una alternativa ({model}).",
   "teamSuggestBudgetCaps": "Límites diarios que caben en el presupuesto restante: {amount}.",
   "teamSuggestLearned": "{median} de sus últimas {count} tareas de {role}.",
+  "teamOutcomeReorderReason": "{better}: {betterAccepted} de {betterTasks} tareas de {role} aceptadas en la primera revisión; {worse}: {worseAccepted} de {worseTasks}.",
   "teamPreviewTitle": "Vista previa",
   "teamPreviewSample": "Tarea de ejemplo",
   "teamTryWithOrchestrator": "Probar con el orquestador ({cost})",

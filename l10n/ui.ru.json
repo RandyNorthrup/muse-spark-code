@@ -5255,6 +5255,7 @@
   "teamSuggestFallback": "Только одна запись: добавьте запасную ({model}).",
   "teamSuggestBudgetCaps": "Дневные лимиты, укладывающиеся в остаток бюджета: {amount}.",
   "teamSuggestLearned": "{median} из ваших последних {count} задач {role}.",
+  "teamOutcomeReorderReason": "{better}: {betterAccepted} из {betterTasks} задач {role} принято с первой проверки; {worse}: {worseAccepted} из {worseTasks}.",
   "teamPreviewTitle": "Предпросмотр",
   "teamPreviewSample": "Пример задачи",
   "teamTryWithOrchestrator": "Попробовать с оркестратором ({cost})",

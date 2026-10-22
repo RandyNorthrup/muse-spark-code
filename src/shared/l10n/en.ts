@@ -6407,6 +6407,11 @@ export const EN = {
   teamSuggestFallback: 'One entry only: add a fallback ({model}).',
   teamSuggestBudgetCaps: 'Day caps that fit the daily budget left: {amount}.',
   teamSuggestLearned: '{median} from your last {count} {role} tasks.',
+  // Reorder suggestion from recorded outcomes (D103, M120 lane 5). {better}
+  // moves above {worse}: each named with its first-review acceptances and
+  // tasks; {role} is the role id the panel already shows.
+  teamOutcomeReorderReason:
+    '{better}: {betterAccepted} of {betterTasks} {role} tasks accepted on first review; {worse}: {worseAccepted} of {worseTasks}.',
   teamPreviewTitle: 'Preview',
   teamPreviewSample: 'Sample Task',
   // {cost}: the labelled cost of one orchestrator turn.

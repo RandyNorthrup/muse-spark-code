@@ -5130,6 +5130,7 @@
   "teamSuggestFallback": "Une seule entrée : ajoutez un repli ({model}).",
   "teamSuggestBudgetCaps": "Plafonds journaliers qui tiennent dans le budget restant : {amount}.",
   "teamSuggestLearned": "{median} de vos {count} dernières tâches {role}.",
+  "teamOutcomeReorderReason": "{better} : {betterAccepted} tâches {role} sur {betterTasks} acceptées dès la première révision ; {worse} : {worseAccepted} sur {worseTasks}.",
   "teamPreviewTitle": "Aperçu",
   "teamPreviewSample": "Tâche d’exemple",
   "teamTryWithOrchestrator": "Essayer avec l’orchestrateur ({cost})",

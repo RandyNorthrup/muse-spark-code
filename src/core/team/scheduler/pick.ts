@@ -18,6 +18,11 @@ import {
 } from '../../../shared/constants'
 import type { TeamBoardTask } from '../../../shared/team'
 import { criticalPaths } from './criticalPath'
+import { selectTeamEntry } from '../selection'
+import type { TeamSelectionSnapshot, TeamSelection } from '../teamPool'
+import { TEAM_TASKS_PER_TURN_DEFAULT } from '../../../shared/constants'
+import type { TeamSkip } from '../../../shared/teamPreference'
+import { isSameTeamModel } from '../sameModel'
 
 type Priority = TeamBoardTask['priority']
 const priorities: readonly Priority[] = ['low', 'normal', 'high', 'urgent']
@@ -33,6 +38,9 @@ export interface SchedulerEntry {
   eligible(task: TeamBoardTask): boolean
 }
 export interface PickContext {
+  /** Lane W supplies the installed facts; absent keeps D75 ranking unchanged. */
+  selection?(task: TeamBoardTask): TeamSelectionSnapshot
+  selected?(task: TeamBoardTask, selection: TeamSelection): void
   now: number
   entries: readonly SchedulerEntry[]
   canStart(task: TeamBoardTask, entry: SchedulerEntry): boolean
@@ -124,10 +132,62 @@ export class TaskPicker {
     const ranked: ScoredPick[] = []
     for (const task of tasks) {
       if (task.state !== 'ready' || task.held) continue
+      const snapshot = context.selection?.(task)
+      let preferredId: string | undefined
+      if (snapshot?.preference !== undefined) {
+        const availability = snapshot.availability
+        if (availability === undefined) throw new Error('team:availabilityMissing')
+        const selection = selectTeamEntry(
+          { roleId: task.roleId, entries: [], policy: 'queue', continueOnNext: false },
+          {
+            ...snapshot,
+            nowMs: context.now,
+            availability: {
+              probe: (candidate, nowMs) => {
+                const live = availability.probe(candidate, nowMs)
+                if (!live.available) return live
+                const entry = context.entries.find(
+                  (item) => item.id === candidate.id && item.roleId === task.roleId,
+                )
+                const last =
+                  entry === undefined ? undefined : this.processStarts.get(entry.agentProfileId)
+                let reason: TeamSkip['reason'] | undefined
+                const agent = candidate.agent
+                const profileId = agent?.agentId ?? snapshot.defaultAgent.key
+                const modelId = agent?.model ?? snapshot.defaultAgent.modelId
+                const kind = agent?.kind ?? snapshot.defaultAgent.kind
+                if (entry === undefined) reason = 'nodeOffline'
+                else if (
+                  entry.agentProfileId !== profileId ||
+                  !isSameTeamModel(entry.modelId, modelId) ||
+                  entry.kind !== kind
+                )
+                  reason = 'unhealthy'
+                else if (!entry.eligible(task)) reason = 'conditions'
+                else if (!context.canStart(task, entry)) reason = 'notAdmitted'
+                else if (
+                  last !== undefined &&
+                  entry.kind !== 'engine' &&
+                  nowMs - last < TEAM_START_STAGGER_MS
+                )
+                  reason = 'coolingDown'
+                return reason === undefined
+                  ? live
+                  : { available: false, skip: { candidateId: candidate.id, reason } }
+              },
+            },
+          },
+          TEAM_TASKS_PER_TURN_DEFAULT,
+        )
+        context.selected?.(task, selection)
+        if (selection.kind !== 'selected') continue
+        preferredId = selection.entry.id
+      }
       for (const entry of context.entries) {
         const last = this.processStarts.get(entry.agentProfileId)
         if (
           entry.roleId !== task.roleId ||
+          (preferredId !== undefined && entry.id !== preferredId) ||
           !entry.eligible(task) ||
           !context.canStart(task, entry) ||
           (last !== undefined &&
