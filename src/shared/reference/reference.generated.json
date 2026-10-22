@@ -4949,6 +4949,17 @@
       ]
     },
     {
+      "route": "grokProvider",
+      "name": "providers add|remove|status grok [--device] [--client-id <id>] [--scopes <scopes>]",
+      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "text": { "ui": "referenceProviders" },
+      "invocations": [
+        ["providers", "add", "grok"],
+        ["providers", "remove", "grok"],
+        ["providers", "status", "grok"]
+      ]
+    },
+    {
       "route": "serve",
       "name": "[options]",
       "description": "{command} [options]              Serve the Agent Client Protocol on stdin and stdout",
