@@ -4,6 +4,7 @@ import {
   scheduleBackgroundConsentSchema,
   scheduleBackgroundStatusSchema,
   type ScheduleBackgroundPort,
+  type ScheduleCallOptions,
 } from '../../shared/scheduleV2'
 
 type Consent = z.infer<typeof scheduleBackgroundConsentSchema>
@@ -12,6 +13,7 @@ type Consent = z.infer<typeof scheduleBackgroundConsentSchema>
 export interface BackgroundConsentStore {
   exclusive<T>(
     work: (current: Consent | undefined, save: (consent: Consent) => Promise<void>) => Promise<T>,
+    options?: ScheduleCallOptions,
   ): Promise<T>
 }
 export interface BackgroundCoordinatorDeps {

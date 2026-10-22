@@ -11,7 +11,6 @@ import {
   FilePlaybookJournal,
   PlaybookHistoryLostError,
 } from '../../core/orchestration/playbook/journal'
-import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { PlaybookReportReader } from '../../core/reporting/sources/playbook'
@@ -103,16 +102,8 @@ export function createSchedulesReportReader(input: {
       // of ours ends the wait for a held lease (D121/D208): the read takes
       // the lease once its holder releases it or the lease expires.
       const { signal } = context
-      const raw = createNodeScheduleFs(input.storeRoot)
-      const fs: ScheduleFsPort = {
-        read: (file) => raw.read(file),
-        names: (directory) => raw.names(directory),
-        publish: (file, content, guard) => raw.publish(file, content, guard),
-        replace: (file, content, guard) => raw.replace(file, content, guard),
-        remove: (file, canRetryTransient) => raw.remove(file, canRetryTransient),
-        lock: (key, work) => raw.lock(key, work, { signal }),
-      }
-      const store = createScheduleStore(fs)
+      const fs = createNodeScheduleFs(input.storeRoot)
+      const store = createScheduleStore(fs, { signal })
       // No attempt count of ours (D121): the snapshot loop re-reads until a
       // list/fires/list triple agrees, another writer's churn settling, or
       // the person's cancel stops the read.
@@ -130,6 +121,9 @@ export function createSchedulesReportReader(input: {
           if (revisions(schedules) !== revisions(confirmed)) continue
           return { schedules: [...confirmed], fires: [...fires], observedAt: context.asOf }
         } catch (error) {
+          // The stop is not a source failure: a cancelled read ends the
+          // report instead of failing or retrying it.
+          signal.throwIfAborted()
           const failure = scheduleFailure(error)
           if (failure === 'retry') continue
           throw new LocalSourceError(failure)

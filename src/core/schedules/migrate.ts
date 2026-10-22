@@ -1,4 +1,9 @@
-import { scheduleTimeRunId, scheduleV1ToV2, type ScheduleStoreV2 } from '../../shared/scheduleV2'
+import {
+  scheduleTimeRunId,
+  scheduleV1ToV2,
+  type ScheduleCallOptions,
+  type ScheduleStoreV2,
+} from '../../shared/scheduleV2'
 import type { ScheduledPrompt } from '../../shared/schedule'
 import * as z from 'zod/mini'
 import { scheduleV2Schema } from '../../shared/scheduleV2'
@@ -22,8 +27,16 @@ export interface CompletedScheduleMigration {
   receipt: MigrationReceipt
 }
 export interface ScheduleMigrationJournalPort {
-  migrationReceipt(workspaceKey: string, sourceId: string): Promise<MigrationReceipt | undefined>
-  saveMigrationReceipt(workspaceKey: string, receipt: MigrationReceipt): Promise<void>
+  migrationReceipt(
+    workspaceKey: string,
+    sourceId: string,
+    options?: ScheduleCallOptions,
+  ): Promise<MigrationReceipt | undefined>
+  saveMigrationReceipt(
+    workspaceKey: string,
+    receipt: MigrationReceipt,
+    options?: ScheduleCallOptions,
+  ): Promise<void>
   /**
   Completes the migration and returns the completion-time snapshot, so the
   caller verifies without a second journal read. A missing receipt or
@@ -32,12 +45,14 @@ export interface ScheduleMigrationJournalPort {
   completeMigration(
     workspaceKey: string,
     sourceId: string,
+    options?: ScheduleCallOptions,
   ): Promise<CompletedScheduleMigration | undefined>
   reconcileMigration(
     workspaceKey: string,
     next: z.infer<typeof scheduleV2Schema>,
     receipt: MigrationReceipt,
     expectedSourceFingerprint: string,
+    options?: ScheduleCallOptions,
   ): Promise<boolean>
 }
 function hash(input: unknown): string {
@@ -67,14 +82,15 @@ async function reconcileCopiedSchedule(
   sourceId: string,
   entry: ScheduleMigrationEntry,
   mapped: z.infer<typeof scheduleV2Schema>,
+  options?: ScheduleCallOptions,
 ): Promise<void> {
   for (;;) {
-    const receipt = await store.migrationReceipt(workspaceKey, sourceId)
+    const receipt = await store.migrationReceipt(workspaceKey, sourceId, options)
     if (receipt?.targetId !== mapped.id) throw new Error('scheduleMigrationVerificationFailed')
     if (receipt.sourceFingerprint === entry.fingerprint) return
     if (receipt.sourceJobFingerprint !== (entry.jobFingerprint ?? hash(entry.job)))
       throw new Error('scheduleMigrationSourceChanged')
-    const jobs = await store.list(workspaceKey)
+    const jobs = await store.list(workspaceKey, options)
     const current = jobs.find((job) => job.id === mapped.id)
     if (current === undefined) throw new Error('scheduleMigrationVerificationFailed')
     const delta = Math.max(0, mapped.fireCount - receipt.copiedFireCount)
@@ -104,6 +120,7 @@ async function reconcileCopiedSchedule(
           ...(mapped.nextFireAtMs !== undefined && { copiedNextFireAtMs: mapped.nextFireAtMs }),
         },
         receipt.sourceFingerprint,
+        options,
       )
     )
       return
@@ -116,6 +133,7 @@ export async function migrateSchedules(
   store: ScheduleStoreV2 & ScheduleMigrationJournalPort,
   workspaceKey: string,
   zone: string,
+  options?: ScheduleCallOptions,
 ): Promise<number> {
   let migrated = 0
   const entries = await source.freeze()
@@ -132,8 +150,8 @@ export async function migrateSchedules(
     try {
       const mapped = scheduleV1ToV2(entry.job, workspaceKey, zone)
       const sourceId = `${source.id ?? workspaceKey}:${entry.job.id}`
-      const receipt = await store.migrationReceipt(workspaceKey, sourceId)
-      const before = await store.list(workspaceKey)
+      const receipt = await store.migrationReceipt(workspaceKey, sourceId, options)
+      const before = await store.list(workspaceKey, options)
       const existing = before.find((job) => job.id === mapped.id)
       if (existing === undefined) {
         if (
@@ -145,50 +163,58 @@ export async function migrateSchedules(
           throw new Error('scheduleMigrationVerificationFailed')
         // Receipt precedes copy, so a crash after create can recognize its own
         // destination even when the person edits it before migration restarts.
-        await store.saveMigrationReceipt(workspaceKey, {
-          sourceId,
-          sourceFingerprint: entry.fingerprint,
-          sourceJobFingerprint: entry.jobFingerprint ?? hash(entry.job),
-          targetId: mapped.id,
-          targetRevision: mapped.revision,
-          targetHash: hash(mapped),
-          copiedFireCount: mapped.fireCount,
-          pendingCopy: true,
-          pendingCopyHash: receipt?.pendingCopyHash ?? receipt?.targetHash ?? hash(mapped),
-          ...(mapped.nextFireAtMs !== undefined && { copiedNextFireAtMs: mapped.nextFireAtMs }),
-        })
-        await store.create(mapped)
+        await store.saveMigrationReceipt(
+          workspaceKey,
+          {
+            sourceId,
+            sourceFingerprint: entry.fingerprint,
+            sourceJobFingerprint: entry.jobFingerprint ?? hash(entry.job),
+            targetId: mapped.id,
+            targetRevision: mapped.revision,
+            targetHash: hash(mapped),
+            copiedFireCount: mapped.fireCount,
+            pendingCopy: true,
+            pendingCopyHash: receipt?.pendingCopyHash ?? receipt?.targetHash ?? hash(mapped),
+            ...(mapped.nextFireAtMs !== undefined && { copiedNextFireAtMs: mapped.nextFireAtMs }),
+          },
+          options,
+        )
+        await store.create(mapped, options)
       } else if (receipt === undefined) {
         // A matching unedited copy from the old migration can be adopted. An
         // unrelated or edited destination needs its own durable provenance.
         if (JSON.stringify(existing) !== JSON.stringify(mapped))
           throw new Error('scheduleMigrationVerificationFailed')
-        await store.saveMigrationReceipt(workspaceKey, {
-          sourceId,
-          sourceFingerprint: entry.fingerprint,
-          sourceJobFingerprint: entry.jobFingerprint ?? hash(entry.job),
-          targetId: mapped.id,
-          targetRevision: existing.revision,
-          targetHash: hash(existing),
-          copiedFireCount: mapped.fireCount,
-          ...(mapped.nextFireAtMs !== undefined && { copiedNextFireAtMs: mapped.nextFireAtMs }),
-        })
+        await store.saveMigrationReceipt(
+          workspaceKey,
+          {
+            sourceId,
+            sourceFingerprint: entry.fingerprint,
+            sourceJobFingerprint: entry.jobFingerprint ?? hash(entry.job),
+            targetId: mapped.id,
+            targetRevision: existing.revision,
+            targetHash: hash(existing),
+            copiedFireCount: mapped.fireCount,
+            ...(mapped.nextFireAtMs !== undefined && { copiedNextFireAtMs: mapped.nextFireAtMs }),
+          },
+          options,
+        )
       } else if (receipt.sourceFingerprint !== entry.fingerprint) {
         if (receipt.sourceJobFingerprint !== (entry.jobFingerprint ?? hash(entry.job)))
           throw new Error('scheduleMigrationSourceChanged')
         // Only receipt-derived accounting/cadence is reconciled. Never restore
         // the mapped name, grants, consent, pause, target or user-edited trigger.
-        await reconcileCopiedSchedule(store, workspaceKey, sourceId, entry, mapped)
+        await reconcileCopiedSchedule(store, workspaceKey, sourceId, entry, mapped, options)
       }
       // Burn every old receipt, even a corrupt/empty crashed receipt and even
       // occurrences older than the outstanding one. Neither claim is rolled back.
       for (const occurrence of entry.occurrences)
-        await store.claim(scheduleTimeRunId(mapped.id, occurrence))
+        await store.claim(scheduleTimeRunId(mapped.id, occurrence), options)
       // Completion returns its own snapshot, so verification needs no second
       // journal read and no pending-copy rewrite: one transaction retires the
       // receipt it verified. The snapshot is completion-time state, strictly
       // fresher than a re-read after it.
-      const completed = await store.completeMigration(workspaceKey, sourceId)
+      const completed = await store.completeMigration(workspaceKey, sourceId, options)
       const reopened = completed?.schedule
       const verified = completed?.receipt
       if (
@@ -201,6 +227,9 @@ export async function migrateSchedules(
       await source.removeVerified(entry)
       migrated += 1
     } catch (error: unknown) {
+      // The stop ends the migration: later entries wait for the next
+      // control request instead of migrating behind a close.
+      options?.signal?.throwIfAborted()
       failures.record(error)
     }
   }
