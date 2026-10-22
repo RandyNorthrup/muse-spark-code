@@ -28,6 +28,7 @@ import {
   vaultHostMessageSchema,
   type VaultHostMessage,
 } from '../../shared/hostApi/vaultMessages'
+import { unavailableVaultPanelState, vaultBindingFailureReason } from '../../shared/vaultRefusals'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill } from '../../shared/l10n/text'
@@ -289,35 +290,38 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     void panel.webview.postMessage(parsed.data)
   }
-  // The gate: no factory, no vault section. The binding is built on first
-  // vault use (navigation or message), never for an unrelated panel action,
-  // so opening Models & Agents never connects to or launches the broker. A
-  // factory that throws leaves the panel without the section too, refusing
-  // exactly as 0.17.0 does.
+  // The binding is built on first vault use (navigation or message),
+  // never for an unrelated panel action, so opening Models & Agents never
+  // connects to or launches the broker. The tab itself is always present
+  // (RLTESTDRIVE 10): a factory that throws leaves the failure's reason
+  // for the section to show, refusing with words instead of hiding.
   let vault: ModelsVaultBinding | undefined
-  let hasVaultFailed = false
+  let vaultFailure: unknown
   const publish = (): void => {
-    state.vaultOffered = !hasVaultFailed && (vault !== undefined || deps.vault !== undefined)
+    state.vaultOffered =
+      vaultFailure === undefined && (vault !== undefined || deps.vault !== undefined)
     post({ type: 'modelsPanel/state', state })
   }
   const ensureVault = (): ModelsVaultBinding | undefined => {
-    if (vault === undefined && !hasVaultFailed && deps.vault !== undefined) {
+    if (vault === undefined && vaultFailure === undefined && deps.vault !== undefined) {
       try {
         vault = deps.vault(publishVault)
-      } catch {
+      } catch (error: unknown) {
         log.warn('Vault section unavailable')
-        hasVaultFailed = true
+        vaultFailure = error
         vault = undefined
         publish()
       }
     }
     return vault
   }
-  // A vault navigation builds the binding first; when the factory throws,
-  // the section falls back to providers and hides, as if never offered.
+  // A vault navigation builds the binding first; the tab is always present,
+  // so an unbuildable binding still routes to the vault, whose section
+  // shows the failure's reason instead of bouncing to providers.
   const vaultSection = (section: string | undefined): 'providers' | 'models' | 'vault' => {
     if (section !== 'vault') return navigateSection(section ?? 'providers', false)
-    return ensureVault() === undefined ? 'providers' : 'vault'
+    ensureVault()
+    return 'vault'
   }
   const fail = (draft?: PanelDraft, error?: unknown): void => {
     // Exception text can contain a bare key even before it is retained.
@@ -1532,10 +1536,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
     // The vault's own messages ride the same webview; its host validates
-    // them again before acting. Without the binding they fall through to
-    // the panel's parser, which drops them. A first vault message builds
-    // the binding, so the broker stays untouched until the vault is used.
-    if (vaultClientMessageSchema.safeParse(raw).success) {
+    // them again before acting. A first vault message builds the binding,
+    // so the broker stays untouched until the vault is used. Without a
+    // binding the tab answers with the failure's reason instead of
+    // dropping the message (RLTESTDRIVE 10), so the section shows its
+    // state, never a spinner with no future.
+    const vaultMessage = vaultClientMessageSchema.safeParse(raw)
+    if (vaultMessage.success) {
+      // The person's own Retry re-arms a failed binding first: the broker
+      // may have been installed, or the vault re-enabled, since it failed.
+      if (vault === undefined && vaultMessage.data.type === 'vaultRetry') {
+        vaultFailure = undefined
+      }
       const binding = ensureVault()
       if (binding !== undefined) {
         void binding.handle(raw).catch(() => {
@@ -1543,6 +1555,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         })
         return
       }
+      publishVault({
+        type: 'vaultState',
+        state: unavailableVaultPanelState(
+          vaultFailure === undefined ? 'unreachable' : vaultBindingFailureReason(vaultFailure),
+        ),
+      })
+      return
     }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {

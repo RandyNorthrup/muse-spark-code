@@ -1,8 +1,9 @@
 // The section registry: M95 registers providers and models, each with a
 // title from the installed table, an icon, a Component and its own fold
 // of the panel's actions (M96 adds roles and agents the same way).
-// C-M109-1 P1 registers the vault beside them, offered only while the host
-// holds the vault binding.
+// C-M109-1 P1 registers the vault beside them; RLTESTDRIVE 10 keeps the
+// tab always present, with its state or its reason, instead of gating it
+// on the host's binding.
 
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -11,7 +12,7 @@ import { INITIAL_PANEL_UI } from '../../src/webview/models/reducer'
 import { makeState } from './modelsPanelFixtures'
 
 describe('MODEL_SECTIONS', () => {
-  it('registers providers, models and the gated vault, each with a title, icon and Component', () => {
+  it('registers providers, models and the always-present vault, each with a title, icon and Component', () => {
     expect(MODEL_SECTIONS.map((section) => section.id)).toEqual(['providers', 'models', 'vault'])
     for (const section of MODEL_SECTIONS) {
       expect(section.getTitle().length).toBeGreaterThan(0)
@@ -24,15 +25,14 @@ describe('MODEL_SECTIONS', () => {
     expect(sectionById('vault')?.getTitle()).toBe(UI_TEXT.vault.title)
   })
 
-  it('offers the vault only while the host holds the binding', () => {
+  it('offers the vault always, bound or not', () => {
     const vault = sectionById('vault')
-    if (vault?.isOffered === undefined) {
+    if (vault === undefined) {
       throw new Error('vault section missing')
     }
-    expect(vault.isOffered(makeState())).toBe(false)
-    expect(vault.isOffered(makeState({ vaultOffered: false }))).toBe(false)
-    expect(vault.isOffered(makeState({ vaultOffered: true }))).toBe(true)
-    expect(vault.isOffered(undefined)).toBe(false)
+    // No gate: the tab is present in every host state, and the section
+    // shows the binding's state or the failure's reason.
+    expect(vault.isOffered).toBe(undefined)
     expect(sectionById('providers')?.isOffered).toBe(undefined)
     expect(sectionById('models')?.isOffered).toBe(undefined)
     // The vault folds no overlay of its own.

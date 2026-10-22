@@ -1,12 +1,13 @@
 // The vault section's mount in the Models & Agents panel (C-M109-1 P1):
-// hidden navigation while the gate is off, and with the gate forced on a
-// vault nav item whose section asks the host for its snapshot and renders
-// the shared surface once the host answers.
+// the tab is always present (RLTESTDRIVE 10), bound or not; its section
+// asks the host for its snapshot and renders the shared surface once the
+// host answers with a state or a reason.
 
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
+import { unavailableVaultPanelState } from '../../src/shared/vaultRefusals'
 import type { HostBridge } from '../../src/webview/hostBridge'
 import type { ErrorReporter } from '../../src/webview/errorReport'
 import { ModelsApp, ModelsPanel, type ModelsPanelProps } from '../../src/webview/models/panel'
@@ -32,33 +33,33 @@ function recordVaultPost(): { calls: Parameters<VaultPost>[]; post: VaultPost } 
 }
 
 describe('Vault section mount', () => {
-  it('hides the vault navigation while the gate is off', () => {
+  it('shows the vault navigation with no binding', () => {
     render(<ModelsPanel {...panelProps()} />)
     expect(screen.getByRole('button', { name: UI_TEXT.providersSectionTitle })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: UI_TEXT.modelsSectionTitle })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: UI_TEXT.vault.title })).toBeNull()
+    expect(screen.getByRole('button', { name: UI_TEXT.vault.title })).toBeInTheDocument()
   })
 
-  it('falls back to the first visible section on a vault deep link while hidden', () => {
+  it('renders the vault section on a vault deep link with no binding', () => {
     const { fn: dispatch } = recordCalls<Parameters<ModelsPanelProps['dispatch']>>()
     render(
       <ModelsPanel {...panelProps({ ui: { ...INITIAL_PANEL_UI, section: 'vault' }, dispatch })} />,
     )
-    expect(screen.queryByRole('button', { name: UI_TEXT.vault.title })).toBeNull()
-    // The providers section renders instead of a blank panel.
+    // The vault section renders (asking for its snapshot) instead of the
+    // panel falling back to providers.
     expect(
-      screen.getByRole('button', { name: UI_TEXT.providersSectionTitle, current: 'page' }),
+      screen.getByRole('button', { name: UI_TEXT.vault.title, current: 'page' }),
     ).toBeInTheDocument()
+    expect(screen.getByText(UI_TEXT.connecting)).toBeInTheDocument()
   })
 
-  it('with the gate forced on, navigates to the vault and asks for its snapshot once', () => {
+  it('navigates to the vault and asks for its snapshot once', () => {
     const { calls: dispatchCalls, fn: dispatch } =
       recordCalls<Parameters<ModelsPanelProps['dispatch']>>()
     const { calls: vaultPostCalls, post: vaultPost } = recordVaultPost()
     render(
       <ModelsPanel
         {...panelProps({
-          panelState: makeState({ vaultOffered: true }),
           dispatch,
           vaultPost,
         })}
@@ -76,7 +77,6 @@ describe('Vault section mount', () => {
     render(
       <ModelsPanel
         {...panelProps({
-          panelState: makeState({ vaultOffered: true }),
           ui: { ...INITIAL_PANEL_UI, section: 'vault' },
           vaultPost,
         })}
@@ -105,6 +105,25 @@ describe('Vault section mount', () => {
     // and detail rows (values stay in the host's native prompts and never
     // cross this surface).
     expect(screen.getAllByText(/Generated test item/).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders the failure reason once the host answers unavailable', async () => {
+    const { post: vaultPost } = recordVaultPost()
+    render(
+      <ModelsPanel
+        {...panelProps({
+          ui: { ...INITIAL_PANEL_UI, section: 'vault' },
+          vaultRaw: {
+            type: 'vaultState',
+            state: unavailableVaultPanelState('switchedOff'),
+          },
+          vaultPost,
+        })}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByText(UI_TEXT.vault.switchedOff)).toBeInTheDocument()
+    })
   })
 
   it('routes vault envelopes without reporting, and still reports garbage', () => {
