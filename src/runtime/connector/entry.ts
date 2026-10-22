@@ -3,13 +3,16 @@
 // login, model call, key access or effect happens because a client
 // initializes or lists tools. The runtime took its credential variables out
 // of its environment before this loads; nothing here starts a child process
-// except the fixed browser opener for our approval page.
+// except the fixed browser opener for our approval page and the storage
+// guard's fixed OS scripts, which run only at startup and when the store
+// creates a file, never for a call.
 import { userInfo } from 'node:os'
 import { createInterface } from 'node:readline/promises'
 import type { Readable, Writable } from 'node:stream'
-import { CONNECTOR_SERVER_NAME } from '../../shared/constants'
+import path from 'node:path'
+import { CONNECTOR_FOLDER, CONNECTOR_SERVER_NAME } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
-import { setUiText } from '../../shared/l10n/text'
+import { fill, setUiText } from '../../shared/l10n/text'
 import type { SavedPrompt } from '../../shared/prompts'
 import type { ShareRequest } from '../../shared/share'
 import { ConnectorAudit } from '../../core/connector/audit'
@@ -25,6 +28,7 @@ import { startApprovalPage, type ApprovalPage } from './approvalPage'
 import { parseConnectorCommand, runConnectorCommand } from './command'
 import { serveStdio } from './stdio'
 import { ConnectorStore } from './store'
+import { isStorageRefused, type ConnectorStorageGuard } from './storageGuardPort'
 
 export interface ConnectorRuntimeDeps {
   readonly argv: readonly string[]
@@ -43,6 +47,8 @@ export interface ConnectorRuntimeDeps {
   readonly openBrowser: (url: string) => Promise<void>
   readonly schedules: SchedulesPort
   readonly reports: ReportsPort
+  /** The storage guard (RVM124 finding 15), loaded with the `mcp` command. */
+  readonly storageGuard: ConnectorStorageGuard
 }
 
 function line(stream: Writable, text: string): void {
@@ -68,10 +74,24 @@ async function closePage(page: PageLifecycle['page']): Promise<void> {
 export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> {
   setUiText(deps.table, deps.locale)
   const command = parseConnectorCommand(deps.argv)
-  const store = new ConnectorStore(deps.dataFolder)
+  const store = new ConnectorStore(deps.dataFolder, deps.storageGuard)
   if (command === undefined) {
     line(deps.stderr, deps.table.acpConnector.usage)
     return 2
+  }
+  if (['serve', 'grant', 'resume', 'status'].includes(command.kind)) {
+    try {
+      await deps.storageGuard.verify()
+    } catch (error: unknown) {
+      if (!isStorageRefused(error)) throw error
+      line(
+        deps.stderr,
+        fill(deps.table.acpConnector.storageRefused, {
+          folder: path.join(deps.dataFolder, CONNECTOR_FOLDER),
+        }),
+      )
+      return 1
+    }
   }
   if (command.kind !== 'serve')
     return await runConnectorCommand(store, command, {

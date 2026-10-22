@@ -6009,6 +6009,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (obsah)",
     "noGrants": "Zatím žádná oprávnění připojení.",
+    "storageRefused": "Složka konektoru není soukromá pro váš účet ({folder}), takže se nic neprovedlo. Nastavte ji jako soukromou pro váš účet (nebo ji odstraňte a oprávnění udělte znovu) a zkuste to znovu.",
     "unavailable": "Konektor se nepodařilo spustit.",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },

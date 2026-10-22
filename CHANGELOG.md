@@ -70,6 +70,14 @@ happened, not what was planned; superseded entries are kept.
   compared the universal package with another platform's (every package
   was published and matched when checked by its own address).
 
+### MCP connector
+
+- The connector's grants and audit trail are now private to your account
+  on every platform: what it creates carries an explicit owner-only lock
+  on Windows and 0600/0700 on macOS and Linux, and it refuses to start,
+  grant or report when its folder is not private (revoke and the kill
+  switch still work).
+
 ## [0.19.0] - 2026-10-21
 
 ### Highlights
