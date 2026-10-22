@@ -2048,6 +2048,7 @@
     "networkOff": "Netzwerkquellen für Berichte sind ausgeschaltet.",
     "signInRequired": "Melden Sie sich bei GitHub an, um diese Quelle zu lesen.",
     "noPlan": "Dieses Projekt hat keinen strukturierten Plan.",
+    "noCustomKeybindings": "Es gibt keine benutzerdefinierten Tastenkombinationen.",
     "planDrift": "Planformat in Zeile {line}: {detail}",
     "automatedNote": "Dieser Bericht wurde automatisch erstellt.",
     "post": "Veröffentlichen",

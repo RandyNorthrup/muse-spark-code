@@ -2106,6 +2106,7 @@
     "networkOff": "Síťové zdroje zpráv jsou vypnuté.",
     "signInRequired": "Pro čtení tohoto zdroje se přihlaste ke GitHubu.",
     "noPlan": "Projekt nemá strukturovaný plán.",
+    "noCustomKeybindings": "Neexistují žádné vlastní klávesové zkratky.",
     "planDrift": "Formát plánu na řádku {line}: {detail}",
     "automatedNote": "Tato zpráva byla vytvořena automaticky.",
     "post": "Zveřejnit",

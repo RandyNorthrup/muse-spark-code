@@ -2491,6 +2491,7 @@ export const EN = {
     networkOff: 'Report network sources are off.',
     signInRequired: 'Sign in to GitHub to read this source.',
     noPlan: 'This project has no structured plan.',
+    noCustomKeybindings: 'There are no custom keybindings.',
     planDrift: 'Plan format at line {line}: {detail}',
     automatedNote: 'This report was generated automatically.',
     post: 'Post',

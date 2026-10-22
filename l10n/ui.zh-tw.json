@@ -2019,6 +2019,7 @@
     "networkOff": "報告的網路來源已關閉。",
     "signInRequired": "登入 GitHub 後才能讀取此來源。",
     "noPlan": "此專案沒有結構化計畫。",
+    "noCustomKeybindings": "沒有自訂鍵盤快捷鍵。",
     "planDrift": "第 {line} 行的計畫格式：{detail}",
     "automatedNote": "此報告為自動產生。",
     "post": "發佈",

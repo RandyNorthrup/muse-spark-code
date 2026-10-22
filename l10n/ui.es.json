@@ -2077,6 +2077,7 @@
     "networkOff": "Las fuentes de red de los informes están desactivadas.",
     "signInRequired": "Inicia sesión en GitHub para leer esta fuente.",
     "noPlan": "Este proyecto no tiene un plan estructurado.",
+    "noCustomKeybindings": "No hay atajos de teclado personalizados.",
     "planDrift": "Formato del plan en la línea {line}: {detail}",
     "automatedNote": "Este informe se generó automáticamente.",
     "post": "Publicar",

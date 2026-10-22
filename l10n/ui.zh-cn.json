@@ -2019,6 +2019,7 @@
     "networkOff": "报告的网络来源已关闭。",
     "signInRequired": "登录 GitHub 后才能读取此来源。",
     "noPlan": "此项目没有结构化计划。",
+    "noCustomKeybindings": "没有自定义键盘快捷键。",
     "planDrift": "第 {line} 行的计划格式：{detail}",
     "automatedNote": "此报告为自动生成。",
     "post": "发布",

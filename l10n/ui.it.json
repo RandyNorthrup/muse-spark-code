@@ -2077,6 +2077,7 @@
     "networkOff": "Le fonti di rete dei rapporti sono disattivate.",
     "signInRequired": "Accedi a GitHub per leggere questa fonte.",
     "noPlan": "Questo progetto non ha un piano strutturato.",
+    "noCustomKeybindings": "Non esistono scorciatoie da tastiera personalizzate.",
     "planDrift": "Formato del piano alla riga {line}: {detail}",
     "automatedNote": "Questo rapporto è stato generato automaticamente.",
     "post": "Pubblica",

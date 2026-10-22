@@ -23,8 +23,10 @@ function isConfidentialPolicyError(error: unknown): boolean {
 Settings files are JSONC: strip line and block comments and trailing
 commas before parsing, so a commented settings file still reads (Codex on
 PR #227). Strings are honored, so a comment-looking value survives.
+Shared with the keybindings report input, whose installed manifest reads
+the same way (RLTESTDRIVE2 12).
 */
-function stripJsonc(text: string): string {
+export function stripJsonc(text: string): string {
   let out = ''
   let i = 0
   let isInString = false
