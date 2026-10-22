@@ -28,9 +28,11 @@ import {
   fleetIoFromSources,
   headlessFleetSources,
   selectFleetAccount,
+  type FleetAccountSource,
   type FleetBindingIo,
   type FleetSources,
 } from '../../src/host/estimator/fleetBinding'
+import type { AccountLimitsSnapshot } from '../../src/core/accounts/thresholds'
 import { resourceMachineStore } from '../../src/runtime/resources/settings'
 import { fleetSnapshotSchema } from '../../src/shared/estimate'
 import type { ResourceSettingsReader } from '../../src/shared/resources'
@@ -52,6 +54,31 @@ const portsFor = (fleetIo?: FleetBindingIo) =>
     () => Promise.resolve([]),
     fleetIo,
   )
+
+/** The limits account every schedule test reads: same owner, generation and
+observed instant; only the raw snapshot varies. */
+function limitsAccount(snapshot: AccountLimitsSnapshot): () => FleetAccountSource {
+  return () => ({
+    kind: 'limits',
+    generation: '1',
+    providerId: 'meta',
+    accountId: 'work',
+    label: 'Work',
+    snapshot,
+    nowMs: NOW_MS,
+  })
+}
+
+/** Account rows with ambient limit-context evidence filtered out, so the
+expectation pins only the disclosed stated limits. */
+function disclosedAccounts<T extends { statedLimits?: string[] | undefined }>(
+  accounts: readonly T[],
+) {
+  return accounts.map((account) => ({
+    ...account,
+    statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
+  }))
+}
 
 /** Workspace settings with the governor switched off and legal 50/50 ceilings. */
 const offInspect: ResourceSettingsReader = (key) => {
@@ -258,12 +285,7 @@ describe('M117 fleet binding', () => {
       const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
         activeAccount: () => ({ kind: 'no-reader', surface }),
       })
-      expect(
-        fleet.accounts.map((account) => ({
-          ...account,
-          statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
-        })),
-      ).toEqual([
+      expect(disclosedAccounts(fleet.accounts)).toEqual([
         {
           id: 'local',
           providerId: 'local',
@@ -321,12 +343,7 @@ describe('M117 fleet binding', () => {
         label: 'Shop',
       }),
     })
-    expect(
-      fleet.accounts.map((account) => ({
-        ...account,
-        statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
-      })),
-    ).toEqual([
+    expect(disclosedAccounts(fleet.accounts)).toEqual([
       {
         id: 'shop',
         providerId: 'meta',
@@ -419,23 +436,15 @@ describe('M117 fleet binding', () => {
   it('states an unconvertible percent window instead of throwing unknown-demand', async () => {
     const lanes = [scheduleLane('A')]
     const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
-      activeAccount: () => ({
-        kind: 'limits',
-        generation: '1',
-        providerId: 'meta',
-        accountId: 'work',
-        label: 'Work',
-        snapshot: {
-          planWindows: {
-            window: {
-              usedPercent: 60,
-              resetAt: '2026-10-06T13:00:00.000Z',
-              windowDurationMins: 300,
-            },
-            weekly: { usedPercent: 25, resetAt: '2026-10-13T00:00:00.000Z' },
+      activeAccount: limitsAccount({
+        planWindows: {
+          window: {
+            usedPercent: 60,
+            resetAt: '2026-10-06T13:00:00.000Z',
+            windowDurationMins: 300,
           },
+          weekly: { usedPercent: 25, resetAt: '2026-10-13T00:00:00.000Z' },
         },
-        nowMs: NOW_MS,
       }),
     })
     // Plan-snapshot lanes leave percent demand unknown: both windows are
@@ -459,22 +468,14 @@ describe('M117 fleet binding', () => {
     const lane = scheduleLane('A')
     lane.resources.accountPercentPerHour = amount(60)
     const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, [lane], AS_OF), {
-      activeAccount: () => ({
-        kind: 'limits',
-        generation: '1',
-        providerId: 'meta',
-        accountId: 'work',
-        label: 'Work',
-        snapshot: {
-          planWindows: {
-            window: {
-              usedPercent: 90,
-              resetAt: '2026-10-06T13:00:00.000Z',
-              windowDurationMins: 300,
-            },
+      activeAccount: limitsAccount({
+        planWindows: {
+          window: {
+            usedPercent: 90,
+            resetAt: '2026-10-06T13:00:00.000Z',
+            windowDurationMins: 300,
           },
         },
-        nowMs: NOW_MS,
       }),
     })
     // Ten percent of the window is left and the lane burns sixty per hour:
@@ -512,21 +513,13 @@ describe('M117 fleet binding', () => {
   it('waits for the reset behind a full window with a read rate', async () => {
     const lanes = [scheduleLane('A'), scheduleLane('B')]
     const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
-      activeAccount: () => ({
-        kind: 'limits',
-        generation: '1',
-        providerId: 'meta',
-        accountId: 'work',
-        label: 'Work',
-        snapshot: {
-          rateLimits: {
-            requests: { limit: 120, remaining: 0, resetAt: '2026-10-07T00:00:00.000Z' },
-          },
-          planWindows: {
-            weekly: { usedPercent: 100, resetAt: '2026-10-07T00:00:00.000Z' },
-          },
+      activeAccount: limitsAccount({
+        rateLimits: {
+          requests: { limit: 120, remaining: 0, resetAt: '2026-10-07T00:00:00.000Z' },
         },
-        nowMs: NOW_MS,
+        planWindows: {
+          weekly: { usedPercent: 100, resetAt: '2026-10-07T00:00:00.000Z' },
+        },
       }),
     })
     // Paid work cannot start before the reset: the forecast waits for it and
@@ -544,15 +537,7 @@ describe('M117 fleet binding', () => {
         base,
         productionIo({
           settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
-          activeAccount: () => ({
-            kind: 'limits',
-            generation: '1',
-            providerId: 'meta',
-            accountId: 'work',
-            label: 'Work',
-            snapshot,
-            nowMs: NOW_MS,
-          }),
+          activeAccount: limitsAccount(snapshot),
           ci: () => [],
         }),
       )
@@ -624,12 +609,7 @@ describe('M117 fleet binding', () => {
     })
     expect(bound.machines[0]?.governorSlots).toBe(1)
     expect(bound.slots).toHaveLength(1)
-    expect(
-      bound.accounts.map((account) => ({
-        ...account,
-        statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
-      })),
-    ).toEqual([
+    expect(disclosedAccounts(bound.accounts)).toEqual([
       {
         id: 'local',
         providerId: 'local',
@@ -698,12 +678,7 @@ describe('M117 fleet binding', () => {
         productionIo(owners({ list: () => [{ id: 'shop' }] })),
       )
       expect(configured.machines[0]?.caps).toMatchObject({ cpuPercent: 40 })
-      expect(
-        configured.accounts.map((account) => ({
-          ...account,
-          statedLimits: account.statedLimits?.filter((note) => !isLimitContextEvidence(note)),
-        })),
-      ).toEqual([
+      expect(disclosedAccounts(configured.accounts)).toEqual([
         {
           id: 'shop',
           providerId: 'meta',
