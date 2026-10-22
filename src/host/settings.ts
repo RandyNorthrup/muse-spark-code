@@ -129,6 +129,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** The hard daily budget in US dollars for Tab requests (Q-M94c). */
   readonly tabDailyBudgetUsd: UsdAmount
   /** The languages Tab suggests in, like `github.copilot.enable`. */
+  readonly editorChatModels: readonly string[]
+  readonly editorChatDailyBudgetUsd: UsdAmount
   readonly tabLanguages: Readonly<Record<string, boolean>>
   /** When Tab adds surrounding context for multi-line completions. */
   readonly tabMultiline: TabMultiline
@@ -292,6 +294,8 @@ const settingSchemas = {
         Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MIN_USD)) >= 0,
     ),
   ),
+  editorChatModels: z.array(z.string().check(z.minLength(1))),
+  editorChatDailyBudgetUsd: legacyUsdSchema,
   tabLanguages: z.record(z.string(), z.boolean()),
   tabMultiline: z.enum(TAB_MULTILINE_MODES),
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
@@ -510,6 +514,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiTab: readSetting(config, 'modelApiTab', log),
     tabModel: readSetting(config, 'tabModel', log),
     tabDailyBudgetUsd: readSetting(config, 'tabDailyBudgetUsd', log),
+    editorChatModels: readSetting(config, 'editorChatModels', log),
+    editorChatDailyBudgetUsd: readSetting(config, 'editorChatDailyBudgetUsd', log),
     tabLanguages: readSetting(config, 'tabLanguages', log),
     tabMultiline: readSetting(config, 'tabMultiline', log),
     tabTrigger: readSetting(config, 'tabTrigger', log),

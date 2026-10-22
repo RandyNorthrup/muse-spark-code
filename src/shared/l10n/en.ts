@@ -27,6 +27,21 @@ export const EN = {
     'Dictate in the browser and review before sending to your owning ACP session or terminal. System recognition is free on Windows and macOS; paid Muse Voice asks for consent and shares the daily budget.',
   companionVoiceReview: 'Review transcript before sending',
   companionVoiceTitle: 'Dictate',
+  editorChatTitle: 'Editor chat',
+  editorChatModel: 'Offer {model} to editor chat',
+  editorChatRefused:
+    'Editor chat request refused. Check model opt-in, known prices, token limits, workspace trust and the daily budget.',
+  editorChatEnable: 'Enable',
+  editorChatBudgetPrompt:
+    'Enter a positive daily budget in USD, shared by all models and editor windows.',
+  editorChatRates:
+    '{input} input / {output} output (including reasoning) per million tokens; {cached} cache read / {write} cache write / {write1h} 1-hour cache write per million tokens',
+  editorChatFees: '{request} per request / {image} per image',
+  editorChatTier: 'From {tokens} input tokens: {rates}',
+  editorChatConsent:
+    'Offer {model} to editor chat? {rates}. All installed extensions can call this model using your key. Shared daily cap: {cap}. Interrupted calls retain their reservation. The subscription pays none of this.',
+  referenceEditorChat:
+    'Opt chosen priced or local models into VS Code chat under a shared daily USD cap; calls appear in Usage & cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace. Native Muse needs no BYO provider; recorded confirmation covers all rates and the cap before spending.',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:
@@ -6171,6 +6186,10 @@ export const EN = {
       fireworks: 'Fast open-model inference on Fireworks',
       huggingface: 'The Hugging Face router across many providers',
       zai: 'GLM models on Z.ai pay-as-you-go',
+      moonshot: 'Kimi models on the Moonshot API',
+      ollamaCloud: 'Ollama Cloud models through an API key',
+      minimaxPlan: 'MiniMax models on an M Plan key',
+      alibabaPlan: 'Alibaba models on a Coding Plan key',
       ollama: 'Models on this computer through Ollama',
       lmstudio: 'Models on this computer through LM Studio',
       vllm: 'A vLLM server, here or on your network over HTTPS',
@@ -6294,6 +6313,9 @@ export const EN = {
   ollamaDuplicateCall: 'Ollama history contains a duplicate tool call id.',
   ollamaResponseIdRequired: 'Ollama needs a unique response id for this request.',
   ollamaMissingFinal: 'Ollama closed the stream without a final answer.',
+  // Azure OpenAI (M95): a 404 on the resource names a deployment that is not there.
+  azureDeploymentInvalid:
+    'Azure OpenAI has no such deployment on this resource. Check the deployment name.',
   ollamaMalformedFrame: 'Malformed Ollama stream frame.',
   ollamaStreamLimit: 'Ollama exceeded the stream size or item limit.',
   ollamaFinishReason: 'Ollama finished with reason "{reason}".',

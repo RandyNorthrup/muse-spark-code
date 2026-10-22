@@ -75,8 +75,25 @@ describe('createTabLedger failure words', () => {
       if (!admitted.admitted) return
       rmSync(ownFile(root), { force: true })
       mkdirSync(ownFile(root), { recursive: true })
-      await ledger.settle(admitted.reservation, Usd.from(1).toAmount())
+      await expect(ledger.settle(admitted.reservation, Usd.from(1).toAmount())).resolves.toBe(false)
       expect(warns.some((line) => line.includes('keeping its reservation'))).toBe(true)
+    })
+  })
+
+  it('reports a durable settlement as settled', async () => {
+    await usingTempDir('muse-tab-ledger-', async (root) => {
+      const { log } = memoryLog()
+      const ledger = ledgerWith(root, log)
+      const admitted = await ledger.admit(Usd.from(1).toAmount(), Usd.from(100).toAmount())
+      expect(admitted.admitted).toBe(true)
+      if (!admitted.admitted) return
+      await expect(ledger.settle(admitted.reservation, Usd.from(0.4).toAmount())).resolves.toBe(
+        true,
+      )
+      const total = await ledger.todayUsage()
+      expect(total.ok).toBe(true)
+      if (!total.ok) throw new Error(total.detail)
+      expect(total.totalUsd).toBe(Usd.from(0.4).toAmount())
     })
   })
 })

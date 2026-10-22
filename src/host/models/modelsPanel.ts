@@ -60,6 +60,10 @@ import { type SessionBudgetConfig } from './sessionBudget'
 import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
 
 export interface ModelsPanelDeps {
+  readonly metaModels?: (() => Promise<readonly ProviderModelRow[]>) | undefined
+  readonly editorChat?:
+    | { available(): boolean; selected(ref: string): boolean; toggle(ref: string): Promise<void> }
+    | undefined
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: ((isNewAccount: boolean) => Promise<void>) | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
@@ -472,6 +476,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }),
       }
     }
+
     return {
       id: id ?? preset.id,
       preset: preset.id,
@@ -556,14 +561,22 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       if (preset === undefined) {
         return []
       }
+      // The seam erases every user-supplied origin to `''`, so only the id
+      // still says Azure asks for a resource and deployment (not an
+      // address); loopback takes a port, anything else is a custom server.
+      let originKind: 'fixed' | 'azure-resource' | 'loopback' | 'custom' = 'fixed'
+      if (preset.origin === '') {
+        originKind = 'custom'
+        if (id === 'azure') originKind = 'azure-resource'
+        else if (preset.kind === 'local') originKind = 'loopback'
+      }
       const card = presetCardSchema.safeParse({
         id,
         label: preset.name,
         description: preset.description,
         category: id === 'custom' ? 'custom' : preset.kind,
         format: preset.format,
-        originKind:
-          preset.origin === '' ? (preset.kind === 'local' ? 'loopback' : 'custom') : 'fixed',
+        originKind,
         originDisplay: preset.origin,
         auth: preset.auth,
         connectOAuth: preset.connectLabel !== undefined,
@@ -675,6 +688,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       signal,
     )
     const all: ModelRow[] = []
+    const nativeModels = await deps.metaModels?.()
+    if (nativeModels !== undefined) rows.set('meta', nativeModels)
     const families = new Map<string, string>()
     for (const [providerId, models] of rows) {
       if (providerId === 'copilot' && deps.isConfidential?.() === true) continue
@@ -685,6 +700,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           families.set(`${providerId}/${model.id}`, model.family)
         }
         all.push({
+          editorChat:
+            deps.editorChat?.available() === true
+              ? deps.editorChat.selected(`${providerId}/${model.id}`)
+              : undefined,
           ref: `${providerId}/${model.id}`,
           providerId,
           modelId: model.id,
@@ -703,7 +722,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           serverless: model.serverless,
           isNew: newModels.has(`${providerId}/${model.id}`),
           freeOrLocal: model.isFree || model.isLocal,
-          ticked: (saved?.models ?? draft?.models ?? []).includes(model.id),
+          ticked:
+            providerId === 'meta' || (saved?.models ?? draft?.models ?? []).includes(model.id),
           pinned: saved?.pinned.includes(model.id) ?? false,
           priceNote: modelPriceNote(model),
           badges: {
@@ -1332,6 +1352,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'models/tick': {
+        if (message.scope.scope === 'editorChat') {
+          if (
+            deps.editorChat === undefined ||
+            state.models.every((row) => row.ref !== message.ref || row.editorChat === undefined)
+          )
+            throw new Error(UI_TEXT.editorChatRefused)
+          if (deps.editorChat.selected(message.ref) !== message.ticked)
+            await deps.editorChat.toggle(message.ref)
+          break
+        }
         const id = message.scope.providerId ?? draftOf().presetId ?? ''
         const prefix = `${id}/`
         if (!message.ref.startsWith(prefix)) {

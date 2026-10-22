@@ -693,7 +693,7 @@
     {
       "id": "M95c",
       "title": "More providers and integrations",
-      "summary": "More providers such as Amazon Bedrock, chosen models offered to the editor's own chat under a daily cap, providers' own paid search, and Tab completions on other providers.",
+      "summary": "More providers such as Amazon Bedrock, native Muse and BYO models in VS Code-family chat with recorded price confirmation, complete cost accounting and a shared daily cap, providers’ own paid search, and Tab completions on other providers.",
       "area": "models-providers"
     },
     {

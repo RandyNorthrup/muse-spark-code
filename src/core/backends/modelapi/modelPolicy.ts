@@ -94,8 +94,10 @@ export interface ModelPolicyEvidence extends ReasoningPolicyFields {
 
 export interface ModelPolicy {
   readonly identity: { readonly provider: string; readonly nativeModel: string }
+  readonly input: { readonly images: Known<true> }
   readonly tools: { readonly calling: Known<true>; readonly parallel: Known<true> }
   readonly reasoning: ReasoningPolicyFields & {
+    readonly supported: Known<true>
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
     readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
@@ -151,6 +153,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
           }
   }
   return {
+    input: { images: knownFlag(capabilities?.vision) },
     identity: {
       provider: producer.provider,
       nativeModel: slash === -1 ? model : model.slice(slash + 1),
@@ -160,6 +163,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
       parallel: knownFlag(capabilities?.parallelToolCalls),
     },
     reasoning: {
+      supported: knownFlag(capabilities?.reasoning),
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
       ...(evidence.offSwitch !== undefined && { offSwitch: evidence.offSwitch }),
