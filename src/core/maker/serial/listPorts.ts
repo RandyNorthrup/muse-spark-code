@@ -56,7 +56,23 @@ export async function listSerialPorts(deps: PortListDependencies): Promise<Seria
         break
       }
       case 'darwin': {
-        ports = parseIoregPorts(await deps.run('/usr/sbin/ioreg', ['-l', '-w', '0']), deps.maxBytes)
+        // The full registry dump is megabytes on a real Mac and outgrows the
+        // runner's buffer; the USB plane carries every USB serial device
+        // with the ancestors its VID/PID and serial number inherit from,
+        // and the serial-client class names every callout device (Bluetooth
+        // included). USB rows win where both name a port.
+        const usb = parseIoregPorts(
+          await deps.run('/usr/sbin/ioreg', ['-p', 'IOUSB', '-l', '-w', '0']),
+          deps.maxBytes,
+        )
+        const callouts = parseIoregPorts(
+          await deps.run('/usr/sbin/ioreg', ['-r', '-c', 'IOSerialBSDClient', '-l', '-w', '0']),
+          deps.maxBytes,
+        )
+        const byPort = new Map(callouts.map((port) => [port.port, port]))
+        for (const port of usb) byPort.set(port.port, port)
+        ports = []
+        for (const port of byPort.values()) ports.push(port)
 
         break
       }
