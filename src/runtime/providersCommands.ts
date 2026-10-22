@@ -42,6 +42,8 @@ import type { TransportDeps } from '../core/backends/modelapi/transport'
 const { emptyProvidersFile, readProvidersFile, refusalDetail, writeProvidersFileAtomic } =
   providersFile
 import {
+  ACP_AGENT_NAME,
+  CLI_EXIT,
   CREDENTIAL_RECORD_VERSION,
   HTTP_STATUS,
   PROVIDER_PROBE_MODEL_IDS_MAX,
@@ -299,6 +301,23 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
     }
   }
   return EXIT_OK
+}
+
+/**
+Bare `providers usage` (RLTESTDRIVE2 14): the id is missing, so the run
+names it and lists the configured ids to choose from. A misuse, so exit 2;
+the list itself is the plain ids, one per line, never the full rows.
+*/
+export async function providersUsageTargets(deps: ProvidersDeps): Promise<number> {
+  const file = await commandFile(deps)
+  if (file === undefined) return EXIT_FAILED
+  deps.print(fill(UI_TEXT.providerUsageNeedsId, { command: ACP_AGENT_NAME }))
+  if (file.providers.length === 0) {
+    deps.print(UI_TEXT.providersNoneFound)
+  } else {
+    for (const entry of file.providers) deps.print(entry.id)
+  }
+  return CLI_EXIT.usage
 }
 
 /**

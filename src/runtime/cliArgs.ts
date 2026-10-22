@@ -197,7 +197,7 @@ export type RuntimeCommand =
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
   | { readonly command: 'openRouterConnect' }
-  | { readonly command: 'providerKeyUsage'; readonly provider: string }
+  | { readonly command: 'providerKeyUsage'; readonly provider?: string | undefined }
   | {
       readonly command: 'authSet'
       readonly provider?: string | undefined
@@ -851,6 +851,11 @@ function parseProviders(
     }
     case 'usage': {
       const [provider] = rest
+      // Bare `providers usage` names the missing id and the ids to choose
+      // from (RLTESTDRIVE2 14); the handler lists the configured ids, which
+      // this parser cannot see.
+      if (provider === undefined && rest.length === 0 && Object.keys(values).length === 0)
+        return { command: 'providerKeyUsage' }
       return provider !== undefined &&
         rest.length === 1 &&
         isProviderId(provider) &&
