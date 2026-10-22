@@ -128,5 +128,12 @@ export function parseInspectCommand(
       operands.push('.')
     else return
   }
-  return { program, args, operands, recursive: isRecursive }
+  // stat takes no options, so `--` is only an operand separator: drop it so the
+  // tool arguments mirror the operands the helper checks them against.
+  return {
+    program,
+    args: program === 'stat' ? args.filter((word) => word !== '--') : args,
+    operands,
+    recursive: isRecursive,
+  }
 }

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, expect, it } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 
 const fixture = { root: '', host: undefined, errors: [] }
 // Compile and bundle once; tests exercise the actual default helper callback.
@@ -50,7 +51,7 @@ beforeAll(async () => {
       fixture.errors.push('resource error')
     },
   })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(() => {
   fixture.host?.dispose()
   if (fixture.root) rmSync(fixture.root, { recursive: true, force: true })
