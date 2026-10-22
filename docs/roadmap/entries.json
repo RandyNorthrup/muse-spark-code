@@ -1351,6 +1351,12 @@
       "title": "Answers survive model-call limits",
       "summary": "Long Model API turns retain a final summary at their call limit; headless request caps determine the turn allowance.",
       "area": "chat"
+    },
+    {
+      "id": "RLWINFIX",
+      "title": "Windows defects found in real use",
+      "summary": "Fixes five Windows defects found using 0.19.0 for real: the Resources view, CPU readings, usage history, judge cleanup, and stale helper builds.",
+      "area": "platform"
     }
   ]
 }

@@ -16558,6 +16558,12 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
+
+**Status 2026-10-22: built.** All five items fixed, each with a real-code
+red/green drill; record: `docs/certification/rlwinfix.md`. The vault
+suites never ran on this PC per the lane rules; hosted CI owns them.
+
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
 **Status 2026-10-11: building.** Typed translated stop first; tools-disabled
