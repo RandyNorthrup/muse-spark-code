@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge accuracy checks: six checks on the agent's own work
+  (destructive commands, edit fit, unmentioned failures, unbacked
+  "done", scope, consistency with files read) show a hint, a note or a
+  caution-latch bit only when the engine's calibrated answer meets the
+  check's precision bar from its fitted profile. Below the bar, or with
+  no profile for the engine, the verdict is a measurement record that
+  carries no judged content.
+
 - Fast judge verified-path hold: a native holder process keeps the
   judged blobs open across the boundary drills, with a runner that
   refuses a hold that never becomes ready and proves the refusal leaves
