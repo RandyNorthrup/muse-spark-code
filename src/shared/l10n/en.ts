@@ -869,6 +869,8 @@ export const EN = {
       format: 'Format',
       args: 'Arguments',
       destinations: 'Destinations',
+      destinationsPending:
+        'Report destinations are not ready yet. They arrive with a later update.',
     },
     runtime: {
       usage:

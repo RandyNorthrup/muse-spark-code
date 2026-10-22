@@ -685,7 +685,8 @@
       "kind": "Rodzaj raportu",
       "format": "Format raportu",
       "args": "Argumenty",
-      "destinations": "Cele"
+      "destinations": "Cele",
+      "destinationsPending": "Miejsca docelowe raportów nie są jeszcze gotowe. Pojawią się w późniejszej aktualizacji."
     },
     "runtime": {
       "usage": "Użycie: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kody wyjścia: 0 sukces, 1 odmowa, 2 błąd użycia, 3 ostrzeżenie o sprzątaniu.",

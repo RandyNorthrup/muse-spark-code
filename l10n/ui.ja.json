@@ -679,7 +679,8 @@
       "kind": "レポートの種類",
       "format": "形式",
       "args": "引数",
-      "destinations": "配信先"
+      "destinations": "配信先",
+      "destinationsPending": "レポートの宛先はまだ準備できていません。後のアップデートで利用可能になります。"
     },
     "runtime": {
       "usage": "使用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 終了コード: 0 成功、1 拒否、2 使用方法の誤り、3 後処理の警告。",

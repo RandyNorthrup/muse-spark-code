@@ -679,7 +679,8 @@
       "kind": "报告类型",
       "format": "格式",
       "args": "参数",
-      "destinations": "目标"
+      "destinations": "目标",
+      "destinationsPending": "报告目标尚未就绪，将在后续更新中提供。"
     },
     "runtime": {
       "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 退出代码：0 成功，1 拒绝，2 用法错误，3 清理警告。",

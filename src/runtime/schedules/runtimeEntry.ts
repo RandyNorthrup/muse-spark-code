@@ -98,6 +98,7 @@ export async function createRuntimeSchedules(
     fs: createNodeScheduleFs(root),
     ...(pauseAfterFailures !== undefined && { pauseAfterFailures }),
     ...(isWorkspaceTrusted !== undefined && { isWorkspaceTrusted }),
+    locale,
     ...(delivery !== undefined && { signal: delivery.signal }),
     queue: createNodeScheduleQueue(root),
     platform,

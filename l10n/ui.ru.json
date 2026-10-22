@@ -685,7 +685,8 @@
       "kind": "Вид отчёта",
       "format": "Формат",
       "args": "Аргументы",
-      "destinations": "Адресаты"
+      "destinations": "Адресаты",
+      "destinationsPending": "Назначения отчётов пока не готовы. Они появятся в одном из следующих обновлений."
     },
     "runtime": {
       "usage": "Использование: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Коды выхода: 0 успех, 1 отказ, 2 ошибка использования, 3 предупреждение об очистке.",
