@@ -535,6 +535,13 @@ export interface ConversationDeps {
   readonly playbook?: (() => PanelPlaybookPort) | undefined
   /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
   readonly estimator?: EstimatorRun
+  /**
+  Edge 4: the credential-identity generation the estimate was read under.
+  When the generation moves, a forecast computed under the replaced
+  credential is withdrawn, never delivered, displayed or spun up. Absent,
+  an unbound held estimate still spins up: only a proven change withdraws.
+  */
+  readonly estimatorGeneration?: () => string
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -1255,6 +1262,7 @@ export class ConversationController {
   /** The last estimate's inputs on this surface: what Spin it up submits. */
   private lastEstimateInputs: EstimateInputs | undefined
   private lastEstimateSection: EstimateSection | undefined
+  private lastEstimateGeneration: string | undefined
   private estimatePending: AbortController | undefined
 
   /** User cards whose file bytes rewind cannot restore across every backend/history path. */
@@ -10352,6 +10360,24 @@ export class ConversationController {
     this.estimatePending = undefined
     this.lastEstimateInputs = undefined
     this.lastEstimateSection = undefined
+    this.lastEstimateGeneration = undefined
+  }
+
+  /**
+  Edge 4: what was computed under a generation dies with it. A forecast
+  read under a replaced credential is withdrawn with a true sentence and
+  can never be delivered, displayed or spun up here.
+  */
+  private withdrawEstimate(correlation: { readonly requestId?: string } = {}): void {
+    this.lastEstimateInputs = undefined
+    this.lastEstimateSection = undefined
+    this.lastEstimateGeneration = undefined
+    this.post({
+      type: 'estimatorFailure',
+      ...correlation,
+      diagnostic: { estimateDiagnostic: 'estimate-credential-changed' },
+    })
+    this.notice('warning', UI_TEXT.estimateCredentialChanged)
   }
 
   /**
@@ -10375,6 +10401,9 @@ export class ConversationController {
     // The owner this request was read under: a provider switch meanwhile
     // retires it, so a late forecast is never delivered to another owner.
     const provider = this.estimateProviderId
+    // Edge 4: the credential-identity generation this request reads under.
+    // A replaced credential meanwhile withdraws the forecast below.
+    const estimateGeneration = this.deps.estimatorGeneration?.()
     const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
     if (message.type !== 'estimateSpinUp') {
       this.invalidateEstimate()
@@ -10395,8 +10424,16 @@ export class ConversationController {
           this.isDisposed
         )
           return
+        if (
+          estimateGeneration !== undefined &&
+          estimateGeneration !== this.deps.estimatorGeneration?.()
+        ) {
+          this.withdrawEstimate(correlation)
+          return
+        }
         this.lastEstimateInputs = section.inputs
         this.lastEstimateSection = section
+        this.lastEstimateGeneration = estimateGeneration
         this.post({ type: 'estimatorSection', ...correlation, section: presentEstimate(section) })
       } catch (error: unknown) {
         this.deps.log.error(`The estimate failed: ${failureForLog(error)}`)
@@ -10414,6 +10451,16 @@ export class ConversationController {
     }
     try {
       if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
+      // Edge 4: a held forecast cannot be spun up under a replaced
+      // credential. An unbound held estimate (no generation reader) still
+      // spins up: only a proven change withdraws.
+      if (
+        this.lastEstimateGeneration !== undefined &&
+        this.lastEstimateGeneration !== this.deps.estimatorGeneration?.()
+      ) {
+        this.withdrawEstimate(correlation)
+        return
+      }
       const section = this.lastEstimateSection
       const kind = message.setup ?? 'current'
       const setup = section?.setups.find((setup) => setup.kind === kind)

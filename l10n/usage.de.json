@@ -185,6 +185,7 @@
   "rateLimits": "Anfrage- & Token-Ratenlimits",
   "asReported": "Wie gemeldet",
   "noLimitReported": "{provider} meldet hier kein Limit.",
+  "limitNotReadYet": "Für dieses Konto noch nicht gelesen.",
   "providerConsole": "Anbieterkonsole öffnen",
   "retries": "Wiederholungen",
   "rateLimited": "Ratenbegrenzte Aufrufe",

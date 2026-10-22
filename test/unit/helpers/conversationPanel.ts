@@ -20,6 +20,7 @@ import {
   type MentionSearch,
   type SessionMemory,
 } from '../../../src/host/conversation/conversationController'
+import type { EstimatorRun } from '../../../src/host/estimator/estimatorBundle'
 import type { ConversationExports } from '../../../src/host/conversation/exportConversation'
 import type { SessionTransferFiles } from '../../../src/host/conversation/sessionImport'
 import type { EditReviewActions } from '../../../src/host/editor/editReview'
@@ -177,6 +178,10 @@ export interface PanelOptions {
   readonly sessions?: SessionMemory
   /** The person's answer to the panel's confirm dialog, when the path asks one. */
   readonly confirmFileAction?: () => Promise<boolean>
+  /** `/estimate` runs against this engine instead of refusing without one. */
+  readonly estimator?: EstimatorRun
+  /** The credential-identity generation the estimate reads under, when bound. */
+  readonly estimatorGeneration?: () => string
 }
 
 export interface PanelRig {
@@ -357,6 +362,10 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     notifyAttention: () => undefined,
     now: () => Date.now(),
     log: { trace: record, info: record, warn: record, error: record },
+    ...(options.estimator !== undefined && { estimator: options.estimator }),
+    ...(options.estimatorGeneration !== undefined && {
+      estimatorGeneration: options.estimatorGeneration,
+    }),
   }
   return { controller: new ConversationController(deps), posted, logged }
 }

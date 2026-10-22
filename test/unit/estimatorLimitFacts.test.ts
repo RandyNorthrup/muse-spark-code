@@ -150,6 +150,23 @@ describe('owned estimator limit facts', () => {
       'account-limits',
     )
   })
+  it('refuses string counts for non-money units (P3-1)', () => {
+    for (const unit of ['percent', 'requests', 'tokens'] as const) {
+      expect(
+        estimateLimitFactSchema.safeParse({
+          owner: { kind: 'account', id: 'a', providerId: 'openrouter', generation: '1' },
+          metric: 'balance',
+          unit,
+          used: '10',
+          limit: 100,
+          remaining: 90,
+          window: { startsAt: null, resetsAt: null, periodSeconds: null, calendarPeriod: null },
+          observedAt: '2026-10-06T12:00:00.000Z',
+          observedBy: 'openRouter',
+        }).success,
+      ).toBe(false)
+    }
+  })
   it('refuses invalid ownership even when the source reports no measurements', () => {
     for (const field of ['id', 'providerId', 'generation'] as const) {
       const corrupt = { ...owner, [field]: '' }

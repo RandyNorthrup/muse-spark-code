@@ -172,6 +172,7 @@
   "rateLimits": "請求與 Token 速率限制",
   "asReported": "按上報顯示",
   "noLimitReported": "{provider}未在此處上報限額。",
+  "limitNotReadYet": "此帳戶尚未讀取。",
   "providerConsole": "開啟供應商主控台",
   "retries": "重試次數",
   "rateLimited": "被限流的調用",

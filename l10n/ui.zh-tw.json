@@ -232,6 +232,7 @@
   "estimateRunning": "正在估算…",
   "referenceEstimateFacts": "預測保留已觀察到的帳戶封鎖狀態，註明未讀取的容量，並區分預設閾值與已設定閾值。未來的補充速率在回報前仍為未知。 觀測值屬於其帳戶和登入世代；即使續期未知，已知餘額和百分比額度仍會限制目前工作。",
   "estimateFailed": "估算失敗：{detail}",
+  "estimateCredentialChanged": "提供者憑證已變更：請重新估算。",
   "estimateMissingMore": {
     "other": "還有 {count} 個"
   },

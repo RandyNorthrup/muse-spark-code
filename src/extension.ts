@@ -17,6 +17,7 @@ import {
   REFERENCE_BUNDLE_FILE,
   VAULT_BUNDLE_FILE,
   PROVIDER_SECRET_PREFIX,
+  SECRET_KEYS,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   LEGAL_REGISTRY_NOTICE_KEY,
@@ -361,6 +362,7 @@ import {
 } from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
+import { createProviderGenerationTracker } from './host/auth/providerGeneration'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -2259,13 +2261,25 @@ async function activateWindow(
   })
   MuseCodeHost.usageScope = estimatorUsageScope
   ModelApiBackendManager.usageScope = estimatorUsageScope
-  // A credential saved in another window retires this window's ownership
-  // generation too: producers read it live, so nothing keeps publishing or
-  // admitting under the replaced credential. Refreshing here would loop on
-  // our own saves; the next save or broadcast re-reads the state.
-  context.subscriptions.push(
-    context.secrets.onDidChange(() => {
+  // Edge 3: the generation answers "who pays", not "which bytes". Any
+  // secret write reaches this listener, so it compares the identity behind
+  // the credential, not the bytes: a refreshed token for the same account
+  // is the same owner (no change), while a replaced or removed key or a
+  // signed-out or switched account retires the generation. Producers read
+  // the live generation per read, so nothing keeps publishing under the
+  // replaced credential.
+  const providerGeneration = createProviderGenerationTracker({
+    secrets: context.secrets,
+    onGenerationChanged: () => {
       estimatorProviderGeneration += 1
+    },
+  })
+  // Baseline the stable keys without bumping; dynamic provider keys bump
+  // fail-safe on first sight (their prior identity is unknown).
+  void providerGeneration.seed([SECRET_KEYS.modelApiKey, `${PROVIDER_SECRET_PREFIX}chatgpt`])
+  context.subscriptions.push(
+    context.secrets.onDidChange((event) => {
+      void providerGeneration.noteSecretChanged(event.key)
     }),
   )
   // The window closing ends the account hosts, then the browser sign-in
@@ -4522,6 +4536,7 @@ async function activateWindow(
           // Each conversation estimates through its own provider owner:
           // a held estimate never adopts the focused pane's provider.
           estimator: estimatorForSurface(surface),
+          estimatorGeneration: () => estimatorOwnerGeneration(),
           openDocument,
           openFile,
           readToolImage: async (imagePath) =>

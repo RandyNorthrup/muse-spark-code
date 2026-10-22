@@ -70,8 +70,15 @@ export const estimateLimitFactSchema = z
             compareUsdAmounts(remaining, limit) <= 0)
         )
       }
-      const limit = typeof fact.limit === 'string' ? Number(fact.limit) : fact.limit
-      const remaining = typeof fact.remaining === 'string' ? Number(fact.remaining) : fact.remaining
+      // Counts (requests, tokens, percent) are numbers only: a string
+      // amount for a non-money unit is refused at the schema.
+      if (
+        (fact.used !== null && typeof fact.used !== 'number') ||
+        (fact.limit !== null && typeof fact.limit !== 'number') ||
+        (fact.remaining !== null && typeof fact.remaining !== 'number')
+      )
+        return false
+      const { limit, remaining } = fact
       return (
         (limit === null || remaining === null || remaining <= limit) &&
         (fact.unit !== 'percent' || limit === null || limit <= 100)

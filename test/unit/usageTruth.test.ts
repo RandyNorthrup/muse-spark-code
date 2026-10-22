@@ -192,6 +192,40 @@ function serviceFor(records: readonly UsageRecord[], limits: readonly UsageLimit
 }
 
 describe('usage says what really happened (F20-F24)', () => {
+  it('names a windowless unread meter instead of an as-of line (R7)', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'usagetrue-notread-'))
+    roots.push(root)
+    const warnings: string[] = []
+    const nowMs = COMPLETIONS[0].at
+    let next = 0
+    const { recording, store } = createTestRecording(
+      {
+        root,
+        writerId: 'usage-truth-writer',
+        client: 'test',
+        now: () => nowMs,
+        newId: () => `id-${String((next += 1))}`,
+      },
+      warnings,
+    )
+    recording.scopeLimits?.({ accountId: 'default', generation: '1', backend: 'museCode' }).limit({
+      backend: 'museCode',
+      provider: 'museCode',
+      source: 'museCode',
+      observedAt: nowMs,
+      windows: [],
+    })
+    await recording.flush()
+    expect(warnings).toEqual([])
+    const { limits } = await store.read()
+    expect(limits).toHaveLength(1)
+    const state = await serviceFor([], limits).snapshot({
+      range: 'today',
+      groupBy: 'model',
+      metric: 'cost',
+    })
+    expect(usageText(state, 'plain', 'summary')).toContain(`museCode: ${USAGE_EN.limitNotReadYet}`)
+  })
   it('records every per-completion counter the CLI reports (F20)', async () => {
     const { records, limits } = await recordedThroughRealJournal()
     expect(records).toHaveLength(COMPLETIONS.length)

@@ -232,6 +232,7 @@
   "estimateRunning": "見積もり中…",
   "referenceEstimateFacts": "予測は観測されたアカウントの制限を保持し、未取得の容量を明示し、既定値と構成済みのしきい値を区別します。今後の補充レートは報告されるまで不明です。 観測値はそのアカウントとログイン世代に属します。更新時期が不明でも、既知の残高と割合の割り当ては現在の作業を制限します。",
   "estimateFailed": "見積もりに失敗しました: {detail}",
+  "estimateCredentialChanged": "プロバイダーの認証情報が変更されました。もう一度見積もってください。",
   "estimateMissingMore": {
     "other": "あと {count} 件"
   },
