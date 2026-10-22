@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Počet dní uchování denních souhrnů využití. Bez nastavení se uchovávají, dokud nenastavíte počet dní nebo je nevymažete; celé číslo dní 1 a více se použije v nastavené hodnotě. Podrobnosti jednotlivých volání se uchovávají 30 dní.",
   "command.connectChatGpt": "Pokračovat s ChatGPT",
   "command.connectCopilot": "Použít mé modely Copilot",
+  "command.connectGrok": "Pokračovat s Grokem",
   "command.shareChat.title": "Sdílet chat…",
   "command.sharePrompt.title": "Sdílet prompt…",
   "command.promptLibrary.title": "Knihovna promptů",

@@ -376,6 +376,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.connectGrok",
+        "title": "%command.connectGrok%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.sharePrompt",
         "title": "%command.sharePrompt.title%",
         "category": "%command.category%"

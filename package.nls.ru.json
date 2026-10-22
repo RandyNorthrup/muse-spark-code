@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Срок хранения ежедневных сводок использования в днях. Без значения они хранятся, пока вы не зададите число дней или не очистите их; целое число дней от 1 действует как задано. Подробности каждого вызова хранятся 30 дней.",
   "command.connectChatGpt": "Продолжить с ChatGPT",
   "command.connectCopilot": "Использовать мои модели Copilot",
+  "command.connectGrok": "Продолжить с Grok",
   "command.shareChat.title": "Поделиться чатом…",
   "command.sharePrompt.title": "Поделиться промптом…",
   "command.promptLibrary.title": "Библиотека промптов",

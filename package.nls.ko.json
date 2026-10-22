@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "일별 사용량 요약을 보관할 기간입니다. 설정하지 않으면 일수를 설정하거나 지울 때까지 보관되며, 1 이상의 정수 일수는 설정대로 적용됩니다. 호출별 상세 기록은 30일간 보관됩니다.",
   "command.connectChatGpt": "ChatGPT로 계속",
   "command.connectCopilot": "내 Copilot 모델 사용",
+  "command.connectGrok": "Grok으로 계속",
   "command.shareChat.title": "채팅 공유…",
   "command.sharePrompt.title": "프롬프트 공유…",
   "command.promptLibrary.title": "프롬프트 라이브러리",

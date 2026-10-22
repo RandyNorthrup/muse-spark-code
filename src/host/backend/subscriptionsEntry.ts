@@ -55,3 +55,9 @@ export {
   chatGptFailureOf,
   runtimeSubscriptionClient,
 } from '../../runtime/chatGptProviderCommands'
+export {
+  runtimeGrokCommandDeps,
+  runGrokProviderCommand,
+  grokAuthenticationMethods,
+  grokFailureOf,
+} from '../../runtime/grokProviderCommands'

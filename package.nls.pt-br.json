@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Dias de retenção dos resumos diários de uso. Sem valor, são mantidos até você definir um número de dias ou limpá-los; um número inteiro de dias de 1 ou mais vale como definido. Os detalhes de cada chamada são mantidos por 30 dias.",
   "command.connectChatGpt": "Continuar com ChatGPT",
   "command.connectCopilot": "Usar meus modelos do Copilot",
+  "command.connectGrok": "Continuar com Grok",
   "command.shareChat.title": "Compartilhar chat…",
   "command.sharePrompt.title": "Compartilhar prompt…",
   "command.promptLibrary.title": "Biblioteca de prompts",

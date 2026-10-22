@@ -53,7 +53,7 @@ Enter the context window loaded on the local server. Manual values override scan
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.grokClientId`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
+Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`, `museSpark.connectGrok`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.grokClientId`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
 ### Show Report…
 
@@ -1955,6 +1955,10 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 ### Muse Spark: Use My Copilot Models
 
 `museSpark.connectCopilot` — Add a model provider with an API key and pick a model.
+
+### Muse Spark: Continue With Grok
+
+`museSpark.connectGrok` — Add a model provider with an API key and pick a model.
 
 ### Muse Spark: Share Prompt…
 

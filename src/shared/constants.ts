@@ -186,6 +186,7 @@ export const GOOEY_MENU = {
 export const COMMAND_IDS = {
   connectChatGpt: 'museSpark.connectChatGpt',
   connectCopilot: 'museSpark.connectCopilot',
+  connectGrok: 'museSpark.connectGrok',
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',

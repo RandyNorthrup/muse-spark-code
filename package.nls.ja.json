@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "日別の使用量集計を保持する日数。未設定の場合は、日数を設定するかクリアするまで保持されます。1以上の整数の日数は設定どおりに適用されます。呼び出しごとの詳細は 30 日間保持されます。",
   "command.connectChatGpt": "ChatGPT で続行",
   "command.connectCopilot": "自分のCopilotモデルを使う",
+  "command.connectGrok": "Grok で続行",
   "command.shareChat.title": "チャットを共有…",
   "command.sharePrompt.title": "プロンプトを共有…",
   "command.promptLibrary.title": "プロンプトライブラリ",

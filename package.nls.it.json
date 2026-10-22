@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Giorni di conservazione dei riepiloghi giornalieri di utilizzo. Senza un valore, vengono conservati finché non imposti un numero di giorni o non li cancelli; un numero intero di giorni pari o superiore a 1 vale come impostato. I dettagli delle singole chiamate vengono conservati per 30 giorni.",
   "command.connectChatGpt": "Continua con ChatGPT",
   "command.connectCopilot": "Usa i miei modelli Copilot",
+  "command.connectGrok": "Continua con Grok",
   "command.shareChat.title": "Condividi chat…",
   "command.sharePrompt.title": "Condividi prompt…",
   "command.promptLibrary.title": "Libreria di prompt",
