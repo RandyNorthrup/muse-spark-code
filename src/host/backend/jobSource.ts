@@ -1,10 +1,12 @@
 // The C# of the Windows job helpers (M27's shell job assembly, M50's MCP
-// stdio launcher), shipped under native/windows/ and read when a helper is
-// first built, instead of riding in the host bundle as strings (PLAN.md D6,
-// the M55 and M56 size receipts). Each helper is its own file (its `using`
-// directives first, then its types) followed by the Win32 half both share,
-// MuseSparkMcpJob.cs. A missing or unreadable file fails that helper's
-// preparation, which each helper already reports and falls back from.
+// stdio launcher, M105 R2's screen recorder), shipped under native/windows/
+// and read when a helper is first built, instead of riding in the host
+// bundle as strings (PLAN.md D6, the M55 and M56 size receipts). Each job
+// helper is its own file (its `using` directives first, then its types)
+// followed by the Win32 half both share, MuseSparkMcpJob.cs; the recorder
+// is standalone and compiles from its own file alone. A missing or
+// unreadable file fails that helper's preparation, which each helper
+// already reports and falls back from.
 
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -19,6 +21,8 @@ export const JOB_SOURCE_FILES = {
   shellJob: path.join(NATIVE_WINDOWS, 'MuseSparkJob.cs'),
   /** The MCP launcher's entry and configuration (`mcpJobExecutable.ts`), a console application. */
   mcpLauncher: path.join(NATIVE_WINDOWS, 'MuseSparkMcpLauncher.cs'),
+  /** The screen recorder's entry (`windowsRecorderDeps.ts`), standalone: no shared half. */
+  screenRecorder: path.join(NATIVE_WINDOWS, 'MuseSparkScreenRecord.cs'),
 } as const
 
 /** A helper whose whole C# `jobSourceReader` gives. */
@@ -36,6 +40,9 @@ export function jobSourceReader(extensionPath: string): (helper: JobHelper) => P
     return text
   }
   return async (helper) => {
+    // The recorder compiles from its own file alone (its native suite
+    // proves that build); the job half is not its dependency.
+    if (helper === 'screenRecorder') return await read(helper)
     const [own, shared] = await Promise.all([read(helper), read('shared')])
     return `${own}\n${shared}`
   }
