@@ -227,7 +227,7 @@
   "command.savePrompt.title": "Prompt mentése",
   "command.useSavedPrompt.title": "Mentett prompt használata…",
   "command.copyToMyPrompts.title": "Másolás a saját promptjaimba",
-  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak.",
+  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak és a könyvjelzőknek a tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak.",
   "command.attachScreenRecording.title": "Képernyőfelvétel csatolása…",
   "command.attachLatestScreenRecording.title": "Legújabb képernyőfelvétel csatolása",
   "command.deleteUploadedFiles.title": "Feltöltött fájlok törlése…",
