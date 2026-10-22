@@ -27,6 +27,7 @@ import { assertConfirmedAllowed } from '../core/backends/modelapi/transport'
 import type { SpendClaim } from '../core/paid/spendClaim'
 import { SpendLedgerError, isSpendLedgerError } from '../core/paid/spendLedgerError'
 import { UserRefusalError, isPaidStop, isRequestNotSent } from '../core/refusal'
+import { estimateInput, requestParts } from '../core/backends/modelapi/sessionBudget'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import { isPlanModelRef } from '../shared/providerRouting'
 import {
@@ -316,6 +317,7 @@ export function createRuntimeDailyBudget(deps: {
 }
 
 export interface RuntimeResponseAccounting {
+  readonly isWorker?: boolean
   readonly ledger: RunLedger
   readonly refuse: (
     reason: Refusal | 'breach' | 'accounting_invalid',
@@ -476,7 +478,13 @@ export function withRuntimeAccounting(
                 Math.ceil((counted.tokens * (100 + SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT)) / 100),
               )
             : counted?.tokens
-        const inputTokens = mediaTokens ?? countedBound ?? byteBound
+        // Workers reserve the engine's estimate (no cache discount, no exact
+        // count request); other runs keep the exact byte bound above.
+        const inputTokens =
+          accounting?.isWorker === true
+            ? (guard?.paidEstimatedInputTokens ??
+              estimateInput(requestParts(body), undefined).inputTokens)
+            : (mediaTokens ?? countedBound ?? byteBound)
         const countCostUsd = counted?.costUsd
         const inputCost = model.price.reserve({
           inputTokens,
@@ -671,13 +679,19 @@ export function withRuntimeAccounting(
                   contextTokens,
                   reserveUsd: ceilUsd(reserveUsd),
                   price,
+                  // A worker's settlement must not rewrite the run's last
+                  // response: the orchestrator's terminal stays.
+                  recordsLastResponse: accounting.isWorker !== true,
                   inputBound,
                 })
               } catch (error: unknown) {
                 await settle()
                 throw error
               }
-              if ('refused' in admission) {
+              if (!('refused' in admission)) {
+                return
+              }
+              {
                 await settle()
                 const totals = accounting.ledger.totals()
                 // P3-1: every ledger refusal carries its own sentence, never
@@ -739,7 +753,6 @@ export function withRuntimeAccounting(
                 accounting.refuse(admission.refused, message, refusalDetails)
                 throw new UserRefusalError(message)
               }
-              ticket = admission
             },
             onRequestStarted: () => {
               guard?.onRequestStarted?.()

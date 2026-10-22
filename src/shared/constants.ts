@@ -3639,6 +3639,24 @@ export const TEAM_NEW_ROLE_CEILING_GROUPS: readonly TeamToolGroup[] = ['read', '
 
 /** The repository's lowering file (PLAN.md D75): workspace-relative segments. */
 export const TEAM_JSON_SEGMENTS = ['.muse', 'team.json'] as const
+// M96b: stored snapshot is user-owned; mutable state/copies are run-owned.
+export const EXEC_TEAM_STATE_FILE = 'team.json'
+export const EXEC_TEAM_RUN_PREFIX = 'muse-exec-team-'
+export const EXEC_TEAM_BOARD_FILE = 'board.json'
+export const EXEC_TEAM_FILE_MODE = 0o600
+// M96b R3: the run's durable clean-up ledger beside the stored snapshot:
+// every worker copy, owned ref, git child and held branch is recorded here
+// before it is created, so a later run sweeps exactly what a gone owner left.
+export const EXEC_TEAM_CLEANUP_FILE = 'team-cleanup.json'
+// A denied merge never destroys the finished branch: it is kept under this
+// prefix (`<prefix><role>/<task>`), outside `refs/heads/agents/`, until an
+// explicit discard or the documented unmerged-task retention removes it.
+export const EXEC_TEAM_HOLD_REF_PREFIX = 'refs/heads/agents-hold/'
+/** Merge gate: each changed file is scanned for conflict markers up to here. */
+export const EXEC_TEAM_MARKER_SCAN_BYTES = 1_048_576
+/** The wrapper's own ref git calls: bounded time and bounded output. */
+export const EXEC_TEAM_GIT_TIMEOUT_MS = 30_000
+export const EXEC_TEAM_GIT_OUTPUT_BYTES = 8192
 /** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it. */
 export const TEAM_UNMERGED_NOTICE_DAYS = 7
 
@@ -6848,6 +6866,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/reviewer.js',
   'dist/team.js',
   'dist/teamRunners.js',
+  'dist/teamHost.js',
   'dist/teamScheduler.js',
   'dist/schedules.js',
   'dist/planMarkdown.js',
@@ -7002,6 +7021,8 @@ export const MODEL_TEXT = {
   // M77: a working folder is not a confinement, so a best-of-N attempt runs no process.
   shellBestOfNAttempt:
     'shell commands do not run in a best-of-N attempt: nothing confines a process to its worktree; use the file tools',
+  shellTeamWorker:
+    'shell commands do not run for this team worker: nothing confines a process to its working copy; use the file tools and name in your report any command that still needs running',
   toolFileTooLarge: 'The file tools read and edit files up to',
   toolFileTooLargeHint:
     'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
@@ -7865,6 +7886,39 @@ export const TEAM_MODEL_TEXT = {
     'Only one model is ready: the team applies from a new conversation. Do the work yourself or ask the user.',
   toolErrorIsUnavailableTheTeamRunner:
     'Error: {value1} is unavailable: the team runner is not loaded in this window.',
+  // The team host service's answers (M96 lane X, C-M96-3).
+  hostInvalidArguments: 'invalid arguments for this team tool',
+  hostRoleNotOffered: 'role {role} is not offered in this workspace',
+  hostContinueNotReady:
+    'continue reopens a finished, unmerged task of the same role from this conversation, on its own branch',
+  hostInPlaceNotOffered:
+    'this team runs in-place roles only after the user confirms them; give the role own-branch or read-only',
+  hostWaitingSelf: 'the user asks you to do this work yourself',
+  hostWaitingCancelled: 'the user cancelled this task',
+  hostNoRepository: 'team workers need the workspace folder to be a git repository',
+  hostReadOnlyBreach: 'a read-only worker changed files in its scratch copy, so its task failed:',
+  hostNoReport: 'the worker ended without a report',
+  hostStopped: 'the task was stopped or the team service closed, so nothing more was sent',
+  hostPaidOff: 'paid team use is off, so this key-billed task sends nothing more',
+  hostCapReached: 'the task met its {cap} cap, so its next request was not sent',
+  hostMergeNoConversation: 'merge needs the conversation that started the task to be open',
+  hostTaskBusy: 'this task is already being merged or discarded',
+  hostReviewRunning:
+    'a reviewer is checking this branch as task {task}; collect it, then merge again',
+  hostReviewStarted:
+    'a reviewer started checking this branch as task {task}; collect it, then merge again',
+  hostReviewBrief:
+    'Review the changes of team task {task} ({role}) on its branch, checked out at its head. The task was: {brief}',
+  hostReviewReason: 'review before merge by a model that did not write the branch',
+  hostNotStaffed: 'role {role} is not staffed',
+  hostExhausted: 'every entry of role {role} is at a limit or unavailable; do the work yourself',
+  hostUntrusted: 'the workspace is in Restricted Mode, so no worker starts',
+  hostMaxWorkers: 'at most {max} workers run at once in this window',
+  hostPaidDeclined: 'the user declined paid team use for these tasks',
+  hostUnknownTask: 'no such task in this conversation',
+  hostMergePlanMode: 'merge is refused in Plan mode',
+  hostMergeNotReady: 'only a finished task with changes on its own branch can be merged, once',
+  hostMergeCancelled: 'the merge was not decided; nothing was written',
   rosterNoCaps: 'no caps',
   rosterNotStaffedPolicy: '  not staffed (policy {value1})',
   rosterUse: '  use: {value1}',
@@ -8328,6 +8382,8 @@ export const WORKER_FILE_PATH_TIMEOUT_MS = 5000
 export const WORKER_MODEL_TEXT = {
   // M96 worker scaffolding stays out of shipped bundles until lane X wires it.
   boundedExcerpt: 'bounded excerpt; may be truncated',
+  fileOperationUnavailable:
+    'this worker file operation requires a handle-relative native port; nothing was created or replaced',
 } as const
 // M117 / D97: deterministic capacity estimation; no model or paid request.
 // M117 W: the local fleet reads RAM to one decimal with this floor (a smaller
@@ -8583,6 +8639,10 @@ export function museCodeLoadedSessionCeiling(serverVersion = ''): number {
     ? MUSE_CODE_LOADED_SESSIONS_FROM_1_4_5
     : MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4
 }
+// `museSpark.team` (D75's switch, on unless set false). Not contributed to the
+// manifest until a user can save a team in the Roles section (C-M96-2, lead
+// 2026-10-10): until then it would do nothing a user can see.
+export const TEAM_SWITCH_SETTING = 'team'
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
 // A 429, or a remaining-requests or remaining-tokens header under this
@@ -8604,6 +8664,9 @@ export const TEAM_MCP_SERVER_NAME = 'team'
 export const TEAM_MCP_TOKEN_BYTES = 32
 // No positive collect wait until the Muse Code timeout capture lands (M96 P).
 export const TEAM_COLLECT_WAIT_MAX_SECONDS = 0
+// The Model API's own bound: its tools run in the extension host, so a
+// `collect` there has no MCP call timeout to stay under (C-M96-3).
+export const TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE = 60
 export const TEAM_TOOL_NAMES = ['roster', 'delegate', 'collect', 'cancel', 'merge'] as const
 export { TEAM_RUBRIC_REASON_CODES as TEAM_REASON_CODES }
 export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]

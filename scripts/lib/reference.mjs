@@ -506,7 +506,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       summary: source.referenceDescription(feature.summary),
       description: source.referenceDescription(feature.description),
       details: feature.details.map((text) => source.referenceDescription(text)),
-      paid: paidId !== undefined,
+      // RVCM96B2: honour the catalogue's own paid mark as well as the paid
+      // registry (headless-teams bills the Model API key but has no paid
+      // registry entry of its own).
+      paid: paidId !== undefined || feature.paid === true,
       facts: {
         ...facts[feature.id],
         ...(paidId !== undefined && {
@@ -912,6 +915,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push(`CLI option lacks contract: --${option.name}`)
     const routes = option.routes
     for (const route of routes) {
+      // RVCM96B2: headless teams sit behind the agent-teams availability
+      // switch. Generation leaves the switch off, so `exec: --team` has no
+      // row; tests pass `headlessTeamsAvailable: true` in the source
+      // overrides to cover the on-state row.
+      if (route === 'exec' && option.name === 'team' && source.headlessTeamsAvailable !== true)
+        continue
       let text = {
         cli:
           source.CLI_OPTION_REGISTRY[route]?.text?.[option.name] ??
@@ -1013,6 +1022,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
               'allow-dangerously-skip-permissions',
               'web-search',
               'record',
+              // `--team` without acceptEdits is refused (the default-mode
+              // parse B12 exercises); the row's description states the
+              // acceptEdits requirement, so the row says refused.
+              'team',
             ].includes(option.name) && { refused: true }),
             purpose:
               {
@@ -1237,7 +1250,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const paidId = source.PAID_FEATURES.find(
       (id) => source.PAID_USE_REGISTRY[id].featureId === f.id,
     )
-    const isPaid = paidId !== undefined
+    // RVCM96B2: the catalogue's own paid mark counts (headless-teams bills
+    // the Model API key with no paid registry entry of its own).
+    const isPaid = paidId !== undefined || original.paid === true
     if (original.paid !== isPaid) errors.push(`Paid claim mismatch: ${f.id}`)
     if (
       paidId !== undefined &&

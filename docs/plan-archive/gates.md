@@ -5410,3 +5410,272 @@ Round 4 replays the owning usage/money files, one unit-project typecheck and
 the scoped static checks and production measurements at the unchanged caps.
 
 <!-- plan-archive:end id="gates-4e09cab6e-34524" -->
+
+## Bounded-lane gate records closed 2026-10-04 through 2026-10-06
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35468" lines="35468-35474" at="c7bdd3e94" bytes="473" sha256="c164529acbe5c847e4b494b48fb2a2876fcdd5f54b99113ec750d442e4c36c02" -->
+
+**KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
+aggregate quality/full-unit runs and integration merges/pushes on this lane.
+Full quality, coverage, accessibility and integration certification remain
+the lead's gates. The namespace export/type checks extend Knip's existing
+issue set without an ignore or lowered severity; value/type plants prove
+both guards fire. Scoped macmini evidence is recorded in
+`docs/certification/knip-constants.md`.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35468" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35476" lines="35476-35483" at="c7bdd3e94" bytes="538" sha256="f66aa4306468120b55ee2c5198c47da245ebbb79adf3ff01b7410f3fd4c401ba" -->
+
+**DEFLAKE4 lane (2026-10-05).** The named brief and common.md assign full
+quality, coverage and hosted certification to the lead; this lane runs the
+owning test file and scoped gates only. Full quality remains required before
+integration. The feature-delivery ledger validator cannot validate this
+existing section-based roadmap (`expected exactly one quality-ledger fence`);
+retain its canonical format and record that structural check as deferred.
+Current receipts and any remaining blockers belong in
+`docs/certification/deflake4.md`.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35476" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35485" lines="35485-35491" at="c7bdd3e94" bytes="499" sha256="19786d47d9cfde7dfac54e0a8c5d97b2d47580897614b4a52ee2f0fcf41fe1dc" -->
+
+**STAR lane (2026-10-05).** The owner's lane brief requires scoped tests,
+typecheck, lint, localization/manifest checks, bundle budgets and an actual
+VSIX README inspection, with removal drills and hooks enabled. It expressly
+assigns full `npm run quality` to the release lead after integration; this
+lane does not run it or weaken any gate. The generic delivery validator's
+ledger-format check remains deferred for this established plan format.
+Current receipts: `docs/certification/star-line.md`.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35485" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35495" lines="35495-35501" at="c7bdd3e94" bytes="501" sha256="37080f7e92a7f6dd005a717ed4859ffa55e448645235c0bae9f24d83283f0996" -->
+
+**M100 planning lane (2026-10-04).** The rig brief restricts changes to
+PLAN and `docs/certification/m100-research.md`, forbids full quality/unit
+runs and main integration, and requires a local normal-hook commit. Scoped
+checks and their actual outcomes are in that research record. Runtime tests,
+gate-fire and four-device certification are future M100 delivery work; the
+lead retains the unchanged full quality gate on the joined tree. No product
+gate is waived or weakened by committing this plan.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35495" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35503" lines="35503-35508" at="c7bdd3e94" bytes="526" sha256="371c2521ecca1cb8327b8021ba79979ae037e7b36431c5ddbe70d66f8e1182a7" -->
+
+**M100 review correction (FIXM100, 2026-10-05).** The follow-up brief authorizes
+the D80/acceptance/research correction, its Unreleased changelog entry and a
+local merge of the already-fetched `origin/main`, keeping both sides and
+renumbering nothing. Only changed-document formatting/Markdown checks and
+normal commit hooks run here; full quality remains the lead's joined-tree
+gate. The research record separates these receipts from runtime certification. 9. **Picker, first run and usage** (lane U). The first-run screen's
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35503" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35527" lines="35527-35532" at="c7bdd3e94" bytes="458" sha256="5c12f18a499ab35ab0193a00f6f8f7b3c2563413c8cf3e385750bef9ccd51bcb" -->
+
+**M100 review correction (FIXM100, 2026-10-05).** The follow-up brief authorizes
+the D80/acceptance/research correction, its Unreleased changelog entry and a
+local merge of the already-fetched `origin/main`, keeping both sides and
+renumbering nothing. Only changed-document formatting/Markdown checks and
+normal commit hooks run here; full quality remains the lead's joined-tree
+gate. The research record separates these receipts from runtime certification.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35527" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35545" lines="35545-35554" at="c7bdd3e94" bytes="763" sha256="ef3335003f50aa983dbdc80904aa5a24dec84724785874708a47a57d1d85a9a4" -->
+
+**FIXM94L0 scoped result (2026-10-04).** Macmini passes changed-file ESLint,
+all five typecheck projects, Knip, jscpd (0 clones), localization (0 problems)
+and the host-API record (0 problems). Production build emits all bundles
+and passes the current size gate, but exits 1 at the exhaustive split gate:
+`TAB_MODEL_TEXT` has no registered reader. This wiring is explicitly lane W's
+ownership in M94, so it is deferred to W's `dist/tab.js` build/split wiring;
+no check, cap or ignore was changed. The inherited Model API bundle is
+426.5 KiB under main's existing 475 KiB gate, not compliant with common.md's
+older 400 KiB figure. Full quality and the later build-chain checks remain
+open. See `docs/certification/m94-0.md` for scoped tests and byte-exact drills.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35545" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35556" lines="35556-35561" at="c7bdd3e94" bytes="425" sha256="fec57116a366f590cbd0712cf5e3c164dc829df5c2c5c06447c6ea2380c85555" -->
+
+**MRG78 rig PowerShell analyzer unavailable.** The additional
+`npm run lint:ps` check fails before analysis because this Win11 rig has
+no PSScriptAnalyzer 1.25.0 module. JavaScript and CSS lint pass. Native
+PowerShell files are unchanged by this merge; no global install, network
+fetch, version downgrade or skip is permitted under the shared rig rules.
+The lead retains the pinned PowerShell check on a provisioned machine.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35556" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35565" lines="35565-35570" at="c7bdd3e94" bytes="431" sha256="bf88dbc6961d96318ba0181c75be5bda46920396e89ec5a05c8899da294876a6" -->
+
+**MRG78 native identity integration.** Main's R1 lint gate rejects M71's
+direct `dev`/`ino` reads in `gitExtension.ts`. Reuse the existing
+`statIdentity`, `statIdentitySync`, `fileIdentityKey` and `sameFile` helpers
+for physical owner capture and synchronous rechecks, preserving the
+canonical cwd, both lexical/canonical checks and sticky ownership loss.
+No suppression or gate change. Verify native Git owners and their callers.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35565" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35572" lines="35572-35576" at="c7bdd3e94" bytes="357" sha256="ee23c11638e54401aa23f35437d52a54b9a66b633608d544664cc1819e472345" -->
+
+**MRG78 panel compatibility.** The owning test sweep exposes an old
+M71 review assertion missing main's `disposition: started` acknowledgement
+field, and the four Git palette rows missing M87's required tips. Keep the
+complete acknowledgement assertion and reuse each row's existing translated
+detail as its tip; no new English or translated key is needed.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35572" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35580" lines="35580-35586" at="c7bdd3e94" bytes="490" sha256="c0a7d61f26843f5179beee9de7e50698571acc620ebde2a500932d2ada494f74" -->
+
+**M115-G bounded-lane gate delegation (2026-10-06).** The rig brief and
+`common.md` prohibit aggregate quality/full-suite runs in this worktree.
+G runs its owned suites, red drills, all five compiler projects, scoped
+lint/format, cycles, dead-code, duplication, localization, host API and
+production build here, with hooks enabled. W/lead retains full quality,
+coverage, accessibility and installed-editor/live certification on the
+integrated tree. No threshold, rule or ignore is changed.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35580" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35590" lines="35590-35596" at="c7bdd3e94" bytes="516" sha256="9c5837fa6e99c30c4d016dd27b6a4710edd1d74ff21a9125cdb6fe19f8703b02" -->
+
+**M114 lane 0 scoped gate delegation (2026-10-06).** The rig/shared brief
+prohibits full quality/full unit runs and edits to another lane's owned files.
+The token foundation is checked with its owning suites, deliberate failures,
+all compiler projects, scoped lint/format, dead-code, duplication,
+localization and the production build. Full integrated quality, coverage,
+the polished-surface accessibility/visual matrix and editor bindings remain
+with the lead and lanes A/C/D/N/S. No gate or threshold is weakened.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35590" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35598" lines="35598-35607" at="c7bdd3e94" bytes="695" sha256="6fc84e1bf7fd04b0b53ae3aaf5591d76314aded5367b39c1907b7887871d2b37" -->
+
+**M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
+The rig/shared brief forbids full quality/full unit runs and other lanes'
+file edits. P1 runs the five compiler projects, owning regressions and red
+drills, scoped lint/format, dead-code, duplication, localization and the
+production build. `check:host-api` retains its one inherited mismatch:
+the source inventory lists 50 roles, including contrastActiveBorder, while
+omitting the imported extended-role sheet. Lane 0/S own both inventories
+and the generated record; the lead owns aggregate quality and S owns reviewed
+goldens/shared changelog. No threshold, guard or hook is weakened, and no
+RVM114P12 finding is deferred.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35598" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35609" lines="35609-35618" at="c7bdd3e94" bytes="745" sha256="1402636dc9f680f2c1b7fd56cd0a715733c48dd54fc31a2406e66d6d7c8465a5" -->
+
+**M114 C scoped certification (2026-10-06).** The rig/shared lane brief
+prohibits full quality/full unit runs and another lane's owned edits. C checks
+its internal theme consumer with whole owning test files at default timeouts,
+byte-exact red drills, compiler projects, scoped lint/format, localization,
+dead-code, duplication and production build. M104's captured-wire adapter,
+companion/native bootstrap and shipped lazy-asset registration are absent
+from this base and are named integration handoffs in C's certification.
+S/lead retain the host-API inventory, public docs, real editor captures and
+the full integrated quality/visual/accessibility gates. No gate is weakened
+and internal-port fakes do not certify unavailable native engines.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35609" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35622" lines="35622-35629" at="c7bdd3e94" bytes="561" sha256="3a0ce053ba2fcc5678f841cc51162285e9e152cacbb1b23dfbb499699215dc03" -->
+
+**M109 P Windows host-API snapshot deferral (2026-10-06).**
+`npm run check:host-api` exited 1 only for this lane's Node import counts:
+`node:child_process` 13 → 15, `node:crypto` 46 → 49,
+`node:fs/promises` 47 → 48, `node:path` 84 → 86. All portable-module
+checks passed; no VS Code API was added. M109's ownership table assigns
+`docs/ide-compatibility/**` and the host-API record to W, so P leaves that
+file untouched. W regenerates it with `npm run check:host-api -- --write`
+on the integrated tree and runs the unmodified check before certification.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35622" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35631" lines="35631-35631" at="c7bdd3e94" bytes="75" sha256="f2be6842a226c9f67f47d1e6cef4ce2a341b6c6bf6b3a85412fa5b18c40d53dd" -->
+
+FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35631" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35633" lines="35633-35635" at="c7bdd3e94" bytes="224" sha256="84348e9fe03bd259ff3f09df24c0c201a429d23c1383eb8d2a4f22e82fef2494" -->
+
+**9 → 10**, from the trusted build digest and protected temporary-directory
+fallback. The other counts above are unchanged. W owns this same generated
+snapshot handoff; the portable-module check and all build checks pass.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35633" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35637" lines="35637-35643" at="c7bdd3e94" bytes="520" sha256="80ce83d305a01f4c4527f542043f36b0f30e3bd08d38813662038efa832670fa" -->
+
+**FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
+shared lane rules prohibit a full `npm run quality` or full test suite in
+this worktree. Hook-on repair commits require the owning regression files,
+red drills, scoped lint/format and typecheck here; the final lane receipt
+also runs dead-code, duplication, localization, host API and production
+build. The lead retains full quality, coverage, accessibility and installed
+host certification on the integrated tree. No threshold or rule is changed.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35637" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35645" lines="35645-35654" at="c7bdd3e94" bytes="700" sha256="7a152feef951857275d11c1d94b0a652120711a21e93c490648afb50d55026c5" -->
+
+**FIXM98J host-API snapshot deferral.** `npm run check:host-api` ran and
+exited 1: `docs/ide-compatibility/host-api.md` needs the generated record of
+`paidHost.ts`'s shared-budget read (11 → 12 calls, adding that file to
+`WorkspaceConfiguration.get`) and lane J's `node:crypto` import (32 → 33).
+The rig brief limits edits to the findings' files plus tests/certification/
+localization, so this generated document is left for the lead's integrated
+refresh: run `npm run check:host-api -- --write`, review those three rows,
+then rerun the check. API policy is unchanged; the snapshot gate is neither
+weakened nor claimed green. This is a documentation gate deferral, not an
+unfixed RVM98J finding.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35645" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35751" lines="35751-35758" at="c7bdd3e94" bytes="615" sha256="6c22ef693ed4ac301a39f314b8b3e86b8b4868742031c1c0e95a0db69052320b" -->
+
+**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
+test repairs from `3e04f6f5` are carried unchanged after their failures are
+reproduced here. Their old C2 baseline deferral below is historical, superseded
+by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
+The shared rig common rules expressly prohibit `npm run quality` and the full
+test wrapper here; run the required scoped static/build gates and complete
+owning suites, with the integrator responsible for full quality and the
+platform matrix before release. No threshold, ignore or timeout is weakened.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35751" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35760" lines="35760-35769" at="c7bdd3e94" bytes="696" sha256="51e4f5b1740b5a73a0470eca6ccf5858123560a45ce253c673a0f7b6310ba5bb" -->
+
+**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
+forbids the full `npm run quality` wrapper and full unit suite because the
+rig is shared; the lead runs the combined four-machine quality gate.
+This lane runs focused complete test files (at most three per invocation),
+all project typechecks, changed-file lint/format, deadcode, duplication,
+localization, host API and production build directly on Kubuntu. The final
+receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
+focused tests and all listed lane checks pass, including the unchanged
+production bundle-split gate. This defers only the full-tree/full-platform
+quality receipt; no gate is weakened.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35760" -->
+
+<!-- plan-archive:begin id="gates-c7bdd3e94-35771" lines="35771-35778" at="c7bdd3e94" bytes="565" sha256="3d5555e766c03d9f50b624d0be2734be136847a21cc4ec48155795ecca8a8286" -->
+
+**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
+and its shared `codex/common.md` forbid the full `npm run quality` wrapper
+on this shared rig. Run the required scoped suites (at most three files per
+run), all five TypeScript projects, lint/format over the complete P2 range,
+knip, duplication, localization, host API and production build here; record
+actual receipts in `docs/certification/m101-p2.md`. The lead must run the
+aggregate quality/coverage/platform matrix before integration/release. No
+threshold, ignore or rule is changed.
+
+<!-- plan-archive:end id="gates-c7bdd3e94-35771" -->

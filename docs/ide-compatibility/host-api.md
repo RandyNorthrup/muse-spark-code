@@ -33,7 +33,7 @@ The VS Code adapter: 50 files. Everything else reaches VS Code only through them
 
 | File                                               | VS Code APIs used |
 | -------------------------------------------------- | ----------------- |
-| `src/extension.ts`                                 | 194               |
+| `src/extension.ts`                                 | 196               |
 | `src/host/agentImportHost.ts`                      | 28                |
 | `src/host/browser/browserCheckConfirm.ts`          | 5                 |
 | `src/host/browser/runtimeCommand.ts`               | 9                 |
@@ -486,8 +486,8 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.onDidChangeWorkspaceFolders`                                              | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.onDidGrantWorkspaceTrust`                                                 | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.openTextDocument`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`, `src/host/prompts/promptEntry.ts`, `src/host/tab/tabProvider.ts`                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `workspace.openTextDocument(options.content)`                                        | `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `workspace.openTextDocument(options.language)`                                       | `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `workspace.openTextDocument(options.content)`                                        | `src/extension.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `workspace.openTextDocument(options.language)`                                       | `src/extension.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `workspace.registerTextDocumentContentProvider`                                      | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.saveAll`                                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -499,20 +499,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------------ | ----- |
 | `node:async_hooks`       | 5     |
 | `node:buffer`            | 73    |
-| `node:child_process`     | 31    |
-| `node:crypto`            | 216   |
+| `node:child_process`     | 33    |
+| `node:crypto`            | 217   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 4     |
 | `node:fs`                | 135   |
-| `node:fs/promises`       | 144   |
+| `node:fs/promises`       | 147   |
 | `node:http`              | 17    |
 | `node:https`             | 3     |
 | `node:module`            | 4     |
 | `node:net`               | 26    |
-| `node:os`                | 46    |
-| `node:path`              | 265   |
+| `node:os`                | 48    |
+| `node:path`              | 267   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 28    |
 | `node:readline`          | 1     |

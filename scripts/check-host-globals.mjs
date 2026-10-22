@@ -58,6 +58,7 @@ const HOST_BUNDLES = [
   'dist/reviewer.js',
   'dist/team.js',
   'dist/teamRunners.js',
+  'dist/teamHost.js',
   'dist/teamScheduler.js',
   'dist/schedules.js',
   // M91: the imported hooks' adapters, the hook and MCP-form runtime, and

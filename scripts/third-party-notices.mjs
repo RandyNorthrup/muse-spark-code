@@ -50,7 +50,7 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js, dist/museCode.js,
-dist/resourceGovernor.js, dist/resourceAdmission.js, dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js,
+dist/resourceGovernor.js, dist/resourceAdmission.js, dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/teamHost.js, dist/teamFileIo.js, dist/teamMerge.js, dist/foreignHooks.js, dist/hookRuntime.js,
 dist/modelApiTools.js, dist/modelApiVerify.js, dist/modelApiImage.js, dist/pluginHooks.js, dist/planMarkdown.js, dist/checkpointStore.js,
 dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/nativeGit.js, dist/conversationTransfer.js, dist/modelApiSessions.js, dist/rulesFile.js, dist/codeIntel.js, dist/voice.js, dist/voiceLinux.js, dist/dictation.js, dist/webFetch.js,
 dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,

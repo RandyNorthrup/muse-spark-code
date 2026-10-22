@@ -1339,7 +1339,7 @@ const TEXT_BLOCKS = [
   {
     block: 'TEAM_MODEL_TEXT',
     sentinels: ['toolTheRoleToRunEG'],
-    readers: ['dist/team.js', 'dist/teamScheduler.js'],
+    readers: ['dist/team.js', 'dist/teamScheduler.js', 'dist/teamHost.js'],
   },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
@@ -1352,7 +1352,12 @@ const TEXT_BLOCKS = [
     readers: ['dist/modelApiBoundaries.js'],
   },
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
-  { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
+  // C-M96-3: the engine workers' prompt assembly loads with the team host.
+  {
+    block: 'WORKER_MODEL_TEXT',
+    sentinels: ['boundedExcerpt'],
+    readers: ['dist/teamHost.js', 'dist/teamFileIo.js'],
+  },
   {
     block: 'QUESTION_MODEL_TEXT',
     sentinels: ['deferredClarification'],

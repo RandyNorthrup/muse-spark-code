@@ -37,29 +37,76 @@ muse-spark-code-acp exec --backend modelApi --allow-contributor-models --model m
 muse-spark-code-acp scan-secrets fix.patch
 ```
 
-| Exec option                         | Default                | Validation                                                                                                                                                                 |
-| ----------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| --backend museCode\|modelApi        | museCode               | Must be an ACP backend.                                                                                                                                                    |
-| --cwd <dir>                         | process.cwd()          | Resolve absolute; existing directory.                                                                                                                                      |
-| <prompt>, --prompt-file, -          | required               | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin.                                                                               |
-| --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                                                                         |
-| --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                                                                |
-| --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                                                                      |
-| --fast                              | off                    | The plan catalogue’s Fast tier (2x speed, increased usage) where the model lists a priority tier; refused elsewhere.                                                       |
-| --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`).                                                |
-| --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                                                                |
-| --max-budget-usd <usd>              | required for Model API | Finite positive USD decimal (grammar below, no upper bound); must cover the model minimum below before billable dispatch. Refuse on Muse Code.                             |
-| --max-requests <n>                  | none (no limit)        | Any positive safe integer when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.                                    |
-| --timeout <seconds>                 | none (no deadline)     | Any positive safe integer when set; without it the run has no deadline of ours. A set deadline counts from process start.                                                  |
-| --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                                                                    |
-| --auto-compaction                   | off                    | Model API plus budget; the summary request is admitted against the run cap like any request and shown in its usage. Without the flag the context-full stop names the flag. |
-| --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                                                                          |
-| --fail-on-denial                    | off                    | First ordinary approval denial stops if enabled.                                                                                                                           |
-| --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                                                                |
-| --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                                                                             |
-| --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                                                                            |
-| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                                                                |
-| --verbose                           | off                    | Trace on redacted stderr.                                                                                                                                                  |
+| Exec option                         | Default                | Validation                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --backend museCode\|modelApi        | museCode               | Must be an ACP backend.                                                                                                                                                                                                                                                                                        |
+| --cwd <dir>                         | process.cwd()          | Resolve absolute; existing directory.                                                                                                                                                                                                                                                                          |
+| <prompt>, --prompt-file, -          | required               | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin.                                                                                                                                                                                                                   |
+| --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                                                                                                                                                                                                             |
+| --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                                                                                                                                                                                                    |
+| --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                                                                                                                                                                                                          |
+| --fast                              | off                    | The plan catalogue’s Fast tier (2x speed, increased usage) where the model lists a priority tier; refused elsewhere.                                                                                                                                                                                           |
+| --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`).                                                                                                                                                                                    |
+| --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                                                                                                                                                                                                    |
+| --max-budget-usd <usd>              | required for Model API | Finite positive USD decimal (grammar below, no upper bound); must cover the model minimum below before billable dispatch. Refuse on Muse Code.                                                                                                                                                                 |
+| --max-requests <n>                  | none (no limit)        | Any positive safe integer when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.                                                                                                                                                                        |
+| --timeout <seconds>                 | none (no deadline)     | Any positive safe integer when set; without it the run has no deadline of ours. A set deadline counts from process start.                                                                                                                                                                                      |
+| --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                                                                                                                                                                                                        |
+| --auto-compaction                   | off                    | Model API plus budget; the summary request is admitted against the run cap like any request and shown in its usage. Without the flag the context-full stop names the flag.                                                                                                                                     |
+| --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                                                                                                                                                                                                              |
+| --fail-on-denial                    | off                    | First ordinary approval denial stops if enabled.                                                                                                                                                                                                                                                               |
+| --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                                                                                                                                                                                                    |
+| --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                                                                                                                                                                                                                 |
+| --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                                                                                                                                                                                                                |
+| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                                                                                                                                                                                                    |
+| --team                              | off                    | Behind the agent-teams availability switch (off until certified): needs Model API, acceptEdits and --max-budget-usd; runs in-process engine workers, including keyless local models. Every request/retry reserves against the shared run cap; questions deny and ordinary merges land in the run working tree. |
+| --verbose                           | off                    | Trace on redacted stderr.                                                                                                                                                                                                                                                                                      |
+
+With `--team` (behind the agent-teams availability switch, off until
+certified), the workspace snapshot is `team.json` under
+`<agent data folder>/acp/<workspaceKey>/` (`workspaceKey` is the first 16
+hex characters of SHA-256 of the resolved workspace path). Its shape is
+`TeamSnapshot`: `roles` with ordered `pool` entries and `intensity`.
+Each custom entry names an `engine` agent, its model/provider, `pays`
+(`key` or `local`), concurrency and caps. Default follows this exec run's
+provider and model. A missing snapshot, Solo or no distinct runnable loaded
+model keeps the ordinary single-model request. Muse Code, external and
+subscription workers are refused with a reason; no CLI sign-in is attempted.
+
+The repository's `.muse/team.json` only lowers existing role caps/concurrency,
+turns roles off and lowers `budgets.spendUsd` for all workers together.
+A required `code-review` must be configured and completed before landing;
+an unsupported reviewer requirement refuses. The hard run budget still covers
+orchestrator requests, every worker attempt, retries and enabled images.
+Local requests cost zero and count toward request/concurrency limits.
+The shared daily journal keeps its own existing cap for paid requests.
+
+Mutable board state and isolated task copies live in a private temporary run
+folder. Every created worker clone and owned task ref is recorded in the
+run folder's cleanup ledger before it is created; a normal end discards
+copies, reconciles the ledger and removes the folder with its record, and
+the next headless run sweeps folders and ledger-named refs whose owning
+process is proven gone (never by name shape; held branches are never swept).
+With `--team`, claims are concurrent against the shared run cap (not one
+shared billable slot): a worker reserves its serialized-byte estimate plus
+the output ceiling, which adds the assumption "billed input tokens never
+exceed serialized UTF-8 bytes" to the listed provider facts, and the file's
+spend amount travels through the exact decimal type to the ledger (more than
+six decimals is refused). Engine `/v1/responses` traffic does not pass the
+transport observer, so its size caps, duplicate/mismatched terminal check and
+selected-model pin do not apply there; settlement trusts the engine's parsed
+response while the ledger's own usage checks still run.
+Merge checks run locally (a scan of the task diff for unresolved conflict
+markers: hard breaks, trailing spaces and CRLF pass); landing is serialized
+and repeats the existing path, role and ref fences, and every refusal carries
+the bounded tool output to the model. Protected paths never gain a headless
+approval: a protected or unreviewed merge keeps the finished branch under
+`refs/heads/agents-hold/<role>/<task>` and tells the model the ref, the
+reason and how to retry or discard; only an explicit discard, a later merge
+of the same task, or the documented retention removes a hold. Landed files enter
+M80's existing exact private patch and reviewer-approved apply flow; no push
+or user-branch commit happens in the runner. No CI key enters any Git, shell,
+hook or other child process.
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
 any positive integer number of micro-USD with no upper bound. Signs,
