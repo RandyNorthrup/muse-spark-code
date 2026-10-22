@@ -10,6 +10,7 @@ import {
   setUiText,
   providersFile,
   recordPlanUsage,
+  huggingface,
   OPENROUTER_ORIGIN,
 } from '../backend/providersEntry'
 import {
@@ -133,7 +134,7 @@ export function createSubscriptionFeatures(options: {
       ...seam.catalog,
       get: (id: string) => {
         const preset = seam.catalog.get(id)
-        return preset?.id === 'openrouter'
+        return preset?.id === 'openrouter' || preset?.id === 'huggingface'
           ? { ...preset, connectLabel: fill(UI_TEXT.providerConnect, { provider: preset.name }) }
           : preset
       },
@@ -146,6 +147,25 @@ export function createSubscriptionFeatures(options: {
       }) => {
         const services = await configured()
         return await services.openRouterExchange(request.code, request.verifier, request.signal)
+      },
+    },
+    huggingfaceExchanger: {
+      exchange: async (request: {
+        readonly code: string
+        readonly verifier: string
+        readonly redirectUri: string
+        readonly signal?: AbortSignal
+      }) => {
+        const clientId = huggingface.HF_OAUTH_CLIENT_ID
+        if (clientId === undefined) throw new Error(UI_TEXT.huggingfaceOAuthNotRegistered)
+        const services = await configured()
+        return await services.huggingfaceExchange(
+          clientId,
+          request.code,
+          request.verifier,
+          request.redirectUri,
+          request.signal,
+        )
       },
     },
     usage: {

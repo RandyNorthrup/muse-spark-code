@@ -363,6 +363,7 @@ export function createModelsPanelFeatures(
     tester: seam.tester,
     fetcher: seam.fetcher,
     exchanger: seam.exchanger,
+    huggingfaceExchanger: seam.huggingfaceExchanger,
     usage: seam.usage,
     ...(host.onKeyUsage !== undefined && { onKeyUsage: host.onKeyUsage }),
     pkce: seam.pkce,

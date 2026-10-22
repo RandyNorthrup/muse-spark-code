@@ -5906,6 +5906,10 @@ export const EN = {
   providerCreatedKeyDiscarded:
     'OpenRouter created a key labelled {label}. It was not kept here. Remove it at {url}.',
   providerConnectFailed: 'OpenRouter connection failed. Try connecting again.',
+  huggingfaceOAuthNotRegistered:
+    'Hugging Face sign-in is not open yet: its OAuth app must be registered on huggingface.co first (a publisher step).',
+  huggingfaceConnectFailed: 'Hugging Face connection failed. Try connecting again.',
+  huggingfaceRemoteWindow: 'Hugging Face sign-in needs a local window.',
   providerConnectBusy: 'Another provider change is in progress. Try again when it finishes.',
   providerConnectRecoveredStored:
     'A previous OpenRouter connection already stored its key. It is kept.',

@@ -15,6 +15,7 @@ import {
   chat,
   endpointPolicy,
   gemini,
+  huggingface,
   modelMetadata,
   modelRef,
   ollama,
@@ -1790,6 +1791,77 @@ export function createConfiguredProviderServices(
       } catch {
         // Never expose a response body, authorization code, verifier or returned key.
         throw new Error(UI_TEXT.providerConnectFailed)
+      }
+    },
+    huggingfaceExchange: async (
+      clientId: string,
+      code: string,
+      verifier: string,
+      redirectUri: string,
+      callerSignal?: AbortSignal,
+    ) => {
+      try {
+        // No timeout of our own: the exchange ends at the provider's
+        // answer, a network failure, or the caller's cancellation.
+        const signal = AbortSignal.any([...(callerSignal === undefined ? [] : [callerSignal])])
+        signal.throwIfAborted()
+        // A bad exchange input reaches the catch below, which reports the
+        // connect as failed. The redirect repeats the loopback callback
+        // the code was authorized with, nothing else.
+        const callback = new URL(redirectUri)
+        if (
+          clientId === '' ||
+          code.trim() === '' ||
+          !pkce.isPkceVerifier(verifier) ||
+          callback.protocol !== 'http:' ||
+          callback.hostname !== '127.0.0.1'
+        )
+          throw new Error(UI_TEXT.huggingfaceConnectFailed)
+        const entry: ProviderEntry = {
+          id: 'huggingface',
+          preset: 'huggingface',
+          address: huggingface.HF_ORIGIN,
+          auth: 'none',
+          models: [],
+        }
+        // No credential, retries or redirects: a code can be exchanged only once.
+        const bound = transportFor(entry, '')
+        const url = huggingface.HF_TOKEN_URL
+        await unlessAborted(bound.verifyEndpoint(url), signal)
+        signal.throwIfAborted()
+        const form = new URLSearchParams()
+        form.set('grant_type', 'authorization_code')
+        form.set('code', code)
+        form.set('redirect_uri', redirectUri)
+        form.set('client_id', clientId)
+        form.set('code_verifier', verifier)
+        const response = await bound.transport.fetch(url, {
+          method: 'POST',
+          redirect: 'error',
+          signal,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form,
+        })
+        if (!response.ok) {
+          await response.body?.cancel()
+          throw new Error(UI_TEXT.huggingfaceConnectFailed)
+        }
+        const value: unknown = JSON.parse(await readBoundedText(response))
+        // A complete successful exchange has minted a token even if
+        // cancellation arrived while its body was read. The Connect owner
+        // must report disposal.
+        const token = huggingface.huggingfaceTokenSchema.parse(value)
+        // The token authenticates by construction (pinned endpoint,
+        // single-use code): Bearer and non-empty is the whole shape
+        // check, and the preset's `whoami-v2` key test proves it.
+        if (token.token_type.toLowerCase() !== 'bearer')
+          throw new Error(UI_TEXT.huggingfaceConnectFailed)
+        const key = token.access_token.trim()
+        if (key === '') throw new Error(UI_TEXT.huggingfaceConnectFailed)
+        return key
+      } catch {
+        // Never expose a response body, authorization code, verifier or returned token.
+        throw new Error(UI_TEXT.huggingfaceConnectFailed)
       }
     },
     openRouterUsage: async (
