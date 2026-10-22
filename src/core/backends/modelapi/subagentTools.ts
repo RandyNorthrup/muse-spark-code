@@ -199,6 +199,29 @@ export function delegationFamily(teamMode: 'single-model' | 'team'): 'team' | 's
   return teamMode === 'team' ? 'team' : 'subagents'
 }
 
+/**
+The window's playbook as a Model API conversation meets it (M116, PLAN.md
+D96.16). New work for a child starts through it: `subagent` for a new
+child, `delegate` for a new task given to one that exists.
+
+- `effect` runs once the round is admitted, or at once when the
+  conversation has nothing under review. What it throws is thrown on.
+- `isOver` says whether the child `effect` started has finished that work
+  (true too when it started none). While it has not, the caller calls
+  `wake` on each change of the child, and `isOver` is asked again.
+- `refused` makes the call's own result of a refusal: the reason in
+  English for the model that asked, and in the display language for the
+  tool's row. `effect` then never ran.
+*/
+export type SubagentAdmission = <T>(
+  kind: 'subagent' | 'delegate',
+  sessionId: string,
+  targetId: string | undefined,
+  effect: () => Promise<T>,
+  isOver: (wake: () => void) => boolean,
+  refused: (reason: string, shown: string) => T,
+) => Promise<T> | undefined
+
 /** M116: bind immediately before a new child/follow-up actually starts, after paid
 consent and ordinary tool admission. Idempotent spawn retries start no work.
 @unwired M116 playbook subagent dispatch

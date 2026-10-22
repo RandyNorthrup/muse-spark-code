@@ -457,7 +457,7 @@
   "referenceCustomAgents": "プロジェクトまたは個人の AGENT.md でエージェントを定義します。選択するか explore、second-opinion を依頼してください。ツール許可リストが能力を制限します。Model API の子タスクには有料サブエージェントの同意が必要です。",
   "referenceCodeOutput": "コピーはコードをコピー、挿入はカーソル位置に書き込み、適用はエディターの選択範囲を置換します。ツール出力を開くと全文を読めます。省略された出力はページ単位で表示できます。 会話のテキストを選択すると、入力欄への引用、質問、コメントの追加、コピーができます。",
   "referencePaidContexts": "対話型の Model API 追加機能は支出前に確認し、日次予算を共有します。Muse Code の画像には保存済み Model API キーと明示的な有効化が必要で、その支出はこの日次台帳の対象外です。Muse Voice は両バックエンドで共有日次予算を予約します。ACP の有料機能は既定でオフになり、Model API フラグとエディターの許可が必要です。ACP とヘッドレスの Model API リクエストはランタイムの日次予算を予約し、ヘッドレスでは実行ごとの厳格な予算も必要です。ヘッドレスの画像には acceptEdits と画像フラグが必要です。アカウントと使用量でワークスペースの有料利用許可を取り消せます。",
-  "referenceAcp": "インストール済みスキルは動的なスラッシュコマンドを追加しますが、この静的な資料には一覧がありません。ACP がローカルで処理するのは /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /whatsnew, /agents とスキルだけです。リンク先のパネルコマンド、設定、ダイアログは拡張機能の操作です。",
+  "referenceAcp": "インストール済みスキルは動的なスラッシュコマンドを追加しますが、この静的な資料には一覧がありません。ACP がローカルで処理するのは /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /whatsnew, /agents とスキルだけです。/playbook はすべてのエディターでローカルに回答します。リンク先のパネルコマンド、設定、ダイアログは拡張機能の操作です。",
   "referenceCiOtherTitle": "その他の CI システム",
   "referenceCiOther": "パッケージのダイジェストを固定した GitLab、Azure、Jenkins、Bitbucket 向けヘッドレスレビュー・修正テンプレート。Node がキーを読み、チェックアウト外に結果を公開し、すべてのテンプレートがそのファイルをアップロードします。GitLab/Bitbucket の外部一時コピーと Bitbucket のプロセス分離は未検証です。追加のキー変数名は MUSE_CI_KEY_ALIASES に指定してください。模擬テストのみ。docs/ci-other-systems.md を参照。",
   "referenceWebFetchTitle": "ウェブ取得",
@@ -538,6 +538,13 @@
   "playbookCommandUsage": "`playbook status|record|settings` を使用してください。",
   "playbookSave": "設定を保存",
   "playbookSaved": "プレイブックの設定を保存しました。",
+  "playbookAnswerReason": "理由",
+  "playbookAnswerWhySafe": "当面安全である理由",
+  "playbookAnswerFollowUp": "フォローアップ",
+  "playbookNotCertified": "手引き: このラウンドは検証できなかったため、合格として数えられません。",
+  "playbookEvidenceUnreadable": "手引き: レビュー対象のファイル、またはサブエージェントの変更内容を読み取れなかったため、このレビューが手引きの対象かどうか判断できません。レビューは送信されませんでした。",
+  "playbookRecordStale": "手引きの記録を読み取れませんでした。表示内容は古い可能性があります。",
+  "playbookMuseCodeStarts": "Muse Code は確認せずにサブエージェントを開始します。プレイブックはラウンドを数え、作業をレビューしますが、開始を止めることはできません。",
   "playbookStrikeBadge": {
     "other": "レビュー {count} ラウンド"
   },
@@ -609,8 +616,13 @@
     "briefRecorded": "手引き: {module} の作業指示を記録しました ({reason})。",
     "configDrift": "判断が必要です: {module} の共有リポジトリ設定が変更されました ({reason})。",
     "fallbackReviewer": "手引き: {actor} が記録済みの代替レビュー担当として {module} を確認します ({reason})。",
-    "residualOpen": "判断が必要です: {lane} に未解決の残存事項があります: {missing}。"
+    "residualOpen": "判断が必要です: {lane} に未解決の残存事項があります: {missing}。",
+    "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "{child} に対するプレイブックの指摘：名前を非表示にしたファイルは秘密情報のように見えます。このサブエージェントのラウンドを数えました。",
+  "playbookBlockedLarge": "{child} に対するプレイブックの指摘：パッチのサイズは {size} で、上限 {bound} を超えています。このサブエージェントのラウンドを数えました。",
+  "playbookBlockedUnreadable": "{child} に対するプレイブックの指摘：成果物を読み取れませんでした。このサブエージェントのラウンドを数えました。",
+  "playbookBlockedMany": "{child} に対するプレイブックの指摘：変更ファイル数：{count}、上限：{bound}。このサブエージェントのラウンドを数えました。",
   "scheduleSettlement": {
     "sent": "スケジュールにより送信",
     "outcomes": {
@@ -4319,6 +4331,7 @@
   "approvalAskRuleWhy": "コマンド ルールにより、このコマンドは毎回確認します: {why}",
   "approvalSecretNote": "このコマンドには検出された秘密が含まれており、伏せ字で表示されます。必ず確認します。ルールによる自動承認はありません。",
   "autoReviewerResolver": "自動レビュー担当",
+  "cliReviewerDecision": "{child} に対する Muse Code レビュー担当",
   "commandRuleResolver": "コマンド ルール",
   "autoReviewAllowed": "許可: {reason}",
   "autoReviewAsked": "確認を求めています: {reason}",

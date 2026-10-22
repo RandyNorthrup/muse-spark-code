@@ -102,6 +102,38 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/**
+The translated table's key order against English, at every level but
+inside plural forms (the archive keeps those as the translator wrote
+them). Missing or extra keys are `tableProblems`' own report; order
+compares the shared sequence, since the packaged archive restores
+English insertion order and byte-exactness needs the source in it.
+*/
+function keyOrderProblems(english, table, isPluralForms, prefix = '') {
+  if (!isRecord(english) || !isRecord(table) || isPluralForms(english)) return []
+  const shared = Object.keys(table).filter((key) => Object.hasOwn(english, key))
+  const inEnglish = Object.keys(english).filter((key) => shared.includes(key))
+  const position = shared.findIndex((key, index) => key !== inEnglish[index])
+  const at = prefix === '' ? 'top level' : prefix
+  const problems =
+    position === -1
+      ? []
+      : [
+          `key order differs from English at ${at}: English has ${inEnglish[position]} where this table has ${shared[position]} (position ${String(position)})`,
+        ]
+  for (const key of shared) {
+    problems.push(
+      ...keyOrderProblems(
+        english[key],
+        table[key],
+        isPluralForms,
+        at === 'top level' ? key : `${at}.${key}`,
+      ),
+    )
+  }
+  return problems
+}
+
 /** Opens a container for `{` or `[` and closes one for `}` or `]`. */
 function trackContainer(open, char) {
   switch (char) {
@@ -244,7 +276,7 @@ function readUntranslated(file, known, locales, problems, repoRoot) {
 
 /** The translated tables in l10n/: one per language TABLE_LOCALES lists, no other. */
 function checkTables(l10n, untranslatedFor, problems, family, repoRoot) {
-  const { TABLE_DIRECTORY, TABLE_LOCALES, tableProblems } = l10n
+  const { TABLE_DIRECTORY, TABLE_LOCALES, tableProblems, isPluralForms } = l10n
   const english = family === 'usage' ? l10n.USAGE_EN : l10n.EN
   const fileName = family === 'usage' ? l10n.usageTableFileName : l10n.tableFileName
   const directory = path.join(repoRoot, TABLE_DIRECTORY)
@@ -284,7 +316,10 @@ function checkTables(l10n, untranslatedFor, problems, family, repoRoot) {
     if (family === 'ui') checkOrder(english, table)
     const untranslated = untranslatedFor(family, locale)
     const found = tableProblems(english, table, { locale, isStrict: true, untranslated })
-    problems.push(...found.map((problem) => `${file}: ${problem}`))
+    problems.push(
+      ...found.map((problem) => `${file}: ${problem}`),
+      ...keyOrderProblems(english, table, isPluralForms).map((problem) => `${file}: ${problem}`),
+    )
   }
   return TABLE_LOCALES.length
 }

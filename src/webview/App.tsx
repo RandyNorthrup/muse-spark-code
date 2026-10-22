@@ -602,6 +602,13 @@ export function App({
     },
     [sharingAction],
   )
+  // The playbook's own channel (M116): the Agent map's lazy chunk speaks it.
+  const postPlaybook = useCallback(
+    (message: unknown) => {
+      postMessage({ type: 'playbook', message })
+    },
+    [postMessage],
+  )
   useEffect(() => {
     const receive = (event: MessageEvent<unknown>) => {
       const parsed = parseHostToWebviewMessage(event.data)
@@ -3158,6 +3165,7 @@ export function App({
         onStopTask={onStopTask}
         onStopAllTasks={onStopAllTasks}
         onOpenMuseSettings={onOpenMuseSettings}
+        onPlaybook={postPlaybook}
         onClose={closeOverlay}
         workflows={workflows}
         workflowTriggerMode={state.usageReport?.account?.workflowTriggerMode}

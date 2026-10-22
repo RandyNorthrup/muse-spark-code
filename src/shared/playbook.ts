@@ -15,7 +15,7 @@ import { reviewResolutionSchema, type ReviewBlock, type ReviewResolution } from 
 
 export type PlaybookFindingClass = (typeof PLAYBOOK_FINDING_CLASSES)[number]
 export type PlaybookConfigurableRule = (typeof PLAYBOOK_CONFIGURABLE_RULES)[number]
-/** @unwired M116 playbook rule type */
+/** A playbook rule, configurable or the safety rule (M116). */
 export type PlaybookRule = PlaybookConfigurableRule | typeof PLAYBOOK_SAFETY_RULE
 
 const id = z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBOOK_ID_MAX_CHARS))
@@ -132,7 +132,7 @@ const leaseToken = z.strictObject({ moduleId: id, laneId: id, ownerId: id, gener
 export type PlaybookLease = z.infer<typeof leaseToken>
 
 /** No review text or file contents in the journal: only host-assigned references. */
-const findingRef = z.strictObject({
+export const playbookFindingRefSchema = z.strictObject({
   id,
   file,
   severity: z.enum(['P1', 'P2', 'P3']),
@@ -156,6 +156,15 @@ const answer = z.discriminatedUnion('status', [
 needed; residuals must be named. A dispute grants no exception; an override
 names lead/owner, reason and time. The adapter maps critical/high/other known
 severities to P1/P2/P3; absent/unknown severity stays P1 until clarified. */
+/**
+Why a child's contribution cannot be reviewed: the closed list (M116,
+D96.17). An unreviewable contribution is a finding about that child,
+journaled with one of these reasons, counted and named, while every other
+child's review proceeds normally.
+*/
+export type BlockedContributionCode =
+  'nameWithheld' | 'patchTooLarge' | 'patchUnreadable' | 'identityUnreadable' | 'tooManyFiles'
+
 export const playbookRoundSchema = z.strictObject({
   module: playbookModuleSchema,
   ...reviewAgents.shape,
@@ -164,7 +173,7 @@ export const playbookRoundSchema = z.strictObject({
   class: z.optional(z.enum(PLAYBOOK_FINDING_CLASSES)),
   round: z.int().check(z.gte(1)),
   phase: z.enum(['build', 'fix', 'redesign']),
-  findings: z.array(findingRef).check(z.maxLength(REVIEW_FINDINGS_MAX)),
+  findings: z.array(playbookFindingRefSchema).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   answers: z.array(answer).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   // Redesign answers retain each prior id/outcome/reason, not only an aggregate.
   resolution: z.optional(z.array(reviewResolutionSchema).check(z.maxLength(REVIEW_FINDINGS_MAX))),
@@ -216,6 +225,7 @@ export const playbookWhyNoteSchema = z.strictObject({
     'gateSkipped',
     'permissionLaundering',
     'classifierBlocked',
+    'contributionBlocked',
     'ruleDisabled',
     'briefRecorded',
     'configDrift',
