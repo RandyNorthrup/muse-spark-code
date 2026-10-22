@@ -30,6 +30,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import { createServer, type Socket } from 'node:net'
 import { redactSecrets } from '../../core/redact'
+import { retireStaleJobs } from './jobBuild'
 import { stopResourceTree } from '../../core/resources/admission'
 import { resourceProcessIdentitySchema, type ResourceProcessIdentity } from '../../shared/resources'
 
@@ -338,6 +339,10 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
     child.once('exit', prepared.closeControl)
     child.once('error', prepared.closeControl)
     prepared.register()
+    // A stale helper build this child held retires now that it ended.
+    child.once('exit', () => {
+      void retireStaleJobs(launch.log)
+    })
     child.once('exit', (code) => {
       if (code !== 0) launch.resource?.failed?.()
       launch.resource?.complete(false)
@@ -378,6 +383,8 @@ export function spawnAttestedJob(
     child.once('exit', () => {
       prepared.closeControl()
       attested.expire()
+      // A stale helper build this child held retires now that it ended.
+      void retireStaleJobs(launch.log)
     })
     child.once('error', () => {
       prepared.closeControl()
