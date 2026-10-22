@@ -71,6 +71,11 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly judge?: ModelApiHostDeps['judge']
   readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
   readonly getProviderAccountId?: () => Promise<string | undefined>
+  /**
+  The provider a run actually uses (an exec provider run). The ready
+  line names it; without it the line names the Meta backend.
+  */
+  readonly readyProvider?: { readonly id: string; readonly origin: string } | undefined
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
@@ -276,6 +281,20 @@ interface HostVariant {
   readonly afterTurnRuns: ModelApiBackendManagerDeps['afterTurnRuns']
   readonly createMcpServers: ModelApiBundleDeps['createMcpServers']
   readonly readyMessage: string
+}
+
+/**
+The backend ready line: it names the provider a run actually uses (its
+entry id and origin host), or the Meta backend where no provider run is
+known. An origin that is not a URL reads as it came, never throwing.
+*/
+export function modelApiReadyMessage(
+  provider: { readonly id: string; readonly origin: string } | undefined,
+): string {
+  if (provider === undefined)
+    return 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)'
+  const host = /^[a-z][a-z0-9+.-]*:\/\/([^/]+)/i.exec(provider.origin)?.[1] ?? provider.origin
+  return `Model API backend ready (${provider.id} via ${host}, stateless reasoning replay)`
 }
 
 /** Runs every edit's completion after a failed begin, before its error travels on. */
@@ -584,7 +603,7 @@ export class ModelApiBackendManager {
         createMcpServers === undefined
           ? undefined
           : (newPool) => createMcpServers(workspaceRoot, newPool),
-      readyMessage: 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)',
+      readyMessage: modelApiReadyMessage(this.deps.readyProvider),
     })
   }
 

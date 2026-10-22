@@ -507,8 +507,14 @@ function modelApiManager(
           log: warn,
         })
       : undefined
+  const providerRun = deps.exec?.providerRun
   return new ModelApiBackendManager({
     log,
+    // The ready line names the provider a run actually uses (RLTESTDRIVE
+    // item 3); without a provider run it names the Meta backend.
+    ...(providerRun !== undefined && {
+      readyProvider: { id: providerRun.provider.entry.id, origin: providerRun.provider.origin },
+    }),
     ...(mediaJobExecutable !== undefined && { mediaJobExecutable }),
     // Each conversion's owner-only folder sits in this private root (VB).
     mediaPrivateRoot: path.join(agentDataFolder(deps), MEDIA_PRIVATE_ROOT_DIR),
