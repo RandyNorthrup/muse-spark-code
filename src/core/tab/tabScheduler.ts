@@ -18,6 +18,12 @@ export interface TabScheduledWork {
   readonly token: TabScheduleToken
   /** Runs to its end once sent; the scheduler never aborts it. */
   readonly run: () => Promise<void>
+  /**
+  Reports the run's own crash: the scheduler calls it when `run`
+  rejects instead of settling, so a crashing run still settles instead
+  of hanging.
+  */
+  readonly report: (error: unknown) => void
 }
 
 export interface TabTriggerOptions {
@@ -45,9 +51,11 @@ export class TabScheduler {
     if (work === undefined || work.token.cancelled) {
       return
     }
-    // No slot, no per-minute count: ready work sends.
-    void work.run().catch(() => {
-      // The work reports its own failure; the scheduler only ever starts it.
+    // No slot, no per-minute count: ready work sends. The work settles
+    // its own outcome; a run that crashes instead reports through the
+    // work's own channel, so it still settles instead of hanging.
+    void work.run().catch((error: unknown) => {
+      work.report(error)
     })
   }
 

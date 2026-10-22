@@ -9,12 +9,19 @@ async function sleep(ms: number): Promise<void> {
 function workOf(hooks: {
   runMs?: number
   isCancelled?: () => boolean
-}): TabScheduledWork & { finished: () => Promise<void>; isStarted: () => boolean } {
+  fail?: Error
+}): TabScheduledWork & {
+  finished: () => Promise<void>
+  isStarted: () => boolean
+  reported: () => unknown
+} {
   let hasStarted = false
+  let reported: unknown
   let finish: Promise<void> = Promise.resolve()
   return {
     finished: () => finish,
     isStarted: () => hasStarted,
+    reported: () => reported,
     token: {
       get cancelled(): boolean {
         return hooks.isCancelled?.() ?? false
@@ -22,8 +29,11 @@ function workOf(hooks: {
     },
     run: () => {
       hasStarted = true
-      finish = sleep(hooks.runMs ?? 0)
+      finish = hooks.fail === undefined ? sleep(hooks.runMs ?? 0) : Promise.reject(hooks.fail)
       return finish
+    },
+    report: (error: unknown) => {
+      reported = error
     },
   }
 }
@@ -95,6 +105,15 @@ describe('TabScheduler (M94 acceptance 7 and 9, real timers)', () => {
     for (const work of works) {
       await work.finished()
     }
+  })
+
+  it('reports a crashing run through the work channel instead of hanging', async () => {
+    const scheduler = new TabScheduler()
+    const failure = new Error('run crashed')
+    const work = workOf({ fail: failure })
+    scheduler.trigger(work, { immediate: true })
+    expect(work.isStarted()).toBe(true)
+    await expect.poll(() => work.reported()).toBe(failure)
   })
 
   it('drops a waiting trigger on cancelPending and leaves a sent request running', async () => {
