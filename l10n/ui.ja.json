@@ -1784,6 +1784,41 @@
     "deviceFlow": "Muse Spark の GitHub サインイン",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Issue ウォッチドッグ",
+    "ack": {
+      "body": "ご報告ありがとうございます。現在トリアージ中であり、今後の連絡はすべてこちらに投稿されます。",
+      "automatedNote": "このメッセージは、リポジトリ管理者の Issue ウォッチドッグにより自動的に投稿されました。"
+    },
+    "reply": {
+      "needsInfo": "ありがとうございます。先に進めるには、もう少し情報が必要です:\n\n{questions}\n\nこちらにご返信ください。返信があり次第、この issue を再確認します。",
+      "duplicate": "これは #{duplicate} の重複のようです。その issue がご報告内容をカバーしていない場合は、こちらにお知らせください。再確認します。",
+      "alreadyFixed": "これは {fixedIn} で修正されました。更新していただき、まだ発生する場合はこの issue を再開してください。",
+      "invalid": "現在の内容では対応できません: {reason}。不足している詳細を添えて新しい issue を開いてください。",
+      "fixed": "これは {pullRequest} で修正され、{version} に含まれています。ご報告ありがとうございました。"
+    },
+    "states": {
+      "seen": "確認済み",
+      "acknowledged": "受領済み",
+      "triaged": "トリアージ済み",
+      "awaitingInfo": "情報待ち",
+      "planned": "計画済み",
+      "replied": "返信済み",
+      "closed": "クローズ済み"
+    },
+    "cli": {
+      "empty": "ウォッチドッグはまだリポジトリを監視していません。",
+      "notWatched": "このリポジトリは監視されていません。",
+      "paused": "{repository} のウォッチドッグを一時停止しました。",
+      "resumed": "{repository} のウォッチドッグを再開しました。",
+      "alreadyPaused": "{repository} のウォッチドッグは既に一時停止しています。",
+      "notPaused": "{repository} のウォッチドッグは一時停止していません。"
+    },
+    "refusal": {
+      "spamHeld": "スパムの疑いで保留されました: 何も投稿されていません。",
+      "approvalRequired": "この投稿には事前の承認が必要です。"
+    }
+  },
   "gitHubSignOut": "サインアウト",
   "gitHubSignOutFailed": "GitHub からのサインアウトを完了できませんでした。もう一度お試しください。",
   "gitRefresh": "最新の情報に更新",

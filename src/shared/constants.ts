@@ -2054,6 +2054,9 @@ export const GITHUB_REQUEST_TIMEOUT_MS = 20_000
 // One page of check runs and one of commit statuses are read; a pull request
 // with more says how many were not.
 export const GITHUB_CHECKS_PAGE_SIZE = 100
+// M115w reads one page of issues, comments and labels per poll; a page that
+// comes back full is followed, like the checks above, until a short page.
+export const GITHUB_ISSUES_PAGE_SIZE = 100
 
 // --- GitHub outside VS Code (M123, PLAN.md D104) ---
 
@@ -4986,6 +4989,17 @@ export const SCHEDULE_ENGINE_ERROR_MAX = 32
 export const SCHEDULE_REPORT_FORMATS = ['markdown', 'html', 'json', 'text'] as const
 export const SCHEDULE_MAX_WEEKLY_TIMES = 24
 export const SCHEDULE_PREVIEW_COUNT = 5
+// M115w: the issue watchdog's acceptance target for the acknowledgement
+// (PLAN acceptance 1). Measured, never enforced: nothing stops, refuses or
+// retries on it; the status names an overdue acknowledgement out loud.
+export const WATCHDOG_ACK_TARGET_MS = 5 * MILLISECONDS_PER_MINUTE
+export const WATCHDOG_STORE_SUBFOLDER = 'watchdog'
+// The label the acknowledgement applies when the repository's policy names
+// none. Repository data, not UI text: the person's policy overrides it.
+export const WATCHDOG_DEFAULT_ACK_LABEL = 'triage'
+// The invisible marker every watchdog post carries, so a later poll finds
+// its own posts and never repeats one (PLAN acceptance 5).
+export const WATCHDOG_POST_MARKER = '<!-- muse-spark-code-watchdog v1 -->'
 export const SCHEDULE_TIMELINE_HOURS = [24, 168] as const
 export const AGENT_SCHEDULES_MAX_ACTIVE = 10
 export const AGENT_SCHEDULE_MIN_INTERVAL_MS = 15 * SCHEDULE_MIN_INTERVAL_MS

@@ -1784,6 +1784,41 @@
     "deviceFlow": "Muse Spark 的 GitHub 登录",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "问题看护",
+    "ack": {
+      "body": "感谢您的报告。该问题现已进入分类流程，后续进展都将发布在这里。",
+      "automatedNote": "此消息由仓库维护者的问题看护自动发布。"
+    },
+    "reply": {
+      "needsInfo": "谢谢。在继续之前，还需要补充一些信息：\n\n{questions}\n\n请在此回复；收到回复后，该问题将被重新审查。",
+      "duplicate": "这看起来是 #{duplicate} 的重复问题。如果该问题未涵盖您报告的内容，请在此说明，我们将重新审查。",
+      "alreadyFixed": "此问题已在 {fixedIn} 中修复。请更新；若问题仍然存在，请重新打开该问题。",
+      "invalid": "按当前描述无法处理：{reason}。请补充缺失的细节后新建一个问题。",
+      "fixed": "此问题已由 {pullRequest} 修复，并已随 {version} 发布。感谢您的报告。"
+    },
+    "states": {
+      "seen": "已发现",
+      "acknowledged": "已确认",
+      "triaged": "已分类",
+      "awaitingInfo": "等待信息",
+      "planned": "已计划",
+      "replied": "已回复",
+      "closed": "已关闭"
+    },
+    "cli": {
+      "empty": "看护尚未监视任何仓库。",
+      "notWatched": "此仓库未被监视。",
+      "paused": "已暂停 {repository} 的看护。",
+      "resumed": "已恢复 {repository} 的看护。",
+      "alreadyPaused": "{repository} 的看护已处于暂停状态。",
+      "notPaused": "{repository} 的看护未处于暂停状态。"
+    },
+    "refusal": {
+      "spamHeld": "因疑似垃圾信息已被扣留：未发布任何内容。",
+      "approvalRequired": "此帖子需要先获得您的批准。"
+    }
+  },
   "gitHubSignOut": "退出登录",
   "gitHubSignOutFailed": "无法完成 GitHub 退出。请重试。",
   "gitRefresh": "刷新",

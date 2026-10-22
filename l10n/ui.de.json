@@ -1813,6 +1813,41 @@
     "deviceFlow": "die GitHub-Anmeldung von Muse Spark",
     "ghLogin": "die GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Issue-Watchdog",
+    "ack": {
+      "body": "Danke für die Meldung. Sie wird jetzt gesichtet, und jede Rückmeldung wird hier veröffentlicht.",
+      "automatedNote": "Diese Nachricht wurde automatisch vom Issue-Watchdog des Repository-Betreuers veröffentlicht."
+    },
+    "reply": {
+      "needsInfo": "Danke. Bevor es weitergehen kann, werden noch einige Informationen benötigt:\n\n{questions}\n\nBitte antworten Sie hier; sobald Sie das tun, wird das Problem erneut angesehen.",
+      "duplicate": "Dies sieht wie ein Duplikat von #{duplicate} aus. Falls jenes Problem nicht abdeckt, was Sie gemeldet haben, sagen Sie bitte hier Bescheid, dann wird es erneut angesehen.",
+      "alreadyFixed": "Dies wurde in {fixedIn} behoben. Bitte aktualisieren Sie, und öffnen Sie das Problem erneut, wenn es weiterhin auftritt.",
+      "invalid": "In dieser Form kann dies nicht bearbeitet werden: {reason}. Bitte öffnen Sie ein neues Problem mit den fehlenden Angaben.",
+      "fixed": "Dies wird durch {pullRequest} behoben und ist in {version} enthalten. Danke für die Meldung."
+    },
+    "states": {
+      "seen": "Gesehen",
+      "acknowledged": "Bestätigt",
+      "triaged": "Gesichtet",
+      "awaitingInfo": "Wartet auf Informationen",
+      "planned": "Geplant",
+      "replied": "Beantwortet",
+      "closed": "Geschlossen"
+    },
+    "cli": {
+      "empty": "Der Watchdog beobachtet noch kein Repository.",
+      "notWatched": "Dieses Repository wird nicht beobachtet.",
+      "paused": "Watchdog für {repository} pausiert.",
+      "resumed": "Watchdog für {repository} fortgesetzt.",
+      "alreadyPaused": "Der Watchdog für {repository} ist bereits pausiert.",
+      "notPaused": "Der Watchdog für {repository} ist nicht pausiert."
+    },
+    "refusal": {
+      "spamHeld": "Als möglicher Spam zurückgehalten: nichts wurde veröffentlicht.",
+      "approvalRequired": "Dieser Beitrag braucht zuerst Ihre Freigabe."
+    }
+  },
   "gitHubSignOut": "Abmelden",
   "gitHubSignOutFailed": "Die Abmeldung von GitHub konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
   "gitRefresh": "Aktualisieren",

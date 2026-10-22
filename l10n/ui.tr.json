@@ -1813,6 +1813,41 @@
     "deviceFlow": "Muse Spark’ın GitHub oturumu",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Sorun bekçisi",
+    "ack": {
+      "body": "Bildiriminiz için teşekkürler. Şu anda triyajda ve sonraki tüm gelişmeler burada yayımlanacak.",
+      "automatedNote": "Bu ileti, depo sorumlusunun sorun bekçisi tarafından otomatik olarak yayımlandı."
+    },
+    "reply": {
+      "needsInfo": "Teşekkürler. Devam etmeden önce biraz daha bilgiye ihtiyaç var:\n\n{questions}\n\nLütfen buradan yanıtlayın; yanıtladığınızda sorun yeniden incelenecek.",
+      "duplicate": "Bu, #{duplicate} kaydının yineleni gibi görünüyor. O kayıt bildirdiğinizi kapsamıyorsa lütfen burada belirtin, yeniden incelenecek.",
+      "alreadyFixed": "Bu, {fixedIn} sürümünde düzeltildi. Lütfen güncelleyin; sorun sürüyorsa bu kaydı yeniden açın.",
+      "invalid": "Bu haliyle işlem yapılamaz: {reason}. Eksik ayrıntıyla yeni bir kayıt açın.",
+      "fixed": "Bu, {pullRequest} ile düzeltildi ve {version} sürümünde yayımlandı. Bildiriminiz için teşekkürler."
+    },
+    "states": {
+      "seen": "Görüldü",
+      "acknowledged": "Onaylandı",
+      "triaged": "Triyajlandı",
+      "awaitingInfo": "Bilgi bekleniyor",
+      "planned": "Planlandı",
+      "replied": "Yanıtlandı",
+      "closed": "Kapatıldı"
+    },
+    "cli": {
+      "empty": "Bekçi henüz hiçbir depoyu izlemiyor.",
+      "notWatched": "Bu depo izlenmiyor.",
+      "paused": "{repository} için bekçi duraklatıldı.",
+      "resumed": "{repository} için bekçi sürdürüldü.",
+      "alreadyPaused": "{repository} bekçisi zaten duraklatılmış.",
+      "notPaused": "{repository} bekçisi duraklatılmamış."
+    },
+    "refusal": {
+      "spamHeld": "Olası istenmeyen ileti olarak tutuldu: hiçbir şey yayımlanmadı.",
+      "approvalRequired": "Bu gönderi önce onayınızı gerektirir."
+    }
+  },
   "gitHubSignOut": "Oturumu kapat",
   "gitHubSignOutFailed": "GitHub oturumu kapatılamadı. Yeniden deneyin.",
   "gitRefresh": "Yenile",
