@@ -124,6 +124,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'account',
     'permissions',
     'history',
+    'bookmarks',
+    'prompt-sequences',
     'context',
     'skills',
     'imports',
@@ -339,6 +341,12 @@ export const REFERENCE_ACTION_FEATURES = {
   updateReport: 'chat',
   exportReport: 'chat',
   reportWebviewError: 'chat',
+  bookmarkSet: 'bookmarks',
+  requestSequences: 'prompt-sequences',
+  sequenceSave: 'prompt-sequences',
+  sequenceDelete: 'prompt-sequences',
+  sequenceStart: 'prompt-sequences',
+  sequenceStop: 'prompt-sequences',
 }
 export { HOST_ACTIONS } from '../protocol'
 export {

@@ -1113,6 +1113,14 @@ transport under web fetch's own 5 MiB body bound and refuses confidential policy
 Imported text is untrusted, reviewed before acceptance, and never executed
 by import or loading.
 
+Prompt sequences (M88) are plain-text files beside the prompts: personal
+sequences in the agent data folder, workspace ones in
+`.muse/prompts/sequences/`. Sequences never sync. Do not save secrets in a
+step. Bookmarks live in VS Code's `globalState` under one key, filed per
+workspace under a digest of the workspace URI, so no path is stored.
+Settings Sync carries them only with the same explicit global opt-in
+(`museSpark.syncPromptsAndBookmarks`); off, everything stays on the machine.
+
 In the ACP runtime, sharing refreshes its already-known credential-variable
 values and the stored key of an active Model API backend. A key that becomes
 known after preview invalidates release if it appears anywhere in the portable

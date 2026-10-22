@@ -2,9 +2,11 @@
 // key holds every workspace's list under its URI digest; a damaged list is
 // reported and kept as found while the other workspaces work as usual.
 import { describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import { BookmarkStore, type BookmarkState } from '../../src/core/prompts/bookmarkStore'
 import { BOOKMARK_SYNC_KEY } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
+import { bookmarkRecordSchema } from '../../src/shared/protocol'
 
 const FIRST_URI = 'file:///Users/person/first.code-workspace'
 const SECOND_URI = 'file:///Users/person/second'
@@ -156,12 +158,13 @@ describe('bookmark store', () => {
     await second.set({ backend: 'modelApi', sessionId: 's-2', title: 'Second', isBookmarked: true })
     const before = storedUris(state.values)
     // Damage arrives through sync: this workspace's list is no longer a list.
+    // The cast names the envelope this test's own sets wrote, to forge the damage.
     const damaged = JSON.parse(before) as { workspaces: Record<string, unknown> }
     const digests = Object.keys(damaged.workspaces)
     expect(digests).toHaveLength(2)
     const ownDigest = digests.find((digest) => {
-      const list = damaged.workspaces[digest] as { sessionId: string }[]
-      return list.some((record) => record.sessionId === 's-1')
+      const parsed = z.array(bookmarkRecordSchema).safeParse(damaged.workspaces[digest])
+      return parsed.success && parsed.data.some((record) => record.sessionId === 's-1')
     })
     expect(ownDigest).toBeDefined()
     if (ownDigest !== undefined) {
@@ -184,6 +187,7 @@ describe('bookmark store', () => {
       title: 'Renamed',
       isBookmarked: true,
     })
+    // The cast names the envelope to prove the damaged bytes passed through untouched.
     const after = JSON.parse(storedUris(state.values)) as { workspaces: Record<string, unknown> }
     expect(ownDigest === undefined ? undefined : after.workspaces[ownDigest]).toEqual({
       sessionId: 's-1',

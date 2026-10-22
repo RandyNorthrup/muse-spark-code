@@ -53,6 +53,7 @@ describe('sequence store', () => {
     const files = await libraryFiles(dataFolder)
     const names: string[] = []
     for (const file of files) {
+      // The cast names the file shape this test's own save wrote, for the name assertion.
       const saved = JSON.parse(await readFile(path.join(folder, file), 'utf8')) as SavedSequence
       names.push(saved.name)
     }
@@ -126,6 +127,7 @@ describe('sequence store', () => {
 
   it('refuses the workspace scope without a folder', async () => {
     const store = new SequenceStore(dataFolder)
+    expect(store.hasWorkspace).toBe(false)
     await expect(store.save(sequence({ scope: 'workspace' }))).rejects.toThrow(
       UI_TEXT.promptWorkspaceRequired,
     )
@@ -133,6 +135,7 @@ describe('sequence store', () => {
       UI_TEXT.promptWorkspaceRequired,
     )
     expect(await store.library()).toEqual([])
+    expect(new SequenceStore(dataFolder, workspaceRoot).hasWorkspace).toBe(true)
   })
 })
 

@@ -114,6 +114,13 @@ export const SLASH_REFERENCE = {
     syntax: ['/compact'],
     descriptions: { museCode: { ui: 'compactDetail' }, modelApi: { ui: 'compactDetail' } },
   },
+  sequences: {
+    syntax: ['/sequences'],
+    descriptions: {
+      museCode: { ui: 'referenceSequences' },
+      modelApi: { ui: 'referenceSequences' },
+    },
+  },
   playback: {
     syntax: ['/playback'],
     descriptions: { museCode: { ui: 'playbackDetail' }, modelApi: { ui: 'playbackDetail' } },

@@ -258,6 +258,8 @@ import { agentDataFolder, workspaceKey } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
+import { BookmarkStore } from './core/prompts/bookmarkStore'
+import { SequenceStore } from './core/prompts/sequenceStore'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
@@ -2951,6 +2953,22 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
+  // M88 (PLAN.md D67): this window's bookmarks and prompt sequence library.
+  // Both stores read through on every call, so every panel shares them; the
+  // session store's retention asks the bookmark store's ids before it deletes.
+  const bookmarkStore = new BookmarkStore(
+    {
+      get: (key) => Promise.resolve(context.globalState.get(key)),
+      update: (key, value) => Promise.resolve(context.globalState.update(key, value)),
+    },
+    vscode.workspace.workspaceFile?.toString() ??
+      vscode.workspace.workspaceFolders?.[0]?.uri.toString(),
+    () => Date.now(),
+  )
+  const sequenceStore = new SequenceStore(
+    agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+    workspaceRoot,
+  )
   const modelApiStore =
     context.storageUri === undefined
       ? undefined
@@ -2974,6 +2992,7 @@ async function activateWindow(
             // The lazy session store releases provider uploads on deletion/purge.
             // Production media and its account ledger load only on first use.
             uploads: (accountId) => loadSessionUploads(accountId),
+            isRetained: (sessionId) => bookmarkStore.has('modelApi', sessionId),
           },
         })
   // M105 lane V seam 1: the window's attached-media registry. The attach
@@ -4450,6 +4469,9 @@ async function activateWindow(
           },
           newAttachmentId: () => crypto.randomUUID(),
           sessions,
+          // M88 (PLAN.md D67): this window's bookmarks and prompt sequences.
+          bookmarks: bookmarkStore,
+          sequences: sequenceStore,
           // The usage modal's Account section and insights (M14).
           readServiceStatus: () =>
             keyClient().readServiceStatus(AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS)),
