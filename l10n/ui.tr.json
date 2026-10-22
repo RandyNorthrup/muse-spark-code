@@ -298,7 +298,7 @@
   "referenceDialogKeys": "Eşleşmeleri gezin, seçili konuşmayı açın veya iletişim kutusunu kapatın.",
   "referencePopoverKeys": "Seçenekleri gezin, değeri ayarlayın, bir seçenek seçin veya menüyü kapatın.",
   "referenceExecImages": "Arayüzsüz görüntüler --image-generation, acceptEdits ve yeterli kesin bütçe gerektirir. Fiyat sorusu gösterilmez; izin gerektiren istekler reddedilir.",
-  "referenceProviders": "Model sağlayıcılarını listeleyin, ekleyin, test edin veya kaldırın. Anahtarlar kimlik bilgisi deposunu kullanır. Ücretli token testleri editör gerektirir; CLI bunları reddeder.",
+  "referenceProviders": "Model sağlayıcılarını listeleyin, ekleyin, test edin, yenileyin veya kaldırın. Anahtarlar kimlik bilgisi deposunu kullanır. Ücretli token testleri editör gerektirir; CLI bunları reddeder.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Yerel sunucuda yüklenen bağlam penceresini girin. Elle girilen değerler taranan sınırların yerine geçer.",
     "resource-governor": "--resource-governor on|off: Ajan ortamının başlattığı işi yavaşlatarak veya erteleyerek makinenin yanıt verebilirliğini korur. Varsayılan olarak açık.",
@@ -3879,6 +3879,17 @@
     "one": "Anahtar çalışıyor · {count} model.",
     "other": "Anahtar çalışıyor · {count} model."
   },
+  "providerRefreshAdded": {
+    "one": "{provider} üzerine 1 yeni model kaydedildi: {models}.",
+    "other": "{provider} üzerine {count} yeni model kaydedildi: {models}."
+  },
+  "providerRefreshMissing": "Hâlâ {provider} üzerinde yapılandırılmış, ancak artık listelenmiyor: {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} zaten güncel: 1 model.",
+    "other": "{provider} zaten güncel: {count} model."
+  },
+  "providerModelStoredOnUse": "{model}, sağlayıcının canlı listesinden {provider} üzerine kaydedildi.",
+  "providerModelStoreFailed": "{model}, {provider} üzerine kaydedilemedi; bu çalıştırma dosyayı güncellemeden devam ediyor.",
   "providerModelNoToolCalling": "{model}, araç çağrıları onaylanmadığı için kodlama aracısını çalıştıramaz.",
   "providerAddPickModel": "Bu modellerden birini veya birkaçını --model <id> ile ekleyin (tekrarlanabilir):",
   "providerAddNeedsModel": "--model <id> ile en az bir model belirtin (tekrarlanabilir).",

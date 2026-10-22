@@ -297,7 +297,7 @@
   "referenceDialogKeys": "浏览匹配项、打开所选对话或关闭对话框。",
   "referencePopoverKeys": "浏览选项、调整值、选择选项或关闭菜单。",
   "referenceExecImages": "无界面图像需要 --image-generation、acceptEdits 和充足的硬性预算。不显示价格确认问题；需要许可的请求会被拒绝。",
-  "referenceProviders": "列出、添加、测试或移除模型提供商。密钥保存在凭据存储中。付费令牌探测需要编辑器；CLI 会拒绝这些探测。",
+  "referenceProviders": "列出、添加、测试、刷新或移除模型提供商。密钥保存在凭据存储中。付费令牌探测需要编辑器；CLI 会拒绝这些探测。",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: 输入本地服务器加载的上下文窗口。手动值优先于扫描得到的限制。ACP 使用 providers.json 中相同的 modelLimits。",
     "resource-governor": "--resource-governor on|off: 通过减慢或延后代理运行环境启动的工作，保持此计算机响应流畅。默认开启。",
@@ -3795,6 +3795,15 @@
   "providerTestOk": {
     "other": "密钥有效 · {count} 个模型。"
   },
+  "providerRefreshAdded": {
+    "other": "已在 {provider} 上存储 {count} 个新模型：{models}。"
+  },
+  "providerRefreshMissing": "仍在 {provider} 上配置，但不再列出：{models}。",
+  "providerRefreshCurrent": {
+    "other": "{provider} 已是最新：{count} 个模型。"
+  },
+  "providerModelStoredOnUse": "已从提供商的实时列表中将 {model} 存储到 {provider}。",
+  "providerModelStoreFailed": "无法将 {model} 存储到 {provider}；本次运行将在不更新文件的情况下继续。",
   "providerModelNoToolCalling": "{model} 无法运行编码代理，因为尚未确认其工具调用能力。",
   "providerAddPickModel": "使用 --model <id> 添加其中一个或多个模型（可重复）：",
   "providerAddNeedsModel": "请使用 --model <id> 至少指定一个模型（可重复）。",

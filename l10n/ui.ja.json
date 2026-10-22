@@ -297,7 +297,7 @@
   "referenceDialogKeys": "候補を移動し、選択した会話を開くか、ダイアログを閉じます。",
   "referencePopoverKeys": "選択肢を移動し、値を調整し、選択するか、メニューを閉じます。",
   "referenceExecImages": "ヘッドレス画像には --image-generation、acceptEdits、十分な厳格な予算が必要です。価格の確認は表示されず、許可が必要な要求は拒否されます。",
-  "referenceProviders": "モデルプロバイダーを一覧表示、追加、テスト、削除します。キーは資格情報ストアを使用します。有料トークンの検査にはエディターが必要で、CLI は拒否します。",
+  "referenceProviders": "モデルプロバイダーを一覧表示、追加、テスト、更新、削除します。キーは資格情報ストアを使用します。有料トークンの検査にはエディターが必要で、CLI は拒否します。",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: ローカルサーバーに読み込まれたコンテキストウィンドウを入力してください。手動値はスキャンされた制限より優先されます。",
     "resource-governor": "--resource-governor on|off: エージェント実行環境が開始した処理を遅くするか延期して、このマシンの応答性を保ちます。既定で有効です。",
@@ -3795,6 +3795,15 @@
   "providerTestOk": {
     "other": "キーは有効です · {count} モデル。"
   },
+  "providerRefreshAdded": {
+    "other": "{provider}に新しいモデル{count}件を保存しました：{models}。"
+  },
+  "providerRefreshMissing": "{provider}には引き続き設定されていますが、一覧にはありません：{models}。",
+  "providerRefreshCurrent": {
+    "other": "{provider}は既に最新です：モデル{count}件。"
+  },
+  "providerModelStoredOnUse": "プロバイダーのライブ一覧から{model}を{provider}に保存しました。",
+  "providerModelStoreFailed": "{model}を{provider}に保存できませんでした。この実行はファイルを更新せずに続行します。",
   "providerModelNoToolCalling": "{model} はツール呼び出しが確認されていないため、コーディングエージェントを実行できません。",
   "providerAddPickModel": "これらのモデルの1つ以上を --model <id> で追加してください（繰り返し可）：",
   "providerAddNeedsModel": "--model <id> で少なくとも1つのモデルを指定してください（繰り返し可）。",

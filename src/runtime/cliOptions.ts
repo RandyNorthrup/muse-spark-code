@@ -367,6 +367,7 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     'providers list': 'providers list',
     providersList: 'providers list',
     providersTest: 'providers test <provider>',
+    providersRefresh: 'providers refresh <provider>',
     providersRemove: 'providers remove <provider>',
     openRouterConnect: 'providers connect openrouter',
     providerKeyUsage: 'providers usage <id>',
@@ -378,6 +379,7 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     const usage: Readonly<Record<string, string>> = {
       providersList: table.referenceProviders,
       providersTest: table.referenceProviders,
+      providersRefresh: table.referenceProviders,
       providersRemove: table.referenceProviders,
       openRouterConnect: table.providerOpenRouterServices,
       providerKeyUsage: table.usageKeyUsage,

@@ -298,7 +298,7 @@
   "referenceDialogKeys": "Találatok bejárása, a kiválasztott beszélgetés aktiválása vagy az ablak bezárása.",
   "referencePopoverKeys": "Opciók bejárása, érték módosítása, kiválasztás vagy a menü bezárása.",
   "referenceExecImages": "A felület nélküli képekhez --image-generation, acceptEdits és elegendő szigorú keret szükséges. Nincs árjóváhagyási kérdés; az engedélyköteles kérések elutasításra kerülnek.",
-  "referenceProviders": "Modellszolgáltatók listázása, hozzáadása, tesztelése vagy eltávolítása. A kulcsok a hitelesítőadat-tárolóba kerülnek. A fizetős tokentesztekhez szerkesztő kell; a CLI elutasítja őket.",
+  "referenceProviders": "Modellszolgáltatók listázása, hozzáadása, tesztelése, frissítése vagy eltávolítása. A kulcsok a hitelesítőadat-tárolóba kerülnek. A fizetős tokentesztekhez szerkesztő kell; a CLI elutasítja őket.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Adja meg a helyi szerveren betöltött kontextusablakot. A kézi értékek felülírják a felderített korlátokat. Az",
     "resource-governor": "--resource-governor on|off: Az ügynökkörnyezet által indított munka lassításával vagy elhalasztásával megőrzi a gép válaszkészségét. Alapértelmezés szerint bekapcsolva.",
@@ -3879,6 +3879,17 @@
     "one": "A kulcs működik · {count} modell.",
     "other": "A kulcs működik · {count} modell."
   },
+  "providerRefreshAdded": {
+    "one": "Tárolva 1 új modell itt: {provider}: {models}.",
+    "other": "Tárolva {count} új modell itt: {provider}: {models}."
+  },
+  "providerRefreshMissing": "Továbbra is be van állítva itt: {provider}, de már nem szerepel a listában: {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} már naprakész: 1 modell.",
+    "other": "{provider} már naprakész: {count} modell."
+  },
+  "providerModelStoredOnUse": "{model} tárolva itt: {provider}, a szolgáltató élő listájáról.",
+  "providerModelStoreFailed": "Nem sikerült tárolni ide: {provider} ({model}); a futás a fájl frissítése nélkül folytatódik.",
   "providerModelNoToolCalling": "{model} nem tudja futtatni a kódoló ügynököt, mert az eszközhívások nincsenek megerősítve hozzá.",
   "providerAddPickModel": "Adja hozzá e modellek közül egyet vagy többet a --model <id> kapcsolóval (ismételhető):",
   "providerAddNeedsModel": "Adjon meg legalább egy modellt a --model <id> kapcsolóval (ismételhető).",

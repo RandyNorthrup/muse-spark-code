@@ -25,29 +25,16 @@ const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl } = endpointPolicy
 import type { ProviderPreset } from '../core/providers/presets'
 import { isConnectionFailure } from '../core/networkFailure'
-const {
-  azureOrigin,
-  inspectProviderKey,
-  providerKeyNoticeText,
-  OPENROUTER_ATTRIBUTION,
-  presetById,
-} = presets
+const { azureOrigin, inspectProviderKey, providerKeyNoticeText, presetById } = presets
 const { applyWizardEvent, startWizard, wizardBlockers, wizardSummary } = wizardFlow
 import type {
   ProviderEntry,
   ProvidersFile,
   ProvidersFileRead,
 } from '../core/providers/providersFile'
-import type { TransportDeps } from '../core/backends/modelapi/transport'
 const { emptyProvidersFile, readProvidersFile, refusalDetail, writeProvidersFileAtomic } =
   providersFile
-import {
-  CREDENTIAL_RECORD_VERSION,
-  HTTP_STATUS,
-  PROVIDER_PROBE_MODEL_IDS_MAX,
-  PROVIDER_PROBE_TIMEOUT_MS,
-  UI_TEXT,
-} from '../shared/constants'
+import { CREDENTIAL_RECORD_VERSION, HTTP_STATUS, UI_TEXT } from '../shared/constants'
 import { credentialLockDir } from '../core/credentialPaths'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
@@ -56,11 +43,13 @@ import { providerKeyFailureText } from './exec/keyInput'
 import { isNonTextStdin } from './hiddenInput'
 import {
   formatStoredProviderSecret,
+  isStoreUnavailable,
   parseStoredProviderSecret,
   providerSecretAccount,
   StoreUnavailableError,
 } from './keyStore'
 import {
+  diffLiveModels,
   isEndpointBindingCurrent,
   allowedProviderPaths,
   isModelUnpriced,
@@ -71,6 +60,9 @@ import {
   type CatalogPresence,
   type ResolvedProvider,
 } from './exec/providerExec'
+import { listModelIds, providerListHeaders, readProviderJson } from './exec/providerList'
+// The panel's Refresh Models reads the live list through the commands.
+export { listProviderModels } from './exec/providerList'
 
 const EXIT_OK = 0
 const EXIT_FAILED = 1
@@ -327,41 +319,7 @@ function fixedOriginOf(preset: ProviderPreset | undefined): string | undefined {
   return preset?.origin.kind === 'fixed' ? preset.origin.origin : undefined
 }
 
-function attributionHeaders(preset: ProviderPreset): Record<string, string> {
-  return preset.id === 'openrouter'
-    ? {
-        [OPENROUTER_ATTRIBUTION.refererHeader]: OPENROUTER_ATTRIBUTION.referer,
-        [OPENROUTER_ATTRIBUTION.titleHeader]: OPENROUTER_ATTRIBUTION.title,
-        [OPENROUTER_ATTRIBUTION.categoriesHeader]: OPENROUTER_ATTRIBUTION.categories,
-      }
-    : {}
-}
-
 export type ProbeOutcome = presets.KeyProbeOutcome
-
-/** Model ids from a list body: OpenAI's `{data: [{id}]}` or Gemini's `{models: [{name}]}`. */
-const modelId = z.string().check(z.minLength(1))
-const modelRows = z
-  .array(z.object({ id: modelId }))
-  .check(z.maxLength(PROVIDER_PROBE_MODEL_IDS_MAX))
-const modelsBody = z.union([
-  z.object({ data: modelRows }),
-  z.object({
-    models: z.array(z.object({ name: modelId })).check(z.maxLength(PROVIDER_PROBE_MODEL_IDS_MAX)),
-  }),
-])
-
-function listModelIds(body: unknown, preset: ProviderPreset): readonly string[] | undefined {
-  // Only Together has the captured top-level array (free list, zero model attempts).
-  const parsed = z.safeParse(preset.id === 'together' ? modelRows : modelsBody, body)
-  if (!parsed.success) return undefined
-  if (Array.isArray(parsed.data)) return parsed.data.map((row) => row.id)
-  return 'data' in parsed.data
-    ? parsed.data.data.map((row) => row.id)
-    : parsed.data.models.map((row) =>
-        row.name.startsWith('models/') ? row.name.slice('models/'.length) : row.name,
-      )
-}
 
 const catalogProviders = z.object({
   providers: z.record(z.string(), z.object({ models: z.record(z.string(), z.unknown()) })),
@@ -439,161 +397,6 @@ function probeReason(reason: string): string {
       return reason
     }
   }
-}
-
-function ignoreProbeLog(): void {
-  // Commands return fixed probe outcomes; transport details never reach terminal logs.
-}
-
-/**
-One pinned, authenticated provider GET as JSON: the shared read behind
-`getProviderJson` (D119) and `probeProvider` (D74). It answers the status
-with its parsed body, or the raw transport error with its signal for the
-caller to map; transport detail never reaches the terminal.
-*/
-async function readProviderJson(
-  fetchImpl: typeof fetch,
-  provider: ResolvedProvider,
-  key: string | undefined,
-  url: string,
-  headers: Readonly<Record<string, string>>,
-  failures: Pick<TransportDeps, 'parseError' | 'sendFailure'>,
-): Promise<
-  | { readonly status: number; readonly body: unknown }
-  | { readonly error: unknown; readonly signal: AbortSignal }
-> {
-  const shared = await import('../host/backend/modelApiEntry')
-  const auth = await import('../host/backend/configuredProvidersEntry')
-  shared.setUiText(UI_TEXT, uiLocale())
-  auth.setUiText(UI_TEXT, uiLocale())
-  const origin = new URL(url).origin
-  const source =
-    key === undefined
-      ? new auth.NoAuthSource(origin)
-      : new auth.ApiKeyAuthSource(
-          () =>
-            Promise.resolve({
-              record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
-              key,
-            }),
-          provider.preset.id === 'custom' && provider.entry.format === 'anthropic'
-            ? 'x-api-key'
-            : (provider.preset.authHeader ?? 'bearer'),
-        )
-  const client = new shared.RequestTransport({
-    baseUrl: origin,
-    auth: source,
-    // pinProviderFetch rechecks DNS and the saved path/network at every dispatch.
-    verifyEndpoint: async (requestUrl) => {
-      await source.headers(requestUrl)
-    },
-    fetch: fetchImpl,
-    // Optional with exactOptionalPropertyTypes: an explicit undefined does
-    // not typecheck, so each reader stays out unless it is defined — the
-    // list read sends none, the key test sends the provider's own.
-    ...(failures.parseError !== undefined && { parseError: failures.parseError }),
-    ...(failures.sendFailure !== undefined && { sendFailure: failures.sendFailure }),
-    now: Date.now,
-    random: Math.random,
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    // Commands report fixed probe outcomes; transport detail is never logged.
-    log: {
-      info: ignoreProbeLog,
-      warn: ignoreProbeLog,
-      error: ignoreProbeLog,
-      trace: ignoreProbeLog,
-    },
-  })
-  const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
-  let result: Awaited<ReturnType<typeof client.request>>
-  try {
-    result = await client.request(
-      url.slice(origin.length),
-      {
-        method: 'GET',
-        headers,
-        accept: 'application/json',
-        retries: 'rateLimitOnly',
-      },
-      signal,
-    )
-  } catch (error: unknown) {
-    return { error, signal }
-  }
-  try {
-    return {
-      status: result.response.status,
-      body: await shared.parseJsonResponse(result, (value) => value),
-    }
-  } catch {
-    return { status: result.response.status, body: undefined }
-  }
-}
-
-/** One pinned, authenticated provider read (D119): the status with its parsed body, an HTTP status alone, or the transport failure. */
-async function getProviderJson(
-  fetch: typeof globalThis.fetch,
-  provider: ResolvedProvider,
-  key: string | undefined,
-  resolveHost: ProvidersDeps['resolveHost'],
-  headers: Readonly<Record<string, string>>,
-  url: string,
-  transport?: typeof fetch,
-): Promise<
-  | { readonly status: number; readonly body: unknown }
-  | { readonly transport: 'rebinding' | 'unreachable' }
-> {
-  const shared = await import('../host/backend/modelApiEntry')
-  const via =
-    transport ?? pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
-  const read = await readProviderJson(via, provider, key, url, headers, {})
-  if ('error' in read) {
-    const error = read.error
-    if (error instanceof shared.ModelApiError && error.status !== 0) {
-      return { status: error.status, body: undefined }
-    }
-    return {
-      transport:
-        error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable',
-    }
-  }
-  return read
-}
-
-/** The request headers behind a provider's list read. */
-function providerListHeaders(provider: ResolvedProvider): Record<string, string> {
-  const headers: Record<string, string> = { ...attributionHeaders(provider.preset) }
-  if ((provider.entry.format ?? provider.preset.format) === 'anthropic') {
-    // Both captured Anthropic list requests carry this exact version.
-    headers['anthropic-version'] = '2023-06-01'
-  }
-  return headers
-}
-
-/**
-The provider's own model list (D119): the ids as the provider lists them,
-or undefined where the list cannot be read with the stored key (no key,
-no free check, unreachable, unparseable). Nothing is billed.
-*/
-export async function listProviderModels(
-  fetch: typeof globalThis.fetch,
-  provider: ResolvedProvider,
-  key: string | undefined,
-  resolveHost: ProvidersDeps['resolveHost'],
-): Promise<readonly string[] | undefined> {
-  if (provider.preset.keyTest.kind === 'paid-token') return undefined
-  if (key === undefined && provider.preset.auth === 'apiKey') return undefined
-  const listed = await getProviderJson(
-    fetch,
-    provider,
-    key,
-    resolveHost,
-    providerListHeaders(provider),
-    `${provider.origin}${providerModelsPath(provider)}`,
-  )
-  return !('status' in listed) || listed.status !== HTTP_STATUS.ok
-    ? undefined
-    : listModelIds(listed.body, provider.preset)
 }
 
 /**
@@ -1144,7 +947,15 @@ export async function storedProviderKey(
     return { ok: false }
   }
   const account = providerSecretAccount(provider.entry.id)
-  const stored = account === undefined ? undefined : await deps.secrets.get(account)
+  let stored: string | undefined
+  try {
+    stored = account === undefined ? undefined : await deps.secrets.get(account)
+  } catch (error: unknown) {
+    // Only a down store answers this way; anything else is not this
+    // read's answer to give.
+    if (!isStoreUnavailable(error)) throw error
+    return refuse(UI_TEXT.acpStoreDown)
+  }
   if (stored === undefined || stored === '') {
     return refuse(fill(UI_TEXT.providerKeyAbsent, { provider: provider.entry.id }))
   }
@@ -1170,42 +981,68 @@ export async function storedProviderKey(
   return { ok: true, key: parsed.key }
 }
 
-/** `providers test`: the stored credential, the binding, the endpoint and the free check. */
-export async function providersTest(deps: ProvidersDeps, providerId: string): Promise<number> {
+/**
+A command's probed provider (D74): the file resolves the provider, the
+stored key and the binding check pass, and the free check answers. Every
+failure prints its own refusal and answers undefined. The fetch seam is
+the suites': the commands dial the checked address everywhere else.
+*/
+async function probeCommandProvider(
+  deps: ProvidersDeps,
+  providerId: string,
+  fetch?: typeof globalThis.fetch,
+): Promise<
+  | {
+      readonly provider: ResolvedProvider
+      readonly probe: Extract<ProbeOutcome, { readonly ok: true }>
+    }
+  | undefined
+> {
   const file = await commandFile(deps)
-  if (file === undefined) return EXIT_FAILED
+  if (file === undefined) return undefined
   const resolved = await resolveProvider(file, providerId, presetById, deps.resolveHost)
   if (!resolved.ok) {
     if (resolved.error === 'unknown-provider' || resolved.error === 'unknown-preset') {
-      return failed(deps, fill(UI_TEXT.providerUnknown, { provider: providerId }))
+      failed(deps, fill(UI_TEXT.providerUnknown, { provider: providerId }))
+      return undefined
     }
-    return failed(
+    failed(
       deps,
       resolved.error === 'no-request-path'
         ? fill(UI_TEXT.providerNoRequestPath, { provider: providerId })
         : fill(UI_TEXT.providerEndpointRefused, { reason: resolved.error }),
     )
+    return undefined
   }
   const { provider } = resolved
   const stored = await storedProviderKey(deps, provider)
-  if (!stored.ok) return EXIT_FAILED
-  const key = stored.key
+  if (!stored.ok) return undefined
   const answers = await deps.resolveHost(new URL(provider.origin).hostname)
   if (!isEndpointBindingCurrent(provider, answers)) {
-    return failed(
-      deps,
-      fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }),
-    )
+    failed(deps, fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }))
+    return undefined
   }
-  const probe = await probeProvider(provider, key, deps.resolveHost)
+  const probe =
+    fetch === undefined
+      ? await probeProvider(provider, stored.key, deps.resolveHost)
+      : await probeProvider(fetch, provider, stored.key, deps.resolveHost)
   if (!probe.ok) {
-    return failed(
+    failed(
       deps,
       probe.paid
         ? `${fill(UI_TEXT.providerNoRequestPath, { provider: provider.preset.label })} ${fill(UI_TEXT.providerCliConfigure, { preset: 'openai|anthropic|gemini|custom' })}`
         : fill(UI_TEXT.providerTestFailed, { detail: probeReason(probe.reason) }),
     )
+    return undefined
   }
+  return { provider, probe }
+}
+
+/** `providers test`: the stored credential, the binding, the endpoint and the free check. */
+export async function providersTest(deps: ProvidersDeps, providerId: string): Promise<number> {
+  const probed = await probeCommandProvider(deps, providerId)
+  if (probed === undefined) return EXIT_FAILED
+  const { provider, probe } = probed
   deps.print(
     probe.modelCount === undefined
       ? UI_TEXT.providerTestOkKey
@@ -1218,6 +1055,85 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
 }
 
 /** `providers remove`: the entry and its secret, at once. */
+/**
+`providers refresh`: re-read the provider's live model list and store
+every live id the file lacks (RLTESTDRIVE item 5). The file's list
+freezes at `providers add`; refresh unfreezes it without touching the
+person's selection: filed ids the list lacks stay, reported as still
+configured. A list that cannot be read fails with the probe's reason
+and leaves the file untouched. The fetch seam is the suites': the
+command dials the checked address everywhere else, as the probe does.
+*/
+export async function providersRefresh(
+  deps: ProvidersDeps,
+  providerId: string,
+  fetch?: typeof globalThis.fetch,
+): Promise<number> {
+  const probed = await probeCommandProvider(deps, providerId, fetch)
+  if (probed === undefined) return EXIT_FAILED
+  const { provider, probe } = probed
+  const live = probe.modelIds ?? []
+  const { added, missing } = diffLiveModels(provider.entry.models, live)
+  if (added.length === 0) {
+    deps.print(
+      plural(UI_TEXT.providerRefreshCurrent, provider.entry.models.length, {
+        provider: provider.entry.id,
+      }),
+    )
+    if (missing.length > 0) {
+      deps.print(
+        fill(UI_TEXT.providerRefreshMissing, {
+          provider: provider.entry.id,
+          models: missing.join(', '),
+        }),
+      )
+    }
+    return EXIT_OK
+  }
+  const vanishFlag = { value: false }
+  const committed = await commitProviderChange(
+    deps,
+    provider.entry.id,
+    (current) => {
+      const filed = current.providers.find((candidate) => candidate.id === provider.entry.id)
+      if (filed === undefined) {
+        vanishFlag.value = true
+        return current
+      }
+      const fresh = added.filter((model) => !filed.models.includes(model))
+      return {
+        ...current,
+        providers: current.providers.map((candidate) =>
+          candidate.id === provider.entry.id
+            ? { ...candidate, models: [...candidate.models, ...fresh] }
+            : candidate,
+        ),
+      }
+    },
+    false,
+  )
+  if (committed !== EXIT_OK) return committed
+  if (vanishFlag.value)
+    return failed(deps, fill(UI_TEXT.providerUnknown, { provider: provider.entry.id }))
+  deps.print(
+    plural(UI_TEXT.providerRefreshAdded, added.length, {
+      provider: provider.entry.id,
+      models: added.join(', '),
+    }),
+  )
+  if (missing.length > 0) {
+    deps.print(
+      fill(UI_TEXT.providerRefreshMissing, {
+        provider: provider.entry.id,
+        models: missing.join(', '),
+      }),
+    )
+  }
+  const addedWarnings = await missingPriceWarnings(deps, { ...provider.entry, models: [...added] })
+  for (const line of addedWarnings) deps.print(line)
+  return EXIT_OK
+}
+
 export async function providersRemove(deps: ProvidersDeps, providerId: string): Promise<number> {
   const committed = await commitProviderChange(
     deps,

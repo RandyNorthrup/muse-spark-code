@@ -297,7 +297,7 @@
   "referenceDialogKeys": "결과를 탐색하고 선택한 대화를 열거나 대화 상자를 닫습니다.",
   "referencePopoverKeys": "옵션을 탐색하고 값을 조정하고 선택하거나 메뉴를 닫습니다.",
   "referenceExecImages": "헤드리스 이미지에는 --image-generation, acceptEdits 및 충분한 엄격한 예산이 필요합니다. 가격 확인 질문은 표시되지 않으며 권한이 필요한 요청은 거부됩니다.",
-  "referenceProviders": "모델 공급자를 나열, 추가, 테스트 또는 제거합니다. 키는 자격 증명 저장소를 사용합니다. 유료 토큰 검사는 편집기가 필요하며 CLI는 이를 거부합니다.",
+  "referenceProviders": "모델 공급자를 나열, 추가, 테스트, 새로 고침 또는 제거합니다. 키는 자격 증명 저장소를 사용합니다. 유료 토큰 검사는 편집기가 필요하며 CLI는 이를 거부합니다.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: 로컬 서버에 로드된 컨텍스트 창을 입력하세요. 수동 값이 스캔된 한도보다 우선합니다.",
     "resource-governor": "--resource-governor on|off: 에이전트 실행 환경이 시작한 작업을 늦추거나 연기하여 컴퓨터의 응답성을 유지합니다. 기본적으로 켜져 있습니다.",
@@ -3795,6 +3795,15 @@
   "providerTestOk": {
     "other": "키가 작동합니다 · 모델 {count}개."
   },
+  "providerRefreshAdded": {
+    "other": "{provider}에 새 모델 {count}개를 저장했습니다: {models}."
+  },
+  "providerRefreshMissing": "{provider}에 계속 구성되어 있지만 더는 목록에 없습니다: {models}.",
+  "providerRefreshCurrent": {
+    "other": "{provider}이(가) 이미 최신 상태입니다: 모델 {count}개."
+  },
+  "providerModelStoredOnUse": "제공자의 실시간 목록에서 {model}을(를) {provider}에 저장했습니다.",
+  "providerModelStoreFailed": "{model}을(를) {provider}에 저장하지 못했습니다. 이번 실행은 파일을 업데이트하지 않고 계속됩니다.",
   "providerModelNoToolCalling": "{model}은(는) 도구 호출이 확인되지 않아 코딩 에이전트를 실행할 수 없습니다.",
   "providerAddPickModel": "이러한 모델 중 하나 이상을 --model <id>(으)로 추가하세요(반복 가능):",
   "providerAddNeedsModel": "--model <id>(으)로 모델을 하나 이상 지정하세요(반복 가능).",

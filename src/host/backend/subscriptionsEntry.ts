@@ -3,6 +3,8 @@ export { setUiText } from '../../shared/l10n/text'
 export {
   ChatGptSignIn,
   ChatGptSignInError,
+  chatGptGrantStatus,
+  chatGptRecordSchema,
   parseChatGptCallback,
 } from '../../core/providers/subscriptions/chatgpt'
 export type { ChatGptHostPort } from '../../core/providers/subscriptions/chatgpt'

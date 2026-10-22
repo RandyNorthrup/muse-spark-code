@@ -973,9 +973,12 @@ before sending. Configured API-key and local providers share the captured
 Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
 are refused and each request pins checked DNS answers. ACP reads the same
 user-level `providers.json`, using its own OS credential store. The terminal
-offers `providers list`, `providers add`, `providers test`, `providers remove`,
-`providers models <entry> [--add <model>] [--remove <model>]`
-and `auth set|status|clear --provider <id>`. Free checks use the shared
+offers `providers list`, `providers add`, `providers test`, `providers refresh <id>`,
+`providers remove`, `providers models <entry> [--add <model>] [--remove <model>]`
+and `auth set|status|clear --provider <id>`. A provider's model list freezes at
+`providers add`: `providers refresh <id>` stores every live id the file lacks
+(filed ids the list lacks stay, reported as still configured), and a run asked
+for a model the live list has admits it and files it on use. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
 A provider key is never refused for how it looks: any non-blank key is
 sent to the provider's own free key test, and a refusal shows the

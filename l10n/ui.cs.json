@@ -300,7 +300,7 @@
   "referenceDialogKeys": "Procházet výsledky, aktivovat vybranou konverzaci nebo zavřít dialog.",
   "referencePopoverKeys": "Procházet možnosti, upravit hodnotu, vybrat možnost nebo zavřít nabídku.",
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
-  "referenceProviders": "Vypisujte, přidávejte, testujte nebo odebírejte poskytovatele modelů. Klíče využívají úložiště přihlašovacích údajů. Placené testy tokenů vyžadují editor; CLI je odmítá.",
+  "referenceProviders": "Vypisujte, přidávejte, testujte, aktualizujte nebo odebírejte poskytovatele modelů. Klíče využívají úložiště přihlašovacích údajů. Placené testy tokenů vyžadují editor; CLI je odmítá.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Zadejte kontextové okno načtené na místním serveru. Ruční hodnoty mají přednost před zjištěnými limity.",
     "resource-governor": "--resource-governor on|off: Udržuje odezvu počítače zpomalením nebo odložením práce spuštěné prostředím agenta. Ve výchozím nastavení zapnuto.",
@@ -4047,6 +4047,21 @@
     "few": "Klíč funguje · {count} modely.",
     "many": "Klíč funguje · {count} modelů."
   },
+  "providerRefreshAdded": {
+    "one": "Na {provider} uložen 1 nový model: {models}.",
+    "few": "Na {provider} uloženy {count} nové modely: {models}.",
+    "many": "Na {provider} uloženo {count} nových modelů: {models}.",
+    "other": "Na {provider} uloženo {count} nových modelů: {models}."
+  },
+  "providerRefreshMissing": "Na {provider} stále nastaveno, ale již není v seznamu: {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} je již aktuální: 1 model.",
+    "few": "{provider} je již aktuální: {count} modely.",
+    "many": "{provider} je již aktuální: {count} modelů.",
+    "other": "{provider} je již aktuální: {count} modelů."
+  },
+  "providerModelStoredOnUse": "Model {model} uložen na {provider} z živého seznamu poskytovatele.",
+  "providerModelStoreFailed": "Model {model} se na {provider} nepodařilo uložit; běh pokračuje bez aktualizace souboru.",
   "providerModelNoToolCalling": "{model} nemůže spouštět kódovacího agenta, protože pro něj není potvrzeno volání nástrojů.",
   "providerAddPickModel": "Přidejte jeden nebo více těchto modelů pomocí --model <id> (lze opakovat):",
   "providerAddNeedsModel": "Zadejte alespoň jeden model pomocí --model <id> (lze opakovat).",
