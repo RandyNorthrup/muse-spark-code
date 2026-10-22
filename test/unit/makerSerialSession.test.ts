@@ -97,7 +97,7 @@ async function fixture() {
     write: SerialProcess['write']
     close: SerialProcess['close']
     closeOnce: SerialProcess['close'] | undefined
-    confirm: (request: SerialApprovalRequest) => Promise<ReturnType<typeof allow>>
+    confirm: SerialSessionDependencies['confirm']
     identity: SerialIdentity
     identityQueue: SerialIdentity[]
     identityNow: SerialSessionDependencies['identityNow'] | undefined

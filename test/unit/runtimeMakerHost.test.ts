@@ -458,7 +458,8 @@ describe('runtime maker host', () => {
       ['RVM103W4 P3 no consumer can restore an old epoch; only newDocument advances it', true],
     ] as const)('%s', async (_name, checksReadonlyEpoch) => {
       const asked = Promise.withResolvers<unknown>()
-      const { host, deps } = await fixture({ ask: () => asked.promise })
+      const presence = presencePort()
+      const { host } = await fixture({ ask: () => asked.promise, presence })
       await host.setHardware(true, 'bench')
       const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
       const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
@@ -481,7 +482,7 @@ describe('runtime maker host', () => {
       })
       expect(await pending).toMatchObject({ id: snapshot.id, decision: 'reject_once' })
       expect(engine.answer(await pending)).toBeUndefined()
-      expect(deps.presence.calls).toHaveLength(1)
+      expect(presence.calls).toHaveLength(1)
     })
     it('close: a cancelled request accepts no review, authentication or answer', async () => {
       const { host, pending, didReview, answer } = await confirming()
@@ -621,7 +622,7 @@ describe('ACP maker permissions', () => {
     const asked: [string, string, unknown][] = []
     const ask = (title: string, text: string, options: unknown) => {
       asked.push([title, text, options])
-      return Promise.resolve({ outcome: { outcome: 'selected', optionId: 'allow_once' } })
+      return Promise.resolve({ outcome: { outcome: 'selected' as const, optionId: 'allow_once' } })
     }
     expect(makerPermissionOptions().map((option) => option.kind)).toEqual([
       'allow_once',

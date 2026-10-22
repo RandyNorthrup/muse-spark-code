@@ -77,13 +77,14 @@ function dependencies() {
     },
   )
   const notify = Object.assign(
-    (kind: string): Promise<void> => {
+    (kind: Parameters<MachineDeps['host']['notify']>[0]): Promise<void> => {
       notify.calls.push(kind)
       return notify.impl(kind)
     },
     {
-      calls: [] as string[],
-      impl: (_kind: string): Promise<void> => Promise.resolve(),
+      calls: [] as Parameters<MachineDeps['host']['notify']>[0][],
+      impl: (_kind: Parameters<MachineDeps['host']['notify']>[0]): Promise<void> =>
+        Promise.resolve(),
     },
   )
   const deps: MachineDeps = {
@@ -284,7 +285,7 @@ describe('maker printer status and guarded send', () => {
       logRecorded: true,
     })
     expect(confirm.calls).toHaveLength(2)
-    expect(confirm.calls[1].analysis.bounds?.min.x).toBe(11)
+    expect(confirm.calls[1]?.analysis.bounds?.min.x).toBe(11)
   })
   it('does not clear uncertainty with a status read started before response loss', async () => {
     const { target, deps, server } = await moonrakerTest()
@@ -490,7 +491,7 @@ describe('maker printer status and guarded send', () => {
     }
     await machine.send('M104 S150')
     expect(confirm.calls).toHaveLength(2)
-    expect(confirm.calls[0].id).not.toBe(confirm.calls[1].id)
+    expect(confirm.calls[0]?.id).not.toBe(confirm.calls[1]?.id)
   })
   it('refuses the newly selected lower-cap heater after approval without dispatch', async () => {
     const { machine, confirm, server } = await moonrakerTest()
@@ -755,7 +756,7 @@ describe('maker printer status and guarded send', () => {
     }
     await machine.send('G1 X20')
     expect(confirm.calls).toHaveLength(2)
-    expect(confirm.calls[0].id).not.toBe(confirm.calls[1].id)
+    expect(confirm.calls[0]?.id).not.toBe(confirm.calls[1]?.id)
     expect(
       server.requests.filter((request) => request.path === '/printer/gcode/script'),
     ).toHaveLength(1)

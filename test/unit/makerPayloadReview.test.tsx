@@ -251,12 +251,12 @@ async function approval(content = 'M104 S190', serialEncoding?: 'text' | 'hex') 
   const answer = (decision: string) => {
     answers.push(decision)
   }
-  const reviews: string[] = []
-  const review = (digest: string) => {
+  const reviews: (string | undefined)[] = []
+  const review = (digest: string | undefined) => {
     reviews.push(digest)
   }
-  const rendereds: string[] = []
-  const rendered = (digest: string) => {
+  const rendereds: (string | undefined)[] = []
+  const rendered = (digest: string | undefined) => {
     rendereds.push(digest)
   }
   render(
@@ -429,8 +429,8 @@ it('MicroPython flash review shows its frozen target and explicitly unknown file
     digest: hash(payload),
     expiresAt: Date.now() + 60_000,
   }
-  const rendereds: string[] = []
-  const rendered = (digest: string) => {
+  const rendereds: (string | undefined)[] = []
+  const rendered = (digest: string | undefined) => {
     rendereds.push(digest)
   }
   render(
