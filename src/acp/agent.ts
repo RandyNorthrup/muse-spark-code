@@ -2203,6 +2203,7 @@ class AcpSession {
       effortLevelsFor(
         this.modelId,
         this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+        this.deps.backend.kind,
       ).length > 0
     )
       await this.session.setReasoningEffort(effortForThinking(served, true))
