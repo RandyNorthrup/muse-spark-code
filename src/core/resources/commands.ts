@@ -175,9 +175,12 @@ export async function execResourceFile(
       : { workspaceRoot: options.workspaceRoot }
   const file = resolveCommand(command, env, workspace)
   const childEnv = childEnvironment(env, workspace)
-  const deadline = AbortSignal.timeout(options.timeout ?? PROCESS_TABLE_TIMEOUT_MS)
-  const signal =
-    options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
+  // Infinity names no deadline (as `src/host/git.ts` reads it): the run then
+  // ends on the child's own exit or the caller's abort alone. An absent
+  // timeout keeps the named default.
+  const timeout = options.timeout ?? PROCESS_TABLE_TIMEOUT_MS
+  const bounds = [options.signal, timeout === Infinity ? undefined : AbortSignal.timeout(timeout)]
+  const signal = AbortSignal.any(bounds.filter((bound) => bound !== undefined))
   const launched = await spawnResourceProcess(profile, file, args, {
     env: childEnv,
     ...(options.cwd !== undefined && { cwd: options.cwd }),

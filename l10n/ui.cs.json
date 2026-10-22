@@ -2145,7 +2145,7 @@
     "missing": "Zdrojový soubor nebo repozitář chybí.",
     "invalid": "Zdroj má nepodporovaný formát nebo neplatná data.",
     "limit": "Zdroj překračuje limit čtení sestavy.",
-    "cancelled": "Čtení zdroje bylo zrušeno nebo vypršel časový limit.",
+    "cancelled": "Čtení zdroje bylo zrušeno.",
     "failed": "Zdroj se nepodařilo přečíst celý.",
     "refused": "Cesta ke zdroji je soukromá nebo mimo povolenou složku.",
     "disabled": "Tento zdroj využití agenta není zapnutý.",
