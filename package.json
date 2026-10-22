@@ -1365,6 +1365,13 @@
           "description": "%config.tabDailyBudgetUsd.description%",
           "scope": "machine"
         },
+        "museSpark.tabMaxOutputTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "%config.tabMaxOutputTokens.description%",
+          "scope": "machine"
+        },
         "museSpark.tabLanguages": {
           "type": "object",
           "default": {

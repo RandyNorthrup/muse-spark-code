@@ -42,6 +42,7 @@ import type { ContextModel } from '../../context/overflow'
 import type { PlanUsageRow } from '../../../shared/usage'
 import {
   estimatedStreamTokens,
+  modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
   type ModelResolver,
@@ -51,6 +52,7 @@ import {
   type PaidFeature,
   MODEL_API_BASE_URL,
   MODEL_API_MIN_OUTPUT_TOKENS,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
@@ -102,6 +104,9 @@ export type ProviderClient = Pick<
     | 'withScheduleAuthority'
     | 'requestFile'
     | 'requestTranscription'
+    // M94's record-maximum query is ModelApiClient-specific: only the key
+    // client answers it, never a configured provider facade.
+    | 'recordMaxOutputTokens'
   >
 > & {
   readonly providerId?: ModelApiClient['providerId']
@@ -476,6 +481,16 @@ export class ModelApiClient implements TransportProviderClient {
       )
       throw Object.assign(failure, { retryAfterMs: retryAfter, cause: error })
     }
+  }
+
+  /**
+  M94 goal (D121): the provider's maximum output for a Tab model, from the
+  model's policy (the same documented maximum the capability record
+  carries for Meta models). The fallback repeats it, so a silent policy
+  still answers it.
+  */
+  public recordMaxOutputTokens(model: string): number {
+    return modelPolicyFor(model).output.maxTokens ?? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */

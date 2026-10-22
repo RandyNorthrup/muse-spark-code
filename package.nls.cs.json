@@ -143,6 +143,7 @@
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: sazby Standard, žádné trénování na vašem kódu.",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor: přispěvatelské sazby, Meta trénuje na odeslaném kódu.",
   "config.tabDailyBudgetUsd.description": "Pevný denní rozpočet v amerických dolarech na požadavky doplňování Tab ve všech oknech tohoto počítače; požadavek, jehož nejhorší případ by jej překročil, se neodešle. Od 0,05 $ do 50 $.",
+  "config.tabMaxOutputTokens.description": "Maximální počet výstupních tokenů na jeden požadavek dokončování Tab; 0 znamená maximum poskytovatele pro daný model. Nastavený limit určuje velikost požadavku a rezervaci nákladů pro nejhorší případ.",
   "config.tabLanguages.description": "Jazyky, pro které Tab navrhuje, po vzoru github.copilot.enable od GitHub Copilot: každý jazyk je zapnutý kromě plaintext, markdown a scminput, pokud zde není uvedeno jinak.",
   "config.tabMultiline.description": "Kdy Tab přidává okolní kontext pro víceřádková doplňování.",
   "config.tabMultiline.enumDescriptions.auto": "Víceřádkově, když je řádek kurzoru prázdný nebo končí otevřením bloku, a při každém výslovném vyvolání.",

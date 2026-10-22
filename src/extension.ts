@@ -1558,6 +1558,7 @@ async function activateWindow(
       const settings = currentSettings()
       return {
         tabModel: settings.tabModel,
+        tabMaxOutputTokens: settings.tabMaxOutputTokens,
         tabLanguages: settings.tabLanguages,
         tabMultiline: settings.tabMultiline,
         tabTrigger: settings.tabTrigger,
@@ -1676,6 +1677,10 @@ async function activateWindow(
       // path (RVM94KR2 4).
       stream: (body, signal, budget, admit) =>
         keyClient().streamResponse(body, signal, undefined, budget, admit),
+      // M94 goal (D121): the provider's maximum output for the model,
+      // answered by the key client beside the stream (the policy and
+      // record modules load with the backend, never at activation).
+      recordMaxOutputTokens: (model: string) => keyClient().recordMaxOutputTokens(model),
       ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
       windowId: crypto.randomUUID(),
       onSent: () => {

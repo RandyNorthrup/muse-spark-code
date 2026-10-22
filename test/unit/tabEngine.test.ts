@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
+import { MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS } from '../../src/shared/constants'
 import {
   createTabEngine,
   type TabEngine,
@@ -34,6 +35,7 @@ function requestOf(isCancelled: () => boolean): TabEngineRequest {
     suffix: '\n}\n',
     snippets: '',
     mode: 'fast',
+    maxOutputTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
     isInvoke: true,
     cursorLineBefore: '  return ',
     lineAbove: 'export function add(a: number, b: number) {',

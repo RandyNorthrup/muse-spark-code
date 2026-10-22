@@ -143,6 +143,7 @@
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3：Standard 費率，不使用您的程式碼訓練。",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor：貢獻者費率，Meta 會使用傳送的程式碼訓練。",
   "config.tabDailyBudgetUsd.description": "本機所有視窗中 Tab 補全請求的每日固定預算（美元）；最壞情況會超出預算的請求不會傳送。$0.05 到 $50。",
+  "config.tabMaxOutputTokens.description": "每個 Tab 補全請求的最大輸出 token 數；0 表示該模型的提供者最大值。設定的上限決定請求及其最壞情況費用預留的大小。",
   "config.tabLanguages.description": "Tab 提供建議的語言，形式如同 GitHub Copilot 的 github.copilot.enable：除非在此另行列出，所有語言皆開啟，plaintext、markdown 和 scminput 除外。",
   "config.tabMultiline.description": "Tab 何時為多行補全加入周圍脈絡。",
   "config.tabMultiline.enumDescriptions.auto": "游標行為空白行或以區塊起始符結尾時，以及每次明確手動觸發時，使用多行。",

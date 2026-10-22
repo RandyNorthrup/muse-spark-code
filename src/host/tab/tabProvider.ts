@@ -17,17 +17,15 @@ import { redactSecrets } from '../../core/redact'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { contextWindow, orderSnippets, type TabSnippet } from '../../core/tab/tabContext'
 import type { TabHookContext } from '../../core/tab/tabHooks'
-import { tabUserText } from '../../core/tab/tabRequest'
+import { tabRequestMaxOutputTokens, tabUserText } from '../../core/tab/tabRequest'
 import {
   TAB_CONTEXT_FILES,
   TAB_CONTEXT_SNIPPET_LINES,
   TAB_UTF8_BYTES_PER_CODE_UNIT,
-  TAB_FAST_MAX_OUTPUT_TOKENS,
   VSCODE_COMMANDS,
   TAB_FILE_MAX_BYTES,
   TAB_MODEL_TEXT,
   TAB_MULTILINE_MAX_LINES,
-  TAB_MULTILINE_MAX_OUTPUT_TOKENS,
 } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import {
@@ -634,6 +632,14 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (!policy.isCurrent()) return quiet('policy-changed')
     // Everything the request reads, asks and sends names this one model.
     const model = settings.tabModel
+    // M94 goal (D121): the mode's output cap is the person's setting when
+    // they set one, else the provider's maximum for the model from its
+    // capability record. The request and its worst-case reservation below
+    // both use this one number.
+    const maxOutputTokens = tabRequestMaxOutputTokens(
+      settings.tabMaxOutputTokens,
+      deps.recordMaxOutputTokens(model),
+    )
     request += 1
     const hookContext: TabHookContext = {
       workspaceRoots: deps.workspaceRoots(document.uri.fsPath),
@@ -755,8 +761,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     const reservation = await deps.spend.reserve({
       model,
       inputBytes: Buffer.byteLength(sentText, 'utf8'),
-      maxOutputTokens:
-        mode === 'fast' ? TAB_FAST_MAX_OUTPUT_TOKENS : TAB_MULTILINE_MAX_OUTPUT_TOKENS,
+      maxOutputTokens,
     })
     if (reservation === undefined) {
       return quiet('budget')
@@ -790,11 +795,12 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       suffix,
       snippets,
       mode,
+      maxOutputTokens,
       isInvoke,
       cursorLineBefore: line.slice(0, position.character),
       lineAbove: lines[position.line - 1] ?? '',
       linesBelow: lines.slice(position.line + 1, position.line + 1 + TAB_MULTILINE_MAX_LINES),
-      // Read when the engine's debounce or a free slot ends the wait, and last
+      // Read when the engine's debounce ends the wait, and last
       // synchronously inside the client's send path, after its credential,
       // pacing and admission waits: a keystroke since, a disposed provider,
       // or any change the late check refuses, the bound policy and consent

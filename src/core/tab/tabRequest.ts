@@ -11,10 +11,8 @@ import {
   MODEL_API_EFFORT_OFF,
   PROMPT_CACHE_KEY_DIGEST_CHARS,
   PROMPT_CACHE_KEY_HASH,
-  TAB_FAST_MAX_OUTPUT_TOKENS,
   TAB_HOLE_MARKER,
   TAB_MODEL_TEXT,
-  TAB_MULTILINE_MAX_OUTPUT_TOKENS,
   TAB_PROMPT_CACHE_KEY_PREFIX,
 } from '../../shared/constants'
 import type { CreateResponseBody } from '../backends/modelapi/schemas'
@@ -30,9 +28,27 @@ export interface TabRequestInput {
   /** Rendered by `orderSnippets`: sorted by path, bounded, fenced. */
   readonly snippets: string
   readonly mode: TabMode
+  /**
+  The request's output cap, resolved by the caller: the person's
+  `museSpark.tabMaxOutputTokens` when set, else the provider's maximum
+  for the model from its capability record (M94 goal, D121).
+  */
+  readonly maxOutputTokens: number
 }
 
-export type TabUserInput = Omit<TabRequestInput, 'model' | 'mode'>
+/**
+The mode's output cap (M94 acceptance 6): the person's setting when
+they set one, else the provider's maximum for the model. The mode
+itself carries no number of ours.
+*/
+export function tabRequestMaxOutputTokens(
+  personCapTokens: number,
+  recordMaxTokens: number,
+): number {
+  return personCapTokens > 0 ? personCapTokens : recordMaxTokens
+}
+
+export type TabUserInput = Omit<TabRequestInput, 'model' | 'mode' | 'maxOutputTokens'>
 
 /** A `{name}` slot in the user template. */
 const TEMPLATE_SLOT = /\{(\w+)\}/gu
@@ -75,8 +91,8 @@ export function tabPromptCacheKey(model: string): string {
 /**
 The body: streamed, unstored, no tools, no `previous_response_id`,
 `minimal` effort (`none` is a 400, A3; `MODEL_API_EFFORT_OFF` is that
-floor) with no reasoning summary, and the mode's output cap. The
-retention stays Meta's default: Tab bursts are sub-minute typing.
+floor) with no reasoning summary, and the caller's resolved output cap.
+The retention stays Meta's default: Tab bursts are sub-minute typing.
 */
 export function buildTabRequest(input: TabRequestInput): CreateResponseBody {
   return {
@@ -95,8 +111,7 @@ export function buildTabRequest(input: TabRequestInput): CreateResponseBody {
     stream: true,
     store: false,
     include: [],
-    max_output_tokens:
-      input.mode === 'fast' ? TAB_FAST_MAX_OUTPUT_TOKENS : TAB_MULTILINE_MAX_OUTPUT_TOKENS,
+    max_output_tokens: input.maxOutputTokens,
     prompt_cache_key: tabPromptCacheKey(input.model),
     prompt_cache_retention: 'in_memory',
   }

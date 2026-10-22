@@ -835,6 +835,10 @@ export const SETTING_DEFAULTS = {
   // The daily budget in US dollars: 0 is no budget (nothing reserved or
   // locked); only a budget the person sets caps the local day.
   tabDailyBudgetUsd: 0,
+  // The person's output cap per Tab request: 0 is the provider's maximum
+  // for the model (M94 goal, D121); anything else caps the request and
+  // its worst-case reservation at what the person set.
+  tabMaxOutputTokens: 0,
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
@@ -971,6 +975,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiTab',
   'tabModel',
   'tabDailyBudgetUsd',
+  'tabMaxOutputTokens',
   'tabLanguages',
   'tabMultiline',
   'tabTrigger',
@@ -2952,15 +2957,6 @@ export const TAB_MAX_COMPLETION_CHARS = 2000
 // the 1.5 s ceiling by itself, so a shorter wait would only bill more
 // never-aborted requests (docs/certification/m94.md, "Probe").
 export const TAB_DEBOUNCE_MS = 350
-// Fast mode's output cap, reasoning included (*). The probe (2026-10-04):
-// p99 reasoning at `minimal` 485 tokens, plus 3 lines at 32 tokens each,
-// rounded up to 32. The planned 128 would have cut most replies short.
-export const TAB_FAST_MAX_OUTPUT_TOKENS = 608
-// Multi-line mode's output cap (*). The probe (2026-10-04) put p99 reasoning
-// at 2,045 tokens, but that p99 was one runaway reply that reasoned past the
-// probe's cap and showed no text. Lead decision: 1,536 ends runaways sooner
-// and spends less, at the cost of about one multi-line reply in ten.
-export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 1536
 // Typing-through LRU windows (Continue's design, research §4).
 export const TAB_CACHE_ENTRIES = 64
 // The latency gate: a slower median first text defaults the trigger to onInvoke.
