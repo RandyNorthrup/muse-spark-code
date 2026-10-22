@@ -89,6 +89,9 @@ const BUDGETS = [
   // M124 (D106): the MCP connector, loaded only by `mcp`: 85.8 KiB measured + 15%, rounded to 25 KiB.
   // TRAINFIX: train growth (M124 merge + main PROVERRORS) measures 100.0 KiB; +15%, rounded to 25 KiB.
   { path: 'dist/connector.js', budgetKiB: 125 },
+  // RLM124 (finding 15): the connector's storage guard, 15565 bytes
+  // (15.2 KiB) measured +15% = 17.5 KiB, rounded up to the next whole KiB.
+  { path: 'dist/connectorStoreGuard.js', budgetKiB: 18 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },

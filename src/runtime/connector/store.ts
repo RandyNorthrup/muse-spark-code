@@ -21,6 +21,7 @@ import {
 } from '../../shared/connector'
 import type { AuditPort } from '../../core/connector/audit'
 import type { AuthorityPort, AuthorityState } from '../../core/connector/registry'
+import type { ConnectorStorageGuard } from './storageGuardPort'
 
 const AUDIT_KEY_BYTES = 32
 
@@ -35,13 +36,40 @@ function isMissing(error: unknown): boolean {
 export class ConnectorStore {
   private readonly root: string
 
-  public constructor(dataFolder: string) {
+  /**
+  The store, with its storage guard (RVM124 finding 15): every file and
+  folder created below is made private to the current account when the
+  guard is bound. Production always binds it (the entry requires it in
+  its dependencies); unbound stores keep the legacy mode-flag behavior.
+  */
+  public constructor(
+    dataFolder: string,
+    private readonly guard?: ConnectorStorageGuard,
+  ) {
     this.root = path.join(dataFolder, CONNECTOR_FOLDER)
   }
 
   private async folder(...segments: string[]): Promise<string> {
     const folder = path.join(this.root, ...segments)
+    // Every level this call makes is secured, top down: a recursive mkdir
+    // below an absent root would otherwise leave the root itself behind.
+    let parent = this.root
+    const chain = [parent]
+    for (const segment of segments) {
+      parent = path.join(parent, segment)
+      chain.push(parent)
+    }
+    const missing = new Set<string>()
+    for (const level of chain) {
+      try {
+        await stat(level)
+      } catch (error: unknown) {
+        if (!isMissing(error)) throw error
+        missing.add(level)
+      }
+    }
     await mkdir(folder, { recursive: true, mode: CONNECTOR_FOLDER_MODE })
+    for (const level of chain) if (missing.has(level)) await this.guard?.secure(level, 'directory')
     return folder
   }
 
@@ -87,6 +115,7 @@ export class ConnectorStore {
         mode: CONNECTOR_FILE_MODE,
         flag: 'wx',
       })
+      await this.guard?.secure(temp, 'file')
       await rename(temp, target)
     } finally {
       await rm(temp, { force: true })
@@ -153,11 +182,11 @@ export class ConnectorStore {
 
   public async setKilled(isOn: boolean, nowIso: string): Promise<void> {
     await this.folder()
-    await writeFile(
-      path.join(this.root, 'kill-switch.json'),
-      `${JSON.stringify({ on: isOn, at: nowIso })}\n`,
-      { mode: CONNECTOR_FILE_MODE },
-    )
+    const target = path.join(this.root, 'kill-switch.json')
+    await writeFile(target, `${JSON.stringify({ on: isOn, at: nowIso })}\n`, {
+      mode: CONNECTOR_FILE_MODE,
+    })
+    await this.guard?.secure(target, 'file')
   }
 
   /** Bounded JSONL: one live segment and one older one, pruned after the retention. */
@@ -172,6 +201,7 @@ export class ConnectorStore {
           } finally {
             await handle.close()
           }
+          await this.guard?.secure(file, 'file')
         } catch (error: unknown) {
           if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
         }
@@ -184,11 +214,13 @@ export class ConnectorStore {
         const live = path.join(folder, `${connectionId}.jsonl`)
         const older = path.join(folder, `${connectionId}.1.jsonl`)
         let size = 0
+        let didExist = true
         try {
           const info = await stat(live)
           size = info.size
         } catch (error: unknown) {
           if (!isMissing(error)) throw error
+          didExist = false
         }
         if (size + Buffer.byteLength(line) > CONNECTOR_LIMITS.auditSegmentBytes) {
           // Windows `rename` does not replace an existing destination: clear
@@ -196,6 +228,7 @@ export class ConnectorStore {
           // PR #227). `force` keeps the first rollover a single rename.
           await rm(older, { force: true })
           await rename(live, older)
+          didExist = false
         }
         try {
           const info = await stat(older)
@@ -208,6 +241,7 @@ export class ConnectorStore {
         try {
           await handle.appendFile(line, 'utf8')
           await handle.sync()
+          if (!didExist) await this.guard?.secure(live, 'file')
         } finally {
           await handle.close()
         }

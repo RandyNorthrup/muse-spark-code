@@ -6009,6 +6009,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (содержимое)",
     "noGrants": "Разрешений для подключений пока нет.",
+    "storageRefused": "Папка коннектора не является приватной для вашей учётной записи ({folder}), поэтому ничего не сделано. Сделайте её приватной для вашей учётной записи (или удалите её и выдайте разрешение заново) и повторите попытку.",
     "unavailable": "Не удалось запустить коннектор.",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },

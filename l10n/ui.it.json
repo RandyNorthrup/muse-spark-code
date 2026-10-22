@@ -5849,6 +5849,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (contenuti)",
     "noGrants": "Ancora nessuna autorizzazione di connessione.",
+    "storageRefused": "La cartella del connettore non è privata per il tuo account ({folder}), quindi non è stato fatto nulla. Rendila privata per il tuo account (oppure eliminala e concedi di nuovo l’autorizzazione) e riprova.",
     "unavailable": "Impossibile avviare il connettore.",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },
