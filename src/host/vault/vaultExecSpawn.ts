@@ -1,10 +1,5 @@
 import path from 'node:path'
-import {
-  UI_TEXT,
-  VAULT_LIMITS,
-  PROCESS_TABLE_TIMEOUT_MS,
-  SHELL_DRAIN_GRACE_MS,
-} from '../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS, SHELL_DRAIN_GRACE_MS } from '../../shared/constants'
 import {
   vaultExecEnvelopeSchema,
   vaultExecResultSchema,
@@ -88,23 +83,15 @@ export async function spawnVaultFeeder(
     let hasTerminationFailed = false
     const stop = () => {
       kill ??= (async () => {
-        let deadline: ReturnType<typeof setTimeout> | undefined
+        // The termination itself is awaited, however long the contained
+        // tree takes to end: no deadline of ours abandons it.
         try {
-          await Promise.race([
-            terminateContained(child),
-            new Promise<void>((_resolve, reject) => {
-              deadline = setTimeout(() => {
-                reject(new Error(UI_TEXT.vault.noAccess))
-              }, PROCESS_TABLE_TIMEOUT_MS)
-            }),
-          ])
+          await terminateContained(child)
         } catch {
           // Best effort ends the root's group/job; the flag still fails the result below.
           hasTerminationFailed = true
           // Only the native port can prove the compound tree.
           await killTree(child, deps.tree, startedAt, deps.job)
-        } finally {
-          clearTimeout(deadline)
         }
       })()
       void (async () => {
@@ -230,7 +217,7 @@ export function vaultExecProcessRunner(
         workspaceRoot: invocation.cwd,
         realpath: realpathSync,
       }),
-      timeoutMs: invocation.cleanup ? Math.min(timeoutMs, PROCESS_TABLE_TIMEOUT_MS) : timeoutMs,
+      timeoutMs,
       signal,
       tree,
       job,

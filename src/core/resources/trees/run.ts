@@ -1,5 +1,4 @@
 import { type GuardedChildEnv } from '../../executables'
-import { PROCESS_TABLE_TIMEOUT_MS } from '../../../shared/constants'
 import { execFileGuarded } from '../../guardedChildProcess'
 
 export type ResourceTreeRun = (
@@ -21,8 +20,11 @@ export function coalescedTreeRead<T>(read: () => Promise<T>): () => Promise<T> {
   }
 }
 
-/** A probe runner with its own time bound and, when given, an output bound. */
-export function boundedTreeProgram(timeoutMs: number, maxBuffer?: number): ResourceTreeRun {
+/**
+A probe runner with, when given, its caller's own time bound and output
+bound; with no time bound the probe runs until it exits.
+*/
+export function boundedTreeProgram(timeoutMs?: number, maxBuffer?: number): ResourceTreeRun {
   return (file, args, env) =>
     new Promise((resolve, reject) => {
       execFileGuarded(
@@ -31,7 +33,7 @@ export function boundedTreeProgram(timeoutMs: number, maxBuffer?: number): Resou
         {
           env,
           windowsHide: true,
-          timeout: timeoutMs,
+          ...(timeoutMs !== undefined && { timeout: timeoutMs }),
           ...(maxBuffer !== undefined && { maxBuffer }),
         },
         (error, stdout) => {
@@ -42,5 +44,9 @@ export function boundedTreeProgram(timeoutMs: number, maxBuffer?: number): Resou
     })
 }
 
-/** Probes inherit no credential variables and run only absolute OS/helper paths. */
-export const runTreeProgram: ResourceTreeRun = boundedTreeProgram(PROCESS_TABLE_TIMEOUT_MS)
+/**
+Probes inherit no credential variables and run only absolute OS/helper
+paths. No deadline of ours: a cold Windows PowerShell start can take
+longer than any bound, and killing it failed the work it served.
+*/
+export const runTreeProgram: ResourceTreeRun = boundedTreeProgram()

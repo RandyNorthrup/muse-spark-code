@@ -39,6 +39,25 @@ export function setLongTimeout(callback: () => void, delayMs: number): () => voi
 }
 
 /**
+The stop a caller asked for, and nothing of ours (owner 2026-10-16: no
+limit in the codebase that is not about a model): the caller's own cancel,
+its own deadline (a positive, finite number of milliseconds, as `execFile`
+reads one; 0 and Infinity name none, as `src/host/git.ts` reads them), both,
+or neither, in which case the work runs to its own end.
+*/
+export function callerStop(
+  signal: AbortSignal | undefined,
+  timeoutMs: number | undefined,
+): AbortSignal | undefined {
+  const hasDeadline = timeoutMs !== undefined && Number.isFinite(timeoutMs) && timeoutMs > 0
+  const stops = [
+    ...(signal === undefined ? [] : [signal]),
+    ...(hasDeadline ? [AbortSignal.timeout(timeoutMs)] : []),
+  ]
+  return stops.length === 0 ? undefined : AbortSignal.any(stops)
+}
+
+/**
 `promise`, or a `DeadlineError` with `message` once `timeoutMs` has passed.
 The timer is always cleared; the promise itself keeps running (the caller
 decides whether to kill what it was waiting on).

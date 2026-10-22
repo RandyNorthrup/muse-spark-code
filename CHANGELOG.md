@@ -388,6 +388,12 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   Windows PowerShell starts slowly (a fresh machine, heavy antivirus): the
   process identity a vault writer records is read by a small native reader
   instead, and nothing gives up after 10 seconds.
+- On Windows, steps that read or end processes through Windows PowerShell,
+  `taskkill` or the process table are no longer killed after 20 seconds. On
+  a slow machine Windows PowerShell's first start can take longer, and the
+  step it served (building a Windows helper, reading a process tree, ending
+  one) then failed. These steps, and their macOS and Linux counterparts, now
+  run until they end; Stop, or a deadline the caller sets, still ends them.
 - On Windows as an elevated administrator (Windows Server's defaults), work
   the resource governor starts is no longer refused, and the private folder
   for a screen-recording preview is locked to its owner alone.
