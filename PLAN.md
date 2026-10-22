@@ -40324,6 +40324,35 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   stage; no further code change or mutation drill was needed. The exact exit
   metadata and aggregate security tail are recorded in the certification file.
   Platform/live release receipts remain separate requirements.
+- **FIXM110OS1-mkosi-tarball (RVM110OS1 P3).** The composer checks the
+  mkosi `--version` token for exit 0 and exact equality with the
+  `os/pins.json` pin; the source tarball digest beside it is not
+  re-verified. Safe for now: exact-token refusal plus the recipe's
+  `MinimumVersion` floor, and a substituted binary still faces the policy
+  gate and the deterministic recipe. Follow-up: OS6 verifies the tarball
+  digest when it owns publishing.
+
+- **FIXM110OS1-debian-keyring (RVM110OS1 P3).** Debian archive trust rests
+  on the build host's `debian-archive-keyring`; repositories are locked to
+  `main non-free-firmware` with no unsigned fallback. Safe for now: the
+  snapshot date is pinned and packages come from Debian's own archive.
+  Follow-up: OS6 pins the keyring by fingerprint.
+
+- **FIXM110OS1B-zstd-host (RVF110OS1 P2-3).** Pi `.deb` zstd data members
+  decode with the stdlib `compression.zstd` reader (a real zstd `.deb`
+  stages with no host tool; the `dpkg-deb` fallback is gone). A build host
+  whose Python predates 3.14 refuses with a named code (fail closed).
+  Safe for now: named refusal tested on both sides; build hosts run
+  Python 3.14+.
+- **FIXM110OS1B-pi-pin-rotation (RVF110OS1 P2-1).** The Pi Packages index
+  rotates on every archive publish; `packagesIndexSha256` names one
+  observed index (2026-10-08). Later builds fail closed at the
+  index-digest step and need refreshed pins. Follow-up: OS6 owns pin
+  refresh alongside publishing.
+- **FIXM110OS1B-non-anchoring-hosts (RVF110OS1 P2-2).** Tree copies anchor
+  with directory descriptors only where `os.open` supports `dir_fd`;
+  elsewhere the same checks run over joined paths. Pi staging is qualified
+  on Linux, where anchoring is complete.
 
 ## 10. Definition of done and release records
 

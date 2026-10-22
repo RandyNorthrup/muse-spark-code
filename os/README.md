@@ -18,8 +18,20 @@ been run on the Kubuntu rig. `build.py --help` lists the composer inputs; it
 requires mkosi 27.1 and the SHA-256 of the ACP package produced from this tag.
 Installer builds additionally need systemd-repart 261 or newer for El Torito.
 The build host needs `qemu-user`/binfmt for ARM builds, `systemd-ukify`,
-`cryptsetup-bin`, `dosfstools`, `mtools`, `dpkg-deb` and `depmod`. The Pi
+`cryptsetup-bin`, `dosfstools`, `mtools` and `depmod`. The Pi
 composer extracts pinned packages without executing their installation scripts.
+Pi builds additionally need host `gpgv`, Python 3.14 or newer (the stdlib
+`compression.zstd` decodes zstd data members; older interpreters refuse
+them instead of calling a host extractor) and the Raspberry Pi archive keyring:
+export the key whose fingerprint equals the manifest's
+`archiveSigningFingerprint` from a trusted host (for example
+`gpg --export <fingerprint> > pi-keyring.gpg`) and pass
+`--pi-keyring pi-keyring.gpg --pi-keyring-sha256 <digest>`; the composer
+verifies the InRelease clearsign signature against that fingerprint, takes
+the pinned Packages index digest from the verified Release listing,
+downloads that index, takes each .deb's Filename, SHA-256 and Size from its
+stanzas (the manifest pin must agree), and only then extracts through
+member admission.
 Build products, package manifests, checksums and input receipts go only into
 `out/<architecture>/`; intermediates are removed after each build. Pinned
 downloads and package caches are reused and removed after qualification.
@@ -33,8 +45,9 @@ Secure Boot is off pending the owner's signing ceremony (OS4); dm-verity
 detects block corruption but an unsigned UKI is not a trusted boot chain.
 
 The `pi4` and `pi5` targets use Raspberry Pi's native EEPROM boot path, not
-UEFI. `pi/manifest.json` pins the trixie archive's signed index, firmware and
-board-specific kernels. Two 260 MiB FAT partitions precede the shared root, A/B `/usr`
+UEFI. `pi/manifest.json` pins the trixie archive's signing fingerprint, the
+`main/binary-arm64/Packages.gz` index file with its SHA-256, and the
+firmware and board-specific kernels (each bound to its stanza). Two 260 MiB FAT partitions precede the shared root, A/B `/usr`
 and persistent `/var`. Slot A includes firmware, the correct DTB, overlays,
 `kernel8.img` or `kernel_2712.img`, an initrd and a single-line verity command
 line. Slot B is reserved for OS2; initial `autoboot.txt` selects A. The Pi recipe clears the inherited repart

@@ -1,7 +1,9 @@
 {
   "archiveSigningFingerprint": "CF8A1AF502A2AA2D763BAE7E82B129927FA3303E",
-  "releaseDate": "2026-10-06T19:48:01Z",
-  "packagesIndexSha256": "e871e65b3d0dcf9b71cb6f5d69ed2e362c5cf81055043bc7531e1b92763151cd",
+  "releaseDate": "2026-10-08T19:48:32Z",
+  "packagesIndex": "main/binary-arm64/Packages.gz",
+  "packagesIndexSha256": "81158a38dbb347200ac3222c4183d1297b6f7c3bf39cda642355ddd3e66b1b3c",
+  "packagesIndexUrl": "https://archive.raspberrypi.com/debian/dists/trixie/InRelease",
   "packages": [
     {
       "package": "linux-image-6.18.50+rpt-rpi-2712",
