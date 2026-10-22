@@ -25,7 +25,7 @@ import { createInterface } from 'node:readline'
 import { build } from 'esbuild'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
 import { workerEnvironment } from '../../src/core/team/refFence'
-import type { Logger } from '../../src/host/logger'
+import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
 
 const usage = {
   settlementId: 'a'.repeat(32),
@@ -38,21 +38,8 @@ const usage = {
 } as const
 const scratch = { directory: '' }
 const check = deviceCheck(deviceGrant('a'.repeat(32)))
-const logged: { level: 'trace' | 'info' | 'warn' | 'error'; message: string }[] = []
-const log: Logger = {
-  trace: (message: string): void => {
-    logged.push({ level: 'trace', message })
-  },
-  info: (message: string): void => {
-    logged.push({ level: 'info', message })
-  },
-  warn: (message: string): void => {
-    logged.push({ level: 'warn', message })
-  },
-  error: (message: string): void => {
-    logged.push({ level: 'error', message })
-  },
-}
+const logged: LoggedMessage[] = []
+const log = levelLogger(logged)
 function admitted(processes: number): DeviceWorkerAttempt {
   return { identity: check.identity, caps: { ...check.caps, processes } }
 }

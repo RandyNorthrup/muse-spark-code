@@ -5,6 +5,7 @@ import { mkdir, open, realpath, readdir, rename, unlink, type FileHandle } from 
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
+import { readProtectedJson } from '../../core/fs/protectedJson'
 import { DevicePairingError, validateDevicePair } from '../../core/devices/pairing'
 import { deviceGrantSchema } from '../../core/devices/grants'
 import type { DeviceStorageProtection } from '../../core/devices/storageProtection'
@@ -143,19 +144,13 @@ export class DeviceStore {
         throw new DevicePairingError('storage')
       const file = path.join(this.directory, 'pairs.json')
       const sample = await this.checkPrivate(file, false)
-      const handle = await open(file, 'r')
-      try {
-        if (!sameFile(sample, await handleIdentity(handle))) throw new DevicePairingError('storage')
-        const bytes = await handle.readFile()
-        const raw: unknown = JSON.parse(bytes.toString('utf8'))
-        const state = stateSchema.parse(raw)
-        if (JSON.stringify(state) !== bytes.toString('utf8'))
-          throw new DevicePairingError('storage')
-        validateState(state)
-        return state
-      } finally {
-        await handle.close()
-      }
+      return await readProtectedJson({
+        file,
+        sample,
+        parse: (raw: unknown) => stateSchema.parse(raw),
+        validate: validateState,
+        refuse: () => new DevicePairingError('storage'),
+      })
     } catch (error) {
       this.hasFailed = true
       throw new DevicePairingError('storage', { cause: error })

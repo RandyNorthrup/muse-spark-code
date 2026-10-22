@@ -42,44 +42,44 @@ function dependencies(_bundle: unknown): Promise<DeviceServiceDeps> {
   return Promise.reject(new Error('local-authority-unavailable'))
 }
 
+function openMethods(
+  bundlePath: string,
+  shouldTrackLoads: boolean,
+): {
+  methods: ReturnType<typeof deviceMethods>
+  prepared: unknown[]
+  errors: string[]
+  loaded: string[]
+} {
+  const loaded: string[] = []
+  const prepared: unknown[] = []
+  const errors: string[] = []
+  const track = (file: string): unknown => {
+    loaded.push(file)
+    return requireFile(file)
+  }
+  const methods = deviceMethods({
+    bundlePath,
+    log: errorLogger(errors),
+    loadBundle: shouldTrackLoads ? track : undefined,
+    dependencies: (bundle) => {
+      prepared.push(bundle)
+      return dependencies(bundle)
+    },
+  })
+  return { methods, prepared, errors, loaded }
+}
+
 describe('shared lazy Devices method port', () => {
   it('unused construction and disposal load no bundle, authority, storage or network', () => {
-    const loaded: string[] = []
-    const prepared: unknown[] = []
-    const errors: string[] = []
-    const methods = deviceMethods({
-      bundlePath: built.file,
-      log: errorLogger(errors),
-      loadBundle: (file) => {
-        loaded.push(file)
-        return requireFile(file)
-      },
-      dependencies: (bundle) => {
-        prepared.push(bundle)
-        return dependencies(bundle)
-      },
-    })
+    const { methods, prepared, errors, loaded } = openMethods(built.file, true)
     methods.dispose()
     expect(loaded).toEqual([])
     expect(prepared).toEqual([])
     expect(errors).toEqual([])
   })
   it('loads the actual shipped factory only on explicit use and reuses its module across refused preparation', async () => {
-    const loaded: string[] = []
-    const prepared: unknown[] = []
-    const errors: string[] = []
-    const methods = deviceMethods({
-      bundlePath: built.file,
-      log: errorLogger(errors),
-      loadBundle: (file) => {
-        loaded.push(file)
-        return requireFile(file)
-      },
-      dependencies: (bundle) => {
-        prepared.push(bundle)
-        return dependencies(bundle)
-      },
-    })
+    const { methods, prepared, errors, loaded } = openMethods(built.file, true)
     await expect(methods.service()).rejects.toThrow('local-authority-unavailable')
     await expect(methods.service()).rejects.toThrow('local-authority-unavailable')
     expect(loaded).toEqual([built.file])
@@ -97,16 +97,7 @@ describe('shared lazy Devices method port', () => {
     methods.dispose()
   })
   it('missing lazy assets refuse before preparing credentials or authorities and can be retried', async () => {
-    const prepared: unknown[] = []
-    const errors: string[] = []
-    const methods = deviceMethods({
-      bundlePath: path.join(built.folder, 'missing.js'),
-      log: errorLogger(errors),
-      dependencies: (bundle) => {
-        prepared.push(bundle)
-        return dependencies(bundle)
-      },
-    })
+    const { methods, prepared, errors } = openMethods(path.join(built.folder, 'missing.js'), false)
     await expect(methods.service()).rejects.toThrow(EN.devices.bundleUnavailable)
     await expect(methods.service()).rejects.toThrow(EN.devices.bundleUnavailable)
     expect(prepared).toEqual([])
@@ -116,16 +107,7 @@ describe('shared lazy Devices method port', () => {
   it('rejects an incomplete module and retries the repaired packaged factory', async () => {
     const wrong = path.join(built.folder, 'wrong.js')
     writeFileSync(wrong, 'module.exports = { createDeviceService() {} }')
-    const prepared: unknown[] = []
-    const errors: string[] = []
-    const methods = deviceMethods({
-      bundlePath: wrong,
-      log: errorLogger(errors),
-      dependencies: (bundle) => {
-        prepared.push(bundle)
-        return dependencies(bundle)
-      },
-    })
+    const { methods, prepared } = openMethods(wrong, false)
     await expect(methods.service()).rejects.toThrow(EN.devices.bundleUnavailable)
     expect(prepared).toEqual([])
     copyFileSync(built.file, wrong)

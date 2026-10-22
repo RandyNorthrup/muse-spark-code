@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createDeviceInvitation } from '../../src/core/devices/pairing'
 import { DeviceTransport, type DeviceTransportPair } from '../../src/host/devices/deviceTransport'
 import type { DeviceChannel, DeviceChannelPort } from '../../src/host/devices/deviceChannel'
-import type { Logger } from '../../src/host/logger'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
+import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
 import type { DeviceFrame } from '../../src/shared/devices'
 
 const NOW = Date.now()
@@ -55,21 +55,8 @@ function pair(local: TestIdentity, peer: TestIdentity): DeviceTransportPair {
   }
 }
 
-const logged: { level: 'trace' | 'info' | 'warn' | 'error'; message: string }[] = []
-const log: Logger = {
-  trace: (message: string): void => {
-    logged.push({ level: 'trace', message })
-  },
-  info: (message: string): void => {
-    logged.push({ level: 'info', message })
-  },
-  warn: (message: string): void => {
-    logged.push({ level: 'warn', message })
-  },
-  error: (message: string): void => {
-    logged.push({ level: 'error', message })
-  },
-}
+const logged: LoggedMessage[] = []
+const log = levelLogger(logged)
 
 interface CapturedPort {
   readonly port: DeviceChannelPort

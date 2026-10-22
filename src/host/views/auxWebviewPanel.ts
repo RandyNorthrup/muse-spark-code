@@ -11,14 +11,13 @@ import {
 import { buildWebviewHtml, createNonce } from '../html'
 import type { WebviewHostContext } from './webviewSetup'
 
-export function createAuxWebviewPanel(
-  context: Pick<WebviewHostContext, 'extensionUri' | 'l10n'>,
-  viewType: string,
-  title: string,
+/** Both auxiliary tabs show the same secured document for their bundle root. */
+export function showAuxWebviewContent(
+  panel: vscode.WebviewPanel,
+  bundleRoot: vscode.Uri,
+  l10n: WebviewHostContext['l10n'],
   surface: 'tasks' | 'devices',
-): vscode.WebviewPanel {
-  const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
-  const panel = vscode.window.createWebviewPanel(viewType, title, vscode.ViewColumn.Beside, {})
+): void {
   panel.webview.options = {
     enableScripts: true,
     enableCommandUris: false,
@@ -33,8 +32,19 @@ export function createAuxWebviewPanel(
       .toString(),
     cspSource: panel.webview.cspSource,
     nonce: createNonce(),
-    l10n: context.l10n,
+    l10n,
     surface,
   })
+}
+
+export function createAuxWebviewPanel(
+  context: Pick<WebviewHostContext, 'extensionUri' | 'l10n'>,
+  viewType: string,
+  title: string,
+  surface: 'tasks' | 'devices',
+): vscode.WebviewPanel {
+  const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+  const panel = vscode.window.createWebviewPanel(viewType, title, vscode.ViewColumn.Beside, {})
+  showAuxWebviewContent(panel, bundleRoot, context.l10n, surface)
   return panel
 }

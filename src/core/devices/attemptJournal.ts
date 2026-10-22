@@ -4,6 +4,7 @@ import { mkdir, open, realpath, readdir, rename } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { handleIdentity, lstatIdentity, sameFile, type FileIdentity } from '../fs/fileIdentity'
+import { readProtectedJson } from '../fs/protectedJson'
 import type { DeviceStorageProtection } from './storageProtection'
 import { DEVICE_LIMITS, WORKSPACE_IDENTITY_ZERO } from '../../shared/constants'
 import {
@@ -210,19 +211,13 @@ export class AttemptJournal {
       const file = path.join(this.directory, 'attempts.json')
       const sample = await checkPrivate(file, false, this.storage)
       if (!sameFile(this.fileIdentity, sample)) throw new DeviceJournalError('storage')
-      const handle = await open(file, 'r')
-      try {
-        if (!sameFile(sample, await handleIdentity(handle))) throw new DeviceJournalError('storage')
-        const bytes = await handle.readFile()
-        const raw: unknown = JSON.parse(bytes.toString('utf8'))
-        const state = stateSchema.parse(raw)
-        if (JSON.stringify(state) !== bytes.toString('utf8'))
-          throw new DeviceJournalError('storage')
-        validateState(state)
-        return state
-      } finally {
-        await handle.close()
-      }
+      return await readProtectedJson({
+        file,
+        sample,
+        parse: (raw: unknown) => stateSchema.parse(raw),
+        validate: validateState,
+        refuse: () => new DeviceJournalError('storage'),
+      })
     } catch (error) {
       this.hasFailed = true
       throw new DeviceJournalError('storage', { cause: error })
