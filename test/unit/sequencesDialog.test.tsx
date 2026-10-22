@@ -35,12 +35,12 @@ function dialogProps(overrides: Partial<SequencesDialogProps> = {}): {
     closed: number
   }
 } {
-  const calls = { saved: [], removed: [], started: [], closed: 0 } as unknown as {
+  const calls: {
     readonly saved: SavedSequence[]
     readonly removed: SavedSequence[]
     readonly started: SavedSequence[]
     closed: number
-  }
+  } = { saved: [], removed: [], started: [], closed: 0 }
   const port: SequencesPort = {
     save: (row) => void calls.saved.push(row),
     remove: (row) => void calls.removed.push(row),

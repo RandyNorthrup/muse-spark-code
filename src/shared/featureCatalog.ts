@@ -923,6 +923,22 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature(
+      'bookmarks',
+      { ui: 'bookmarkAdd' },
+      { ui: 'referenceBookmarks' },
+      [],
+      ['syncPromptsAndBookmarks'],
+      'bookmarks',
+    ),
+    feature(
+      'prompt-sequences',
+      { ui: 'sequenceLibrary' },
+      { ui: 'referenceSequences' },
+      [],
+      [],
+      'prompt-sequences',
+    ),
+    feature(
       'windows-paths',
       { ui: 'referenceWindowsPaths' },
       { ui: 'referenceWindowsPathsDetail' },

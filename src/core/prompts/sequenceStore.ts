@@ -23,7 +23,7 @@ import {
   type SequenceScope,
 } from '../../shared/sequences'
 import { lstatIdentity, sameFile } from '../fs/fileIdentity'
-import { readPromptFile } from './promptStore'
+import { readPromptFile } from './promptFile'
 
 /** Portable disk store beside the prompt store; no VS Code state, no sync. */
 export class SequenceStore {
@@ -123,6 +123,11 @@ export class SequenceStore {
       await handle.close()
       await rm(lock)
     }
+  }
+
+  /** False without a folder: the workspace scope is then unavailable. */
+  public get hasWorkspace(): boolean {
+    return this.workspaceRoot !== undefined
   }
 
   /**

@@ -33,9 +33,7 @@ describe('prompt sequence files', () => {
 
   it('refuses a foreign file and a newer schema instead of an empty sequence', () => {
     expect(() => parseSequenceFile('not json')).toThrow(UI_TEXT.promptStoreDamaged)
-    expect(() =>
-      parseSequenceFile(JSON.stringify(sequence({ schemaVersion: 2 } as never))),
-    ).toThrow()
+    expect(() => parseSequenceFile(JSON.stringify({ ...sequence(), schemaVersion: 2 }))).toThrow()
     expect(() => parseSequenceFile(JSON.stringify(sequence({ id: '' })))).toThrow()
     expect(() => parseSequenceFile(JSON.stringify(sequence({ name: '' })))).toThrow()
   })
