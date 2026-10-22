@@ -1370,10 +1370,9 @@ export const GOAL_RECOVERY_MAX_PAGES = 100
 // resumes it (the Claude Code sidebar rule: "if a message was sent in the
 // last 10 minutes").
 export const SESSION_RESTORE_WINDOW_MS = 10 * 60 * 1000
-// Sessions whose Muse Code event log failed (CLI recovery): kept per
-// workspace, newest last, at most this many; an older one past the cap is
-// forgotten, and its next message then gets Muse Code's own error again.
-export const DAMAGED_SESSIONS_KEPT = 50
+// Sessions whose Muse Code event log failed (CLI recovery): every marker is
+// kept — forgetting one only bought its next message Muse Code's own error
+// again. Newest last.
 export const WORKSPACE_STATE_KEYS = {
   archivedSessions: 'museSpark.archivedSessions',
   /** Sessions whose Muse Code event log failed: they take no new message (CLI recovery). */

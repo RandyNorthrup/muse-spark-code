@@ -7,6 +7,7 @@ import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { panelRecoveryRefusal } from '../../shared/agentRecovery'
+import { markedDamagedIds } from './damagedSessions'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
 import { QuestionRegistry } from '../../core/questions/registry'
@@ -139,7 +140,6 @@ import {
   AUTH_REQUIRED_ERROR_KIND,
   AUTO_REVIEWER_RECENT_CALLS,
   CONTRIBUTOR_MODEL_SUFFIX,
-  DAMAGED_SESSIONS_KEPT,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   DELTA_BATCH_MS,
@@ -1836,9 +1836,10 @@ export class ConversationController {
   /**
   Muse Code said this session's event log failed (CLI recovery): Muse Code
   1.4.2 then failed every message of it (the owner's session of
-  2026-10-02/03). It is kept as damaged in this workspace, the newest
-  `DAMAGED_SESSIONS_KEPT`: never resumed by itself again, and a message to
-  it is refused before Muse Code hears of it. It stays in History.
+  2026-10-02/03). It is kept as damaged in this workspace: never resumed by
+  itself again, and a message to it is refused before Muse Code hears of
+  it. It stays in History. The person is told at that moment, naming the
+  session: a damaged log shows nowhere else.
   */
   private markDamaged(sessionId: string, how: string): void {
     const damaged = this.deps.sessions.damagedIds()
@@ -1849,10 +1850,11 @@ export class ConversationController {
       `Session ${sessionId}'s Muse Code event log failed (${how}); it takes no new message`,
     )
     void this.deps.sessions
-      .setDamagedIds([...damaged, sessionId].slice(-DAMAGED_SESSIONS_KEPT))
+      .setDamagedIds(markedDamagedIds(damaged, sessionId))
       .catch((error: unknown) => {
         this.deps.log.warn(`The damaged session list could not be saved: ${errorKind(error)}`)
       })
+    this.notice('warning', UI_TEXT.sessionLogDamaged)
   }
 
   /** The session this panel's next message would go to, when its log is damaged. */
