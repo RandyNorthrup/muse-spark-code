@@ -27,7 +27,7 @@ import {
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { withBundledSkillsArchive } from '../../src/core/context/bundledSkillsArchive'
 import { bundledSkillsRoot, loadSkills, type SkillRoot } from '../../src/core/context/skills'
-import { installBundledSkills } from '../../src/host/skills/bundledSkillsInstall'
+import { installBundledSkills } from '../../src/core/skills/bundledSkillsInstall'
 import {
   BUNDLED_SKILLS_ARCHIVE_FILE,
   BUNDLED_SKILLS_ARCHIVE_VERSION,
@@ -131,6 +131,7 @@ function installArea(): {
 /** The real installer over an area, with the test's clock and identity. */
 function install(area: { vendorRoot: string; skillsRoot: string; sourcesRoot: string }) {
   return installBundledSkills({
+    log: { warn: () => undefined },
     vendorRoot: area.vendorRoot,
     skillsRoot: area.skillsRoot,
     sourcesRoot: area.sourcesRoot,

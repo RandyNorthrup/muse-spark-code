@@ -30326,6 +30326,26 @@ or M109):
 | S0 Install on a home PC                   | D90.23: the native Linux installer's LAN profile (signature check, two systemd units, the node's port only); the Docker Desktop guides for Windows and macOS (published address, firewall prompt); `node wipe` for a home node; qualification on the owner's PCs                                                                                                                                                                                                                                                                                                                                                                                                                             | new `deploy/install/**` (LAN profile), `docs/node/home.md`, `docs/certification/m110a0-hosts.md`                                                                          | —                                                                                                                                                                                                                                                                         | after C                                                           |
 | J Docs and certification                  | README's "Muse Node" section for the home node and each phase's pages; the operator guide; SECURITY, PRIVACY, CHANGELOG; AGENTS.md (layout, rule 8's node row); the editor matrix rows; certification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | new `docs/node/**`, `docs/certification/m110*.md`                                                                                                                         | README; AGENTS.md; SECURITY; PRIVACY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; PLAN (D90 and M110 only)                                                                                                                                       | day 0 (throughout)                                                |
 
+**M110-B0 lane scope (2026-10-06).** The rig brief adds D90.27's base
+agent toolset: `deploy/toolset/**`, portable bundled-skills installation,
+first-boot preparation ports and `docs/certification/m110-b0-base-agent-toolset.md`.
+This base lacks D90.27 and the B0 row from the newer lead plan; the preceding
+D90.27 records the brief before implementation. Do not edit C's deployment,
+OS1's recipes, U2's help UI or N's boot wiring: deliver explicit injected
+ports and named handoffs. H09/H10/H11/H17 bind download integrity, bounded
+artifacts, installed-tool ownership, copy containment and supply chain.
+Final local verification follows the rig/common brief (scoped suites, default
+timeouts, no full quality run); the lead runs the complete quality gate.
+
+**M110-B0 review repair (RVM110B0, 2026-10-06).** Fix both P2 findings
+within B0: derive image-owned checksum inventories from the validated pinned
+manifest, verify them before installation and pass only their named Debian
+packages to dpkg (H17). Keep installer/build/skill asset copies inside the
+fresh-context cleanup scope so any staging failure aborts and permits a clean
+retry without deleting an existing context or cache (H09). Execute regression
+tests and byte-exact-restored red drills for both controls; no new dependency
+or wider lane scope. Record the results in the B0 certification.
+
 **The later phases' lanes:**
 
 | Lane                                                  | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Files it owns                                                                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                                                            | Starts                                                                                                                                               |
@@ -35999,6 +36019,18 @@ FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
 fallback. The other counts above are unchanged. W owns this same generated
 snapshot handoff; the portable-module check and all build checks pass.
 
+**M110B0 lane verification delegation and inherited record deferral
+(2026-10-06).** The rig/common briefs delegate full quality/coverage/platform
+gates to the lead. B0 runs default-timeout owned suites, all-project
+typecheck, scoped lint/format, deadcode, duplication, localization and
+production build, plus offline amd64 image build/smoke/compressed-size
+receipts. `check:host-api` reports the same eleven J-owned stale Node import
+counts as N, with no new VS Code dependency/API; B0-J-HOST-API binds the
+record regeneration to J after integration. Native ARM64 image/browser
+execution, composed-image sizing and help registry/package/boot bindings
+remain named handoffs in `docs/certification/m110-b0-base-agent-toolset.md`.
+No gate, budget, threshold, ignore or timeout is weakened.
+
 **M110N lane verification delegation (2026-10-06).** The rig brief and
 shared lane rules explicitly prohibit full quality/full-suite runs here.
 N runs its owned tests at the default timeout, scoped ESLint/Prettier,
@@ -39375,6 +39407,16 @@ review findings and terminal settlement-pricing failure.
   certifies crafted OCI layers and the actual promotion shell on local fakes.
   No registry operation or model call runs here. J carries the CHANGELOG and
   operator-documentation update at integration.
+
+- **M110B0 pinned installer inventory (RVM110B0, H17/H09).** The validated
+  manifest generates image-owned checksum lists outside the artifact mounts;
+  every named artifact is hashed before use and only listed Debian paths reach
+  dpkg. Artifact-directory additions or checksum-list edits cannot extend that
+  inventory. All fresh-context copies share cleanup; existing contexts and
+  caches are preserved. Both review P2s are fixed, with regression/red-drill
+  evidence in the B0 certification and no new accepted review residual. C still
+  owns final image signing, SBOM, scans and native ARM64 qualification; this
+  control does not protect against host/root changing the whole image (H16).
 
 - **M110N-packed-replace-ref (RVM110NG P3).** The private Git snapshot
   rejects loose `refs/replace/*` but copies packed replacement refs as data.

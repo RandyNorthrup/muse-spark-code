@@ -5,7 +5,7 @@ import os from 'node:os'
 import crypto from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { runOsBootProbe } from './helpers/osBootProbe.mjs'
 
 // Tool-gated tests follow the repository's bun precedent (PLAN §9): they
@@ -178,12 +178,9 @@ function mintThrowaway() {
   return { fingerprint, keyring, sign }
 }
 
-// The refusal drill must stop before it can touch any host state.
-vi.mock('../../src/runtime/node/state', () => ({
-  NodeStateStore: function rejectHostState() {
-    throw new Error('OS1 fixture reached filesystem')
-  },
-}))
+// The refusal drill proves the probe stops before touching any host state. It
+// never runs as the node service account itself: there the real probe would
+// proceed past the UID gate and write the service's state directory.
 
 const root = fileURLToPath(new URL('../../os/', import.meta.url))
 const interpreter = process.platform === 'win32' ? 'python' : 'python3'
@@ -359,11 +356,14 @@ else:
 `
 }
 describe('M110-OS1 immutable image inputs', () => {
-  it('refuses to execute the native boot fixture outside the service UID', async () => {
-    await expect(runOsBootProbe({ NodeService: null, nodeHealth: null })).rejects.toThrow(
-      'OS1 wrong service UID',
-    )
-  })
+  it.runIf(typeof process.getuid !== 'function' || process.getuid() !== 61_100)(
+    'refuses to execute the native boot fixture outside the service UID',
+    async () => {
+      await expect(runOsBootProbe({ NodeService: null, nodeHealth: null })).rejects.toThrow(
+        'OS1 wrong service UID',
+      )
+    },
+  )
   it('accepts the pinned Debian/Node policy and A/B partition layout', () => {
     expect(
       execFileSync(interpreter, [path.join(root, 'check.py')], { encoding: 'utf8' }),

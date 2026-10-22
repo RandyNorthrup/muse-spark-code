@@ -2426,7 +2426,7 @@
   "browserCheckUrlRefused": "Só é possível abrir um endereço http:// ou https:// com um nome de host simples ou um endereço IP, sem nome de usuário nem senha.",
   "browserCheckInvalidArguments": "A verificação no navegador foi pedida com argumentos inválidos, então nada foi aberto.",
   "browserCheckRuntimeMissing": "O navegador da verificação no navegador não está instalado e não pôde ser baixado agora. Verifique a conexão e tente novamente.",
-  "browserCheckRuntimeUnsupported": "A verificação no navegador não está disponível neste computador. Ela é compatível com Windows x64, Linux x64 e macOS.",
+  "browserCheckRuntimeUnsupported": "A verificação no navegador não está disponível neste computador. Ela é compatível com Windows x64, Linux x64/ARM64 e macOS.",
   "browserCheckRuntimeOutdated": "O navegador da verificação no navegador tem mais de 45 dias. Atualize o Muse Spark Code para usar a verificação no navegador de novo.",
   "browserCheckRuntimeIntegrity": "O navegador da verificação no navegador não corresponde à versão fixada por esta extensão, então não foi iniciado.",
   "browserCheckRuntimeBlocked": "Este computador não permitiu executar o navegador da verificação no navegador (controle de aplicativos ou assinatura de código).",

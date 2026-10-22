@@ -15,7 +15,7 @@ import {
   type BundledSkillsPaths,
   installBundledSkills,
   removeBundledSkills,
-} from './bundledSkillsInstall'
+} from '../../core/skills/bundledSkillsInstall'
 
 const LIST_SEPARATOR = ', '
 const NONE = '—'

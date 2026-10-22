@@ -176,3 +176,16 @@ secrets. Same-origin page compromise can steal the page's bearer. Passkeys
 do not encrypt workspaces. Without full disk encryption, workspaces and boot
 keys are readable from a stolen disk. A browser trust-store receipt and a
 Docker firewall receipt are per platform, never inferred from fakes.
+
+**M110-B0 review controls (RVM110B0, 2026-10-06).** H17 binds installation
+to image-owned inventories derived from the validated pinned manifest, outside
+the artifact mounts: verify every SHA-256 before dpkg-deb/dpkg/tar, and dispatch
+only the named Debian paths without glob expansion. Unlisted packages and a
+rewritten artifact checksum list cannot extend that inventory. H09 binds the
+complete fresh build context, including installer/build/skill copies, to one
+cleanup scope; failure is an error, removes that context and permits retry,
+while existing contexts and caches remain intact. Both P2s are fixed. Executed
+regressions and byte-exact-restored red drills are recorded in
+[B0 certification](m110-b0-base-agent-toolset.md) and
+[`m110-b0-review-drills.json`](m110-b0-review-drills.json). These controls add
+no claim of final image signing or native ARM64 qualification.

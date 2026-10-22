@@ -1,0 +1,85 @@
+[
+  {
+    "id": "B0-ARM-PLATFORM",
+    "file": "src/core/browser/runtime/runtimeManifest.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/runtimeManifest.test.ts", "test/unit/runtimeStore.test.ts"],
+    "failures": [
+      "FAIL  test/unit/runtimeManifest.test.ts > the shipped runtime pin (M81 A1) > maps this OS and processor to its pinned platform, and any other to none",
+      "FAIL  test/unit/runtimeStore.test.ts > the runtime store (M81 A1) > prepares Linux ARM64 through the same verified store and returns its own platform"
+    ],
+    "restoredSha256": "f5806660c8b44d3fa535418760cefca2a83507dbd8a234ad4b87ef3648325adf"
+  },
+  {
+    "id": "B0-ARM-MISSING-PIN",
+    "file": "src/host/browser/runtime/runtimeStore.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/runtimeStore.test.ts"],
+    "failures": [
+      "FAIL  test/unit/runtimeStore.test.ts > the runtime store (M81 A1) > refuses an older pin with no Linux ARM64 record before download or consent"
+    ],
+    "restoredSha256": "407a23e6ab5cf433cdda960223e5cb40c949a22f427b2b96769b8f0f10860aed"
+  },
+  {
+    "id": "B0-SKILLS-DEFAULT",
+    "file": "src/core/context/baseAgentToolset.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/baseAgentToolset.test.ts"],
+    "failures": [
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > defaults bundled source and automation-runtime preparation on, without doing work at construction",
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > reports a missing Muse Code vendor explicitly rather than inventing an installed skill copy"
+    ],
+    "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
+  },
+  {
+    "id": "B0-SKILLS-OFF",
+    "file": "src/core/context/baseAgentToolset.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/baseAgentToolset.test.ts"],
+    "failures": [
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > honours explicit false settings and reads them again on each preparation"
+    ],
+    "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
+  },
+  {
+    "id": "B0-BROWSER-DEFAULT",
+    "file": "src/core/context/baseAgentToolset.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/baseAgentToolset.test.ts"],
+    "failures": [
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > defaults bundled source and automation-runtime preparation on, without doing work at construction"
+    ],
+    "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
+  },
+  {
+    "id": "B0-BROWSER-OFF",
+    "file": "src/core/context/baseAgentToolset.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/baseAgentToolset.test.ts"],
+    "failures": [
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > honours explicit false settings and reads them again on each preparation"
+    ],
+    "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
+  },
+  {
+    "id": "B0-PORTABLE-ROOT",
+    "file": "src/core/context/baseAgentToolset.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/baseAgentToolset.test.ts"],
+    "failures": [
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > uses the chosen platform for portable package roots"
+    ],
+    "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
+  },
+  {
+    "id": "B0-MUSE-OPTIONAL",
+    "file": "src/core/context/baseAgentToolset.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/baseAgentToolset.test.ts"],
+    "failures": [
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > defaults bundled source and automation-runtime preparation on, without doing work at construction",
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > honours explicit false settings and reads them again on each preparation"
+    ],
+    "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
+  }
+]

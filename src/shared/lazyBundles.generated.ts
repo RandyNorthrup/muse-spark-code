@@ -1250,6 +1250,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'webview/node/files/main.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'WEBVIEW_SCRIPT_FILE', side: ['vscode'] },
+    ],
+  },
   { file: 'webview/referencePage.js', side: 'vscode', requestedBy: [] },
   { file: 'webview/reportingDestinations.js', side: 'vscode', requestedBy: [] },
   {
