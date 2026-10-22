@@ -6596,3 +6596,29 @@ byte-identical. Full build/split/notices clearance is not claimed. Receipts
 and sizes are in `docs/certification/m107.md`'s M107HC2 record.
 
 <!-- plan-archive:end id="gates-b96bda2b6-35300" -->
+
+## CIFIX017W inherited production-build blocker (2026-10-09)
+
+<!-- plan-archive:begin id="gates-6ad5b6d39-34595" lines="34595-34613" at="6ad5b6d39" bytes="1287" sha256="698f906c7d7d7858d6cca2d03e60631d105aacb0613c26a1f0e30c6410c7f86f" -->
+
+**CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
+release head's two full What's New releases serialize to 79,510 bytes,
+above the unchanged 76,800-byte decoded-content bound. LF normalization
+does not change that size. `encodeWhatsNewContent` refuses before bundling;
+the package test's captured data-URL stack previously masked it as ENOBUFS.
+Preserve the real build refusal and its full disk-backed diagnostics. Shared
+package-build qualification uses a clearly named private source fixture
+with abbreviated previous-release notes; it cannot certify the actual
+release build or replace final runs against the committed tree. The lead
+must resolve release-note representation within the existing cap before
+actual-source packaging can be green. No cap, threshold or test timeout is
+changed; aggregate quality remains lead-owned under the rig/common rules.
+
+The controlled full webview consumer also exits 1 on its resource-policy
+emitted-input negative drill: spawning the complete split check exceeds
+the unchanged Windows 15-second test deadline. Shared fixture copies keep
+the drill and all assertions intact. Split-check latency and actual-release
+content qualification remain with the lead; no green release claim follows
+from the private package fixture.
+
+<!-- plan-archive:end id="gates-6ad5b6d39-34595" -->
