@@ -3,10 +3,10 @@
 // The transport and the entries load lazily, as they did at each call
 // site; only leaf modules load statically.
 import * as z from 'zod/mini'
+import { ApiKeyAuthSource, NoAuthSource } from '../core/backends/modelapi/authSource'
 import { resolveAttemptBillingRoute } from '../core/backends/modelapi/billingRoute'
 import type { TransportDeps } from '../core/backends/modelapi/transport'
-import type { ProviderPreset } from '../core/providers/presets'
-import { presets } from '../host/backend/providersEntry'
+import { OPENROUTER_ATTRIBUTION, type ProviderPreset } from '../core/providers/presets'
 import type { ResolvedProvider } from './exec/providerExec'
 import {
   CREDENTIAL_RECORD_VERSION,
@@ -15,8 +15,6 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { uiLocale } from '../shared/l10n/text'
-
-const { OPENROUTER_ATTRIBUTION } = presets
 
 export function attributionHeaders(preset: ProviderPreset): Record<string, string> {
   return preset.id === 'openrouter'
@@ -74,14 +72,12 @@ export async function readProviderJson(
   | { readonly cause: unknown; readonly signal: AbortSignal }
 > {
   const shared = await import('../host/backend/modelApiEntry')
-  const auth = await import('../host/backend/configuredProvidersEntry')
   shared.setUiText(UI_TEXT, uiLocale())
-  auth.setUiText(UI_TEXT, uiLocale())
   const origin = new URL(url).origin
   const source =
     key === undefined
-      ? new auth.NoAuthSource(origin)
-      : new auth.ApiKeyAuthSource(
+      ? new NoAuthSource(origin)
+      : new ApiKeyAuthSource(
           () =>
             Promise.resolve({
               record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
