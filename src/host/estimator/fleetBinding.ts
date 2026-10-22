@@ -97,6 +97,12 @@ function refuse(detail: string): never {
   throw fleetFailure(detail)
 }
 
+/** A refusal that keeps the probe's error as its cause: the fixed diagnostic
+stays the contract; the cause preserves what the probe reported. */
+function refuseWith(detail: string, cause: unknown): Error {
+  return Object.assign(fleetFailure(detail), { cause })
+}
+
 /** A corrupt machine reading refuses instead of widening the forecast. */
 function checkMachineReading(reading: FleetMachineReading): void {
   if (
@@ -449,8 +455,8 @@ function currentOwner(deps: FleetUsageOwners) {
   let value: ReturnType<NonNullable<FleetUsageOwners['currentOwner']>> | undefined
   try {
     value = deps.currentOwner?.()
-  } catch {
-    refuse('fleet-account-invalid: owner unavailable')
+  } catch (error: unknown) {
+    throw refuseWith('fleet-account-invalid: owner unavailable', error)
   }
   if (value === undefined) return
   const parsed = currentOwnerSchema.safeParse(value)
@@ -476,7 +482,7 @@ async function liveAccountSource(deps: FleetUsageOwners): Promise<FleetAccountSo
     observations = parsed.data
   } catch (error: unknown) {
     if (typeof error === 'object' && error !== null && 'estimateDiagnostic' in error) throw error
-    refuse('fleet-account-invalid: usage-read unavailable')
+    throw refuseWith('fleet-account-invalid: usage-read unavailable', error)
   }
   const after = currentOwner(deps) ?? before
   if (
@@ -600,8 +606,8 @@ export function extensionFleetSources(
               ? 'default'
               : 'configured',
         })
-      } catch {
-        refuse('fleet-caps-invalid')
+      } catch (error: unknown) {
+        throw refuseWith('fleet-caps-invalid', error)
       }
     },
     activeAccount: async () => {
@@ -646,8 +652,8 @@ export function headlessFleetSources(
           return machineReading(reading.settings, reading.origin)
         }
         return machineReading(await deps.readSettings())
-      } catch {
-        refuse('fleet-caps-invalid')
+      } catch (error: unknown) {
+        throw refuseWith('fleet-caps-invalid', error)
       }
     },
     activeAccount: async () => {
@@ -663,7 +669,7 @@ export function headlessFleetSources(
           error.code === 'unavailable'
             ? 'unavailable'
             : 'invalidAccount'
-        refuse(`fleet-account-invalid: registry ${reason}`)
+        throw refuseWith(`fleet-account-invalid: registry ${reason}`, error)
       }
       const owner = currentOwner(deps)
       const live = await liveAccountSource(deps)
