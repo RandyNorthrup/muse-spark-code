@@ -9,7 +9,6 @@ const FRAME_LENGTH_BYTES = 4
 const RELAY_NODE_ID_MAX = 128
 
 export const relayNodeIdSchema = z.string().check(z.minLength(1), z.maxLength(RELAY_NODE_ID_MAX))
-export type RelayNodeId = z.infer<typeof relayNodeIdSchema>
 
 export const relayClientFrameSchema = z.union([
   z.strictObject({ t: z.literal('register'), nodeId: relayNodeIdSchema }),

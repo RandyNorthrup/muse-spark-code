@@ -12,7 +12,6 @@ export const brokeredUseModeSchema = z.enum([
   'alwaysAllow',
   'never',
 ])
-export type BrokeredUseMode = z.infer<typeof brokeredUseModeSchema>
 
 export const brokeredUseRequestSchema = z.strictObject({
   keyId: z.string().check(z.minLength(1)),

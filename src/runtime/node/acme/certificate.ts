@@ -16,6 +16,17 @@ export type InstalledCertificateVerdict =
   | { readonly ok: true; readonly certificate: InstalledCertificate }
   | { readonly ok: false; readonly reason: string }
 
+/* An OpenSSL parse failure carries an ERR_OSSL_ code; anything else rethrows. */
+function isOpenSslFailure(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    error.code.startsWith('ERR_OSSL_')
+  )
+}
+
 /* Parse the PEM the installer wrote; garbage and non-certificates refuse. */
 export function readInstalledCertificate(pem: string): InstalledCertificateVerdict {
   if (!pem.includes('BEGIN CERTIFICATE'))
@@ -24,7 +35,7 @@ export function readInstalledCertificate(pem: string): InstalledCertificateVerdi
   try {
     certificate = new X509Certificate(pem)
   } catch (error) {
-    if (error instanceof Error) return { ok: false, reason: 'this certificate does not parse' }
+    if (isOpenSslFailure(error)) return { ok: false, reason: 'this certificate does not parse' }
     throw error
   }
   return {
