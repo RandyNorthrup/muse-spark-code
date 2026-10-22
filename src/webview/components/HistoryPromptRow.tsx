@@ -2,6 +2,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { WEBVIEW_KEYBINDINGS } from '../../shared/keybindings'
 import type { SessionRow } from '../../shared/sessions'
 import { type MouseEvent, useState } from 'react'
+import type { SessionRecapView } from '../state/uiState'
 import { createPortal } from 'react-dom'
 import type { MenuPoint } from '../gooeyLayout'
 import { GooeyMenu, type GooeyItem } from './GooeyMenu'
@@ -16,14 +17,18 @@ export function HistoryPromptRow({
   isCurrent,
   isRowArchived,
   meta,
+  recap,
+  isRecapPending,
   onHover,
   onResume,
   onSetArchived,
   onDelete,
+  onRecap,
   onSavePrompt,
   menuContainer,
 }: {
   readonly onDelete: ((sessionId: string) => void) | undefined
+  readonly onRecap: (() => void) | undefined
   readonly menuContainer: HTMLElement | null
   readonly onSavePrompt: ((sessionId: string) => void) | undefined
   readonly row: SessionRow
@@ -31,6 +36,8 @@ export function HistoryPromptRow({
   readonly isCurrent: boolean
   readonly isRowArchived: boolean
   readonly meta: string
+  readonly recap: SessionRecapView | undefined
+  readonly isRecapPending: boolean
   readonly onHover: () => void
   readonly onResume: () => void
   readonly onSetArchived: (isArchived: boolean) => void
@@ -63,6 +70,7 @@ export function HistoryPromptRow({
     setOrigin({ x: event.clientX, y: event.clientY })
   }
   const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
+  const recapBody = recap === undefined ? undefined : (recap.text ?? recap.reason ?? recap.outcome)
   return (
     <>
       <PaletteSessionRow
@@ -72,6 +80,18 @@ export function HistoryPromptRow({
         isActive={isActive}
         isCurrent={isCurrent}
         meta={meta}
+        extraDetails={
+          recapBody === undefined ? (
+            isRecapPending ? (
+              <span className="palette-item-detail">{UI_TEXT.historyRecapLoading}</span>
+            ) : null
+          ) : (
+            <span className="palette-item-detail">
+              {recap?.title === undefined ? null : `${recap.title}: `}
+              {recapBody}
+            </span>
+          )
+        }
         // The row is the control: Delete (un)archives it from the search box.
         keyShortcuts={onDelete === undefined ? ARCHIVE_KEY : `${ARCHIVE_KEY} ${DELETE_SHORTCUT}`}
         keyDescription={
@@ -109,6 +129,22 @@ export function HistoryPromptRow({
                 }}
               >
                 {UI_TEXT.memoryDeleteAction}
+              </span>
+            )}
+            {onRecap === undefined ? null : (
+              <span
+                className="icon-button history-archive"
+                title={UI_TEXT.historyRecap}
+                aria-hidden="true"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onRecap()
+                }}
+              >
+                {UI_TEXT.historyRecap}
               </span>
             )}
           </>

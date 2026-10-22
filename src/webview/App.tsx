@@ -211,6 +211,10 @@ const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
+const SessionListsDialog = deferred(async () => {
+  const module = await import('./components/SessionListsDialog')
+  return { default: module.SessionListsDialog }
+})
 const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
   return { default: module.AgentMap }
@@ -376,6 +380,7 @@ type Overlay =
   | 'attach'
   | 'history'
   | 'board'
+  | 'sessionLists'
   | 'bestOfN'
   | 'usage'
   | 'agents'
@@ -1951,6 +1956,11 @@ export function App({
           postMessage({ type: 'requestSessionBoard' })
           break
         }
+        case 'sessionLists': {
+          // Always re-read: the lists are live while the dialog is closed.
+          postMessage({ type: 'requestSessionLists' })
+          break
+        }
         case 'usage':
         case 'agents': {
           // The Agent map notes Muse Code's delegation and workflow settings
@@ -2068,6 +2078,9 @@ export function App({
   }, [toggleOverlay])
   const onOpenBoard = useCallback(() => {
     toggleOverlay('board')
+  }, [toggleOverlay])
+  const onOpenSessionLists = useCallback(() => {
+    toggleOverlay('sessionLists')
   }, [toggleOverlay])
   const onOpenBestOfN = useCallback(() => {
     setOverlay('bestOfN')
@@ -3118,6 +3131,7 @@ export function App({
     case 'usage':
     case 'agents':
     case 'review':
+    case 'sessionLists':
     case undefined: {
       // History hangs from the header; usage, the Agent map and the review pane are modals.
       floating = null
@@ -3180,6 +3194,25 @@ export function App({
         onResume={onResumeSession}
         onSetArchived={onSetSessionArchived}
         onDelete={state.canDeleteSessions ? onDeleteSession : undefined}
+        onRecap={
+          state.canRecapSessions
+            ? (sessionId) => {
+                postMessage({ type: 'recapSession', sessionId })
+              }
+            : undefined
+        }
+        recaps={state.recaps}
+        onClose={closeOverlay}
+      />
+    ) : null
+  const sessionLists =
+    overlay === 'sessionLists' ? (
+      <SessionListsDialog
+        lists={state.sessionLists}
+        now={now}
+        onRefresh={() => {
+          postMessage({ type: 'requestSessionLists' })
+        }}
         onClose={closeOverlay}
       />
     ) : null
@@ -3347,6 +3380,7 @@ export function App({
             onNewConversation={onNewConversation}
             onOpenHistory={onOpenHistory}
             onOpenBoard={onOpenBoard}
+            onOpenSessionLists={onOpenSessionLists}
             onRename={
               state.sessionId === undefined || !state.canEditSessions ? undefined : onRename
             }
@@ -3362,6 +3396,7 @@ export function App({
           />
           {history}
           {board}
+          {sessionLists}
         </div>
         <>
           {overlay === 'help' ? (

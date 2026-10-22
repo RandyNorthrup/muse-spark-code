@@ -157,6 +157,7 @@ export const SCENARIOS = [
   'long',
   'editor',
   'history',
+  'session-lists',
   'resume',
   'narrow',
   'usage',

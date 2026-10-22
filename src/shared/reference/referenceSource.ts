@@ -315,6 +315,8 @@ export const REFERENCE_ACTION_FEATURES = {
   openBestOfNAttempt: 'best-of-n',
   cancelBestOfN: 'best-of-n',
   readChildSession: 'conversation-actions',
+  recapSession: 'conversation-actions',
+  requestSessionLists: 'conversation-actions',
   subagentControl: 'native-agents',
   subagentMessage: 'native-agents',
   resumeSession: 'conversation-actions',
