@@ -14,7 +14,7 @@ import { PLAN_MODEL_PROVIDERS } from '../../../shared/providerRouting'
 // codec bundle — the subscriptions bundle must not carry
 // src/core/backends/modelapi/codecs/* (they load only in dist/providers.js).
 import { isChatCodecError } from '../../media/codecRefusal'
-const { ChatgptPlanLimitError, createResponsesCodec, ResponsesDecodeError } = responses
+const { ChatgptPlanLimitError, ResponsesDecodeError } = responses
 const { parseModelRef } = modelRef
 import {
   CHATGPT_DIRECT_UNAVAILABLE_CODE,
@@ -23,6 +23,7 @@ import {
   CHATGPT_PLAN_RETRYABLE_CODES,
   CHATGPT_TOKEN_MIN_VALIDITY_MS,
   CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+  GROK_TOKEN_MIN_VALIDITY_MS,
   HTTP_TOO_MANY_REQUESTS,
   MILLISECONDS_PER_SECOND,
   PROVIDER_RETRY_HTTP_STATUS,
@@ -49,6 +50,7 @@ import type { CoreLogger } from '../../logging'
 import { failureCodeNames } from '../../networkFailure'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
+import { type GrokSignIn, GrokSignInError, grokRecordSchema } from './grok'
 import { CopilotFailureError } from './copilotFailure'
 import type { ChatGptPlanFacts } from '../../backends/modelapi/planFacts'
 import { chatGptPlanFacts } from './chatgptPlanFacts'
@@ -68,6 +70,9 @@ const catalogueRowSchema = z.looseObject({
 const catalogueSchema = z.object({ models: z.array(z.unknown()) })
 const MODELS_URL = 'https://api.openai.com/v1/models'
 const RESPONSES_URL = 'https://api.openai.com/v1/responses'
+// The xAI Responses API (research: HERMES; the product's `xai` API-key
+// preset sends the Responses wire shape to this origin).
+const GROK_RESPONSES_URL = 'https://api.x.ai/v1/responses'
 
 export interface ChatGptCatalog {
   readonly slugs: readonly string[]
@@ -86,13 +91,26 @@ async function jsonBody(response: Response): Promise<unknown> {
   }
 }
 
-/** A refused answer named by its HTTP status and OpenAI's own code, never its text. */
+/**
+xAI's own refusal envelope, beside OpenAI's: `{code, error}` with the
+sentence in `error` (real-life captures 2026-10-13,
+`test/fixtures/provider-refusals/xai/unknown-model.json` and
+`bad-key.json`: a 404 for an unknown model, a 400 for a wrong key).
+*/
+const xaiRefusalSchema = z.looseObject({ code: z.string(), error: z.string() })
+
+/** A refused answer named by its HTTP status and the provider's own code, never its text. */
 async function refusalOf(response: Response): Promise<string> {
   const body = await jsonBody(response)
-  const envelope = errorBodySchema.safeParse(body)
-  const code = envelope.success ? envelope.data.error.code : undefined
   const status = `HTTP ${String(response.status)}`
-  return code == null || code === '' ? status : `${status} ${code}`
+  // xAI's envelope first: the OpenAI codec also reads a string `error`,
+  // but drops xAI's sibling `code`.
+  const xai = xaiRefusalSchema.safeParse(body)
+  if (xai.success && xai.data.code !== '') return `${status} ${xai.data.code}`
+  const envelope = errorBodySchema.safeParse(body)
+  return envelope.success && envelope.data.error.code != null && envelope.data.error.code !== ''
+    ? `${status} ${envelope.data.error.code}`
+    : status
 }
 
 /**
@@ -155,6 +173,77 @@ export async function chatGptModels(
   return [...catalog.slugs]
 }
 
+// The model list shape is the captured one (`{data: [{id,
+// context_length, ...}]}`, `docs/certification/m95-captures/xai/01-models-list.json`,
+// key auth 2026-10-04; the product's `xai` preset lists the same path).
+// A subscription answer in any other shape reads unreadable rather than
+// guessed; the first live sign-in pins it.
+const GROK_MODELS_URL = 'https://api.x.ai/v1/models'
+const grokCatalogueSchema = z.object({ data: z.array(z.unknown()) })
+const grokCatalogueRowSchema = z.looseObject({
+  id: z.string().check(z.minLength(1)),
+  context_length: z.optional(z.number().check(z.nonnegative())),
+})
+
+export interface GrokCatalog {
+  readonly slugs: readonly string[]
+  /** The rows' own context windows where the list names them. */
+  readonly windows: ReadonlyMap<string, number | undefined>
+}
+
+/**
+The subscription's model slugs with each row's own context window. Rows
+parse minimally: a row without an id cannot list, and a list in any
+other shape reads unreadable rather than guessed.
+*/
+export async function grokCatalog(
+  signIn: Pick<GrokSignIn, 'accessToken'>,
+  fetcher: typeof fetch,
+): Promise<GrokCatalog> {
+  const token = await signIn.accessToken(GROK_MODELS_URL, GROK_TOKEN_MIN_VALIDITY_MS)
+  let response: Response
+  try {
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer or a network failure.
+    response = await fetcher(GROK_MODELS_URL, {
+      redirect: 'error',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch (error) {
+    throw new GrokSignInError('request-failed', failureCodeNames(error), { cause: error })
+  }
+  if (!response.ok) throw new GrokSignInError('catalogue-refused', await refusalOf(response))
+  let value: unknown
+  try {
+    value = await response.json()
+  } catch (error) {
+    // Only a body that is not JSON reads unreadable; anything else is not
+    // the body and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
+    throw new GrokSignInError('catalogue-unreadable')
+  }
+  const parsed = grokCatalogueSchema.safeParse(value)
+  if (!parsed.success) throw new GrokSignInError('catalogue-unreadable')
+  const windows = new Map<string, number | undefined>()
+  const slugs: string[] = []
+  for (const row of parsed.data.data) {
+    const listing = grokCatalogueRowSchema.safeParse(row)
+    if (!listing.success || windows.has(listing.data.id)) continue
+    windows.set(listing.data.id, listing.data.context_length)
+    slugs.push(listing.data.id)
+  }
+  if (slugs.length === 0) throw new GrokSignInError('catalogue-empty')
+  return { slugs, windows }
+}
+
+export async function grokModels(
+  signIn: Pick<GrokSignIn, 'accessToken'>,
+  fetcher: typeof fetch,
+): Promise<string[]> {
+  const catalog = await grokCatalog(signIn, fetcher)
+  return [...catalog.slugs]
+}
+
 /**
 A non-OK answer from the plan route, handled as OpenAI's errors and
 recovery page says (read 2026-10-17). `code` is OpenAI's own `error.code`
@@ -175,6 +264,34 @@ class ChatgptPlanRequestError extends Error {
 
 /** A direct-route admission refusal before any Responses request: diagnostic text, no code. */
 const directAdmissionSchema = z.object({ detail: z.string() })
+
+/**
+A refused plan answer's own words: the error envelope's message, else
+xAI's refusal sentence, else an admission detail, else the HTTP status.
+Both plan legs read refusals this way; only ChatGPT names limit,
+retryable and eligibility codes of its own on top.
+*/
+async function refusalWords(response: Response): Promise<{
+  readonly message: string
+  readonly code: string | undefined
+}> {
+  const body = await jsonBody(response)
+  // xAI's envelope first: the OpenAI codec also reads a string `error`,
+  // but drops xAI's sibling `code`.
+  const xai = xaiRefusalSchema.safeParse(body)
+  if (xai.success && xai.data.error !== '') return { message: xai.data.error, code: xai.data.code }
+  const envelope = errorBodySchema.safeParse(body)
+  if (envelope.success && envelope.data.error.message !== '')
+    return { message: envelope.data.error.message, code: envelope.data.error.code ?? undefined }
+  const admission = directAdmissionSchema.safeParse(body)
+  return {
+    message:
+      admission.success && admission.data.detail !== ''
+        ? admission.data.detail
+        : `HTTP ${String(response.status)}`,
+    code: undefined,
+  }
+}
 
 /**
 The one sentence for a failed ChatGPT sign-in, refresh, lock or catalogue
@@ -293,15 +410,132 @@ export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: st
 }
 
 /**
+The one sentence for a failed Grok sign-in, refresh, lock or catalogue
+read, shared by the terminal and ACP commands, the Models panel, the
+session's model listing and the plan stream's catch. Every code has its
+own cause; none falls back to a general sentence. `reason` is the
+operating system's code, xAI's error code, an HTTP status, Node's
+network codes or this app's own word, never provider text.
+*/
+export function grokFailureText(code: GrokSignInError['code'], reason?: string): string {
+  const named = reason ?? code
+  switch (code) {
+    case 'client-id-unset': {
+      return UI_TEXT.acpGrok.clientIdUnset
+    }
+    case 'invalid-discovery': {
+      return UI_TEXT.acpGrok.discoveryInvalid
+    }
+    case 'invalid-callback': {
+      return UI_TEXT.acpGrok.callbackInvalid
+    }
+    case 'callback-timeout': {
+      return UI_TEXT.acpGrok.callbackTimeout
+    }
+    case 'invalid-state': {
+      return UI_TEXT.acpGrok.stateMismatch
+    }
+    case 'invalid-token': {
+      return UI_TEXT.acpGrok.tokenAnswerInvalid
+    }
+    case 'invalid-id-token': {
+      return UI_TEXT.acpGrok.idTokenInvalid
+    }
+    case 'scope-refused': {
+      return UI_TEXT.acpGrok.scopeRefused
+    }
+    case 'origin-mismatch': {
+      return UI_TEXT.acpGrok.originMismatch
+    }
+    case 'device-expired': {
+      return UI_TEXT.acpGrok.deviceExpired
+    }
+    case 'device-denied': {
+      return UI_TEXT.acpGrok.deviceDenied
+    }
+    case 'device-refused': {
+      return fill(UI_TEXT.acpGrok.deviceRefused, { reason: reason ?? code })
+    }
+    case 'verification-refused': {
+      return UI_TEXT.acpGrok.verificationRefused
+    }
+    case 'not-signed-in': {
+      return UI_TEXT.acpGrok.states['signed-out']
+    }
+    case 'still-signed-in': {
+      return UI_TEXT.acpGrok.states['signed-in']
+    }
+    case 'sign-in-required': {
+      return fill(UI_TEXT.acpGrok.signInRefused, { reason: named })
+    }
+    case 'expired': {
+      return UI_TEXT.acpGrok.expired
+    }
+    case 'grant-unreadable': {
+      return UI_TEXT.acpGrok.grantUnreadable
+    }
+    case 'store-unavailable': {
+      return UI_TEXT.acpGrok.storeUnavailable
+    }
+    case 'lock-unavailable': {
+      return fill(UI_TEXT.acpGrok.lockUnavailable, { reason: reason ?? code })
+    }
+    case 'lock-busy': {
+      return UI_TEXT.acpGrok.lockBusy
+    }
+    case 'cancelled': {
+      return UI_TEXT.acpGrok.cancelled
+    }
+    case 'browser-unavailable': {
+      return UI_TEXT.acpGrok.browserUnavailable
+    }
+    case 'local-failed': {
+      return fill(UI_TEXT.acpGrok.localFailed, { reason: reason ?? code })
+    }
+    case 'providers-file-unreadable': {
+      return fill(UI_TEXT.acpGrok.providersFileUnreadable, { reason: reason ?? code })
+    }
+    case 'providers-file-unwritable': {
+      return fill(UI_TEXT.acpGrok.providersFileUnwritable, { reason: reason ?? code })
+    }
+    case 'already-added': {
+      return UI_TEXT.acpGrok.alreadyAdded
+    }
+    case 'catalogue-refused': {
+      return fill(UI_TEXT.acpGrok.catalogueRefused, { reason: named })
+    }
+    case 'catalogue-unreadable': {
+      return UI_TEXT.acpGrok.catalogueUnreadable
+    }
+    case 'catalogue-empty': {
+      return UI_TEXT.acpGrok.catalogueEmpty
+    }
+    case 'added-models-unlisted': {
+      return UI_TEXT.acpGrok.addedModelsUnlisted
+    }
+    case 'model-not-added': {
+      return fill(UI_TEXT.acpGrok.modelNotAdded, { model: named })
+    }
+    case 'authorize-refused': {
+      return fill(UI_TEXT.acpGrok.authorizeRefused, { reason: reason ?? code })
+    }
+    case 'request-failed': {
+      // xAI or the network, named by status or Node's codes where known.
+      return reason === undefined
+        ? UI_TEXT.planUi.retry
+        : fill(UI_TEXT.acpGrok.requestFailed, { reason })
+    }
+  }
+}
+
+/**
 The sentence for a refused plan answer, from a real `Response`: OpenAI's
 own error message or admission detail where it sent one, the HTTP status
 where it sent none, and the standing retry sentence only for the
 documented transient (503 / retryable code).
 */
 export async function planRequestError(response: Response): Promise<ChatgptPlanRequestError> {
-  const body = await jsonBody(response)
-  const envelope = errorBodySchema.safeParse(body)
-  const code = envelope.success ? (envelope.data.error.code ?? undefined) : undefined
+  const { message, code } = await refusalWords(response)
   if (code === CHATGPT_PLAN_LIMIT_ERROR_KIND) {
     return new ChatgptPlanRequestError(UI_TEXT.planUi.limitDetail, code)
   }
@@ -312,24 +546,33 @@ export async function planRequestError(response: Response): Promise<ChatgptPlanR
       isRetryCode ? code : CHATGPT_DIRECT_UNAVAILABLE_CODE,
     )
   }
-  if (code === CHATGPT_PLAN_NOT_ELIGIBLE_CODE) {
-    return new ChatgptPlanRequestError(UI_TEXT.planUi.notEligible, code)
+  return code === CHATGPT_PLAN_NOT_ELIGIBLE_CODE
+    ? new ChatgptPlanRequestError(UI_TEXT.planUi.notEligible, code)
+    : new ChatgptPlanRequestError(
+        fill(UI_TEXT.planUi.requestFailed, { message }),
+        code ?? 'request-failed',
+      )
+}
+
+class GrokPlanRequestError extends Error {
+  public constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message)
   }
-  const admission = directAdmissionSchema.safeParse(body)
-  let detail = ''
-  if (envelope.success) detail = envelope.data.error.message
-  else if (admission.success) detail = admission.data.detail
-  if (detail === '') {
-    // No words from OpenAI: the HTTP status is the cause, never a generic outage.
-    return new ChatgptPlanRequestError(
-      fill(UI_TEXT.planUi.requestFailed, { message: `HTTP ${String(response.status)}` }),
-      code ?? 'request-failed',
-    )
-  }
-  return new ChatgptPlanRequestError(
-    fill(UI_TEXT.planUi.requestFailed, { message: detail }),
-    code ?? 'request-failed',
-  )
+}
+
+/**
+The sentence for a refused xAI answer, from a real `Response`: xAI's
+own error message where it sent one, else the HTTP status. xAI
+documents no plan-limit, retryable or eligibility codes of its own, so
+none is named here: every refusal is terminal and is never retried by
+this leg.
+*/
+export async function grokPlanRequestError(response: Response): Promise<GrokPlanRequestError> {
+  const { message, code = 'request-failed' } = await refusalWords(response)
+  return new GrokPlanRequestError(fill(UI_TEXT.planUi.requestFailed, { message }), code)
 }
 
 /**
@@ -357,8 +600,12 @@ function planSlug(model: string): string | undefined {
   return ref === undefined || ref.providerId === 'chatgpt' ? (ref?.modelId ?? model) : undefined
 }
 
-function subscriptionRecord(record: unknown) {
-  if (record === undefined) return
+function parsedGrant<T>(
+  record: unknown,
+  schema: z.ZodMiniType<T>,
+  unreadable: () => Error,
+): T | undefined {
+  if (record === undefined) return undefined
   let value: unknown = record
   try {
     if (typeof record === 'string') value = JSON.parse(record)
@@ -366,11 +613,19 @@ function subscriptionRecord(record: unknown) {
     // Only malformed stored text reads unreadable; anything else is not
     // the grant and reaches the caller.
     if (!(error instanceof SyntaxError)) throw error
-    throw new ChatGptSignInError('grant-unreadable')
+    throw unreadable()
   }
-  const parsed = chatGptRecordSchema.safeParse(value)
-  if (!parsed.success) throw new ChatGptSignInError('grant-unreadable')
+  const parsed = schema.safeParse(value)
+  if (!parsed.success) throw unreadable()
   return parsed.data
+}
+
+function subscriptionRecord(record: unknown) {
+  return parsedGrant(record, chatGptRecordSchema, () => new ChatGptSignInError('grant-unreadable'))
+}
+
+function parseGrokGrant(record: unknown) {
+  return parsedGrant(record, grokRecordSchema, () => new GrokSignInError('grant-unreadable'))
 }
 
 /**
@@ -384,6 +639,9 @@ async function named<T>(work: () => Promise<T>): Promise<T> {
   } catch (error) {
     if (error instanceof ChatGptSignInError) {
       throw new Error(chatGptFailureText(error.code, error.reason), { cause: error })
+    }
+    if (error instanceof GrokSignInError) {
+      throw new Error(grokFailureText(error.code, error.reason), { cause: error })
     }
     throw error
   }
@@ -401,11 +659,48 @@ export function chatGptPlanAccount(record: unknown) {
     : { providerId: 'chatgpt', accountIdHash: parsed.accountIdHash }
 }
 
+export function grokAccountId(record: unknown): string | undefined {
+  return parseGrokGrant(record)?.accountIdHash
+}
+
+export function grokPlanAccount(record: unknown) {
+  const parsed = parseGrokGrant(record)
+  return parsed?.accountIdHash === undefined || parsed.pendingRefresh !== undefined
+    ? undefined
+    : { providerId: 'grok', accountIdHash: parsed.accountIdHash }
+}
+
+/** One Responses plan leg's provider-specific pieces; the send skeleton is shared. */
+export interface ResponsesLeg {
+  /** A fresh access token for the send URL, refreshed where the grant allows. */
+  token(): Promise<string>
+  readonly sendUrl: string
+  codec(): ReturnType<typeof responses.createResponsesCodec>
+  /** A refused answer's typed error, from the real Response. */
+  refusal(response: Response): Promise<Error>
+  /** The refused-answer error class, matched in the catch. */
+  readonly refusalError: new (message: string, code: string) => Error & { readonly code: string }
+  /** An empty success body never carries a reply. */
+  noReply(): Error
+  /** Mid-stream error codes the leg retries with the standing sentence. */
+  readonly retryableCodes: readonly string[]
+  /** Whether the decode failure is this leg's usage-limit error. */
+  isLimitError(error: unknown): boolean
+  /** The limit error's code and sentence; read only where `isLimitError` holds. */
+  limitDetail(error: unknown): { readonly code: string; readonly message: string }
+  /** This leg's sign-in failure as code and sentence, or undefined for foreign errors. */
+  signInFailure(error: unknown): { readonly code: string; readonly message: string } | undefined
+  /** A foreign failure's sentence, named by the caller's codes. */
+  foreignFailure(reason: string): string
+}
+
 export interface SubscriptionRegistryDeps {
   readonly fetch: typeof fetch
   readonly hasMetaKey?: () => Promise<boolean>
   readonly providers: () => Promise<ProvidersFile>
   readonly chatgpt: () => Promise<Pick<ChatGptSignIn, 'accessToken'>>
+  /** Absent on hosts without Grok support; a Grok entry there refuses as unwired. */
+  readonly grok?: () => Promise<Pick<GrokSignIn, 'accessToken'>>
   readonly accountId: () => Promise<string | undefined>
   readonly copilot?: () => ReadonlyMap<
     string,
@@ -479,6 +774,7 @@ export function createSubscriptionClient(
   // in-flight fetch is shared; a failed fetch leaves the cache cold so the
   // next read retries, and every read without facts keeps today's behaviour.
   let cachedFacts: ReadonlyMap<string, ChatGptPlanFacts> | undefined
+  let cachedGrokWindows: ReadonlyMap<string, number | undefined> | undefined
   let inflightFacts: Promise<ReadonlyMap<string, ChatGptPlanFacts>> | undefined
   const readFacts = (): Promise<ReadonlyMap<string, ChatGptPlanFacts>> => {
     if (cachedFacts !== undefined) return Promise.resolve(cachedFacts)
@@ -492,26 +788,110 @@ export function createSubscriptionClient(
       }
     })())
   }
+  const chatGptLeg: ResponsesLeg = {
+    token: async () => {
+      const signIn = await deps.chatgpt()
+      return await signIn.accessToken(RESPONSES_URL, CHATGPT_TOKEN_MIN_VALIDITY_MS)
+    },
+    sendUrl: RESPONSES_URL,
+    codec: () =>
+      responses.createResponsesCodec({
+        profile: 'chatgpt',
+        toolNamespace: 'functions',
+        toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+      }),
+    refusal: planRequestError,
+    refusalError: ChatgptPlanRequestError,
+    noReply: () => new ChatgptPlanRequestError(UI_TEXT.planUi.noReply, 'request-failed'),
+    retryableCodes: CHATGPT_PLAN_RETRYABLE_CODES,
+    isLimitError: (error) => error instanceof ChatgptPlanLimitError,
+    limitDetail: (error) =>
+      error instanceof ChatgptPlanLimitError
+        ? { code: error.code, message: UI_TEXT.planUi.limitDetail }
+        : { code: 'request-failed', message: UI_TEXT.planUi.retry },
+    signInFailure: (error) =>
+      error instanceof ChatGptSignInError
+        ? { code: error.code, message: chatGptFailureText(error.code, error.reason) }
+        : undefined,
+    foreignFailure: (reason) => chatGptFailureText('request-failed', reason),
+  }
+  /** A Grok signer, or the unwired-host refusal where the host has none. */
+  const grokSigner = async (): Promise<Pick<GrokSignIn, 'accessToken'>> => {
+    if (deps.grok === undefined) throw new GrokSignInError('local-failed', 'signer-unavailable')
+    return await deps.grok()
+  }
+  const grokLeg: ResponsesLeg = {
+    token: async () => {
+      const signIn = await grokSigner()
+      return await signIn.accessToken(GROK_RESPONSES_URL, GROK_TOKEN_MIN_VALIDITY_MS)
+    },
+    sendUrl: GROK_RESPONSES_URL,
+    // The default API profile: xAI takes the standard Responses fields,
+    // and prompt-cache keying is automatic server-side, so no cache fields
+    // are sent.
+    codec: () =>
+      responses.createResponsesCodec({
+        sendPromptCacheKey: false,
+        sendPromptCacheRetention: false,
+      }),
+    refusal: grokPlanRequestError,
+    refusalError: GrokPlanRequestError,
+    noReply: () => new GrokPlanRequestError(UI_TEXT.planUi.noReply, 'request-failed'),
+    // xAI documents no retryable plan codes and no limit sentence of its
+    // own: refusals surface with xAI's own words, terminally.
+    retryableCodes: [],
+    isLimitError: () => false,
+    limitDetail: () => {
+      // Never read: this leg's `isLimitError` never holds.
+      return { code: 'request-failed', message: UI_TEXT.planUi.retry }
+    },
+    signInFailure: (error) =>
+      error instanceof GrokSignInError
+        ? { code: error.code, message: grokFailureText(error.code, error.reason) }
+        : undefined,
+    foreignFailure: (reason) => grokFailureText('request-failed', reason),
+  }
   /** The signed-in plans' model references; makes no Meta request. */
   const planModelIds = async (): Promise<string[]> => {
     const file = await deps.providers()
     const ids: string[] = []
-    for (const entry of file.providers) {
-      if (entry.id === 'chatgpt') {
-        // Every listing refreshes the cached catalogue facts the plan
-        // send path resolves from.
-        const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
-        cachedFacts = catalog.facts
-        ids.push(
-          ...catalog.slugs.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
-        )
-      } else if (entry.id === 'copilot') {
-        ids.push(
-          ...entry.models
-            .filter((id) => deps.copilot?.().has(id) === true)
-            .map((id) => `copilot/${id}`),
-        )
+    const listEntry = async (entry: ProvidersFile['providers'][number]): Promise<void> => {
+      switch (entry.id) {
+        case 'chatgpt': {
+          // Every listing refreshes the cached catalogue facts the plan
+          // send path resolves from.
+          const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
+          cachedFacts = catalog.facts
+          ids.push(
+            ...catalog.slugs.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
+          )
+          break
+        }
+        case 'grok': {
+          // Every listing refreshes the cached windows the Grok
+          // context-limit read resolves from.
+          const catalog = await grokCatalog(await grokSigner(), deps.fetch)
+          cachedGrokWindows = catalog.windows
+          ids.push(
+            ...catalog.slugs.filter((id) => entry.models.includes(id)).map((id) => `grok/${id}`),
+          )
+          break
+        }
+        case 'copilot': {
+          ids.push(
+            ...entry.models
+              .filter((id) => deps.copilot?.().has(id) === true)
+              .map((id) => `copilot/${id}`),
+          )
+          break
+        }
+        default: {
+          break
+        }
       }
+    }
+    for (const entry of file.providers) {
+      await listEntry(entry)
     }
     return ids
   }
@@ -520,8 +900,10 @@ export function createSubscriptionClient(
     const file = await deps.providers()
     const entries = file.providers
     const entry = entries.find((row) => row.id === ref?.providerId)
-    if (ref === undefined || !entry?.models.includes(ref.modelId))
+    if (ref === undefined || !entry?.models.includes(ref.modelId)) {
+      if (ref?.providerId === 'grok') throw new GrokSignInError('model-not-added', model)
       throw new ChatGptSignInError('model-not-added', model)
+    }
     return ref
   }
   // Production media (D85.2): the Files transport rides to Meta untouched;
@@ -537,6 +919,7 @@ export function createSubscriptionClient(
       const ref = parseModelRef(model)
       // The catalogue's own window once a listing warmed the cache; cold
       // keeps today's undefined.
+      if (ref?.providerId === 'grok') return cachedGrokWindows?.get(ref.modelId)
       return ref?.providerId === 'copilot'
         ? deps.copilot?.().get(ref.modelId)?.model?.maxInputTokens
         : cachedFacts?.get(planSlug(model) ?? model)?.contextTokens
@@ -581,6 +964,10 @@ export function createSubscriptionClient(
           // The plan answered, but none of the models added here is in its list now.
           throw new ChatGptSignInError('added-models-unlisted')
         }
+        if (ids.length === 0 && file.providers.some((entry) => entry.id === 'grok')) {
+          // The subscription answered, but none of the models added here is in its list now.
+          throw new GrokSignInError('added-models-unlisted')
+        }
         if (ids.length === 0 && file.providers.some((entry) => entry.auth === 'subscription')) {
           throw new Error(UI_TEXT.planUi.copilotUnavailable)
         }
@@ -606,7 +993,10 @@ export function createSubscriptionClient(
         return
       }
       const ref = await configured(body.model)
-      // Declared at function scope (PR #214 review): the ChatGPT section's
+      // The Copilot branch below returns before any leg runs, so it keeps
+      // the ChatGPT leg: the catch reads exactly as it always has for it.
+      const leg = ref.providerId === 'grok' ? grokLeg : chatGptLeg
+      // Declared at function scope (PR #214 review): the Responses section's
       // finally below stops the notices, and a declaration inside the try
       // is not visible there on every path the generator can take.
       const idleMs = deps.streamIdleMs
@@ -660,8 +1050,7 @@ export function createSubscriptionClient(
           }
           return
         }
-        const signIn = await deps.chatgpt()
-        const token = await signIn.accessToken(RESPONSES_URL, CHATGPT_TOKEN_MIN_VALIDITY_MS)
+        const token = await leg.token()
         const stop = new AbortController()
         // No limit on the stream's total time (owner 2026-10-16). A provider
         // that names its own idle through `streamIdleMs` still ends silence
@@ -696,11 +1085,7 @@ export function createSubscriptionClient(
             throw error
           }
         }
-        const codec = createResponsesCodec({
-          profile: 'chatgpt',
-          toolNamespace: 'functions',
-          toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
-        })
+        const codec = leg.codec()
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
         const account = await deps.accountId()
         await admitAttempt?.prepare?.()
@@ -722,7 +1107,7 @@ export function createSubscriptionClient(
         lastEventAt = Date.now()
         notices.notice({ key: 'providerAnswer' })
         const response = await withinIdle(
-          deps.fetch(RESPONSES_URL, {
+          deps.fetch(leg.sendUrl, {
             method: 'POST',
             redirect: 'error',
             signal: AbortSignal.any([signal, stop.signal]),
@@ -736,14 +1121,15 @@ export function createSubscriptionClient(
         // The error body reads under the stream-idle deadline too: headers
         // that arrive with a stalled body end the turn instead of hanging it
         // past cancellation, like a silent stream.
-        if (!response.ok) throw await withinIdle(planRequestError(response))
+        if (!response.ok) throw await withinIdle(leg.refusal(response))
         if (response.body === null) {
-          throw new ChatgptPlanRequestError(UI_TEXT.planUi.noReply, 'request-failed')
+          throw leg.noReply()
         }
-        // The captured endpoint streams SSE without Content-Type. Never branch on that header.
-        // No size or output cap of this app's own: the plan route takes no
-        // `max_output_tokens` (SIWC preview limitations), so the reply ends
-        // where the model's own limit ends it.
+        // Stream SSE without branching on Content-Type: the captured
+        // ChatGPT endpoint omits it. No size or output cap of this app's
+        // own: each leg's codec decides the wire fields (the ChatGPT
+        // profile sends no `max_output_tokens`: SIWC preview limitations),
+        // so the reply ends where the model's own limit ends it.
         const reader = response.body.getReader()
         async function* bytes() {
           try {
@@ -766,18 +1152,18 @@ export function createSubscriptionClient(
             lastEventAt = Date.now()
             notices.notice({ key: 'modelReply' })
             note(event)
-            // A documented retry answer keeps OpenAI's code for the retry
-            // notice; the person reads the standing retry sentence.
+            // A documented retry answer keeps the provider's code for the
+            // retry notice; the person reads the standing retry sentence.
             yield event.type === 'error' &&
             event.code != null &&
-            CHATGPT_PLAN_RETRYABLE_CODES.includes(event.code)
+            leg.retryableCodes.includes(event.code)
               ? { ...event, message: UI_TEXT.planUi.retry }
               : event
           }
         } catch (error) {
-          if (error instanceof ChatgptPlanLimitError) {
-            yield { type: 'error', code: error.code, message: UI_TEXT.planUi.limitDetail }
-          } else throw error
+          if (!leg.isLimitError(error)) throw error
+          const limit = leg.limitDetail(error)
+          yield { type: 'error', code: limit.code, message: limit.message }
         }
       } catch (error) {
         if (isUserRefusal(error) || signal.aborted) throw error
@@ -786,17 +1172,20 @@ export function createSubscriptionClient(
         if (!(error instanceof Error)) throw error
         // M105 lane V R3 (RVCM1054B P2): a typed codec refusal (a held
         // video with no vendor capture) reaches the user as its own
-        // sentence on both plan legs, never the generic retry text. One
+        // sentence on every plan leg, never the generic retry text. One
         // shared helper decides; this client keeps no list of its own.
         // Read only the verdict: the guard above already narrowed
         // `error` to Error, and the predicate's false branch would
         // narrow the checks below to never.
         // A lapsed confirmation names the run (hook, schedule, review) with
         // its own guidance instead of the generic plan retry sentence, on
-        // both plan branches: the gate throws above, and an admission guard
+        // every plan leg: the gate throws above, and an admission guard
         // may throw a stale-model refusal with the same strings.
         const isCodecRefusal: boolean = isChatCodecError(error)
         if (isCodecRefusal || isStaleConfirmedError(error)) {
+          // A failed turn leaves one fixed line in the product log; the
+          // person reads the error's own sentence below.
+          deps.log?.info('a plan response ended in a codec refusal or a lapsed confirmation')
           yield { type: 'error', message: error.message }
           return
         }
@@ -805,11 +1194,11 @@ export function createSubscriptionClient(
           return
         }
         if (error instanceof DeadlineError) {
-          // Only the ChatGPT idle limit above raises it: the user is told the stream went silent.
+          // Only a leg's idle limit above raises it: the user is told the stream went silent.
           yield { type: 'error', code: 'request-failed', message: error.message }
           return
         }
-        if (error instanceof ChatgptPlanRequestError) {
+        if (error instanceof leg.refusalError) {
           yield { type: 'error', code: error.code, message: error.message }
           return
         }
@@ -823,17 +1212,14 @@ export function createSubscriptionClient(
           }
           return
         }
-        const signInCode = error instanceof ChatGptSignInError ? error.code : undefined
-        const code = signInCode ?? 'request-failed'
+        const signIn = leg.signInFailure(error)
+        const code = signIn?.code ?? 'request-failed'
         yield {
           type: 'error',
           code: code === 'sign-in-required' ? 'invalid_api_key' : code,
           // Anything untyped (the network, a malformed stream) is named by
           // its own codes, never as an unexplained outage.
-          message: chatGptFailureText(
-            code,
-            error instanceof ChatGptSignInError ? error.reason : failureCodeNames(error),
-          ),
+          message: signIn?.message ?? leg.foreignFailure(failureCodeNames(error)),
         }
         // Anything else keeps its kind past this boundary, like the sibling
         // clients' streams: the fixed retry sentence must never stand in
