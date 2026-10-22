@@ -9,9 +9,8 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ResourceDiskSampler } from '../../src/core/resources/disk'
 import { ResourceEvents } from '../../src/core/resources/events'
-import { ResourceGovernor } from '../../src/core/resources/governor'
-import { ResourceQueue } from '../../src/core/resources/queue'
 import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
+import { resourceGovernorAndQueue } from './helpers/resourceRig'
 import {
   resourceSettingsSchema,
   type ResourceClock,
@@ -75,21 +74,15 @@ describe('resource queue with unknown occupancy', () => {
       () => settings,
     )
     const sampler = createMachineResourceSampler(() => settings, PROBE_LIMITS, disks)
-    const governor = new ResourceGovernor({
+    const { governor, queue } = resourceGovernorAndQueue({
       clock,
       sampler,
       settings,
       events,
-      hasRelocationTarget: null,
+      backgroundCount: () => null,
       onError: (error) => {
         errors.push(error)
       },
-    })
-    const queue = new ResourceQueue({
-      clock,
-      events,
-      capacity: (kind) => governor.capacity(kind),
-      running: { backgroundCount: () => null },
     })
     try {
       await governor.refresh()

@@ -30,7 +30,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import { createServer, type Socket } from 'node:net'
 import { redactSecrets } from '../../core/redact'
-import { retireStaleJobs } from './jobBuild'
+import { retireStaleJobs } from './staleJobs'
 import { stopResourceTree } from '../../core/resources/admission'
 import { resourceProcessIdentitySchema, type ResourceProcessIdentity } from '../../shared/resources'
 

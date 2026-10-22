@@ -81,8 +81,9 @@ line plus 911 zero bytes (2026-10-16,
 `c7d4fa59-…jsonl`); it is skipped and counted as designed and cleared by
 retention.
 
-Fix: `src/core/usage/journalStore.ts:458` shares `acquireJournalLock`
-across read/retain/reset (both journals); `src/core/usage/failures.ts:34`
+Fix: `src/core/usage/journalLock.ts` shares `acquireJournalLock`
+across read/retain/reset (both journals; a leaf, so the resource
+journal's bundle stays clear of pricing); `src/core/usage/failures.ts:34`
 names every warning's cause through `recording.ts`, `usageServiceEntry.ts`
 and `paidHost.ts`.
 
@@ -138,11 +139,12 @@ Symptom: `an earlier MCP job executable could not be removed yet (EPERM
 Root cause: `removeStaleJobs` warned on every attempt while the file was
 loaded, and nothing ever retried it except the next compile.
 
-Fix: `src/host/backend/jobBuild.ts:255` sends held builds pending
-silently and `src/host/backend/jobBuild.ts:285` retires them on every
-job-helper child exit (`mcpJobLaunch.ts` hooks in `spawnMcpJob` and
+Fix: `src/host/backend/staleJobs.ts` sends held builds pending
+silently (`removeStaleJobs`) and retires them on every job-helper child
+exit (`retireStaleJobs`; `mcpJobLaunch.ts` hooks in `spawnMcpJob` and
 `spawnAttestedJob`); the sweep runs on every preparation, and a build
-whose bytes are current again is never removed.
+whose bytes are current again is never removed. Naming and retirement
+live in the leaf module so the launch path stays cycle-free.
 
 Drills:
 

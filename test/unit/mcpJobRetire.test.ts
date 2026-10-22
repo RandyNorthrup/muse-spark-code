@@ -11,7 +11,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { realpathSync } from 'node:fs'
 import { once } from 'node:events'
 import { describe, expect, it } from 'vitest'
-import { jobFileName, removeStaleJobs, retireStaleJobs } from '../../src/host/backend/jobBuild'
+import { jobFileName, removeStaleJobs, retireStaleJobs } from '../../src/host/backend/staleJobs'
 import { MCP_JOB_BUILD, sealedMcpJobExecutable } from '../../src/host/backend/mcpJobExecutable'
 import { spawnMcpJob } from '../../src/host/backend/mcpJobLaunch'
 import { runProgram } from '../../src/host/processTree'
@@ -28,6 +28,16 @@ async function settled(child: ReturnType<typeof spawn>): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return
   child.kill()
   await once(child, 'exit')
+}
+
+/** Runs the stale copy until settled: a live process holds its file. */
+async function spawnHolder(stale: string): Promise<ReturnType<typeof spawn>> {
+  const holder = spawn(stale, ['/c', 'ping', '-n', '20', '127.0.0.1'], {
+    stdio: 'ignore',
+    windowsHide: true,
+  })
+  await once(holder, 'spawn')
+  return holder
 }
 
 async function gone(file: string): Promise<void> {
@@ -56,11 +66,7 @@ describe.runIf(process.platform === 'win32')('MCP job executable retirement', ()
       const log = (message: string): void => {
         logs.push(message)
       }
-      const holder = spawn(stale, ['/c', 'ping', '-n', '20', '127.0.0.1'], {
-        stdio: 'ignore',
-        windowsHide: true,
-      })
-      await once(holder, 'spawn')
+      const holder = await spawnHolder(stale)
       try {
         await removeStaleJobs(MCP_JOB_BUILD, current, log, () =>
           Promise.resolve('csharp-source-v2'),
@@ -120,11 +126,7 @@ describe.runIf(process.platform === 'win32')('MCP job executable retirement', ()
       const log = (message: string): void => {
         logs.push(message)
       }
-      const holder = spawn(stale, ['/c', 'ping', '-n', '20', '127.0.0.1'], {
-        stdio: 'ignore',
-        windowsHide: true,
-      })
-      await once(holder, 'spawn')
+      const holder = await spawnHolder(stale)
       try {
         await removeStaleJobs(
           MCP_JOB_BUILD,
@@ -175,11 +177,7 @@ describe.runIf(process.platform === 'win32')('MCP job executable retirement', ()
       if (staleName === path.basename(helper.path)) throw new Error('the stale test name is live')
       const stale = path.join(path.dirname(helper.path), staleName)
       await copyFile(path.join(root, 'System32', 'cmd.exe'), stale)
-      const holder = spawn(stale, ['/c', 'ping', '-n', '20', '127.0.0.1'], {
-        stdio: 'ignore',
-        windowsHide: true,
-      })
-      await once(holder, 'spawn')
+      const holder = await spawnHolder(stale)
       try {
         await removeStaleJobs(MCP_JOB_BUILD, helper.path, log, () => readSource('mcpLauncher'))
         expect(logs).toEqual([])

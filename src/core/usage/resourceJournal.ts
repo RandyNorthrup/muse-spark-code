@@ -33,7 +33,8 @@ import {
   type ResourceHistoryDay,
 } from '../../shared/resourceHistory'
 import type { ResourceKind, ResourceRecord } from '../../shared/resources'
-import { acquireJournalLock, type UsageFs, type UsageLock } from './journalStore'
+import { acquireJournalLock } from './journalLock'
+import type { UsageFs, UsageLock } from './journalStore'
 import type { ResourceRecordSink } from './resourceRecords'
 
 export const RESOURCE_JOURNAL_ROOT = `${USAGE_FOLDER}/${USAGE_VERSION_FOLDER}/${RESOURCE_JOURNAL_FOLDER}`
