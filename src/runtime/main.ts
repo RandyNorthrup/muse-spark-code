@@ -2054,6 +2054,10 @@ async function main(): Promise<number> {
       return await runOpenRouterConnect(await providersDeps(), await openRouterApi())
     }
     case 'providerKeyUsage': {
+      if (command.provider === undefined) {
+        const { providersUsageTargets } = await import('./providersCommands')
+        return await providersUsageTargets(await providersDeps())
+      }
       const { runOpenRouterUsage } = await import('./openRouterCommands')
       return await runOpenRouterUsage(
         await providersDeps(),

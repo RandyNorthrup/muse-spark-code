@@ -4567,7 +4567,7 @@ export const EN = {
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
-    '  {command} providers list|add|test|remove|connect|usage  Manage model providers',
+    '  {command} providers list|add|test|remove|connect|usage <id>  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number; exits 0 when clean, 10 when a secret is found, 2 for misuse)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
@@ -5877,6 +5877,7 @@ export const EN = {
   providerConnectStoredNewKey:
     'The new OpenRouter key is stored. The previous key could not be restored.',
   providerUsageFailed: 'OpenRouter key usage could not be read. Try again.',
+  providerUsageNeedsId: 'A provider id is needed: {command} providers usage <id>.',
   providerPasteCode: 'Paste the authorization code shown by OpenRouter.',
   usageKeyTotal: 'Total Usage',
   usageUnlimited: 'No Limit',
