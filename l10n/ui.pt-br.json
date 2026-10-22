@@ -5130,6 +5130,7 @@
   "teamSuggestFallback": "Uma só entrada: adicione um substituto ({model}).",
   "teamSuggestBudgetCaps": "Tetos diários que cabem no orçamento restante: {amount}.",
   "teamSuggestLearned": "{median} das suas últimas {count} tarefas de {role}.",
+  "teamOutcomeReorderReason": "{better}: {betterAccepted} de {betterTasks} tarefas de {role} aceitas na primeira revisão; {worse}: {worseAccepted} de {worseTasks}.",
   "teamPreviewTitle": "Prévia",
   "teamPreviewSample": "Tarefa de exemplo",
   "teamTryWithOrchestrator": "Testar com o orquestrador ({cost})",

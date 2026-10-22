@@ -5255,6 +5255,7 @@
   "teamSuggestFallback": "Jediný záznam: přidejte náhradní ({model}).",
   "teamSuggestBudgetCaps": "Denní limity, které se vejdou do zbytku rozpočtu: {amount}.",
   "teamSuggestLearned": "{median} z vašich posledních {count} úkolů {role}.",
+  "teamOutcomeReorderReason": "{better}: {betterAccepted} z {betterTasks} úkolů {role} přijato při první revizi; {worse}: {worseAccepted} z {worseTasks}.",
   "teamPreviewTitle": "Náhled",
   "teamPreviewSample": "Vzorový úkol",
   "teamTryWithOrchestrator": "Vyzkoušet s orchestrátorem ({cost})",

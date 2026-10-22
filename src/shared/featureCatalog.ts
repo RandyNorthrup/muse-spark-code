@@ -473,7 +473,7 @@ export function featureCatalog(): readonly Feature[] {
       { setting: 'modelApiTeamWorkers' },
       [],
       ['modelApiTeamWorkers'],
-      'the-panel',
+      'team-selection-m120',
       ['modelApi'],
       true,
     ),

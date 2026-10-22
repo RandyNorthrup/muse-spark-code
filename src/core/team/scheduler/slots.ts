@@ -152,11 +152,16 @@ export class SchedulerSlots {
     return JSON.stringify([request.taskId, request.attempt])
   }
 
-  refusal(request: SlotRequest): SlotRefusal | undefined {
+  refusal(request: SlotRequest, replacing?: SlotRequest): SlotRefusal | undefined {
     if (request.workspaceId !== this.workspaceId) return 'workspace'
-    if (this.held.has(this.key(request))) return 'duplicate'
+    // Authorization may compare native candidates with this unstarted reservation removed.
+    const replacedKey =
+      replacing !== undefined && this.isReserved(replacing) ? this.key(replacing) : undefined
+    if (this.held.has(this.key(request)) && this.key(request) !== replacedKey) return 'duplicate'
     const limits = this.limits()
-    const requests = Array.from(this.held.values(), (item) => item.request)
+    const requests = [...this.held]
+      .filter(([key]) => key !== replacedKey)
+      .map(([, item]) => item.request)
     if (requests.length >= limits.workers) return 'workers'
     if (
       request.kind !== 'engine' &&

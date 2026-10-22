@@ -65,6 +65,7 @@ export const STATUS_PHRASES: Readonly<Record<string, PlanMilestone['status'] | u
   'lanes 0/P/C/L/H/U integrated; lane W finishing wiring and verification on `feature/m94-tab`, merged with `main-sync`':
     'building',
   'waiting for a stable API (Q-M94d)': 'waiting',
+  'lane 0 built': 'building',
   'documentation only on `feature/m100-multi-device`': 'planned',
   'folded into M55 (D36); built there (PR #43, merged 2026-09-27)': 'superseded',
   'built on `feature/m57-bundle-split` from main `2f4f669` (0.9.0); local `npm run quality` recorded in `docs/certification/m57.md`. Not pushed; no pull request yet':

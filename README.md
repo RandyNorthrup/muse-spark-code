@@ -4238,6 +4238,51 @@ availability causes no startup price dialog. Explicitly turning a feature OFF
 and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
 
+### Team selection (M120)
+
+Team workers default on for a runnable team of distinct models. They ask in
+this paid-use popup before the first charge, with the models, task ceilings
+and daily budget. Each task identifies its provider and tariff. Meta rates
+are quoted only for a matching verified Meta tariff; other providers or
+unverified tariffs state that the price is unknown and name the task and
+daily token ceilings. Billing uses each task provider's API key.
+Always is scoped to the provider, model and price tier that was approved;
+a different model asks again. Single-model activation asks no team question.
+The M96 team feature remains unavailable until its integration is complete.
+
+M120's shared selection core supports ordered candidates, live sign-in,
+health, limits, device admission and capability checks, with a reason for
+each skipped candidate. A review excludes every author and authoring engine,
+including borrowed coders and agents earlier in a handoff chain. An idle agent
+can help a secondary role after at least sixty seconds of unmet demand;
+upcoming main-role work and cooldown keep it home. Main-role demand emits a
+recall with a bounded deadline. Recall events have stable ids, are delivered
+once after scheduling drains, and allow the consumer to wake or retire work.
+Loans and their authorization live on the task board. Every projection rechecks
+current assignments, candidate and worker identities, native recovery and
+main-role demand; authorization changes cannot dispatch a cached loan. Active
+loans retain recall ownership when an assignment is removed.
+Each launch holds one reservation from selection to worker start: its slot,
+lease and counted task (turn and caps). After the launch journal write, a
+synchronous check validates that reservation without selecting or counting
+again, and the worker starts in the same step. That check reads the same
+admission facts selection read: the loan and its authorization, the lender's
+resolved identity, availability, limits and idleness (on the board and
+elsewhere), native recovery and main-role demand. A
+refused unstarted loan returns to its queue with its count refunded and its
+journal entry closed. One drain owner handles every readiness wake. It lets
+go only in the same step that finds no wake pending, so a wake is never lost.
+Tasks without a preference snapshot keep the existing selection and cannot
+borrow, but their main-role workload protects lenders and triggers recall. If every
+preferred reviewer is skipped, review stays blocked with those reasons:
+recoverable shortages queue under the role's queue policy; otherwise it asks
+for an eligible reviewer. Pool and reviewer selection share that classification:
+busy, cooldown, rate-limit and temporary admission waits recover, as do usage
+limits with a reset time. The self policy cannot waive review or select an author.
+The preference editor, installed host bindings
+and execution of handoffs remain pending in the other M120 lanes. With no
+preference list or secondary roles, the existing selection and requests stay
+unchanged.
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,
 and offers three answers:

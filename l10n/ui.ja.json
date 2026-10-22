@@ -4880,6 +4880,7 @@
   "teamSuggestFallback": "エントリが1件のみ: フォールバックを追加してください（{model}）。",
   "teamSuggestBudgetCaps": "残り日次予算に収まる日次上限: {amount}。",
   "teamSuggestLearned": "直近 {count} 件の {role} タスクから {median}。",
+  "teamOutcomeReorderReason": "{better}：{role}タスク{betterTasks}件中{betterAccepted}件が初回レビューで承認；{worse}：{worseTasks}件中{worseAccepted}件。",
   "teamPreviewTitle": "プレビュー",
   "teamPreviewSample": "サンプルタスク",
   "teamTryWithOrchestrator": "オーケストレーターで試す（{cost}）",

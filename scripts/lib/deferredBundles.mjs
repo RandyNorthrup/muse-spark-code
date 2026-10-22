@@ -1,5 +1,6 @@
 // Shared by the production split gate and its real-build red drills.
-// No filesystem reads or child processes: callers supply the built inputs.
+// Callers supply built inputs; file ownership resolves their real locations.
+import { realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 export const BUNDLES = {
@@ -28,6 +29,12 @@ export const SUBSCRIPTION_ONLY = [
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
+// M120CAP: shared source modules live here; their existing readers may inline
+// them. All other source ownership comes from entry reachability, not names.
+const TEAM_SHARED_ROOT = 'src/shared/'
+const normalizeTeamLocation = (file) => file.replaceAll('\\', '/').toLowerCase()
+const isOutsideRepository = (file) =>
+  file === '..' || file.startsWith('../') || path.isAbsolute(file)
 export const MODEL_API_OPTIONAL_ONLY = [
   'codeIntelEntry.ts',
   'codeIntelCalls.ts',
@@ -294,6 +301,7 @@ export const DEFERRED = [
   {
     output: 'dist/teamScheduler.js',
     metafile: 'dist/meta/teamScheduler.json',
+    entry: 'src/core/team/teamSchedulerEntry.ts',
     files: [
       'src/core/team/teamSchedulerEntry.ts',
       'src/core/team/scheduler/board.ts',
@@ -304,6 +312,7 @@ export const DEFERRED = [
   {
     output: 'dist/teamRunners.js',
     metafile: 'dist/meta/teamRunners.json',
+    entry: 'src/host/runners/teamRunnersEntry.ts',
     files: [
       'src/host/runners/teamRunnersEntry.ts',
       'src/host/runners/sshRunner.ts',
@@ -314,6 +323,7 @@ export const DEFERRED = [
   {
     output: 'dist/team.js',
     metafile: 'dist/meta/team.json',
+    entry: 'src/core/team/teamEntry.ts',
     files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
   },
 
@@ -1045,7 +1055,7 @@ export const ON_FIRST_USE = [
   },
 ]
 /** The same parent exclusions and destination requirements used by the CLI. */
-export function checkDeferredBundles(inputsOf) {
+export function checkDeferredBundles(inputsOf, metafileOf) {
   const problems = []
   for (const [names, owner] of [
     [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
@@ -1085,6 +1095,113 @@ export function checkDeferredBundles(inputsOf) {
         }
       }
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+    }
+  }
+  const teamBundles = DEFERRED.filter((bundle) => bundle.entry !== undefined)
+  const repository = realpathSync(process.cwd())
+  const locations = new Map()
+  const nonFileInputs = new Map()
+  const classify = (raw) => {
+    // esbuild omits the file namespace, prefixes plugin IDs with namespace:,
+    // and wraps builtin virtual IDs (including data URLs) in angle brackets.
+    // Production file IDs are relative. A drive prefix is ambiguous with a
+    // single-letter plugin namespace, so it cannot establish file ownership.
+    if (raw.startsWith('<') || raw.includes(':')) {
+      const id = `virtual:${raw}`
+      nonFileInputs.set(id, raw)
+      return {
+        id,
+        namespace: 'virtual',
+        dependency: false,
+        shared: TEAM_SHARED_VIRTUAL_INPUTS.has(raw),
+        error:
+          /^[a-z]:[/\\]/i.test(raw) && !TEAM_SHARED_VIRTUAL_INPUTS.has(raw)
+            ? 'ambiguous drive-prefixed metafile ID'
+            : undefined,
+      }
+    }
+    const resolved = path.resolve(raw.replaceAll('\\', '/'))
+    const key = normalizeTeamLocation(resolved)
+    const cached = locations.get(key)
+    if (cached !== undefined) return cached
+    const lexical = normalizeTeamLocation(path.relative(repository, resolved))
+    let canonical = lexical
+    let error
+    if (isOutsideRepository(lexical)) error = 'resolves outside the repository'
+    else {
+      try {
+        canonical = normalizeTeamLocation(path.relative(repository, realpathSync(resolved)))
+        if (isOutsideRepository(canonical)) error = 'resolves outside the repository'
+        else if (canonical !== lexical && canonical.startsWith(TEAM_SHARED_ROOT))
+          error = `symlink alias into ${TEAM_SHARED_ROOT}`
+        else if (!statSync(resolved).isFile()) error = 'does not resolve to a real repository file'
+      } catch {
+        error = 'does not resolve to a real repository file'
+      }
+    }
+    const location = {
+      id: `file:${canonical}`,
+      namespace: 'file',
+      dependency: error === undefined && canonical.startsWith('node_modules/'),
+      shared: error === undefined && canonical.startsWith(TEAM_SHARED_ROOT),
+      error,
+    }
+    locations.set(key, location)
+    return location
+  }
+  const owners = new Map()
+  for (const bundle of teamBundles) {
+    const graph = new Map()
+    for (const [raw, details] of Object.entries(metafileOf(bundle).inputs)) {
+      const location = classify(raw)
+      if (location.error !== undefined)
+        problems.push(`${bundle.output} has invalid file input ${raw}: ${location.error}`)
+      graph.set(location.id, details.imports)
+    }
+    const reached = new Set()
+    const visit = (raw) => {
+      const location = classify(raw)
+      if (reached.has(location.id)) return
+      reached.add(location.id)
+      const imports = graph.get(location.id)
+      if (imports === undefined) {
+        problems.push(`${bundle.output} is missing graph input ${raw}`)
+        return
+      }
+      const readers = owners.get(location.id) ?? new Set()
+      readers.add(bundle.output)
+      owners.set(location.id, readers)
+      for (const imported of imports) if (!imported.external) visit(imported.path)
+    }
+    visit(bundle.entry)
+  }
+  // Namespace ownership follows the full graph, including tree-shaken inputs
+  // and non-file modules imported by real installed dependencies.
+  for (const [id, raw] of nonFileInputs) {
+    const readers = owners.get(id)
+    if (readers === undefined || readers.size <= 1 || TEAM_SHARED_VIRTUAL_INPUTS.has(raw)) continue
+    for (const output of readers)
+      problems.push(
+        `${output} carries shared non-file module ${raw}; only explicitly allowlisted plugin IDs may be shared`,
+      )
+  }
+  for (const bundle of teamBundles) {
+    for (const raw of inputsOf(bundle).keys()) {
+      const location = classify(raw)
+      const file = location.namespace === 'file' ? raw.replaceAll('\\', '/') : raw
+      if (location.error !== undefined)
+        problems.push(`${bundle.output} has invalid file input ${file}: ${location.error}`)
+      if (location.dependency) continue
+      const readers = owners.get(location.id)
+      if (readers === undefined || !readers.has(bundle.output)) {
+        problems.push(
+          `${bundle.output} carries ${file}, which belongs in ${readers === undefined ? 'no reachable team entry' : [...readers].join(', ')}`,
+        )
+      } else if (readers.size > 1 && location.namespace === 'file' && !location.shared) {
+        problems.push(
+          `${bundle.output} carries shared implementation ${file}; shared source modules belong under ${TEAM_SHARED_ROOT}`,
+        )
+      }
     }
   }
   // POSTSPAWN: the governor never carries the launcher's machinery again.
@@ -1371,10 +1488,22 @@ export const DEFERRED_OUTFILES = new Map([
     'dist/playbookSchedulesInputs.js',
   ],
 ])
+// Exact metafile ID -> generating plugin. These team plugins currently create
+// no shared virtual modules, so no non-file input receives an exception.
+const TEAM_SHARED_VIRTUAL_INPUTS = new Map()
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
+    // M120CAP: team.js is already loaded before its scheduler. Its stateless
+    // tool factory shares declarations/model text without another startup chunk.
+    build.onResolve({ filter: /\/teamTools(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.importer) === path.resolve('src/core/team/teamSchedulerEntry.ts') &&
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+        path.resolve('src/core/team/teamTools.ts')
+        ? { path: './team.js', external: true }
+        : undefined,
+    )
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
     // The refusal classifier rides the lazy provider bundle: the Model API

@@ -4880,6 +4880,7 @@
   "teamSuggestFallback": "仅有一个条目：请添加备用（{model}）。",
   "teamSuggestBudgetCaps": "符合剩余日预算的日上限：{amount}。",
   "teamSuggestLearned": "最近 {count} 个 {role} 任务的 {median}。",
+  "teamOutcomeReorderReason": "{better}：{betterTasks} 个{role}任务中有 {betterAccepted} 个在首次评审时接受；{worse}：{worseTasks} 个中有 {worseAccepted} 个。",
   "teamPreviewTitle": "预览",
   "teamPreviewSample": "示例任务",
   "teamTryWithOrchestrator": "用编排器试运行（{cost}）",

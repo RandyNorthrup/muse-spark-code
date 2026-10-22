@@ -5005,6 +5005,7 @@
   "teamSuggestFallback": "Csak egy bejegyzés: adjon hozzá tartalékot ({model}).",
   "teamSuggestBudgetCaps": "A maradék napi keretbe férő napilimitek: {amount}.",
   "teamSuggestLearned": "{median} az utolsó {count} {role} feladatból.",
+  "teamOutcomeReorderReason": "{better}: {betterTasks} {role}-feladatból {betterAccepted} az első áttekintéskor elfogadva; {worse}: {worseTasks}-ból {worseAccepted}.",
   "teamPreviewTitle": "Előnézet",
   "teamPreviewSample": "Mintafeladat",
   "teamTryWithOrchestrator": "Kipróbálás az orkesztrátorral ({cost})",

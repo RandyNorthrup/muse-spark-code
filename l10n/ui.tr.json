@@ -5005,6 +5005,7 @@
   "teamSuggestFallback": "Tek girdi: bir yedek ekleyin ({model}).",
   "teamSuggestBudgetCaps": "Kalan günlük bütçeye sığan günlük limitler: {amount}.",
   "teamSuggestLearned": "Son {count} {role} görevinizden {median}.",
+  "teamOutcomeReorderReason": "{better}: {betterTasks} {role} görevinden {betterAccepted} tanesi ilk incelemede kabul edildi; {worse}: {worseTasks} görevden {worseAccepted} tanesi.",
   "teamPreviewTitle": "Önizleme",
   "teamPreviewSample": "Örnek görev",
   "teamTryWithOrchestrator": "Orkestratörle dene ({cost})",

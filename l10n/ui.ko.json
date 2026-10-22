@@ -4880,6 +4880,7 @@
   "teamSuggestFallback": "항목이 하나뿐: 대체 항목을 추가하세요({model}).",
   "teamSuggestBudgetCaps": "남은 일일 예산에 맞는 일일 한도: {amount}.",
   "teamSuggestLearned": "최근 {count}개 {role} 작업에서 {median}.",
+  "teamOutcomeReorderReason": "{better}: {role} 작업 {betterTasks}개 중 {betterAccepted}개가 첫 검토에서 승인됨; {worse}: {worseTasks}개 중 {worseAccepted}개.",
   "teamPreviewTitle": "미리 보기",
   "teamPreviewSample": "샘플 작업",
   "teamTryWithOrchestrator": "오케스트레이터로 시도({cost})",

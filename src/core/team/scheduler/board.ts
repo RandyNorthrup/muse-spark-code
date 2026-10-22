@@ -13,6 +13,7 @@ import {
   type TeamBoardTaskState,
 } from '../../../shared/team'
 import { fill } from '../../../shared/l10n/text'
+import { teamHandoffRecordSchema, type TeamChainEntry } from '../../../shared/teamHandoff'
 
 export interface BoardSubmission {
   id: string
@@ -26,6 +27,11 @@ export interface BoardContext {
   workspaceMode(taskId: string): BoardSubmission['workspaceMode']
   report(taskId: string): string
   countAttempt(task: TeamBoardTask, attempt: TeamAttempt): boolean
+  /**
+  Refunds exactly the admission `countAttempt` counted for this attempt. The
+  scheduler calls it once, only for an attempt it closes before invoking its worker.
+  */
+  refundAttempt(task: TeamBoardTask, attempt: TeamAttempt): void
   /** The team ledger keeps terminal rows beside the board; journal both before dispatch. */
   archive(tasks: readonly TeamBoardTask[]): void
   archivedTask(taskId: string): unknown
@@ -351,6 +357,68 @@ export class TaskBoard {
     task.state = 'running'
     delete task.blockedReason
     return true
+  }
+
+  /** Close an admission whose worker was never invoked and refund it; preserve queue age. */
+  cancelUnstarted(id: string, number: number): void {
+    const task = this.requireTask(id)
+    const attempt = task.attempts.at(-1)
+    if (task.state !== 'running' || number !== task.currentAttempt || attempt?.state !== 'running')
+      throw new BoardRefusal('state', [id])
+    // Only the scheduler, before invoking start, can close this admission. The
+    // refund comes first: if it fails, the counted attempt stays on the board.
+    // No process retirement is claimed.
+    this.context.refundAttempt(structuredClone(task), structuredClone(attempt))
+    task.attempts.pop()
+    task.currentAttempt--
+    task.state = 'ready'
+    delete task.loan
+    delete task.recallAskedAtMs
+    if (task.handoff !== undefined) {
+      task.handoff.chain = task.handoff.chain.filter(
+        (link) =>
+          link.kind !== 'borrow' ||
+          link.candidateId !== attempt.entryId ||
+          link.atMs !== attempt.startedAt,
+      )
+    }
+  }
+
+  /** Journalled with the board, including demand resets when a main candidate frees. */
+  demand(id: string, nowMs: number, isMainFree: boolean): void {
+    const task = this.requireTask(id)
+    task.unmetSinceMs = isMainFree ? nowMs : (task.unmetSinceMs ?? nowMs)
+  }
+
+  borrowEnded(candidateId: string, endedAtMs: number): void {
+    const cooldowns = (this.board.borrowCooldowns ?? []).filter(
+      (row) => row.candidateId !== candidateId,
+    )
+    this.board.borrowCooldowns = [...cooldowns, { candidateId, endedAtMs }].slice(
+      -TEAM_SCHED_HISTORY_MAX,
+    )
+  }
+
+  loan(id: string, loan: TeamBoardTask['loan']): void {
+    const task = this.requireTask(id)
+    if (loan === undefined) delete task.loan
+    else task.loan = teamBoardTaskSchema.parse({ ...task, loan }).loan
+    if (this.board.tasks.every((item) => item.id !== id)) this.context.archive([task])
+  }
+
+  recallAsked(id: string, atMs: number | undefined): void {
+    const task = this.requireTask(id)
+    if (atMs === undefined) delete task.recallAskedAtMs
+    else task.recallAskedAtMs ??= atMs
+  }
+
+  appendChain(id: string, link: TeamChainEntry): void {
+    const task = this.requireTask(id)
+    task.handoff = teamHandoffRecordSchema.parse({
+      taskId: task.id,
+      roleId: task.roleId,
+      chain: [...(task.handoff?.chain ?? []), link],
+    })
   }
 
   finishAttempt(

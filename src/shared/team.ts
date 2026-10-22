@@ -41,6 +41,7 @@ import { isCredentialVariable } from './credentialEnvironment'
 
 import * as z from 'zod/mini'
 import { legacyUsdSchema } from './usdSchema'
+import { teamHandoffRecordSchema } from './teamHandoff'
 
 // Schema builders below are pure construction (no global writes, no I/O),
 // so every `z.` call carries /* @__PURE__ */. A bundle that reads one schema
@@ -672,6 +673,18 @@ export const teamBoardTaskSchema = /* @__PURE__ */ z
     held: z.boolean(),
     createdAt: count,
     readyAt: z.optional(count),
+    unmetSinceMs: z.optional(count),
+    /** Board-owned loan; authorization pins the assignment, candidate and worker identity. */
+    loan: z.optional(
+      z.strictObject({
+        candidateId: id,
+        mainRole: id,
+        authorization: text,
+        attempt: count.check(z.positive()),
+      }),
+    ),
+    recallAskedAtMs: z.optional(count),
+    handoff: z.optional(teamHandoffRecordSchema),
     blockedReason: z.optional(text),
     branch: z.optional(path),
     currentAttempt: count,
@@ -685,6 +698,8 @@ export const teamBoardTaskSchema = /* @__PURE__ */ z
     z.refine(
       (task) =>
         (task.state !== 'blocked' || task.blockedReason !== undefined) &&
+        (task.handoff === undefined ||
+          (task.handoff.taskId === task.id && task.handoff.roleId === task.roleId)) &&
         task.attempts.every((attempt, index) => attempt.number === index + 1) &&
         task.currentAttempt === task.attempts.length,
     ),
@@ -706,6 +721,11 @@ export const teamBoardSchema = /* @__PURE__ */ z
     windowInstanceId: id,
     paused: z.boolean(),
     tasks: z.array(teamBoardTaskSchema).check(z.maxLength(TEAM_SCHED_HISTORY_MAX)),
+    borrowCooldowns: z.optional(
+      z
+        .array(z.object({ candidateId: id, endedAtMs: count }))
+        .check(z.maxLength(TEAM_SCHED_HISTORY_MAX)),
+    ),
   })
   .check(
     z.refine(
