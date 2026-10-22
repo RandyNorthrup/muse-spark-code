@@ -628,6 +628,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "headless-teams",
+      "name": { "ui": "paidTeamWorkersName" },
+      "summary": { "cli": "team" },
+      "description": { "cli": "team" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#headless-runs",
+      "backends": ["modelApi"],
+      "paid": true,
+      "surfaces": ["acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "output-schema",
       "name": { "cli": "output-schema" },
       "summary": { "cli": "output-schema" },

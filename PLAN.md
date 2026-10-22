@@ -19824,6 +19824,100 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**C-M96-3 team host service (2026-10-10, host lane, `c/m96-3`).** The
+interface every surface binds to is `src/core/team/teamHostService.ts`; its
+implementation `createTeamHostService` and the engine worker and merge ports
+load with dist/teamHost.js, and `src/host/teamHostBinding.ts` binds them in
+VS Code: the Model API host's team seams, the Agent map's tree and actions,
+the waiting and merge cards, and the hidden switch `museSpark.team`. Engine
+entries run end to end once a team is saved; no user can save one until the
+Roles section (C-M96-2) lands. Open: the Roles section, the orchestrator
+pill, the Muse Code binding (C-M96-4), the scheduler and capacity port
+(C-M96c-1) and the other editors (C-M96-5, M96b). Receipts:
+`docs/certification/m96-x.md`.
+
+**Lane T seam amendment (2026-10-10, lead-accepted, C-M96-3).**
+`ModelApiHostDeps.teamDecisionSource` takes the conversation's own model
+(`(orchestratorModelId?: string) => TeamDecisionSource | undefined`), and
+`TeamToolContext` gains an optional `orchestratorModelId`, so Default and
+`sameModel` compare against the conversation's orchestrator, not the
+picker's default. The Model API declares and clamps `collect` with its own
+bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
+updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
+(0) until lane P's timeout capture.
+
+**C-M96-3 round 5 correctness pass (2026-10-10).** RVCM963E found four
+remaining defects on `e50477ff7`. Bind each worker usage settlement to its
+reserved claim, including the sent model's known price for bare Meta,
+qualified, and zero-cost plan models. Reuse one live claim across transport
+retries and vault rebuilds; retain unreported liability. Refuse role-policy
+writes before opening any file, and remove pathname-based native creation:
+portable Node cannot bind creation to a verified parent handle. Existing
+files still use verified handles; new-file creation remains unavailable.
+Raise exempts entry caps only, and still checks the entry's concurrent slot
+through the sole `admit()` path. Sweep sibling paths, prove each regression
+red, restore sources byte-exact, and record scoped gates in
+`docs/certification/m96-x.md`. Teams stay hidden; no live calls, new
+dependency, merge, or changed budget. Next slice remains lead review and
+full cross-platform gates, followed by the remaining M96 bindings above.
+Scoped verification is complete: 263 tests across nine files at repository
+timeouts, all required static/build checks, eight red/restored drills and
+`teamHost.js` at 129.1/130 KiB. All four findings are fixed; M96 remains hidden.
+
+**C-M96-3 round 4 redesign (2026-10-10).** RVCM963C found 21 remaining
+failures on `13d632247`. Replace the clustered admission, accounting, merge
+and recovery paths: one synchronous worker lease owns global/entry/source
+capacity across consent; request reservations retain uncertain liability and
+request-day usage; awaited saves gate launch and copy ownership; one merge
+state machine owns review and the live conversation's decision; file tools
+verify and use the opened handle against the retained root; entry probe
+generations reject stale results and disposal rejects every launch. Persist
+continuation ownership, reset boundaries and completed review verdicts.
+Raise exempts only its task from entry caps, never global capacity, trust or
+paid consent. Teams remain hidden. Each finding needs a baseline regression
+on the reviewed revision and a restored red drill. Local scoped gates only;
+the lead runs full quality and hosted Windows certification. Receipts and
+contract changes: `docs/certification/m96-x.md`.
+
+**C-M96-3 round 3: the RVCM963 review (2026-10-10).** Every finding is
+fixed on `c/m96-3`; teams stay hidden until all of M96 is complete. An
+engine worker's file tools admit each path against the retained root grant
+and the resolved role policy (`src/core/team/workers/workerToolIo.ts`); the
+task's live admission (trust, the paid team switch, every cap measure from
+reported usage, a stop) runs before each request and each file call. Queued
+key tasks are named in the one popup and start only on an approved model;
+slots are reserved across consent, and consent answered after disposal
+starts nothing. The tree's Merge takes the model merge's gate (trust, Plan,
+the conversation open) and opens the merge card, whose answer is gated
+again; one merge or discard runs per task; a configured reviewer with
+headroom reviews the branch head first; protected paths the card lists
+reach `applyTeamMerge` as approved. Task records persist in workspace state
+(`museSpark.team.tasks`) and come back interrupted after a reload, with
+their copies discardable. Solo, single-model and key-only workspaces with
+`teamWorkers` off load and probe nothing (`hasRunnableTeamEntry`), and
+`TeamHostBinding.reload()` loads a first saved team and drops readiness
+probed for another model. The host API record is regenerated. Receipts and
+drills: `docs/certification/m96-x.md`.
+
+**C-M96-3 round 2 lead decisions (2026-10-10).**
+
+- `collect` waits up to 60 s on the Model API
+  (`TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE`); the Muse Code team server stays
+  at 0.
+- Worker approval modes: `allowAll` inside the task's own copy, whose
+  conversation has the file tools only; `denyUnmatched` for `read-only`
+  roles in their scratch copy.
+- **Raise** on the "waiting for you" card starts that one task on the role's
+  first usable entry past its limits.
+- Session budget: a team worker shares its conversation's session budget
+  scope, and the task is refused when that scope cannot be read.
+- `dist/teamHost.js` is capped by the measured-plus-15% rule, rounded up to
+  the KiB: 114,909 bytes measured (112.2 KiB, production build on Kubuntu)
+  x 1.15 = 132,145 bytes (129.05 KiB), cap 130 KiB.
+- `museSpark.team` is not contributed to the manifest, and the README does
+  not name it, until a user can save a team in the Roles section and run it
+  (C-M96-2). The runtime still honours an explicit `false`.
+
 **WINTEAM hosted Windows repair (2026-10-07, kubuntu).** Own the native
 lifetime, window hints/load and worker-fence suites, with the minimal product
 changes and Windows-control regressions they need. Resolve short/long native
@@ -22137,6 +22231,18 @@ serve`."
 ### M96b — The team in the ACP agent and headless runs (D75)
 
 **Status 2026-10-10 (depends on team integration): waiting.**
+
+**Status 2026-10-22 (RLM96B recovery landing, macbook rig): building.**
+
+Source `src/RLM96B/01-c-m96b-2` merged onto `main at 0.19.0` with
+`git merge --no-ff` and reworked against current main: D121
+set-budget-only (invented engine/host/queue ceilings removed,
+`maxWorkers` from `availableParallelism()`, unbounded queue), D208
+single-model parity in both surfaces, exact `Usd`/`UsdAmount` through
+budget lowering, real stdio handshake and real-file sweep proofs, catch
+audit to baseline, re-measured team bundle budgets. Receipts in
+`docs/certification/m96b-2.md` ("Recovery landing"); hosted three-OS CI
+and independent lead review remain the release gate.
 
 Prerequisite: team integration (M96).
 
@@ -35465,47 +35571,9 @@ The browser and SAST failures below are historical and repaired in round two.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
-aggregate quality/full-unit runs and integration merges/pushes on this lane.
-Full quality, coverage, accessibility and integration certification remain
-the lead's gates. The namespace export/type checks extend Knip's existing
-issue set without an ignore or lowered severity; value/type plants prove
-both guards fire. Scoped macmini evidence is recorded in
-`docs/certification/knip-constants.md`.
-
-**DEFLAKE4 lane (2026-10-05).** The named brief and common.md assign full
-quality, coverage and hosted certification to the lead; this lane runs the
-owning test file and scoped gates only. Full quality remains required before
-integration. The feature-delivery ledger validator cannot validate this
-existing section-based roadmap (`expected exactly one quality-ledger fence`);
-retain its canonical format and record that structural check as deferred.
-Current receipts and any remaining blockers belong in
-`docs/certification/deflake4.md`.
-
-**STAR lane (2026-10-05).** The owner's lane brief requires scoped tests,
-typecheck, lint, localization/manifest checks, bundle budgets and an actual
-VSIX README inspection, with removal drills and hooks enabled. It expressly
-assigns full `npm run quality` to the release lead after integration; this
-lane does not run it or weaken any gate. The generic delivery validator's
-ledger-format check remains deferred for this established plan format.
-Current receipts: `docs/certification/star-line.md`.
-
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M100 planning lane (2026-10-04).** The rig brief restricts changes to
-PLAN and `docs/certification/m100-research.md`, forbids full quality/unit
-runs and main integration, and requires a local normal-hook commit. Scoped
-checks and their actual outcomes are in that research record. Runtime tests,
-gate-fire and four-device certification are future M100 delivery work; the
-lead retains the unchanged full quality gate on the joined tree. No product
-gate is waived or weakened by committing this plan.
-
-**M100 review correction (FIXM100, 2026-10-05).** The follow-up brief authorizes
-the D80/acceptance/research correction, its Unreleased changelog entry and a
-local merge of the already-fetched `origin/main`, keeping both sides and
-renumbering nothing. Only changed-document formatting/Markdown checks and
-normal commit hooks run here; full quality remains the lead's joined-tree
-gate. The research record separates these receipts from runtime certification. 9. **Picker, first run and usage** (lane U). The first-run screen's
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **Start with your own model** (equal rank when no backend is set up),
 the walkthrough step, and the post-wizard confirmation. The wizard is
@@ -35524,13 +35592,6 @@ workspace, and counted per request. - **Still to capture:** - Azure (needs a dep
 rule, and its compaction with tools (these need the codec); - one live turn per preset through the built codec (acceptance 2),
 which also rechecks Together's leaked `final` word.
 
-**M100 review correction (FIXM100, 2026-10-05).** The follow-up brief authorizes
-the D80/acceptance/research correction, its Unreleased changelog entry and a
-local merge of the already-fetched `origin/main`, keeping both sides and
-renumbering nothing. Only changed-document formatting/Markdown checks and
-normal commit hooks run here; full quality remains the lead's joined-tree
-gate. The research record separates these receipts from runtime certification.
-
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
@@ -35542,116 +35603,13 @@ with the lead. The SAST receipt records one rule timeout in the existing
 and the complete gate/failure-drill receipts are recorded in M94's
 certification; acceptance 19 and final live certification stay open.
 
-**FIXM94L0 scoped result (2026-10-04).** Macmini passes changed-file ESLint,
-all five typecheck projects, Knip, jscpd (0 clones), localization (0 problems)
-and the host-API record (0 problems). Production build emits all bundles
-and passes the current size gate, but exits 1 at the exhaustive split gate:
-`TAB_MODEL_TEXT` has no registered reader. This wiring is explicitly lane W's
-ownership in M94, so it is deferred to W's `dist/tab.js` build/split wiring;
-no check, cap or ignore was changed. The inherited Model API bundle is
-426.5 KiB under main's existing 475 KiB gate, not compliant with common.md's
-older 400 KiB figure. Full quality and the later build-chain checks remain
-open. See `docs/certification/m94-0.md` for scoped tests and byte-exact drills.
-
-**MRG78 rig PowerShell analyzer unavailable.** The additional
-`npm run lint:ps` check fails before analysis because this Win11 rig has
-no PSScriptAnalyzer 1.25.0 module. JavaScript and CSS lint pass. Native
-PowerShell files are unchanged by this merge; no global install, network
-fetch, version downgrade or skip is permitted under the shared rig rules.
-The lead retains the pinned PowerShell check on a provisioned machine.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**MRG78 native identity integration.** Main's R1 lint gate rejects M71's
-direct `dev`/`ino` reads in `gitExtension.ts`. Reuse the existing
-`statIdentity`, `statIdentitySync`, `fileIdentityKey` and `sameFile` helpers
-for physical owner capture and synchronous rechecks, preserving the
-canonical cwd, both lexical/canonical checks and sticky ownership loss.
-No suppression or gate change. Verify native Git owners and their callers.
-
-**MRG78 panel compatibility.** The owning test sweep exposes an old
-M71 review assertion missing main's `disposition: started` acknowledgement
-field, and the four Git palette rows missing M87's required tips. Keep the
-complete acknowledgement assertion and reuse each row's existing translated
-detail as its tip; no new English or translated key is needed.
-
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M115-G bounded-lane gate delegation (2026-10-06).** The rig brief and
-`common.md` prohibit aggregate quality/full-suite runs in this worktree.
-G runs its owned suites, red drills, all five compiler projects, scoped
-lint/format, cycles, dead-code, duplication, localization, host API and
-production build here, with hooks enabled. W/lead retains full quality,
-coverage, accessibility and installed-editor/live certification on the
-integrated tree. No threshold, rule or ignore is changed.
-
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-**M114 lane 0 scoped gate delegation (2026-10-06).** The rig/shared brief
-prohibits full quality/full unit runs and edits to another lane's owned files.
-The token foundation is checked with its owning suites, deliberate failures,
-all compiler projects, scoped lint/format, dead-code, duplication,
-localization and the production build. Full integrated quality, coverage,
-the polished-surface accessibility/visual matrix and editor bindings remain
-with the lead and lanes A/C/D/N/S. No gate or threshold is weakened.
-
-**M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
-The rig/shared brief forbids full quality/full unit runs and other lanes'
-file edits. P1 runs the five compiler projects, owning regressions and red
-drills, scoped lint/format, dead-code, duplication, localization and the
-production build. `check:host-api` retains its one inherited mismatch:
-the source inventory lists 50 roles, including contrastActiveBorder, while
-omitting the imported extended-role sheet. Lane 0/S own both inventories
-and the generated record; the lead owns aggregate quality and S owns reviewed
-goldens/shared changelog. No threshold, guard or hook is weakened, and no
-RVM114P12 finding is deferred.
-
-**M114 C scoped certification (2026-10-06).** The rig/shared lane brief
-prohibits full quality/full unit runs and another lane's owned edits. C checks
-its internal theme consumer with whole owning test files at default timeouts,
-byte-exact red drills, compiler projects, scoped lint/format, localization,
-dead-code, duplication and production build. M104's captured-wire adapter,
-companion/native bootstrap and shipped lazy-asset registration are absent
-from this base and are named integration handoffs in C's certification.
-S/lead retain the host-API inventory, public docs, real editor captures and
-the full integrated quality/visual/accessibility gates. No gate is weakened
-and internal-port fakes do not certify unavailable native engines.
-
-- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-**M109 P Windows host-API snapshot deferral (2026-10-06).**
-`npm run check:host-api` exited 1 only for this lane's Node import counts:
-`node:child_process` 13 → 15, `node:crypto` 46 → 49,
-`node:fs/promises` 47 → 48, `node:path` 84 → 86. All portable-module
-checks passed; no VS Code API was added. M109's ownership table assigns
-`docs/ide-compatibility/**` and the host-API record to W, so P leaves that
-file untouched. W regenerates it with `npm run check:host-api -- --write`
-on the integrated tree and runs the unmodified check before certification.
-
-FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
-
-**9 → 10**, from the trusted build digest and protected temporary-directory
-fallback. The other counts above are unchanged. W owns this same generated
-snapshot handoff; the portable-module check and all build checks pass.
-
-**FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
-shared lane rules prohibit a full `npm run quality` or full test suite in
-this worktree. Hook-on repair commits require the owning regression files,
-red drills, scoped lint/format and typecheck here; the final lane receipt
-also runs dead-code, duplication, localization, host API and production
-build. The lead retains full quality, coverage, accessibility and installed
-host certification on the integrated tree. No threshold or rule is changed.
-
-**FIXM98J host-API snapshot deferral.** `npm run check:host-api` ran and
-exited 1: `docs/ide-compatibility/host-api.md` needs the generated record of
-`paidHost.ts`'s shared-budget read (11 → 12 calls, adding that file to
-`WorkspaceConfiguration.get`) and lane J's `node:crypto` import (32 → 33).
-The rig brief limits edits to the findings' files plus tests/certification/
-localization, so this generated document is left for the lead's integrated
-refresh: run `npm run check:host-api -- --write`, review those three rows,
-then rerun the check. API policy is unchanged; the snapshot gate is neither
-weakened nor claimed green. This is a documentation gate deferral, not an
-unfixed RVM98J finding.
 
 **VAULTOPEN duplication deferral (2026-10-18, macmini).** `jscpd` is red on
 the untouched base: a scratch worktree at `f44f54120d` reports 37 clones
@@ -35748,35 +35706,6 @@ is the lead's per D6; the activation remainder needs a cross-milestone
 diet lane or the same. Hosted CI re-runs the two tests and
 `npm run package` (Linux-only helpers) for the verdict.
 
-**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
-test repairs from `3e04f6f5` are carried unchanged after their failures are
-reproduced here. Their old C2 baseline deferral below is historical, superseded
-by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
-The shared rig common rules expressly prohibit `npm run quality` and the full
-test wrapper here; run the required scoped static/build gates and complete
-owning suites, with the integrator responsible for full quality and the
-platform matrix before release. No threshold, ignore or timeout is weakened.
-
-**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
-forbids the full `npm run quality` wrapper and full unit suite because the
-rig is shared; the lead runs the combined four-machine quality gate.
-This lane runs focused complete test files (at most three per invocation),
-all project typechecks, changed-file lint/format, deadcode, duplication,
-localization, host API and production build directly on Kubuntu. The final
-receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
-focused tests and all listed lane checks pass, including the unchanged
-production bundle-split gate. This defers only the full-tree/full-platform
-quality receipt; no gate is weakened.
-
-**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
-and its shared `codex/common.md` forbid the full `npm run quality` wrapper
-on this shared rig. Run the required scoped suites (at most three files per
-run), all five TypeScript projects, lint/format over the complete P2 range,
-knip, duplication, localization, host API and production build here; record
-actual receipts in `docs/certification/m101-p2.md`. The lead must run the
-aggregate quality/coverage/platform matrix before integration/release. No
-threshold, ignore or rule is changed.
-
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **REPORTJOIN knip deferral (2026-10-12, kubuntu).** Plain `knip` reports 12
@@ -35867,6 +35796,12 @@ memory fixtures, and real ACP delivery uses a three-call caller allowance.
 | MSM113 escape (2026-10-17)                                                                                                                                | Reason                                                                                                                                                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/core/reporting/collect/playbook.ts` `isModuleMatch`: `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every glob segment passes `escapeGlob` before fixed character classes, anchors and `**` crossings are added; user text cannot introduce regex operators or groups. The module-glob table covers literal `.`, `+`, `()` and the `*`-cannot-cross-`/` rule; neutering the escaper fails exactly those three cases (proven 2026-10-17). |
+| M96b-2 uses the Node 20 compatible deferred-gate pattern.                                                                                                 |
+
+| Location                                                                                                          | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                               | Added      |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/runtime/exec/execTeamEntry.ts` and `src/runtime/runtimeAccountingEntry.ts`, serialized landing/journal turns | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | Shared host typechecks retain ES2023 for the Node 20 editor floor, which has no `Promise.withResolvers`. These gates use the standard synchronous Promise executor; finally releases the owned turn. No compiler or lint gate is weakened.                                           | 2026-10-11 |
+| `src/extension.ts`, editor worker-session open                                                                    | `eslint-disable-next-line unicorn/prefer-await`                  | The shared helper's try/catch twin is the exact clone the zero-duplication gate forbids, and the activation budget forbids importing the helper: this promise shape is its semantic twin (a failed open closes the host and rethrows). Activation stays at the lane base byte count. | 2026-10-12 |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35874,10 +35809,11 @@ memory fixtures, and real ACP delivery uses a three-call caller allowance.
 | `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`                                 | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call.                                                                       |
 | `test/unit/paidMoneyStructure.test.ts` `trackedDebt` allow-list (41 numeric money fields) | Numeric current money the 0.17 ports did not convert; each entry names milestone M121, which converts it to `UsdAmount` and empties the category. The guard fails on any unlisted money leaf, so the list cannot grow silently. |
 
-| Location                                                     | Escape hatch                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)        | `'NaN' as UsdAmount`                         | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                  |
-| `test/unit/vault/vaultPanelBinding.test.ts` (`pressedTitle`) | `value as never` for a dialog's pressed item | The vscode mock keeps the overloaded dialog type (its last overload resolves `MessageItem`), while `VaultPanelHost` compares the pressed title as a plain string. The cast carries only the literal titles the test itself passes (`Keep File`, `Delete the File`, `Continue`); the host still compares them against `UI_TEXT` before acting, so no foreign value can cross. Test-only. |
+| Location                                                     | Escape hatch                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)        | `'NaN' as UsdAmount`                         | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                                                            |
+| `test/unit/vault/vaultPanelBinding.test.ts` (`pressedTitle`) | `value as never` for a dialog's pressed item | The vscode mock keeps the overloaded dialog type (its last overload resolves `MessageItem`), while `VaultPanelHost` compares the pressed title as a plain string. The cast carries only the literal titles the test itself passes (`Keep File`, `Delete the File`, `Continue`); the host still compares them against `UI_TEXT` before acting, so no foreign value can cross. Test-only.                                           |
+| `test/unit/acpTeamContracts.test.ts` (`atRuntime`)           | `as T`                                       | Defense-in-depth and seeded property probes inject malformed caller values and SDK-schema-derived strings through typed builder ports. The SDK types cannot spell invalid inputs; this test-only helper exercises production refusal without validating the input first. Every returned value is checked against its frozen schema; valid option and content expectations come independently from the SDK's exported JSON schema. |
 
 | SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                                                                                    | Removal                                                                            |
 | --------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |

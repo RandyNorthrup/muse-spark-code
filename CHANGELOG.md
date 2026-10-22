@@ -7,6 +7,52 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Headless engine teams (M96b, behind the agent-teams availability switch,
+  off until certified).** `exec --team --backend modelApi --permission-mode
+  acceptEdits --max-budget-usd <usd>` with a configured engine provider runs
+  in-process engine workers on the cheapest listed engine entry: merge as a
+  permission request with local checks into the run working tree, approvals
+  deny, and the run result is M80's exact patch. Local billed models need no
+  key; Muse Code and external workers are refused with a reason. The run
+  board, worker copies and task refs are tracked in the run's cleanup ledger
+  and removed at shutdown; a later run sweeps what a dead run left.
+  `modelApiSessions` are not installed in the runner.
+
+- **Team contracts for other editors and headless runs (M96b, behind the
+  agent-teams availability switch, off until certified).** The ACP agent maps
+  team tools, questions and merge approvals onto engine workers with the same
+  admission, settlement and cleanup as the editor; billable headless work
+  stays exact and refusals stay typed.
+
+- **ACP agent teams (M96b, behind the agent-teams availability switch,
+  off until certified).** `--team` in the ACP agent: a worker's approval
+  arrives as the editor's labelled `session/request_permission`, a task
+  shows as a `tool_call` with its updates and diff, the merge asks as a
+  permission request carrying the diff, and the Agent map is sent as a
+  `plan`. The agent runs its own scheduler with its own journal,
+  process-lifetime container and paid ledger, and shares the editor's
+  single-model behaviour when no second model is configured.
+
+### Changed
+
+- **Hidden M96 team-host correctness (no visible change).** A worker response
+  settles its own reserved claim once and once only, with the guard's claim
+  for unsent attempts released exactly once; a denied or failed dispatch
+  still settles the guard's estimated claim it reserved.
+- **Hidden M96 team-host implementation (no visible change).** Setup probes
+  the installed agents by generation, and the worker ToolIo grants refusal
+  kinds for workspace folders without checking folder settings (the previous
+  check could not run in a new worker's empty checkout).
+
+- **Hidden M96b budget rules (no visible change).** Team admission keeps no
+  invented engine, host or queue ceilings: worker counts follow machine
+  parallelism, the queue is unbounded, and only each provider's own
+  per-model limits plus the person's own budget apply. A repository
+  `team.json` lowers caps, concurrency and aggregate worker spending with
+  exact `Usd` arithmetic and refuses malformed amounts translated.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

@@ -181,6 +181,18 @@ const BUDGETS = [
   { path: 'dist/team.js', budgetKiB: 75 },
   // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
   { path: 'dist/teamRunners.js', budgetKiB: 75 },
+  // C-M96-3: the team host service with its engine worker and merge ports,
+  // loaded only for a workspace that stores a team. Measured 135,361 bytes
+  // (132.2 KiB, production build on macbook, 2026-10-22) x 1.15 = 155,665
+  // bytes (152.02 KiB), rounded up to the KiB. Re-measured on the 0.19.0
+  // merge: HEAD's constants table grew 413,877 to 504,155 bytes since the
+  // branch's base, and the exact-Usd settlement the recovery requires rides
+  // in this bundle.
+  { path: 'dist/teamHost.js', budgetKiB: 153 },
+  // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
+  { path: 'dist/teamFileIo.js', budgetKiB: 10 },
+  // R4 follow-up: first-merge flow, 9.6 KiB measured +15%, rounded up.
+  { path: 'dist/teamMerge.js', budgetKiB: 12 },
   // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
   { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
@@ -437,6 +449,14 @@ const BUDGETS = [
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   // TRAINFIX: train growth + plan-model preflight measures 100.2 KiB; +15%, rounded to 25 KiB.
   { path: 'dist/headless.js', budgetKiB: 125 },
+  // M96b: run-owned team policy with its cleanup ledger, stale-run sweep,
+  // denied-merge holds and marker gate, loaded only for --team. Measured
+  // 46,823 bytes (45.73 KiB, production build on macbook, 2026-10-22)
+  // x 1.15 = 53,846 bytes (52.58 KiB), rounded up to the KiB.
+  // Re-measured on the 0.19.0 merge: HEAD's shared tables grew since the
+  // branch's base (RVCM96B2 P3-8 rule kept). Headless retains its original
+  // 125 KiB cap.
+  { path: 'dist/execTeam.js', budgetKiB: 53 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },

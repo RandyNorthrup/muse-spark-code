@@ -252,17 +252,25 @@ export async function acpFsWrite(
   content: string,
 ): Promise<{ readonly ok: true } | { readonly error: string }> {
   try {
-    return await withWorkerFile(input, given, true, async (handle, confined) => {
-      if (!isCheckedWorkerWriteAllowed(input.role, confined))
-        return {
-          error:
-            input.role.workspaceMode === 'read-only'
-              ? 'the role is read-only'
-              : 'outside the write paths',
-        }
-      await handle.write(content)
-      return { ok: true }
-    })
+    const confined = await confineWorkerPath(input, given)
+    if (!confined.ok) return { error: 'outside the working copy' }
+    if (!isCheckedWorkerWriteAllowed(input.role, confined))
+      return {
+        error:
+          input.role.workspaceMode === 'read-only'
+            ? 'the role is read-only'
+            : 'outside the write paths',
+      }
+    return await withWorkerFile(
+      input,
+      given,
+      true,
+      async (handle) => {
+        await handle.write(content)
+        return { ok: true }
+      },
+      input.role,
+    )
   } catch (error) {
     // Only the fence's confinement refusal reads "outside the working
     // copy"; a write inside the copy that fails reaches the caller.

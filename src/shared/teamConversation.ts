@@ -109,6 +109,49 @@ export function readTeamWorkspaceHint(state: TeamWorkspaceStateReader): {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+Whether the stored team names an entry that could make a conversation a
+team one: an agent this editor runs, a model other than the orchestrator's
+(model ids compared trimmed, lane R's `sameModel`), and, when it bills a
+key, `teamWorkers` on. Read in the activation bundle from workspace state
+alone: without such an entry nothing loads and nothing is probed (Solo,
+single-model, key entries with `teamWorkers` off; acceptance 1 and 47).
+*/
+export function hasRunnableTeamEntry(
+  state: TeamWorkspaceStateReader,
+  options: {
+    readonly orchestratorModelId: string
+    readonly isTeamWorkersOn: boolean
+    readonly canRunKind: (kind: string) => boolean
+  },
+): boolean {
+  const stored: unknown = state.get(TEAM_WORKSPACE_KEYS.team)
+  if (!isRecord(stored) || stored['template'] === 'Solo' || !Array.isArray(stored['roles']))
+    return false
+  const orchestrator = options.orchestratorModelId.trim()
+  return stored['roles'].some(
+    (role: unknown) =>
+      isRecord(role) &&
+      Array.isArray(role['pool']) &&
+      role['pool'].some((entry: unknown) => {
+        const agent = isRecord(entry) ? entry['agent'] : undefined
+        if (!isRecord(agent)) return false
+        const { kind, model, pays } = agent
+        return (
+          typeof kind === 'string' &&
+          typeof model === 'string' &&
+          options.canRunKind(kind) &&
+          model.trim() !== orchestrator &&
+          (pays !== 'key' || options.isTeamWorkersOn)
+        )
+      }),
+  )
+}
+
 const conversationModesSchema = z.record(z.string(), z.enum(['single-model', 'team']))
 
 /** Unknown/older sessions stay single-model, irrespective of today's setup. */

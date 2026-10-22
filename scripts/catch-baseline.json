@@ -9,12 +9,12 @@
     "core": {
       "SWALLOW": 72,
       "GENERIC": 267,
-      "CLEANUP": 235
+      "CLEANUP": 237
     },
     "host": {
       "SWALLOW": 19,
       "GENERIC": 113,
-      "CLEANUP": 90
+      "CLEANUP": 91
     },
     "root": {
       "SWALLOW": 1,
@@ -22,9 +22,9 @@
       "CLEANUP": 2
     },
     "runtime": {
-      "SWALLOW": 34,
-      "GENERIC": 203,
-      "CLEANUP": 125
+      "SWALLOW": 33,
+      "GENERIC": 201,
+      "CLEANUP": 130
     },
     "shared": {
       "SWALLOW": 0,
@@ -2439,6 +2439,11 @@
       "class": "CLEANUP"
     },
     {
+      "file": "src/core/team/teamHost.ts",
+      "identity": "16b87c7ff85255987e966fa1ed1bdaaf267ed907743967acd3c2dcaa3e1cbc3f",
+      "class": "CLEANUP"
+    },
+    {
       "file": "src/core/team/teamMerge.ts",
       "identity": "8860638ec5e676719fa61994e7bb282a4ddc3d34c8cd3dd6e4821d167c7c1026",
       "class": "CLEANUP"
@@ -2492,6 +2497,11 @@
       "file": "src/core/team/workers/workerFence.ts",
       "identity": "4f747dca0fe7551ff5c1c6ab91ffee563f5fe4775831ca8968e5831a13d3e0d3",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/core/team/workers/workerToolIo.ts",
+      "identity": "c0cb48f118af0382a04ba8e68945711b30987dbf6cec3c596d2a21079d386972",
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/usage/journalStore.ts",
@@ -4014,6 +4024,11 @@
       "class": "CLEANUP"
     },
     {
+      "file": "src/host/team/teamEnginePorts.ts",
+      "identity": "3926f00152aca295dffa9a44b3ee05a159d948f8f0df426f2d542945c2fa4072",
+      "class": "CLEANUP"
+    },
+    {
       "file": "src/host/team/teamJournal.ts",
       "identity": "2e185fdc1235d148b638d696fd86f071ee38a5ff28fcfdfe6bb4dda103f40314",
       "class": "GENERIC"
@@ -4464,6 +4479,31 @@
       "class": "CLEANUP"
     },
     {
+      "file": "src/runtime/exec/execTeamEntry.ts",
+      "identity": "bbd1ecb14cb4acb3ae57dc905ec78bf2196c7db88da7e37fbf7925b773768a0f",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "bbec5dd939ec12f4ab22625be7ec8112c8da879f9ebfb8b48d2f403abbc89a38",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "2a9f368bab4ec7ae01cff2ca4561da5df02f7f3d038f38fc156d1b28bbeaab0b",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "24bb20e4bf11ae337edfdee4e7ee48af50c5601608ef0f9f49b8d5b9e79d8b3f",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/exec/execTeamRecovery.ts",
+      "identity": "db0b0b583acad4b54ecfecab7a976f5b161129a0561ebf0f2c0dc7d8a88fe225",
+      "class": "CLEANUP"
+    },
+    {
       "file": "src/runtime/exec/fdWriter.ts",
       "identity": "429405db5abeeedbc2e1ef7f8c562e89ae481c6fcc3149f96b79317cba8dae08",
       "class": "CLEANUP"
@@ -4487,21 +4527,6 @@
       "file": "src/runtime/exec/runExec.ts",
       "identity": "7f4924d6487c0b2994e2431353f2f0202f178020fbc1570d990dfd82c2604c2a",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/exec/runExec.ts",
-      "identity": "84b39e6d3050bba07edf630d5cd6e5891dc15738156dd6b4e75a70b69fce8a66",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/exec/runExec.ts",
-      "identity": "799e7eec795f07d8681f5329667a11660b574f62e0d264648d73894aa22da91e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/exec/runExec.ts",
-      "identity": "213f8c5ce4dd5a272f110d7ed9b90740223b7dc06dedf21e5f2c04a34f5f3ab9",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/exec/runLedger.ts",

@@ -175,7 +175,6 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
-      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeWithTransport', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'readProviderJson', side: ['acp'] },
@@ -258,6 +257,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
   },
   { file: 'execGuard.js', side: 'both', requestedBy: [] },
+  {
+    file: 'execTeam.js',
+    side: 'acp',
+    requestedBy: [{ importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] }],
+  },
   { file: 'extension.js', side: 'vscode', requestedBy: [] },
   {
     file: 'extensionHooks.js',
@@ -879,6 +883,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'runtimeFor', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
@@ -1043,6 +1048,28 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/host/teamViewBundle.ts', symbol: 'schemas', side: ['acp', 'vscode'] },
+    ],
+  },
+  {
+    file: 'teamFileIo.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/host/team/teamEnginePorts.ts', symbol: 'runTask', side: ['acp', 'vscode'] },
+    ],
+  },
+  {
+    file: 'teamHost.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
+      { importer: 'src/runtime/exec/execTeamEntry.ts', symbol: 'createExecTeam', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'teamMerge.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/core/team/teamHost.ts', symbol: 'beginMerge', side: ['acp', 'vscode'] },
     ],
   },
   {

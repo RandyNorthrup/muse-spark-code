@@ -1,6 +1,7 @@
 // Lane R (M96, PLAN.md D75): the workspace team and the lowering merge.
 
 import { describe, expect, it } from 'vitest'
+import { Usd } from '../../../src/shared/usd'
 import {
   DEFAULT_TEAM_ENTRY,
   emptyWorkspaceTeam,
@@ -112,7 +113,7 @@ const BASE: TeamLoweringBase = {
     engineering: { caps: { concurrent: 2, dayTokens: 20_000 } },
     research: { caps: { dayTokens: 10_000 } },
   },
-  budgets: { dayUsd: 50, dayTokens: 25_000_000 },
+  budgets: { dayUsd: Usd.from(50).toAmount(), dayTokens: Usd.from(25_000_000).toAmount() },
 }
 
 describe('parseTeamJson', () => {
@@ -146,7 +147,7 @@ describe('parseTeamJson', () => {
       ok: true,
       file: {
         roles: { engineering: { caps: { dayTokens: 10_000 } }, research: { off: true } },
-        budgets: { dayUsd: 10 },
+        budgets: { dayUsd: '10' },
       },
     })
     expect(parseTeamJson('{}')).toEqual({ ok: true, file: { roles: {} } })
@@ -175,6 +176,22 @@ describe('parseTeamJson', () => {
       reason: 'team.json holds an invalid roles.qa.caps.dayTokens',
     })
   })
+
+  it('refuses a number the double round trip cannot keep exactly (P3-14)', () => {
+    // 0.499999999999999999 parses to 0.5: the file is refused, never rounded.
+    expect(parseTeamJson('{"budgets":{"spendUsd":0.499999999999999999}}')).toEqual({
+      ok: false,
+      reason: 'team.json holds an invalid budgets.spendUsd',
+    })
+    expect(parseTeamJson('{"roles":{"engineering":{"caps":{"dayTokens":1e4}}}}')).toEqual({
+      ok: false,
+      reason: 'team.json holds an invalid roles.engineering.caps.dayTokens',
+    })
+    expect(parseTeamJson('{"budgets":{"spendUsd":0.5}}')).toMatchObject({ ok: true })
+    expect(parseTeamJson(JSON.stringify({ budgets: { dayUsd: 10 } }))).toMatchObject({
+      ok: true,
+    })
+  })
 })
 
 describe('lowerTeamWithJson', () => {
@@ -198,7 +215,7 @@ describe('lowerTeamWithJson', () => {
         offRoles: ['research'],
         reviewers: { engineering: 'code-review' },
         caps: { engineering: { dayTokens: 10_000 } },
-        budgets: { dayUsd: 10 },
+        budgets: { dayUsd: '10' },
       },
     })
   })

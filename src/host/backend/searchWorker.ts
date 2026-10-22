@@ -25,7 +25,9 @@ const LINE_BREAK = /\r?\n/
 const SEARCH_JOB = z.object({
   pattern: z.string(),
   root: z.string(),
-  files: z.array(z.object({ relative: z.string(), absolute: z.string() })),
+  files: z.array(
+    z.object({ relative: z.string(), absolute: z.string(), content: z.optional(z.string()) }),
+  ),
   maxFileBytes: z.number(),
   maxHits: z.number(),
   maxHitChars: z.number(),
@@ -115,6 +117,18 @@ async function searchableText(
   }
 }
 
+function inlineContent(
+  content: string,
+  relative: string,
+  isDenied: (paths: string[]) => boolean,
+  maxFileBytes: number,
+): string | undefined {
+  if (isDenied([relative])) {
+    return undefined
+  }
+  return Buffer.byteLength(content) > maxFileBytes || isBinary(content) ? undefined : content
+}
+
 async function run(job: SearchJob): Promise<SearchOutcome> {
   let regex: RegExp
   try {
@@ -138,7 +152,10 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     if (found >= job.maxHits) {
       break
     }
-    const text = await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
+    const text =
+      file.content === undefined
+        ? await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
+        : inlineContent(file.content, file.relative, isDenied, job.maxFileBytes)
     if (text === undefined) {
       continue
     }

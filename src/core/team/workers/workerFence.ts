@@ -3,6 +3,8 @@ import type { MuseWorkerApprovalRequest, MuseWorkerApprovalAnswer } from './muse
 import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId } from './acpWorker'
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
+import { lstat } from 'node:fs/promises'
+import { constants as fsFlags } from 'node:fs'
 import type { RealPathIo } from '../../workspacePath'
 import {
   WORKER_ACP_MAX_PERMISSION_PATHS,
@@ -23,6 +25,9 @@ import { isProtectedPath } from '../../protectedPaths'
 import { isGlobMatch } from '../../backends/modelapi/globLimits'
 import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
 
+/** A handle with another name is an alias outside the grant: only one link admits. */
+const SINGLE_LINK_COUNT = 1
+
 export interface WorkerFenceIo extends RealPathIo {
   /** Windows volume serial + file index; POSIX device + inode. Never a path string. */
   readonly pathIdentity: (canonicalPath: string) => Promise<string>
@@ -32,20 +37,55 @@ export interface WorkerFenceIo extends RealPathIo {
 export interface WorkerFileHandle {
   readonly identify: () => Promise<{ readonly absolute: string; readonly identity: string }>
   readonly read: (maxBytes: number) => Promise<string | undefined>
+  readonly readBytes?: (maxBytes: number) => Promise<Uint8Array>
   readonly write: (content: string) => Promise<void>
   readonly close: () => Promise<void>
 }
 
 async function openWorkerFile(absolute: string, isWrite: boolean): Promise<WorkerFileHandle> {
-  const handle = await open(absolute, isWrite ? 'r+' : 'r')
+  // Node has no portable parent-handle-relative creation. Never create or
+  // truncate by pathname, including when a parent moves after admission.
+  const named = await lstat(absolute)
+  if (named.isSymbolicLink()) throw new MuseWorkerFolderError()
+  const handle = await open(
+    absolute,
+    (isWrite ? fsFlags.O_RDWR : fsFlags.O_RDONLY) |
+      (process.platform === 'win32' ? 0 : fsFlags.O_NOFOLLOW),
+  )
+  const bytes = async (maxBytes: number): Promise<Uint8Array> => {
+    const before = await handleIdentity(handle)
+    if (
+      !Number.isSafeInteger(maxBytes) ||
+      maxBytes < 0 ||
+      before.size > BigInt(maxBytes) ||
+      !before.isFile() ||
+      before.nlink !== BigInt(SINGLE_LINK_COUNT)
+    )
+      throw new MuseWorkerFolderError()
+    const buffer = Buffer.alloc(Number(before.size))
+    let offset = 0
+    while (offset < buffer.length) {
+      const result = await handle.read(buffer, offset, buffer.length - offset, offset)
+      if (result.bytesRead === 0) break
+      offset += result.bytesRead
+    }
+    const after = await handleIdentity(handle)
+    if (before.size !== after.size || before.mtimeNs !== after.mtimeNs || offset !== buffer.length)
+      throw new MuseWorkerFolderError()
+    return buffer
+  }
   return {
     identify: async () => {
-      const identity = fileIdentityKey(await handleIdentity(handle))
+      const sample = await handleIdentity(handle)
+      const named = await lstat(absolute)
+      if (!sample.isFile() || sample.nlink !== BigInt(SINGLE_LINK_COUNT) || named.isSymbolicLink())
+        throw new MuseWorkerFolderError()
+      const identity = fileIdentityKey(sample)
       if (identity === undefined) throw new MuseWorkerFolderError()
       let final: string
-      // Windows: libuv's native realpath resolves through GetFinalPathNameByHandle
-      // (long names, no 8.3 aliases) without starting a process; the identity
-      // check below proves the resolved name still denotes this open handle.
+      // Windows: resolve its canonical spelling and prove it still denotes
+      // this handle by fstat identity. Single-link admission refuses hard-link
+      // aliases; Node exposes no public GetFinalPathNameByHandle API.
       if (process.platform === 'win32') final = await realpath(absolute)
       else if (process.platform === 'darwin') {
         // macOS fd paths are not symlinks; lsof reads the kernel's fd name.
@@ -79,13 +119,13 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
       if ((await workerPathIdentity(final)) !== identity) throw new MuseWorkerFolderError()
       return { absolute: final, identity }
     },
-    read: async (maxBytes) => {
-      const stats = await handle.stat()
-      const buffer = Buffer.alloc(Math.min(stats.size, maxBytes))
-      const result = await handle.read(buffer, 0, buffer.length, 0)
-      return buffer.subarray(0, result.bytesRead).toString('utf8')
-    },
+    read: async (maxBytes) =>
+      new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await bytes(maxBytes)),
+    readBytes: bytes,
     write: async (content) => {
+      const current = await handleIdentity(handle)
+      if (!current.isFile() || current.nlink !== BigInt(SINGLE_LINK_COUNT))
+        throw new MuseWorkerFolderError()
       await handle.truncate(0)
       await handle.writeFile(content, 'utf8')
     },
@@ -281,6 +321,7 @@ export async function withWorkerFile<T>(
   given: string,
   isWrite: boolean,
   work: (handle: WorkerFileHandle, path: Extract<WorkerPath, { ok: true }>) => Promise<T>,
+  role?: WorkerRolePolicy,
 ): Promise<T> {
   const grant = input.grant ?? (await assertWorkerRoot(input))
   const root = await recheckWorkerRoot(input, grant)
@@ -293,6 +334,11 @@ export async function withWorkerFile<T>(
   const absolute = p.resolve(root, expanded)
   if (windowsPathProblem(absolute, input.platform, root) !== undefined)
     throw new MuseWorkerFolderError()
+  if (isWrite) {
+    const target = await confineWorkerPath({ ...input, grant }, absolute)
+    if (role === undefined || !target.ok || !isCheckedWorkerWriteAllowed(role, target))
+      throw new MuseWorkerFolderError()
+  }
   const handle = await input.io.openFile(absolute, isWrite)
   try {
     const target = await handle.identify()
@@ -318,6 +364,8 @@ export async function withWorkerFile<T>(
       canonical,
     }
     await recheckWorkerRoot(input, grant)
+    if (isWrite && (role === undefined || !isCheckedWorkerWriteAllowed(role, confined)))
+      throw new MuseWorkerFolderError()
     return await work(handle, confined)
   } finally {
     await handle.close()

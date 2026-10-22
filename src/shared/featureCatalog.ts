@@ -667,6 +667,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'headless-teams',
+      { ui: 'paidTeamWorkersName' },
+      { cli: 'team' },
+      [],
+      [],
+      'headless-runs',
+      ['modelApi'],
+      true,
+      ['acp'],
+    ),
+    feature(
       'output-schema',
       { cli: 'output-schema' },
       { cli: 'output-schema' },
@@ -1364,7 +1375,10 @@ export function featureCatalog(): readonly Feature[] {
           ),
         ),
       ],
-      paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
+      // RVCM96B2: keep the feature's own paid mark (headless-teams bills
+      // the Model API key but has no paid registry entry of its own).
+      paid:
+        entry.paid || Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
       // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
       // combine: neither source may silently erase the other.
       details: isInProgress

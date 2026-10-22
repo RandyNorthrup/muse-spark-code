@@ -1,0 +1,241 @@
+{
+  "F1-fence-write-policy": {
+    "drill": "F1-fence-write-policy",
+    "file": "src/core/team/workers/workerToolIo.ts",
+    "test": "test/unit/teamWorkerToolIo.test.ts",
+    "exit": 1,
+    "failed": [
+      "an engine worker's fenced file tools > let a read-only role read and write nothing",
+      "an engine worker's fenced file tools > refuse a protected path such as .git/config",
+      "an engine worker's fenced file tools > refuse a write outside the role's write-paths"
+    ],
+    "tests": "3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "354e961d9b97116e9e776f98e3200250649146f68309d70645adfc33a4e987c5",
+    "after": "354e961d9b97116e9e776f98e3200250649146f68309d70645adfc33a4e987c5",
+    "restored": true
+  },
+  "F1-fence-root-grant": {
+    "drill": "F1-fence-root-grant",
+    "file": "src/core/team/workers/workerToolIo.ts",
+    "test": "test/unit/teamWorkerToolIo.test.ts",
+    "exit": 1,
+    "failed": [
+      "an engine worker's fenced file tools > refuse a write outside the role's write-paths",
+      "an engine worker's fenced file tools > refuse every call once the copy is replaced at its path",
+      "an engine worker's fenced file tools > refuse every path outside the copy, read or write"
+    ],
+    "tests": "3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "354e961d9b97116e9e776f98e3200250649146f68309d70645adfc33a4e987c5",
+    "after": "354e961d9b97116e9e776f98e3200250649146f68309d70645adfc33a4e987c5",
+    "restored": true
+  },
+  "F2-token-caps": {
+    "drill": "F2-token-caps",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 2: token caps stop the next request, mark the entry capped and show what was used"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F3-queued-consent": {
+    "drill": "F3-queued-consent",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 3: a queued key task is named in the one popup, and never starts on an unapproved model"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F4-trust-recheck": {
+    "drill": "F4-trust-recheck",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 1+4: a running task asks the service before every request: trust, the paid switch"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F4-paid-recheck": {
+    "drill": "F4-paid-recheck",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 1+4: a running task asks the service before every request: trust, the paid switch"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F4-engine-admit": {
+    "drill": "F4-engine-admit",
+    "file": "src/host/team/teamEnginePorts.ts",
+    "test": "test/unit/teamEnginePorts.test.ts",
+    "exit": 1,
+    "failed": [
+      "the engine worker port after the RVCM963 review > 1+4: hands the worker host a fence, records its copy, and asks the task before every request"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "7f432008fe0316ebdd9c21eaf2f69a686c4e10a028d778480d1fb35e117280a8",
+    "after": "7f432008fe0316ebdd9c21eaf2f69a686c4e10a028d778480d1fb35e117280a8",
+    "restored": true
+  },
+  "F5-tree-merge-gate": {
+    "drill": "F5-tree-merge-gate",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 12: one merge or discard runs on a task at a time",
+      "RVCM963 review findings > 5: the tree Merge is gated like the model merge and still decided on the card"
+    ],
+    "tests": "2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F6-reserve-capacity": {
+    "drill": "F6-reserve-capacity",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 6: two calls awaiting consent cannot both take one free slot",
+      "the team host service > resolves Default to the conversation's own model once a distinct entry runs the team",
+      "the team host service > takes the first entry with headroom and refuses past every entry's concurrency"
+    ],
+    "tests": "3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F7-disposed-after-consent": {
+    "drill": "F7-disposed-after-consent",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": ["RVCM963 review findings > 7: consent answered after disposal starts nothing"],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F8-binding-load-guard": {
+    "drill": "F8-binding-load-guard",
+    "file": "src/host/teamHostBinding.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 8: Solo, same-model and key entries with teamWorkers off load and probe nothing",
+      "RVCM963 review findings > 9: reload loads a first saved team, and a changed model needs a new probe",
+      "the window binding > never loads the team bundle or probes for a workspace without a team"
+    ],
+    "tests": "3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "f15e9cc57d4b9b86a6bc9df9c490ab44c33e82731514d1b41ad806a79cfcd3ce",
+    "after": "f15e9cc57d4b9b86a6bc9df9c490ab44c33e82731514d1b41ad806a79cfcd3ce",
+    "restored": true
+  },
+  "F9-reload-first-team": {
+    "drill": "F9-reload-first-team",
+    "file": "src/host/teamHostBinding.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 9: reload loads a first saved team, and a changed model needs a new probe"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "f15e9cc57d4b9b86a6bc9df9c490ab44c33e82731514d1b41ad806a79cfcd3ce",
+    "after": "f15e9cc57d4b9b86a6bc9df9c490ab44c33e82731514d1b41ad806a79cfcd3ce",
+    "restored": true
+  },
+  "F9-readiness-identity": {
+    "drill": "F9-readiness-identity",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 9: reload loads a first saved team, and a changed model needs a new probe"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F10-failed-writer-copy": {
+    "drill": "F10-failed-writer-copy",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 10: a failed writer keeps its copy to discard, and a failed continuation hands the copy back"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F11-persist": {
+    "drill": "F11-persist",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 11: tasks survive a window reload; running ones come back interrupted and discardable"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F12-serialize": {
+    "drill": "F12-serialize",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": ["RVCM963 review findings > 12: one merge or discard runs on a task at a time"],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F13-reviewer": {
+    "drill": "F13-reviewer",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 13: a configured reviewer with headroom reviews the branch head before the merge"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  },
+  "F14-protected-approval": {
+    "drill": "F14-protected-approval",
+    "file": "src/core/team/teamHost.ts",
+    "test": "test/unit/teamHostService.test.ts",
+    "exit": 1,
+    "failed": [
+      "RVCM963 review findings > 14: the merge card approves the protected paths it lists"
+    ],
+    "tests": "1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+    "before": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "after": "d62f5120c203036c78c898ffa02860684aadfd28e258677c508c2fd4df3c4a41",
+    "restored": true
+  }
+}

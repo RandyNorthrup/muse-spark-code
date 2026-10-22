@@ -452,6 +452,7 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
+    team: '--team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.',
     'max-requests':
       'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
@@ -1835,6 +1836,11 @@ export const EN = {
     'No MCP server is loaded: {servers} set both “required” and “mode”. Keep only “mode”.',
   mcpNoServersUnreadable:
     'No MCP server is loaded: Muse Code’s settings file could not be read ({reason}).',
+  // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
+  // M96b (PLAN.md D75): a worker approval's title starts with the role and
+  // the agent. {role}: the worker's role; {agent}: the agent running it;
+  // {detail}: what the approval is about.
+  acpTeamPermissionTitle: '{role} · {agent}: {detail}',
   // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
   teamResourcesTitle: 'Tools and Devices',
   teamResourcesDetail: 'Which MCP servers and devices the team shares, and who may use them',
@@ -4695,6 +4701,25 @@ export const EN = {
   execPaidNeedsEdits: 'Image generation requires acceptEdits.',
   // {options}: the refused command-line options as typed, joined by commas.
   execModelApiOnly: 'These options require the Model API backend (--backend modelApi): {options}.',
+  execTeamNeedsEdits: '--team needs --permission-mode acceptEdits.',
+  execTeamWorkerUnsupported: 'Headless teams run only engine workers; {kind} cannot run in CI.',
+  execTeamConfigInvalid: 'Headless team configuration is invalid: {reason}.',
+  execTeamConfigNotJson: 'team.json is not JSON.',
+  execTeamConfigNotObject: 'team.json must hold a single object.',
+  execTeamConfigLowersOnly:
+    'team.json entry {entry} is not allowed: the workspace file can only lower existing limits.',
+  execTeamConfigBadEntry: 'team.json entry {entry} is not valid.',
+  execTeamStateUnreadable:
+    'The stored headless team cannot be read; check the workspace team file.',
+  execTeamReviewerUnsupported:
+    'team.json requires reviewer {entry}; this runner offers only code review.',
+  execTeamMergeMarkers:
+    'The branch still shows conflict markers at {detail}; resolve them and merge again.',
+  execTeamMergeHeldProtected:
+    'Protected paths need approval, so the branch is held at {ref}. Approve them and merge again, or remove {ref} to discard the work.',
+  execTeamMergeHeldReview:
+    'The required review is not complete, so the branch is held at {ref}. Collect the review and merge again, or remove {ref} to discard the work.',
+  execTeamMergeBlocked: 'The merge cannot proceed for task {entry}: {detail}.',
   // {options}: the refused command-line options as typed, joined by commas.
   execMuseCodeOnly:
     'These options require the Muse Code backend, the default without --backend modelApi: {options}.',
@@ -5423,6 +5448,23 @@ export const EN = {
   // keeps its tools; from the next turn `delegate` is refused.
   teamSingleModelAgain: 'Only one model is ready: the team applies from a new conversation.',
   teamRunnerUnavailable: '{tool} is unavailable: the team runner has not loaded in this window.',
+  // The team host service (M96 lane X): its tool answers and refused actions.
+  teamPlanShown: 'Team plan shown; nothing started.',
+  teamTasksStarted: 'Team tasks started: {count}',
+  teamMergeRework: 'The merge met conflicts: the task went back for rework.',
+  teamTaskUnknown: 'That team task is not open in this window.',
+  teamWaitingUnknown: 'Nothing is waiting for this answer any more.',
+  teamBudgetUnavailable:
+    "A team task cannot start under a session budget until it can share this conversation's budget.",
+  teamTaskNoDiff: 'That team task has no branch to compare.',
+  teamTranscriptNotKept:
+    "A team worker's conversation closes with its task; its report and its diff stay.",
+  teamTaskBusy: 'That team task is already being merged or discarded.',
+  teamMergeUntrusted: 'Trust this workspace to merge a team task.',
+  teamMergeNeedsConversation:
+    'Open the conversation that started this team task to merge it there.',
+  teamMergePlanMode: 'Merging a team task is refused in Plan mode.',
+  teamReviewStarted: 'A reviewer started checking this branch; merge it once the review is in.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',

@@ -1,7 +1,8 @@
 import { UserRefusalError } from '../../refusal'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
-import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
+import type { PaidQuote, SearchSettlement, SubagentUsage } from '../../../shared/paid'
+import type { UsdAmount } from '../../../shared/usd'
 import {
   ModelApiPacing,
   metaPacingLimits,
@@ -631,6 +632,12 @@ export interface ResponseAttemptGuard {
   readonly prepareRetry?: (keyDigest: string, signal: AbortSignal) => Promise<void>
   /** Durable admission before the synchronous credential/gate fence. */
   readonly prepare?: () => Promise<void>
+  /** One durable request-chain ceiling; its returned callback owns that claim's settlement. */
+  readonly reserveUsage?: (maximum: {
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly costUsd?: UsdAmount | undefined
+  }) => Promise<void> | Promise<(usage: SubagentUsage) => void>
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number

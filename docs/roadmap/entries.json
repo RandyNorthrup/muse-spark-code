@@ -699,13 +699,13 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Team integration is in progress.",
+      "summary": "Planned agent roles with charters, tools, model pools and task limits, and teams in isolated workspaces whose hidden service enforces request claims, file policy and worker slots while remaining bindings and certification are pending.",
       "area": "agents"
     },
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "Team integration in other editors and headless runs is in progress.",
+      "summary": "Headless exec and the ACP agent run engine teams behind the availability switch (off until certified): hard budgets, keyless local workers, denied questions and checked merges; certification and remaining editor bindings follow in their slices.",
       "area": "agents"
     },
     {

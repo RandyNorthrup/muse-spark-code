@@ -171,6 +171,7 @@ import {
   VERIFY_TOOLS,
   WEB_FETCH_SUBJECT_KIND,
   CODEC_IMAGE_WITHOUT_VISION,
+  TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE,
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
 import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
@@ -998,12 +999,15 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   - `teamRunner` runs delegate/collect/cancel/merge (lanes A/W/I);
   - `isTeamInPlaceActive` reports a running `in-place` worker task (lane W).
   */
-  readonly teamDecisionSource?: (() => TeamDecisionSource | undefined) | undefined
+  readonly teamDecisionSource?:
+    ((orchestratorModelId?: string) => TeamDecisionSource | undefined) | undefined
   readonly teamRosterData?:
     | (() =>
         { readonly stable: readonly TeamStableRole[]; readonly live?: TeamRosterLive } | undefined)
     | undefined
   readonly teamRunner?: TeamToolRunner | undefined
+  /** Explicit headless team opt-in; never authorizes the orchestrator's shell or hooks. */
+  readonly isTeamTrusted?: (() => boolean) | undefined
   readonly isTeamInPlaceActive?: (() => boolean) | undefined
   /** Drain only state transitions and config edits; ordinary consumption stays in tool results. */
   readonly takeTeamChanges?:
@@ -2999,6 +3003,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   at that model's rates, whatever the session switched to meanwhile.
   */
   private sendingModelId: string | undefined
+  private settleWorkerUsage: ((usage: SubagentUsage) => void) | undefined
   private sendingContextModel: ContextModel | undefined
   private isSendingCompaction = false
   /** The request in flight is the wrap-up: its tokens never measure the turn body. */
@@ -4955,7 +4960,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (decided !== undefined) {
       return decided
     }
-    const source = this.deps.teamDecisionSource?.()
+    const source = this.deps.teamDecisionSource?.(this.modelId)
     const mode: TeamConversationMode =
       source === undefined || this.isSubagent
         ? 'single-model'
@@ -5792,6 +5797,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.isSubagent) paidFeature = 'subagents'
     else if (this.active?.confirmedRequest !== undefined) paidFeature ??= 'scheduledPrompts'
     let paidEstimatedInputTokens: number | undefined
+    let hasWorkerClaim = false
+    let settleWorkerUsage: ((usage: SubagentUsage) => void) | undefined
     if (
       (this.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
       (paidFeature !== undefined || directBudget !== undefined)
@@ -5802,11 +5809,26 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     let didAttemptSend = false
     return Object.assign(guard, {
-      // A retry: the attempt before it went out and reported no usage, so its
-      // cost is unknown and adds nothing; the guard checks the retry's own
-      // estimate against the limit before it is sent.
-      prepare: () => {
-        if (!didAttemptSend || open === undefined) return Promise.resolve()
+      prepare: async () => {
+        await this.deps.admitResponseAttempt?.prepare?.()
+        const reserve = this.deps.admitResponseAttempt?.reserveUsage
+        if (reserve !== undefined && !hasWorkerClaim) {
+          // M82's same upper bound: one token per serialized UTF-8 byte;
+          // media uses its calibrated bound. No cache discount is assumed.
+          const inputTokens = estimateInput(
+            this.media?.budgetParts(body) ?? requestParts(body),
+            undefined,
+          ).inputTokens
+          const outputTokens = body.max_output_tokens
+          const costUsd = resolved.price.reserve({ inputTokens, outputTokens })
+          const claim = await reserve({ inputTokens, outputTokens, costUsd })
+          if (typeof claim === 'function') settleWorkerUsage = claim
+          hasWorkerClaim = true
+        }
+        // A retry: the attempt before it went out and reported no usage, so its
+        // cost is unknown and adds nothing; the guard checks the retry's own
+        // estimate against the limit before it is sent.
+        if (!didAttemptSend || open === undefined) return
         didAttemptSend = false
         if (open.isSent && !open.isRefused) {
           this.warnUnknownCharge()
@@ -5815,7 +5837,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         open.isSent = false
         open.isRefused = false
         open.hasAmbiguousAttempt = false
-        return Promise.resolve()
+        return
       },
       observe: (observation: ResponseObservation) => {
         if (directBudget !== undefined || this.recordedCall === undefined) {
@@ -5886,6 +5908,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       onRequestStarted: () => {
         didAttemptSend = true
+        // Retry dispatches retain the same claim; a new request owns a new one.
+        this.settleWorkerUsage = settleWorkerUsage
         const currentTurn = this.active
         if (
           !isCompaction &&
@@ -6270,17 +6294,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // An attempt's tally prices the request at the model it was sent to, as the
     // budget does, whatever the session switched to meanwhile (M82).
-    this.notifyUsage(() =>
-      this.deps.noteResponseUsage?.(sentModelId, {
-        ...(sentModelId.includes('/') && {
-          ...billable,
-          costUsd: cost,
-        }),
-        inputTokens: billable.inputTokens,
-        outputTokens: billable.outputTokens,
-        cachedTokens: billable.cachedTokens ?? 0,
+    const settleWorkerUsage = this.settleWorkerUsage
+    this.settleWorkerUsage = undefined
+    const reported = {
+      ...((settleWorkerUsage !== undefined || sentModelId.includes('/')) && {
+        ...billable,
+        costUsd: cost,
       }),
-    )
+      inputTokens: billable.inputTokens,
+      outputTokens: billable.outputTokens,
+      cachedTokens: billable.cachedTokens ?? 0,
+    }
+    if (settleWorkerUsage !== undefined)
+      this.notifyUsage(() => {
+        settleWorkerUsage(reported)
+      })
+    this.notifyUsage(() => this.deps.noteResponseUsage?.(sentModelId, reported))
     this.emitUsage()
     this.noteContext(usage.input_tokens + usage.output_tokens)
   }
@@ -11131,7 +11160,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       const reason = fill(TEAM_BOOTSTRAP_MODEL_TEXT.undeclaredTool, { tool: call.name })
       return { output: reason, visibleOutput: reason, failureReason: reason }
     }
-    if ((name === 'delegate' || name === 'merge') && !this.deps.isWorkspaceTrusted()) {
+    if (
+      (name === 'delegate' || name === 'merge') &&
+      !(this.deps.isTeamTrusted?.() ?? this.deps.isWorkspaceTrusted())
+    ) {
       return toolFailure(MODEL_API_MODEL_TEXT.shellRestrictedMode)
     }
     if (
@@ -11158,7 +11190,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (runner === undefined) {
       return this.unavailableTeamTool(name)
     }
-    const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
+    const context = {
+      sessionId: this.sessionId,
+      approvalMode: this.approvalMode,
+      signal,
+      orchestratorModelId: this.modelId,
+    }
     if (name === 'collect') {
       // Validated above; the wait is clamped to the backend's bound here.
       const reparsed = this.team.collectArgs.safeParse(parsed.args)
@@ -11170,7 +11207,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       return await runner.collect(
         {
           ...rest,
-          wait_seconds: this.team.clampCollectWait(wait),
+          wait_seconds: this.team.clampCollectWait(wait, TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE),
         },
         context,
       )
@@ -11217,7 +11254,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const reason = TEAM_BOOTSTRAP_MODEL_TEXT.invalidDelegateArguments
       return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
     }
-    const now = this.deps.teamDecisionSource?.()
+    const now = this.deps.teamDecisionSource?.(this.modelId)
     if (now === undefined || decideTeamConversationMode(now).mode !== 'team') {
       return {
         output: this.team.singleModelAgainRefusal(),
@@ -11229,17 +11266,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (runner === undefined) {
       return this.unavailableTeamTool('delegate')
     }
-    const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
+    const context = {
+      sessionId: this.sessionId,
+      approvalMode: this.approvalMode,
+      signal,
+      orchestratorModelId: this.modelId,
+    }
     if (dryRun === true) return await runner.preview(parsed.data, context)
     const commands = this.teamCommands
     if (commands === undefined) throw new Error('team commands were not prepared')
     return await commands.run(commandId, tasks, () => {
       signal.throwIfAborted()
-      return runner.delegate(parsed.data, {
-        sessionId: this.sessionId,
-        approvalMode: this.approvalMode,
-        signal,
-      })
+      return runner.delegate(parsed.data, context)
     })
   }
 
@@ -18798,6 +18836,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return undefined
   }
+
+  /** The effective tool names, for a team worker's charter to meet (M96). */
+  public toolNames(): readonly string[] {
+    return this.offeredToolNames()
+  }
 }
 
 /**
@@ -18863,7 +18906,7 @@ export class ModelApiHost implements AgentHost {
     canDeleteSessions: true,
   }
 
-  public constructor(private readonly deps: ModelApiHostDeps) {
+  public constructor(private deps: ModelApiHostDeps) {
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
     // Elicitations outside any tool call have no session to ask: they are
     // declined, and the pool declares the capability while this stands
@@ -19506,6 +19549,11 @@ export class ModelApiHost implements AgentHost {
     return this.deps.client.readPlanUsage?.() ?? []
   }
 
+  /** A session's offered tool names, for a team worker's charter (M96); undefined when unknown. */
+  public sessionToolNames(sessionId: string): readonly string[] | undefined {
+    return this.sessions.get(sessionId)?.toolNames()
+  }
+
   public async listModels(
     sessionId?: string,
     signal?: AbortSignal,
@@ -19895,6 +19943,16 @@ export class ModelApiHost implements AgentHost {
 
   public onUsageChanged(_listener: (usage: SubscriptionUsage) => void): () => void {
     return NO_UNSUBSCRIBE
+  }
+
+  /**
+  A headless team run vouches for its workers (M96b): the runtime sets the
+  team-switch trust after construction, before the first session, so the
+  always-loaded backend manager never carries it (activation budget). The
+  editor never calls this: its workers keep workspace trust.
+  */
+  public setTeamTrusted(isTrusted: () => boolean): void {
+    this.deps = { ...this.deps, isTeamTrusted: isTrusted }
   }
 
   /** Only the owning live session can receive its pre-dispatch format. */

@@ -4238,6 +4238,22 @@ availability causes no startup price dialog. Explicitly turning a feature OFF
 and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
 
+Team workers default on for a runnable team of distinct models. They ask in
+this paid-use popup before the first charge, with the models, task ceilings
+and daily budget. Each task identifies its provider and tariff. Meta rates
+are quoted only for a matching verified Meta tariff; other providers or
+unverified tariffs state that the price is unknown and name the task and
+daily token ceilings. Billing uses each task provider's API key.
+Always is scoped to the provider, model and price tier that was approved;
+a different model asks again. Single-model activation asks no team question.
+The M96 team feature remains unavailable until its integration is complete.
+Its hidden worker service retains one reservation through transport retries
+and settles the exact claim from the response's known model price. Raise can
+lift entry caps for one task; it cannot lift concurrent worker limits. Worker
+file writes check the role before opening and use verified existing-file
+handles. Portable new-file creation is unavailable until a native operation
+can bind creation to a verified parent handle.
+
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,
 and offers three answers:
@@ -5604,6 +5620,20 @@ transcript's publication: a rejected run publishes nothing.
 See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
+
+`exec --team --backend modelApi --permission-mode acceptEdits
+--max-budget-usd <usd>` runs the configured workspace team in-process
+(behind the agent-teams availability switch, off until certified).
+Every worker request shares the hard run budget; local engines need no key.
+Questions deny, protected or unreviewed merges are held under a named ref
+instead of discarded, and ordinary merges enter the run's
+working tree after local checks, for M80's exact patch review. The run records
+its board, copies and task refs in a cleanup ledger and removes them on
+shutdown; a later run sweeps what a dead run left. Store the workspace `TeamSnapshot` in the
+agent data folder's `acp/<workspaceKey>/team.json`; Default follows exec's
+provider/model, and `.muse/team.json` can only lower limits. Muse Code and
+external workers cannot run headlessly. See [the headless contract](docs/ci.md)
+for snapshot fields, billing and cleanup.
 
 ### Other CI systems
 

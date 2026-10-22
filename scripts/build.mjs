@@ -193,6 +193,12 @@ const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
 const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
 const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
 const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
+const TEAM_HOST_ENTRY = 'src/host/team/teamHostEntry.ts'
+const TEAM_HOST_OUTFILE = 'dist/teamHost.js'
+const TEAM_FILE_IO_ENTRY = 'src/core/team/workers/workerToolIoEntry.ts'
+const TEAM_FILE_IO_OUTFILE = 'dist/teamFileIo.js'
+const TEAM_MERGE_ENTRY = 'src/core/team/teamMergeFlow.ts'
+const TEAM_MERGE_OUTFILE = 'dist/teamMerge.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
@@ -601,6 +607,31 @@ const museCodeOptions = {
   ...teamOptions,
   entryPoints: [MUSE_CODE_ENTRY],
   outfile: MUSE_CODE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamHostOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_HOST_ENTRY],
+  outfile: TEAM_HOST_OUTFILE,
+}
+
+const execTeamOptions = {
+  ...teamOptions,
+  entryPoints: ['src/runtime/exec/execTeamEntry.ts'],
+  outfile: 'dist/execTeam.js',
+}
+
+const teamFileIoOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_FILE_IO_ENTRY],
+  outfile: TEAM_FILE_IO_OUTFILE,
+}
+
+const teamMergeOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_MERGE_ENTRY],
+  outfile: TEAM_MERGE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1709,6 +1740,10 @@ if (isWatch) {
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
+    esbuild.context(teamHostOptions),
+    esbuild.context(execTeamOptions),
+    esbuild.context(teamFileIoOptions),
+    esbuild.context(teamMergeOptions),
     esbuild.context(teamSchedulerOptions),
     esbuild.context(museCodeOptions),
     esbuild.context(foreignHooksOptions),
@@ -1884,6 +1919,10 @@ if (isWatch) {
     reviewer: recorded('reviewer', reviewerOptions),
     team: recorded('team', teamOptions),
     teamRunners: recorded('teamRunners', teamRunnersOptions),
+    teamHost: recorded('teamHost', teamHostOptions),
+    execTeam: recorded('execTeam', execTeamOptions),
+    teamFileIo: recorded('teamFileIo', teamFileIoOptions),
+    teamMerge: recorded('teamMerge', teamMergeOptions),
     teamScheduler: recorded('teamScheduler', teamSchedulerOptions),
     foreignHooks: recorded('foreignHooks', foreignHooksOptions),
     modelApiHooks: recorded('modelApiHooks', {
@@ -2112,6 +2151,7 @@ if (isWatch) {
   reportSize(REVIEWER_OUTFILE)
   reportSize(TEAM_OUTFILE)
   reportSize(TEAM_RUNNERS_OUTFILE)
+  reportSize(TEAM_HOST_OUTFILE)
   reportSize(TEAM_SCHEDULER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)

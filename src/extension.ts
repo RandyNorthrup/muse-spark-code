@@ -121,6 +121,7 @@ import {
   REPORT_ERROR_CODES,
   REPORT_EXIT_CODE,
   UI_TEXT,
+  TEAM_SWITCH_SETTING,
   VSCODE_COMMANDS,
   WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
@@ -143,6 +144,8 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { createHash } from 'node:crypto'
+import { availableParallelism } from 'node:os'
+import { TeamHostBinding } from './host/teamHostBinding'
 import type { UsagePanel } from './host/usage/usagePanel'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -3040,7 +3043,135 @@ async function activateWindow(
       .fsPath,
     log,
   })
+  // M96 lane X: the window's team host service. A workspace that stores no
+  // team never loads dist/team.js. Engine entries run as Model API
+  // conversations in the task's own copy; other agent kinds are unavailable.
+  const teamHost: TeamHostBinding = new TeamHostBinding({
+    ports: {
+      state: {
+        get: (key) => context.workspaceState.get(key),
+        update: async (key, value) => {
+          await context.workspaceState.update(key, value)
+        },
+      },
+      settings: {
+        // Hidden until C-M96-2: only an explicit `false` turns the team off.
+        isTeamOn: () =>
+          vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING) !==
+          false,
+        isTeamWorkersOn: () => currentSettings().modelApiTeamWorkers,
+        // D121: no ceiling of ours. The machine's own parallelism bounds
+        // how many workers start at once; the provider's limits and live
+        // throttling bound each entry below it (teamCeilings).
+        maxWorkers: () => availableParallelism(),
+        isTrusted: () => vscode.workspace.isTrusted,
+      },
+      orchestrator: {
+        modelId: () => DEFAULT_MODEL_ID,
+        backend: () => currentSettings().backend,
+        // Default runs on the conversation's own model; on the Model API it bills the key.
+        defaultAgent: (modelId) =>
+          currentSettings().backend === 'modelApi'
+            ? { kind: 'engine', agentId: 'default', model: modelId, pays: 'key' }
+            : undefined,
+        approvalMode: (sessionId) =>
+          Array.from(controllers.values(), (controller) =>
+            controller.teamApprovalMode(sessionId),
+          ).find((mode) => mode !== undefined),
+      },
+      engine: {
+        repositoryRoot: () => workspaceRoot,
+        storageRoot: path.join(context.storageUri?.fsPath ?? storageRoot, 'team'),
+        platform: process.platform,
+        isTrusted: () => vscode.workspace.isTrusted,
+        listModels: async () => {
+          const host = await modelApi.ensureHost()
+          const models = await host.listModels()
+          return models.map((model) => model.modelId)
+        },
+        startWorker: async ({
+          folder,
+          modelId,
+          approvalMode,
+          admit,
+          noteUsage,
+          parentSessionId,
+          fenceIo,
+        }) => {
+          let budgetScope
+          try {
+            budgetScope = await modelApi.bestOfNBudgetScope(parentSessionId)
+          } catch (error: unknown) {
+            throw new Error(UI_TEXT.teamBudgetUnavailable, { cause: error })
+          }
+          const host = await modelApi.buildTeamWorkerHost(
+            folder,
+            admit,
+            noteUsage,
+            budgetScope,
+            fenceIo,
+          )
+          // The activation bundle inlines its worker-session open (RVCM96B2
+          // P1-14): the shared helper stays headless-only, and this
+          // promise shape stays its own so the zero-duplication gate
+          // holds (PLAN.md section 8). Semantically the try/catch twin:
+          // a failed open closes the host and rethrows.
+          const session = await host
+            .startSession({ workspaceRoot: folder, modelId, approvalMode })
+            // eslint-disable-next-line unicorn/prefer-await -- The shared helper's try/catch twin would reintroduce the exact clone the zero-duplication gate forbids; the activation budget forbids importing the helper.
+            .catch(async (error: unknown) => {
+              await host.close()
+              throw error
+            })
+          return {
+            session,
+            toolNames: host.sessionToolNames(session.sessionId) ?? [],
+            close: () => host.close(),
+          }
+        },
+        now: () => Date.now(),
+        log,
+      },
+      cards: {
+        show: (sessionId, item) => {
+          for (const controller of controllers.values()) controller.showTeamCard(sessionId, item)
+        },
+      },
+      paid: {
+        // Not forced to ask: a scoped "Always" for these models answers without a popup.
+        allowKeyTasks: async (tasks, dailyBudgetUsd) =>
+          await paid.consent.allows({ feature: 'teamWorkers', tasks, dailyBudgetUsd }, false),
+      },
+      newId: () => crypto.randomUUID(),
+      now: () => Date.now(),
+      log,
+    },
+    // VS Code runs engine workers; Muse Code and external agents come with C-M96-4 and lane W.
+    canRunKind: (kind) => kind === 'engine',
+    loadFactory: async () => {
+      const { createTeamHost } = await import('./host/team/teamHostEntry')
+      return createTeamHost
+    },
+    uiText: () => UI_TEXT,
+    uiLocale,
+    showTree: (tree) => {
+      for (const controller of controllers.values()) controller.showTeamTree(tree)
+    },
+    openRoles: async () => {
+      await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
+    },
+    showDiff: async (_taskId, diff) => {
+      const document = await vscode.workspace.openTextDocument({ content: diff, language: 'diff' })
+      await vscode.window.showTextDocument(document, { preview: true })
+    },
+  })
+  context.subscriptions.push({
+    dispose: () => {
+      void teamHost.dispose()
+    },
+  })
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
+    team: teamHost.seams,
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
     mediaConverterPath: () => currentSettings().mediaConverterPath,
@@ -4280,6 +4411,7 @@ async function activateWindow(
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
+          team: teamHost,
           workspaceRoot,
           modelId: DEFAULT_MODEL_ID,
           initialPermissionMode: currentSettings().initialPermissionMode,
@@ -4714,6 +4846,13 @@ async function activateWindow(
         uiLocale(),
       )
       controllers.set(surface.id, controller)
+      // A surface that shows the team opened: the declared setup probes run
+      // here, never on a conversation's path (M96 acceptance 47).
+      const opened = controller
+      void teamHost.open().then(() => {
+        const tree = teamHost.tree()
+        if (tree !== undefined) opened.showTeamTree(tree)
+      })
     }
     return controller
   }
