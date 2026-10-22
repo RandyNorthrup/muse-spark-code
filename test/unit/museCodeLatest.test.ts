@@ -828,21 +828,12 @@ describe('session leave, skill activation, workflow controls (1.4.11)', () => {
     })
   })
 
-  it.each(['workflow-pause-1.4.11.json', 'workflow-cancel-1.4.11.json'] as const)(
-    'refuses an unknown run in %s with the documented kind',
-    (name) => {
-      const frame = fixture(name) as {
-        error: { code: number; data: { kind: string; reason: string } }
-      }
-      expect(frame.error).toMatchObject({
-        code: -32_030,
-        data: { kind: 'commandRejected', reason: 'missing_run' },
-      })
-    },
-  )
-
-  it('refuses a child control on an unknown run with the documented kind', () => {
-    const frame = fixture('workflow-childControl-1.4.11.json') as {
+  it.each([
+    'workflow-pause-1.4.11.json',
+    'workflow-cancel-1.4.11.json',
+    'workflow-childControl-1.4.11.json',
+  ] as const)('refuses an unknown run in %s with the documented kind', (name) => {
+    const frame = fixture(name) as {
       error: { code: number; data: { kind: string; reason: string } }
     }
     expect(frame.error).toMatchObject({

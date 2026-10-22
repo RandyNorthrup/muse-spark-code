@@ -13,6 +13,7 @@ import { noRetryBudget } from '../../src/core/backends/modelapi/transport'
 import { restoredToolText } from '../../src/core/backends/modelapi/schemas'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { PROVIDERS_FILE_VERSION } from '../../src/shared/constants'
+import { makeTurnBody } from './helpers/turnBodies'
 
 function callInput(callId: string, id: string): CreateResponseBody['input'] {
   return [
@@ -28,28 +29,16 @@ function callInput(callId: string, id: string): CreateResponseBody['input'] {
 }
 
 function turnBody(model: string, input: CreateResponseBody['input']): CreateResponseBody {
-  return {
+  return makeTurnBody({
     model,
     input,
     instructions: 'You are a coding agent.',
-    tools: [
-      {
-        type: 'function',
-        name: 'read_file',
-        description: 'Read a file',
-        parameters: { type: 'object', properties: { path: { type: 'string' } } },
-        strict: false,
-      },
-    ],
-    tool_choice: 'auto',
-    reasoning: { effort: 'medium', summary: 'auto' },
-    stream: true,
-    store: false,
+    toolName: 'read_file',
+    effort: 'medium',
     include: ['reasoning.encrypted_content'],
-    max_output_tokens: 8192,
-    prompt_cache_key: 'prefix-1',
-    prompt_cache_retention: 'in_memory',
-  }
+    maxOutputTokens: 8192,
+    promptCacheKey: 'prefix-1',
+  })
 }
 
 describe('M101-REPLAY-ORIGIN over a real configured Responses entry', () => {
