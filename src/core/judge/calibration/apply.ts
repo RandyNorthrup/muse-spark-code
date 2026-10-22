@@ -9,6 +9,15 @@ import {
   type CalibrationLimits,
 } from './schema'
 
+/** The runtime label per technique; identity validation runs before any label is read. */
+const CALIBRATED_LABELS: Readonly<
+  Record<string, 'calibrated (logprob)' | 'calibrated (stated)' | 'calibrated (systemone)'>
+> = {
+  logprob: 'calibrated (logprob)',
+  stated: 'calibrated (stated)',
+  systemone: 'calibrated (systemone)',
+}
+
 /** Runtime output stays uncalibrated until independent evaluation is present. */
 export function applyCalibration(
   profileInput: unknown,
@@ -21,7 +30,7 @@ export function applyCalibration(
   | {
       readonly status: 'calibrated'
       readonly probability: number
-      readonly label: 'calibrated (logprob)' | 'calibrated (stated)'
+      readonly label: 'calibrated (logprob)' | 'calibrated (stated)' | 'calibrated (systemone)'
       readonly combinationWeight: number
     } {
   const reason = identityReason(identity)
@@ -38,7 +47,7 @@ export function applyCalibration(
   return {
     status: 'calibrated',
     probability: calibrationProbability(profile, probability),
-    label: identity.technique === 'logprob' ? 'calibrated (logprob)' : 'calibrated (stated)',
+    label: CALIBRATED_LABELS[identity.technique] ?? 'calibrated (stated)',
     combinationWeight: profile.combinationWeight,
   }
 }

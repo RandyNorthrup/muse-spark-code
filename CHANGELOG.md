@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge calibration: the SystemOne technique and nine fast-judge
+  families join the fitted profiles, with per-engine base curves and
+  per-family overrides in a committed, dated profile directory. No
+  profile qualifies yet, so every model-backed family stays off and
+  reports its own missing profile.
+
 - Fast judge engine choice: each decision picks the fastest ready engine
   its deadline admits, suspending a hanging engine by its third miss and
   requalifying it only through background probes. The chat model never
