@@ -1016,6 +1016,7 @@ export const ON_FIRST_USE = [
       'src/host/playbook/playbookWorker.ts',
       'src/host/playbook/workerProtocol.ts',
       'src/host/playbook/containedJob.ts',
+      'src/host/playbook/teamPlaybook.ts',
       'src/runtime/playbook/governor.ts',
       'src/runtime/playbook/surface.ts',
       'src/core/orchestration/panelLanes.ts',

@@ -109,7 +109,7 @@ export class TeamWorkspaceError extends Error {
   }
 }
 
-/** @unwired M96 team workspace error guard */
+/** Whether a failure is the team's own workspace failure, with its stable code. */
 export function isTeamWorkspaceError(value: unknown): value is TeamWorkspaceError {
   return value instanceof Error && value.name === 'TeamWorkspaceError'
 }
@@ -307,6 +307,30 @@ export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string)
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }
+}
+
+/**
+The dispatch base for a task of this mode (M116, PLAN.md D212): raw HEAD
+in place (the tree's own parent; the work lands in the tree itself), else
+the base commit the task's copy branches from, with the branch ref when
+the checkout names one (`HEAD` reads as detached, never as a branch).
+*/
+export async function readDispatchHead(
+  runGit: TeamGit,
+  repositoryRoot: string,
+  mode: 'read-only' | 'own-branch' | 'in-place',
+): Promise<{ readonly ref: string | undefined; readonly commit: string }> {
+  const abbrev = decodeText(
+    await runGit(['rev-parse', '--abbrev-ref', 'HEAD'], repositoryRoot),
+  ).trim()
+  if (abbrev === '')
+    throw new TeamWorkspaceError('workspaceFailed', 'The workspace names no branch')
+  const ref = abbrev === 'HEAD' ? undefined : `refs/heads/${abbrev}`
+  const commit =
+    mode === 'in-place'
+      ? objectId(await runGit(['rev-parse', '--verify', 'HEAD^{commit}'], repositoryRoot), 'base')
+      : await resolveBaseCommit(runGit, repositoryRoot)
+  return { ref, commit }
 }
 
 async function removeRemote(runGit: TeamGit, folder: string): Promise<void> {

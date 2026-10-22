@@ -32,6 +32,8 @@ import { createPlaybookPanel, type PlaybookPanel } from './playbookPanel'
 import { servePlaybook } from './playbookWorker'
 import { playbookWorkerDataSchema } from './workerProtocol'
 
+export { createTeamPlaybookIntegration, type TeamPlaybookIntegrationDeps } from './teamPlaybook'
+
 export type {
   PlaybookConversation,
   PlaybookConversationHost,
