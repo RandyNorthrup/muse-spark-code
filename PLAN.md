@@ -29547,6 +29547,17 @@ this lane's sandbox cannot run (`/bin/ps` denied, 148-byte TMPDIR over
 the 103-byte socket limit, no default keychain). Receipts:
 `docs/certification/rlm109.md`. M109 stays open.
 
+**RLM109 recovery (2026-10-22, macmini): increment 4.** Retire
+mechanics bound: `ensureMigrated` retires past the retain window and
+retired slots read authoritatively through the shell
+(`dist/vaultMigration.js` 43.8/45 KiB; both broker suites drive
+retire at release 21 for CI). T5 corrected to the grant-redemption
+consumer (vault_run binding in exec/ACP tool IO); deferred with a
+design — its launch half has no packaging and every behavior needs
+real runs. Undo trigger, vault-reset restoration of retired slots
+and the companion surface are owner/product questions. macOS and
+Windows proofs stay with the lead and hosted CI.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are

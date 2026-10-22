@@ -288,6 +288,9 @@ happened, not what was planned; superseded entries are kept.
 - The ChatGPT subscription's stored tokens move into the vault the same
   way, and pooled (non-default) accounts migrate from the account pool
   where their host lists one.
+- Past the retain window a migrated slot's legacy entry retires and
+  the slot keeps reading from the vault, including across lock and
+  sign-out.
 
 ### Release infrastructure
 
