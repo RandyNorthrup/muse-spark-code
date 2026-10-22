@@ -21,19 +21,56 @@ function placed(url: string, extra: ReadonlySet<string> = NONE) {
 }
 
 describe('the browser check address rule (M81)', () => {
+  it('refuses known machine API paths, including encoded names, on an allowlisted dev origin', () => {
+    const origin = 'http://localhost:5173'
+    for (const pathname of [
+      '/api/printer/command',
+      '/api/job',
+      '/printer/gcode/script',
+      '/machine/reboot',
+      '/rr_gcode',
+      '/%61pi/%70rinter/command',
+      '/%zz',
+    ]) {
+      expect(isAllowedRequest(`${origin}${pathname}`, new Set([origin])), pathname).toBe(false)
+    }
+  })
+  it.each([
+    'octoprint',
+    'mainsail',
+    'fluidd',
+    'moonraker',
+    'duet',
+    'prusalink',
+    'bambu',
+    'repetier',
+    'snapmaker-luban',
+  ])('refuses an allowlisted known %s UI at any mode or port', (ui) => {
+    const origin = `http://${ui}.local:5173`
+    expect(placed(origin, new Set([origin]))).toBe('refused')
+    expect(isAllowedRequest(`${origin}/`, new Set([origin]))).toBe(false)
+  })
+  it.each([80, 443, 5000, 7125, 3344, 8080, 8000, 8888])(
+    'refuses allowlisted private machine web port %s',
+    (port) => {
+      const origin = `http://192.168.1.50:${String(port)}`
+      expect(placed(origin, new Set([new URL(origin).origin]))).toBe('refused')
+    },
+  )
   it('counts localhost, 127.0.0.0/8 and ::1 as loopback, in every spelling the URL parser accepts', () => {
     for (const url of [
       'http://localhost:3000/',
-      'http://LOCALHOST/',
+      'http://LOCALHOST:3000/',
       'http://127.0.0.1:5173/app',
-      'http://127.1/',
-      'http://0x7f.0.0.1/',
-      'http://2130706433/',
-      'http://127.255.255.254/',
-      'http://[::1]:8080/',
-      'https://[0:0:0:0:0:0:0:1]/',
+      'http://127.1:3000/',
+      'http://0x7f.0.0.1:3000/',
+      'http://2130706433:3000/',
+      'http://127.255.255.254:3000/',
+      'http://[::1]:3000/',
+      'https://[0:0:0:0:0:0:0:1]:3000/',
     ]) {
-      expect(placed(url), url).toMatchObject({ kind: 'local' })
+      expect(placed(url), url).toBe('refused')
+      expect(placed(url, new Set([new URL(url).origin])), url).toMatchObject({ kind: 'local' })
     }
   })
 
@@ -48,7 +85,13 @@ describe('the browser check address rule (M81)', () => {
       'http://10.0.0.5/',
       'http://intranet/',
     ]) {
-      expect(placed(url), url).toMatchObject({ kind: 'needsWidening' })
+      expect(placed(url), url).toEqual(
+        ['0.0.0.0', '[::ffff:7f00:1]', '169.254.169.254', '10.0.0.5'].includes(
+          new URL(url).hostname,
+        )
+          ? 'refused'
+          : expect.objectContaining({ kind: 'needsWidening' }),
+      )
     }
     expect(isLoopbackHost('[::ffff:7f00:1]')).toBe(false)
   })
@@ -77,7 +120,7 @@ describe('the browser check address rule (M81)', () => {
   })
 
   it('names the host the card and the "always" rule are keyed on, with a port other than the default', () => {
-    expect(placed('http://localhost:3000/a?b=1#c')).toEqual({
+    expect(placed('http://localhost:3000/a?b=1#c', new Set(['http://localhost:3000']))).toEqual({
       kind: 'local',
       url: 'http://localhost:3000/a?b=1#c',
       host: 'localhost',
@@ -92,15 +135,19 @@ describe('the browser check address rule (M81)', () => {
   it('places a host the user widened as widened, and only that exact host', () => {
     const extra = new Set(['dev.example.com', '192.168.1.20', '[fd00::1]'])
     expect(placed(`${HTTP}//dev.example.com:8080/`, extra)).toMatchObject({ kind: 'widened' })
-    expect(placed('http://192.168.1.20/', extra)).toMatchObject({ kind: 'widened' })
-    expect(placed('http://[fd00::1]/', extra)).toMatchObject({ kind: 'widened' })
+    expect(placed('http://192.168.1.20/', extra)).toBe('refused')
+    expect(placed('http://[fd00::1]/', extra)).toBe('refused')
     for (const url of [
       `${HTTP}//evil-dev.example.com/`,
       `${HTTP}//a.dev.example.com/`,
       `${HTTP}//example.com/`,
       'http://192.168.1.21/',
     ]) {
-      expect(placed(url, extra), url).toMatchObject({ kind: 'needsWidening' })
+      expect(placed(url, extra), url).toEqual(
+        new URL(url).hostname === '192.168.1.21'
+          ? 'refused'
+          : expect.objectContaining({ kind: 'needsWidening' }),
+      )
     }
   })
 
@@ -115,7 +162,7 @@ describe('the browser check address rule (M81)', () => {
       '',
       'example.com:8080',
       'example.com/path',
-      `${HTTP}//example.com`,
+      `${HTTP}//example.com/path`,
       '*.example.com',
       'a;b',
       '<-loopback>',
@@ -127,13 +174,28 @@ describe('the browser check address rule (M81)', () => {
     }
   })
 
+  it('allows only the exact configured dev origin and never a companion origin', () => {
+    const extra = new Set(['http://127.0.0.1:3000'])
+    expect(widenedHost('http://LOCALHOST:3000/')).toBe('http://localhost:3000')
+    expect(widenedHost('http://127.0.0.1:47830')).toBeUndefined()
+    expect(placed('http://127.0.0.1:3000/', extra)).toMatchObject({ kind: 'local' })
+    expect(placed('http://127.0.0.1:3001/', extra)).toBe('refused')
+    expect(placed('https://127.0.0.1:3000/', extra)).toBe('refused')
+    expect(placed('http://127.0.0.1:47830/', new Set(['http://127.0.0.1:47830']))).toBe('refused')
+  })
   it('lets a request through only to loopback or an allowed host, over http(s) or ws(s)', () => {
-    const allowed = new Set(['dev.example.com'])
+    const allowed = new Set([
+      'dev.example.com',
+      'http://localhost:3000',
+      'https://127.0.0.1:3000',
+      'http://localhost:5173',
+      'https://[::1]:3000',
+    ])
     for (const url of [
       'http://localhost:3000/x.js',
-      'https://127.0.0.1/',
+      'https://127.0.0.1:3000/',
       'ws://localhost:5173/hmr',
-      'wss://[::1]/',
+      'wss://[::1]:3000/',
       `${HTTP}//dev.example.com/api`,
     ]) {
       expect(isAllowedRequest(url, allowed), url).toBe(true)

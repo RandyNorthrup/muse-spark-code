@@ -1,0 +1,322 @@
+[
+  {
+    "name": "enable-trust",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without trust"
+  },
+  {
+    "name": "enable-attended",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without interactive"
+  },
+  {
+    "name": "enable-reason",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without reason"
+  },
+  {
+    "name": "enable-audit",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  2 failed | 20 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > persists hardware by canonical workspace and audits the reason first\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without audit"
+  },
+  {
+    "name": "grant-shape",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  6 failed | 16 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > persists hardware by canonical workspace and audits the reason first\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without trust\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without interactive\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without reason\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses enabling without audit\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > rejects malformed persisted grants rather than enabling"
+  },
+  {
+    "name": "flag",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > flag and current admission refuse confirmations; Stop controls still update"
+  },
+  {
+    "name": "confirm-trust",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses trust lost after enabling and an already expired request"
+  },
+  {
+    "name": "confirm-attended",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > flag and current admission refuse confirmations; Stop controls still update"
+  },
+  {
+    "name": "confirm-expiry",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses trust lost after enabling and an already expired request"
+  },
+  {
+    "name": "disable-cancel",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > revocation cancels an outstanding permission before dispatch"
+  },
+  {
+    "name": "answer-replay",
+    "file": "src/runtime/maker/runtimeMakerHost.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "4f738d30d0c203ee5c0addc394014df9c8ba99aca27a7d4c6c252b3278af33db",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > passes a valid once answer to the engine and consumes only the live target"
+  },
+  {
+    "name": "acp-choices",
+    "file": "src/acp/maker.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "5b9603ba27f3e953f70354c61e04dc531f3141b55977bc0d54838fb4953c4885",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 21 passed (22)\n FAIL  test/unit/runtimeMakerHost.test.ts > ACP maker permissions > offers only allow/reject once and shows the full engine snapshot"
+  },
+  {
+    "name": "loopback",
+    "file": "src/runtime/maker/companionServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "b72f2b33aa40797a2486772350923e6195aab99ff600d74acc0972e98e72a29c",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  3 failed | 28 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > refuses bind 0.0.0.0\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > refuses bind 192.168.1.2\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > refuses bind localhost"
+  },
+  {
+    "name": "host",
+    "file": "src/runtime/maker/companionServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "b72f2b33aa40797a2486772350923e6195aab99ff600d74acc0972e98e72a29c",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > rejects foreign Host, Origin and unauthenticated commands"
+  },
+  {
+    "name": "origin",
+    "file": "src/runtime/maker/companionServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "b72f2b33aa40797a2486772350923e6195aab99ff600d74acc0972e98e72a29c",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > rejects foreign Host, Origin and unauthenticated commands"
+  },
+  {
+    "name": "launch-once",
+    "file": "src/runtime/maker/companionServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "b72f2b33aa40797a2486772350923e6195aab99ff600d74acc0972e98e72a29c",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > launch codes are single use, same-origin, and exchanged into an HttpOnly cookie"
+  },
+  {
+    "name": "cookie",
+    "file": "src/runtime/maker/companionServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "b72f2b33aa40797a2486772350923e6195aab99ff600d74acc0972e98e72a29c",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  2 failed | 29 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > rejects foreign Host, Origin and unauthenticated commands\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > MCP credentials cannot answer the surface or launch a browser session"
+  },
+  {
+    "name": "mcp-browser-separation",
+    "file": "src/runtime/maker/companionServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "b72f2b33aa40797a2486772350923e6195aab99ff600d74acc0972e98e72a29c",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > MCP credentials cannot answer the surface or launch a browser session"
+  },
+  {
+    "name": "body-cap",
+    "file": "src/runtime/maker/companionServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "b72f2b33aa40797a2486772350923e6195aab99ff600d74acc0972e98e72a29c",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > Stop bypasses disabled admission; malformed messages and large bodies refuse"
+  },
+  {
+    "name": "thonny-token",
+    "file": "src/runtime/maker/thonnyServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "ac883eaf251f287214acf6cf67855a6c6e2647462ebf7c8adb3745b9c11917c8",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > Thonny v2 ownership > closes wrong-token before acquiring a port"
+  },
+  {
+    "name": "thonny-cap",
+    "file": "src/runtime/maker/thonnyServer.ts",
+    "suite": "test/unit/runtimeMakerTransport.test.ts",
+    "sha256": "ac883eaf251f287214acf6cf67855a6c6e2647462ebf7c8adb3745b9c11917c8",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n FAIL  test/unit/runtimeMakerTransport.test.ts > Thonny v2 ownership > closes oversized before acquiring a port"
+  },
+  {
+    "name": "key-stdin-empty",
+    "file": "src/runtime/maker/commands.ts",
+    "suite": "test/unit/runtimeMakerCommands.test.ts",
+    "sha256": "4fa0e2833b803e6676eff8b19507c760ebe853de1849787193d7e9eeac03bd6d",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 4 passed (5)\n FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > refuses an empty key-stdin instead of registering without that key"
+  },
+  {
+    "name": "runtime-budget",
+    "file": "scripts/check-bundle-size.mjs",
+    "suite": "test/unit/bundleSize.test.mjs",
+    "sha256": "26c8023176c92ba36b998b59960368e47f6f0905b2d45bf544bc0e6c19f4e31e",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 9 passed (10)\n FAIL  test/unit/bundleSize.test.mjs > bundled What’s New content budget > checks the new runtime maker bundle at its 125 KiB boundary"
+  },
+  {
+    "name": "acp-plan",
+    "file": "src/acp/agent.ts",
+    "suite": "test/unit/acpAgent.test.ts",
+    "sha256": "c899a7b29c24ed90bb22ebadebdbb6f2c604dc7abbbdb98a5d874d34c510f6ae",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 96 passed (97)\n FAIL  test/unit/acpAgent.test.ts > M103 ACP hardware lifecycle > keeps Plan noninteractive and rejects a Bypass switch"
+  },
+  {
+    "name": "acp-bypass",
+    "file": "src/acp/agent.ts",
+    "suite": "test/unit/acpAgent.test.ts",
+    "sha256": "c899a7b29c24ed90bb22ebadebdbb6f2c604dc7abbbdb98a5d874d34c510f6ae",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 96 passed (97)\n FAIL  test/unit/acpAgent.test.ts > M103 ACP hardware lifecycle > keeps Plan noninteractive and rejects a Bypass switch"
+  },
+  {
+    "name": "model-plan",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "suite": "test/unit/modelApiHost.test.ts",
+    "sha256": "a7e5c6c4aa3773a2ad9be2d1d1d0d40f3f14625a87cadbc0e990cce57f2fa05f",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 616 passed (617)\n FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: MCP servers and the IDE tool (M50) > does not offer runtime hardware tools in Plan"
+  },
+  {
+    "name": "model-live-admission",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "suite": "test/unit/modelApiHost.test.ts",
+    "sha256": "a7e5c6c4aa3773a2ad9be2d1d1d0d40f3f14625a87cadbc0e990cce57f2fa05f",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 616 passed (617)\n FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: MCP servers and the IDE tool (M50) > reads runtime tool admission again when a streamed call arrives"
+  },
+  {
+    "name": "storage-workspace",
+    "file": "src/runtime/maker/storage.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "c55ed8a3a1e2bfe487645022499424bc35c389c1d18b0b0c7b2f0c4ea4487538",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 22 passed (23)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > cannot use a repository folder as authority"
+  },
+  {
+    "name": "storage-cap",
+    "file": "src/runtime/maker/storage.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "c55ed8a3a1e2bfe487645022499424bc35c389c1d18b0b0c7b2f0c4ea4487538",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 22 passed (23)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > caps grant storage before writing oversized authority"
+  },
+  {
+    "name": "storage-hardlink",
+    "file": "src/runtime/maker/storage.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "c55ed8a3a1e2bfe487645022499424bc35c389c1d18b0b0c7b2f0c4ea4487538",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 22 passed (23)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > turns off an unreadable hard-linked grant and keeps independent Stop controls"
+  },
+  {
+    "name": "http-final-admission",
+    "file": "src/core/maker/machines/http.ts",
+    "suite": "test/unit/makerMachines.test.ts",
+    "sha256": "851f648b6bdbdfceded4eca291715d5be6ce1a9287eb22d79d84aa09e68f575a",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 101 passed (102)\n FAIL  test/unit/makerMachines.test.ts > maker printer status and guarded send > refreshes runtime admission after preparation; fixed Stop bypasses that hook"
+  },
+  {
+    "name": "stop-all-serial",
+    "file": "src/core/maker/lease.ts",
+    "suite": "test/unit/makerLease.test.ts",
+    "sha256": "0ba884270fd16ac29de7cf0fc965cd18cf2e94789724522d38c82d7d78e32559",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  2 failed | 20 passed (22)\n FAIL  test/unit/makerLease.test.ts > hardware lease > Stop all reports an owner that cannot acknowledge instead of an empty success\n FAIL  test/unit/makerLease.test.ts > hardware lease > Stop all reaches unregistered port and machine owners despite another malformed record"
+  },
+  {
+    "name": "http-stop-unguarded",
+    "file": "src/core/maker/machines/http.ts",
+    "suite": "test/unit/makerMachines.test.ts",
+    "sha256": "851f648b6bdbdfceded4eca291715d5be6ce1a9287eb22d79d84aa09e68f575a",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 101 passed (102)\n FAIL  test/unit/makerMachines.test.ts > maker printer status and guarded send > refreshes runtime admission after preparation; fixed Stop bypasses that hook"
+  },
+  {
+    "name": "stop-all-independent",
+    "file": "src/core/maker/lease.ts",
+    "suite": "test/unit/makerLease.test.ts",
+    "sha256": "0ba884270fd16ac29de7cf0fc965cd18cf2e94789724522d38c82d7d78e32559",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  2 failed | 20 passed (22)\n FAIL  test/unit/makerLease.test.ts > hardware lease > Stop all reports an owner that cannot acknowledge instead of an empty success\n FAIL  test/unit/makerLease.test.ts > hardware lease > Stop all reaches unregistered port and machine owners despite another malformed record"
+  },
+  {
+    "name": "stop-all-ack",
+    "file": "src/core/maker/lease.ts",
+    "suite": "test/unit/makerLease.test.ts",
+    "sha256": "0ba884270fd16ac29de7cf0fc965cd18cf2e94789724522d38c82d7d78e32559",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  2 failed | 20 passed (22)\n FAIL  test/unit/makerLease.test.ts > hardware lease > Stop all reports an owner that cannot acknowledge instead of an empty success\n FAIL  test/unit/makerLease.test.ts > hardware lease > Stop all reaches unregistered port and machine owners despite another malformed record"
+  },
+  {
+    "name": "storage-file-identity",
+    "file": "src/runtime/maker/storage.ts",
+    "suite": "test/unit/runtimeMakerHost.test.ts",
+    "sha256": "c55ed8a3a1e2bfe487645022499424bc35c389c1d18b0b0c7b2f0c4ea4487538",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 22 passed (23)\n FAIL  test/unit/runtimeMakerHost.test.ts > runtime maker host > refuses a symbolic link to a grant before reading its authority"
+  },
+  {
+    "name": "serial-classifier-required",
+    "file": "src/runtime/maker/nativeSerial.ts",
+    "suite": "test/unit/runtimeMakerCommands.test.ts",
+    "sha256": "81a0d02305d78f56098f75874daac15e67ebdeed74b9bccbfbc38bb0cbe75a24",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 6 passed (7)\n FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > refuses a raw serial write before discovery when no reviewed classifier is supplied"
+  },
+  {
+    "name": "acp-preparing-hold",
+    "file": "src/acp/agent.ts",
+    "suite": "test/unit/acpAgent.test.ts",
+    "sha256": "c899a7b29c24ed90bb22ebadebdbb6f2c604dc7abbbdb98a5d874d34c510f6ae",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 96 passed (97)\n FAIL  test/unit/acpAgent.test.ts > M103 ACP hardware lifecycle > holds maker command preparation against overlapping prompts and honours cancel"
+  },
+  {
+    "name": "acp-stop-independent",
+    "file": "src/acp/agent.ts",
+    "suite": "test/unit/acpAgent.test.ts",
+    "sha256": "c899a7b29c24ed90bb22ebadebdbb6f2c604dc7abbbdb98a5d874d34c510f6ae",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 96 passed (97)\n FAIL  test/unit/acpAgent.test.ts > M103 ACP hardware lifecycle > runs explicit Stop while a model turn is busy without enabling another prompt"
+  },
+  {
+    "name": "acp-command-cancel",
+    "file": "src/acp/agent.ts",
+    "suite": "test/unit/acpAgent.test.ts",
+    "sha256": "c899a7b29c24ed90bb22ebadebdbb6f2c604dc7abbbdb98a5d874d34c510f6ae",
+    "exit": 1,
+    "summary": " Test Files  1 failed (1)\n      Tests  1 failed | 96 passed (97)\n FAIL  test/unit/acpAgent.test.ts > M103 ACP hardware lifecycle > holds maker command preparation against overlapping prompts and honours cancel"
+  }
+]

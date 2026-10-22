@@ -104,6 +104,7 @@ const COMMON_OPTIONS = {
   [ACP_PAID_FLAGS.voice]: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'questions-defer-after': { type: 'string' },
+  hardware: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
 } as const satisfies CliParserOptions
@@ -276,6 +277,7 @@ export const CLI_OPTION_TEXT = {
   'scheduled-prompts': 'scheduled-prompts',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',
+  hardware: 'hardware',
   help: 'help',
   version: 'version',
   cwd: 'cwd',

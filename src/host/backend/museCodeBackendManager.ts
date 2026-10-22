@@ -1,3 +1,7 @@
+import type { HardwareStop } from '../../core/maker/guard/hardwareCommands'
+import { createHardwareContexts } from '../../core/maker/hardwareContext'
+import type { HardwareContext } from '../../core/maker/guard/httpCommands'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure
@@ -103,6 +107,8 @@ export interface UnresponsiveHostDeps {
 }
 
 export interface BackendManagerDeps {
+  readonly hardwareContext?: (workspaceRoot: string | undefined) => HardwareContext
+  readonly runHardwareStop?: (stop: HardwareStop) => Promise<void>
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
   /** dist/museCode.js beside the running bundle, required the first time the backend starts. */
   readonly bundlePath: string
@@ -201,6 +207,7 @@ export class MuseCodeBackendManager {
   carries its own copy of that class and its static.
   */
   public static usageRecording: UsageRecording | undefined
+  private readonly hardware = createHardwareContexts()
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** The Linux capability probe of the last started host (F91); one probe per start. */
   private linuxSandboxReadiness: LinuxSandboxReadiness | undefined
@@ -483,6 +490,9 @@ export class MuseCodeBackendManager {
         undefined,
         this.deps.accountHome,
         restartCause,
+        (workspaceRoot) =>
+          this.deps.hardwareContext?.(workspaceRoot) ?? this.hardware(workspaceRoot).current(),
+        this.deps.runHardwareStop,
       )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.

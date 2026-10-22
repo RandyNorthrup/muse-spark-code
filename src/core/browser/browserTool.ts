@@ -98,7 +98,7 @@ export type BrowserCallPlacement =
 export interface BrowserCheckHost {
   /** The run, in the browser's own bundle. */
   readonly check: BrowserChecker
-  /** `museSpark.browserCheckExtraHosts` (machine-scoped), read at each use. */
+  /** Confirmed user-level `museSpark.browserCheckExtraHosts`, read at each use. */
   readonly extraHosts: () => readonly string[]
   /** `museSpark.browserCheckRuntime` is not `off`, read at each use. */
   readonly isOffered: () => boolean
@@ -110,7 +110,7 @@ export function extraHostSet(entries: readonly string[]): ReadonlySet<string> {
 }
 
 /**
-The hosts beyond loopback a check may reach once the user allowed it: the
+The public hosts and exact dev origins a check may reach once the user allowed it: the
 setting as it stands now (a host taken out while the card was open is not
 reached), and the URL's own host when the card or modal widened to it.
 */

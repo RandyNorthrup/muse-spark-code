@@ -1,0 +1,132 @@
+[
+  {
+    "name": "P1-review",
+    "file": "src/webview/maker/ApprovalDialog.tsx",
+    "suite": "test/unit/makerPayloadReview.test.tsx",
+    "test": "keyboard focus wrap cannot approve unseen lines",
+    "status": 1,
+    "before": "02b86b26cff4877580e8741ab6382787950aa02bc66f06e95b8ef8f721391108",
+    "restored": "02b86b26cff4877580e8741ab6382787950aa02bc66f06e95b8ef8f721391108",
+    "summary": "Tests  3 failed | 5 passed (8)"
+  },
+  {
+    "name": "P2-rendered-digest",
+    "file": "src/webview/maker/PayloadReview.tsx",
+    "suite": "test/unit/makerPayloadReview.test.tsx",
+    "test": "receipts bind DOM bytes",
+    "status": 1,
+    "before": "910a682cbcdaac136bb5398493035d7ba6436a0df6c1b69090e0982a2d779b84",
+    "restored": "910a682cbcdaac136bb5398493035d7ba6436a0df6c1b69090e0982a2d779b84",
+    "summary": "Tests  5 failed | 3 passed (8)"
+  },
+  {
+    "name": "P2-receipt-latch",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerPayloadReview.test.tsx",
+    "test": "the A to B receipt sequence",
+    "status": 1,
+    "before": "579a97b316554b71a795ce766fc670889f2d627a1cf002588b46fb528bdcf268",
+    "restored": "579a97b316554b71a795ce766fc670889f2d627a1cf002588b46fb528bdcf268",
+    "summary": "Tests  1 failed | 7 passed (8)"
+  },
+  {
+    "name": "P2-serial-stop",
+    "file": "src/webview/maker/StopChip.tsx",
+    "suite": "test/unit/makerFailures.test.tsx",
+    "test": "a failed optional view preserves Stop",
+    "status": 1,
+    "before": "b0cb58431aa047947bd3492ab00fa55c0d6d78cbb3153e5f64d789c13f047cb5",
+    "restored": "b0cb58431aa047947bd3492ab00fa55c0d6d78cbb3153e5f64d789c13f047cb5",
+    "summary": "Tests  1 failed (1)"
+  },
+  {
+    "name": "P2-boundary",
+    "file": "src/webview/maker/MakerBoundary.tsx",
+    "suite": "test/unit/makerFailures.test.tsx",
+    "test": "a failed optional view preserves Stop",
+    "status": 1,
+    "before": "8041bab2df4726b36c62916a2d41c4020845eb762b83693ac50058e78028e28d",
+    "restored": "8041bab2df4726b36c62916a2d41c4020845eb762b83693ac50058e78028e28d",
+    "summary": "Tests  1 failed (1)"
+  },
+  {
+    "name": "P2-loader-retry",
+    "file": "src/webview/makerEntry.ts",
+    "suite": "test/unit/makerEntryLoading.test.ts",
+    "test": "initial load failure preserves Stop",
+    "status": 1,
+    "before": "5bf3f7a9bb2790cde4aa8c3c979105db772b9d141338d566f7d007a414018108",
+    "restored": "5bf3f7a9bb2790cde4aa8c3c979105db772b9d141338d566f7d007a414018108",
+    "summary": "Tests  1 failed (1)"
+  },
+  {
+    "name": "P2-invalid-geometry",
+    "file": "src/webview/maker/previewPage.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "test": "invalid matching geometry clears the preview",
+    "status": 1,
+    "before": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "restored": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "summary": "Tests  4 failed | 16 passed (20)"
+  },
+  {
+    "name": "P2-size-before-parse",
+    "file": "src/webview/maker/previewPage.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "test": "a twice-oversized mesh reads zero components",
+    "status": 1,
+    "before": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "restored": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "summary": "Tests  1 failed | 19 passed (20)"
+  },
+  {
+    "name": "P2-validation-yield",
+    "file": "src/webview/maker/previewPage.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "test": "large accepted input yields",
+    "status": 1,
+    "before": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "restored": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "summary": "Tests  1 failed | 19 passed (20)"
+  },
+  {
+    "name": "P2-validation-deadline",
+    "file": "src/webview/maker/previewPage.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "test": "validation has a deadline",
+    "status": 1,
+    "before": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "restored": "7aa32d62d81fdb05b73230cfdfbc6a3b2f712496666a59fa1d9579d68b31d778",
+    "summary": "Tests  1 failed | 19 passed (20)"
+  },
+  {
+    "name": "P3-category-labels",
+    "file": "src/webview/maker/MachineWizard.tsx",
+    "suite": "test/unit/makerPayloadReview.test.tsx",
+    "test": "translated categories keep their original wire values",
+    "status": 1,
+    "before": "a617b9e0a33d13dca41ca2bf4c484c5f2e444f93f0b2cdbd24c94ddc83254951",
+    "restored": "a617b9e0a33d13dca41ca2bf4c484c5f2e444f93f0b2cdbd24c94ddc83254951",
+    "summary": "Tests  1 failed | 7 passed (8)"
+  },
+  {
+    "name": "P2-loader-retry",
+    "file": "src/webview/makerEntry.ts",
+    "suite": "test/unit/makerEntryLoading.test.ts",
+    "test": "initial load failure preserves Stop",
+    "status": 1,
+    "before": "5bf3f7a9bb2790cde4aa8c3c979105db772b9d141338d566f7d007a414018108",
+    "restored": "5bf3f7a9bb2790cde4aa8c3c979105db772b9d141338d566f7d007a414018108",
+    "summary": "Tests  1 failed (1)"
+  },
+  {
+    "name": "P1-occlusion",
+    "file": "src/webview/maker/PayloadReview.tsx",
+    "suite": "test/unit/makerPayloadReview.test.tsx",
+    "test": "covered payload lines do not count as reviewed",
+    "status": 1,
+    "before": "43e3cf5457a63075a0e4c54f94f3d5689e449ea7a3d8db57f0c544fdd6bd356d",
+    "restored": "43e3cf5457a63075a0e4c54f94f3d5689e449ea7a3d8db57f0c544fdd6bd356d",
+    "summary": "Tests  1 failed | 8 passed (9)"
+  }
+]

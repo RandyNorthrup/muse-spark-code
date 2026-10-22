@@ -1,0 +1,287 @@
+[
+  {
+    "name": "agent-shell-cli-refusal",
+    "file": "src/runtime/maker/entry.ts",
+    "command": "TMPDIR=/home/randy/lanes/M103R/temp npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CI agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses MUSE_SPARK_AGENT_SHELL agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CODEX_THREAD_ID agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CODEX_CI agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CLAUDECODE agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CLAUDE_CODE_ENTRYPOINT agent-shell enable, add and panel before asking for OS presence"
+    ],
+    "originalSha256": "342d8b6508e7eb3fb631963a7da6393eddefea1950a2001d747962d7eb8b05ee",
+    "restoredSha256": "342d8b6508e7eb3fb631963a7da6393eddefea1950a2001d747962d7eb8b05ee"
+  },
+  {
+    "name": "agent-shell-child-marker",
+    "file": "src/host/backend/toolIo.ts",
+    "command": "TMPDIR=/home/randy/lanes/M103R/temp npx vitest run test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/toolIoCommandAdmission.test.ts > native command final owner admission > D89.5 real-shell environment probe withholds parent credentials unless interactive and named"
+    ],
+    "originalSha256": "d83e37d391ffd2bd6bc587767f45ee90ad586fddeb1309880b70199d04351e62",
+    "restoredSha256": "d83e37d391ffd2bd6bc587767f45ee90ad586fddeb1309880b70199d04351e62"
+  },
+  {
+    "name": "muse-code-shell-child-marker",
+    "file": "src/core/backends/musecode/launch.ts",
+    "command": "TMPDIR=/home/randy/lanes/M103R/temp npx vitest run test/unit/launch.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/launch.test.ts > buildChildEnvironment > resets PSModulePath on Windows and adds the extras, never a META_API_KEY of its own",
+      "test/unit/launch.test.ts > buildChildEnvironment > replaces an inherited variable whatever its spelling on Windows",
+      "test/unit/launch.test.ts > buildChildEnvironment > leaves PSModulePath alone elsewhere and passes an environment key through untouched",
+      "test/unit/launch.test.ts > buildChildEnvironment > marks Muse Code subagent shell descendants even with a linux environment override",
+      "test/unit/launch.test.ts > buildChildEnvironment > marks Muse Code subagent shell descendants even with a darwin environment override",
+      "test/unit/launch.test.ts > buildChildEnvironment > marks Muse Code subagent shell descendants even with a win32 environment override"
+    ],
+    "originalSha256": "78ef2941f7f1ed316ad3e1ad141c5081c34fd4f3bbfdb17b5e9e1ce4d1db9941",
+    "restoredSha256": "78ef2941f7f1ed316ad3e1ad141c5081c34fd4f3bbfdb17b5e9e1ce4d1db9941"
+  },
+  {
+    "name": "panel-public-url",
+    "file": "src/runtime/maker/companionServer.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/runtimeMakerTransport.test.ts test/unit/runtimeMakerCommands.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > opens the panel with OS presence and an out-of-band capability, with no stdout credential",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > delivers a launch code only once over same-origin loopback, never in the opened URL",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > binds only to a loopback literal and ships a restrictive CSP",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > rejects foreign Host, Origin and unauthenticated commands",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > launch codes are single use, same-origin, and exchanged into an HttpOnly cookie",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > launch refuses a code at its 60-second expiry",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > MCP credentials cannot answer the surface or launch a browser session",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > binds host-only cookies to each instance and port without panel clobbering",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > request/session channels cannot self-approve; the page capability answers only once",
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > Stop bypasses disabled admission; malformed messages and large bodies refuse"
+    ],
+    "originalSha256": "ca15d4519d1bd4a2733deb76a98c233609067efa8f83e20a7ea56fb197a3e435",
+    "restoredSha256": "ca15d4519d1bd4a2733deb76a98c233609067efa8f83e20a7ea56fb197a3e435"
+  },
+  {
+    "name": "panel-opener-proc-cmdline",
+    "file": "src/runtime/maker/commands.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > keeps the launch code out of the linux opener arguments and real /proc cmdline",
+      "test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > keeps the launch code out of the darwin opener arguments and real /proc cmdline",
+      "test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > keeps the launch code out of the win32 opener arguments and real /proc cmdline"
+    ],
+    "originalSha256": "78d279cbd7518cfdececbc49b5f988a92f24fac357a82e1a32871d870112338b",
+    "restoredSha256": "78d279cbd7518cfdececbc49b5f988a92f24fac357a82e1a32871d870112338b"
+  },
+  {
+    "name": "panel-launch-code-one-shot",
+    "file": "src/runtime/maker/companionServer.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/runtimeMakerTransport.test.ts > companion boundary > delivers a launch code only once over same-origin loopback, never in the opened URL"
+    ],
+    "originalSha256": "ca15d4519d1bd4a2733deb76a98c233609067efa8f83e20a7ea56fb197a3e435",
+    "restoredSha256": "ca15d4519d1bd4a2733deb76a98c233609067efa8f83e20a7ea56fb197a3e435"
+  },
+  {
+    "name": "user-settings-only",
+    "file": "src/shared/constants.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/settings.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/settings.test.ts > readSettings > ignores the reviewer workspace-file private origin, including in Bypass"
+    ],
+    "originalSha256": "41c6fd61c0120d9fe40866394485493e856dcc07382f19b073bd3e7a6b5d921f",
+    "restoredSha256": "41c6fd61c0120d9fe40866394485493e856dcc07382f19b073bd3e7a6b5d921f"
+  },
+  {
+    "name": "origin-settings-consent",
+    "file": "src/host/browser/browserCheckConfirm.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/browserCheckConfirm.test.ts > the extension's own browser check question (M81) > refuses a stale settings answer after an origin was removed and re-added",
+      "test/unit/browserCheckConfirm.test.ts > the extension's own browser check question (M81) > requires an explicit settings UI confirmation naming each non-loopback dev origin"
+    ],
+    "originalSha256": "9560130a672604d4c57927324a48c1fd30624f9a896af8c7e0ae4c02fa2ec41f",
+    "restoredSha256": "9560130a672604d4c57927324a48c1fd30624f9a896af8c7e0ae4c02fa2ec41f"
+  },
+  {
+    "name": "origin-stale-settings-answer",
+    "file": "src/host/browser/browserCheckConfirm.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/browserCheckConfirm.test.ts > the extension's own browser check question (M81) > refuses a stale settings answer after an origin was removed and re-added"
+    ],
+    "originalSha256": "9560130a672604d4c57927324a48c1fd30624f9a896af8c7e0ae4c02fa2ec41f",
+    "restoredSha256": "9560130a672604d4c57927324a48c1fd30624f9a896af8c7e0ae4c02fa2ec41f"
+  },
+  {
+    "name": "registered-machine-hosts",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses a registered IPv6 machine alias despite expanded DNS address spelling",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses a registered machine host on every port and alias, including registrations added during a check"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "machine-ui-page-before-relay",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted OctoPrint page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted Mainsail page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted Fluidd page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted Moonraker page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted Duet Web Control page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted PrusaLink page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted Bambu LAN page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted Repetier page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an allowlisted Snapmaker Luban page on a nonstandard dev port before the browser can click",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an sniffed document document before it reaches the browser"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "machine-ui-document-bound",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an oversize document before it reaches the browser"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "machine-ui-compression-refusal",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses an compressed document before it reaches the browser"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "private-encrypted-machine-tunnel",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses private encrypted tunnels even when allowlisted, implicit loopback and the sentinel"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "browser-discovered-nat64",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses network-specific private NAT64 before any upstream socket",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses network-specific loopback NAT64 before any upstream socket",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses unknown translator NAT64 before any upstream socket",
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses well-known private NAT64 before any upstream socket"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "browser-unknown-nat64",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses unknown translator NAT64 before any upstream socket"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "machine-reader-required",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses when the registered machine reader is absent"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "registered-machine-ipv6-spelling",
+    "file": "src/core/browser/checkProxy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/checkProxy.test.ts > the browser check\u2019s proxy (M81 A1) > refuses a registered IPv6 machine alias despite expanded DNS address spelling"
+    ],
+    "originalSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb",
+    "restoredSha256": "339388c5312e6cb36a12a344f5d5f06a981c71a133325c53b59e6604863d5ccb"
+  },
+  {
+    "name": "machine-api-encoded-path",
+    "file": "src/core/browser/browserPolicy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/browserPolicy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses known machine API paths, including encoded names, on an allowlisted dev origin"
+    ],
+    "originalSha256": "d689938513407049dd018447dd4dac54d0809966e876aa7d26f01a3d5e64fedf",
+    "restoredSha256": "d689938513407049dd018447dd4dac54d0809966e876aa7d26f01a3d5e64fedf"
+  },
+  {
+    "name": "machine-api-malformed-escape",
+    "file": "src/core/browser/browserPolicy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/browserPolicy.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses known machine API paths, including encoded names, on an allowlisted dev origin"
+    ],
+    "originalSha256": "d689938513407049dd018447dd4dac54d0809966e876aa7d26f01a3d5e64fedf",
+    "restoredSha256": "d689938513407049dd018447dd4dac54d0809966e876aa7d26f01a3d5e64fedf"
+  },
+  {
+    "name": "machine-origin-profiles",
+    "file": "src/core/browser/browserPolicy.ts",
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/browserPolicy.test.ts test/unit/modelApiHost.test.ts test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/browserCheckConfirm.test.ts > the extension's own browser check question (M81) > refuses known machine UI settings even when their origin was remembered",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses known machine API paths, including encoded names, on an allowlisted dev origin",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known octoprint UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known mainsail UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known fluidd UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known moonraker UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known duet UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known prusalink UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known bambu UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known repetier UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses an allowlisted known snapmaker-luban UI at any mode or port",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 80",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 443",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 5000",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 7125",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 3344",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 8080",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 8000",
+      "test/unit/browserPolicy.test.ts > the browser check address rule (M81) > refuses allowlisted private machine web port 8888",
+      "test/unit/modelApiHost.test.ts > the browser check on the Model API backend (M81) > refuses the reviewer private machine URL and allowlisted known UI clicks in Bypass before a card"
+    ],
+    "originalSha256": "d689938513407049dd018447dd4dac54d0809966e876aa7d26f01a3d5e64fedf",
+    "restoredSha256": "d689938513407049dd018447dd4dac54d0809966e876aa7d26f01a3d5e64fedf"
+  }
+]

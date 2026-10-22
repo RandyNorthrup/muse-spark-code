@@ -49,6 +49,7 @@ export interface SurfaceOptions {
   F3): the panel's `active`, the sidebar's `visible`. Absent in tests,
   where every surface counts as active.
   */
+  readonly isVisible?: () => boolean
   readonly isActive?: () => boolean
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
@@ -164,6 +165,7 @@ export function configureWebview(
   let documentId = buildDocument()
 
   let restoredSessionId = options.restoredSessionId
+  let isFocused = false
   let isActive = true
   let estimatorGeneration = 0
   // When the person last revealed this surface: a `focusInput` posted just
@@ -171,6 +173,8 @@ export function configureWebview(
   let revealedAt: number | undefined
   const surface: ChatSurface = {
     id: options.id,
+    isApprovalPresent: () =>
+      isFocused && options.isVisible?.() === true && (options.isActive?.() ?? true),
     isSideChat: options.isSideChat === true,
     get documentId() {
       return documentId
@@ -277,7 +281,8 @@ export function configureWebview(
         break
       }
       case 'surfaceFocused': {
-        options.onFocused(surface)
+        isFocused = message.focused ?? true
+        if (isFocused) options.onFocused(surface)
         break
       }
       case 'webviewError': {

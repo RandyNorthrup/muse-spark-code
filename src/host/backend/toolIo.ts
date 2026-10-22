@@ -1,3 +1,5 @@
+import { hardwareStop, type HardwareStop } from '../../core/maker/guard/hardwareCommands'
+import type { HardwareContext } from '../../core/maker/guard/httpCommands'
 // The file system and shell the Model API tool harness runs on (M7): the
 // workspace's own files through node:fs, the file listing through the same
 // lister the @-mention index uses (so .gitignore applies), and one shell
@@ -38,9 +40,11 @@ import {
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MEDIA_READ_MAX_BYTES,
+  MAKER_STOP_DEADLINE_MS,
   UI_TEXT,
   MODEL_TEXT,
   PDF_HEADER_WINDOW_BYTES,
+  RUNTIME_MAKER_AGENT_SHELL,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
   SHELL_OUTPUT_MAX_CHARS,
@@ -62,6 +66,7 @@ import {
   shellEnvironment,
   hookEnvironment,
   resolveExecutable,
+  noWorkspaceChildEnvironment,
   workspaceChildEnvironment,
 } from '../../core/execGuard'
 import { fileReadIdentity } from '../../core/fs/fileIdentity'
@@ -153,6 +158,7 @@ export async function runResourceCommand(
 }
 
 export interface ToolIoDeps {
+  readonly hardwareContext?: () => HardwareContext
   /** Lazy, per-session broker route supplied by the registered requester owner. */
   readonly vault?: (() => Promise<VaultExecService>) | undefined
   readonly platform: NodeJS.Platform
@@ -253,6 +259,8 @@ const ENOENT = 'ENOENT'
 const BASH = 'bash'
 const POWERSHELL = 'powershell'
 const PATH_VARIABLE = 'PATH'
+// curl's own --fail exit for an HTTP error; a Stop answered without 2xx reports it too.
+const CURL_HTTP_ERROR_EXIT = 22
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
 }
@@ -618,6 +626,89 @@ export function toolImagePreviewIo(
   }
 }
 
+export function createHardwareStopRunner(
+  deps: Pick<ToolIoDeps, 'platform' | 'systemRoot' | 'log'>,
+): (stop: HardwareStop) => Promise<ShellResult> {
+  return (stop) => runHardwareStop(deps, stop)
+}
+
+async function runHardwareStop(
+  deps: Pick<ToolIoDeps, 'platform' | 'systemRoot' | 'log'>,
+  stop: HardwareStop,
+): Promise<ShellResult> {
+  if (stop.kind === 'serial') {
+    // An open or write the device never finishes cannot hold Stop's caller: past
+    // the deadline delivery is unconfirmed, and a late handle still writes and closes.
+    const delivery = (async () => {
+      const port = await open(stop.address, 'w')
+      try {
+        await port.writeFile(Buffer.from(stop.payload, 'latin1'))
+      } finally {
+        await port.close()
+      }
+      return true
+    })()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const isDelivered = await Promise.race([
+        delivery,
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => {
+            resolve(false)
+          }, MAKER_STOP_DEADLINE_MS)
+        }),
+      ])
+      if (!isDelivered)
+        return {
+          stdout: '',
+          stderr: 'Stop delivery timed out',
+          exitCode: null,
+          isTimedOut: true,
+          isCancelled: false,
+        }
+    } finally {
+      clearTimeout(timer)
+    }
+    return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
+  }
+  const file =
+    deps.platform === 'win32'
+      ? path.win32.join(deps.systemRoot ?? '', 'System32', 'curl.exe')
+      : '/usr/bin/curl'
+  if (!(deps.platform === 'win32' ? path.win32 : path.posix).isAbsolute(file))
+    return unstartedShell('Absolute Stop transport unavailable')
+  const nullDevice = deps.platform === 'win32' ? 'NUL' : '/dev/null'
+  // A redirect is never followed and exits 0 under --fail, so delivery is
+  // confirmed only by the 2xx status --write-out prints; the body is discarded
+  // so stdout carries nothing else (D83).
+  const result = await runCommand({
+    file,
+    args: [
+      '-q',
+      '--config',
+      nullDevice,
+      '--noproxy',
+      '*',
+      '--fail',
+      '--output',
+      nullDevice,
+      '--write-out',
+      '%{http_code}',
+      '-X',
+      'POST',
+      stop.address,
+    ],
+    cwd: process.cwd(),
+    env: noWorkspaceChildEnvironment(deps.platform, {}, realpathSync),
+    timeoutMs: MAKER_STOP_DEADLINE_MS,
+    signal: undefined,
+    tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
+  })
+  return result.exitCode === 0 && !/^2\d\d$/.test(result.stdout)
+    ? { ...result, exitCode: CURL_HTTP_ERROR_EXIT }
+    : result
+}
+
 export function createToolIo(deps: ToolIoDeps): ToolIo {
   // Shells and hooks run with the workspace as their working directory, so
   // their interpreters are resolved outside it (resolved through links).
@@ -956,6 +1047,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     searchFiles: (job, signal) =>
       searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS, signal),
     realPath: canonicalPath,
+    runHardwareStop: createHardwareStopRunner(deps),
     async runShell(
       command,
       cwd,
@@ -967,6 +1059,15 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       resourceKind = 'toolShell',
     ) {
       if (command.includes('secret://')) return unstartedShell(UI_TEXT.vault.noAccess)
+      const context = deps.hardwareContext?.()
+      if (context?.isHardwareWorkspace === true) {
+        const stop = hardwareStop(
+          command,
+          deps.platform === 'win32' ? 'powershell' : 'bash',
+          context,
+        )
+        if (stop !== undefined) return await runHardwareStop(deps, stop)
+      }
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
@@ -985,10 +1086,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       resource = await prepareResourceJob(resource, job)
       try {
         assertCanRun?.()
-      } catch {
+      } catch (error: unknown) {
         resource?.complete(true)
-        // No workspace process has started; cancellation is proven at this boundary.
-        return refusedShellEntry()
+        // No workspace process has started; retain the owner's no-entry refusal.
+        return refusedShellEntry(error instanceof Error ? error.message : String(error))
       }
       const isFenced = !isInteractive || (deps.agentFence?.() ?? true)
       return await runCommand({
@@ -996,7 +1097,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         args: shellArguments(deps.platform, command, job, resource !== undefined, isFenced),
         cwd,
         env: shellEnvironment(
-          deps.env(),
+          isInteractive ? deps.env() : { ...deps.env(), [RUNTIME_MAKER_AGENT_SHELL]: '1' },
           deps.platform,
           deps.systemRoot,
           isInteractive ? (deps.passEnvironmentVariables?.() ?? []) : [],
@@ -1010,6 +1111,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
         resource,
+        assertCanStart: assertCanRun,
       })
     },
     ...(deps.vault && {
@@ -1048,7 +1150,15 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         }
       },
     }),
-    async runHook(command, payload, cwd, timeoutMs, signal, extraEnvNames) {
+    async runHook(
+      command,
+      payload,
+      cwd,
+      timeoutMs,
+      signal,
+      extraEnvNames,
+      assertCanStart?: () => void,
+    ) {
       // dispatchHooks enforces this too. Keep the adapter bounded when it is
       // called directly, before any hook subprocess starts.
       if (Buffer.byteLength(payload) > HOOK_STDIN_MAX_BYTES) {
@@ -1103,6 +1213,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           resource,
           stdin: payload,
           maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
+          assertCanStart,
         })
       } finally {
         release()
@@ -1195,6 +1306,8 @@ export interface CommandRun {
   readonly hasExternalTimeout?: boolean
   /** Per-stream byte ceiling, killing the tree when crossed. */
   readonly maxOutputBytes?: number | undefined
+  /** Last synchronous fence, after args/env preparation and immediately before native spawn. */
+  readonly assertCanStart?: (() => void) | undefined
 }
 
 /** The spawned process, or the Error spawn threw before any process existed. */
@@ -1251,6 +1364,12 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       return
     }
     const startedAt = Date.now()
+    try {
+      run.assertCanStart?.()
+    } catch (error: unknown) {
+      resolve(refusedShellEntry(error instanceof Error ? error.message : String(error)))
+      return
+    }
     const child = startProcess(run)
     if (child instanceof Error) {
       run.resource?.complete(true)

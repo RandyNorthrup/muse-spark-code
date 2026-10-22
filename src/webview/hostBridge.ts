@@ -14,17 +14,17 @@ import type { WebviewState } from './state/snapshot'
 /** Where the host's messages arrive: `message` events whose `data` is the message. */
 export type MessageSource = Pick<Window, 'addEventListener' | 'removeEventListener'>
 
-export interface HostBridge {
+export interface HostBridge<
+  Message =
+    WebviewToHostMessage | PanelToHostMessage | UsagePageToServiceMessage | VaultClientMessage,
+> {
   /**
   Posts to the host. The chat panel's messages and the Models & Agents
   panel's (M95) share this bridge; each side validates what it receives.
   The panel's vault section (C-M109-1 P1) posts the vault's own messages
   over the same bridge; the host routes them to the vault binding.
   */
-  post(
-    message:
-      WebviewToHostMessage | PanelToHostMessage | UsagePageToServiceMessage | VaultClientMessage,
-  ): void
+  post(message: Message): void
   /** The state saved before the document last went away, unvalidated (`restoredUiState` checks it). */
   savedState(): unknown
   saveState(state: WebviewState): void
@@ -32,7 +32,9 @@ export interface HostBridge {
 }
 
 /** VS Code's bridge; `messages` is the window VS Code posts the host's messages to. */
-export function vsCodeHostBridge(messages: MessageSource): HostBridge {
+export function vsCodeHostBridge<Message = WebviewToHostMessage>(
+  messages: MessageSource,
+): HostBridge<Message> {
   const api = acquireVsCodeApi()
   return {
     post: (message) => {

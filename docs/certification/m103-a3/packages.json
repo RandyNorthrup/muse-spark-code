@@ -1,0 +1,14 @@
+[
+  {
+    "file": "muse-spark-code-0.13.0.vsix",
+    "bytes": 2173561,
+    "budget": 2252800,
+    "sha256": "82f44b39ea7963d9029e5c0aea83206a5f334cf1e2d9339dc0bd4a907a4e3cfc"
+  },
+  {
+    "file": "muse-spark-code-0.13.0-arduino.vsix",
+    "bytes": 2173564,
+    "budget": 2252800,
+    "sha256": "580a7f4b92db1e118fd27c6e023cb795dc9d703dce93080ce16e68653b8cd98f"
+  }
+]

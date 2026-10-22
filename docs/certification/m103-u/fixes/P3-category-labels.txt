@@ -1,0 +1,477 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerPayloadReview.test.tsx (8 tests | 1 failed) 2596ms
+   × translated categories keep their original wire values 140ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  09:32:51
+   Duration  5.00s (tests 54%, environment 24%, import 9%, transform 9%, setup 4%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerPayloadReview.test.tsx > translated categories keep their original wire values
+TestingLibraryElementError: Unable to find an accessible element with the role "option" and name "3D-Drucker"
+
+Here are the accessible roles:
+
+  dialog:
+
+  Name "Add machine":
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"maker-wizard-title"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"modal"[39m
+    [33mrole[39m=[32m"dialog"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"modal-header"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Add machine":
+  [36m<h2[39m
+    [33mclass[39m=[32m"modal-title"[39m
+    [33mid[39m=[32m"maker-wizard-title"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Close":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Close"[39m
+    [33mclass[39m=[32m"icon-button"[39m
+    [33mtitle[39m=[32m"Close"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Add machine":
+  [36m<button[39m
+    [33mtype[39m=[32m"submit"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  textbox:
+
+  Name "Name":
+  [36m<input[39m
+    [33mrequired[39m=[32m""[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Machine ID":
+  [36m<input[39m
+    [33mrequired[39m=[32m""[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Address or port":
+  [36m<input[39m
+    [33mrequired[39m=[32m""[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  combobox:
+
+  Name "Machine type":
+  [36m<select />[39m
+
+  Name "Category":
+  [36m<select />[39m
+
+  --------------------------------------------------
+  option:
+
+  Name "moonraker":
+  [36m<option[39m
+    [33mvalue[39m=[32m"moonraker"[39m
+  [36m/>[39m
+
+  Name "octoprint":
+  [36m<option[39m
+    [33mvalue[39m=[32m"octoprint"[39m
+  [36m/>[39m
+
+  Name "prusalink":
+  [36m<option[39m
+    [33mvalue[39m=[32m"prusalink"[39m
+  [36m/>[39m
+
+  Name "grbl":
+  [36m<option[39m
+    [33mvalue[39m=[32m"grbl"[39m
+  [36m/>[39m
+
+  Name "fluidnc":
+  [36m<option[39m
+    [33mvalue[39m=[32m"fluidnc"[39m
+  [36m/>[39m
+
+  Name "marlin":
+  [36m<option[39m
+    [33mvalue[39m=[32m"marlin"[39m
+  [36m/>[39m
+
+  Name "printer":
+  [36m<option[39m
+    [33mvalue[39m=[32m"printer"[39m
+  [36m/>[39m
+
+  Name "cnc":
+  [36m<option[39m
+    [33mvalue[39m=[32m"cnc"[39m
+  [36m/>[39m
+
+  Name "laser":
+  [36m<option[39m
+    [33mvalue[39m=[32m"laser"[39m
+  [36m/>[39m
+
+  Name "robot":
+  [36m<option[39m
+    [33mvalue[39m=[32m"robot"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  group:
+
+  Name "User limits":
+  [36m<fieldset />[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+  spinbutton:
+
+  Name "Minimum x (mm)":
+  [36m<input[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Maximum x (mm)":
+  [36m<input[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Minimum y (mm)":
+  [36m<input[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Maximum y (mm)":
+  [36m<input[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Minimum z (mm)":
+  [36m<input[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Maximum z (mm)":
+  [36m<input[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Feed limit (mm/min)":
+  [36m<input[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Extruder limit (°C)":
+  [36m<input[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  Name "Bed limit (°C)":
+  [36m<input[39m
+    [33mmin[39m=[32m"0"[39m
+    [33mstep[39m=[32m"any"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mclass[39m=[32m"vscode-light"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal-backdrop"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-labelledby[39m=[32m"maker-wizard-title"[39m
+        [33maria-modal[39m=[32m"true"[39m
+        [33mclass[39m=[32m"modal"[39m
+        [33mrole[39m=[32m"dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"modal-header"[39m
+        [36m>[39m
+          [36m<h2[39m
+            [33mclass[39m=[32m"modal-title"[39m
+            [33mid[39m=[32m"maker-wizard-title"[39m
+          [36m>[39m
+            [0mAdd machine[0m
+          [36m</h2>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Close"[39m
+            [33mclass[39m=[32m"icon-button"[39m
+            [33mtitle[39m=[32m"Close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"icon"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"1.4"[39m
+              [33mviewBox[39m=[32m"0 0 16 16"[39m
+              [33mwidth[39m=[32m"16"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m4 4 8 8M12 4l-8 8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"modal-body"[39m
+        [36m>[39m
+          [36m<form>[39m
+            [36m<label>[39m
+              [0mName[0m
+              [36m<input[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m""[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<label>[39m
+              [0mMachine ID[0m
+              [36m<input[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m""[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<label>[39m
+              [0mAddress or port[0m
+              [36m<input[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m""[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<label>[39m
+              [0mMachine type[0m
+              [36m<select>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"moonraker"[39m
+                [36m>[39m
+                  [0mmoonraker[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"octoprint"[39m
+                [36m>[39m
+                  [0moctoprint[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"prusalink"[39m
+                [36m>[39m
+                  [0mprusalink[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"grbl"[39m
+                [36m>[39m
+                  [0mgrbl[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"fluidnc"[39m
+                [36m>[39m
+                  [0mfluidnc[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"marlin"[39m
+                [36m>[39m
+                  [0mmarlin[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</label>[39m
+            [36m<label>[39m
+              [0mCategory[0m
+              [36m<select>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"printer"[39m
+                [36m>[39m
+                  [0mprinter[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"cnc"[39m
+                [36m>[39m
+                  [0mcnc[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"laser"[39m
+                [36m>[39m
+                  [0mlaser[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"robot"[39m
+                [36m>[39m
+                  [0mrobot[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</label>[39m
+            [36m<fieldset>[39m
+              [36m<legend>[39m
+                [0mUser limits[0m
+              [36m</legend>[39m
+              [36m<p>[39m
+                [0mNo safe limits are available. Only status and Stop work.[0m
+              [36m</p>[39m
+              [36m<div>[39m
+                [36m<label>[39m
+                  [0mMinimum x (mm)[0m
+                  [36m<input[39m
+                    [33mstep[39m=[32m"any"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label>[39m
+                  [0mMaximum x (mm)[0m
+                  [36m<input[39m
+                    [33mstep[39m=[32m"any"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div>[39m
+                [36m<label>[39m
+                  [0mMinimum y (mm)[0m
+                  [36m<input[39m
+                    [33mstep[39m=[32m"any"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label>[39m
+                  [0mMaximum y (mm)[0m
+                  [36m<input[39m
+                    [33mstep[39m=[32m"any"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div>[39m
+                [36m<label>[39m
+                  [0mMinimum z (mm)[0m
+                  [36m<input[39m
+                    [33mstep[39m=[32m"any"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label>[39m
+                  [0mMaximum z (mm)[0m
+                  [36m<input[39m
+                    [33mstep[39m=[32m"any"[39m
+                    [33mtype[39m=[32m"number"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<label>[39m
+                [0mFeed limit (mm/min)[0m
+                [36m<input[39m
+                  [33mmin[39m=[32m"0"[39m
+                  [33mstep[39m=[32m"any"[39m
+                  [33mtype[39m=[32m"number"[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m/>[39m
+              [36m</label>[39m
+              [36m<label>[39m
+                [0mExtruder limit (°C)[0m
+                [36m<input[39m
+                  [33mmin[39m=[32m"0"[39m
+                  [33mstep[39m=[32m"any"[39m
+                  [33mtype[39m=[32m"number"[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m/>[39m
+              [36m</label>[39m
+              [36m<label>[39m
+                [0mBed limit (°C)[0m
+                [36m<input[39m
+                  [33mmin[39m=[32m"0"[39m
+                  [33mstep[39m=[32m"any"[39m
+                  [33mtype[39m=[32m"number"[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m/>[39m
+              [36m</label>[39m
+            [36m</fieldset>[39m
+            [36m<button[39m
+              [33mtype[39m=[32m"submit"[39m
+            [36m>[39m
+              [0mAdd machine[0m
+            [36m</button>[39m
+          [36m</form>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/unit/makerPayloadReview.test.tsx:166:17
+    164|   setUiText({ ...EN, makerCategoryPrinter: '3D-Drucker', makerCategory…
+    165|   render(<MachineWizard stop={null} send={vi.fn()} onClose={vi.fn()} /…
+    166|   expect(screen.getByRole('option', { name: '3D-Drucker' })).toHaveVal…
+       |                 ^
+    167|   expect(screen.getByRole('option', { name: 'Roboter' })).toHaveValue(…
+    168| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

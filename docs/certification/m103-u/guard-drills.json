@@ -1,0 +1,198 @@
+[
+  {
+    "name": "echo-id",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "echo-digest",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "echo-target",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "request-replay",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "2 failed | 12 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "click-expiry",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "timer-expiry",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "admission",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "4 failed | 10 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "action-admission",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "3 failed | 11 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "stop-independent",
+    "file": "src/webview/maker/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "3 failed | 11 passed (14)",
+    "sha256": "1937ba139e3e4f08501c53bd50b53642c477789577f22c2ffe47c17e1dd1abe1"
+  },
+  {
+    "name": "reject-dismissal",
+    "file": "src/webview/maker/ApprovalDialog.tsx",
+    "suite": "test/unit/makerUi.test.tsx",
+    "summary": "3 failed | 7 passed (10)",
+    "sha256": "4d228641ea1fc1f931226d216fc74365428a2f71f8ec119159117c6a634bce6f"
+  },
+  {
+    "name": "modal-inert",
+    "file": "src/webview/maker/MakerSurface.tsx",
+    "suite": "test/unit/makerUi.test.tsx",
+    "summary": "1 failed | 9 passed (10)",
+    "sha256": "5597e90b892e5986b0625b4a4eda73cd5a98c245122c49bdc26ab7c344c4c1c2"
+  },
+  {
+    "name": "mesh-artifact",
+    "file": "src/webview/maker/previewPage.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "summary": "1 failed | 14 passed (15)",
+    "sha256": "33d1ba1512afdd0aebc0214ef739fea6c43db853a839526dc01ce831c9ef7c5d"
+  },
+  {
+    "name": "mesh-coordinate",
+    "file": "src/shared/makerProtocolPreview.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "summary": "1 failed | 14 passed (15)",
+    "sha256": "33b7e235def1cd92365d60d623dd622b89491810e6b027029de3d909ba4ef137"
+  },
+  {
+    "name": "mesh-count",
+    "file": "src/shared/makerProtocolPreview.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "summary": "1 failed | 14 passed (15)",
+    "sha256": "33b7e235def1cd92365d60d623dd622b89491810e6b027029de3d909ba4ef137"
+  },
+  {
+    "name": "mesh-triangles",
+    "file": "src/shared/makerProtocolPreview.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "summary": "1 failed | 14 passed (15)",
+    "sha256": "33b7e235def1cd92365d60d623dd622b89491810e6b027029de3d909ba4ef137"
+  },
+  {
+    "name": "maker-budget",
+    "file": "scripts/lib/webviewBundles.mjs",
+    "suite": "test/unit/bundleSize.test.mjs",
+    "summary": "1 failed | 10 passed (11)",
+    "sha256": "9ae2c7edc00c43c32d42f7e778bef865d14b5969926ac30323859b32e96d2fd1"
+  },
+  {
+    "name": "preview-budget",
+    "file": "scripts/check-bundle-size.mjs",
+    "suite": "test/unit/bundleSize.test.mjs",
+    "summary": "1 failed | 10 passed (11)",
+    "sha256": "73511c9be7aff73e55253a682509a9bedbca184ae29a691fa48b2ad316ea72e4"
+  },
+  {
+    "name": "chat-routing",
+    "file": "src/webview/state/store.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "20bd1bed8ffee4e1f6360d5fb07b59b23609b156bc30e226a0c2b71b8dfb47bd"
+  },
+  {
+    "name": "preview-stop",
+    "file": "src/webview/maker/previewPage.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "summary": "1 failed | 14 passed (15)",
+    "sha256": "33d1ba1512afdd0aebc0214ef739fea6c43db853a839526dc01ce831c9ef7c5d"
+  },
+  {
+    "name": "stop-loading",
+    "file": "src/webview/maker/MakerSurface.tsx",
+    "suite": "test/unit/makerStopLoading.test.tsx",
+    "summary": "1 failed (1)",
+    "sha256": "5597e90b892e5986b0625b4a4eda73cd5a98c245122c49bdc26ab7c344c4c1c2"
+  },
+  {
+    "name": "serial-warning",
+    "file": "src/webview/maker/ApprovalDialog.tsx",
+    "suite": "test/unit/makerUi.test.tsx",
+    "summary": "1 failed | 9 passed (10)",
+    "sha256": "4d228641ea1fc1f931226d216fc74365428a2f71f8ec119159117c6a634bce6f"
+  },
+  {
+    "name": "log-uncertainty",
+    "file": "src/webview/maker/DeviceLog.tsx",
+    "suite": "test/unit/makerUi.test.tsx",
+    "summary": "1 failed | 9 passed (10)",
+    "sha256": "b3ebedc6893a18317658b3740dc9f9af6acc673f2cb2fb2c185d40a59dd5da13"
+  },
+  {
+    "name": "port-id",
+    "file": "src/core/maker/ports.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b"
+  },
+  {
+    "name": "port-digest",
+    "file": "src/core/maker/ports.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b"
+  },
+  {
+    "name": "port-target",
+    "file": "src/core/maker/ports.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b"
+  },
+  {
+    "name": "port-expiry",
+    "file": "src/core/maker/ports.ts",
+    "suite": "test/unit/makerUiStore.test.ts",
+    "summary": "1 failed | 13 passed (14)",
+    "sha256": "1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b"
+  },
+  {
+    "name": "preview-document",
+    "file": "src/webview/maker/previewPage.ts",
+    "suite": "test/unit/makerPreview.test.ts",
+    "summary": "2 failed | 13 passed (15)",
+    "sha256": "33d1ba1512afdd0aebc0214ef739fea6c43db853a839526dc01ce831c9ef7c5d"
+  },
+  {
+    "name": "http-consent",
+    "file": "src/webview/maker/MachineWizard.tsx",
+    "suite": "test/unit/makerUi.test.tsx",
+    "summary": "1 failed | 9 passed (10)",
+    "sha256": "5098404fc4f28f3fdfccd18df1a8eef11ac7e3d3357cffbb764e16b56bc9cdd2"
+  }
+]

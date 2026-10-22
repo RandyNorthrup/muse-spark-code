@@ -1,3 +1,6 @@
+import type { HardwareStop } from '../../core/maker/guard/hardwareCommands'
+import { createHardwareContexts } from '../../core/maker/hardwareContext'
+import type { HardwareContext } from '../../core/maker/guard/httpCommands'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
@@ -66,6 +69,8 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly hardwareContext?: (workspaceRoot: string | undefined) => HardwareContext
+  readonly runHardwareStop?: (stop: HardwareStop) => Promise<void>
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
@@ -101,6 +106,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** The managed personal agent root (M76). */
   readonly personalAgentsRoot: string | undefined
   readonly isWorkspaceTrusted: () => boolean
+  readonly isUnattended?: ModelApiHostDeps['isUnattended']
   /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier agent model is used (M76). */
@@ -180,6 +186,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** The extension's own IDE tools, offered in process (M50). */
   readonly legalScan?: LegalScanRunner | undefined
   readonly ideTools?: readonly McpTool[] | undefined
+  readonly getIdeTools?: (() => readonly McpTool[]) | undefined
   /** The window's web fetch, run in this bundle for the backend's `web_fetch` (M69). */
   readonly webFetch?: WebFetcher | undefined
   /** The window's browser check, run in its own bundle for `browser_check` (M81). */
@@ -246,6 +253,7 @@ const MANAGER_DISPOSED = 'The Model API backend was stopped while it was startin
 
 /** What differs between the window's host and a best-of-N attempt's host. */
 interface HostVariant {
+  readonly getIdeTools?: (() => readonly McpTool[]) | undefined
   readonly verify: ModelApiBackendManagerDeps['verify']
   readonly workspaceEdits: WorkspaceEdits
   readonly sessionWorkspaceRoot: string | undefined
@@ -304,6 +312,7 @@ async function readApiKey(
 export class ModelApiBackendManager {
   /** Runtime/activation injects the same journal into every owned host. */
   public static usageRecording: UsageRecording | undefined
+  private readonly hardware = createHardwareContexts()
   private host: ModelApiHost | undefined
   /**
   The host being built (PLAN.md D25): every caller waits for the stored
@@ -414,6 +423,9 @@ export class ModelApiBackendManager {
       host: {
         judge: this.deps.judge,
         workspaceRoot: variant.workspaceRoot,
+        hardwareContext: () =>
+          this.deps.hardwareContext?.(variant.workspaceRoot) ??
+          this.hardware(variant.workspaceRoot).current(),
         platform: process.platform,
         io: variant.io,
         contextIo: this.deps.contextIo,
@@ -429,6 +441,8 @@ export class ModelApiBackendManager {
         bundledSkills: this.deps.bundledSkills,
         personalAgentsRoot: this.deps.personalAgentsRoot,
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
+        isUnattended: () =>
+          this.deps.isUnattended?.() === true || variant.workspaceRoot !== this.deps.workspaceRoot,
         isConfidentialWorkspace: this.deps.isConfidentialWorkspace,
         confirmContributorModel: this.deps.confirmContributorModel,
         store: variant.store,
@@ -516,6 +530,8 @@ export class ModelApiBackendManager {
 
         legalScan: variant.legalScan,
         ideTools: variant.ideTools,
+        // Attempt variants deliberately have no IDE tools; never hand hardware to a worker.
+        getIdeTools: variant.getIdeTools,
         webFetch: variant.webFetch,
         browserCheck: variant.browserCheck,
         codeIntel: variant.codeIntel,
@@ -573,6 +589,7 @@ export class ModelApiBackendManager {
       isPaidFeatureOn: this.deps.isPaidFeatureOn,
       legalScan: this.deps.legalScan,
       ideTools: this.deps.ideTools,
+      getIdeTools: this.deps.getIdeTools,
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
       isHooksEnabled: this.deps.isHooksEnabled,

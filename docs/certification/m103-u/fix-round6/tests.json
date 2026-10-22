@@ -1,0 +1,710 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "npx",
+      "prettier",
+      "--write",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/help/maker-payload-review.md",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "src/webview/styles.css",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx",
+      "l10n/ui.de.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.it.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.cs.json",
+      "l10n/ui.es.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.ko.json"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "reference-generate",
+    "command": ["node", "scripts/gen-reference.mjs"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "lint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "stylelint",
+    "command": ["npx", "stylelint", "src/webview/styles.css", "--max-warnings=0"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-webview",
+    "command": ["npm", "run", "typecheck:webview"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-unit",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "deadcode",
+    "command": ["npm", "run", "deadcode"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "duplication",
+    "command": ["npx", "jscpd"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "l10n",
+    "command": ["node", "scripts/check-l10n.mjs"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "reference-check",
+    "command": ["npm", "run", "check:reference"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "maker-schema",
+    "command": ["node", "scripts/maker-schema.mjs", "--check"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "build",
+    "command": ["npm", "run", "build"],
+    "exit": 1,
+    "expectedExit": 1,
+    "results": []
+  },
+  {
+    "name": "tests-1",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerApproval.test.ts",
+      "test/unit/makerReload.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  154 passed (154)",
+      "   Duration  11.58s (tests 55%, environment 25%, transform 11%, setup 6%, import 4%)"
+    ]
+  },
+  {
+    "name": "tests-2",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerFailures.test.tsx",
+      "test/unit/makerStopLoading.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  5 passed (5)",
+      "   Duration  4.49s (environment 47%, tests 21%, transform 15%, setup 8%, import 8%)"
+    ]
+  },
+  {
+    "name": "tests-3",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerUiStore.test.ts",
+      "test/unit/makerUi.test.tsx",
+      "test/unit/makerPreview.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  47 passed (47)",
+      "   Duration  5.81s (environment 40%, tests 29%, transform 17%, setup 7%, import 5%)"
+    ]
+  },
+  {
+    "name": "tests-4",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerProtocol.test.ts",
+      "test/unit/Modal.test.tsx",
+      "test/unit/bundleSize.test.mjs",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  50 passed (50)",
+      "   Duration  3.62s (environment 36%, tests 25%, setup 17%, transform 14%, import 7%)"
+    ]
+  },
+  {
+    "name": "tests-5",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/webviewBundles.test.mjs",
+      "test/unit/webviewBundle.test.mjs",
+      "test/unit/uiTextRegions.test.mjs",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  29 passed (29)",
+      "   Duration  9.53s (tests 82%, import 8%, setup 5%, transform 4%)"
+    ]
+  },
+  {
+    "name": "tests-6",
+    "command": ["npx", "vitest", "run", "test/unit/html.test.ts", "--maxWorkers=3"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 passed (1)",
+      "      Tests  10 passed (10)",
+      "   Duration  936ms (transform 46%, setup 32%, import 14%, tests 7%, worker 1%)"
+    ]
+  },
+  {
+    "name": "tests-7",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 passed (1)",
+      "      Tests  16 passed (16)",
+      "   Duration  43.18s (tests 93%, import 4%, transform 1%, setup 1%)"
+    ]
+  },
+  {
+    "name": "tests-webkit",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 passed (1)",
+      "      Tests  16 passed (16)",
+      "   Duration  38.09s (tests 96%, import 3%, transform 1%)"
+    ]
+  },
+  {
+    "name": "prettier-check",
+    "command": [
+      "npx",
+      "prettier",
+      "--check",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/help/maker-payload-review.md",
+      "src/core/maker/payloadSummary.ts",
+      "src/host/html.ts",
+      "src/shared/constants.ts",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/makerProtocol.ts",
+      "src/webview/maker/MakerSurface.tsx",
+      "src/webview/maker/PayloadReview.tsx",
+      "src/webview/maker/payloadSearch.ts",
+      "src/webview/makerEntry.ts",
+      "src/webview/styles.css",
+      "test/unit/html.test.ts",
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "test/unit/makerUi.test.tsx",
+      "l10n/ui.de.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.it.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.cs.json",
+      "l10n/ui.es.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.ko.json",
+      "docs/reference.md"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "whitespace",
+    "command": ["git", "diff", "--check"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-all",
+    "command": ["npm", "run", "typecheck"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "All five projects passed; affected webview and unit projects were checked again after final edits."
+    ]
+  },
+  {
+    "name": "lint-tightening",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/core/maker/payloadSummary.ts",
+      "test/unit/makerPayloadReview.test.tsx"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-host-final",
+    "command": ["npm", "run", "typecheck:host"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-unit-final",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "tests-tightening",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerUi.test.tsx",
+      "test/unit/makerEntryLoading.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  122 passed (122)",
+      "   Duration  7.40s (tests 55%, environment 27%, transform 9%, import 4%, setup 4%)"
+    ]
+  },
+  {
+    "name": "format-final",
+    "command": [
+      "npx",
+      "prettier",
+      "--write",
+      "src/webview/maker/PayloadReview.tsx",
+      "test/unit/makerReviewBrowser.test.mjs",
+      "docs/certification/m103-u.md",
+      "docs/certification/m103-u/fix-round6/drills.json",
+      "docs/certification/m103-u/fix-round6/tests.json",
+      "docs/certification/m103-u/fix-round6/attempts.json",
+      "docs/certification/m103-u/fix-round6/browser-chrome.json",
+      "docs/certification/m103-u/fix-round6/browser-webkit.json",
+      "docs/certification/m103-u/fix-round6/sizes.json"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "lint-prepared",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/webview/maker/PayloadReview.tsx",
+      "test/unit/makerReviewBrowser.test.mjs"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-webview-final",
+    "command": ["npm", "run", "typecheck:webview"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "typecheck-unit-prepared",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "duplication-final",
+    "command": ["npx", "jscpd"],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": []
+  },
+  {
+    "name": "tests-prepared-final",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerUi.test.tsx",
+      "test/unit/makerEntryLoading.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  122 passed (122)",
+      "   Duration  12.51s (tests 54%, environment 28%, transform 10%, setup 4%, import 3%)"
+    ]
+  },
+  {
+    "name": "tests-bundle-final",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/makerProtocol.test.ts",
+      "test/unit/Modal.test.tsx",
+      "test/unit/bundleSize.test.mjs",
+      "--maxWorkers=3"
+    ],
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  3 passed (3)",
+      "      Tests  50 passed (50)",
+      "   Duration  2.54s (environment 37%, tests 25%, setup 17%, transform 14%, import 7%, worker 1%)"
+    ]
+  },
+  {
+    "name": "browser-chrome-final",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "exit": 1,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 failed (1)",
+      "      Tests  2 failed | 14 passed (16)",
+      "   Duration  44.49s (tests 95%, import 3%, transform 2%, setup 1%)"
+    ],
+    "facts": [
+      {
+        "probe": "long-token",
+        "client": 121,
+        "scroll": 121,
+        "fits": true
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 120,
+        "scrollHeight": 148,
+        "clientHeight": 14,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 160,
+        "scrollHeight": 148,
+        "clientHeight": 30,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 400,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 5,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 5,
+        "height": 760,
+        "scrollHeight": 148,
+        "clientHeight": 86,
+        "buttons": 5
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 120,
+        "scrollHeight": 298,
+        "clientHeight": 14,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 160,
+        "visible": true,
+        "top": 42,
+        "bottom": 74
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 160,
+        "scrollHeight": 298,
+        "clientHeight": 30,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 400,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "shared-stop",
+        "count": 10,
+        "height": 760,
+        "visible": true,
+        "top": 54,
+        "bottom": 86
+      },
+      {
+        "probe": "shared-stop-list",
+        "count": 10,
+        "height": 760,
+        "scrollHeight": 298,
+        "clientHeight": 86,
+        "buttons": 10
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 120,
+        "visible": true,
+        "top": 64,
+        "bottom": 92
+      },
+      {
+        "probe": "standalone-stop",
+        "count": 10,
+        "height": 400,
+        "visible": true,
+        "top": 272,
+        "bottom": 300
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 60001,
+        "latency": 140.39999771118164,
+        "stops": 24,
+        "sent": 24,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 55.70000076293945
+      },
+      {
+        "probe": "worst-case-search",
+        "engine": "Chrome",
+        "queryLength": 120001,
+        "latency": 14.599998474121094,
+        "stops": 38,
+        "sent": 38,
+        "workers": {
+          "created": 1,
+          "terminated": 1
+        },
+        "dispatchMs": 4
+      },
+      {
+        "probe": "static-dependency-reload",
+        "refetches": 2,
+        "restoredMachines": 10
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": false,
+        "chars": 1048576,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "large-host-reload",
+        "escaped": true,
+        "chars": 400000,
+        "readyRefetch": true,
+        "stop": true
+      },
+      {
+        "probe": "storage-denied-reload",
+        "engine": "Chrome",
+        "stop": true,
+        "surfaces": 0,
+        "ready": true,
+        "sent": {
+          "v": 1,
+          "type": "makerStop"
+        }
+      }
+    ]
+  },
+  {
+    "name": "browser-webkit-final",
+    "command": ["npx", "vitest", "run", "test/unit/makerReviewBrowser.test.mjs", "--maxWorkers=3"],
+    "browser": "WebKit",
+    "client": "file:///Users/randy/lanes/M103U/temp/fix-round6/webkit-client/node_modules/playwright-core/index.mjs",
+    "exit": 0,
+    "expectedExit": 0,
+    "results": [
+      "\n\n Test Files  1 passed (1)",
+      "      Tests  16 passed (16)",
+      "   Duration  34.90s (tests 96%, import 2%, transform 1%)"
+    ]
+  }
+]

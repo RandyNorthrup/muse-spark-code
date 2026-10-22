@@ -1,0 +1,40 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerPreview.test.ts (20 tests | 1 failed) 894ms
+   ❯ bounded host-owned STL preview (20)
+     × a twice-oversized mesh reads zero components and Stop still responds 520ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+   Start at  09:32:39
+   Duration  3.13s (environment 38%, tests 31%, transform 12%, import 12%, setup 7%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerPreview.test.ts > bounded host-owned STL preview > a twice-oversized mesh reads zero components and Stop still responds
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ test/unit/makerPreview.test.ts:129:22
+    127|     Object.defineProperty(positions, '0', { get: read })
+    128|     emit({ ...mesh, positions })
+    129|     expect(read).not.toHaveBeenCalled()
+       |                      ^
+    130|     const stop = document.createElement('button')
+    131|     stop.dataset['makerStop'] = ''
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

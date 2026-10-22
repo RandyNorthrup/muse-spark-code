@@ -202,10 +202,28 @@ keys.forEach((key,index)=>{if(readers[index]==='2')Object.defineProperty(EN,key,
 }`
 }
 
+/** Maker review carries its own values and never enumerates deferred getters. */
+function makerBrowserEnglish(build) {
+  build.onLoad({ filter: /[/\\]l10n[/\\]makerEnglish\.ts$/ }, async (args) => {
+    const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+      await loadL10n(process.cwd())
+    return {
+      contents: inlineBrowserTable(
+        Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('maker'))),
+        L10N_BROWSER_COMPRESSION_LEVEL,
+        L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
+      ).replace('export const EN=', 'export const MAKER_EN='),
+      loader: 'js',
+      watchFiles: [args.path, TABLE],
+    }
+  })
+}
+
 /** The standalone browser fallback retains the entire canonical table. */
 export const compactBrowserEnglish = {
   name: 'compact-browser-english',
   setup(build) {
+    makerBrowserEnglish(build)
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
@@ -335,6 +353,7 @@ export function browserStartupRoots(entries, root = process.cwd()) {
 export const compactBrowserUiText = {
   name: 'compact-browser-ui-text',
   setup(build) {
+    makerBrowserEnglish(build)
     let data
     build.onStart(async () => {
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
@@ -368,7 +387,9 @@ export const compactBrowserUiText = {
           helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
       )
       // M108: account and developer English load with their optional surfaces.
-      const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
+      const accountKeys = deferredKeys.filter((key) =>
+        /^(?:accounts|developer|providerText|acpChatGpt)$/.test(key),
+      )
       // STARTUP017: the schedule surfaces' English loads beside them; chat
       // startup paints restored settlement rows from scheduleSettlement alone.
       const scheduleKeys = deferredKeys.filter((key) => key === 'scheduleV2')
@@ -468,6 +489,7 @@ export const compactBrowserUiText = {
           !playbookKeys.includes(key) &&
           !chatGptKeys.includes(key) &&
           !runnersKeys.includes(key) &&
+          !key.startsWith('maker') &&
           key !== 'vault' &&
           nonResourceKeys.has(key),
       )

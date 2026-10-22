@@ -1,0 +1,157 @@
+{
+  "formatting": [
+    {
+      "text": "\n  ",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 2,
+        "endLineNumber": 1,
+        "endColumn": 2
+      }
+    },
+    {
+      "text": " ",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 6,
+        "endLineNumber": 1,
+        "endColumn": 6
+      }
+    },
+    {
+      "text": "\n  ",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 8,
+        "endLineNumber": 1,
+        "endColumn": 8
+      }
+    },
+    {
+      "text": " ",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 12,
+        "endLineNumber": 1,
+        "endColumn": 12
+      }
+    },
+    {
+      "text": "\n    ",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 13,
+        "endLineNumber": 1,
+        "endColumn": 13
+      }
+    },
+    {
+      "text": "\n    ",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 15,
+        "endLineNumber": 1,
+        "endColumn": 15
+      }
+    },
+    {
+      "text": "\n  ",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 16,
+        "endLineNumber": 1,
+        "endColumn": 16
+      }
+    },
+    {
+      "text": "\n",
+      "range": {
+        "startLineNumber": 1,
+        "startColumn": 17,
+        "endLineNumber": 1,
+        "endColumn": 17
+      }
+    }
+  ],
+  "diagnosticsSnapshots": [
+    [],
+    [
+      {
+        "file": "broken.ts",
+        "language": "plaintext",
+        "diagnostics": [],
+        "jsonProviderActive": true
+      }
+    ],
+    [
+      {
+        "file": "broken.json",
+        "language": "json",
+        "diagnostics": [],
+        "jsonProviderActive": true
+      }
+    ],
+    [],
+    [
+      {
+        "file": "tool.json",
+        "language": "json",
+        "diagnostics": [],
+        "jsonProviderActive": true
+      }
+    ]
+  ],
+  "reports": 0,
+  "jsonProviderActive": true,
+  "languages": [
+    "plaintext",
+    "jsonc",
+    "jsonc",
+    "jsonc",
+    "jsonc",
+    "cortex-debug.disassembly",
+    "cortex-debug.memoryview",
+    "ino",
+    "c",
+    "cpp",
+    "cuda-cpp",
+    "json",
+    "jsonc",
+    "jsonl",
+    "snippets"
+  ],
+  "visibleEditors": [
+    {
+      "path": "main.ts",
+      "language": "plaintext",
+      "column": 1
+    }
+  ],
+  "tabs": [
+    {
+      "label": "workspace.ino",
+      "column": 1,
+      "isActive": false
+    },
+    {
+      "label": "README.md",
+      "column": 1,
+      "isActive": false
+    },
+    {
+      "label": "main.ts",
+      "column": 1,
+      "isActive": true
+    },
+    {
+      "label": "Untitled",
+      "column": 1,
+      "isActive": false
+    },
+    {
+      "label": "Muse Spark Code (Unofficial): Getting started",
+      "column": 1,
+      "isActive": true
+    }
+  ]
+}

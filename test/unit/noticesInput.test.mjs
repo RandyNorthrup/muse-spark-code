@@ -143,3 +143,12 @@ it('includes deferred validation licences using their real POSIX and Windows pac
   )
   expect(noticePackageDir('src/shared/resources.ts')).toBeUndefined()
 })
+
+it.each(['maker-validation:', 'resource-validation:'])(
+  'PORTM103 resolves %s contributed packages with Windows separators',
+  (namespace) => {
+    expect(
+      noticePackageDir(namespace + String.raw`C:\repo\node_modules\zod\v4\mini\index.js`),
+    ).toBe('C:/repo/node_modules/zod')
+  },
+)

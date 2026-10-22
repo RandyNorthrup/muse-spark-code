@@ -122,7 +122,6 @@ import {
   REPORT_EXIT_CODE,
   UI_TEXT,
   VSCODE_COMMANDS,
-  WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
   TAB_CONTEXT_FILES,
@@ -146,6 +145,7 @@ import { createHash } from 'node:crypto'
 import type { UsagePanel } from './host/usage/usagePanel'
 import path from 'node:path'
 import * as vscode from 'vscode'
+import { createHardwareContexts } from './core/maker/hardwareContext'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 
@@ -172,6 +172,7 @@ import {
   readWorkflowTriggerMode,
 } from './host/backend/museSettings'
 import type { CreateRulesFileDeps } from './host/commands/createRulesFile'
+import { createDeferredVerifyEditor } from './host/editor/verifyEditorBundle'
 import type {
   ConversationController,
   ConversationReports,
@@ -242,6 +243,7 @@ import type { AccountFacts } from './shared/usage'
 import { terminalEnvironment } from './core/backends/musecode/launch'
 import { environmentValue, windowsPowerShellEnvironment } from './core/execGuard'
 import {
+  createHardwareStopRunner,
   createToolIo,
   runResourceCommand as runProcess,
   readPickedFile,
@@ -303,7 +305,6 @@ import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
 import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
-import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
@@ -324,7 +325,7 @@ import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { BrowserChecks } from './host/browser/browserChecks'
-import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
+import { isBrowserCheckAllowed, browserDevOrigins } from './host/browser/browserCheckConfirm'
 import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
 import { runtimeConsent } from './host/browser/runtimeConsent'
 import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
@@ -371,6 +372,8 @@ import {
   readProxySettings,
   readVoiceNetworkPosture,
 } from './host/networkPosture'
+import { showEditorDocument } from './host/editor/showDocument'
+import { openWalkthrough } from './host/commands/openWalkthrough'
 import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
@@ -999,6 +1002,9 @@ async function activateWindow(
   // directory and memory have always been keyed by. Only the checkpoint store
   // uses the canonical root (below), and it accepts both spellings.
   const workspaceRoot = firstFolderPath()
+  const hardwareContexts = createHardwareContexts()
+  const hardware = hardwareContexts(workspaceRoot)
+  const hardwareContext = (root = workspaceRoot) => hardwareContexts(root).current()
   const nativeStarts = new AbortController()
   context.subscriptions.push({
     dispose: () => {
@@ -1787,7 +1793,19 @@ async function activateWindow(
       },
     )
   }
+  const stopHardware = createHardwareStopRunner({
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    log: (message) => {
+      log.trace(message)
+    },
+  })
   const backend = new MuseCodeBackendManager({
+    hardwareContext,
+    runHardwareStop: async (stop) => {
+      const result = await stopHardware(stop)
+      if (result.exitCode !== 0) throw new Error(UI_TEXT.hardwareRefused)
+    },
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MUSE_CODE_BUNDLE_FILE).fsPath,
     usageRecording,
@@ -2304,6 +2322,7 @@ async function activateWindow(
   // The workspace's files and a shell (M7): the Model API backend's tools,
   // and the files the ide server's image tools read and write (M44).
   const toolIo = createToolIo({
+    hardwareContext,
     platform: process.platform,
     listFiles: listWorkspaceFiles,
     ...(workspaceRoot !== undefined && { workspaceRoot }),
@@ -2336,12 +2355,15 @@ async function activateWindow(
   // The verify loop (M68, PLAN.md D49): what the language servers report on
   // edited files, which only an editor showing a file makes them do, and the
   // formatter over the Model API backend's edits.
-  const verifyEditor = createVerifyEditor({
-    platform: process.platform,
-    log,
-    workspaceRoot,
-    realPath: canonicalPath,
-  })
+  const verifyEditor = createDeferredVerifyEditor(
+    {
+      platform: process.platform,
+      log,
+      workspaceRoot,
+      realPath: canonicalPath,
+    },
+    vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+  )
   context.subscriptions.push(verifyEditor)
   const diagnostics = diagnosticsTool({
     getDiagnostics: collectDiagnostics,
@@ -2417,9 +2439,22 @@ async function activateWindow(
     },
   })
   context.subscriptions.push(browserChecks)
+  const devOrigins = browserDevOrigins(
+    context.globalState,
+    () => currentSettings().browserCheckExtraHosts,
+  )
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.browserCheckExtraHosts`)) {
+        void devOrigins.change().catch(() => {
+          log.warn('Browser check: origin confirmation failed')
+        })
+      }
+    }),
+  )
   const browserCheck: BrowserCheckHost = {
     check: browserChecks.check,
-    extraHosts: () => currentSettings().browserCheckExtraHosts,
+    extraHosts: devOrigins.read,
     isOffered: () => browserChecks.isOffered(),
   }
   const isIdeBrowserCheckOffered = (): boolean =>
@@ -3319,12 +3354,15 @@ async function activateWindow(
       formatAfterEdit: (absolutePath, text) => verifyEditor.formatAfterEdit(absolutePath, text),
     },
     createAttemptVerify: (attemptRoot) => {
-      const editor = createVerifyEditor({
-        platform: process.platform,
-        log,
-        workspaceRoot: attemptRoot,
-        realPath: canonicalPath,
-      })
+      const editor = createDeferredVerifyEditor(
+        {
+          platform: process.platform,
+          log,
+          workspaceRoot: attemptRoot,
+          realPath: canonicalPath,
+        },
+        vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+      )
       return {
         checkRuns: reportChecksFor(attemptRoot),
         isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
@@ -4353,6 +4391,9 @@ async function activateWindow(
               attach: () => Promise.resolve(false),
             }),
           isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
+          isHardwareWorkspace: () => hardware.current().isHardwareWorkspace === true,
+          isHardwareApprovalPresent: () =>
+            vscode.window.state.focused && surface.isApprovalPresent?.() === true,
           isRemoteWindow: vscode.env.remoteName !== undefined,
           confirmRemoteBypass: async () =>
             (await vscode.window.showWarningMessage(
@@ -4753,7 +4794,13 @@ async function activateWindow(
     resolveWebviewBundle,
     l10n,
     log,
-    getSettings: () => toSettingsSnapshot(currentSettings()),
+    getSettings: () =>
+      toSettingsSnapshot({
+        ...currentSettings(),
+        allowDangerouslySkipPermissions:
+          currentSettings().allowDangerouslySkipPermissions &&
+          hardware.current().isHardwareWorkspace !== true,
+      }),
     onInputFocusChanged: (surface, isFocused) => {
       isInputFocused = isFocused
       if (isFocused) {
@@ -5451,7 +5498,7 @@ async function activateWindow(
       },
     }),
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
-      openChatPanel(hostContext, registry)
+      return openChatPanel(hostContext, registry)
     }),
     registerLoggedCommand(log, 'museSpark.openUsagePage', openUsagePage),
     registerLoggedCommand(
@@ -5576,7 +5623,7 @@ async function activateWindow(
         fileExists: isExistingPath,
         writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
-          await vscode.window.showTextDocument(vscode.Uri.file(fsPath))
+          await showEditorDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath)))
         },
         runInit: () => {
           check()
@@ -5606,11 +5653,9 @@ async function activateWindow(
       await rulesFile.createRulesFile(deps, UI_TEXT, uiLocale())
     }),
     registerLoggedCommand(log, COMMAND_IDS.openWalkthrough, async () => {
-      await vscode.commands.executeCommand(
-        VSCODE_COMMANDS.openWalkthrough,
-        WALKTHROUGH_QUALIFIED_ID,
-        false,
-      )
+      const panel = await openWalkthrough()
+      if (panel !== undefined) context.subscriptions.push(panel)
+      return panel
     }),
     registerLoggedCommand(log, COMMAND_IDS.openInSidebar, openSidebar),
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {

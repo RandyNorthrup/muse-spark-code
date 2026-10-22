@@ -10,6 +10,7 @@
 !dist/conversation.js
 !dist/conversationTransfer.js
 !dist/tab.js
+!dist/verifyEditor.js
 !dist/prompts.js
 !dist/modelApi.js
 !dist/museCode.js
@@ -43,6 +44,8 @@
 !dist/pluginHooks.js
 !dist/planMarkdown.js
 !dist/checkpointStore.js
+!dist/hardwareGuard.js
+!dist/hardwareShell.js
 !dist/browserCheck.js
 !dist/browserRuntime.js
 !dist/review.js
@@ -66,6 +69,7 @@
 !dist/usagePanel.js
 !dist/uiText.js
 !dist/validation.js
+!dist/makerContracts.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/judge.js
@@ -87,6 +91,12 @@
 !dist/reference.js
 !dist/webview.json.br
 !dist/providerCatalog.js
+!dist/webview/usage.js
+!dist/webview/usage.css
+!dist/webview/whatsNew.js
+!dist/webview/whatsNew.css
+!dist/webview/makerPreview.js
+!dist/webview/makerPreview.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**

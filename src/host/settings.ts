@@ -10,6 +10,7 @@ import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
   HOOK_RUNNING_COMMANDS_MIN,
+  MACHINE_SCOPED_SETTINGS,
   MEDIA_UPLOAD_EXPIRY_DAY_MIN,
   USAGE_HISTORY_DAY_MIN,
   type BackendMode,
@@ -227,6 +228,7 @@ the reader trivially fakeable in unit tests.
 */
 interface StoredSettingValues {
   readonly globalValue?: unknown
+  readonly defaultValue?: unknown
   readonly workspaceValue?: unknown
   readonly workspaceFolderValue?: unknown
 }
@@ -329,7 +331,7 @@ const settingSchemas = {
   pluginAnswerMaxBytes: z.number().check(z.int(), z.gte(0)),
   pluginMaxFailures: z.number().check(z.int(), z.gte(0)),
   turnCheckpoints: z.boolean(),
-  // Each entry a plain host name or IP address (no port, path or wildcard):
+  // Public hosts or exact dev-server origins; private destinations require the origin.
   // one that is not refuses the whole list, so a typo warns rather than
   // widening something else.
   // NOLIMITSSET (PLAN.md D121): no host-count ceiling of ours — every host
@@ -380,6 +382,7 @@ const settingSchemas = {
 } as const
 
 type SettingKey = keyof typeof settingSchemas
+const machineSettings: ReadonlySet<string> = new Set(MACHINE_SCOPED_SETTINGS)
 
 // An invalid value is reported once per logger, not on every read: the
 // settings are read about seven times for each message sent (M39).
@@ -402,7 +405,14 @@ function readSetting<K extends SettingKey>(
 ): ExtensionSettings[K] {
   let previousKey: string | undefined
   if (key === 'scheduleDefaultDelivery') previousKey = 'schedules.defaultDelivery'
-  const raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
+  let raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
+  // Theia accepts repository overrides even for manifest scope "machine".
+  // Read those keys from the user's lane; a repository cannot opt into
+  // execution, spending or Bypass. Sources without inspection are already
+  // scoped by their caller (the injected tests and standalone adapters).
+  const inspected = config.inspect?.(key)
+  if (machineSettings.has(key) && config.inspect !== undefined)
+    raw = inspected?.globalValue ?? inspected?.defaultValue
   // The keyed schema validates its matching default; TypeScript cannot correlate indexed K (PLAN §8).
   const fallback = settingSchemas[key].parse(SETTING_DEFAULTS[key]) as ExtensionSettings[K]
   if (raw === undefined) {

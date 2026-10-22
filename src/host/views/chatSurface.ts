@@ -17,6 +17,7 @@ export type ConversationMessage = Exclude<
 /** One chat UI instance (the sidebar view or one editor panel). */
 export interface ChatSurface {
   readonly id: string
+  readonly isApprovalPresent?: () => boolean
   /** A side chat's surface (M53): opens in Plan and keeps its conversation apart. */
   readonly isSideChat?: boolean
   /**

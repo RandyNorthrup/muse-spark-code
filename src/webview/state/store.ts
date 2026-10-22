@@ -69,6 +69,17 @@ export function listenToHost(
   let isActive = true
   const isCurrent = (owner: number) => isActive && owner === generation
   const onMessage = (event: MessageEvent<unknown>) => {
+    // M103 U: makerEntry routes this namespace to its own lazy schema/store.
+    // Chat must not load those schemas or report valid maker traffic as a fault.
+    const raw = event.data
+    if (
+      typeof raw === 'object' &&
+      raw !== null &&
+      'type' in raw &&
+      typeof raw.type === 'string' &&
+      raw.type.startsWith('maker')
+    )
+      return
     if (isEstimatorHostMessage(event.data)) {
       const owner = generation
       void import('../../shared/estimatorProtocol')

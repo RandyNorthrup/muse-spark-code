@@ -1,0 +1,79 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerFailures.test.tsx (1 test | 1 failed) 1232ms
+   × a failed optional view preserves Stop and Retry remounts it 1230ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+     Errors  1 error
+   Start at  09:32:28
+   Duration  3.63s (tests 36%, environment 34%, transform 12%, import 12%, setup 6%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+stderr | test/unit/makerFailures.test.tsx > a failed optional view preserves Stop and Retry remounts it
+An error occurred in the <DevicePanel> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerFailures.test.tsx > a failed optional view preserves Stop and Retry remounts it
+TestingLibraryElementError: Unable to find role="alert"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ test/unit/makerFailures.test.tsx:25:23
+     23|   render(<MakerSurface store={store} />)
+     24|   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerDevi…
+     25|   expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.m…
+       |                       ^
+     26|   expect(document.querySelector('.maker-toolbar')).toBeInTheDocument()
+     27|   fireEvent.click(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: chunk unavailable
+ ❯ DevicePanel test/unit/makerFailures.test.tsx:11:27
+      9| vi.mock('../../src/webview/maker/DevicePanel', () => ({
+     10|   DevicePanel: () => {
+     11|     if (view.fails) throw new Error('chunk unavailable')
+       |                           ^
+     12|     return <p>Devices recovered</p>
+     13|   },
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10569:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12147:35
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+ ❯ performWorkOnRoot node_modules/react-dom/cjs/react-dom-client.development.js:18094:35
+
+This error originated in "test/unit/makerFailures.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "a failed optional view preserves Stop and Retry remounts it". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+

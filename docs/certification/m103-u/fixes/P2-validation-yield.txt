@@ -1,0 +1,43 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerPreview.test.ts (20 tests | 1 failed) 904ms
+   ❯ bounded host-owned STL preview (20)
+     × large accepted input yields before its second chunk and Stop cancels validation 48ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+   Start at  09:32:43
+   Duration  3.20s (environment 39%, tests 30%, transform 12%, import 11%, setup 7%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerPreview.test.ts > bounded host-owned STL preview > large accepted input yields before its second chunk and Stop cancels validation
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      <canvas … />,
+      [Array],
+    ]
+
+
+Number of calls: 1
+
+ ❯ test/unit/makerPreview.test.ts:142:36
+    140|     lifetime.dispose = wireMakerPreview(document, host)
+    141|     emit({ ...mesh, positions: Array.from({ length: 18_000 }, () => 0)…
+    142|     expect(createMeshRenderer).not.toHaveBeenCalled()
+       |                                    ^
+    143|     const stop = document.createElement('button')
+    144|     stop.dataset['makerStop'] = ''
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

@@ -1,5 +1,13 @@
 # Muse Spark in other editors (ACP)
 
+M103's integration runtime adds `--hardware`, `/hardware`, `/machines` and
+`/stop-machine`, plus terminal registration and companion commands. Hardware
+requires a host-owned workspace grant and a fresh once-only permission for
+each action. Plan, Bypass and unattended contexts cannot widen that grant;
+Stop remains independent. See the [runtime command guide](../README.md) and
+[M103R receipts and integration limits](certification/m103-r.md) before
+claiming installed maker support.
+
 > The package's npm landing page is [`muse-spark-code-acp`](https://www.npmjs.com/package/muse-spark-code-acp); this file is the full guide.
 
 `muse-spark-code-acp` runs Muse Spark as an agent for editors that speak
@@ -565,6 +573,48 @@ MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain
 their existing behavior and never enter the question clock.
 
+### Makers safety (Unreleased)
+
+The portable guard is shared with the extension and Model API backend.
+Detected connect, program and actuate calls offer allow-once/reject-once only;
+Typed device tools refuse Plan and unattended runs; irreversible operations
+are always refused. Unresolved
+shell syntax plus a device signal or host-designated hardware workspace asks
+once, including encoded/interpreter commands and HTTP config files. All
+HTTP transfers and device destinations are checked; reading a file from a
+board retains ordinary policy. Failed decisions cannot renew or replay an
+expired or consumed approval. Exact parsed command, original text and
+host-observed target are bound to its digest.
+
+The runtime composition root supplies one hardware-context owner to both
+backends, ACP and headless execution. Planned project markers, connected serial
+boards and host-observed registered targets latch the workspace. Missing or
+unreadable roots fail closed; disappearing markers/devices never clear the
+latch. Windows currently refuses agent shells until discovery is qualified; unknown
+inventory cannot be reset away.
+
+Model API hardware shells require exact, single-use approval, with frozen
+identity/payload/expiry checked immediately before native spawn. Bypass and
+unattended commands are refused. Muse Code hardware turns and approval grants
+are unavailable because the captured MSP has no synchronous process-start
+contract; use the Model API backend. No allow frame is sent blindly.
+This also refuses steering, child follow-ups and autonomous goal wakes after
+the workspace latches. A stored hardware session can be read for history,
+but cannot be resumed: read-only preflight refuses before the CLI can restart
+queued work. Each session uses its actual workspace's shared owner.
+
+Registered canonical Stop is normalized from the command, ignoring staged
+subject extras. The trusted host adapter directly executes absolute curl with
+startup config disabled and no inherited environment, or writes exact serial
+bytes. It needs no approval even unattended. The external CLI copy is rejected.
+Failed or uncertain transport delivery produces an unconfirmed Stop notice;
+check the machine and use its physical E-stop.
+USB identity acquisition, the full device registry/UI and editor/hardware
+qualification remain the other maker lanes' work. Webview focus/visibility is
+checked by the extension; ACP editor presence remains the editor's own boundary.
+These notes do not claim those tools or controls ship in the released ACP
+package. The guard does not sandbox an approved program.
+
 ## Playbook
 
 `/playbook status`, `/playbook record` and `/playbook settings ...` read the
@@ -946,6 +996,21 @@ records:
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help reference` in a terminal for the complete reference. Help starts no backend and makes no model request.
+
+### Maker OS presence (M103R)
+
+The maker runtime requires OS authentication for hardware enable, machine add,
+panel open and each exact physical payload. Agent-marked shells refuse enable,
+add and panel before asking for authentication. The panel launcher receives only
+a public loopback URL; the page gets its single-use launch code through a
+same-origin loopback exchange, never a process argument. ACP permission replies
+alone grant nothing. Linux uses the shipped auth_self polkit policy and a graphical session
+agent; its administrator installs the policy with @UID@ replaced by the intended
+account’s numeric UID. macOS LocalAuthentication and Windows Hello join through
+M109’s native helper port and refuse as unavailable until installed. Grants last
+five seconds and work once; terminal ancestry and multiplexer state confer no
+authority. Stop requires neither presence nor workspace storage. See the
+[repository guide](../README.md) for installation and qualification details.
 
 ## Resource status and resume
 

@@ -1,0 +1,57 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerPreview.test.ts (20 tests | 1 failed) 969ms
+   ❯ bounded host-owned STL preview (20)
+     × validation has a deadline and refuses late work 10ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+   Start at  09:32:47
+   Duration  3.21s (environment 38%, tests 32%, transform 12%, import 11%, setup 7%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerPreview.test.ts > bounded host-owned STL preview > validation has a deadline and refuses late work
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      <canvas
+        aria-label="Maker preview"
+        data-rendered="true"
+        id="maker-canvas"
+      />,
+      Array [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ],
+    ]
+
+
+Number of calls: 1
+
+ ❯ test/unit/makerPreview.test.ts:156:36
+    154|     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0).…
+    155|     emit(mesh)
+    156|     expect(createMeshRenderer).not.toHaveBeenCalled()
+       |                                    ^
+    157|     expect(document.querySelector<HTMLElement>('#maker-preview-unavail…
+    158|     clock.mockRestore()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
