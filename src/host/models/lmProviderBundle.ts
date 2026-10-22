@@ -1,11 +1,11 @@
-// Activation keeps the feature detection and loader; the provider, parsing and
-// durable ledger remain in editorChat.js until a model is exposed.
+// Activation keeps the feature detection and loader; the provider and parsing
+// remain in editorChat.js until a model is exposed.
 import * as vscode from 'vscode'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import type { createEditorChat, EditorChatDeps, EditorChatProvider } from './lmProvider'
-import type { TabLedgerDeps } from '../tab/tabLedger'
 import type { UiTable } from '../l10n'
+import type { Logger } from '../logger'
 import {
   EDITOR_CHAT_BUNDLE_FILE,
   EDITOR_CHAT_VENDOR,
@@ -16,7 +16,6 @@ import {
 
 interface Bundle {
   createEditorChat(deps: EditorChatDeps): ReturnType<typeof createEditorChat>
-  createTabLedger(deps: TabLedgerDeps): EditorChatDeps['ledger']
   setUiText(table: UiTable['table'], locale: string): void
 }
 function isBundle(value: unknown): value is Bundle {
@@ -25,8 +24,6 @@ function isBundle(value: unknown): value is Bundle {
     value !== null &&
     'createEditorChat' in value &&
     typeof value.createEditorChat === 'function' &&
-    'createTabLedger' in value &&
-    typeof value.createTabLedger === 'function' &&
     'setUiText' in value &&
     typeof value.setUiText === 'function'
   )
@@ -55,10 +52,8 @@ function hasEditorChatApi(): boolean {
 }
 export function registerEditorChat(deps: {
   readonly extensionPath: string
-  readonly storagePath: string
-  readonly windowId: string
   readonly table: UiTable
-  readonly log: TabLedgerDeps['log']
+  readonly log: Logger
   readonly models: () => Promise<EditorChatDeps['models']>
   readonly recording: EditorChatDeps['recording']
   readonly allowed: () => boolean
@@ -74,7 +69,6 @@ export function registerEditorChat(deps: {
   let loaded: ReturnType<typeof createEditorChat> | undefined
   const config = () => vscode.workspace.getConfiguration(SETTINGS_SECTION)
   const selected = () => config().get<unknown>('editorChatModels', [])
-  let previousBudget = config().get<unknown>('editorChatDailyBudgetUsd', 0)
   const stored = deps.globalState.get(GLOBAL_STATE_KEYS.editorChatConfirmations)
   const confirmations: Record<string, string> = {}
   if (typeof stored === 'object' && stored !== null && !Array.isArray(stored))
@@ -104,24 +98,16 @@ export function registerEditorChat(deps: {
     saving = write
     await write
   }
-  const withdraw = (hasBudgetChanged: boolean) => {
+  const withdraw = () => {
     const refs = selected()
-    const budget = config().get<unknown>('editorChatDailyBudgetUsd', 0)
     const refsToCheck = new Set([...Object.keys(confirmations), ...generations.keys()])
     for (const ref of refsToCheck)
-      if (
-        hasBudgetChanged ||
-        typeof budget !== 'number' ||
-        !Array.isArray(refs) ||
-        !refs.includes(ref) ||
-        budget <= 0 ||
-        !Number.isFinite(budget)
-      )
+      if (!Array.isArray(refs) || !refs.includes(ref))
         void saveConfirmation(ref, undefined).catch(() => {
           deps.log.warn('Editor chat confirmation could not be withdrawn')
         })
   }
-  withdraw(false)
+  withdraw()
   const load = () => {
     if (engine !== undefined) return engine
     const pending = (async () => {
@@ -132,32 +118,14 @@ export function registerEditorChat(deps: {
       bundle.setUiText(deps.table.table, deps.table.locale)
       loaded = bundle.createEditorChat({
         models: await deps.models(),
-        ledger: bundle.createTabLedger({
-          directory: path.join(deps.storagePath, 'editor-chat-spend'),
-          windowId: deps.windowId,
-          now: Date.now,
-          sleep: (ms) =>
-            new Promise((resolve) => {
-              setTimeout(resolve, ms)
-            }),
-          log: deps.log,
-        }),
         recording: deps.recording,
         selected,
         confirmations: () => confirmations,
         saveConfirmation,
-        cap: () => config().get<unknown>('editorChatDailyBudgetUsd', 0),
         allowed: () => !isDisposed && deps.allowed() && vscode.workspace.isTrusted,
         now: Date.now,
         saveSelected: async (refs) => {
           await config().update('editorChatModels', refs, vscode.ConfigurationTarget.Global)
-        },
-        saveCap: async (amount) => {
-          await config().update(
-            'editorChatDailyBudgetUsd',
-            Number(amount),
-            vscode.ConfigurationTarget.Global,
-          )
         },
       })
       if (isDisposed) loaded.cancelAll()
@@ -178,18 +146,8 @@ export function registerEditorChat(deps: {
     registration?.dispose()
     registration = undefined
     const refs = selected()
-    const budget = config().get<unknown>('editorChatDailyBudgetUsd', 0)
     const api: unknown = vscode.lm
-    if (
-      isDisposed ||
-      typeof budget !== 'number' ||
-      budget <= 0 ||
-      !Number.isFinite(budget) ||
-      !Array.isArray(refs) ||
-      refs.length === 0 ||
-      !isApi(api)
-    )
-      return
+    if (isDisposed || !Array.isArray(refs) || refs.length === 0 || !isApi(api)) return
     const provider: EditorChatProvider = {
       provideLanguageModelChatInformation: async (options, token) => {
         const provider = await getProvider()
@@ -214,16 +172,11 @@ export function registerEditorChat(deps: {
   }
   refresh()
   const listener = vscode.workspace.onDidChangeConfiguration((event) => {
-    if (!(
-      event.affectsConfiguration(`${SETTINGS_SECTION}.editorChatModels`) ||
-      event.affectsConfiguration(`${SETTINGS_SECTION}.editorChatDailyBudgetUsd`)
-    )) {
+    if (!event.affectsConfiguration(`${SETTINGS_SECTION}.editorChatModels`)) {
       return
     }
 
-    const budget = config().get<unknown>('editorChatDailyBudgetUsd', 0)
-    withdraw(budget !== previousBudget)
-    previousBudget = budget
+    withdraw()
     refresh()
   })
   return {

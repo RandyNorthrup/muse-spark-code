@@ -1818,13 +1818,6 @@
           "default": [],
           "scope": "machine",
           "markdownDescription": "%config.editorChatModels.description%"
-        },
-        "museSpark.editorChatDailyBudgetUsd": {
-          "type": "number",
-          "default": 0,
-          "minimum": 0,
-          "scope": "machine",
-          "markdownDescription": "%config.editorChatDailyBudgetUsd.description%"
         }
       }
     },

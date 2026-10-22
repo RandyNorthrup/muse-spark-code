@@ -5,8 +5,7 @@ import * as z from 'zod/mini'
 import type { ModelResolver, ResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 import type { CreateResponseBody, InputItem, Usage } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
-import type { TabLedger } from '../tab/tabLedger'
-import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 import {
   ANTHROPIC_MAX_IMAGE_BYTES,
   EDITOR_CHAT_VENDOR,
@@ -43,12 +42,12 @@ undefined where the provider states none: only documented bounds are
 enforced locally (D121); other providers' own refusals reach the caller
 in words.
 */
+const IMAGE_MAX_BYTES_BY_PROVIDER: Readonly<Record<string, number>> = {
+  anthropic: ANTHROPIC_MAX_IMAGE_BYTES,
+  meta: META_IMAGE_MAX_BYTES,
+}
 const imageMaxBytesFor = (providerId: string): number | undefined =>
-  providerId === 'anthropic'
-    ? ANTHROPIC_MAX_IMAGE_BYTES
-    : providerId === 'meta'
-      ? META_IMAGE_MAX_BYTES
-      : undefined
+  IMAGE_MAX_BYTES_BY_PROVIDER[providerId]
 const messageSchema = z.object({
   role: z.union([
     z.literal(vscode.LanguageModelChatMessageRole.User),
@@ -79,14 +78,11 @@ const idSchema = z.object({ id: z.string() })
 
 export interface EditorChatDeps {
   readonly models: ModelResolver
-  readonly ledger: TabLedger
   readonly recording: UsageRecording
   readonly selected: () => unknown
-  readonly cap: () => unknown
   readonly allowed: () => boolean
   readonly now: () => number
   readonly saveSelected: (refs: readonly string[]) => Promise<void>
-  readonly saveCap: (amount: UsdAmount) => Promise<void>
   readonly confirmations: () => unknown
   readonly saveConfirmation: (ref: string, evidence: string | undefined) => Promise<void>
 }
@@ -237,12 +233,11 @@ function bodyFor(
   }
 }
 
-const confirmationEvidence = (model: ResolvedModel, budget: UsdAmount) =>
+const confirmationEvidence = (model: ResolvedModel) =>
   JSON.stringify({
     model: model.ref,
     origin: model.origin,
     pricing: model.policy.pricing,
-    budget,
   })
 
 const pricePerMillion = (rate: number) =>
@@ -330,44 +325,29 @@ export function createEditorChat(deps: EditorChatDeps) {
   const resolveModel = async (ref: string) =>
     await deps.models.resolve(ref.startsWith('meta/') ? ref.slice('meta/'.length) : ref)
   const selected = () => selectedSchema.parse(deps.selected())
-  const cap = () => {
-    const value = legacyUsdSchema.safeParse(deps.cap())
-    return !value.success || Usd.from(value.data).compare(Usd.from(0)) <= 0 ? fail() : value.data
-  }
-  const isConfirmed = (ref: string, model: ResolvedModel, budget: UsdAmount) =>
-    confirmationsSchema.safeParse(deps.confirmations()).data?.[ref] ===
-    confirmationEvidence(model, budget)
-  const confirm = async (
-    ref: string,
-    model: ResolvedModel,
-    budget: UsdAmount,
-    requiresSelected: boolean,
-  ) => {
-    if (isConfirmed(ref, model, budget)) return
+  const isConfirmed = (ref: string, model: ResolvedModel) =>
+    confirmationsSchema.safeParse(deps.confirmations()).data?.[ref] === confirmationEvidence(model)
+  const confirm = async (ref: string, model: ResolvedModel, requiresSelected: boolean) => {
+    if (isConfirmed(ref, model)) return
     const prior = confirming.get(ref)
     if (prior !== undefined) {
       await prior
-      if (!isConfirmed(ref, model, budget)) return fail()
+      if (!isConfirmed(ref, model)) return fail()
       return
     }
-    const originalCap = deps.cap()
     const pending = (async () => {
       const answer = await vscode.window.showWarningMessage(
         fill(UI_TEXT.editorChatConsent, {
           model: ref,
           rates: modelRates(model),
-          cap: formatUsd(budget, 2),
         }),
         { modal: true },
         UI_TEXT.editorChatEnable,
       )
       if (answer !== UI_TEXT.editorChatEnable) return fail()
-      if (!deps.allowed() || !model.isCurrent() || deps.cap() !== originalCap) return fail()
+      if (!deps.allowed() || !model.isCurrent()) return fail()
       if (requiresSelected && !selected().includes(ref)) return fail()
-      if (legacyUsdSchema.safeParse(originalCap).data !== budget) await deps.saveCap(budget)
-      if (!deps.allowed() || !model.isCurrent() || cap() !== budget) return fail()
-      if (requiresSelected && !selected().includes(ref)) return fail()
-      await deps.saveConfirmation(ref, confirmationEvidence(model, budget))
+      await deps.saveConfirmation(ref, confirmationEvidence(model))
       // A removal that lands with the grant write must not leave a revoked
       // grant behind: recheck presence in the same step and withdraw instead.
       if (!requiresSelected || selected().includes(ref)) return
@@ -383,7 +363,6 @@ export function createEditorChat(deps: EditorChatDeps) {
   }
   const resolve = async (ref: string) => {
     if (!deps.allowed() || !selected().includes(ref)) return fail()
-    cap()
     const model = await resolveModel(ref)
     if (
       !model.isCurrent() ||
@@ -397,7 +376,6 @@ export function createEditorChat(deps: EditorChatDeps) {
   const provider: EditorChatProvider = {
     async provideLanguageModelChatInformation(_options, token) {
       if (!deps.allowed() || isCancelled(token) || selected().length === 0) return []
-      cap()
       const rows: EditorChatInformation[] = []
       for (const ref of selected()) {
         try {
@@ -462,16 +440,9 @@ export function createEditorChat(deps: EditorChatDeps) {
         images,
       })
       if (worst === undefined) return fail()
-      await confirm(ref, model, cap(), true)
-      if (
-        !deps.allowed() ||
-        !selected().includes(ref) ||
-        !model.isCurrent() ||
-        !isConfirmed(ref, model, cap())
-      )
-        return fail()
-      const admission = await deps.ledger.admit(worst, cap())
-      if (!admission.admitted) return fail()
+      await confirm(ref, model, true)
+      if (!deps.allowed() || !selected().includes(ref) || !model.isCurrent()) return fail()
+      if (!isConfirmed(ref, model)) return fail()
       const abort = new AbortController()
       active.add(abort)
       const subscription = token.onCancellationRequested(() => {
@@ -487,9 +458,8 @@ export function createEditorChat(deps: EditorChatDeps) {
       const guard = () => {
         abort.signal.throwIfAborted()
         if (!deps.allowed() || !selected().includes(ref) || !model.isCurrent()) return fail()
-        if (!isConfirmed(ref, model, cap())) return fail()
-        if (Usd.from(admission.totalUsd).compare(Usd.from(cap())) > 0) return fail()
-        if (state.isDispatched) return fail() // Automatic retries cannot spend a second reservation.
+        if (!isConfirmed(ref, model)) return fail()
+        if (state.isDispatched) return fail() // Automatic retries cannot spend twice.
       }
       guard.onRequestStarted = () => {
         guard()
@@ -550,17 +520,15 @@ export function createEditorChat(deps: EditorChatDeps) {
               },
               usage.provider_cost_usd === undefined ? undefined : { cost: usage.provider_cost_usd },
             )
-          if (actual !== undefined && Usd.from(actual).compare(Usd.from(worst)) <= 0) {
-            if (!(await deps.ledger.settle(admission.reservation, actual))) {
-              actual = undefined
-              outcome = 'failed'
-            }
-          } else {
+          // A settled cost past the worst case is not trusted: the tally
+          // keeps the worst case as uncertain liability instead.
+          if (actual === undefined || Usd.from(actual).compare(Usd.from(worst)) > 0) {
             actual = undefined
             if (state.isDispatched && state.isCompleted) outcome = 'failed'
           }
         } catch {
-          // A failed settlement retains the durable reservation and still gets a tally.
+          // A failed pricing still gets a tally, with the worst case held
+          // as uncertain liability.
           actual = undefined
           outcome = 'failed'
         }
@@ -600,39 +568,17 @@ export function createEditorChat(deps: EditorChatDeps) {
       }
       if (!deps.allowed()) return fail()
       await deps.saveConfirmation(ref, undefined)
-      const originalCap = deps.cap()
-      let budget = legacyUsdSchema.safeParse(originalCap).data
-      if (budget === undefined || Usd.from(budget).compare(Usd.from(0)) <= 0) {
-        const entered = await vscode.window.showInputBox({
-          prompt: UI_TEXT.editorChatBudgetPrompt,
-          validateInput: (value) => {
-            const parsed = usdInputSchema.safeParse(value)
-            return parsed.success && Usd.from(parsed.data).compare(Usd.from(0)) > 0
-              ? undefined
-              : UI_TEXT.editorChatBudgetPrompt
-          },
-        })
-        if (entered === undefined) return
-        budget = usdInputSchema.safeParse(entered).data
-        if (budget === undefined || Usd.from(budget).compare(Usd.from(0)) <= 0) return fail()
-      }
       const model = await resolveModel(ref)
       const pricing = model.policy.pricing
       if (pricing.kind !== 'local' && pricing.kind !== 'priced') return fail()
       limits(model)
       reasoningEffortFor(model, {})
       try {
-        await confirm(ref, model, budget, false)
+        await confirm(ref, model, false)
       } catch {
         return
       }
-      if (
-        !deps.allowed() ||
-        !model.isCurrent() ||
-        cap() !== budget ||
-        !isConfirmed(ref, model, budget)
-      )
-        return fail()
+      if (!deps.allowed() || !model.isCurrent() || !isConfirmed(ref, model)) return fail()
       await deps.saveSelected([...new Set([...selected(), ref])])
     },
   }

@@ -69,7 +69,6 @@ const UI_CONDITIONS: Readonly<
   mcpRestartDetail: 'turnState',
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
-  'config.editorChatDailyBudgetUsd.description': 'editorChatCap',
   'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
   'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation=noRoute',
@@ -104,7 +103,6 @@ const SETTING_CONDITIONS: Readonly<
   notifyOnBackgroundTurn: 'turnState&windowFocus',
   // The provider wizard edits this numeric setting, preserving exact USD
   // through a validated decimal-to-number boundary.
-  editorChatDailyBudgetUsd: 'editorChatCap',
   modelApiSessionBudgetUsd: 'sessionBudget',
 
   modelApiObservationPacking: 'conversationStart',
@@ -418,11 +416,11 @@ export function featureCatalog(): readonly Feature[] {
     ),
     feature(
       'editor-chat',
-      // Native Muse and BYO rows share recorded price/cap confirmation and M102 accounting.
+      // Native Muse and BYO rows share recorded price confirmation and M102 accounting.
       { ui: 'editorChatTitle' },
       { ui: 'referenceEditorChat' },
       ['modelsAndAgents'],
-      ['editorChatModels', 'editorChatDailyBudgetUsd'],
+      ['editorChatModels'],
       'editor-chat',
       ['museCode', 'modelApi'],
       true,
