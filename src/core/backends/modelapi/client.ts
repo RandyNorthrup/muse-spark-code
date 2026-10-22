@@ -193,11 +193,11 @@ export interface ModelApiClientDeps {
   */
   readonly personCap?: (() => number | undefined) | undefined
   /**
-   * The stored pay-as-you-go key for paid extras (C-M95-SUB): while chat
-   * bills the subscription, a billed image POST still authenticates as the
-   * stored key. Undefined while no key is stored; image requests then
-   * refuse instead of charging the subscription.
-   */
+  The stored pay-as-you-go key for paid extras (C-M95-SUB): while chat
+  bills the subscription, a billed image POST still authenticates as the
+  stored key. Undefined while no key is stored; image requests then
+  refuse instead of charging the subscription.
+  */
   readonly paidApiKey?: () => Promise<string | undefined>
   readonly getBillingRoute?: ((isPaid: boolean) => Promise<BillingRoute | undefined>) | undefined
   /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */

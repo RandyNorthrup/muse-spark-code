@@ -63,11 +63,11 @@ function ignoreProbeLog(): void {
 }
 
 /**
- * The free check that proves a key works (D74): the preset's models list,
- * or its provider-key path where the list is public. Nothing is billed.
- * Azure's `paid-token` test has no free check and stays in the panel, where
- * its cost is asked first.
- */
+The free check that proves a key works (D74): the preset's models list,
+or its provider-key path where the list is public. Nothing is billed.
+Azure's `paid-token` test has no free check and stays in the panel, where
+its cost is asked first.
+*/
 export async function probeProvider(
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,

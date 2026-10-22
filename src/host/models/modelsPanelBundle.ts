@@ -38,9 +38,9 @@ export function providerCredentials(
   log: Logger,
   readProviders: () => Promise<readonly ProviderEntry[]>,
   /**
-   * C-M95-SUB: the opted-in CLI subscription, for backend availability
-   * only. Absent where the host has no subscription opt-in.
-   */
+  C-M95-SUB: the opted-in CLI subscription, for backend availability
+  only. Absent where the host has no subscription opt-in.
+  */
   hasSubscriptionCredential?: () => Promise<boolean>,
 ): CredentialStore {
   return new CredentialStore(
