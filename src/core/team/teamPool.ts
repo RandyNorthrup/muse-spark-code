@@ -5,6 +5,7 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import { type TeamAttempt, type TeamBoard, type TeamBoardTask } from '../../shared/team'
 import { type TaskBoard } from './scheduler/board'
 import { TaskPicker, type PickContext, type SchedulerEntry } from './scheduler/pick'
+import type { StolenPolicy } from './scheduler/steal'
 import { type SchedulerSlots, type SlotRequest } from './scheduler/slots'
 // Team pools and selection (M96 lane A, PLAN.md D75): entries, caps and
 // windows, Default's live resolution, headroom, the first entry with
@@ -729,11 +730,16 @@ export interface SchedulerDependencies {
   lease(task: TeamBoardTask, ref: SlotRequest): { release(): void } | undefined
   authorize(task: TeamBoardTask, entry: SchedulerEntry): Promise<boolean>
   journal(board: TeamBoard): Promise<void>
-  /** Resolve on launch admission, not on the worker's eventual completion. */
+  /**
+  Resolve on launch admission, not on the worker's eventual completion.
+  A host that passes role policies for cross-role steals runs a
+  stolen task under the carried policy, never under either role alone.
+  */
   start(
     task: TeamBoardTask,
     entry: SchedulerEntry,
     input: ReturnType<TaskBoard['dependencyInput']>,
+    stolenPolicy: StolenPolicy | undefined,
   ): Promise<'started' | 'notStarted' | 'uncertain'>
   uncertain(ref: SlotRequest): Promise<void>
   schedule(callback: () => void, ms: number): () => void
@@ -882,7 +888,12 @@ export class TeamScheduler {
         this.slots.mark(ref, 'running')
         canRelease = false
         this.leases.set(this.key(ref), lease)
-        const outcome = await this.deps.start(this.board.task(current.id), pick.entry, input)
+        const outcome = await this.deps.start(
+          this.board.task(current.id),
+          pick.entry,
+          input,
+          pick.stolenPolicy,
+        )
         this.picker.started(pick.entry, this.deps.now())
         if (outcome !== 'started' && this.isActive(ref)) {
           this.slots.mark(ref, 'uncertain')
