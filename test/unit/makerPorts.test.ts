@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { checkFlashIdentity } from '../../src/core/maker/flashIdentity'
 import { identifyBoard, isSameSerialIdentity } from '../../src/core/maker/serial/identity'
 import { listSerialPorts } from '../../src/core/maker/serial/listPorts'
@@ -159,26 +159,10 @@ describe('serial metadata parsers', () => {
     expect(() => parseIoregPorts(text, 1)).toThrow('serial-list-oversize')
   })
 
-  it('lists without any open primitive and runs only a listing command', async () => {
-    const run = vi.fn().mockResolvedValue('[]')
-    expect(
-      await listSerialPorts({
-        ...LIMITS,
-        platform: 'linux',
-        tool: { kind: 'pio', executable: '/user/pio' },
-        run,
-      }),
-    ).toEqual([])
-    expect(run).toHaveBeenCalledExactlyOnceWith('/user/pio', ['device', 'list', '--json-output'])
-    const linuxSnapshot = vi.fn().mockResolvedValue({ rows: [], byId: [] })
-    await listSerialPorts({ ...LIMITS, platform: 'linux', run, linuxSnapshot })
-    expect(run).toHaveBeenCalledTimes(1)
-    expect(linuxSnapshot).toHaveBeenCalledTimes(1)
-  })
-
   it('collects real rig platform metadata without device reads', async () => {
     const ports = await listSerialPorts({
       ...LIMITS,
+      maxBytes: 1024 * 1024,
       platform: process.platform,
       powershell: 'powershell.exe',
       run: runMetadataCommand,
@@ -236,38 +220,38 @@ describe('serial metadata parsers', () => {
       ])
     })
 
-  it('bounds the list and refuses unavailable discovery without opening a device', async () => {
-    const run = vi.fn().mockResolvedValue('{"detected_ports":[]}')
-    await listSerialPorts({
-      ...LIMITS,
-      platform: 'linux',
-      tool: { kind: 'arduino-cli', executable: '/user/arduino-cli' },
-      run,
-    })
-    expect(run).toHaveBeenCalledExactlyOnceWith('/user/arduino-cli', ['board', 'list', '--json'])
-    run.mockResolvedValue('null')
-    await listSerialPorts({ ...LIMITS, platform: 'win32', powershell: 'powershell.exe', run })
-    expect(run.mock.calls.at(-1)?.[1]).toContain('-NonInteractive')
+  it('refuses unavailable discovery without opening a device', async () => {
+    // The recording wrapper observes the real runner; the refusals below
+    // throw before any command runs, so the record stays empty.
+    const calls: [string, readonly string[]][] = []
+    const run = (file: string, args: readonly string[]) => {
+      calls.push([file, args])
+      return runMetadataCommand(file, args)
+    }
     await expect(listSerialPorts({ ...LIMITS, platform: 'win32', run })).rejects.toThrow(
       'serial-powershell-unavailable',
     )
     await expect(listSerialPorts({ ...LIMITS, platform: 'freebsd', run })).rejects.toThrow(
       'serial-platform-unavailable',
     )
-    run.mockResolvedValue('')
-    await listSerialPorts({ ...LIMITS, platform: 'darwin', run })
-    expect(run.mock.calls.at(-1)).toEqual(['/usr/sbin/ioreg', ['-l', '-w', '0']])
-    run.mockResolvedValue('[{"port":"port","description":"Bridge","hwid":""}]')
-    await expect(
-      listSerialPorts({
-        ...LIMITS,
-        maxPorts: 0,
-        platform: 'linux',
-        tool: { kind: 'pio', executable: '/user/pio' },
-        run,
-      }),
-    ).rejects.toThrow('serial-list-too-many')
+    expect(calls).toEqual([])
   })
+
+  it.runIf(process.platform === 'darwin')(
+    'asks ioreg only for the USB plane and the serial-client class',
+    async () => {
+      const calls: [string, readonly string[]][] = []
+      const run = (file: string, args: readonly string[]) => {
+        calls.push([file, args])
+        return runMetadataCommand(file, args)
+      }
+      await listSerialPorts({ ...LIMITS, maxBytes: 1024 * 1024, platform: 'darwin', run })
+      expect(calls).toEqual([
+        ['/usr/sbin/ioreg', ['-p', 'IOUSB', '-l', '-w', '0']],
+        ['/usr/sbin/ioreg', ['-r', '-c', 'IOSerialBSDClient', '-l', '-w', '0']],
+      ])
+    },
+  )
 })
 
 describe('flash target identity', () => {

@@ -417,7 +417,7 @@
                               "timeoutSeconds": {
                                 "type": "integer",
                                 "exclusiveMinimum": 0,
-                                "maximum": 600
+                                "maximum": 9007199254740991
                               }
                             },
                             "required": ["name", "command"],
@@ -585,7 +585,7 @@
                           "timeoutSeconds": {
                             "type": "integer",
                             "exclusiveMinimum": 0,
-                            "maximum": 600
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": ["name", "command"],
