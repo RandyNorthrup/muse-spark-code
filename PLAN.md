@@ -16057,7 +16057,7 @@ observe the named tests fail, restore byte-exact and record the evidence in
       cosign signatures, no over-the-air updates, and Secure Boot off.
 
 - **Q-M111 — What Muse Desktop needs from the owner (2026-10-05).** Every lane
-  builds and certifies on fakes, QEMU and the rigs meanwhile; nothing here
+  builds and certifies real code on QEMU and the rigs meanwhile; nothing here
   blocks lane 0.
   1. **Admin access for agents.** **Default:** Always allow, as he asked,
      with D89.7's taint rule kept (a request that followed a web page, an
@@ -30423,6 +30423,17 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
 
+**Status 2026-10-22 (RLM111): planned.** The accepted
+threat model is landed at `docs/certification/m111-threat-model.md` (rows
+D01–D96; reviews RVM111TM and RVM111TM2; source `src/RLM111/01-m111-tm3`).
+No build lane has started: M111a0's remaining lanes, M111a, M111b, M111w,
+M111i, M111os, M111c, M111x and J all wait for their gates — the owner's
+mockups before SH1, SH2, WB and ST (Q-M111 item 6), M114's lane 0, and the
+M104a, M110a0, M110os and M110t landings. The QEMU boot proof (amd64 and
+arm64) and the installer run in a VM belong to M111os and M111i on M110os;
+the hardware matrix waits for the owner's machines (Q-M111 item 5). The
+landing record is `docs/certification/rlm111.md`.
+
 **Status 2026-10-09: planned.** Threat model accepted as baseline; build lanes not started.
 
 **Status 2026-10-05: planned.**
@@ -30432,7 +30443,8 @@ and no lane is launched by this record. The research is
 `docs/research/muse-desktop-2026-10-05.md`. Lane 0's threat model is reviewed
 and accepted by Codex and Claude before any greeter, lock-screen, portal,
 admin-helper, installer or preview-sharing code is written. No model call is
-needed anywhere in this milestone; the tests run on fakes, QEMU and the rigs.
+needed anywhere in this milestone; the tests run real code on QEMU, a
+Debian 13 VM and the rigs, never on stand-ins.
 
 **Amended 2026-10-05 and 2026-10-06** (D91's amendments): GUI or TUI and the
 switch (lane GT, new in M111a); the terminal panel and the footer (BP and WB);
@@ -30458,8 +30470,8 @@ re-estimated).
 - **Depends on** (each phase's row in the roadmap names its own):
   - **M110a0 (D90.23):** the node service and tool host (lane N), the web
     pages for files, editor, git, terminal and dashboard (U1, U2), the TUI
-    (T) and the pinned sign-in (A1). M111a and M111b build on fakes until
-    these merge.
+    (T) and the pinned sign-in (A1). M111a and M111b build as packages on
+    a Debian 13 VM; their wiring waits for these to merge.
   - **M110os (D90.24):** OS1's mkosi recipes and layouts, OS2's RAUC slots
     and trial boot, OS3's first-boot pages, OS4's encryption and hardening,
     OS6's CI and OS7's Chrome step. M111os and M111i start on OS1.
@@ -30508,7 +30520,7 @@ implements, Codex reviews by class, the lead integrates). The security lanes
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ----- |
 | **M111a0** Foundations                     | Contracts, threat model, strings and spikes; the desktop's token outputs from M114's source; the shared language, accessibility and observability layers, also for M110's web UI and TUI; the art; the headless test rig                                                                                                                                     | 0, TH, IN, AX, OB, AR, QA                  | M114's lane 0 (the token source)                                                                                                 | 7 × 46 h ≈ 320 h           | 2     |
 | **M111a** Session and shell                | Hyprland pinned and configured; greetd, our Qt Quick greeter, the lock screen, supervision, safe session and recovery; the Qt Quick bar, quick settings, launcher, notifications, OSD, capture, clipboard; desktops of their own with the bar's indicators and two overlays; the system bridge; portals and platform integration; GUI or TUI and the switch  | CP, SS, SH1, SH2, SY, PT, GT               | lane 0; built and tested on a Debian 13 VM and the rigs before any image                                                         | 7 × 59 h ≈ 410 h           | 2     |
-| **M111b** Workbench                        | The Electron app and desktop bridge; the VS Code-like layout with the terminal panel, the tabbed footer and the full-width status bar; CodeMirror's editor group with the minimap; the sidebar's core sections, pinned apps, key labels and flipping pages; the bottom panel; the settings app; onboarding with M110t's questionnaire; the experience engine | WB, ED, SB1, BP, ST1, ST2, ON, XE          | lane 0 on fakes; wired on M104a (B, C, D) and M110a0 (N, U1, U2); ON on M110t's TQ; XE's guided flow on IU, IS and TP2           | 8 × 49 h ≈ 395 h           | 2     |
+| **M111b** Workbench                        | The Electron app and desktop bridge; the VS Code-like layout with the terminal panel, the tabbed footer and the full-width status bar; CodeMirror's editor group with the minimap; the sidebar's core sections, pinned apps, key labels and flipping pages; the bottom panel; the settings app; onboarding with M110t's questionnaire; the experience engine | WB, ED, SB1, BP, ST1, ST2, ON, XE          | lane 0; wired on M104a (B, C, D) and M110a0 (N, U1, U2); ON on M110t's TQ; XE's guided flow on IU, IS and TP2                    | 8 × 49 h ≈ 395 h           | 2     |
 | **M111w** Web development                  | Dev servers, preview tabs and split views, view modes and the multi-viewport grid, DevTools and inspect-to-source, emulation, audits, screenshots and visual diff, components, phone and remote sharing, the agents' tools, every editor                                                                                                                     | WD0, WS, WP, WV, WI, WA, WC, WN, WG        | WB and ED's preview manager; M81 (WG, WA's Lighthouse); M104a C (other editors); M110a0 A1 and M110d/e (WN)                      | 9 × 37 h ≈ 330 h           | 3     |
 | **M111i** Installer                        | The themed boot menu, the live session's installer flow and its gallery, `muse-installd`, downloads during the install, rollback, the unattended file; the agent's admin access; the local judge's scan, choice, download and registration (D91.24's amendment); installer CI                                                                                | IB, IU, ID, IA, IG, IS, IQ                 | M110os OS1, OS2, OS4; M110t TP1 (downloads); M109 (IG); QA's harness (IS)                                                        | 7 × 49 h ≈ 342 h           | 3     |
 | **M111os** Desktop images                  | The `desktop` profile on OS1's recipes for x86-64, ARM64 UEFI and the Pi 4 and 5; Plymouth and the boot path; desktop readiness in OS2's trial boot; the hardware matrix                                                                                                                                                                                     | IM, HW                                     | M110os OS1, OS2, OS4, OS6, OS7; M111a and M111b                                                                                  | 2 × 44 h ≈ 90 h            | 3     |
