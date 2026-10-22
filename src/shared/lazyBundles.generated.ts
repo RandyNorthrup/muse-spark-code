@@ -518,6 +518,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'modelEfforts.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/backend/museCodeBackendManager.ts',
+        symbol: 'MuseCodeBackendManager.spawn',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'modelsPanel.js',
     side: 'vscode',
     requestedBy: [

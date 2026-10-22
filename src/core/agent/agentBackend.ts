@@ -29,6 +29,7 @@ import type { ApprovalMode } from '../../shared/permissionModes'
 import type { MediaInfo } from '../../shared/media'
 import type { SessionExport } from '../export/sessionTransfer'
 import type { GitDraftOutputPort } from '../git/gitText'
+import type { FeedbackRequest } from '../backends/musecode/feedback'
 import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 import type { UnattendedRun } from '../schedules/unattended'
 
@@ -358,7 +359,6 @@ export interface ModelSummary {
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
   /**
-  /**
   Why this model cannot run the coding agent (tool calling unconfirmed):
   lists show it with this limit stated instead of hiding it, and an
   agent turn on it is refused with this sentence. Absent when it can.
@@ -377,6 +377,16 @@ export interface ModelSummary {
   readonly defaultEffort?: EffortLevel | undefined
   readonly fastTier?:
     { readonly id: string; readonly name: string; readonly description: string } | undefined
+  /**
+  A served catalogue's effort tiers (C-M106-3): the ordered selectable
+  tiers, their display strings, and the row's default, as `model/list`
+  sent them. Absent where the backend reports none; unknown tiers ride
+  verbatim so a later tier never breaks the list.
+  */
+  readonly variants?: readonly string[] | 'unknown' | undefined
+  readonly reasoningEffortVariants?:
+    readonly { readonly tier: string; readonly description?: string | undefined }[] | undefined
+  readonly defaultReasoningEffort?: string | undefined
 }
 
 export interface SkillSummary {
@@ -913,6 +923,20 @@ export interface AgentSession {
   without it offers no Edit: the controller refuses before asking.
   */
   readonly withdrawQueued?: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>
+  /**
+  Scrub registered literals from a feedback note for its preview
+  (C-M106-3R2): Muse Code only; a session without it previews the note
+  unchanged and the dialog still applies the shared pattern detector.
+  */
+  readonly previewFeedbackNote?: (note: string) => string
+  /**
+  Send the confirmed note with its classification (`feedback/submit`,
+  C-M106-3R2): Muse Code only, granted at the handshake. Files and the
+  session record are never attached: no captured frame certifies them, so
+  the reader refuses them with the upstream request. A session without
+  it offers no Send: the controller refuses before dispatch.
+  */
+  readonly submitFeedback?: (input: FeedbackRequest) => Promise<string>
   dispose(): void
 }
 
