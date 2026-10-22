@@ -41,11 +41,13 @@ describe('session-level provider refresh', () => {
       catalogFile,
       secrets: { get: () => Promise.resolve(undefined) },
     })
-    const first = await services.client.models.resolve('refresh/native')
+    const models = services.client.models
+    if (models === undefined) throw new Error('configured models missing')
+    const first = await models.resolve('refresh/native')
     expect(first.contextTokens).toBe(8192)
     // The edit between turns: the next turn resolves the new cap.
     writeProvidersFile(configFile, 16_384)
-    const second = await services.client.models.resolve('refresh/native')
+    const second = await models.resolve('refresh/native')
     expect(second.contextTokens).toBe(16_384)
   })
 })

@@ -36,7 +36,7 @@ describe('the Azure preset waits for its capture', () => {
         ],
       }),
     )
-    const sends: string[] = []
+    const sends: unknown[] = []
     // A stored key: the missing capture is the only reason to refuse.
     const stored = JSON.stringify({
       v: 1,
@@ -49,11 +49,13 @@ describe('the Azure preset waits for its capture', () => {
       catalogFile,
       secrets: { get: () => Promise.resolve(stored) },
       send: (target) => {
-        sends.push(target.url)
+        sends.push(target)
         return Promise.reject(new Error('no send may go out before the capture'))
       },
     })
-    await expect(services.client.models.resolve('azure/gpt-5-4')).rejects.toThrow()
+    const models = services.client.models
+    if (models === undefined) throw new Error('configured models missing')
+    await expect(models.resolve('azure/gpt-5-4')).rejects.toThrow()
     expect(sends).toEqual([])
   })
 })
