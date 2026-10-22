@@ -211,6 +211,7 @@
   "rateLimits": "Limity četnosti požadavků a tokenů",
   "asReported": "Jak nahlášeno",
   "noLimitReported": "{provider} zde nehlásí žádný limit.",
+  "limitNotReadYet": "Pro tento účet zatím nenačteno.",
   "providerConsole": "Otevřít konzoli poskytovatele",
   "retries": "Opakování",
   "rateLimited": "Omezená volání",

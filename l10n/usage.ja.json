@@ -172,6 +172,7 @@
   "rateLimits": "リクエストとトークンのレート制限",
   "asReported": "報告通り",
   "noLimitReported": "{provider}はここでは制限を報告していません。",
+  "limitNotReadYet": "このアカウントではまだ読み取られていません。",
   "providerConsole": "プロバイダーのコンソールを開く",
   "retries": "再試行回数",
   "rateLimited": "レート制限された呼び出し",

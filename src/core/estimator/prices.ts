@@ -1,4 +1,5 @@
 import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
+import { compareCatalogRows } from './priceCatalogs'
 import * as z from 'zod/mini'
 import {
   estimateRequestSchema,
@@ -90,15 +91,25 @@ function isConsistent(
   asOf: string,
 ): boolean {
   const classes = parseEstimate(machineClassesSchema, machineClasses)
+  const retrievedDate = document.retrievedAt.slice(0, 'YYYY-MM-DD'.length)
+  // Each row carries its own meter's date (M117 C-M117-4R2): every row date
+  // must be a real date no later than retrieval, and the document date is
+  // the latest of the priced rows, so a later unpriced row can never move a
+  // price's date. An empty document keeps a single honest date.
+  const rowDates = document.rows.map((row) => row.price.catalogDate)
+  const latest =
+    rowDates.length === 0 ? document.catalogDate : rowDates.toSorted(compareEstimateIds).at(-1)
   return (
     Date.parse(document.retrievedAt) <= Date.parse(asOf) &&
-    document.catalogDate <= document.retrievedAt.slice(0, 'YYYY-MM-DD'.length) &&
+    document.catalogDate <= retrievedDate &&
+    document.catalogDate === latest &&
     document.rows.every(
       (row) =>
         classes.some((size) => size.id === row.classId) &&
         row.price.catalogUrl === catalogUrl &&
         isPublicUrl(row.price.catalogUrl) &&
-        row.price.catalogDate === document.catalogDate,
+        z.iso.date().safeParse(row.price.catalogDate).success &&
+        row.price.catalogDate <= retrievedDate,
     )
   )
 }
@@ -180,14 +191,7 @@ export async function lookupEstimatePrices(
       continue
     }
     if (document.rows.length === 0) result.unavailable.push({ catalogUrl, reason: 'emptyCatalog' })
-    result.rows.push(
-      ...document.rows.toSorted((a, b) =>
-        compareEstimateIds(
-          JSON.stringify([a.classId, a.price.providerId, a.price.sizeId]),
-          JSON.stringify([b.classId, b.price.providerId, b.price.sizeId]),
-        ),
-      ),
-    )
+    result.rows.push(...document.rows.toSorted(compareCatalogRows))
     result.sources.push({
       catalogUrl,
       catalogDate: document.catalogDate,

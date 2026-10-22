@@ -124,7 +124,7 @@ describe('M117 R3 strict snapshot regressions', () => {
     }
     const extension = readFileSync('src/extension.ts', 'utf8')
     const binding = extension.slice(
-      extension.indexOf('const snapshot = planSnapshotLoader('),
+      extension.indexOf('const networkPolicy = estimatorNetworkPolicy('),
       extension.indexOf(
         'return estimatorSourcePorts(',
         extension.indexOf('const snapshot = planSnapshotLoader('),

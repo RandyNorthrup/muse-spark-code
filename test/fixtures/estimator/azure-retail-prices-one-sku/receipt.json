@@ -1,0 +1,46 @@
+{
+  "capturedAtUtc": "2026-10-11T17:18:46.182Z",
+  "id": "azure-sku",
+  "lane": "CM1174",
+  "source": "azure-retail-prices-one-sku",
+  "method": "GET",
+  "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20armSkuName%20eq%20'Standard_F8s_v2'",
+  "httpStatus": 200,
+  "httpStatusText": "OK",
+  "contentType": "application/json; charset=utf-8",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 396,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 5301,
+    "sha256": "fc411df7dc95e2381fdf7c55cd4c38623a1bae22cf797636fe0661293e7f9c7d",
+    "bytesBeforeScrub": 5301,
+    "parsesAsJson": true,
+    "exceedsProduct2MiBBound": false
+  },
+  "tool": "node:https, Node v24.20.0 on win32 (capture.mjs sha256 ba7080c40be8173f34854b80a2160c8b440d4a94687e98d7fdcd719fd471ac7c)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "connection",
+      "pragma",
+      "set-cookie",
+      "x-aspnet-version",
+      "x-azure-ref",
+      "x-cache",
+      "x-powered-by"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 0,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "bodyJsonPathsChanged": [],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}

@@ -142,7 +142,22 @@ function laneShorts(short: string): string[] {
   return short === '0' ? ['0', 'l0'] : [short.toLowerCase()]
 }
 
-function branchLane(branch: string, prefix: string, shorts: readonly string[]): string | null {
+/** Shared with the history builders and the snapshot source: non-empty trimmed
+output lines, with Windows line endings normalized first. */
+export function outputLines(output: string): string[] {
+  return output
+    .replaceAll('\r\n', '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+}
+
+/** Shared with the history builders: the branch convention, as M113's lane reader matches it. */
+export function branchLane(
+  branch: string,
+  prefix: string,
+  shorts: readonly string[],
+): string | null {
   const ref = shortRef(branch).toLowerCase()
   let hit: string | null = null
   for (const short of shorts) {

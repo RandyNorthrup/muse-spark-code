@@ -4534,6 +4534,10 @@ export const ESTIMATOR_BUNDLE_FILE = 'estimator.js'
 // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
 // first time an estimate needs a plan snapshot.
 export const PLAN_SNAPSHOT_BUNDLE_FILE = 'planSnapshot.js'
+// The estimator's price port (M117 C-M117-4, PLAN.md D6): the report reader
+// and cache over the pinned catalogs, loaded the first time an estimate
+// looks prices up.
+export const ESTIMATE_PRICES_BUNDLE_FILE = 'estimatePrices.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
@@ -8505,7 +8509,7 @@ export const ESTIMATE_RUNS = 2000
 export const ESTIMATE_CALIBRATION_MIN_SAMPLES = 20
 export const ESTIMATE_PRIOR_SIGMA = 0.5
 export const ESTIMATE_MARGINAL_FLOOR_HOURS = 4
-/** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
+/** Idle teardown deadline in minutes: the funded lifetime still ends on time. */
 export const ESTIMATE_IDLE_TEARDOWN_MINUTES = 30
 /** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
 export const ESTIMATE_LOCAL_BUDGET_MS = 2000
@@ -8530,6 +8534,24 @@ export const ESTIMATE_SOURCE_TIMEOUT_MS = 5000
 // M117 C-M117-1: how many unestimated lanes a refused snapshot names before
 // counting the rest, so the detail stays a short technical label.
 export const ESTIMATE_MISSING_DETAIL_LIMIT = 10
+// M117 C-M117-4: the estimator's optional price lookup reads these public
+// provider catalogs that need no account, under the Reports network policy.
+// One Azure retail-prices query (Virtual Machines, eastus, the SKUs the
+// adapter pins), captured at test/fixtures/estimator/azure-retail-eastus.json.
+export const ESTIMATE_PRICE_CATALOG_URLS: readonly string[] = [
+  "https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview&$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20(skuName%20eq%20'F2s%20v2'%20or%20skuName%20eq%20'F8s%20v2'%20or%20skuName%20eq%20'D8plds%20v6')",
+]
+// M117 C-M117-4: a cached catalog older than a day refreshes before prices
+// show; Azure republishes rates monthly, so a day keeps advice current
+// without fetching on every estimate. The capture above measured 5,686
+// bytes; forty times that leaves room for catalog growth while a runaway
+// response cannot fill the disk before the cap trips.
+export const ESTIMATE_PRICE_MAX_AGE_MS = 24 * 60 * 60 * 1000
+export const ESTIMATE_PRICE_MAX_BYTES = 256 * 1024
+// M117 C-M117-2: the history journal under the agent data folder, shared by
+// every workspace's lanes. A relative path, never absolute: hosts join it
+// onto the data folder (forward slashes join on Windows too).
+export const ESTIMATE_HISTORY_DIRECTORY = 'estimator/history'
 export const ESTIMATE_ID_MAX_CHARS = 128
 export const ESTIMATE_LABEL_MAX_CHARS = 256
 // M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old

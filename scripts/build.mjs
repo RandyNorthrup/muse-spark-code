@@ -356,6 +356,11 @@ const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 // snapshot.
 const PLAN_SNAPSHOT_ENTRY = 'src/host/estimator/planSnapshotEntry.ts'
 const PLAN_SNAPSHOT_OUTFILE = 'dist/planSnapshot.js'
+// M117 C-M117-4: the estimator's price port over the report reader and
+// cache, loaded the first time an estimate looks prices up; it reads no
+// `vscode`, so a stray import fails this build.
+const ESTIMATE_PRICES_ENTRY = 'src/host/estimator/priceCatalogEntry.ts'
+const ESTIMATE_PRICES_OUTFILE = 'dist/estimatePrices.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
@@ -852,6 +857,24 @@ const planSnapshotOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [PLAN_SNAPSHOT_ENTRY],
   outfile: PLAN_SNAPSHOT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The estimator's price port (M117 C-M117-4, PLAN.md D6), loaded the first
+// time an estimate looks prices up; it reads no `vscode`, so a stray import
+// fails this build. The report redaction it scrubs with is shared with the
+// reporting bundles rather than copied in.
+/** @type {import('esbuild').BuildOptions} */
+const estimatePricesOptions = {
+  ...common,
+  // Like the reporting bundles: governed launches go through the window's one
+  // admission configuration (dist/resourceAdmission.js); an inline copy would
+  // be unconfigured and carry the whole governor. Redaction stays shared too.
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission, sharedRedaction],
+  entryPoints: [ESTIMATE_PRICES_ENTRY],
+  outfile: ESTIMATE_PRICES_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -1948,6 +1971,7 @@ if (isWatch) {
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(planSnapshotOptions),
+    esbuild.context(estimatePricesOptions),
     esbuild.context(recorderOptions),
     esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
@@ -2140,6 +2164,7 @@ if (isWatch) {
     voiceCompanion: recorded('voiceCompanion', voiceCompanionOptions),
     voiceCompanionWebview: recorded('voiceCompanionWebview', voiceCompanionWebviewOptions),
     planSnapshot: recorded('planSnapshot', planSnapshotOptions),
+    estimatePrices: recorded('estimatePrices', estimatePricesOptions),
     credentialLease: recorded('credentialLease', credentialLeaseOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -2319,6 +2344,7 @@ if (isWatch) {
   reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
+  reportSize(ESTIMATE_PRICES_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(CREDENTIAL_LEASE_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)

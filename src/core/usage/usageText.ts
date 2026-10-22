@@ -39,7 +39,7 @@ function certaintyNote(certainty: UsageCertainty): string | undefined {
   if (certainty === 'plan') return USAGE_TEXT.apiEquivalentNote
   return
 }
-function amount(value: UsdAmount | undefined): string {
+function amount(value: number | string | UsdAmount | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatUsd(value, 2)
 }
 function count(value: number | undefined): string {
@@ -171,12 +171,19 @@ export function usageText(
       if (previous === undefined || limit.observedAt >= previous.observedAt) latest.set(key, limit)
     }
   }
+  /** A not-read marker: windowless, with neither a balance nor raw headers. */
+  const isNotRead = (limit: UsageLimitSnapshot): boolean =>
+    limit.windows.length === 0 && limit.account === undefined && limit.raw === undefined
   for (const limit of state.limits) {
     const isLatestSource = latest.get(limitKey(limit)) === limit
     const windows = limit.windows.filter(
       (window) => latest.get(limitKey(limit, window.id)) === limit,
     )
     if (!isLatestSource && windows.length === 0) continue
+    if (isLatestSource && isNotRead(limit)) {
+      row(limit.provider, USAGE_TEXT.limitNotReadYet)
+      continue
+    }
     row(
       limit.plan === undefined ? limit.provider : planLabel(limit.plan),
       fill(USAGE_TEXT.asOf, { date: formatDateTime(limit.observedAt) }),

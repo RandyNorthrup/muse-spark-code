@@ -1,4 +1,5 @@
 import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
+import { resolveLimitContext, type EstimateLimitContext } from './limitContext'
 import { fingerprint } from '../verify/fingerprint'
 import {
   estimateInputsSchema,
@@ -207,9 +208,11 @@ Report assembly keeps these models/input quantities as disclosure evidence.
 export function simulateEstimate(
   input: EstimateInputs,
   port: EstimateDurationPort,
+  limitContext?: EstimateLimitContext,
 ): EstimateSimulation {
   const inputs = parseEstimate(estimateInputsSchema, input)
-  const scheduler = prepareEstimateSchedule(inputs.lanes, inputs.fleet)
+  const context = resolveLimitContext(inputs.fleet, limitContext)
+  const scheduler = prepareEstimateSchedule(inputs.lanes, inputs.fleet, undefined, context)
   const lanes = inputs.lanes.toSorted((a, b) => compareEstimateIds(a.id, b.id))
   const layout = lanes
     .filter((lane) => lane.state !== 'merged')
@@ -230,7 +233,23 @@ export function simulateEstimate(
     validate(model, lane, machineClassId)
     return { laneId: lane.id, machineClassId, model }
   })
-  const seed = inputs.request.seed ?? fingerprint(canonical({ inputs, models }))
+  const seed =
+    inputs.request.seed ??
+    fingerprint(
+      canonical({
+        inputs: {
+          ...inputs,
+          fleet: {
+            ...inputs.fleet,
+            accounts: inputs.fleet.accounts.map(
+              ({ statedLimits: _statedLimits, ...account }) => account,
+            ),
+          },
+        },
+        models,
+        ...(context.facts.length > 0 && { facts: context.facts }),
+      }),
+    )
   const random = estimateRandom(seed)
   const byId = new Map(lanes.map((lane) => [lane.id, lane]))
   const trials: { index: number; hours: number }[] = []

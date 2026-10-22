@@ -252,6 +252,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   { file: 'estimateContracts.js', side: 'both', requestedBy: [] },
   {
+    file: 'estimatePrices.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'ESTIMATE_PRICES_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'estimator.js',
     side: 'both',
     requestedBy: [
@@ -828,6 +839,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         importer: 'src/host/backend/productionAudioEntry.ts',
         symbol: 'conversionBindings',
         side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/runtime/estimator/ports.ts',
+        symbol: 'runtimeEstimatorPorts',
+        side: ['acp'],
       },
       { importer: 'src/runtime/resources/load.ts', symbol: 'lazyRuntimeResources', side: ['acp'] },
       {

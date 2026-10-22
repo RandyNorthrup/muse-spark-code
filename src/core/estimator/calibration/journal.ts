@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import { ESTIMATE_LABEL_MAX_CHARS, ESTIMATE_MAX_ITEMS } from '../../../shared/constants'
 import {
   historyRecordSchema,
@@ -24,7 +24,7 @@ const PRIVATE_FILE_MODE = constants.S_IRUSR | constants.S_IWUSR
 const PRIVATE_DIR_MODE = PRIVATE_FILE_MODE | constants.S_IXUSR
 const basisTagSchema = z.object({ durationBasis: z.string() })
 const envelopeSchema = z.strictObject({
-  version: z.number().int(),
+  version: z.int(),
   durationBasis: z.string(),
   record: z.unknown(),
 })
@@ -107,6 +107,30 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
   /** Per-list diagnostics, with opaque IDs and fixed codes only; retained bytes are never echoed. */
   get skippedRecords(): readonly { recordId: string; code: string }[] {
     return this.skipped
+  }
+
+  /** Storage retention and deletion (M117 C-M117-2): removes every published
+  observation, lane-identity claim and staging file. Observations are
+  otherwise immutable and never pruned by age: calibration needs the whole
+  history, and a partial journal would silently bias every fit. The
+  directory itself stays, with its private permissions.
+  */
+  async clear(): Promise<void> {
+    let files: string[]
+    try {
+      files = await readdir(this.directory)
+    } catch (error) {
+      if (isHistoryErrorCode(error, 'ENOENT')) return
+      throw calibrationFailure('historyReadFailed', error)
+    }
+    try {
+      for (const file of files.toSorted(compareIds)) {
+        if (file.endsWith('.json') || file.endsWith('.identity') || file.endsWith('.tmp'))
+          await rm(path.join(this.directory, file), { force: true })
+      }
+    } catch (error) {
+      throw calibrationFailure('historyCleanupFailed', error)
+    }
   }
 
   async list(): Promise<readonly HistoryRecord[]> {

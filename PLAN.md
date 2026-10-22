@@ -33631,10 +33631,14 @@ provider codecs and the credential-owning M109 transport are injected;
 no external wire shape or credential is invented.
 
 **Slice 1 is implemented:** provider adapter and serialized audited first-wave
-owner, certified with fakes. **Slice 2 is not implemented:** the portable
-provisioning lifecycle and its liability/teardown tests remain
-`M117-P-Slice2-lifecycle`, separate from external milestone bindings. The
-following paragraph describes the planned Slice 2 behavior.
+owner, certified with fakes. **Slice 2 is implemented (C-M117-6, 2026-10-11):**
+the portable provisioning lifecycle and its liability/teardown tests; the
+RLM117 port (2026-10-22, `rec/rlm117`) certifies with real tests over tripwire
+ports (exact money math, cap/deny/validation refusals, the real clock) and
+landed the confirmed run and server leases (P). Receipts in
+`docs/certification/m117-p-spin-it-up.md`. Rented setups stay advice-only;
+the waiting bindings are named in the P certificate. The
+following paragraph describes the Slice 2 behavior.
 
 Provisioning requires all installer/pairing bindings and an explicit run
 budget, with no default. Quotes retain exact nano-USD fractions for each
@@ -33652,6 +33656,19 @@ bindings remain named handoffs and rented setups remain advice-only.
 W owns product docs/reference, lazy wiring/budgets, the full quality gate
 and browser/all-editor certification. P records each new guard's named red
 drill and byte-exact restoration; final tests use repository timeouts.
+
+**Lane-R review repair (FIXM117R, 2026-10-06).** All three RVM117R P2s fixed
+in the recommendation lane: exact nano-USD arithmetic via `src/shared/usd.ts`,
+zero incremental cost for existing machines, slot-based speed expansion inside
+unchanged limits; missing-price refusal and all guards preserved. Regressions
+and byte-exact red drills in `docs/certification/m117-r-recommendations.md`;
+the owning suites run real on the RLM117 port. No new surface.
+
+**S review repair (FIXM117S, 2026-10-06).** All four RVM117S P2s fixed:
+deterministic bounded allocation search, measured-placement preference,
+renewal search on usable accounts only, precomputed resource data; the
+two-second operation budget holds. Regressions and red drills in
+`docs/certification/m117-s-schedule-and-simulation.md`.
 
 **FIXM117C review repair (2026-10-06).** RVM117C's one P2 is in scope:
 prevent same-lane kind/machine-class conflicts across duration bases with an
@@ -33768,6 +33785,35 @@ Regressions and byte-exact red drills are recorded in `docs/certification/m117.m
 No dependency, cap, hook, paid/live call, merge or push changes. Aggregate quality
 remains lead-owned under the rig brief.
 
+**C-M117-3R5 owned-fact redesign (2026-10-11, Kubuntu; RVCM1173D).** One
+validated structured fact per machine thresholds and account source: owner
+identity and authentication generation, independently unknown used/limit/
+remaining, UTC window instants and observation instant. Translators retain
+partial facts; current allowance constrains without inventing renewal; live
+observations are fenced by account and sign-in generation. Forecast inputs
+carry no localized explanations or ambient-zone dates. Table regressions and
+red drills in `docs/certification/m117-fleet.md`.
+
+**C-M117-3R4 review repair (2026-10-11, Kubuntu; RVCM1173C).** Eight P2 and
+four P3 findings fixed as classes: backend usage/changed readers bound on
+panel and ACP, registry-only CLI limits with no live owner, bucket/period/
+reset rules preserved, raw snapshots validated with named source diagnostics,
+fleet/pool snapshots scoped per invocation, CI qualified only for CI demand,
+panel overage removed without cap change. Receipts and bundle bytes in
+`docs/certification/m117-fleet.md`.
+
+**C-M117-3R3 redesign on the real contracts (2026-10-11, Kubuntu; review
+RVCM1173B).** Third round, so redesigned not patched: the estimator never
+computes a fleet number (one certified serial slot; teams-runner slots govern
+teams, no lane-concurrency setting exists; M107 thresholds ride the local
+row's caps and vanish with the governor off). CLI and ACP read the fleet
+through the headless governor's `resourceMachineStore`; M108's account row
+carries only read values (R4 binds the editor/usage readers R3 left unbound).
+One estimate reads the fleet once; each source re-parses on its own
+(`fleet-caps-invalid`, `fleet-account-invalid`, `fleet-ci-invalid`); CI is
+unknown with no reader. Binding tests, red drills and CLI/ACP composition
+receipts in `docs/certification/m117-fleet.md`.
+
 **C-M117-1R3 strict redesign (2026-10-10, macmini; review RVCM1171B).**
 Repair all thirteen P2 and two P3 findings within the snapshot lane. Validate
 all declared lane prerequisites, milestone references, release members and
@@ -33784,6 +33830,19 @@ host at repository timeouts. Each finding receives a failing baseline regression
 and byte-exact red drill in `docs/certification/m117.md`. No dependencies, paid
 calls, network probes, merges, pushes or gate changes. Full quality is lead-owned
 under the scoped rig brief.
+
+**C-M117-2 history journal and builders (2026-10-11, macmini).** Both shells
+read calibration history from `EstimateHistoryJournal` under the agent data
+folder (`estimator/history`): git lane-branch elapsed time (M113's branch
+convention, unique match only), M116 review rounds/strikes/redesigns, CI
+job-hours from measured durations. Missing stays missing with its reason;
+malformed fails loudly; `historySkipped` rides the estimate; `clear()` deletes
+observations, claims and staging together, never age-pruned otherwise. RLM117
+replaced the scripted suites with real-git, real-journal and real-repository
+tests (exposing and fixing a fork-point bug the scripted transport masked);
+proof and red drills in `docs/certification/m117-history.md`. Still waiting:
+the M115 lane-finished collection trigger, M96c board durations, panel/CLI
+surfacing of `historySkipped`.
 
 **C-M117-1R2 review fixes (2026-10-10, Kubuntu).** Every RVCM1171 finding is
 fixed in the lane's files: one `asOf` captured once and passed through to the
@@ -33936,9 +33995,9 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
   - [ ] The goldens, including this repository's M103 and M104 history
   - [ ] Determinism across processes, time zones and languages
   - [ ] The bottleneck, calibration and recommendation drills
-  - [ ] The fake provider's flow, the cap, and the never-pays and
+  - [x] The fake provider's flow, the cap, and the never-pays and
         never-creates-accounts drills
-  - [ ] P's parts with M96, M109, M110d and M110f, or each named as waiting
+  - [x] P's parts with M96, M109, M110d and M110f, or each named as waiting
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
@@ -39212,21 +39271,15 @@ FIXM107DK4 qualification below supersedes that earlier claim.
 
 - **M117-P provisioning bindings (partial).** Slice 1 implements the
   five-operation connected-provider adapter and audited first-wave owner.
-  **M117-P-Slice2-lifecycle** is absent internally: liability reservations,
-  separate spend confirmations, lifetime/idle teardown, Keep, installation/
-  pairing and wipe/delete orchestration plus their fake tests are still
-  planned. The following requirements are prerequisites for that future
-  implementation, not certification of shipped behavior. Actual M96/M109/M110d/M110f/
-  M116 bindings and captured service codecs remain the named handoffs in
-  `docs/certification/m117-p-spin-it-up.md`. Until bound, rentals remain
-  advice-only. The hard run cap applies to exact admitted hourly-tariff
-  liability for explicitly selected billed lifetimes. Real all-in billing
-  policy and independent funded-deadline enforcement must be verified by
-  M109/M110f before enabling creation: provider minimums, extras, taxes and
-  delayed/failed deletion can otherwise exceed an hourly estimate. Uncertain
-  creates keep their reservations; Keep cannot extend funded liability.
-  W retains product docs/reference, aggregate quality and the existing
-  C-owned generated host-API import-count refresh.
+  RLM117 (2026-10-22, `rec/rlm117`) landed Slice 2: the portable
+  provisioning lifecycle, confirmed run and server leases, certified with
+  real tests over tripwire ports. Live M96/M116 board/playbook, M109 broker,
+  M110f installer/teardown and M110d pairing stay named waiting handoffs in
+  `docs/certification/m117-p-spin-it-up.md`; until bound, rentals remain
+  advice-only. All-in billing (minimums, extras, taxes, failed deletion)
+  must be verified by M109/M110f before enabling creation. Uncertain creates
+  keep their reservations; Keep cannot extend funded liability. W retains
+  product docs/reference and aggregate quality.
 
 - **FIXM117R review outcome.** All three RVM117R P2 findings are fixed with
   exact-money and existing-fleet regressions and eleven deliberate failures

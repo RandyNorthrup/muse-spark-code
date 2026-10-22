@@ -36,6 +36,7 @@ import {
 // M105 lanes V and VB: the converter's macOS RSS sampler reads through this
 // bundle's policy modules, so it ships here and loads with it.
 export { macRssSampler } from '../media/macRss'
+export { resourceMachineStore } from '../../runtime/resources/settings'
 // U–C1: the window's status item and pause notices load with the governor, never at activation.
 export {
   createResourceStatus,

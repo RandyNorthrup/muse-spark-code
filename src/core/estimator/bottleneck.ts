@@ -1,4 +1,5 @@
 import { EstimateDiagnosticError } from './diagnostic'
+import type { EstimateLimitContext } from './limitContext'
 import { type EstimateLane, type EstimateSection, type FleetSnapshot } from '../../shared/estimate'
 import { prepareEstimateSchedule, type EstimateRelaxation } from './schedule'
 import { type EstimateDurationEvidence } from './dag'
@@ -12,8 +13,9 @@ export function findEstimateBottleneck(
   lanes: readonly EstimateLane[],
   fleet: FleetSnapshot,
   durations?: ReadonlyMap<string, ReadonlyMap<string, EstimateDurationEvidence>>,
+  limitContext?: EstimateLimitContext,
 ): EstimateSection['limitingResource'] {
-  const baseline = prepareEstimateSchedule(lanes, fleet).run(durations)
+  const baseline = prepareEstimateSchedule(lanes, fleet, undefined, limitContext).run(durations)
   let result: EstimateSection['limitingResource'] = {
     kind: 'criticalPath',
     hoursSavedIfUnbounded: 0,
@@ -21,7 +23,7 @@ export function findEstimateBottleneck(
   }
   const resources: EstimateRelaxation[] = ['slots', 'accountRate', 'ci', 'disk', 'machines']
   for (const kind of resources) {
-    const relaxed = prepareEstimateSchedule(lanes, fleet, kind).run(durations)
+    const relaxed = prepareEstimateSchedule(lanes, fleet, kind, limitContext).run(durations)
     // List heuristics can choose a different ordering; a relaxation that
     // worsens it is not a speedup and cannot yield negative savings.
     const saved = Math.max(0, baseline.finishHours - relaxed.finishHours)
