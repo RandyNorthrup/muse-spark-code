@@ -3975,6 +3975,7 @@
   "nodeLivenessOffline": "Nedostupný",
   "nodeLivenessUnreachable": "Nedostupný od {time}, opakuji",
   "nodeWaitingRow": "Čekání: {node} nedostupný od {time}, opakuji, pokus {attempt}, další za {delay}",
+  "packsVerifyUnavailable": "Ověřování balíčků není v tomto sestavení k dispozici.",
   "execDeniedStop": "Odmítnutí oprávnění zastavilo tento běh.",
   "execInterrupted": "Běh byl přerušen.",
   "execOutputStalled": "Výstup byl uzavřen nebo zablokován.",

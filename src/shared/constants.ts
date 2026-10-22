@@ -4970,6 +4970,13 @@ export const NODE_HEARTBEAT_MISS = 3
 export const NODE_RECONNECT_MAX_MS = 30_000
 export const NODE_REDISCOVER_TARGET_MS = 15_000
 export const NODE_ADDRESS_POLL_MS = 30_000
+// M110t TP1/TP2 (PLAN.md D90.27): who may sign a pack index. The pack CI
+// signs keyless (cosign sign-blob); verification pins the workflow's
+// Fulcio identity, so only this repository's pack workflow can mint an
+// index the node accepts.
+export const PACKS_SIGN_ISSUER = 'https://token.actions.githubusercontent.com'
+export const PACKS_SIGN_IDENTITY =
+  'https://github.com/RandyNorthrup/muse-spark-code/.github/workflows/node-packs.yml@refs/heads/main'
 // D121 (owner 2026-10-16): no auto-pause of ours — a schedule pauses
 // after failures only at the count the person sets in
 // `museSpark.schedulePauseAfterFailures` (0, the default, never pauses).

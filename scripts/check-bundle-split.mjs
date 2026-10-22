@@ -153,7 +153,11 @@ const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
 // (lane M2) ship no production construction yet; the video/audio upload
 // binding (U6c, A-PAID follow-ups) lands them in dist/modelApi.js. Until
 // then no bundle carries them (PLAN.md M105, lane W).
-const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts'])
+// M110r lane Y1: resumeFromCut's core (turnResilience.ts beside it) is
+// proven by unit tests and the Y4 fault scenarios; its seams into the
+// turn loop, compaction and usage land with their owners' review (PLAN.md
+// M110, lane Y1's Touches column). Until then no bundle carries it.
+const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts', 'resume.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([

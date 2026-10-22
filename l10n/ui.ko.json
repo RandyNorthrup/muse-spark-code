@@ -3741,6 +3741,7 @@
   "nodeLivenessOffline": "오프라인",
   "nodeLivenessUnreachable": "{time}부터 도달 불가, 다시 시도 중",
   "nodeWaitingRow": "대기 중: {node}이(가) {time}부터 도달 불가, 다시 시도 중, 시도 {attempt}, 다음 {delay} 후",
+  "packsVerifyUnavailable": "이 빌드에서는 팩 확인을 사용할 수 없습니다.",
   "execDeniedStop": "권한 거부로 실행이 중지되었습니다.",
   "execInterrupted": "실행이 중단되었습니다.",
   "execOutputStalled": "출력이 닫히거나 멈췄습니다.",

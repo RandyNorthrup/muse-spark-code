@@ -723,6 +723,7 @@ temp/planfix0190/d2-summary.txt Full record:
 | `playwright-core`                                                                                    | 1.63.0                            |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     |
 | `smol-toml`                                                                                          | 1.8.0                             |
+| `sigstore`                                                                                           | 5.0.0                             |
 
 **`typescript`** — Registry latest is 7.0.2, but `typescript-eslint@8.70.1` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TS 7 installs cleanly and silently disables every type-aware lint rule. 6.0.3 is the highest release inside the supported range.
 
@@ -789,6 +790,8 @@ temp/planfix0190/d2-summary.txt Full record:
 **`mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown`** — M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).
 
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
+
+**`sigstore`** — Pack index signatures (M110t TP1/TP2, D90.27): verifies the cosign keyless bundles the pack CI signs over each index, the same infrastructure npm provenance uses; a hand-rolled verifier would be the half-cocked plan. Apache-2.0, bundled only in the lazily loaded `dist/packsVerify.js` (the ACP agent loads it on the first pack fetch). No peer dependencies; `npm audit` clean 2026-10-22; 5.0.0 released 2026-06-01, past the seven-day window.
 
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 **`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
@@ -2325,6 +2328,8 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
 **`dist/modelsSubscriptions.js` budget rationale.** (PANELBUDGET: the subscriptions half of the Models panel host, the ChatGPT and Copilot sign-in flows, loaded on the first subscription action; measured 22,917 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB)
+
+**`dist/packsVerify.js` budget rationale.** (M110t TP2: the pack index verifier with sigstore, loaded on the first pack fetch; measured 1,484,756 B plus 15%, rounded up to the next 25 KiB multiple = 1675 KiB)
 
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 

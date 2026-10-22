@@ -3819,6 +3819,7 @@
   "nodeLivenessOffline": "Nem elérhető",
   "nodeLivenessUnreachable": "Nem érhető el {time} óta, újrapróbálkozás",
   "nodeWaitingRow": "Várakozás: {node} nem érhető el {time} óta, újrapróbálkozás, {attempt}. próbálkozás, következő: {delay}",
+  "packsVerifyUnavailable": "A csomagellenőrzés ebben a buildben nem érhető el.",
   "execDeniedStop": "Egy elutasított engedély leállította a futást.",
   "execInterrupted": "A futás megszakadt.",
   "execOutputStalled": "A kimenet lezárult vagy elakadt.",

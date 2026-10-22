@@ -3741,6 +3741,7 @@
   "nodeLivenessOffline": "离线",
   "nodeLivenessUnreachable": "自{time}起无法访问，正在重试",
   "nodeWaitingRow": "等待中：{node}自{time}起无法访问，正在重试，第{attempt}次尝试，下次在{delay}后",
+  "packsVerifyUnavailable": "此版本不支持包验证。",
   "execDeniedStop": "权限被拒绝，运行已停止。",
   "execInterrupted": "运行已中断。",
   "execOutputStalled": "输出已关闭或停滞。",

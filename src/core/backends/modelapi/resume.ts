@@ -44,8 +44,9 @@ function hasCompleteArguments(item: FunctionCallItem): boolean {
   try {
     JSON.parse(item.arguments)
     return true
-  } catch {
-    return false
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) return false
+    throw error
   }
 }
 

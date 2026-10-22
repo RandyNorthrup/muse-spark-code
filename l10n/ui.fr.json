@@ -3897,6 +3897,7 @@
   "nodeLivenessOffline": "Hors ligne",
   "nodeLivenessUnreachable": "Injoignable depuis {time}, nouvel essai en cours",
   "nodeWaitingRow": "En attente : {node} injoignable depuis {time}, nouvel essai en cours, tentative {attempt}, prochaine dans {delay}",
+  "packsVerifyUnavailable": "La vérification des paquets n’est pas disponible dans cette version.",
   "execDeniedStop": "Un refus d’autorisation a arrêté cette exécution.",
   "execInterrupted": "L’exécution a été interrompue.",
   "execOutputStalled": "La sortie est fermée ou bloquée.",

@@ -3897,6 +3897,7 @@
   "nodeLivenessOffline": "Sin conexión",
   "nodeLivenessUnreachable": "Inalcanzable desde las {time}, reintentando",
   "nodeWaitingRow": "En espera: {node} inalcanzable desde las {time}, reintentando, intento {attempt}, próximo en {delay}",
+  "packsVerifyUnavailable": "La verificación de paquetes no está disponible en esta compilación.",
   "execDeniedStop": "Una denegación de permiso detuvo esta ejecución.",
   "execInterrupted": "La ejecución se interrumpió.",
   "execOutputStalled": "La salida se cerró o se bloqueó.",
