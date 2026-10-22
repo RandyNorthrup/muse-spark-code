@@ -6270,7 +6270,12 @@ export const EN = {
   importUntrusted: 'This file is untrusted: check every address before importing.',
   openRouterOrder: 'Preferred Provider Order',
   openRouterFallback: 'Fall Back to Other Providers',
-  keyMissing: 'No Key Stored',
+  keyMissing: 'No Key Stored in the Editor',
+  // Provider keys live in two separate stores (RLTESTDRIVE item 6): the
+  // editor's secret storage for keys entered here, the agent's own OS
+  // credential store entries for keys entered in the terminal.
+  providerKeysSplitStores:
+    'Keys entered here stay in the editor’s secret storage; the terminal agent keeps its own keys in the OS credential store.',
   testRunning: 'Testing…',
   // {shown}: the filtered rows; {count}: every row.
   modelsShownCount: forms({

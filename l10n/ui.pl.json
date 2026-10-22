@@ -5148,7 +5148,8 @@
   "importUntrusted": "Ten plik nie jest zaufany: przed importem sprawdź każdy adres.",
   "openRouterOrder": "Preferowana kolejność dostawców",
   "openRouterFallback": "Przełącz na innych dostawców",
-  "keyMissing": "Brak zapisanego klucza",
+  "keyMissing": "Brak zapisanego klucza w edytorze",
+  "providerKeysSplitStores": "Klucze wprowadzone tutaj pozostają w tajnym magazynie edytora; agent terminala przechowuje własne klucze w magazynie poświadczeń systemu operacyjnego.",
   "testRunning": "Testowanie…",
   "modelsShownCount": {
     "one": "{shown} z {count} modelu",

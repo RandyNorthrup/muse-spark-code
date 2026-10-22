@@ -4776,7 +4776,8 @@
   "importUntrusted": "このファイルは信頼できません: インポート前にすべてのアドレスを確認してください。",
   "openRouterOrder": "優先プロバイダー順",
   "openRouterFallback": "他のプロバイダーにフォールバックする",
-  "keyMissing": "保存されたキーがありません",
+  "keyMissing": "エディターに保存されたキーがありません",
+  "providerKeysSplitStores": "ここで入力したキーはエディターのシークレットストレージに残ります。ターミナルエージェントは自身のキーを OS の資格情報ストアに保持します。",
   "testRunning": "テスト中…",
   "modelsShownCount": {
     "other": "{count} 件中 {shown} 件"

@@ -5024,7 +5024,8 @@
   "importUntrusted": "Este arquivo não é confiável: verifique cada endereço antes de importar.",
   "openRouterOrder": "Ordem de provedores preferida",
   "openRouterFallback": "Recorrer a outros provedores",
-  "keyMissing": "Nenhuma chave salva",
+  "keyMissing": "Nenhuma chave salva no editor",
+  "providerKeysSplitStores": "As chaves inseridas aqui permanecem no armazenamento secreto do editor; o agente de terminal mantém suas próprias chaves no armazenamento de credenciais do SO.",
   "testRunning": "Testando…",
   "modelsShownCount": {
     "one": "{shown} de {count} modelo",

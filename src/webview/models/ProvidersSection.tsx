@@ -517,6 +517,7 @@ export function ProvidersSection(props: SectionProps) {
   return (
     <section aria-label={UI_TEXT.providersSectionTitle}>
       <h2>{UI_TEXT.providersSectionTitle}</h2>
+      <p className="models-hint">{UI_TEXT.providerKeysSplitStores}</p>
       {panelState.subscriptionsAvailable === true && (
         <div className="models-actions">
           <div className="models-row-actions">
