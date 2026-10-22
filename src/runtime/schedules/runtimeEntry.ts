@@ -15,8 +15,16 @@ import type { createScheduleBilling } from '../../host/schedules/paidBinding'
 export async function createRuntimeSchedules(
   ...args: CreateRuntimeSchedulesArgs
 ): Promise<RuntimeSchedulesBinding> {
-  const [table, locale, delivery, runtimeDelivery, migration, scheduleEngine, pauseAfterFailures] =
-    args
+  const [
+    table,
+    locale,
+    delivery,
+    runtimeDelivery,
+    migration,
+    scheduleEngine,
+    pauseAfterFailures,
+    isWorkspaceTrusted,
+  ] = args
   // The engine module lives on the ACP side (main.ts installs it); the
   // schedules bundle never loads it from VS Code, so the VSIX need not
   // carry the runtime engine for schedules.
@@ -89,6 +97,7 @@ export async function createRuntimeSchedules(
   const { runtime } = await createScheduleEngine({
     fs: createNodeScheduleFs(root),
     ...(pauseAfterFailures !== undefined && { pauseAfterFailures }),
+    ...(isWorkspaceTrusted !== undefined && { isWorkspaceTrusted }),
     ...(delivery !== undefined && { signal: delivery.signal }),
     queue: createNodeScheduleQueue(root),
     platform,

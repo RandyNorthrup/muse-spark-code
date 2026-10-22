@@ -35,6 +35,9 @@ export type CreateRuntimeSchedulesArgs = [
   // D121: the person's pause-after-failures count (0 never pauses), read
   // live on every settlement when it is a function. Absent never pauses.
   pauseAfterFailures?: number | (() => number),
+  // Hosts whose workspace trust can refuse git observation (VS Code).
+  // Absent trusts the process's own machine (the CLI, ACP).
+  isWorkspaceTrusted?: (root: string) => boolean,
 ]
 
 interface RuntimeSchedulesModule {
@@ -61,6 +64,7 @@ export function runtimeSchedulesBinding(
   // D121: the person's pause-after-failures count (0 never pauses), read
   // live on every settlement when it is a function. Absent never pauses.
   pauseAfterFailures?: number | (() => number),
+  isWorkspaceTrusted?: (root: string) => boolean,
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({
     bundlePath,
@@ -79,7 +83,10 @@ export function runtimeSchedulesBinding(
       }
       if (runtimeDelivery === undefined) {
         binding =
-          delivery === undefined && migration === undefined && pauseAfterFailures === undefined
+          delivery === undefined &&
+          migration === undefined &&
+          pauseAfterFailures === undefined &&
+          isWorkspaceTrusted === undefined
             ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
             : load().createRuntimeSchedules(
                 UI_TEXT,
@@ -89,6 +96,7 @@ export function runtimeSchedulesBinding(
                 migration,
                 scheduleEngine,
                 pauseAfterFailures,
+                isWorkspaceTrusted,
               )
       } else
         binding = load().createRuntimeSchedules(
@@ -99,6 +107,7 @@ export function runtimeSchedulesBinding(
           migration,
           scheduleEngine,
           pauseAfterFailures,
+          isWorkspaceTrusted,
         )
     }
     try {
