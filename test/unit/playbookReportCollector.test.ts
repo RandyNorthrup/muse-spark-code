@@ -205,17 +205,23 @@ describe('D214 collector playbook ordering', () => {
         notes.push(note)
       },
     })
-    const snapshot = fullSnapshot()
-    snapshot.sources.playbook = availableSource('playbook', [
-      drillsSection(),
-      section(
-        'playbook/refusals',
-        'refusals',
-        ['name'],
-        [row('refusal', ['r1'], { name: text('r1') }, ['playbook'])],
-        { full: true },
-      ),
-    ])
+    const base = fullSnapshot()
+    const snapshot = {
+      ...base,
+      sources: {
+        ...base.sources,
+        playbook: availableSource('playbook', [
+          drillsSection(),
+          section(
+            'playbook/refusals',
+            'refusals',
+            ['name'],
+            [row('refusal', ['r1'], { name: text('r1') }, ['playbook'])],
+            { full: true },
+          ),
+        ]),
+      },
+    }
     const document = collector(snapshot, reportOptions('playbook'))
     const drills = document.sections.find((entry) => entry.id === 'playbook/drills')
     expect(drills?.rows.map((entry) => entry.cells['name'])).toEqual([
