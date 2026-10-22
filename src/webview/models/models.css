@@ -47,6 +47,11 @@
   padding-bottom: 8px;
 }
 
+.models-nav-team {
+  flex-wrap: wrap;
+  gap: var(--ms-space-8);
+}
+
 .models-nav-item {
   display: inline-flex;
   align-items: center;

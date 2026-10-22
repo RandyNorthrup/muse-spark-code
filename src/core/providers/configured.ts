@@ -40,6 +40,7 @@ import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelap
 import type { ProviderEntry, ProviderFormat } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
 import { providersFileUnreadable } from '../accountStoreError'
+import type { TeamEngineModel, TeamDiscoveryAbsence } from '../team/teamModelRegistry'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
 import { parseNdjson } from '../backends/modelapi/ndjson'
@@ -104,6 +105,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
 import {
   ADDRESS_FAMILIES,
+  TEAM_CAPTURED_PROVIDER_PRESETS,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
@@ -1833,6 +1835,32 @@ export function createConfiguredProviderServices(
       } catch {
         throw new Error(UI_TEXT.providerUsageFailed)
       }
+    },
+    teamDiscovery: async (): Promise<{
+      models: TeamEngineModel[]
+      absent: TeamDiscoveryAbsence[]
+    }> => {
+      const file = await read()
+      const listed = await registry.list?.()
+      if (listed === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+      const models: TeamEngineModel[] = []
+      const absent: TeamDiscoveryAbsence[] = []
+      for (const entry of file.providers) {
+        if (!TEAM_CAPTURED_PROVIDER_PRESETS.includes(entry.preset)) {
+          absent.push({ provider: entry.id, reason: 'capture' })
+          continue
+        }
+        for (const model of listed) {
+          if (model.providerId !== entry.id) continue
+          const bound = records.get(model.modelId)
+          if (bound === undefined) {
+            absent.push({ provider: entry.id, reason: 'discovery' })
+            continue
+          }
+          models.push({ model, record: bound.record, preset: entry.preset })
+        }
+      }
+      return { models, absent }
     },
     accountId: async () => {
       const file = await read()

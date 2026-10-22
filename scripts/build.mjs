@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
 import { buildVaultPeer } from './build-vault-peer.mjs'
-import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
+import {
+  resourceBrowserValidation,
+  teamPanelBrowserValidation,
+  webviewEntryMetafile,
+} from './lib/webviewBundles.mjs'
 import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
@@ -195,12 +199,22 @@ const CONFIGURED_ENTRY = 'src/host/backend/configuredProvidersEntry.ts'
 const CONFIGURED_OUTFILE = 'dist/configuredProviders.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
+const TEAM_PANEL_ENTRY = 'src/core/team/teamPanelEntry.ts'
+const TEAM_PANEL_OUTFILE = 'dist/teamPanel.js'
 const TEAM_ENTRY = 'src/core/team/teamEntry.ts'
 const TEAM_OUTFILE = 'dist/team.js'
 const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
 const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
 const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
 const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
+const TEAM_HOST_ENTRY = 'src/host/team/teamHostEntry.ts'
+const TEAM_HOST_OUTFILE = 'dist/teamHost.js'
+const TEAM_FILE_IO_ENTRY = 'src/core/team/workers/workerToolIoEntry.ts'
+const TEAM_FILE_IO_OUTFILE = 'dist/teamFileIo.js'
+const TEAM_WORKER_OPS_ENTRY = 'src/core/team/workers/workerOpsEntry.ts'
+const TEAM_WORKER_OPS_OUTFILE = 'dist/teamWorkerOps.js'
+const TEAM_MERGE_ENTRY = 'src/core/team/teamMergeFlow.ts'
+const TEAM_MERGE_OUTFILE = 'dist/teamMerge.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
@@ -594,12 +608,25 @@ const approvalModesOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const teamOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedModelApiBoundaries],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [TEAM_ENTRY],
   outfile: TEAM_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const teamPanelOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_PANEL_ENTRY],
+  outfile: TEAM_PANEL_OUTFILE,
+}
+
 const teamSchedulerOptions = {
   ...teamOptions,
   entryPoints: [TEAM_SCHEDULER_ENTRY],
@@ -621,6 +648,43 @@ const museCodeOptions = {
   ...teamOptions,
   entryPoints: [MUSE_CODE_ENTRY],
   outfile: MUSE_CODE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamHostOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_HOST_ENTRY],
+  outfile: TEAM_HOST_OUTFILE,
+}
+
+const teamEngineOptions = {
+  ...teamOptions,
+  entryPoints: ['src/host/team/teamEngineEntry.ts'],
+  outfile: 'dist/teamEngine.js',
+}
+
+const teamFileIoOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_FILE_IO_ENTRY],
+  outfile: TEAM_FILE_IO_OUTFILE,
+}
+
+const teamCreateOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/team/workers/workerCreateEntry.ts'],
+  outfile: 'dist/teamCreate.js',
+}
+
+const teamWorkerOpsOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_WORKER_OPS_ENTRY],
+  outfile: TEAM_WORKER_OPS_OUTFILE,
+}
+
+const teamMergeOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_MERGE_ENTRY],
+  outfile: TEAM_MERGE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1594,6 +1658,7 @@ const webviewOptions = {
     ...(isProduction ? [lazyBrowserKeybindings] : []),
     browserReviewComment,
     resourceBrowserValidation,
+    teamPanelBrowserValidation,
     {
       name: 'reference-caller-react',
       setup(build) {
@@ -1768,7 +1833,14 @@ if (isWatch) {
     esbuild.context(scheduleDeliveryOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
+    esbuild.context(teamPanelOptions),
     esbuild.context(teamRunnersOptions),
+    esbuild.context(teamHostOptions),
+    esbuild.context(teamEngineOptions),
+    esbuild.context(teamFileIoOptions),
+    esbuild.context(teamCreateOptions),
+    esbuild.context(teamWorkerOpsOptions),
+    esbuild.context(teamMergeOptions),
     esbuild.context(teamSchedulerOptions),
     esbuild.context(museCodeOptions),
     esbuild.context(foreignHooksOptions),
@@ -1947,7 +2019,14 @@ if (isWatch) {
     scheduleDelivery: recorded('scheduleDelivery', scheduleDeliveryOptions),
     reviewer: recorded('reviewer', reviewerOptions),
     team: recorded('team', teamOptions),
+    teamPanel: recorded('teamPanel', teamPanelOptions),
     teamRunners: recorded('teamRunners', teamRunnersOptions),
+    teamHost: recorded('teamHost', teamHostOptions),
+    teamEngine: recorded('teamEngine', teamEngineOptions),
+    teamFileIo: recorded('teamFileIo', teamFileIoOptions),
+    teamCreate: recorded('teamCreate', teamCreateOptions),
+    teamWorkerOps: recorded('teamWorkerOps', teamWorkerOpsOptions),
+    teamMerge: recorded('teamMerge', teamMergeOptions),
     teamScheduler: recorded('teamScheduler', teamSchedulerOptions),
     foreignHooks: recorded('foreignHooks', foreignHooksOptions),
     modelApiHooks: recorded('modelApiHooks', {
@@ -2188,6 +2267,7 @@ if (isWatch) {
   reportSize(REVIEWER_OUTFILE)
   reportSize(TEAM_OUTFILE)
   reportSize(TEAM_RUNNERS_OUTFILE)
+  reportSize(TEAM_HOST_OUTFILE)
   reportSize(TEAM_SCHEDULER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)

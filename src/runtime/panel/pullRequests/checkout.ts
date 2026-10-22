@@ -846,7 +846,6 @@ async function addWorktree(
 /**
 The runtime's git for pull request checkouts over its own processes:
 explicit argument arrays, output caps and deadlines, no shell.
-@unwired M123 PR checkout git runner
 */
 export function createNodePullRequestCheckoutGit(
   options: NodePullRequestCheckoutGitOptions,
@@ -1618,7 +1617,6 @@ fetched with the user's Git environment and checked out, detached, in a
 worktree of its own that opens through `workspace/openFolder`. Only an
 explicit confirmation checks anything out; an existing checkout is
 offered again as it is, never taken over.
-@unwired M123 runtime PR checkout
 */
 export class RuntimePullRequestCheckout {
   /** One opening per destination folder: overlapping opens queue behind it. */

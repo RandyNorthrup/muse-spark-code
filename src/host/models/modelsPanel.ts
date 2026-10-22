@@ -1,6 +1,9 @@
 // Lane M's strict bridge is shared by both sides. Credentials stay in this
 // host-owned draft and never join state, exceptions, logs or postMessage.
 import * as vscode from 'vscode'
+import { teamAction, type TeamPanelHost } from './teamPanelBinding'
+import { teamPanelMessageSchema } from '../../shared/teamPanel'
+import type { TeamPanelController } from '../../core/team/teamPanel'
 import {
   MODELS_PANEL_VIEW_TYPE,
   MODELS_WEBVIEW_SCRIPT_FILE,
@@ -17,6 +20,7 @@ import {
   providerKeyUsageSchema,
   wizardStepSchema,
   type ModelsPanelState,
+  type ModelsPanelSection,
   type PanelDraft,
   type PanelToHostMessage,
   type HostToPanelMessage,
@@ -63,6 +67,7 @@ import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptions
 export interface ModelsPanelDeps {
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: ((isNewAccount: boolean) => Promise<void>) | undefined
+  readonly team?: TeamPanelHost | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
@@ -92,6 +97,7 @@ export interface ModelsPanelDeps {
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
   readonly presetId?: string | undefined
+  readonly itemId?: string | undefined
   readonly wizard?: boolean | undefined
 }
 /**
@@ -237,6 +243,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     drafts: { edits: {} },
     pendingRemovals: [],
   }
+  const navigationSection = (section: string | undefined): ModelsPanelSection =>
+    section === 'models' ||
+    ((section === 'roles' || section === 'agents') && state.roles !== undefined)
+      ? section
+      : 'providers'
   const credentials = new Map<string, { secret: string; origin: string; connected?: boolean }>()
   const discardCredential = createOpenRouterDraftDiscard(
     credentials,
@@ -244,6 +255,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   )
   const rows = new Map<string, readonly ProviderModelRow[]>()
   const newModels = new Set<string>()
+  let teamPanel: TeamPanelController | undefined
   // A failed limit write can leave a saved provider. Retrying that draft
   // replaces its saved entry rather than attempting a duplicate add.
   const savedDrafts = new WeakSet<PanelDraft>()
@@ -547,10 +559,26 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
+  const isClosed = (): boolean => isDisposed
+  const readTeamState = async (): Promise<void> => {
+    // A failed fresh source read cannot leave an older balance or roster visible.
+    state.roles = undefined
+    state.agents = undefined
+    teamPanel ??= await deps.team?.load()
+    if (isDisposed) {
+      teamPanel?.dispose()
+      return
+    }
+    const roles = await teamPanel?.read()
+    if (isClosed()) return
+    state.roles = roles
+    state.agents = roles === undefined ? undefined : { tree: deps.team?.tree() }
+  }
   const refreshUsage = createOpenRouterPanelUsage(providers, (usage) =>
     providerKeyUsageSchema.parse(usage),
   )
   const refresh = async (shouldReadUsage = false): Promise<void> => {
+    await readTeamState()
     usageRequest?.abort()
     usageRequest = new AbortController()
     const signal = AbortSignal.any([lifetime.signal, usageRequest.signal])
@@ -846,6 +874,26 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
   }
   const handle = async (message: PanelToHostMessage, shouldReadUsage: boolean): Promise<void> => {
+    const teamMessage = teamPanelMessageSchema.safeParse(message)
+    if (teamMessage.success) {
+      await readTeamState()
+      if (teamPanel === undefined || state.roles === undefined) {
+        state.agents = undefined
+        publish()
+        throw new Error(UI_TEXT.teamEditor.invalid)
+      }
+      const action = teamAction(teamMessage.data)
+      if (action === undefined) {
+        await teamPanel.handle(teamMessage.data)
+      } else {
+        if (deps.team === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+        await deps.team.handle(action)
+      }
+      state.notice = undefined
+      await refresh()
+      publish()
+      return
+    }
     switch (message.type) {
       case 'modelsPanel/ready': {
         const cachedScans = await providers.cachedScans()
@@ -857,8 +905,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (navigation !== undefined) {
           post({
             type: 'modelsPanel/navigate',
-            section: vaultSection(navigation.section),
-            itemId: navigation.presetId,
+            section:
+              navigation.section === 'vault'
+                ? vaultSection(navigation.section)
+                : navigationSection(navigation.section),
+            itemId: navigation.itemId ?? navigation.presetId,
           })
         }
         return
@@ -1583,10 +1634,17 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     enqueue(parsed.message)
   })
+  const unsubscribeTeam = deps.team?.onTreeChange(() => {
+    if (isDisposed || state.roles === undefined) return
+    enqueue({ type: 'modelsPanel/ready' })
+  })
   const cleanup = (): void => {
     isDisposed = true
     lifetime.abort()
     discardCredential()
+    teamPanel?.dispose()
+    unsubscribeTeam?.()
+    credentials.clear()
     subscription.dispose()
     vault?.dispose()
     vault = undefined
@@ -1606,12 +1664,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         state.drafts.wizard = newDraft(providers.preset(navigate.presetId))
         discardCredential()
       }
+      if (deps.team !== undefined) enqueue({ type: 'modelsPanel/ready' })
       publish()
       if (navigate !== undefined) {
         post({
           type: 'modelsPanel/navigate',
-          section: vaultSection(navigate.section),
-          itemId: navigate.presetId,
+          section:
+            navigate.section === 'vault'
+              ? vaultSection(navigate.section)
+              : navigationSection(navigate.section),
+          itemId: navigate.itemId ?? navigate.presetId,
         })
       }
     },

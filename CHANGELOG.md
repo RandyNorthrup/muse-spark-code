@@ -186,6 +186,14 @@ happened, not what was planned; superseded entries are kept.
   grant or report when its folder is not private (revoke and the kill
   switch still work).
 
+### Agent roles and teams (still behind the release latch)
+
+- The team runtime now ships in the package: the host, engine, panel,
+  file-IO, creation, worker-operations and merge chunks with their ship
+  lists. Nothing turns on yet: teams stay hidden until an enabled team
+  really runs, and the README still says the feature remains unavailable
+  until its integration is complete.
+
 ## [0.19.0] - 2026-10-21
 
 ### Highlights

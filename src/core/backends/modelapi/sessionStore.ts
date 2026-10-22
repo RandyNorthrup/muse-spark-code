@@ -121,6 +121,11 @@ export interface StoredSession {
   readonly approvalMode: ApprovalMode
   readonly effort: string
   /**
+  Explicit per-model output caps, keyed by model id so a resume or fork
+  keeps each model's own cap. Absent when none was ever set.
+  */
+  readonly outputCaps?: Readonly<Record<string, number>>
+  /**
   A custom agent's narrowed run (M76): present on a child spawned with an
   agent, so a resume or fork keeps its prompt, tools and ceiling. Absent
   on parents, plain children, and sessions saved before M76's review.
@@ -287,6 +292,8 @@ const storedSessionFields = {
   modelId: z.string(),
   approvalMode: z.enum(APPROVAL_MODES),
   effort: z.string(),
+  // Saved before caps existed: absent reads as no explicit cap.
+  outputCaps: z.optional(z.record(z.string(), z.number().check(z.int(), z.gte(1)))),
   // Optional, so a session saved before M76's review still reads.
   agent: z.optional(
     z.object({
@@ -544,6 +551,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     spendSettledOnly,
     unknownChargeCalls,
     agent,
+    outputCaps,
     packedTokensAvoided,
     hookTokensAdded,
     packedCallIds,
@@ -619,6 +627,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(teamRoster !== undefined && { teamRoster }),
       ...(teamCommands !== undefined && { teamCommands }),
       ...(agent !== undefined && { agent }),
+      ...(outputCaps !== undefined && { outputCaps }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(hookTokensAdded !== undefined && { hookTokensAdded }),
       ...(packedCallIds !== undefined && { packedCallIds }),

@@ -40,12 +40,14 @@ function NumberInput({
   id,
   label,
   value,
+  step = 1,
   onChange,
 }: {
   readonly id: string
   readonly label: string
   /** Empty while the facet is unset. */
   readonly value: number | ''
+  readonly step?: number | 'any'
   readonly onChange: (value: number | undefined) => void
 }) {
   return (
@@ -55,6 +57,7 @@ function NumberInput({
         id={id}
         type="number"
         min={0}
+        step={step}
         value={value}
         onChange={(event) => {
           const next = event.target.valueAsNumber
@@ -144,6 +147,7 @@ export function FilterBar({
         />
         <NumberInput
           id="models-filter-max-input"
+          step="any"
           label={labels.maxInput}
           value={filter.maxInputPerMillion ?? ''}
           onChange={(maxInputPerMillion) => {
@@ -152,6 +156,7 @@ export function FilterBar({
         />
         <NumberInput
           id="models-filter-max-output"
+          step="any"
           label={labels.maxOutput}
           value={filter.maxOutputPerMillion ?? ''}
           onChange={(maxOutputPerMillion) => {
@@ -160,6 +165,7 @@ export function FilterBar({
         />
         <NumberInput
           id="models-filter-max-cached"
+          step="any"
           label={labels.maxCached}
           value={filter.maxCachedPerMillion ?? ''}
           onChange={(maxCachedPerMillion) => {

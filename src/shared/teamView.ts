@@ -8,7 +8,7 @@
 // dropped (D36): unknown item kinds keep today's `item` row.
 
 import * as z from 'zod/mini'
-import { legacyUsdSchema } from './usdSchema'
+import { legacyUsdSchema, usdAmountSchema } from './usdSchema'
 
 /** How the entry's model bills: a key (paid), a plan, or nothing (D75). */
 export const teamPayKindSchema = z.enum(['key', 'subscription', 'local'])
@@ -80,8 +80,9 @@ export const teamOrchestratorSchema = z.object({
 export const teamTreeSchema = z.object({
   orchestrator: teamOrchestratorSchema,
   roles: z.readonly(z.array(teamRoleSchema)),
-  spentUsdToday: z.optional(legacyUsdSchema),
-  budgetUsdToday: z.optional(legacyUsdSchema),
+  // Exact decimal strings from the settled claims, never binary floats (M96 review).
+  spentUsdToday: z.optional(usdAmountSchema),
+  budgetUsdToday: z.optional(usdAmountSchema),
 })
 export type TeamTreeData = z.infer<typeof teamTreeSchema>
 

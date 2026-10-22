@@ -224,7 +224,6 @@ export interface AcpFsInput {
 Serves `fs/read_text_file` inside the working copy only. Client file
 methods enforce nothing on agents with their own tools (research §4.5);
 the confinement still binds every agent that routes through them.
-@unwired M96 ACP fs read
 */
 export async function acpFsRead(
   input: AcpFsInput,
@@ -243,31 +242,38 @@ export async function acpFsRead(
   }
 }
 
-/** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`.
-@unwired M96 ACP fs write
-*/
+/** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`. */
 export async function acpFsWrite(
   input: AcpFsInput,
   given: string,
   content: string,
 ): Promise<{ readonly ok: true } | { readonly error: string }> {
   try {
-    return await withWorkerFile(input, given, true, async (handle, confined) => {
-      if (!isCheckedWorkerWriteAllowed(input.role, confined))
-        return {
-          error:
-            input.role.workspaceMode === 'read-only'
-              ? 'the role is read-only'
-              : 'outside the write paths',
-        }
-      await handle.write(content)
-      return { ok: true }
-    })
-  } catch (error) {
-    // Only the fence's confinement refusal reads "outside the working
-    // copy"; a write inside the copy that fails reaches the caller.
-    if (!(error instanceof MuseWorkerFolderError)) throw error
-    return { error: 'outside the working copy' }
+    const confined = await confineWorkerPath(input, given)
+    if (confined.ok && !isCheckedWorkerWriteAllowed(input.role, confined))
+      return {
+        error:
+          input.role.workspaceMode === 'read-only'
+            ? 'the role is read-only'
+            : 'outside the write paths',
+      }
+    return await withWorkerFile(
+      input,
+      given,
+      true,
+      async (handle) => {
+        await handle.write(content)
+        return { ok: true }
+      },
+      input.role,
+    )
+  } catch (error: unknown) {
+    // The fence's confinement refusal reads "outside the working copy"; a
+    // helper or native failure inside the copy reaches the caller as its own
+    // typed sentence. Anything else is not a refusal: rethrow it.
+    if (error instanceof MuseWorkerFolderError) return { error: 'outside the working copy' }
+    if (error instanceof Error) return { error: error.message }
+    throw error
   }
 }
 

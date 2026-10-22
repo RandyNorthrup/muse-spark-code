@@ -5508,6 +5508,23 @@ export const EN = {
   // keeps its tools; from the next turn `delegate` is refused.
   teamSingleModelAgain: 'Only one model is ready: the team applies from a new conversation.',
   teamRunnerUnavailable: '{tool} is unavailable: the team runner has not loaded in this window.',
+  // The team host service (M96 lane X): its tool answers and refused actions.
+  teamPlanShown: 'Team plan shown; nothing started.',
+  teamTasksStarted: 'Team tasks started: {count}',
+  teamMergeRework: 'The merge met conflicts: the task went back for rework.',
+  teamTaskUnknown: 'That team task is not open in this window.',
+  teamWaitingUnknown: 'Nothing is waiting for this answer any more.',
+  teamBudgetUnavailable:
+    "A team task cannot start under a session budget until it can share this conversation's budget.",
+  teamTaskNoDiff: 'That team task has no branch to compare.',
+  teamTranscriptNotKept:
+    "A team worker's conversation closes with its task; its report and its diff stay.",
+  teamTaskBusy: 'That team task is already being merged or discarded.',
+  teamMergeUntrusted: 'Trust this workspace to merge a team task.',
+  teamMergeNeedsConversation:
+    'Open the conversation that started this team task to merge it there.',
+  teamMergePlanMode: 'Merging a team task is refused in Plan mode.',
+  teamReviewStarted: 'A reviewer started checking this branch; merge it once the review is in.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',
@@ -6378,6 +6395,20 @@ export const EN = {
   }),
   pricePerMillion: 'Prices per million tokens.',
   modelsNotScanned: 'Refresh to list this provider’s models.',
+  teamFileHelperMissing: 'The verified native worker file helper is unavailable.',
+  teamFileNativeFailed: 'The native worker file proof failed; no file contents were written.',
+  // {kind}: the helper exception's type name, fixed vocabulary, never a path.
+  teamFileHelperFailed:
+    'The worker file helper itself failed ({kind}); no file contents were written.',
+  teamFileLinked: 'The file path contains a link or a reinterpreted component.',
+  teamFileOutside: 'The file is outside the admitted working copy.',
+  teamFileRoleDenied: 'The role does not allow writing this path.',
+  teamFileExists: 'The new file path is already occupied.',
+  teamFileChanged: 'The reserved file or its parent changed.',
+  // {path}: the working-copy-relative path that cannot be created.
+  teamFileCannotCreate: 'The file {path} cannot be created inside the working copy.',
+  referenceTeamFiles:
+    'Teams remain unavailable pending integration and certification. Engine and ACP workers can create files through the verified native helper, within their working copy and role write paths.',
   // Native Ollama codec failures (M95).
   ollamaModelRequired: 'Ollama needs a model id.',
   ollamaContextRequired: 'Ollama needs a positive integer num_ctx.',
@@ -6405,6 +6436,9 @@ export const EN = {
   // {model}: the model id; {role}: the role id.
   teamCapabilityUnknown:
     'The capabilities of {model} are unknown; it was not checked for the {role} role.',
+  // A saved team setting the selected model does not take. {setting} and
+  // {value} are the saved technical key and value; {model}: the model id.
+  teamSettingUnsupported: 'The saved team setting {setting} ({value}) is not supported by {model}.',
   // A role or team.json file refused whole. {file}: the file; {detail}: the technical reason.
   teamRoleFileRefused: '{file}: {detail}',
   teamRoleResolutionUnknown:
@@ -6418,6 +6452,47 @@ export const EN = {
   // M96 (PLAN.md D75): the team. Every role, pool, task, ledger and hint
   // string the Roles section, the Agent map and the cards show. Text the
   // model reads is TEAM_MODEL_TEXT in constants.ts and stays English.
+  teamEditor: {
+    transcript: 'Open Transcript',
+    diff: 'Review Diff',
+    editRole: 'Edit in Roles Section',
+    stopAll: 'Stop All Team Tasks',
+    toolSearch: 'Search Tools',
+    workspace: 'Workspace',
+    poolKeys: 'Alt+Up / Alt+Down move this entry in its pool.',
+    purpose: 'Purpose',
+    done: 'Done Criteria',
+    guidance: 'Guidance',
+    roleId: 'Role ID',
+    pools: 'Pools',
+    concurrent: 'Running Limit',
+    caps: 'Caps',
+    task: 'Task',
+    day: 'Day',
+    lifetime: 'Lifetime',
+    addCap: 'Add Cap',
+    reapply: 'Re-apply Level',
+    empty: 'No Team Is Running',
+    save: 'Save Team',
+    saved: 'Team saved.',
+    invalid: 'Review the team’s invalid or missing values before saving.',
+    moveLabel: 'Moved {entry} to position {position}.',
+    noCalls: 'This preview makes no model call and costs nothing.',
+    settings: 'Model Settings',
+    agents: 'Agents',
+  },
+  teamEditorRoles: {
+    research: 'Research',
+    design: 'Design',
+    marketing: 'Marketing',
+    engineering: 'Engineering',
+    qa: 'QA',
+    'code-review': 'Code Review',
+    docs: 'Docs',
+  },
+  referenceTeamPoolKeys: 'Alt+Up / Alt+Down move this entry in its pool.',
+  referenceTeamConfiguration:
+    'Roles and Agents stay hidden until the team worker and configuration bindings are installed.',
   teamRolesTitle: 'Roles',
   teamAgentsTitle: 'Agent Map',
   teamHistoryTitle: 'Team History',
@@ -6433,6 +6508,29 @@ export const EN = {
   teamInPlaceConfirm:
     'A worker in this role writes in your own tree, beside your own edits. Only writers you allow here run this way: never a repository, a project role or a template.',
   teamToolChecklist: 'Tool Set',
+  teamToolGroups: {
+    read: 'Read',
+    codeIntel: 'Code Intel',
+    rename: 'Rename',
+    write: 'Write',
+    shell: 'Shell',
+    readOnlyShell: 'Read-Only Shell',
+    testShell: 'Test Shell',
+    checks: 'Checks',
+    diagnostics: 'Diagnostics',
+    webFetch: 'Web Fetch',
+    webSearch: 'Web Search',
+    images: 'Images',
+    memoryRead: 'Memory Read',
+    skills: 'Skills',
+    report: 'Report',
+  },
+  teamReportShapes: {
+    summary: 'Summary',
+    review: 'Review',
+    qa: 'Q&A',
+  },
+  teamPoolFree: 'Free',
   teamAddEntry: 'Add Entry',
   teamDefaultEntry: 'Default',
   // {model}: what Default resolves to now, for example a model and backend.
@@ -6502,6 +6600,9 @@ export const EN = {
   teamPreviewTitle: 'Preview',
   teamPreviewSample: 'Sample Task',
   // {cost}: the labelled cost of one orchestrator turn.
+  teamTryTally: 'Paid preview: {attempts}; charged {charged}; retained liability {retained}.',
+  teamTryDenied: 'Paid planning preview denied. No charge was made.',
+  teamNotReleased: 'Agent teams are not available in this build.',
   teamTryWithOrchestrator: 'Try With the Orchestrator ({cost})',
   teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
   teamEntryMissing: 'Missing: map it to one of your agents or remove it.',
@@ -6604,6 +6705,13 @@ export const EN = {
   // {low}, {high}: dollars per hour; {tokens}: tokens per hour.
   teamLevelCost: '{low}–{high} per hour, {tokens} tokens',
   teamLevelCostTokens: '{tokens} tokens per hour',
+  teamControlLabels: {
+    thinkingBudget: 'Thinking budget',
+    outputCap: 'Output cap',
+    parallelToolCalls: 'Parallel tool calls',
+    temperature: 'Temperature',
+    topP: 'Top-p',
+  },
   teamSettingCostEffort: 'Higher effort is slower, about twice the tokens per step up',
   teamSettingCostThinking: 'Thinking adds reasoning tokens to every task',
   teamSettingCostServiceTier: 'Priority tiers cost more per token',

@@ -20331,6 +20331,15 @@ product wiring or other lane's source change is part of this correction.
 
 **Status 2026-10-10 (first parts shipped in 0.15.0; team creation and worker dispatch remain): building.**
 
+**Status 2026-10-22 (lane RLM96): building.** Team creation, worker
+dispatch, collect and merge run for real through `TeamHostService` with
+the engine ports: one enabled-team run on the contributor model delegated,
+collected and merged 4 model calls (cap 12), audited from the session
+record. Evidence: `docs/certification/rlm96.md`,
+`test/e2e/team.live.e2e.test.ts`. Still unwired by design: roles-file
+loaders, ACP/Muse worker entries (C-M96-5/M96b), the merge planner
+binding, the team MCP server and slot checks (no-guessed-binding rule).
+
 Status detail retained: first parts (role charters, tools, pools, limits)
 shipped in 0.15.0; team creation and worker dispatch remain (no team can be
 created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main

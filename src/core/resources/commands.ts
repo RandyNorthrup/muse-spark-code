@@ -161,7 +161,12 @@ export async function handoffResourceFile(
 }
 
 /** execFile-compatible bounded results, using the ordinary governed command runner. */
-export async function execResourceFile(
+/**
+One governed helper launch: resolve, confine and spawn, returning the
+process and the stop that covers it. `execResourceFile` and
+`execResourceFileBytes` share it; only their output collection differs.
+*/
+async function launchGovernedFile(
   profile: 'contained' | 'probe',
   command: string,
   args: readonly string[],
@@ -172,7 +177,10 @@ export async function execResourceFile(
     */
     readonly workspaceRoot?: string | undefined
   },
-): Promise<{ stdout: string; stderr: string }> {
+): Promise<{
+  readonly launched: Awaited<ReturnType<typeof spawnResourceProcess>>
+  readonly signal: AbortSignal | undefined
+}> {
   const env = options.env ?? process.env
   const workspace =
     options.workspaceRoot === undefined
@@ -189,6 +197,22 @@ export async function execResourceFile(
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(signal !== undefined && { signal }),
   })
+  return { launched, signal }
+}
+
+export async function execResourceFile(
+  profile: 'contained' | 'probe',
+  command: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding & {
+    /**
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
+    readonly workspaceRoot?: string | undefined
+  },
+): Promise<{ stdout: string; stderr: string }> {
+  const { launched, signal } = await launchGovernedFile(profile, command, args, options)
   const { child, stop } = launched
   child.stdin.end()
   return await new Promise((resolve, reject) => {
@@ -247,5 +271,86 @@ export async function execResourceFile(
           )
       })().catch(reject)
     })
+  })
+}
+
+/**
+Binary-safe bounded helper commands through the same governed boundary:
+stdout stays a Buffer (git reads blobs and arbitrary filenames), stderr is
+text for the typed failure. Same admission, deadline and combined cap.
+*/
+export async function execResourceFileBytes(
+  profile: 'contained' | 'probe',
+  command: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding & {
+    readonly input?: string | undefined
+    readonly workspaceRoot?: string | undefined
+  },
+): Promise<{ stdout: Buffer; stderr: string }> {
+  const { input } = options
+  // A launch failure rejects here, where the caller awaits, instead of
+  // escaping the promise executor below as an unhandled rejection.
+  const { launched } = await launchGovernedFile(profile, command, args, options)
+  return await new Promise((resolve, reject) => {
+    {
+      const { child, stop } = launched
+      child.stdin.end(input)
+      const out: Buffer[] = []
+      const err: Buffer[] = []
+      const cap = options.maxBuffer ?? CLI_OUTPUT_MAX_BYTES
+      let bytes = 0
+      let isFailed = false
+      let stopping: Promise<void> | undefined
+      const abort = (): void => {
+        if (isFailed) return
+        isFailed = true
+        stopping ??= stop()
+        void stopping.catch(() => {
+          reject(new Error('Governed command tree stop failed'))
+        })
+      }
+      const push = (chunk: Buffer, to: Buffer[]): void => {
+        bytes += chunk.length
+        if (bytes > cap) abort()
+        else to.push(chunk)
+      }
+      child.stdout.on('data', (chunk: Buffer) => {
+        push(chunk, out)
+      })
+      child.stderr.on('data', (chunk: Buffer) => {
+        push(chunk, err)
+      })
+      child.once('error', abort)
+      child.once('close', (code) => {
+        void (async () => {
+          await stopping
+          let report: Awaited<ReturnType<typeof launched.outcome>> | undefined
+          try {
+            report = await launched.outcome()
+          } catch {
+            // The limits report is best-effort: without it the memory-limit
+            // throw below is skipped and the outcome still resolves.
+            report = undefined
+          }
+          const memory = report?.limits.find((limit) => limit !== 'activeProcess')
+          if (memory !== undefined) throw new ResourceMemoryLimitError(memory)
+          if (report !== undefined && report.capRefusals > 0)
+            throw new ResourceCapRefusedError(report.capRefusals)
+          const result = {
+            stdout: Buffer.concat(out),
+            stderr: Buffer.concat(err).toString('utf8'),
+          }
+          if (code === 0 && !isFailed) resolve(result)
+          else
+            reject(
+              Object.assign(new Error('Governed command failed'), {
+                ...result,
+                code,
+              }),
+            )
+        })().catch(reject)
+      })
+    }
   })
 }

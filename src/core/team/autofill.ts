@@ -58,8 +58,8 @@ export interface TeamAutofillContext {
   readonly dismissals: TeamDismissalStore
   /** Lane R's capability check: whether the model may serve the role. */
   readonly isCapable: (modelRef: string, role: string) => boolean
-  /** The team's remaining daily budget in dollars. */
-  readonly remainingDailyBudgetUsd: UsdAmount
+  /** The team's remaining daily budget in dollars: undefined when no daily budget is set. */
+  readonly remainingDailyBudgetUsd: UsdAmount | undefined
 }
 
 /** The tasks a role needs before the record replaces the starting value. */
@@ -230,7 +230,10 @@ function suggestPoolFallback(context: TeamAutofillContext): readonly TeamSuggest
 /** Caps from the budget: day caps that fit the remaining daily budget. */
 function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestion[] {
   const suggestions: TeamSuggestion[] = []
-  if (Usd.from(context.remainingDailyBudgetUsd).compare(Usd.from(0)) <= 0) {
+  if (
+    context.remainingDailyBudgetUsd === undefined ||
+    Usd.from(context.remainingDailyBudgetUsd).compare(Usd.from(0)) <= 0
+  ) {
     return suggestions
   }
   for (const role of context.draft.roles) {

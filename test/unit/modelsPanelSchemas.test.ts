@@ -169,7 +169,7 @@ describe('modelsPanel schemas', () => {
   })
 
   it('refuses a deep link to an unknown section', () => {
-    expect(parseHostToPanelMessage({ type: 'modelsPanel/navigate', section: 'roles' }).ok).toBe(
+    expect(parseHostToPanelMessage({ type: 'modelsPanel/navigate', section: 'future' }).ok).toBe(
       false,
     )
   })

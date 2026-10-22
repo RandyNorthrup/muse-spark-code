@@ -1,0 +1,17 @@
+{
+  "status": 1,
+  "restoration": [
+    {
+      "file": "src/core/team/teamTry.ts",
+      "before": "356d741d72147531d55df52109aa7248cd90a8a7c4081215bc316ebb642d75af",
+      "after": "356d741d72147531d55df52109aa7248cd90a8a7c4081215bc316ebb642d75af",
+      "exact": true
+    },
+    {
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "before": "d62763e982e863e9b83503dd7e7cb256d95609cec4a6be70fd013fa4750ab16a",
+      "after": "d62763e982e863e9b83503dd7e7cb256d95609cec4a6be70fd013fa4750ab16a",
+      "exact": true
+    }
+  ]
+}

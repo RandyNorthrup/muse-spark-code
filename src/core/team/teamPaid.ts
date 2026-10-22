@@ -81,20 +81,22 @@ export function teamWorkerPrice(
 ): string {
   const lines = tasks.map((task) => {
     const tier = teamWorkerPaidTier(task)
-    const scope = [task.provider ?? 'meta', task.priceTier ?? tier]
+    const scope = [
+      task.provider ?? 'meta',
+      task.priceTier ?? (task.rates === undefined ? tier : JSON.stringify(task.rates)),
+    ]
       .filter((part) => part !== undefined)
       .join(', ')
+    const tariff =
+      task.rates ?? (tier === undefined ? undefined : MODEL_API_PRICES_PER_MILLION[tier])
     const rates =
-      tier === undefined
+      tariff === undefined
         ? fill(UI_TEXT.paidTeamWorkerUnpriced, { tokens: formatNumber(task.taskCeilingTokens) })
         : fill(UI_TEXT.paidTeamWorkerRates, {
             model: task.modelId,
-            input: formatUsd(MODEL_API_PRICES_PER_MILLION[tier].input, MODEL_API_PRICE_DECIMALS),
-            cached: formatUsd(
-              MODEL_API_PRICES_PER_MILLION[tier].cachedInput,
-              MODEL_API_PRICE_DECIMALS,
-            ),
-            output: formatUsd(MODEL_API_PRICES_PER_MILLION[tier].output, MODEL_API_PRICE_DECIMALS),
+            input: formatUsd(tariff.input, MODEL_API_PRICE_DECIMALS),
+            cached: formatUsd(tariff.cachedInput ?? tariff.input, MODEL_API_PRICE_DECIMALS),
+            output: formatUsd(tariff.output, MODEL_API_PRICE_DECIMALS),
             tokens: formatNumber(task.taskCeilingTokens),
           })
     return fill(UI_TEXT.paidTeamWorkerLine, {
@@ -130,7 +132,9 @@ export function teamWorkerScopes(tasks: readonly TeamWorkerConfirmation[]): read
     return JSON.stringify([
       task.provider ?? 'meta',
       task.modelId,
-      task.priceTier ?? tier ?? 'unpriced',
+      task.priceTier ??
+        (task.rates === undefined ? tier : JSON.stringify(task.rates)) ??
+        'unpriced',
       tier === undefined ? null : MODEL_API_PRICES_PER_MILLION[tier],
     ])
   })

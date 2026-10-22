@@ -18,7 +18,10 @@ export function SectionNavigation({
   readonly sections?: readonly PanelSectionDef[]
 }) {
   return (
-    <nav className="models-nav" aria-label={UI_TEXT.modelsPanelTitle}>
+    <nav
+      className={sections.length > 2 ? 'models-nav models-nav-team' : 'models-nav'}
+      aria-label={UI_TEXT.modelsPanelTitle}
+    >
       {sections.map((section) => (
         <button
           key={section.id}

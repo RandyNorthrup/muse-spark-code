@@ -11,6 +11,7 @@ import {
   providersFile,
   recordPlanUsage,
   OPENROUTER_ORIGIN,
+  metaCapabilityRecord,
 } from '../backend/providersEntry'
 import {
   ChatGptSignInError,
@@ -119,6 +120,10 @@ export function createSubscriptionFeatures(options: {
       return ids
     },
   })
+  const teamDiscovery = async () => {
+    const provider = await configured()
+    return await provider.teamDiscovery()
+  }
   const panelFetch: typeof seam.fetcher.fetchModels = (...args) => seam.fetcher.fetchModels(...args)
   const fetchModels: typeof seam.fetcher.fetchModels = async (provider, key, signal) => {
     if (provider.auth === 'subscription') return await panelFetch(provider, key, signal)
@@ -193,6 +198,8 @@ export function createSubscriptionFeatures(options: {
     await options.connected(ref)
   }
   return {
+    teamDiscovery,
+    teamMetaRecord: metaCapabilityRecord,
     seam: panelSeam,
     readKeyUsage: async (): Promise<ProviderUsageRow[]> => {
       const services = await configured()

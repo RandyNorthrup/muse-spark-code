@@ -9,9 +9,8 @@
 // `WORKER_*` names below carry the plan's values until lane 0 relocates them;
 // nothing here is a second source of a value lane 0 already set.
 
-/** A job a role can do (D75's built-in roles). */
-export type WorkerRoleId =
-  'research' | 'design' | 'marketing' | 'engineering' | 'qa' | 'code-review' | 'docs'
+/** A built-in or saved custom role, validated by the configuration schema. */
+export type WorkerRoleId = string
 
 /** Where a worker may write (D75's workspace modes). */
 export type WorkerWorkspaceMode = 'read-only' | 'own-branch' | 'in-place'

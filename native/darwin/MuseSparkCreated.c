@@ -189,7 +189,10 @@ static void walk(int fd, dev_t root_device, unsigned long long root_mount) {
   if (errno) refuse();
   closedir(d);
 }
+#include "MuseSparkWorkerFile.c"
+
 int muse_created_main(int argc, char **argv) {
+  if (argc > 1 && !strncmp(argv[1], "worker-", 7)) return worker_file(argc, argv);
   if (argc != 8) refuse();
   const char *op=argv[1], *base=argv[2], *base_id=argv[3], *name=argv[4], *id=argv[5], *value=argv[6];
   if (!leaf(name) || !leaf(id)) refuse();
