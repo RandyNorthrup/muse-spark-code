@@ -5,7 +5,6 @@ import {
   GITHUB_CHECKS_PAGE_SIZE,
   GITHUB_MEDIA_TYPE,
   REPORT_MAX_ROWS,
-  REPORT_SOURCE_TIMEOUT_MS,
 } from '../../../shared/constants'
 import {
   reportCiRunSchema,
@@ -465,7 +464,9 @@ export function ghReportTransport(options: ReportGhOptions): ReportNetworkTransp
         encoding: 'utf8',
         env: withoutCredentials(options.environment),
         signal,
-        timeout: REPORT_SOURCE_TIMEOUT_MS,
+        // No deadline of ours (D121/D208): gh's own exit or the caller's
+        // signal ends the request.
+        timeout: Infinity,
         maxBuffer: options.maxBytes,
         windowsHide: true,
         workspaceRoot: options.workspaceRoot,
@@ -604,16 +605,16 @@ export async function postReport(
   const signal = AbortSignal.any([context.signal, controller.signal])
   const dispatch = { hasStarted: false }
   let listener: (() => void) | undefined
+  // Only the caller's signal (the person's cancel) ends the post: no
+  // deadline of ours abandons it (D121/D208). A post already dispatched
+  // when it fires stays uncertain, never retried.
   const aborted = new Promise<never>((_resolve, reject) => {
     listener = () => {
-      reject(new ReportNetworkFailure('post-deadline'))
+      reject(new ReportNetworkFailure('post-cancelled'))
     }
     signal.addEventListener('abort', listener, { once: true })
     if (signal.aborted) listener()
   })
-  const timer = setTimeout(() => {
-    controller.abort()
-  }, REPORT_SOURCE_TIMEOUT_MS)
   const work = async (): Promise<ReportPostResult> => {
     if (!(await deps.policy.allowEgress(url, signal)))
       return { status: 'refused', reason: context.reportText.reportUi.networkOff }
@@ -655,7 +656,6 @@ export async function postReport(
       reason: context.reportText.reportUi.generationFailed,
     }
   } finally {
-    clearTimeout(timer)
     if (listener !== undefined) signal.removeEventListener('abort', listener)
     controller.abort()
   }

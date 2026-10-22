@@ -2116,7 +2116,7 @@
     "missing": "O arquivo de origem ou o repositório está ausente.",
     "invalid": "A origem tem um formato não compatível ou dados inválidos.",
     "limit": "A origem excede o limite de leitura do relatório.",
-    "cancelled": "A leitura da origem foi cancelada ou excedeu o tempo limite.",
+    "cancelled": "A leitura da origem foi cancelada.",
     "failed": "Não foi possível ler toda a origem.",
     "refused": "O caminho da origem é privado ou está fora da pasta permitida.",
     "disabled": "Esta origem de uso do agente não está ativada.",

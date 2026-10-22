@@ -11595,7 +11595,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // HEAD capture can wait: confinement must be checked after it settles.
         if (journal !== undefined && request.checkName !== undefined) {
           try {
-            commit = await journal.commit()
+            commit = await journal.commit(signal)
           } catch {
             this.deps.log.warn('Check-run journal commit unavailable')
           }

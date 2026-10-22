@@ -2087,7 +2087,7 @@
     "missing": "Kaynak dosya veya depo eksik.",
     "invalid": "Kaynağın biçimi desteklenmiyor veya verileri geçersiz.",
     "limit": "Kaynak, rapor okuma sınırını aşıyor.",
-    "cancelled": "Kaynak okuma iptal edildi veya zaman aşımına uğradı.",
+    "cancelled": "Kaynak okuma iptal edildi.",
     "failed": "Kaynağın tamamı okunamadı.",
     "refused": "Kaynak yolu özeldir veya izin verilen klasörün dışındadır.",
     "disabled": "Bu aracı kullanım kaynağı etkin değil.",

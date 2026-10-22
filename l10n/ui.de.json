@@ -2087,7 +2087,7 @@
     "missing": "Die Quelldatei oder das Repository fehlt.",
     "invalid": "Die Quelle hat ein nicht unterstütztes Format oder ungültige Daten.",
     "limit": "Die Quelle überschreitet das Leselimit des Berichts.",
-    "cancelled": "Das Lesen der Quelle wurde abgebrochen oder hat das Zeitlimit überschritten.",
+    "cancelled": "Das Lesen der Quelle wurde abgebrochen.",
     "failed": "Die Quelle konnte nicht vollständig gelesen werden.",
     "refused": "Der Quellpfad ist privat oder liegt außerhalb des erlaubten Ordners.",
     "disabled": "Diese Quelle für die Agentennutzung ist nicht aktiviert.",

@@ -11,8 +11,7 @@ export interface ReportAdmissionState<G> {
 }
 export type ReportAdmissionEvent<G> =
   | {
-      readonly type:
-        'requested' | 'transportFailed' | 'effectFailed' | 'aborted' | 'timedOut' | 'released'
+      readonly type: 'requested' | 'transportFailed' | 'effectFailed' | 'aborted' | 'released'
       readonly generation: G
     }
   | {
@@ -59,11 +58,8 @@ export function reportAdmissionStep<G>(
   if (current?.generation !== generation) {
     if (event.type === 'transportReturned')
       effects.push({ type: 'cancelBody', generation, response: event.response })
-    if (
-      (event.type === 'aborted' || event.type === 'timedOut') &&
-      state.waiting.includes(generation)
-    ) {
-      effects.push({ type: 'refuse', generation, reason: 'source-deadline' })
+    if (event.type === 'aborted' && state.waiting.includes(generation)) {
+      effects.push({ type: 'refuse', generation, reason: 'source-cancelled' })
       return {
         state: { ...state, waiting: state.waiting.filter((item) => item !== generation) },
         effects,
@@ -123,15 +119,10 @@ export function reportAdmissionStep<G>(
       }
     }
     case 'aborted':
-    case 'timedOut':
     case 'transportFailed':
     case 'effectFailed': {
       if (current.phase !== 'releasing')
-        return retire(
-          event.type === 'transportFailed' || event.type === 'effectFailed'
-            ? 'source-failed'
-            : 'source-deadline',
-        )
+        return retire(event.type === 'aborted' ? 'source-cancelled' : 'source-failed')
       // A failed refusal still needs a safe rejection; its pending release
       // effect continues in the shell without retiring the owner twice.
       if (event.type === 'effectFailed')
