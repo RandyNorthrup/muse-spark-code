@@ -3,7 +3,11 @@
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
 
 export function mapSecrets(entries: Readonly<Record<string, string>>): SecretStore {
-  const backing = new Map(Object.entries(entries))
+  return mapSecretsBacked(new Map(Object.entries(entries)))
+}
+
+/** An in-memory secret store over a caller-owned map, so tests can read back writes. */
+export function mapSecretsBacked(backing: Map<string, string>): SecretStore {
   return {
     get: (key: string) => Promise.resolve(backing.get(key)),
     store: (key: string, value: string) => {

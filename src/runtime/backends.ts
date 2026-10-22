@@ -950,19 +950,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const modelApiReadiness = async (modelHint?: string): Promise<BackendReadiness> => {
     // One ChatGPT subscription client for both probes below: the same
     // providers file, catalog and browser refusal; absent when no file.
-    const chatGptFactory = async (): Promise<
-      | {
-          readonly factory: ReturnType<typeof runtimeSubscriptionClient>
-          readonly failureOf: (error: unknown) => string | undefined
-        }
-      | undefined
-    > => {
-      const configFile = providersFilePath({
-        platform: process.platform,
-        homeDir: deps.homeDir,
-        xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
-      })
-      if (!existsSync(configFile)) return undefined
+    const chatGptClient = async (
+      configFile: string,
+    ): Promise<{
+      readonly factory: ReturnType<typeof runtimeSubscriptionClient>
+      readonly failureOf: (error: unknown) => string | undefined
+    }> => {
       const entry = await import('./chatGptProviderCommands')
       return {
         factory: entry.runtimeSubscriptionClient({
@@ -975,6 +968,20 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         }),
         failureOf: entry.chatGptFailureOf,
       }
+    }
+    const chatGptFactory = async (): Promise<
+      | {
+          readonly factory: ReturnType<typeof runtimeSubscriptionClient>
+          readonly failureOf: (error: unknown) => string | undefined
+        }
+      | undefined
+    > => {
+      const configFile = providersFilePath({
+        platform: process.platform,
+        homeDir: deps.homeDir,
+        xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+      })
+      return existsSync(configFile) ? await chatGptClient(configFile) : undefined
     }
     // The opted-in CLI subscription counts before the secret store is
     // touched: a valid sign-in is usable with no pasted key, and an
@@ -1040,16 +1047,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           PROVIDERS_FILE_NAME,
         )
         if (hasProviderRecord || existsSync(configFile)) {
-          const entry = await import('./chatGptProviderCommands')
-          const factory = entry.runtimeSubscriptionClient({
-            secrets: deps.secrets,
-            fetch: deps.fetch,
-            configFile,
-            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
-            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-            callbackText: () => UI_TEXT.acpChatGpt.callback,
-          })
-          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+          const client = await chatGptClient(configFile)
+          if ((await client.factory.accountId()) !== undefined) return { state: 'ready' }
         }
       } catch (error: unknown) {
         // An unreadable providers file reads as no default: the key gate

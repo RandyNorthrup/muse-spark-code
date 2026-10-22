@@ -22,6 +22,7 @@ import {
   spendEstimateFromBreakdown,
 } from '../../src/runtime/providersSpend'
 import type { ProvidersDeps } from '../../src/runtime/providersCommands'
+import { mapSecretsBacked } from './helpers/mapSecrets'
 import type { SpendEstimate } from '../../src/core/providers/providerSpend'
 import {
   authClearProvider,
@@ -83,20 +84,6 @@ function envelope(origin: string, key: string): string {
   return formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin }, key)
 }
 
-function fakeSecretStore(secrets: Map<string, string>) {
-  return {
-    get: (key: string) => Promise.resolve(secrets.get(key)),
-    store: (key: string, value: string) => {
-      secrets.set(key, value)
-      return Promise.resolve()
-    },
-    delete: (key: string) => {
-      secrets.delete(key)
-      return Promise.resolve()
-    },
-  }
-}
-
 function depsWith(
   file: ProvidersFile,
   secrets: Map<string, string>,
@@ -110,7 +97,7 @@ function depsWith(
     errors,
     readUserFile: () => Promise.resolve({ ok: true as const, file }),
     writeUserFile: () => Promise.resolve(true),
-    secrets: fakeSecretStore(secrets),
+    secrets: mapSecretsBacked(secrets),
     resolveHost: () => Promise.resolve(['93.184.216.34']),
     fetch,
     readSecret: () => Promise.resolve(''),
@@ -134,7 +121,7 @@ function authDepsWith(
   return {
     printed,
     errors,
-    secrets: fakeSecretStore(secrets),
+    secrets: mapSecretsBacked(secrets),
     storeName: 'test store',
     confirmKeyUse: () => Promise.reject(new Error('spend terminal test asks no key-use question')),
     readSecret: () => Promise.resolve(secret),
