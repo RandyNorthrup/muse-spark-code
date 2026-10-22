@@ -6,6 +6,7 @@ import {
   RESOURCE_DARWIN_HEADROOM_MAX_BYTES,
   RESOURCE_DARWIN_HEADROOM_MAX_COUNTER,
   RESOURCE_PROBE_EMPTY_ENV_KEYS,
+  darwinDictationHelperSegments,
 } from '../../../shared/constants'
 import type { ResourceProbeLimits } from './system'
 
@@ -24,7 +25,14 @@ export class DarwinMemoryReader {
 
   constructor(
     private readonly limits: ResourceProbeLimits,
-    private readonly helper = path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate'),
+    // The packaged signed helper beside dist/native, inside its architecture's
+    // .app; callers (and tests) pass an explicit executable anywhere else.
+    private readonly helper = path.join(
+      __dirname,
+      '..',
+      'native',
+      ...darwinDictationHelperSegments(process.arch),
+    ),
   ) {}
 
   private fail(): void {
