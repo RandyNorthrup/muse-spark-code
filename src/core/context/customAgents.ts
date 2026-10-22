@@ -53,6 +53,7 @@ import {
   SECOND_OPINION_AGENT_EFFORT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
+import type { BackendKind } from '../../shared/protocol'
 import { type ApprovalMode, mspApprovalMode } from '../../shared/permissionModes'
 import type { ContextIo } from './contextFiles'
 import {
@@ -506,8 +507,9 @@ default, dropped the same way when the model does not serve it (D10).
 export function resolveAgentEffort(
   modelId: string,
   agentEffort: EffortLevel | undefined,
+  backend: BackendKind,
 ): EffortLevel {
-  const served = effortLevelsFor(modelId)
+  const served = effortLevelsFor(modelId, undefined, backend)
   const wanted = agentEffort ?? DEFAULT_EFFORT
   return served.includes(wanted) ? wanted : (served.at(-1) ?? DEFAULT_EFFORT)
 }

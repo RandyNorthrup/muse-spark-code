@@ -2831,7 +2831,7 @@ export function App({
     workflowAgents.filter((child) => isChildRunning(child)).length
   const effortLevels =
     state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
-    effortLevelsFor(state.model?.modelId)
+    effortLevelsFor(state.model?.modelId, undefined, state.auth.backend)
   const fastTier = state.models.find((model) => model.modelId === state.model?.modelId)?.fastTier
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {

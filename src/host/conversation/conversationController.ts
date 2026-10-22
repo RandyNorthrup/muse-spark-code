@@ -9095,6 +9095,7 @@ export class ConversationController {
     return effortLevelsFor(
       modelId,
       this.models?.find((model) => model.modelId === modelId)?.effortLevels,
+      this.sessionKind ?? 'museCode',
     )
   }
 

@@ -4,10 +4,12 @@
 import {
   EFFORT_LEVELS,
   type EffortLevel,
+  MODEL_API_EFFORT_LEVELS,
   MODEL_EFFORT_LEVELS,
   THINKING_OFF_EFFORT,
   UI_TEXT,
 } from './constants'
+import type { BackendKind } from './protocol'
 
 export function isEffortLevel(value: string): value is EffortLevel {
   return (EFFORT_LEVELS as readonly string[]).includes(value)
@@ -27,20 +29,27 @@ export function effortForThinking(effort: EffortLevel, isThinkingEnabled: boolea
 }
 
 /**
-The tiers a model serves (verified live per model family, see
+The tiers a model serves on a backend (per exact model id, see
 MODEL_EFFORT_LEVELS); the full UI range when the model is unknown or not
-yet reported, so the slider never offers less than the CLI does.
+yet reported, so the slider never offers less than the CLI does. The Model
+API backend offers no `ultra`: it is Muse Code's client-side top tier, and
+the API has no such value.
 */
 export function effortLevelsFor(
   modelId: string | undefined,
   supported?: readonly EffortLevel[],
+  backend: BackendKind = 'museCode',
 ): readonly EffortLevel[] {
   if (modelId?.includes('/') === true) return supported ?? []
   if (modelId === undefined) {
-    return EFFORT_LEVELS
+    return backend === 'modelApi' ? MODEL_API_EFFORT_LEVELS : EFFORT_LEVELS
   }
-  const family = Object.keys(MODEL_EFFORT_LEVELS).find((prefix) => modelId.startsWith(prefix))
-  return family === undefined ? EFFORT_LEVELS : (MODEL_EFFORT_LEVELS[family] ?? EFFORT_LEVELS)
+  const levels =
+    MODEL_EFFORT_LEVELS[modelId] ??
+    (backend === 'modelApi' ? MODEL_API_EFFORT_LEVELS : EFFORT_LEVELS)
+  return backend === 'modelApi' && levels.includes('ultra')
+    ? levels.filter((level) => level !== 'ultra')
+    : levels
 }
 
 /** Slider position (0-based) for a tier; -1 when the model does not serve it. */

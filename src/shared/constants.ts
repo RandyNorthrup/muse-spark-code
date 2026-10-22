@@ -1460,14 +1460,43 @@ export const COMPOSER_MAX_ROWS = 10
 // it is what the Thinking toggle sends when it is off.
 export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
-// The tiers each model family actually serves, keyed by model-id prefix
-// (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
-// with "Supported values: [minimal, low, medium, high, xhigh]"). Families not
-// listed get the full UI range.
+// The tiers each model actually serves, keyed by exact model id: `max` is
+// served only by muse-spark-1.3 and Muse Wonder (dev.meta.ai/docs/
+// reasoning: not available on muse-spark-1.3-contributor; verified live
+// 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max` with
+// "Supported values: [minimal, low, medium, high, xhigh]"). `ultra` is Muse
+// Code's client-side top tier and rides only the Muse Code backend
+// (effortLevelsFor drops it for the Model API, which has no such value).
+// Models not listed get the full UI range.
+export const EFFORT_LEVELS_THROUGH_XHIGH: readonly EffortLevel[] = [
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+]
 export const MODEL_EFFORT_LEVELS: Readonly<Record<string, readonly EffortLevel[]>> = {
   'muse-spark-1.3': EFFORT_LEVELS,
-  'muse-spark-1.2': ['minimal', 'low', 'medium', 'high', 'xhigh'],
+  'muse-wonder-1.0': EFFORT_LEVELS,
+  'muse-wonder-full-1.0': EFFORT_LEVELS,
+  'muse-spark-1.3-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-spark-1.2': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-spark-1.2-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-spark-1.1': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-wonder-1.0-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-wonder-full-1.0-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
 }
+// The Model API's documented `reasoning_effort` range for a model the table
+// does not name (dev.meta.ai/docs/reasoning): the full vocabulary without
+// Muse Code's client-side `ultra`.
+export const MODEL_API_EFFORT_LEVELS: readonly EffortLevel[] = [
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+]
 // `muse --help` documents `high` as the CLI's own default (verified 2026-09-21,
 // Muse Code 1.3.0); the extension starts there so the TUI and the panel agree.
 export const DEFAULT_EFFORT: EffortLevel = 'high'

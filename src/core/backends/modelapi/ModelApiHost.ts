@@ -10843,7 +10843,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             source: spawnAgent.source,
             prompt: spawnAgent.body,
             toolAllowlist: admission.tools,
-            effort: resolveAgentEffort(modelId, spawnAgent.effort),
+            effort: resolveAgentEffort(modelId, spawnAgent.effort, 'modelApi'),
             approvalMode: spawnAgent.approvalMode,
             permissionMode: spawnAgent.permissionMode,
           },

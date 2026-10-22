@@ -469,7 +469,12 @@ export function buildPalette(
             kind: 'slider',
             levels:
               context.models.find((model) => model.modelId === context.currentModel?.modelId)
-                ?.effortLevels ?? effortLevelsFor(context.currentModel?.modelId),
+                ?.effortLevels ??
+              effortLevelsFor(
+                context.currentModel?.modelId,
+                undefined,
+                context.backend ?? 'museCode',
+              ),
             current: context.effort,
           },
           action: { type: 'setEffort', effort: context.effort },
