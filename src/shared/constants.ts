@@ -5636,6 +5636,36 @@ export const MCP_SUPPORTED_PROTOCOL_VERSIONS: ReadonlySet<string> = new Set([
   '2025-03-26',
   '2024-11-05',
 ])
+// The modern era (PLAN.md D213): revisions that carry the version on every
+// request instead of the `initialize` handshake. The client probes
+// `server/discover` at the newest of these and falls back to the handshake.
+export const MCP_MODERN_PROTOCOL_VERSION = '2026-07-28'
+export const MCP_MODERN_PROTOCOL_VERSIONS: ReadonlySet<string> = new Set([
+  MCP_MODERN_PROTOCOL_VERSION,
+])
+// The per-request `_meta` keys (spec `basic/index#meta`).
+export const MCP_META_PROTOCOL_VERSION = 'io.modelcontextprotocol/protocolVersion'
+export const MCP_META_CLIENT_INFO = 'io.modelcontextprotocol/clientInfo'
+export const MCP_META_CLIENT_CAPABILITIES = 'io.modelcontextprotocol/clientCapabilities'
+// The spec's own JSON-RPC error codes (`basic/index#error-codes`): a server
+// answering with one of these is modern, whatever the transport said.
+export const MCP_ERROR_HEADER_MISMATCH = -32_020
+export const MCP_ERROR_MISSING_CLIENT_CAPABILITY = -32_021
+export const MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION = -32_022
+export const MCP_MODERN_ERROR_CODES: ReadonlySet<number> = new Set([
+  MCP_ERROR_HEADER_MISMATCH,
+  MCP_ERROR_MISSING_CLIENT_CAPABILITY,
+  MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION,
+])
+// How long the `server/discover` probe waits for an answer when the entry
+// names no start-up deadline: the official Python SDK's own probe timeout
+// (`DISCOVER_TIMEOUT_SECONDS`, 10 s). The spec defines the legacy verdict
+// as "any other error, or does not respond within a reasonable timeout",
+// so this bound is the verdict mechanism, not a limit of ours (D121/D208);
+// the entry's own `startup_timeout_sec` still bounds the whole start-up,
+// clamps the stdio probe, and is the HTTP probe's bound when set (there
+// silence is an outage, not a legacy signal).
+export const MCP_DISCOVER_PROBE_TIMEOUT_MS = 10_000
 export const MCP_CLIENT_NAME = 'muse-spark-code'
 // The transports Muse Code accepts (its settings types, 1.3.0 binary:
 // `McpTransportSetting` is `stdio` or `streamable_http`), as museConfigView

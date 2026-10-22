@@ -295,6 +295,10 @@ happened, not what was planned; superseded entries are kept.
   Muse Code request used to export as `incomplete`; a reported
   request now exports as `completed`, with the model that served it
   where the CLI reports one.
+- **MCP servers on the new protocol connect.** The Model API backend's MCP
+  client works with servers on MCP 2026-07-28 as well as older ones: it
+  probes the new revision first and falls back to the handshake, on stdio
+  and streamable HTTP, including the form a server may request mid-call.
 
 ### Release infrastructure
 
