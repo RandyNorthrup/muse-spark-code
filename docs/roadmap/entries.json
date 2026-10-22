@@ -447,7 +447,7 @@
     {
       "id": "M62",
       "title": "VS Code-based editors and Open VSX",
-      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor and Positron, and is published on Open VSX; Eclipse Theia and code-server ran it only against a stand-in for Muse Code, so they are not yet tried for real.",
+      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor and Positron, and is published on Open VSX; Devin Desktop, Eclipse Theia and code-server have run it for real, up to the panel, with no conversation yet.",
       "area": "editors",
       "release": "0.10.0",
       "labels": ["preview"]
