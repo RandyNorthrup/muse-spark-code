@@ -113,6 +113,12 @@ const KNOWN: Record<string, KnownSpawn> = {
     reason:
       'the packaged signed macOS helper at its absolute path in fixed --memory-headroom mode, an env of emptied probe keys only, no shell (M107)',
   },
+  'src/runtime/panel/pullRequests/unconfiguredGit.ts': {
+    kind: 'reviewed',
+    anchor: 'beforeSpawn()',
+    reason:
+      "direct git only when resource admission is absent (the shared runner's unconfigured rule): the caller gate runs synchronously before each launch, argument array, no shell, bounded output and deadline, hidden window",
+  },
 }
 
 const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
@@ -216,6 +222,12 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     anchor: 'execResourceFile',
     reason: 'digest-pinned native peer identity probe with an empty env through the governed exec',
   },
+  'src/runtime/panel/pullRequests/checkout.ts': {
+    kind: 'guarded',
+    anchor: 'checkoutChildEnvironment',
+    reason:
+      'checkout runs through the governed exec boundary (guarded lookup + guarded child env for the checkout directory); the caller gate is rechecked after admission and at Windows GO',
+  },
 }
 
 const KNOWN_SCRIPT: Record<string, KnownSpawn> = {
@@ -277,6 +289,12 @@ const KNOWN_LAUNCH: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: 'systemd-creds',
     reason: 'fixed systemd-creds tool only through the contained launch; key on stdin, empty env',
+  },
+  'src/runtime/panel/pullRequests/checkout.ts': {
+    kind: 'guarded',
+    anchor: 'checkoutChildEnvironment',
+    reason:
+      'checkout batch starts through governed probe/contained profiles with the guarded child env for the checkout directory; the caller gate is rechecked after admission and at Windows GO',
   },
 }
 

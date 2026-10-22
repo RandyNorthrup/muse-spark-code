@@ -2283,6 +2283,10 @@ export const EN = {
   gitCommitAction: 'Commit',
   gitCommitConfirm: 'Commit these changes?',
   gitOperationChanged: 'Repository, conversation or trust changed. Open the form again.',
+  gitMachineBusy: 'Git could not run because the machine is busy. Try again.',
+  gitResourceUnavailable:
+    'Git could not run because resource admission or the process helper is unavailable.',
+  gitMemoryLimit: 'Git was stopped because its process tree reached the memory limit.',
   gitCommandConsequences:
     'Git may run repository hooks, signing programs or credential helpers. Cancellation stops later steps; a Git or GitHub call already started may finish.',
   gitCommitting: 'Committing…',

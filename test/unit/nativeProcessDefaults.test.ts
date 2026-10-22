@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { WORKER_NATIVE_IO } from '../../src/core/team/workers/workerFence'
 import { nodeGitProcesses } from '../../src/runtime/panel/pullRequests/checkout'
+import { childExitText } from './helpers/processes'
 import { removeFolder } from './helpers/temporaryFolders'
 
 // The two defaults spawnInventory profiles as test-only: each runs here
@@ -21,6 +22,7 @@ describe('native process defaults', () => {
   afterAll(() => removeFolder(root))
 
   it('runs git to completion through nodeGitProcesses.run and .start', async () => {
+    let gateRuns = 0
     const options = {
       cwd: root,
       // The real guarded child environment for the run's directory: git
@@ -31,6 +33,11 @@ describe('native process defaults', () => {
       }),
       signal: new AbortController().signal,
       timeout: GIT_TIMEOUT_MS,
+      // The checkout's synchronous last check: the direct route runs it
+      // immediately before each launch; here it always allows.
+      beforeSpawn: () => {
+        gateRuns += 1
+      },
     }
     const ran = await nodeGitProcesses.run('git', ['--version'], {
       ...options,
@@ -38,16 +45,14 @@ describe('native process defaults', () => {
     })
     expect(ran).toContain('git version')
 
-    const child = nodeGitProcesses.start('git', ['--version'], { ...options, detached: false })
-    const chunks: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => {
-      chunks.push(chunk)
+    const child = await nodeGitProcesses.start('git', ['--version'], {
+      ...options,
+      detached: false,
     })
-    const exit = await new Promise<number | null>((resolve) => {
-      child.once('exit', resolve)
-    })
-    expect(exit).toBe(0)
-    expect(Buffer.concat(chunks).toString('utf8')).toContain('git version')
+    const finished = await childExitText(child)
+    expect(finished.exit).toBe(0)
+    expect(finished.text).toContain('git version')
+    expect(gateRuns).toBeGreaterThanOrEqual(1)
   })
 
   it('opens, identifies and reads a real file through WORKER_NATIVE_IO.openFile', async () => {
