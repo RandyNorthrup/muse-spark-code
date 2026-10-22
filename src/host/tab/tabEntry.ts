@@ -57,6 +57,7 @@ export function createTabServices(deps: TabServicesDeps): TabServices {
       budgetUsd: deps.budgetUsd,
       now,
       onTotalChanged: deps.onTotalChanged,
+      ...(deps.onBudgetReached !== undefined && { onBudgetReached: deps.onBudgetReached }),
       log: deps.log,
     }),
   }

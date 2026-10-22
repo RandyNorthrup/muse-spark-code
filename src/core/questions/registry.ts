@@ -34,6 +34,8 @@ export interface QuestionRegistryDeps extends QuestionRegistryPort {
   readonly reply: (userInputId: string, reply: OpenQuestionAnswer | undefined) => Promise<void>
   readonly changed: (snapshot: OpenQuestionsSnapshot) => void
   readonly failed: () => void
+  /** Crowded out past the open cap: the expired cards and the cap. */
+  readonly onExpired?: (expired: readonly OpenQuestion[], max: number) => void
 }
 
 export interface QuestionRequest {
@@ -94,8 +96,8 @@ export class QuestionRegistry {
         )
       }
     }
-    this.expireOldest()
-    await this.publish()
+    const expired = this.expireOldest()
+    await this.publish(expired)
   }
 
   /** A failed question restores the publishable state above, timers stopped. */
@@ -190,16 +192,23 @@ export class QuestionRegistry {
     })
   }
 
-  private expireOldest(): void {
+  private expireOldest(): readonly OpenQuestion[] {
     const open = this.snapshot().questions.filter((entry) => entry.state === 'open')
     const expired = open.slice(0, Math.max(0, open.length - OPEN_QUESTIONS_MAX))
-    for (const entry of expired) this.entries.set(entry.userInputId, { ...entry, state: 'expired' })
+    if (expired.length === 0) {
+      return []
+    }
+    const settled = expired.map((entry) => ({ ...entry, state: 'expired' as const }))
+    for (const entry of settled) this.entries.set(entry.userInputId, entry)
+    return settled
   }
 
-  private async publish(): Promise<void> {
+  private async publish(expired: readonly OpenQuestion[] = []): Promise<void> {
     const snapshot = openQuestionsSnapshotSchema.parse(this.snapshot(false))
+    // Expired cards are undelivered: their text stays readable, unlike
+    // answered ones, which the reply already carried.
     const retained = snapshot.questions.filter((entry) =>
-      ['waiting', 'open', 'dismissed'].includes(entry.state),
+      ['waiting', 'open', 'dismissed', 'expired'].includes(entry.state),
     )
     // One atomic replacement: terminal deletion is itself the durable answer mark.
     await this.deps.store.save(this.sessionId, retained)
@@ -207,6 +216,9 @@ export class QuestionRegistry {
     for (const entry of snapshot.questions) {
       if (retained.every((kept) => kept.userInputId !== entry.userInputId))
         this.entries.delete(entry.userInputId)
+    }
+    if (expired.length > 0) {
+      this.deps.onExpired?.(structuredClone(expired), OPEN_QUESTIONS_MAX)
     }
     this.deps.changed(
       structuredClone({
@@ -311,8 +323,8 @@ export class QuestionRegistry {
             state: 'open',
             deferredAt: entry.deferredAt ?? Math.max(entry.askedAt, this.deps.now()),
           })
-          this.expireOldest()
-          await this.publish()
+          const expired = this.expireOldest()
+          await this.publish(expired)
           const requests = Array.from(this.requests.values(), (request) => ({ ...request }))
           return requests
             .filter(
@@ -376,8 +388,8 @@ export class QuestionRegistry {
           deferredAt: entry.deferredAt ?? Math.max(entry.askedAt, this.deps.now()),
         }),
       })
-      this.expireOldest()
-      await this.publish()
+      const expired = this.expireOldest()
+      await this.publish(expired)
     })
   }
 
@@ -516,11 +528,11 @@ export class QuestionRegistry {
         }
         this.requests.delete(request.userInputId)
       }
-      this.expireOldest()
+      const expired = this.expireOldest()
       const reminder = nextQuestionReminder(this.snapshot().questions, hasApproval)
       if (reminder !== undefined)
         this.entries.set(reminder.userInputId, { ...reminder, reminders: reminder.reminders + 1 })
-      await this.publish()
+      await this.publish(expired)
       return reminder
     })
   }

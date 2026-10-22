@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { createConfiguredProviderServices } from '../../src/core/providers/configured'
 import type { ProviderEntry } from '../../src/core/providers/providersFile'
 import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const entry: ProviderEntry = {
   id: 'probe',
@@ -31,6 +32,11 @@ describe('an injected provider send that fails', () => {
     const outcome = await services.test(entry, 'test-key')
     // Not the probe's own fallbacks: the uncertain sentence survives, so
     // accounting holds the attempt's liability instead of releasing it.
-    expect(outcome).toEqual({ kind: 'failed', detail: UI_TEXT.modelsPanelUnavailable })
+    // The failure is said with its code, never as an unrelated panel text,
+    // and never as `not_sent`.
+    expect(outcome).toEqual({
+      kind: 'failed',
+      detail: fill(UI_TEXT.modelApiSendFailed, { detail: 'unknown' }),
+    })
   })
 })
