@@ -51,49 +51,57 @@ function warningTexts(posted: readonly HostToWebviewMessage[]): string[] {
   return texts
 }
 
+/** A held forecast over the real plan and fleet: the directory, goal, run
+and panel, with the credential generation behind a mutable cell the test
+moves to simulate a sign-out or switch. */
+async function withdrawFixture(prefix: string) {
+  const directory = await mkdtemp(path.join(tmpdir(), prefix))
+  const goal = parseEstimateGoal('M117')
+  if (goal === undefined) throw new Error('unparseable goal: M117')
+  const snapshot = buildPlanSnapshot(PLAN, goal, AS_OF, { branches: [] })
+  for (const row of snapshot.lanes) row.lane.resources.accountPercentPerHour = amount(60)
+  const run = createEstimatorRun(
+    estimatorSourcePorts(
+      () => ({ enabled: false, networkAllowed: false, maxAgeMs: 0, catalogUrls: [] }),
+      () => Promise.resolve(snapshot),
+      fleetIoFromSources({
+        settings: () => undefined,
+        activeAccount: () => ({
+          kind: 'limits',
+          generation: '1',
+          providerId: 'meta',
+          accountId: 'work',
+          label: 'Work',
+          snapshot: {
+            planWindows: {
+              weekly: { usedPercent: 90, resetAt: '2026-10-06T13:00:00.000Z' },
+            },
+          },
+          nowMs: NOW,
+        }),
+        ci: () => [],
+      }),
+    ),
+    EN,
+    BASE_LOCALE,
+  )
+  const state = { generation: '1' }
+  const rig = modelApiRig(directory)
+  const panel = conversationPanel({
+    rig,
+    directory,
+    estimator: run,
+    estimatorGeneration: () => state.generation,
+  })
+  return { directory, goal, panel, state }
+}
+
 describe('estimate withdrawal on credential change', () => {
   it('withdraws an in-flight forecast computed under the replaced credential', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'muse-estimate-withdraw-'))
+    // A known percent window with a future reset admits the lane, so the
+    // run delivers a section unless the generation moves first.
+    const { directory, goal, panel, state } = await withdrawFixture('muse-estimate-withdraw-')
     try {
-      // A known percent window with a future reset admits the lane, so the
-      // run delivers a section unless the generation moves first.
-      const goal = parseEstimateGoal('M117')
-      if (goal === undefined) throw new Error('unparseable goal: M117')
-      const snapshot = buildPlanSnapshot(PLAN, goal, AS_OF, { branches: [] })
-      for (const row of snapshot.lanes) row.lane.resources.accountPercentPerHour = amount(60)
-      const run = createEstimatorRun(
-        estimatorSourcePorts(
-          () => ({ enabled: false, networkAllowed: false, maxAgeMs: 0, catalogUrls: [] }),
-          () => Promise.resolve(snapshot),
-          fleetIoFromSources({
-            settings: () => undefined,
-            activeAccount: () => ({
-              kind: 'limits',
-              generation: '1',
-              providerId: 'meta',
-              accountId: 'work',
-              label: 'Work',
-              snapshot: {
-                planWindows: {
-                  weekly: { usedPercent: 90, resetAt: '2026-10-06T13:00:00.000Z' },
-                },
-              },
-              nowMs: NOW,
-            }),
-            ci: () => [],
-          }),
-        ),
-        EN,
-        BASE_LOCALE,
-      )
-      let generation = '1'
-      const rig = modelApiRig(directory)
-      const panel = conversationPanel({
-        rig,
-        directory,
-        estimator: run,
-        estimatorGeneration: () => generation,
-      })
       const pending = panel.controller.handle({
         type: 'estimateRun',
         requestId: 'old',
@@ -101,7 +109,7 @@ describe('estimate withdrawal on credential change', () => {
       })
       // The run is never aborted and the provider never switches: only the
       // credential generation moves while the estimate is in flight.
-      generation = '2'
+      state.generation = '2'
       await pending
       expect(panel.posted.filter((message) => message.type === 'estimatorSection')).toHaveLength(0)
       expect(panel.posted.filter((message) => message.type === 'estimatorFailure')).toContainEqual({
@@ -116,52 +124,15 @@ describe('estimate withdrawal on credential change', () => {
   })
 
   it('refuses to spin up a held forecast after a credential change', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'muse-estimate-withdraw-spin-'))
+    const { directory, goal, panel, state } = await withdrawFixture('muse-estimate-withdraw-spin-')
     try {
-      const goal = parseEstimateGoal('M117')
-      if (goal === undefined) throw new Error('unparseable goal: M117')
-      const snapshot = buildPlanSnapshot(PLAN, goal, AS_OF, { branches: [] })
-      for (const row of snapshot.lanes) row.lane.resources.accountPercentPerHour = amount(60)
-      const run = createEstimatorRun(
-        estimatorSourcePorts(
-          () => ({ enabled: false, networkAllowed: false, maxAgeMs: 0, catalogUrls: [] }),
-          () => Promise.resolve(snapshot),
-          fleetIoFromSources({
-            settings: () => undefined,
-            activeAccount: () => ({
-              kind: 'limits',
-              generation: '1',
-              providerId: 'meta',
-              accountId: 'work',
-              label: 'Work',
-              snapshot: {
-                planWindows: {
-                  weekly: { usedPercent: 90, resetAt: '2026-10-06T13:00:00.000Z' },
-                },
-              },
-              nowMs: NOW,
-            }),
-            ci: () => [],
-          }),
-        ),
-        EN,
-        BASE_LOCALE,
-      )
-      let generation = '1'
-      const rig = modelApiRig(directory)
-      const panel = conversationPanel({
-        rig,
-        directory,
-        estimator: run,
-        estimatorGeneration: () => generation,
-      })
       await panel.controller.handle({
         type: 'estimateRun',
         requestId: 'first',
         request: { goal, asOf: AS_OF, fleet: 'current', optimize: 'cost' },
       })
       expect(panel.posted.filter((message) => message.type === 'estimatorSection')).toHaveLength(1)
-      generation = '2'
+      state.generation = '2'
       await panel.controller.handle({
         type: 'estimateSpinUp',
         requestId: 'start',

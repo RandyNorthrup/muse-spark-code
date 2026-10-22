@@ -142,6 +142,7 @@ import {
   type WireNotification,
 } from './mapNotification'
 import type { MuseUsageDeltas, UsageNotesBundle } from './usageDeltas'
+import { museCodeLimitWindows } from './usageDeltas'
 import { failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
@@ -2869,19 +2870,7 @@ export class MuseCodeHost implements AgentHost {
             provider: 'museCode',
             source: 'museCode',
             observedAt: usage.observedAtMs,
-            windows: [
-              {
-                id: 'window',
-                usedPercent: usage.window.usedPercent,
-                resetsAt: usage.window.resetsAtMs,
-                windowMins: usage.window.windowDurationMins,
-              },
-              {
-                id: 'weekly',
-                usedPercent: usage.weekly.usedPercent,
-                resetsAt: usage.weekly.resetsAtMs,
-              },
-            ],
+            windows: museCodeLimitWindows(usage),
           })
         }
         this.accountHome?.assertCurrent()
