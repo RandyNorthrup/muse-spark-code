@@ -9,7 +9,15 @@ import os from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { CONNECTOR_SCHEMA_VERSION, PROMPT_USER_FOLDER, UI_TEXT } from '../../src/shared/constants'
+import {
+  CONNECTOR_FOLDER,
+  CONNECTOR_SCHEMA_VERSION,
+  PROMPT_USER_FOLDER,
+  UI_TEXT,
+} from '../../src/shared/constants'
+import type { ConnectorGrant } from '../../src/shared/connector'
+import { ConnectorStore } from '../../src/runtime/connector/store'
+import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
 import { serialisePromptFile } from '../../src/shared/prompts'
 
 const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'm124-connector-e2e-')))
@@ -49,6 +57,12 @@ beforeAll(async () => {
     ...common,
     entryPoints: [path.resolve('src/runtime/connector/entry.ts')],
     outfile: path.join(directory, 'dist', 'connector.js'),
+  })
+  // The connector's storage guard (RVM124 finding 15), loaded by `mcp` beside it.
+  await build({
+    ...common,
+    entryPoints: [path.resolve('src/runtime/connector/storageGuard.ts')],
+    outfile: path.join(directory, 'dist', 'connectorStoreGuard.js'),
   })
   // The real M113 engine behind muse_report (RVM124 P2-11).
   await build({
@@ -113,23 +127,24 @@ function structured(reply: Record<string, unknown> | undefined) {
   return (reply?.['result'] as { structuredContent: Record<string, unknown> }).structuredContent
 }
 
-async function grant(scopes: readonly string[], connection = 'default'): Promise<void> {
-  const folder = path.join(dataFolder(), 'connector', 'grants')
-  await mkdir(folder, { recursive: true })
-  await writeFile(
-    path.join(folder, `${connection}.json`),
-    json({
-      schemaVersion: CONNECTOR_SCHEMA_VERSION,
-      connectionId: connection,
-      generation: 1,
-      createdAt: '2026-10-09T00:00:00.000Z',
-      revoked: false,
-      scopes,
-      userLibrary: true,
-      paidCapMicrousd: 0,
-      workspaces: [{ id: 'ws-test', root: directory, label: 'repo', content: true }],
-    }),
+// Grants are written as production writes them: through the store with its
+// storage guard (RVM124 finding 15), so the agent's startup check accepts them.
+async function grant(scopes: ConnectorGrant['scopes'], connection = 'default'): Promise<void> {
+  const store = new ConnectorStore(
+    dataFolder(),
+    connectorStorageGuard(path.join(dataFolder(), CONNECTOR_FOLDER)),
   )
+  await store.saveGrant({
+    schemaVersion: CONNECTOR_SCHEMA_VERSION,
+    connectionId: connection,
+    generation: 1,
+    createdAt: '2026-10-09T00:00:00.000Z',
+    revoked: false,
+    scopes,
+    userLibrary: true,
+    paidCapMicrousd: 0,
+    workspaces: [{ id: 'ws-test', root: directory, label: 'repo', content: true }],
+  })
 }
 
 describe('M124 connector over real stdio', () => {

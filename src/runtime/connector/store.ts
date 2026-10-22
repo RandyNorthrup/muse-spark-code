@@ -189,6 +189,25 @@ export class ConnectorStore {
     await this.guard?.secure(target, 'file')
   }
 
+  /**
+  Creates and secures the connection's audit storage before serving: the
+  folders, the audit key and the live journal. The storage guard's OS
+  scripts then run at startup, never inside a call's receipt timeout (on
+  Windows each is a PowerShell start).
+  */
+  public async prepareAudit(connectionId: string): Promise<void> {
+    await this.audit(connectionId, Date.now).key()
+    const live = path.join(await this.folder('audit'), `${connectionId}.jsonl`)
+    try {
+      const handle = await open(live, 'wx', CONNECTOR_FILE_MODE)
+      await handle.close()
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && error.code === 'EEXIST') return
+      throw error
+    }
+    await this.guard?.secure(live, 'file')
+  }
+
   /** Bounded JSONL: one live segment and one older one, pruned after the retention. */
   public audit(connectionId: string, now: () => number): AuditPort {
     return {

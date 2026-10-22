@@ -82,6 +82,9 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
   if (['serve', 'grant', 'resume', 'status'].includes(command.kind)) {
     try {
       await deps.storageGuard.verify()
+      // Serving writes receipts from the first frame: their storage is
+      // created and secured now, never inside a receipt's timeout.
+      if (command.kind === 'serve') await store.prepareAudit(command.connectionId)
     } catch (error: unknown) {
       if (!isStorageRefused(error)) throw error
       line(
