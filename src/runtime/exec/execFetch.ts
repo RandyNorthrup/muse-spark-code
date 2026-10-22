@@ -70,9 +70,9 @@ export function execFetch(input: {
   readonly externalResponseAccounting?: boolean
   imageGeneration: boolean
   /**
-   * C-M95-SUB: plan-billed chat requests admit at zero dollars and settle
-   * at $0 billed; requests are still counted against the run's maximum.
-   */
+  C-M95-SUB: plan-billed chat requests admit at zero dollars and settle
+  at $0 billed; requests are still counted against the run's maximum.
+  */
   planBilling?: boolean | undefined
   lifecycle: Lifecycle
   onLatch: (cause: StopCause, message?: string) => void

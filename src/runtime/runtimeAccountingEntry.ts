@@ -490,11 +490,11 @@ export function withRuntimeAccounting(
           outputTokens: body.max_output_tokens,
           images: requestImageCount(body),
         })
-        const reserveUsd = isPlanBilling
-          ? zeroUsd
-          : requestedUsd === undefined || countCostUsd === undefined
+        const meteredReserveUsd =
+          requestedUsd === undefined || countCostUsd === undefined
             ? requestedUsd
             : Usd.from(requestedUsd).add(Usd.from(countCostUsd)).toAmount()
+        const reserveUsd = isPlanBilling ? zeroUsd : meteredReserveUsd
         if (
           inputCost === undefined ||
           reserveUsd === undefined ||
@@ -543,7 +543,8 @@ export function withRuntimeAccounting(
               : undefined
           // A plan-billed turn settles $0 even when the wire reports usage:
           // the subscription covered it, so the run ledger keeps no dollar.
-          let cost = isPlanBilling ? zeroUsd : actual === undefined ? undefined : ceilUsd(actual)
+          const meteredCost = actual === undefined ? undefined : ceilUsd(actual)
+          let cost = isPlanBilling ? zeroUsd : meteredCost
           const isRefused =
             httpStatus !== undefined &&
             !hasResponseFrame &&

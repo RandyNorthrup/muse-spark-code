@@ -79,9 +79,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   /**
-   * C-M95-SUB: the stored pay-as-you-go key for paid extras. While the
-   * subscription pays for chat, billed images authenticate as this key.
-   */
+  C-M95-SUB: the stored pay-as-you-go key for paid extras. While the
+  subscription pays for chat, billed images authenticate as this key.
+  */
   readonly getPaidApiKey?: (() => Promise<string | undefined>) | undefined
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
