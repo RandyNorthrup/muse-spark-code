@@ -16,10 +16,11 @@ const now = () => 1_700_000_000_000
 const modelApiKey = () => `LLM_${randomBytes(12).toString('hex')}`
 
 describe('migration key list', () => {
-  it('takes the model API key and every provider slot but chatgpt, without duplicates', () => {
+  it('takes the model API key and every provider slot including chatgpt, without duplicates', () => {
     expect(listMigrationKeys(['openrouter', 'chatgpt', 'openrouter'])).toEqual([
       SECRET_KEYS.modelApiKey,
       'museSpark.provider.openrouter',
+      'museSpark.provider.chatgpt',
     ])
   })
 
@@ -36,6 +37,25 @@ describe('migration key list', () => {
       origin: 'https://api.meta.ai',
     })
     expect(modelApi?.decode(Buffer.from(modelApiKey(), 'utf8')).material.kind).toBe('apiKey')
+  })
+
+  it('gives chatgpt the subscription codec, never the provider record codec', () => {
+    const credentials = buildMigrationCredentials(['chatgpt'], now)
+    expect(credentials.map((entry) => entry.key)).toEqual([
+      SECRET_KEYS.modelApiKey,
+      'museSpark.provider.chatgpt',
+    ])
+    const [, chatgpt] = credentials
+    expect(chatgpt?.request).toBeNull()
+    // A bare 4-key provider record is not a subscription: refused, never adopted.
+    expect(() =>
+      chatgpt?.decode(
+        Buffer.from(
+          JSON.stringify({ v: 1, auth: 'apiKey', origin: 'https://x.test', secret: 's' }),
+          'utf8',
+        ),
+      ),
+    ).toThrow()
   })
 })
 

@@ -11,6 +11,10 @@
 // lands and are not triggered here.
 import { createHash } from 'node:crypto'
 import { VaultMigration } from '../../core/vault/migrate/migrate'
+import {
+  CHATGPT_SUBSCRIPTION_PROVIDER_ID,
+  chatgptSubscriptionMigrationCredential,
+} from '../../core/vault/migrate/chatgptSubscription'
 import { modelApiMigrationCredential } from '../../core/vault/migrate/modelApi'
 import { providerCredentialMigrationCredential } from '../../core/vault/migrate/providerCredentials'
 import {
@@ -33,8 +37,6 @@ import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
 import { withMigrationLock, type MigrationMirror } from './migrationShell'
 
-/** The ChatGPT subscription record owns its codec in its own lane; never taken here. */
-const CHATGPT_PROVIDER_ID = 'chatgpt'
 /**
 Never dereferenced or fetched: the private channel compares it for
 equality only, binding journal rows the way a provider origin binds a key.
@@ -48,7 +50,6 @@ const JOURNAL_SOURCE_ID = 'vscode-secret-storage'
 export function listMigrationKeys(providerIds: readonly string[]): string[] {
   const keys: string[] = [SECRET_KEYS.modelApiKey]
   for (const id of providerIds) {
-    if (id === CHATGPT_PROVIDER_ID) continue
     const key = providerSecretKey(id)
     if (!keys.includes(key)) keys.push(key)
   }
@@ -62,7 +63,10 @@ export function buildMigrationCredentials(
 ): MigrationCredential[] {
   const credentials = [modelApiMigrationCredential(now)]
   for (const id of providerIds) {
-    if (id === CHATGPT_PROVIDER_ID) continue
+    if (id === CHATGPT_SUBSCRIPTION_PROVIDER_ID) {
+      credentials.push(chatgptSubscriptionMigrationCredential(now))
+      continue
+    }
     credentials.push(providerCredentialMigrationCredential(id, now))
   }
   return credentials
@@ -110,7 +114,7 @@ export interface CredentialMigrationPorts {
 export interface CredentialMigrationDeps {
   /** The raw SecretStorage; the mirroring shell wraps it separately. */
   readonly secrets: SecretStore
-  /** Configured provider ids (the seam's store list); chatgpt is excluded. */
+  /** Configured provider ids (the seam's store list). */
   readonly listProviderIds: () => Promise<readonly string[]>
   readonly ports: CredentialMigrationPorts
   /** The installed release's minor ordinal; patches do not advance it. */
@@ -305,6 +309,18 @@ export class CredentialMigrationController implements MigrationMirror {
         'Credential migration could not list providers; migrating the model API key only',
       )
       providerIds = []
+    }
+    // The ChatGPT subscription is a sign-in, not a providers-file row, so
+    // the seam never lists it: probe its slot and take it when stored. The
+    // probe reads the sealed store for presence only, the way `hasMetaKey`
+    // probes do; the value is never kept.
+    if (!providerIds.includes(CHATGPT_SUBSCRIPTION_PROVIDER_ID)) {
+      const stored = await this.deps.secrets.get(
+        providerSecretKey(CHATGPT_SUBSCRIPTION_PROVIDER_ID),
+      )
+      if (stored !== undefined && stored !== '') {
+        providerIds = [...providerIds, CHATGPT_SUBSCRIPTION_PROVIDER_ID]
+      }
     }
     const credentials = buildMigrationCredentials(providerIds, this.deps.now)
     const now = this.deps.now()
