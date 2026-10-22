@@ -789,3 +789,17 @@ VSX job ended "openvsx: the published artifact does not match the release".
   universal VSIX failed three of three ("openvsx published SHA-256 differs
   from the release VSIX"), exit 1; the fixed one matched three of three,
   exit 0, and still matches the win32-x64 package three of three.
+
+## 22. PR #258's first run: the macOS vault panel flow never unlocked
+
+PR #258 head `c7bdd3e943` (CI run 39722505089, capacity run 39722575285):
+macOS shard 15 only, `posixVaultPanelFlow`: after Unlock the panel still
+read `locked` when the step's 60 s wait ended, with no toast and no log. The
+product code is PR #257's final head's, green on every macOS shard there,
+and no path the macOS unlock takes reaches the process helpers whose
+deadlines changed (`runTreeSync` serves the playbook only; the identity
+probe passes its own timeout). With PR #257's third run (Windows, first
+open, two failure toasts) it is the second hosted-runner vault flow failure
+with an empty log. The step message now also names how many frames the
+panel published and its last states, so the next one shows whether the
+step ever ran; the defect is a recovery lane's to find and fix.
