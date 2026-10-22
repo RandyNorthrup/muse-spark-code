@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { makerLimits as limits } from './helpers/fakeMakerMachine'
+import { makerLimits as limits } from './helpers/makerMachineSimulator'
 import { describe, expect, it } from 'vitest'
 import { analyseGcode, type GcodeState, type Bounds } from '../../src/core/maker/gcode/analyser'
 import grblArcCapture from '../fixtures/maker/grbl-arcs.json'

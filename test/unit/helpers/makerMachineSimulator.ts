@@ -63,7 +63,7 @@ export function octoprintFrame() {
     temperature: { tool0: { actual: 20, target: 0 }, bed: { actual: 20, target: 0 } },
   }
 }
-export interface FakeRequest {
+export interface SimulatorRequest {
   readonly path: string
   readonly method: string | undefined
   readonly body: unknown
@@ -72,15 +72,15 @@ export interface FakeRequest {
 async function requestBody(request: IncomingMessage): Promise<unknown> {
   const chunks: Uint8Array[] = []
   for await (const chunk of request) {
-    if (!Buffer.isBuffer(chunk)) throw new Error('bufferExpected')
+    if (!Buffer.isBuffer(chunk)) throw new TypeError('bufferExpected')
     chunks.push(chunk)
   }
   const text = Buffer.concat(chunks).toString('utf8')
   const parsed: unknown = text === '' ? null : JSON.parse(text)
   return z.json().parse(parsed)
 }
-export async function fakeMachineServer() {
-  const requests: FakeRequest[] = []
+export async function machineSimulator() {
+  const requests: SimulatorRequest[] = []
   const moonraker = moonrakerFrame()
   const octoprint = octoprintFrame()
   let hostname = 'virtual-klipper'
@@ -179,7 +179,7 @@ export async function fakeMachineServer() {
   }
 }
 /** RVM103W2 P2: a loopback Stop endpoint answering every request with one fixed status. */
-export async function fakeStopServer(status: number) {
+export async function stopSimulator(status: number) {
   const requests: string[] = []
   const server = createServer((request, response) => {
     requests.push(`${String(request.method)} ${String(request.url)}`)

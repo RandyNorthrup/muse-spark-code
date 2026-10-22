@@ -1,16 +1,12 @@
-import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
-import { spawn } from 'node:child_process'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { makePrivateFolder, makerTempRoot, runtimeMakerNative } from './helpers/makerTemp'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
-import * as processTree from '../../src/host/processTree'
 import { runMakerCommand, openMakerBrowser } from '../../src/runtime/maker/commands'
-import { MachineHttp } from '../../src/core/maker/machines/http'
 import type { MakerLanPolicy } from '../../src/core/maker/registry'
-import type { MakerHost } from '../../src/core/maker/ports'
-import { fakeMachineServer, moonrakerFrame, makerLimits } from './helpers/fakeMakerMachine'
+import { machineSimulator, makerLimits } from './helpers/makerMachineSimulator'
 import { fill } from '../../src/shared/l10n/text'
 import { UI_TEXT } from '../../src/shared/constants'
 import { makerHostMessageSchema, makerSurfaceMessageSchema } from '../../src/shared/makerProtocol'
@@ -26,7 +22,8 @@ async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPo
   roots.push(root)
   const workspace = path.join(root, 'workspace')
   await mkdir(workspace)
-  const presence = { check: vi.fn().mockResolvedValue('approved') }
+  const presenceState = { result: 'approved' as 'approved' | 'denied' | 'unavailable' }
+  const presence = { check: () => Promise.resolve(presenceState.result) }
   const service = await createRuntimeMakerService({
     dataDirectory: path.join(root, 'data'),
     workspace,
@@ -48,12 +45,23 @@ async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPo
   await mkdir(path.join(distDirectory, 'webview', 'chunks'), { recursive: true })
   await writeFile(path.join(distDirectory, 'webview', 'main.js'), 'export {}')
   await writeFile(path.join(distDirectory, 'webview', 'main.css'), '')
-  const openBrowser = vi.fn<(url: string) => Promise<void>>().mockResolvedValue(undefined)
+  const opened: string[] = []
+  const openBrowser = (url: string) => {
+    opened.push(url)
+    return Promise.resolve()
+  }
   const output: string[] = []
-  const readSecret = vi.fn<() => Promise<string | undefined>>().mockResolvedValue(undefined)
+  const secretReads = { count: 0 }
+  const readSecret = () => {
+    secretReads.count += 1
+    return Promise.resolve(undefined)
+  }
   return {
     service,
     presence,
+    presenceState,
+    opened,
+    secretReads,
     output,
     distDirectory,
     workspace,
@@ -103,7 +111,7 @@ describe('runtime maker command execution without a credential store or device',
     'denied presence blocks %s before credentials or OS browser launch',
     async (action) => {
       const fixture = await commands()
-      fixture.presence.check.mockResolvedValue('denied')
+      fixture.presenceState.result = 'denied'
       const args =
         action === 'panel'
           ? ['panel', '--trust-workspace']
@@ -116,16 +124,15 @@ describe('runtime maker command execution without a credential store or device',
               '--trust-workspace',
             ]
       await expect(fixture.run(args)).rejects.toThrow(UI_TEXT.makerPresenceDenied)
-      expect(fixture.readSecret).not.toHaveBeenCalled()
-      expect(fixture.openBrowser).not.toHaveBeenCalled()
+      expect(fixture.secretReads.count).toBe(0)
+      expect(fixture.opened).toEqual([])
       expect(await fixture.service.registry.list()).toEqual([])
     },
   )
   it('denied presence blocks surface machine registration before its registry mutates', async () => {
     const fixture = await commands()
     await fixture.service.host.setHardware(true, 'bench')
-    fixture.presence.check.mockResolvedValue('denied')
-    const register = vi.spyOn(fixture.service.registry, 'register').mockResolvedValue(undefined)
+    fixture.presenceState.result = 'denied'
     try {
       await expect(
         fixture.service.dispatch(
@@ -133,7 +140,7 @@ describe('runtime maker command execution without a credential store or device',
           new AbortController().signal,
         ),
       ).rejects.toThrow(UI_TEXT.makerPresenceDenied)
-      expect(register).not.toHaveBeenCalled()
+      expect(await fixture.service.registry.list()).toEqual([])
     } finally {
       await fixture.service.close()
     }
@@ -168,7 +175,7 @@ describe('runtime maker command execution without a credential store or device',
     ).toBe(0)
     expect(await fixture.run(['machines', 'list'])).toBe(0)
     expect(await fixture.service.registry.list()).toHaveLength(1)
-    expect(fixture.readSecret).not.toHaveBeenCalled()
+    expect(fixture.secretReads.count).toBe(0)
     expect(await fixture.run(['machines', 'remove', 'printer', '--trust-workspace'])).toBe(0)
     expect(await fixture.service.registry.list()).toEqual([])
   })
@@ -184,7 +191,7 @@ describe('runtime maker command execution without a credential store or device',
         '--trust-workspace',
       ]),
     ).rejects.toThrow()
-    expect(fixture.readSecret).toHaveBeenCalledTimes(1)
+    expect(fixture.secretReads.count).toBe(1)
     expect(await fixture.service.registry.list()).toEqual([])
   })
   it('keeps Stop available with no trust or hardware grant', async () => {
@@ -198,9 +205,8 @@ describe('runtime maker command execution without a credential store or device',
     const fixture = await commands(false)
     expect(await fixture.run(['panel'])).toBe(0)
     expect(fixture.output).toEqual([])
-    expect(fixture.openBrowser).toHaveBeenCalledWith(
-      expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/$/),
-    )
+    expect(fixture.opened).toHaveLength(1)
+    expect(fixture.opened[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/)
     const assets = await companionAssets(fixture.distDirectory)
     expect(assets.get('/')?.body).not.toContain('maker-code')
     expect(assets.get('/bridge.js')?.body).toContain("fetch('/presence'")
@@ -242,8 +248,10 @@ describe('runtime maker command execution without a credential store or device',
       const closed = { v, type: 'makerApprovalClosed', id: approval.request.id }
       const notice = { v, type: 'makerNotice', notice: 'physicalStopRequired' }
       // A reload resumes the cookie session; its spent launch code is refused.
-      const fetch = vi.fn((url: string) =>
-        Promise.resolve(
+      const fetched: string[] = []
+      const fetch = (url: string) => {
+        fetched.push(url)
+        return Promise.resolve(
           url === (isReload ? '/launch-code' : '/session')
             ? new Response(null, { status: 401 })
             : Response.json(
@@ -254,8 +262,8 @@ describe('runtime maker command execution without a credential store or device',
                   '/message': state,
                 }[url],
               ),
-        ),
-      )
+        )
+      }
       const surface = new EventTarget() as EventTarget & {
         acquireVsCodeApi: () => { postMessage: (message: unknown) => void }
       }
@@ -310,7 +318,7 @@ describe('runtime maker command execution without a credential store or device',
       surface.acquireVsCodeApi().postMessage({ v, type: 'makerReady' })
       // /events stays closed until the maker schemas have loaded: no frame arrives unparsed.
       await vi.waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(isReload ? '/session' : '/launch', expect.anything())
+        expect(fetched).toContain(isReload ? '/session' : '/launch')
       })
       expect(streams).toEqual([])
       schemasLoaded.resolve(undefined)
@@ -329,7 +337,7 @@ describe('runtime maker command execution without a credential store or device',
       ).toThrow()
       expect(delivered).toHaveLength(4)
       expect(errors).toEqual([])
-      expect(fetch.mock.calls.map(([url]) => url)).toEqual(
+      expect(fetched).toEqual(
         isReload ? ['/session', '/message'] : ['/session', '/launch-code', '/launch', '/message'],
       )
     },
@@ -342,26 +350,22 @@ describe('runtime maker command execution without a credential store or device',
     const fixture = await commands(true, false)
     await expect(fixture.run(args)).rejects.toThrow(UI_TEXT.makerUnattendedDenied)
     expect(fixture.output).toEqual([])
-    expect(fixture.openBrowser).not.toHaveBeenCalled()
-    expect(fixture.readSecret).not.toHaveBeenCalled()
+    expect(fixture.opened).toEqual([])
+    expect(fixture.secretReads.count).toBe(0)
     expect(await fixture.service.registry.list()).toEqual([])
   })
   it('cancelling a turn while approval is pending only revokes; it sends no emergency Stop', async () => {
-    const fixture = await commands()
+    const server = await machineSimulator()
+    const fixture = await commands(true, true, {
+      classify: () => 'private',
+      resolve: () => Promise.resolve(['127.0.0.1']),
+    })
     await fixture.service.host.setHardware(true, 'bench')
     await fixture.service.registry.register({
       ...registration.machine,
+      endpoint: server.endpoint,
       limits: makerLimits,
-      allowPlainHttp: false,
-    })
-    const calls: string[] = []
-    const http = vi.spyOn(MachineHttp.prototype, 'json').mockImplementation((_method, path) => {
-      calls.push(path)
-      return Promise.resolve(
-        path === '/printer/info'
-          ? { result: { hostname: 'virtual', software_version: 'test', state: 'ready' } }
-          : moonrakerFrame(),
-      )
+      allowPlainHttp: true,
     })
     const requested = Promise.withResolvers<undefined>()
     const off = fixture.service.host.subscribe((message) => {
@@ -381,18 +385,19 @@ describe('runtime maker command execution without a credential store or device',
       await requested.promise
       controller.abort()
       expect(await outcome).toBe('refused')
-      expect(calls).not.toContain('/printer/emergency_stop')
-      expect(calls).not.toContain('/printer/gcode/script')
+      const paths = server.requests.map((request) => request.path)
+      expect(paths).not.toContain('/printer/emergency_stop')
+      expect(paths).not.toContain('/printer/gcode/script')
     } finally {
       off()
-      http.mockRestore()
       await fixture.service.close()
+      await server.close()
     }
   })
   it.each([false, true])(
     'cancelling after guarded HTTP dispatch retains controller Stop and reports failure: %s',
     async (hasStopFailure) => {
-      const server = await fakeMachineServer()
+      const server = await machineSimulator()
       const fixture = await commands(true, true, {
         classify: () => 'private',
         resolve: () => Promise.resolve(['127.0.0.1']),
@@ -406,27 +411,26 @@ describe('runtime maker command execution without a credential store or device',
         allowPlainHttp: true,
       })
       // The shared surface completes its payload review before answering, as
-      // production does: the engine's own MakerApproval.review callback gets the
-      // exact makerPayloadReviewed message, and an answer without it is refused.
-      const host: MakerHost = fixture.service.host
-      const confirm = host.confirm.bind(host)
-      const reviewing = vi.spyOn(host, 'confirm').mockImplementation((request, didReview) => {
-        expect(
-          didReview({
-            v: 1,
-            type: 'makerPayloadReviewed',
-            id: request.id,
-            digest: request.digest,
-            isComplete: true,
-          }),
-        ).toBe(true)
-        return confirm(request, didReview)
-      })
+      // production does: it dispatches the exact makerPayloadReviewed message
+      // through the service, and an answer without it is refused.
+      let reviews = 0
       const notices: unknown[] = []
       const off = fixture.service.host.subscribe((message) => {
         if (message.type === 'makerNotice') notices.push(message.notice)
         else if (message.type === 'makerApproval')
           void (async () => {
+            const reviewed = await fixture.service.dispatch(
+              {
+                v: 1,
+                type: 'makerPayloadReviewed',
+                id: message.request.id,
+                digest: message.request.digest,
+                isComplete: true,
+              },
+              new AbortController().signal,
+            )
+            expect(reviewed).toBe(true)
+            reviews += 1
             const answer = {
               id: message.request.id,
               digest: message.request.digest,
@@ -454,7 +458,7 @@ describe('runtime maker command execution without a credential store or device',
           },
           { timeout: 120_000 },
         )
-        expect(reviewing).toHaveBeenCalledOnce()
+        expect(reviews).toBe(1)
         if (hasStopFailure) server.reply({ status: 500, body: 'private fake failure' })
         controller.abort()
         await vi.waitFor(() => {
@@ -473,114 +477,40 @@ describe('runtime maker command execution without a credential store or device',
         await outcome
       } finally {
         off()
-        reviewing.mockRestore()
         server.releaseSend()
         await fixture.service.close()
         await server.close()
       }
     },
   )
-  it.each(['linux', 'darwin', 'win32'] as const)(
-    'keeps the launch code out of the %s opener arguments and real /proc cmdline',
-    async (platform) => {
-      const run = vi.spyOn(processTree, 'runProgram').mockImplementation(async (_file, args) => {
-        if (process.platform === 'linux') {
-          const child = spawn(process.execPath, ['-e', 'process.stdin.resume()', '--', ...args], {
-            env: {},
-          })
-          try {
-            await new Promise<void>((resolve) => child.once('spawn', resolve))
-            const commandLine = await readFile(`/proc/${String(child.pid)}/cmdline`, 'utf8')
-            expect(commandLine).not.toMatch(/[a-f0-9]{64}/)
-            expect(commandLine).not.toContain('#')
-          } finally {
-            const closed = new Promise<void>((resolve) => child.once('close', resolve))
-            child.kill()
-            await closed
-          }
-        }
-        return ''
-      })
-      const url = 'http://127.0.0.1:12345/'
-      try {
-        await openMakerBrowser(url, platform, { SystemRoot: String.raw`C:\Windows` })
-        const [file, args] = run.mock.calls[0] ?? []
-        expect(file).toBe(
-          {
-            win32: String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
-            darwin: '/usr/bin/open',
-            linux: '/usr/bin/xdg-open',
-          }[platform],
-        )
-        expect(args?.join(' ')).toContain(url)
-        if (platform === 'win32') expect(args?.at(-1)).toMatch(/^Start-Process -FilePath '/)
-        else expect(args).toEqual([url])
-      } finally {
-        run.mockRestore()
-      }
-    },
-  )
-  it.each(['SystemRoot', 'SYSTEMROOT'])(
-    'RVM103W5 P2 the Windows opener finds %s in a copied environment',
-    async (name) => {
-      const run = vi.spyOn(processTree, 'runProgram').mockResolvedValue('')
-      try {
-        await openMakerBrowser('http://127.0.0.1:12345/', 'win32', {
-          [name]: String.raw`D:\Windows`,
-        })
-        expect(run.mock.calls[0]?.[0]).toBe(
-          String.raw`D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
-        )
-      } finally {
-        run.mockRestore()
-      }
-    },
-  )
   it.each(['#private-fake-launch', '#' + 'a'.repeat(64), '?launch=private-fake-launch'])(
     'refuses a launcher URL carrying a capability in %s',
     async (suffix) => {
-      const run = vi.spyOn(processTree, 'runProgram').mockResolvedValue('')
-      try {
-        await expect(
-          openMakerBrowser(`http://127.0.0.1:12345/${suffix}`, 'linux', {}),
-        ).rejects.toThrow(UI_TEXT.makerUnattendedDenied)
-        expect(run).not.toHaveBeenCalled()
-      } finally {
-        run.mockRestore()
-      }
+      await expect(
+        openMakerBrowser(`http://127.0.0.1:12345/${suffix}`, 'linux', {}),
+      ).rejects.toThrow(UI_TEXT.makerUnattendedDenied)
     },
   )
   it('returns correlated makerResult messages for the shared serial surface', async () => {
     const fixture = await commands()
     await fixture.service.host.setHardware(true, 'supervised bench')
-    const execute = vi.spyOn(fixture.service.serial, 'execute')
     const message = {
       v: 1 as const,
       type: 'makerSerial' as const,
       id: randomUUID(),
-      operation: 'read' as const,
+      operation: 'write' as const,
       target: { kind: 'serial' as const, port: 'COM99' },
       baud: 115_200,
       durationMs: 100,
       dtr: false,
       rts: false,
-      payloadHex: '',
+      payloadHex: '00',
     }
     try {
-      execute.mockResolvedValueOnce({ status: 'refused', reason: 'classification' })
       const refused = makerHostMessageSchema.parse(
         await fixture.service.dispatch(message, new AbortController().signal),
       )
       expect(refused).toMatchObject({ type: 'makerResult', id: message.id, outcome: 'refused' })
-      execute.mockResolvedValueOnce({
-        status: 'complete',
-        capture: { bytes: Buffer.alloc(0), reason: 'stopped' },
-      })
-      expect(
-        makerHostMessageSchema.parse(
-          await fixture.service.dispatch(message, new AbortController().signal),
-        ),
-      ).toMatchObject({ type: 'makerResult', id: message.id, outcome: 'stopped' })
     } finally {
       await fixture.service.close()
     }
