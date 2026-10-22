@@ -8,6 +8,8 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../shared/l10n/text'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { deviceAttemptIdentitySchema } from '../../shared/devices'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { workerEnvironment } from '../../core/team/refFence'
@@ -59,6 +61,7 @@ function processIdentity(text: string) {
 
 export interface DeviceWorkerLinuxDeps {
   readonly environment: NodeJS.ProcessEnv
+  readonly log: Logger
   readonly run?: RunProgram
   readonly start?: (
     file: string,
@@ -88,7 +91,7 @@ const run: RunProgram = (file, args, env) =>
   })
 
 /** Keep both pipes bounded. Never interpret stderr (including authorization prose). */
-function pipe(child: ChildProcessWithoutNullStreams, overflow: () => void) {
+function pipe(child: ChildProcessWithoutNullStreams, overflow: () => void, log: Logger) {
   let stdout = ''
   const decoder = new StringDecoder('utf8')
   let stdoutBytes = 0
@@ -132,8 +135,9 @@ function pipe(child: ChildProcessWithoutNullStreams, overflow: () => void) {
     },
   )
   // Consumers attach after readiness, which may itself refuse.
-  void closed.catch(() => {
-    /* Readiness may refuse before the consumer attaches. */
+  void closed.catch((error: unknown) => {
+    if (error instanceof DeviceWorkerHostError) return
+    log.error(`Devices linux pipe failed: ${failureForLog(error)}`)
   })
   return { closed, text: () => stdout, isClosed: () => isClosed, isOverflow: () => isOverflow }
 }
@@ -149,14 +153,6 @@ function groupPath(group: string, file: string): string {
   return path.posix.join('/sys/fs/cgroup', normalized, file)
 }
 
-async function ignoreFailure(promise: Promise<unknown> | undefined): Promise<void> {
-  try {
-    await promise
-  } catch {
-    /* The original refusal/uncertainty remains authoritative. */
-  }
-}
-
 /** No user manager, unenforceable task limit or sleep authorization means no worker. */
 export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriver {
   const invoke = deps.run ?? run
@@ -170,6 +166,16 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
   const env = noWorkspaceChildEnvironment('linux', workerEnv, realpathSync)
   const jobs = new Map<string, { cgroup: string; inhibited(): boolean }>()
   const slots = new Set<string>()
+  // Cleanup never throws: the original refusal/uncertainty remains
+  // authoritative, and anything unexpected is loud instead of masking it.
+  const ignoreFailure = async (promise: Promise<unknown> | undefined): Promise<void> => {
+    try {
+      await promise
+    } catch (error) {
+      if (error instanceof DeviceWorkerHostError) return
+      deps.log.error(`Devices linux cleanup failed: ${failureForLog(error)}`)
+    }
+  }
   const boundedRead = async (file: string): Promise<string> => {
     const text = await read(file)
     if (Buffer.byteLength(text) > DEVICE_LIMITS.frameBytes)
@@ -225,8 +231,8 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         ['--user', 'show', '--property=Version', '--value'],
         env,
       )
-    } catch {
-      throw new DeviceWorkerHostError('helper')
+    } catch (error) {
+      throw new DeviceWorkerHostError('helper', { cause: error })
     }
     if (version.trim() === '') throw new DeviceWorkerHostError('helper')
     await (recovering ??= recoverOrphans())
@@ -290,8 +296,9 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         }
       }
       return isDischarging ? 'battery' : 'unknown'
-    } catch {
-      return 'unknown'
+    } catch (error) {
+      if (error instanceof DeviceWorkerHostError) return 'unknown'
+      throw error
     }
   }
   const query = async () => {
@@ -353,7 +360,7 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       ],
       env,
     )
-    const output = pipe(child, () => child.kill())
+    const output = pipe(child, () => child.kill(), deps.log)
     child.stdin.on('error', () => {
       /* Failure is retained by the owning lifecycle. */
     })
@@ -385,8 +392,9 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         observed.ActiveState === 'inactive' &&
         observed.SubState === 'dead'
       )
-    } catch {
-      return false
+    } catch (error) {
+      if (error instanceof DeviceWorkerHostError) return false
+      throw error
     }
   }
   const launch: DeviceWorkerDriver['launch'] = async (command, environment, attempt) => {
@@ -424,16 +432,29 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       units: readonly string[],
       isLauncherDone: () => Promise<boolean> = () => Promise.resolve(true),
     ): Promise<DeviceWorkerLaunch> => {
-      if (!(await isLauncherDone())) return deviceWorkerUncertain(error)
-      for (const name of units) if (!(await isUnitGone(name))) return deviceWorkerUncertain(error)
+      try {
+        if (!(await isLauncherDone())) return deviceWorkerUncertain(error)
+        for (const name of units) if (!(await isUnitGone(name))) return deviceWorkerUncertain(error)
+      } catch (probeError) {
+        return deviceWorkerUncertain(probeError)
+      }
       jobs.delete(unit)
       releaseSlot()
       return deviceWorkerRefused(error)
+    }
+    const dropIfEmpty = async (): Promise<void> => {
+      try {
+        if (cgroup !== '' && (await isEmpty(unit, cgroup))) jobs.delete(unit)
+      } catch (error) {
+        // Emptiness stays unproven; the manager's view below decides.
+        deps.log.error(`Devices linux reclaim probe failed: ${failureForLog(error)}`)
+      }
     }
     let hold: Awaited<ReturnType<typeof inhibit>>
     try {
       hold = await inhibit(unit)
     } catch (error) {
+      if (!(error instanceof DeviceWorkerHostError)) throw error
       return await failed(error, [inhibitor])
     }
     let isActivated = false
@@ -444,15 +465,22 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       try {
         await invoke('/usr/bin/systemctl', ['--user', 'stop', unit], env)
       } catch (error) {
-        if (cgroup !== '' && (await isEmpty(unit, cgroup))) return
+        if (
+          cgroup !== '' &&
+          error instanceof DeviceWorkerHostError &&
+          (await isEmpty(unit, cgroup))
+        )
+          return
         throw error
       }
     }
     let stopping: Promise<void> | undefined
     const requestStop = () => {
       stopping ??= stop()
-      void stopping.catch(() => {
-        /* Failure is retained by the owning lifecycle. */
+      // Failure is retained by the owning lifecycle.
+      void stopping.catch((error: unknown) => {
+        if (error instanceof DeviceWorkerHostError) return
+        deps.log.error(`Devices linux stop failed: ${failureForLog(error)}`)
       })
     }
     let child: ChildProcessWithoutNullStreams
@@ -489,11 +517,12 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         ],
         env,
       )
-    } catch {
+    } catch (error) {
       await ignoreFailure(hold.release())
-      return await failed(new DeviceWorkerHostError('helper'), [unit, inhibitor])
+      if (!(error instanceof DeviceWorkerHostError)) throw error
+      return await failed(new DeviceWorkerHostError('helper', { cause: error }), [unit, inhibitor])
     }
-    const output = pipe(child, requestStop)
+    const output = pipe(child, requestStop, deps.log)
     child.stdin.on('error', () => {
       /* Failure is retained by the owning lifecycle. */
     })
@@ -553,15 +582,17 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
           isRetired = true
           await hold.release()
           return exit
-        } catch {
+        } catch (error) {
           // Unproved retirement keeps the slot: the observer never releases it.
           requestStop()
           await ignoreFailure(hold.release())
-          throw new DeviceWorkerHostError('result')
+          throw new DeviceWorkerHostError('result', { cause: error })
         }
       })()
-      void retirement.catch(() => {
-        /* Failure is retained by the owning lifecycle. */
+      // Failure is retained by the owning lifecycle.
+      void retirement.catch((error: unknown) => {
+        if (error instanceof DeviceWorkerHostError) return
+        deps.log.error(`Devices linux retirement failed: ${failureForLog(error)}`)
       })
       const job: DeviceWorkerJob = {
         query: parseDeviceWorkerQuery({
@@ -592,18 +623,23 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
     } catch (error) {
       requestStop()
       await ignoreFailure(stopping)
-      try {
-        if (cgroup !== '' && (await isEmpty(unit, cgroup))) jobs.delete(unit)
-      } catch {
-        /* Emptiness stays unproven; the manager's view below decides. */
-      }
+      await dropIfEmpty()
       await ignoreFailure(hold.release())
+      if (!(error instanceof DeviceWorkerHostError)) throw error
       // An unactivated unit is refused only once its launcher has ended and the manager then
       // shows both units gone.
       return await failed(error, [unit, inhibitor], hasLauncherEnded)
     }
   }
   let preparing: Promise<boolean> | undefined
+  // The unproved probe job keeps its slot.
+  const removeProbeJob = async (probe: DeviceWorkerJob | undefined): Promise<void> => {
+    try {
+      await probe?.remove()
+    } catch (error) {
+      deps.log.error(`Devices linux probe remove failed: ${failureForLog(error)}`)
+    }
+  }
   const isPrepared = async (): Promise<boolean> => {
     const id = randomUUID().replaceAll('-', '')
     const attempt: DeviceWorkerAttempt = {
@@ -631,15 +667,10 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       }).parse(await job.retirement)
       await job.remove()
       return true
-    } catch {
+    } catch (error) {
       await ignoreFailure(job?.cancel())
-      // remove() refuses synchronously while retirement is unproved: the slot
-      // stays held, and a failed probe still answers false, never a rejection.
-      try {
-        await job?.remove()
-      } catch {
-        /* The unproved probe job keeps its slot. */
-      }
+      await removeProbeJob(job)
+      if (!(error instanceof DeviceWorkerHostError)) throw error
       return false
     }
   }

@@ -57,7 +57,8 @@ export function deviceObservationText(observedAt: number): string {
     return UI_TEXT.devices.unknown
   try {
     return formatDateTime(observedAt)
-  } catch {
-    return UI_TEXT.devices.unknown
+  } catch (error) {
+    if (error instanceof RangeError) return UI_TEXT.devices.unknown
+    throw error
   }
 }

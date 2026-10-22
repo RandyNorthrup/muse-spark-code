@@ -13,6 +13,8 @@
 // skipped or refused with a fixed word, never reflected. Bounds below are
 // DNS format guards (label, name, pointer and count limits), not tunables.
 import { createSocket } from 'node:dgram'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import type { DeviceDiscoveryStatus, DeviceMdnsPort } from './deviceDiscovery'
 
@@ -246,8 +248,9 @@ function isServiceQuery(message: Buffer): boolean {
   try {
     const decoded = decodeRecords(message)
     return !decoded.isResponse && decoded.questions.some((name) => isOurs(name))
-  } catch {
-    return false
+  } catch (error) {
+    if (error instanceof Error && error.message === 'invalid-frame') return false
+    throw error
   }
 }
 
@@ -294,8 +297,9 @@ export function decodeDeviceMdnsPacket(message: Buffer): {
       const port = srvPort(decoded.records, answer.name)
       if (port !== undefined) return { serviceId, port, version }
     }
-  } catch {
+  } catch (error) {
     // Fall through to the fixed refusal below: never reflect peer bytes.
+    if (!(error instanceof Error && error.message === 'invalid-frame')) throw error
   }
   throw new Error('invalid-frame')
 }
@@ -319,8 +323,9 @@ function srvPort(records: readonly DnsRecord[], name: string): number | undefine
       // comes from the UDP sender, never from this name.
       try {
         readName(record.message, record.dataOffset + SRV_FIXED_BYTES)
-      } catch {
-        continue
+      } catch (error) {
+        if (error instanceof Error && error.message === 'invalid-frame') continue
+        throw error
       }
       return port
     }
@@ -361,6 +366,7 @@ our service queries and announcing our advertisements. Tests inject a fake
 socket; no test in this lane opens a real one.
 */
 export function createDeviceMdnsPort(
+  log: Logger,
   createUdpSocket: () => DeviceMdnsUdpSocket = defaultSocket,
 ): DeviceMdnsPort {
   return {
@@ -382,8 +388,9 @@ export function createDeviceMdnsPort(
         for (const listener of statusListeners) {
           try {
             listener(blocked)
-          } catch {
-            /* A status listener never breaks the socket. */
+          } catch (error) {
+            // A status listener never breaks the socket, but a throwing one is loud.
+            log.error(`Devices discovery listener failed: ${failureForLog(error)}`)
           }
         }
       }
@@ -392,15 +399,22 @@ export function createDeviceMdnsPort(
         isClosed = true
         try {
           socket.close()
-        } catch {
-          /* Closing an already-closed socket is not a failure. */
+        } catch (error) {
+          // Closing an already-closed socket is not a failure.
+          if (
+            error instanceof Error &&
+            'code' in error &&
+            error.code === 'ERR_SOCKET_DGRAM_NOT_RUNNING'
+          )
+            return
+          log.error(`Devices mdns close failed: ${failureForLog(error)}`)
         }
       }
-      const fail = (): Error => {
+      const fail = (cause?: unknown): Error => {
         hasFailed = true
         hush()
         notifyBlocked()
-        return new Error('blocked-or-unreachable')
+        return new Error('blocked-or-unreachable', { cause })
       }
       let hasOpened = false
       const startup = new Promise<void>((resolve, reject) => {
@@ -418,15 +432,17 @@ export function createDeviceMdnsPort(
             try {
               socket.setMulticastInterface(interfaceAddress)
               socket.addMembership(MDNS_ADDRESS, interfaceAddress)
-            } catch {
-              reject(fail())
+            } catch (error) {
+              log.error(`Devices mdns open failed: ${failureForLog(error)}`)
+              reject(fail(error))
               return
             }
             hasOpened = true
             resolve()
           })
-        } catch {
-          reject(fail())
+        } catch (error) {
+          log.error(`Devices mdns open failed: ${failureForLog(error)}`)
+          reject(fail(error))
         }
       })
       await startup
@@ -440,8 +456,8 @@ export function createDeviceMdnsPort(
         if (current === undefined) return
         try {
           socket.send(responsePacket(current.serviceId, current.port), MDNS_PORT, MDNS_ADDRESS)
-        } catch {
-          throw fail()
+        } catch (error) {
+          throw fail(error)
         }
       }
       const answerQuery = (): void => {
@@ -453,8 +469,12 @@ export function createDeviceMdnsPort(
         try {
           if (isServiceQuery(message)) answerQuery()
           receive(message, sender.address)
-        } catch {
-          /* Ignore untrusted discovery data without reflecting its text. */
+        } catch (error) {
+          // Ignore untrusted discovery data without reflecting its text.
+          if (error instanceof Error && error.message === 'invalid-frame') return
+          if (error instanceof Error && error.message === 'blocked-or-unreachable') return
+          if (error instanceof Error && error.message === 'invalid-device-address') return
+          log.error(`Devices mdns message failed: ${failureForLog(error)}`)
         }
       })
       return {

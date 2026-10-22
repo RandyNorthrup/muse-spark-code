@@ -1,4 +1,6 @@
 import { type TLSSocket } from 'node:tls'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import {
   type DeviceFrame,
@@ -37,6 +39,7 @@ export function openDeviceChannel(
   receiverIncarnationId: string | undefined,
   isActive: () => boolean,
   port: DeviceChannelPort,
+  log: Logger,
   ready: (channel: DeviceChannel) => void = () => {
     /* Optional transport readiness observer. */
   },
@@ -96,7 +99,8 @@ export function openDeviceChannel(
         }
         await port.receive(frame, channel)
       }
-    } catch {
+    } catch (error) {
+      log.error(`Devices channel drain failed: ${failureForLog(error)}`)
       socket.destroy()
     } finally {
       isRunning = false
@@ -108,7 +112,12 @@ export function openDeviceChannel(
       if (socket.destroyed || !isActive() || !isMatching(frame)) throw new Error('revoked')
       // Cancellation must not wait for dispatch approval or launch confirmation.
       await port.receive(frame, channel)
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message === 'revoked') {
+        socket.destroy()
+        return
+      }
+      log.error(`Devices channel control failed: ${failureForLog(error)}`)
       socket.destroy()
     } finally {
       controls -= 1
@@ -182,10 +191,15 @@ export function openDeviceChannel(
         void drain()
       }
     } catch (error) {
-      failure =
-        error instanceof Error && error.message === 'incompatible'
-          ? 'incompatible'
-          : 'invalid-frame'
+      if (error instanceof Error && error.message === 'incompatible') {
+        failure = 'incompatible'
+        log.warn('Devices channel peer is incompatible')
+      } else if (error instanceof Error && error.message === 'invalid-frame') {
+        failure = 'invalid-frame'
+      } else {
+        failure = 'invalid-frame'
+        log.error(`Devices channel data failed: ${failureForLog(error)}`)
+      }
       socket.destroy()
     }
   })
@@ -198,7 +212,8 @@ export function openDeviceChannel(
     try {
       port.connected(channel)
       ready(channel)
-    } catch {
+    } catch (error) {
+      log.error(`Devices channel connect failed: ${failureForLog(error)}`)
       socket.destroy()
     }
   }
@@ -265,6 +280,7 @@ export function openMultiplexedDeviceChannel(
   input: DeviceReady,
   isReceiver: boolean,
   port: MultiplexedDevicePort,
+  log: Logger,
 ): PacedDeviceChannel {
   const core = new MultiplexedDeviceChannel(input)
   const ready = core.identity
@@ -357,7 +373,16 @@ export function openMultiplexedDeviceChannel(
       } catch (error) {
         clearTimeout(timer)
         waits.delete(request.requestId)
-        reject(error instanceof DeviceChannelDialFailure ? error : new Error('unknown'))
+        if (error instanceof DeviceChannelDialFailure) {
+          reject(error)
+          return
+        }
+        if (error instanceof Error && error.message === 'capacity') {
+          reject(new Error('unknown'))
+          return
+        }
+        log.error(`Devices channel health failed: ${failureForLog(error)}`)
+        reject(new Error('unknown', { cause: error }))
       }
     })
   }
@@ -433,7 +458,12 @@ export function openMultiplexedDeviceChannel(
         delivery = core.takeIncoming(isControl)
       }
     } catch (error) {
+      if (error instanceof DeviceChannelDialFailure) {
+        fail(error)
+        return
+      }
       fail(error)
+      log.error(`Devices multiplexed drain failed: ${failureForLog(error)}`)
     } finally {
       if (isControl) isControlRunning = false
       else isDataRunning = false
@@ -452,7 +482,8 @@ export function openMultiplexedDeviceChannel(
   }
   const keepAlive = setInterval(() => {
     if (!isReceiver && isReady && waits.size === 0)
-      void health().catch(() => {
+      void health().catch((error: unknown) => {
+        log.warn(`Devices keepalive failed: ${failureForLog(error)}`)
         channel.close()
       })
   }, DEVICE_LIMITS.idleConnectionMs / 2)
@@ -465,7 +496,12 @@ export function openMultiplexedDeviceChannel(
     .then(() => {
       clearTimeout(introductionTimer)
     })
-    .catch(() => {
+    .catch((error: unknown) => {
+      if (error instanceof DeviceChannelDialFailure) {
+        clearTimeout(introductionTimer)
+        return
+      }
+      log.warn(`Devices handshake failed: ${failureForLog(error)}`)
       clearTimeout(introductionTimer)
     })
   socket.on('drain', () => {
@@ -473,7 +509,12 @@ export function openMultiplexedDeviceChannel(
     try {
       write()
     } catch (error) {
+      if (error instanceof DeviceChannelDialFailure) {
+        fail(error)
+        return
+      }
       fail(error)
+      log.error(`Devices multiplexed write failed: ${failureForLog(error)}`)
     }
   })
   socket.on('data', (chunk: Buffer) => {
@@ -497,7 +538,12 @@ export function openMultiplexedDeviceChannel(
       void drain(true)
       void drain(false)
     } catch (error) {
+      if (error instanceof DeviceChannelDialFailure) {
+        fail(error)
+        return
+      }
       fail(error)
+      log.error(`Devices multiplexed data failed: ${failureForLog(error)}`)
     }
   })
   socket.on('error', () => {
@@ -509,7 +555,18 @@ export function openMultiplexedDeviceChannel(
   })
   if (!isReceiver)
     void health().catch((error: unknown) => {
-      initial.reject(error instanceof Error ? error : new Error('unknown'))
+      if (error instanceof DeviceChannelDialFailure) {
+        initial.reject(error)
+        channel.close()
+        return
+      }
+      if (error instanceof Error && error.message === 'unknown') {
+        initial.reject(error)
+        channel.close()
+        return
+      }
+      log.error(`Devices dial health failed: ${failureForLog(error)}`)
+      initial.reject(new Error('unknown', { cause: error }))
       channel.close()
     })
   return channel
@@ -554,6 +611,7 @@ export class PacedDeviceChannels {
   constructor(
     private readonly dialer: DeviceChannelDialer,
     private readonly pacing: DeviceChannelPacingPort,
+    private readonly log: Logger,
     private readonly randomSource: () => number = Math.random,
   ) {}
 
@@ -619,23 +677,38 @@ export class PacedDeviceChannels {
       performance.now() - started >= DEVICE_LIMITS.handshakeDeadlineMs ||
       Date.now() - wall >= DEVICE_LIMITS.handshakeDeadlineMs ||
       Date.now() < wall
+    const scheduleRetry = () => {
+      job.failures += 1
+      job.retryAt = performance.now() + handshakeBackoffMs(job.failures, this.randomSource)
+      job.controller = new AbortController()
+      this.throttle(job, 'handshake-backoff')
+      if (!job.isReceiver) return
+      job.settled = true
+      job.result.reject(new Error('unknown'))
+    }
     try {
       socket = await job.handshake(attempt.signal)
       if (hasExpired()) throw new DeviceChannelDialFailure('transport')
-      const channel = openMultiplexedDeviceChannel(socket, job.peer, job.ready, job.isReceiver, {
-        connected: (value) => {
-          job.port.connected(value)
+      const channel = openMultiplexedDeviceChannel(
+        socket,
+        job.peer,
+        job.ready,
+        job.isReceiver,
+        {
+          connected: (value) => {
+            job.port.connected(value)
+          },
+          receive: (message, value) => job.port.receive(message, value),
+          disconnected: (value) => {
+            if (value.failure === 'authentication' && canRetryAuth(job.authFailures)) {
+              job.authFailures += 1
+              this.pacing.authenticationRequired(job.peer.pairId)
+            }
+            job.port.disconnected(value)
+          },
         },
-        receive: (message, value) => job.port.receive(message, value),
-        disconnected: (value) => {
-          if (value.failure === 'authentication' && canRetryAuth(job.authFailures)) {
-            job.authFailures += 1
-            this.pacing.authenticationRequired(job.peer.pairId)
-          }
-          job.port.disconnected(value)
-        },
-      })
-      job.channel = channel
+        this.log,
+      )
       await channel.ready
       if (channel.closed || hasExpired() || !job.peer.isActive())
         throw new DeviceChannelDialFailure('transport')
@@ -647,24 +720,26 @@ export class PacedDeviceChannels {
       job.channel = undefined
       socket?.destroy()
       if (this.isClosed || this.jobs.get(job.peer.pairId) !== job || !job.peer.isActive()) {
+        this.log.trace('Devices dial revoked')
         job.settled = true
         job.result.reject(new Error('revoked'))
       } else if (error instanceof DeviceChannelDialFailure && error.reason === 'authentication') {
+        this.log.warn('Devices dial authentication refused')
         job.settled = true
         job.result.reject(error)
         if (canRetryAuth(job.authFailures)) {
           job.authFailures += 1
           this.pacing.authenticationRequired(job.peer.pairId)
         }
+      } else if (error instanceof DeviceChannelDialFailure) {
+        this.log.trace('Devices dial transport failed, retrying')
+        scheduleRetry()
+      } else if (error instanceof Error && error.message === 'unknown') {
+        this.log.trace('Devices dial failed, retrying')
+        scheduleRetry()
       } else {
-        job.failures += 1
-        job.retryAt = performance.now() + handshakeBackoffMs(job.failures, this.randomSource)
-        job.controller = new AbortController()
-        this.throttle(job, 'handshake-backoff')
-        if (job.isReceiver) {
-          job.settled = true
-          job.result.reject(new Error('unknown'))
-        }
+        this.log.error(`Devices dial failed: ${failureForLog(error)}`)
+        scheduleRetry()
       }
     } finally {
       clearTimeout(deadline)

@@ -2,6 +2,8 @@
 // one queue. Effects never mutate state: a late ON result cannot undo a
 // blocked verdict, and store failures remain visible even without a caller.
 import { DevicePairingError } from '../../core/devices/pairing'
+import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   deviceHostMessageSchema,
   parseDeviceWebviewRequest,
@@ -25,6 +27,7 @@ export interface DeviceDiscoverySwitchDeps {
   readonly discovery: DeviceDiscovery
   readonly isPairedReceiverOffering: () => boolean
   readonly localFacts: () => Promise<DeviceDiscoveryFacts>
+  readonly log: Logger
 }
 interface Operation {
   readonly kind: 'load' | 'choice'
@@ -187,7 +190,8 @@ export class DeviceDiscoverySwitch {
         const facts = await this.deps.localFacts()
         this.enqueue({ kind: 'facts', operation, facts })
       }
-    } catch {
+    } catch (error) {
+      if (!(error instanceof DevicePairingError)) throw error
       this.enqueue(
         operation.kind === 'load'
           ? { kind: 'read', operation, enabled: undefined }
@@ -217,6 +221,16 @@ export class DeviceDiscoverySwitch {
     void this.persist(write)
   }
 
+  private async rereadEnabled(): Promise<boolean | undefined> {
+    try {
+      const stored = await this.deps.store.read()
+      return stored.discoveryEnabled ?? false
+    } catch (error) {
+      if (error instanceof DevicePairingError) return undefined
+      throw error
+    }
+  }
+
   private async persist(write: Write): Promise<void> {
     try {
       await this.deps.store.update((state) => {
@@ -224,17 +238,16 @@ export class DeviceDiscoverySwitch {
         return state
       })
       this.enqueue({ kind: 'persisted', write, enabled: write.enabled, failed: false })
-    } catch {
+    } catch (error) {
       // A failed rename can leave the old bit on disk. Re-read it; a store
       // that has failed closed may refuse that read, which means unknown.
-      let enabled: boolean | undefined
-      try {
-        const stored = await this.deps.store.read()
-        enabled = stored.discoveryEnabled ?? false
-      } catch {
-        enabled = undefined
-      }
-      this.enqueue({ kind: 'persisted', write, enabled, failed: true })
+      if (!(error instanceof DevicePairingError)) throw error
+      this.enqueue({
+        kind: 'persisted',
+        write,
+        enabled: await this.rereadEnabled(),
+        failed: true,
+      })
     }
   }
 
@@ -273,7 +286,8 @@ export class DeviceDiscoverySwitch {
       .then(() => {
         this.enqueue({ kind: 'started', operation, failed: false })
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        this.deps.log.error(`Devices discovery start failed: ${failureForLog(error)}`)
         this.enqueue({ kind: 'started', operation, failed: true })
       })
   }
@@ -305,8 +319,9 @@ export class DeviceDiscoverySwitch {
         listenerApplication: facts.listenerApplication,
         interfaceLabel: facts.interfaceLabel,
       }
-    } catch {
-      return {}
+    } catch (error) {
+      if (error instanceof DevicePairingError) return {}
+      throw error
     }
   }
 
@@ -332,11 +347,13 @@ export class DeviceDiscoverySwitch {
     try {
       assertLocalDeviceHost(this.deps.host)
     } catch (error) {
-      return parseSetup({
-        viewId: request.viewId,
-        requestId: request.requestId,
-        failure: error instanceof DevicePairingError ? error.reason : 'storage',
-      })
+      if (error instanceof DevicePairingError)
+        return parseSetup({
+          viewId: request.viewId,
+          requestId: request.requestId,
+          failure: error.reason,
+        })
+      throw error
     }
     const setup: Setup = { viewId: request.viewId, requestId: request.requestId }
     const failure = await this.request('choice', request.action.enabled)

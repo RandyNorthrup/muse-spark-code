@@ -173,8 +173,9 @@ export function DevicesSurface({
       .then((chunks) => {
         if (isMounted) setQr(chunks)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (isMounted) setQr('failed')
+        if (!(error instanceof TypeError)) throw error
       })
     return () => {
       isMounted = false
@@ -276,8 +277,9 @@ function DevicesDocument({
           })
           try {
             postMessage(request)
-          } catch {
-            pending.get(request.requestId)?.reject(new Error('invalid-device-message'))
+          } catch (error) {
+            settle()
+            throw new Error('invalid-device-message', { cause: error })
           }
         }),
     }

@@ -112,8 +112,12 @@ export function DevicePairing({
                   return
                 }
                 request({ kind: 'importConfirmation', confirmation: parsed.data })
-              } catch {
-                setError(true)
+              } catch (error) {
+                if (error instanceof SyntaxError) {
+                  setError(true)
+                  return
+                }
+                throw error
               }
             }}
           >
@@ -210,8 +214,12 @@ function PublicText({
           field.current?.focus()
           field.current?.select()
           if ('clipboard' in navigator) {
-            void navigator.clipboard.writeText(text).catch(() => {
-              field.current?.select()
+            void navigator.clipboard.writeText(text).catch((error: unknown) => {
+              if (error instanceof DOMException && error.name === 'NotAllowedError') {
+                field.current?.select()
+                return
+              }
+              throw error
             })
           }
         }}
