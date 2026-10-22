@@ -67,6 +67,11 @@ export interface ProviderClient {
     budget?: RetryBudget,
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
+    /**
+    M101-REPLAY-ORIGIN: the producing model's ref per replayed `call_id`.
+    Only the Responses codec reads it; every other route ignores it.
+    */
+    replayOrigins?: Readonly<Record<string, string>>,
   ): AsyncGenerator<StreamEvent>
   countInputTokens(body: Omit<CreateResponseBody, 'stream'>, signal?: AbortSignal): Promise<number>
   /** Preserve today's host contract; registry owns the richer catalogue/model rows. */
@@ -106,9 +111,17 @@ export interface NativeRequest {
 }
 
 /** Implementations belong to R/H/A/G/O; every external shape is parsed there. */
+export interface WireEncodeOptions {
+  /**
+  M101-REPLAY-ORIGIN: the producing model's ref per replayed `call_id`.
+  Only the Responses encoder reads it; every other format ignores it.
+  */
+  readonly replayOrigins?: Readonly<Record<string, string>> | undefined
+}
+
 export interface WireCodec {
   readonly format: ProviderFormat
-  encode(body: CreateResponseBody, model: ProviderModel): NativeRequest
+  encode(body: CreateResponseBody, model: ProviderModel, options?: WireEncodeOptions): NativeRequest
   decode(response: Response, model: ProviderModel): AsyncGenerator<StreamEvent>
   parseError(status: number, body: unknown, headers: Headers): ModelApiError
   readonly models: {
@@ -250,7 +263,7 @@ export class CodecClient implements ProviderClient {
   public async *streamResponse(
     ...args: Parameters<ProviderClient['streamResponse']>
   ): AsyncGenerator<StreamEvent> {
-    const [body, signal, onRetry, budget, admitAttempt, confirmed] = args
+    const [body, signal, onRetry, budget, admitAttempt, confirmed, replayOrigins] = args
     // The shared helper is the only confirmed-dispatch decision: an unset
     // provider or origin passes, like the transport fence, so a still-allowed
     // schedule or hook confirmation without one dispatches.
@@ -262,7 +275,11 @@ export class CodecClient implements ProviderClient {
           (confirmed.origin === undefined || confirmed.origin === this.provider.origin),
     )
     const model = this.deps.modelFor(body.model)
-    const request = this.deps.codec.encode(body, model)
+    const request = this.deps.codec.encode(
+      body,
+      model,
+      replayOrigins === undefined ? undefined : { replayOrigins },
+    )
     // HTTP retries inside each request and the stream retries below draw on
     // one budget, as the turn's whole-stream retries do (the review of PR #28).
     const retries = budget ?? { retriesUsed: 0 }

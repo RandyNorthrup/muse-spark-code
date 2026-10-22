@@ -166,6 +166,13 @@ const recordSchema = z.strictObject({
   ...groups,
   logprobs: logprobsSchema,
   completion: completionSchema,
+  /**
+  M101-GENERATION-RECORD (lane N): the model's Gemini generation (2, 3,
+  ...), from evidence — the person's override, a capture, the catalogue —
+  never parsed from the id at the codec. Absent means no evidence spoke
+  and the codec keeps its id heuristic as the fallback.
+  */
+  generation: z.optional(count),
   sources: z.record(z.string(), sourceSchema),
 })
 export type ModelCapabilityRecord = Readonly<z.infer<typeof recordSchema>>
@@ -185,6 +192,7 @@ export const capabilityOverridesSchema = z
     hosted: z.optional(z.partial(hostedSchema)),
     logprobs: z.optional(logprobsSchema),
     completion: z.optional(completionSchema),
+    generation: z.optional(count),
   })
   .check((payload) => {
     const { output } = payload.value

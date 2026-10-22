@@ -519,6 +519,9 @@ export class ModelApiClient implements TransportProviderClient {
   The streamed response as validated events. Unknown event types are
   skipped; a malformed known one or a non-JSON frame ends the stream with
   an error, since the reply can no longer be trusted.
+  M101-REPLAY-ORIGIN: Meta's own route sends replay items as produced and
+  takes no provenance map; the parameter exists so every client shares one
+  call shape, and only the configured Responses codec reads it.
   */
   public async *streamResponse(
     body: CreateResponseBody,
@@ -527,6 +530,7 @@ export class ModelApiClient implements TransportProviderClient {
     budget?: RetryBudget,
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
+    _replayOrigins?: Readonly<Record<string, string>>,
   ): AsyncGenerator<StreamEvent> {
     if (body.max_output_tokens < MODEL_API_MIN_OUTPUT_TOKENS) {
       await admitAttempt?.mediaAccounting?.finish()

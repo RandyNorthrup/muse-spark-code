@@ -40,6 +40,28 @@ export function replayProducer(model: string): ReplayProducer {
   return { provider: slash === -1 ? 'meta' : model.slice(0, slash), model }
 }
 
+/**
+M101-REPLAY-ORIGIN (lane I): per-request replay provenance. Replayed call
+ids resolve only against the model that produced them, so the map names
+that model's ref per `call_id` for every replayed function call that
+recorded its producer. Entries without a producer (sessions saved before
+producers) stay out and default to the request's own model at the codec.
+Undefined when no entry recorded one, preserving today's behavior whole.
+*/
+export function replayOrigins(
+  entries: readonly {
+    readonly producer?: ReplayProducer | undefined
+    readonly item: { readonly type: string; readonly call_id?: string | undefined }
+  }[],
+): Readonly<Record<string, string>> | undefined {
+  const origins: Record<string, string> = {}
+  for (const entry of entries) {
+    const callId = entry.item.type === 'function_call' ? entry.item.call_id : undefined
+    if (callId !== undefined && entry.producer !== undefined) origins[callId] = entry.producer.model
+  }
+  return Object.keys(origins).length > 0 ? origins : undefined
+}
+
 export type Known<T> =
   | { readonly state: 'yes'; readonly value: T }
   | { readonly state: 'no' }

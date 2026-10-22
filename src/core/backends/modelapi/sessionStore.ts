@@ -239,7 +239,14 @@ const inputFilePartSchema = z.object({
   filename: z.string(),
   file_data: z.string(),
 })
-const outputTextPartSchema = z.object({ type: z.literal('output_text'), text: z.string() })
+// M101-SIGNATURE-PERSISTENCE: a thought signature Gemini attached to this
+// text part survives a resume/fork round trip (schemas.ts reads the same
+// field in memory); every codec but Gemini's ignores it on replay.
+const outputTextPartSchema = z.object({
+  type: z.literal('output_text'),
+  text: z.string(),
+  thoughtSignature: z.optional(z.string()),
+})
 const inputMessageSchema = z.object({
   type: z.literal('message'),
   role: z.enum(['user', 'assistant', 'developer']),
