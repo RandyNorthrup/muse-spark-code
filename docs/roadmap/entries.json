@@ -537,7 +537,7 @@
     {
       "id": "M77",
       "title": "Session board and best-of-N",
-      "summary": "A session board lists open and saved conversations with their state, branch, changed files and waiting approvals, and paid best-of-N runs one prompt in several worktrees so you can apply the best result.",
+      "summary": "In VS Code, the session board lists state, branch, edits and approvals, while paid Model API best-of-N tries a prompt in several worktrees and applies and stages the chosen result; per-editor bindings and three-OS qualification remain in progress.",
       "area": "agents",
       "release": "0.12.0"
     },

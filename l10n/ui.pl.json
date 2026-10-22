@@ -4407,6 +4407,8 @@
     "few": "{count} odrzucone zgody",
     "many": "{count} odrzuconych zgód"
   },
+  "bestOfNAttemptCost": "zgłoszone wydatki {cost}",
+  "bestOfNAttemptCostPartial": "zgłoszono {cost}, reszta oczekuje",
   "bestOfNAttemptFailed": "Niepowodzenie: {reason}",
   "bestOfNTakenMark": "Wybrano: {branch}",
   "bestOfNDiffClipped": "Diff skrócony.",
@@ -4427,6 +4429,8 @@
   "bestOfNAttemptNotDone": "Można wybrać tylko ukończoną próbę.",
   "bestOfNWorktreeFailed": "Nie można utworzyć drzew roboczych prób: {reason}",
   "bestOfNTaken": "Podgląd z {branch} zastosowano i dodano do indeksu.",
+  "bestOfNTakenSpend": "Podgląd z {branch} zastosowano i dodano do indeksu. Zgłoszone użycie: {tokens}.",
+  "bestOfNTakenSpendCost": "Podgląd z {branch} zastosowano i dodano do indeksu. Zgłoszone użycie: {tokens}, zgłoszone wydatki {cost}.",
   "bestOfNTakeFailed": "Nie można zastosować i dodać do indeksu {branch}. Przed ponowną próbą sprawdź kopię roboczą: {reason}",
   "paidConfirmAccept": "Włącz",
   "paidBadge": "Płatne: {features}",

@@ -541,6 +541,9 @@ export function featureCatalog(): readonly Feature[] {
       'session-board-and-best-of-n',
       ['modelApi'],
       true,
+      // The shared comparison and take notice report each attempt's usage;
+      // ACP/native best-of-N bindings remain C-M77-3 work, not a catalog claim.
+      ['vscode'],
     ),
     feature(
       'auto-subscription',
