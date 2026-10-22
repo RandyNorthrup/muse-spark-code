@@ -4779,6 +4779,11 @@ export const EN = {
     'Paused: the model connection was lost at {time}; attempt {attempt}, retrying.',
   turnPausedNetworkCapped:
     'Paused: the model connection was lost at {time}; attempt {attempt} of {cap}, retrying.',
+  nodeLivenessOnline: 'Online',
+  nodeLivenessOffline: 'Offline',
+  nodeLivenessUnreachable: 'Unreachable since {time}, retrying',
+  nodeWaitingRow:
+    'Waiting: {node} unreachable since {time}, retrying, attempt {attempt}, next in {delay}',
   execDeniedStop: 'An approval denial stopped this run.',
   execInterrupted: 'The run was interrupted.',
   execOutputStalled: 'Output closed or stalled.',

@@ -4959,6 +4959,17 @@ export const SCHEDULE_NATIVE_MAX_OUTPUT_BYTES = 64 * 1024
 @unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
 */
 export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
+// M110r Y2/Y3 (PLAN.md D90.25): the node liveness and re-resolution
+// cadences. These time the protocol's own polling and display states;
+// they never stop work (D121). Lease durations are per-grant, chosen by
+// the orchestrator that issues them, with no product default; the
+// offline-after interval is the person's own setting, absent meaning a
+// node goes offline only on its signed notice.
+export const NODE_HEARTBEAT_MS = 5000
+export const NODE_HEARTBEAT_MISS = 3
+export const NODE_RECONNECT_MAX_MS = 30_000
+export const NODE_REDISCOVER_TARGET_MS = 15_000
+export const NODE_ADDRESS_POLL_MS = 30_000
 // D121 (owner 2026-10-16): no auto-pause of ours — a schedule pauses
 // after failures only at the count the person sets in
 // `museSpark.schedulePauseAfterFailures` (0, the default, never pauses).
