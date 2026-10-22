@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 34,
-      "GENERIC": 203,
+      "GENERIC": 201,
       "CLEANUP": 125
     },
     "shared": {
@@ -4199,26 +4199,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "f6955d02e12d3547b83408de2476f23ab048a923df835313d4a4304931830a5d",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "553ed6f4c3c14bb7887501357376035220ffbdb1e0858152c1c5a4bb784c92fd",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "86a7be2f6a492e011740ab930c90f3a93ab6196e0a7f96a4a451cc41cb80034d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "d9124284e0292f016d02fdaac687eb57d842b733d73860b32ae4818126431cde",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/chatGptHost.ts",
       "identity": "28d558af9425173a00d448c69705743739f797f040129f8edf8580dee8ebfcb7",
       "class": "GENERIC"
@@ -4241,11 +4221,6 @@
     {
       "file": "src/runtime/chatGptProviderCommands.ts",
       "identity": "28103178ba9797a370463da6196895efe913d2d13856f6f941423ec3423756c5",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/chatGptRefreshLock.ts",
-      "identity": "900de73130640819c3c926860d54554228b653418c600a7a768a352d0b46e217",
       "class": "GENERIC"
     },
     {
@@ -5396,6 +5371,21 @@
     {
       "file": "src/runtime/sharing/sharingEntry.ts",
       "identity": "116c0791ad8b330e0dc1938f16a5471b0b0a32f9c73e92d9a0f0d9867efa37f5",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/subscriptionCallback.ts",
+      "identity": "c41d58120ce1bd15816ed34a129e8cccc228f99020c25d8684804cfcb3f7c827",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/subscriptionCallback.ts",
+      "identity": "1975ca03e24a1096b40d9601e2cc7ed177e18f30631ba9b59902268d400ea45a",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/subscriptionCallback.ts",
+      "identity": "322edffa91dd68d3b25158a05bae2e2daecdf549dfee85c977d06602eaecee65",
       "class": "GENERIC"
     },
     {

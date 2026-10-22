@@ -10,8 +10,8 @@ import {
 } from '../core/providers/subscriptions/chatgpt'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { CHATGPT_REGISTRATION_SECRET_KEY, PROVIDER_SECRET_PREFIX } from '../shared/constants'
-import { startChatGptCallback } from './chatGptCallback'
-import { withChatGptRefreshLock, type ChatGptLockOptions } from './chatGptRefreshLock'
+import { startChatGptCallback } from './subscriptionCallback'
+import { withChatGptRefreshLock, type ChatGptLockOptions } from './subscriptionRefreshLock'
 import { StoreUnavailableError, storeOperation } from './keyStore'
 
 const RECORD_ACCOUNT = `${PROVIDER_SECRET_PREFIX}chatgpt`

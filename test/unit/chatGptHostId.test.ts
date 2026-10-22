@@ -6,7 +6,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { get } from 'node:http'
-import { startChatGptCallback } from '../../src/runtime/chatGptCallback'
+import { startChatGptCallback } from '../../src/runtime/subscriptionCallback'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
