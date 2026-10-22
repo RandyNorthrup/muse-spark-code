@@ -1,18 +1,6 @@
 // Free provider checks load with configuredProviders, outside headless preflight.
-import * as z from 'zod/mini'
-import { resolveAttemptBillingRoute } from '../core/backends/modelapi/billingRoute'
-import { ApiKeyAuthSource, NoAuthSource } from '../core/backends/modelapi/authSource'
-import type { ProviderPreset } from '../core/providers/presets'
 import { isUnreachableSend } from '../core/providers/providerSpend'
-import { presets } from '../host/backend/providersEntry'
-const { OPENROUTER_ATTRIBUTION } = presets
-import {
-  CREDENTIAL_RECORD_VERSION,
-  HTTP_STATUS,
-  PROVIDER_PROBE_MODEL_IDS_MAX,
-  PROVIDER_PROBE_TIMEOUT_MS,
-  UI_TEXT,
-} from '../shared/constants'
+import { HTTP_STATUS, UI_TEXT } from '../shared/constants'
 import { uiLocale } from '../shared/l10n/text'
 import {
   allowedProviderPaths,
@@ -20,48 +8,11 @@ import {
   providerModelsPath,
   type ResolvedProvider,
 } from './exec/providerExec'
-
-function attributionHeaders(preset: ProviderPreset): Record<string, string> {
-  return preset.id === 'openrouter'
-    ? {
-        [OPENROUTER_ATTRIBUTION.refererHeader]: OPENROUTER_ATTRIBUTION.referer,
-        [OPENROUTER_ATTRIBUTION.titleHeader]: OPENROUTER_ATTRIBUTION.title,
-        [OPENROUTER_ATTRIBUTION.categoriesHeader]: OPENROUTER_ATTRIBUTION.categories,
-      }
-    : {}
-}
+import { attributionHeaders, listModelIds, readProviderJson } from './providerReads'
 
 export type ProbeOutcome =
   | { readonly ok: true; readonly modelCount: number | undefined }
   | { readonly ok: false; readonly paid: boolean; readonly reason: string }
-
-/** Model ids from a list body: OpenAI's `{data: [{id}]}` or Gemini's `{models: [{name}]}`. */
-const modelId = z.string().check(z.minLength(1))
-const modelRows = z
-  .array(z.object({ id: modelId }))
-  .check(z.maxLength(PROVIDER_PROBE_MODEL_IDS_MAX))
-const modelsBody = z.union([
-  z.object({ data: modelRows }),
-  z.object({
-    models: z.array(z.object({ name: modelId })).check(z.maxLength(PROVIDER_PROBE_MODEL_IDS_MAX)),
-  }),
-])
-
-function listModelIds(body: unknown, preset: ProviderPreset): readonly string[] | undefined {
-  // Only Together has the captured top-level array (free list, zero model attempts).
-  const parsed = z.safeParse(preset.id === 'together' ? modelRows : modelsBody, body)
-  if (!parsed.success) return undefined
-  if (Array.isArray(parsed.data)) return parsed.data.map((row) => row.id)
-  return 'data' in parsed.data
-    ? parsed.data.data.map((row) => row.id)
-    : parsed.data.models.map((row) =>
-        row.name.startsWith('models/') ? row.name.slice('models/'.length) : row.name,
-      )
-}
-
-function ignoreProbeLog(): void {
-  // Commands return fixed probe outcomes; transport details never reach terminal logs.
-}
 
 /**
 The free check that proves a key works (D74): the preset's models list,
@@ -95,77 +46,18 @@ export async function probeProvider(
     url: string,
     transport: typeof fetch = pinned,
   ): Promise<{ readonly status: number; readonly body: unknown } | undefined> => {
-    const origin = new URL(url).origin
-    const source =
-      key === undefined
-        ? new NoAuthSource(origin)
-        : new ApiKeyAuthSource(
-            () =>
-              Promise.resolve({
-                record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
-                key,
-              }),
-            provider.preset.id === 'custom' && provider.entry.format === 'anthropic'
-              ? 'x-api-key'
-              : (provider.preset.authHeader ?? 'bearer'),
-          )
-    const client = new shared.RequestTransport({
-      baseUrl: origin,
-      auth: source,
-      // pinProviderFetch rechecks DNS and the saved path/network at every dispatch.
-      verifyEndpoint: async (requestUrl) => {
-        await source.headers(requestUrl)
-      },
-      fetch: transport,
-      now: Date.now,
-      random: Math.random,
-      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      // Commands report fixed probe outcomes; transport detail is never logged.
-      log: {
-        info: ignoreProbeLog,
-        warn: ignoreProbeLog,
-        error: ignoreProbeLog,
-        trace: ignoreProbeLog,
-      },
-    })
-    let result: Awaited<ReturnType<typeof client.request>>
-    try {
-      result = await client.request(
-        url.slice(origin.length),
-        {
-          billingRoute: await resolveAttemptBillingRoute({
-            feature: 'catalogue',
-            isMetaDirect: false,
-          }),
-          method: 'GET',
-          headers,
-          accept: 'application/json',
-          retries: 'rateLimitOnly',
-        },
-        AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS),
-      )
-    } catch (error: unknown) {
-      if (error instanceof shared.ModelApiError && error.status !== 0) {
-        return { status: error.status, body: undefined }
-      }
-      // A send that never got an answer reads as unreachable (or the
-      // pin's rebinding); anything else is not this probe's answer to give.
-      if (!isUnreachableSend(error)) throw error
-      failureReason =
-        error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable'
-      return undefined
+    const read = await readProviderJson(transport, provider, key, url, headers, {})
+    if (!('cause' in read)) return read
+    const error = read.cause
+    if (error instanceof shared.ModelApiError && error.status !== 0) {
+      return { status: error.status, body: undefined }
     }
-    try {
-      return {
-        status: result.response.status,
-        body: await shared.parseJsonResponse(result, (value) => value),
-      }
-    } catch (error: unknown) {
-      // The transport wraps a damaged body as its own error; anything
-      // else is not this probe's answer to give.
-      if (!(error instanceof shared.ModelApiError)) throw error
-      return { status: result.response.status, body: undefined }
-    }
+    // A send that never got an answer reads as unreachable (or the
+    // pin's rebinding); anything else is not this probe's answer to give.
+    if (!isUnreachableSend(error)) throw error
+    failureReason =
+      error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable'
+    return undefined
   }
   if (test.kind === 'provider-key') {
     const base = test.origin ?? provider.origin

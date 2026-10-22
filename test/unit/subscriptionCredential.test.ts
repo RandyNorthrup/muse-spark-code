@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { redactSecrets } from '../../src/shared/redact'
 import { SubscriptionCredential } from '../../src/host/auth/subscriptionCredential'
 import { memorySubscriptionFile } from './helpers/subscriptionFile'
+import { mapSecretsBacked } from './helpers/mapSecrets'
 import { CredentialStore } from '../../src/host/auth/credentialStore'
 import { StoreUnavailableError } from '../../src/runtime/keyStore'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -118,25 +119,11 @@ describe('SubscriptionCredential', () => {
   })
 })
 
-function testSecrets(secrets: Map<string, string>) {
-  return {
-    get: (key: string) => Promise.resolve(secrets.get(key)),
-    store: (key: string, value: string) => {
-      secrets.set(key, value)
-      return Promise.resolve()
-    },
-    delete: (key: string) => {
-      secrets.delete(key)
-      return Promise.resolve()
-    },
-  }
-}
-
 function store(options: { pasted: string | undefined; subscribed: boolean }) {
   const secrets = new Map<string, string>()
   if (options.pasted !== undefined) secrets.set('museSpark.modelApiKey', options.pasted)
   return new CredentialStore(
-    testSecrets(secrets),
+    mapSecretsBacked(secrets),
     () => undefined,
     'test store',
     undefined,
@@ -189,7 +176,7 @@ describe('CredentialStore with a subscription', () => {
     ).resolves.toBe(false)
   })
   it('keeps working with no subscription hook', async () => {
-    const plain = new CredentialStore(testSecrets(new Map<string, string>()), () => undefined)
+    const plain = new CredentialStore(mapSecretsBacked(new Map<string, string>()), () => undefined)
     await expect(plain.hasModelApiCredential()).resolves.toBe(false)
   })
 })

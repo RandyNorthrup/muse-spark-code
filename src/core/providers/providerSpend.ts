@@ -560,6 +560,23 @@ export function isUnreachableSend(error: unknown): boolean {
 }
 
 /**
+One spend page over the caller's fetcher: the page, or `unreachable`
+when the send never got an answer. Anything else throws for the
+caller, which owns transport, pinning and deadline.
+*/
+async function fetchSpendPage(
+  fetch: SpendFetcher,
+  request: SpendHttpRequest,
+): Promise<SpendPage | SpendFailure> {
+  try {
+    return await fetch(request)
+  } catch (error: unknown) {
+    if (!isUnreachableSend(error)) throw error
+    return { kind: 'unreachable' }
+  }
+}
+
+/**
 Map an HTTP answer to a failure. A 403 names the plan only when the body
 says the account cannot offer the report API (UNVERIFIED signal: the
 documented "Admin API is unavailable for individual accounts"); any other
@@ -633,13 +650,8 @@ export async function fetchAdminSpendReport(input: {
             endTime: input.endingAt,
             ...(page !== undefined && { page }),
           })
-    let answer: SpendPage
-    try {
-      answer = await input.fetch(usageRequest)
-    } catch (error: unknown) {
-      if (!isUnreachableSend(error)) throw error
-      return { kind: 'unreachable' }
-    }
+    const answer = await fetchSpendPage(input.fetch, usageRequest)
+    if (isSpendFailure(answer)) return answer
     if (answer.status !== HTTP_STATUS.ok) return spendHttpFailure(answer.status, answer.body)
     const parsed =
       input.provider === 'anthropic'
@@ -668,13 +680,8 @@ export async function fetchAdminSpendReport(input: {
             endTime: input.endingAt,
             ...(costPage !== undefined && { page: costPage }),
           })
-    let answer: SpendPage
-    try {
-      answer = await input.fetch(costRequest)
-    } catch (error: unknown) {
-      if (!isUnreachableSend(error)) throw error
-      return { kind: 'unreachable' }
-    }
+    const answer = await fetchSpendPage(input.fetch, costRequest)
+    if (isSpendFailure(answer)) return answer
     if (answer.status !== HTTP_STATUS.ok) return spendHttpFailure(answer.status, answer.body)
     const parsed =
       input.provider === 'anthropic'
@@ -733,13 +740,11 @@ export async function fetchBalanceSpendReport(input: {
   readonly asOf: string
 }): Promise<ProviderSpendReport | SpendFailure> {
   if (input.keyKind !== 'inference') return { kind: 'wrong-key-kind' }
-  let answer: SpendPage
-  try {
-    answer = await input.fetch(deepSeekSpendRequest({ origin: input.origin, key: input.key }))
-  } catch (error: unknown) {
-    if (!isUnreachableSend(error)) throw error
-    return { kind: 'unreachable' }
-  }
+  const answer = await fetchSpendPage(
+    input.fetch,
+    deepSeekSpendRequest({ origin: input.origin, key: input.key }),
+  )
+  if (isSpendFailure(answer)) return answer
   if (answer.status !== HTTP_STATUS.ok) return spendHttpFailure(answer.status, answer.body)
   const parsed = parseDeepSeekBalance(answer.body)
   if (isSpendFailure(parsed)) return parsed
