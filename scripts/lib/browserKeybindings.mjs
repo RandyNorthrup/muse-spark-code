@@ -111,8 +111,20 @@ function matcherSource() {
   const body = tree.text
     .slice(resolver.body.statements[0].end, resolver.body.end - 1)
     .replace('isAction(context, action)', 'Object.hasOwn(bindings, action)')
+  // The dispatcher's own helpers travel with its body (M88's gesture
+  // matcher): every module-private function the body calls, except the
+  // context guard the match replaces above.
+  const helpers = tree.statements.filter(
+    (node) =>
+      ts.isFunctionDeclaration(node) &&
+      node.name !== undefined &&
+      node.name.text !== 'webviewKey' &&
+      node.name.text !== 'isAction' &&
+      (node.modifiers ?? []).every((modifier) => modifier.kind !== ts.SyntaxKind.ExportKeyword) &&
+      body.includes(`${node.name.text}(`),
+  )
   return ts.transpile(
-    `export function match(bindings, event, phase = 'down', settings) {${body}}`,
+    `${helpers.map((node) => node.getText(tree)).join('\n')}\nexport function match(bindings, event, phase = 'down', settings) {${body}}`,
     { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
   )
 }
