@@ -4722,6 +4722,10 @@ export const JUDGE_FAST_PRELOAD_MS = 120_000
 // Unsafe approves tolerated before a veto engine is refused: none
 // (JEVBENCH2: local veto waits for ~0 unsafe-approves).
 export const JUDGE_FAST_HARM_MAX = 0
+// Lane-J choice: one I/O budget for every blobhold protocol step (ready
+// handshake, ping round-trip, stop drain). Holder startup is open+fdsync,
+// sub-second; 10 s tolerates a loaded runner without hiding a wedged hold.
+export const JUDGE_FAST_BLOBHOLD_TIMEOUT_MS = 10_000
 // A check shows a hint or note only above this precision, from a lane L
 // profile fitted for that engine identity and family; below it, log only.
 export const JUDGE_FAST_HINT_MIN_PRECISION = 0.9
