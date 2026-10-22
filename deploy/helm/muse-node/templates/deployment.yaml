@@ -1,0 +1,58 @@
+# Muse Node under the restricted Pod Security profile (M110f lane S):
+# a non-root user, no privilege escalation, a read-only root, all
+# capabilities dropped, and the RuntimeDefault seccomp profile. One
+# replica: a node is a singleton, so updates recreate rather than roll.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: muse-node
+  labels:
+    app: muse-node
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: muse-node
+  template:
+    metadata:
+      labels:
+        app: muse-node
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: { { .Values.node.user } }
+        runAsGroup: { { .Values.node.group } }
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: node
+          image: '{{ .Values.image.repository }}:{{ .Values.image.tag }}'
+          imagePullPolicy: { { .Values.image.pullPolicy } }
+          args: ['serve']
+          ports:
+            - name: node
+              containerPort: { { .Values.service.port } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/muse-node
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: node
+              scheme: HTTPS
+          livenessProbe:
+            httpGet:
+              path: /readyz
+              port: node
+              scheme: HTTPS
+      volumes:
+        - name: state
+          persistentVolumeClaim:
+            claimName: muse-node-state
