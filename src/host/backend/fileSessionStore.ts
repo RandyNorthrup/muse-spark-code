@@ -61,6 +61,11 @@ export interface FileSessionStoreDeps {
   readonly questions?: Pick<QuestionStore, 'remove'>
   /** Days a session may sit idle before it is deleted; 0 keeps it for ever. */
   readonly retentionDays: () => number
+  /**
+  Ids kept past retention (M88, PLAN.md D67): the bookmark store holds
+  them. Asked only for a session that would otherwise be deleted.
+  */
+  readonly isRetained?: (sessionId: string) => Promise<boolean>
   /** Epoch milliseconds. */
   readonly now: () => number
   /** Waits between rename attempts; injectable so tests do not sleep. */
@@ -569,6 +574,12 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     const idleMs = deps.now() - Date.parse(session.lastActivityAt)
     // An unreadable date is kept: only a known age deletes anything.
     if (days <= 0 || Number.isNaN(idleMs) || idleMs <= days * MILLISECONDS_PER_DAY) {
+      return false
+    }
+    if ((await deps.isRetained?.(session.sessionId)) === true) {
+      deps.log.info(
+        `Session ${session.sessionId} idle for more than ${String(days)} days is retained`,
+      )
       return false
     }
     let isRemoved = false

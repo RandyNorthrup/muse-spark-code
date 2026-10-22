@@ -687,6 +687,45 @@ export function sessionRecordsPage(
   }
 }
 
+/**
+Further pages for ids the loaded ones did not name (M88, PLAN.md D67):
+page from `startCursor` until every wanted id is seen or the list ends. A
+cursor seen before ends it too: the list is not advancing (Muse Code's
+cursors are the CLI's, opaque). Pure orchestration over `fetchPage`.
+*/
+export async function pageSessionsUntilFound(
+  fetchPage: (cursor: string | undefined) => Promise<SessionPage>,
+  wanted: ReadonlySet<string>,
+  startCursor: string | undefined,
+  isCancelled: () => boolean,
+): Promise<readonly SessionRecord[]> {
+  if (startCursor === undefined || wanted.size === 0) {
+    return []
+  }
+  const records: SessionRecord[] = []
+  const found = new Set<string>()
+  const seen = new Set<string>()
+  let cursor: string | undefined = startCursor
+  while (cursor !== undefined && !isCancelled()) {
+    if (seen.has(cursor)) {
+      return records
+    }
+    seen.add(cursor)
+    const page = await fetchPage(cursor)
+    records.push(...page.sessions)
+    for (const record of page.sessions) {
+      if (wanted.has(record.sessionId)) {
+        found.add(record.sessionId)
+      }
+    }
+    if (found.size >= wanted.size || isCancelled()) {
+      return records
+    }
+    cursor = page.nextCursor
+  }
+  return records
+}
+
 /** What a resumed or forked session's history yields for the transcript. */
 export interface SessionHistoryOutcome {
   /** `inline`, `snapshot`, `anchoredSnapshot` or `none` (then `items` is empty). */
