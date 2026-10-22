@@ -1,0 +1,1 @@
+{"method":"elicitation/create","params":{"message":"What nickname greets?","requestedSchema":{"type":"object","properties":{"nickname":{"type":"string","minLength":1,"maxLength":40}},"required":["nickname"]},"mode":"form"},"jsonrpc":"2.0","id":0}

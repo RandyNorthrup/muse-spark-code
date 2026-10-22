@@ -32,6 +32,9 @@ const formSchema = z.strictObject({
   ...annotations,
   properties: z.record(z.string(), z.unknown()),
   required: z.optional(z.array(z.string())),
+  // The dialect annotation modern servers stamp (2020-12, the default);
+  // the restricted subset below holds whatever it names.
+  $schema: z.optional(z.string()),
 })
 const paramsSchema = z.object({
   mode: z.optional(z.string()),

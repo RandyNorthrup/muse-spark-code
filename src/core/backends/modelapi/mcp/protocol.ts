@@ -1,12 +1,17 @@
 // The Model Context Protocol as the Model API backend's client speaks it
-// (M50, PLAN.md D42): JSON-RPC 2.0 messages, and the results of the requests
-// it sends (`initialize`, `tools/list`, `tools/call`). The shapes are the MCP
-// specification's, revision 2025-06-18 (schema.ts), which Muse Code's own
-// client advertises. They are read leniently: unknown fields pass, and a
-// malformed tool or content block is passed over by its caller rather than
-// failing the whole server. Pure.
+// (M50, PLAN.md D42; both eras, PLAN.md D213): JSON-RPC 2.0 messages, and
+// the results of the requests it sends (`server/discover`, `initialize`,
+// `tools/list`, `tools/call`). The shapes are the MCP specification's,
+// revision 2025-06-18 (schema.ts), which Muse Code's own client
+// advertises, and revision 2026-07-28 for the modern era. They are read
+// leniently: unknown fields pass, and a malformed tool or content block
+// is passed over by its caller rather than failing the whole server. Pure.
 
 import * as z from 'zod/mini'
+import {
+  MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION,
+  MCP_MODERN_PROTOCOL_VERSIONS,
+} from '../../../../shared/constants'
 
 export const JSON_RPC_VERSION = '2.0'
 
@@ -125,8 +130,81 @@ export class McpError extends Error {
     message: string,
     /** The JSON-RPC error code, when the server answered with one. */
     public readonly code?: number,
+    /** The error's `data`, when the server sent one (a `-32022` names its versions here). */
+    public readonly data?: unknown,
   ) {
     super(message)
     this.name = 'McpError'
   }
 }
+
+/** `server/discover`'s answer; only what the client uses (the versions, the tools capability). */
+export const discoverResultSchema = z.object({
+  supportedVersions: z.array(z.string()),
+  capabilities: z.object({
+    tools: z.optional(z.object({ listChanged: z.optional(z.boolean()) })),
+  }),
+})
+export type DiscoverResult = z.infer<typeof discoverResultSchema>
+
+/**
+A `-32022`'s `data`: the versions the server serves, and what was asked
+for. `requested` is absent when the request named none (the v2 SDK
+answers that shape, captured 2026-10-22).
+*/
+export const unsupportedVersionDataSchema = z.object({
+  supported: z.array(z.string()),
+  requested: z.optional(z.string()),
+})
+export type UnsupportedVersionData = z.infer<typeof unsupportedVersionDataSchema>
+
+/** The versions off a `-32022`, or undefined when the error names none usable. */
+export function unsupportedVersions(error: McpError): UnsupportedVersionData | undefined {
+  if (error.code !== MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION) {
+    return undefined
+  }
+  const parsed = unsupportedVersionDataSchema.safeParse(error.data)
+  return parsed.success ? parsed.data : undefined
+}
+
+/**
+The newest modern revision both sides speak, or undefined when they
+share none (`MCP_MODERN_PROTOCOL_VERSIONS` runs oldest to newest).
+*/
+export function newestMutualModern(supported: readonly string[]): string | undefined {
+  let mutual: string | undefined
+  for (const version of MCP_MODERN_PROTOCOL_VERSIONS) {
+    if (supported.includes(version)) {
+      mutual = version
+    }
+  }
+  return mutual
+}
+
+const resultTypeSchema = z.object({ resultType: z.optional(z.unknown()) })
+
+/**
+A result's `resultType` (spec `basic/index#resulttype`): the value, or
+undefined when the result names none (a legacy answer reads as `complete`).
+*/
+export function resultTypeOf(result: unknown): unknown {
+  const parsed = resultTypeSchema.safeParse(result)
+  return parsed.success ? parsed.data.resultType : undefined
+}
+
+/**
+An `input_required` tools/call result (spec `basic/patterns/mrtr`): the
+rounds the client must run, and the opaque state echoed back untouched.
+*/
+export const inputRequiredResultSchema = z.object({
+  resultType: z.literal('input_required'),
+  inputRequests: z.optional(z.record(z.string(), z.unknown())),
+  requestState: z.optional(z.string()),
+})
+export type InputRequiredResult = z.infer<typeof inputRequiredResultSchema>
+
+/** One `inputRequests` entry: the server-side method and its params. */
+export const inputRequestSchema = z.object({
+  method: z.string(),
+  params: z.optional(z.unknown()),
+})

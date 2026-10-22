@@ -1,0 +1,22 @@
+{
+  "captured": "2026-10-22",
+  "lane": "RLMCPERA (PLAN.md D213)",
+  "servers": {
+    "modern": "@modelcontextprotocol/server 2.3.1 (@modelcontextprotocol/node 2.1.1, zod 4.3.5), serveStdio/createMcpHandler with legacy 'reject' (modern-only)",
+    "legacy": "@modelcontextprotocol/sdk 1.32.1 (speaks up to 2025-11-25), example Server over stdio and stateful streamable HTTP"
+  },
+  "harness": "smoke.mjs and smoke-lines.mjs spawn a server, write JSON-RPC lines, print the first reply lines; probe-http.mjs --json spawns an HTTP server, POSTs, and prints {status, body}. All run under $TMPDIR/mcp-era on 2026-10-22.",
+  "files": {
+    "discover-modern.json": "server/discover at 2026-07-28 to modern-stdio -> DiscoverResult",
+    "discover-legacy-stdio.json": "server/discover at 2026-07-28 to legacy-stdio -> -32601 (the legacy fallback signal)",
+    "discover-legacy-http.json": "server/discover POST (modern headers) to legacy-http -> 400 with legacy -32000 (the HTTP fallback signal)",
+    "initialize-legacy.json": "initialize at 2025-06-18 to legacy-stdio -> 2025-06-18 + tools",
+    "initialize-modern-only.json": "initialize at 2025-06-18 to modern-stdio -> -32022 naming supported and requested",
+    "initialize-modern-only-http.json": "legacy initialize POST to modern-http -> 400 with -32022 (the HTTP modern signal)",
+    "version-missing.json": "tools/call without any version to modern-stdio -> -32022 with supported but no requested",
+    "tools-list-modern.json": "tools/list with the modern envelope to modern-stdio -> tools + resultType complete",
+    "tools-call-modern.json": "tools/call add(40,2) with the modern envelope to modern-stdio -> 42 + resultType complete",
+    "tools-call-input-required.json": "tools/call greet with the modern envelope (elicitation declared) to modern-elicit-stdio -> input_required with one form elicitation and a requestState",
+    "elicitation-create-legacy.json": "initialize (elicitation declared) + tools/call greet to legacy-elicit-stdio -> the server's elicitation/create request"
+  }
+}
