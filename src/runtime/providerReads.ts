@@ -1,7 +1,7 @@
 // One pinned provider GET as JSON, with the list helpers behind it: the
 // shared read for the free probe (D74) and the provider commands (D119).
-// The transport and the entries load lazily, as they did at each call
-// site; only leaf modules load statically.
+// The transport loads lazily, as it did at each call site; the providers
+// entry is already in both chunks, and only leaf modules load statically.
 import * as z from 'zod/mini'
 import type { ApiKeyAuthSource, NoAuthSource } from '../core/backends/modelapi/authSource'
 import { resolveAttemptBillingRoute } from '../core/backends/modelapi/billingRoute'
