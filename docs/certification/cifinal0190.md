@@ -750,3 +750,18 @@ release:
   the same `node_modules`, the same disk speed by a 5,000-file write
   benchmark), against the repository's 15 s Windows budget: it waits however
   long it takes too (16.2 s here, passing).
+- PR #257 head `5366bc8d15` (CI run 39703467949, capacity run
+  39703535342), two Windows reds:
+  - Integration: `TypeError: Cannot read properties of undefined (reading
+'timeout')`. On Windows the wake test is registered with `test.skip`,
+    which in mocha's TDD interface returns nothing (`common.js`: `skip:
+function (title) { context.test(title); }`), and `.timeout(0)` was
+    chained on it. The no-limit timeout now goes on that test only where it
+    runs.
+  - `windowsVaultPanelFlow` (shard 6): the panel's first open settled on
+    `uncreated` with two "The vault operation failed. Try again." toasts.
+    It passes here alone and in the whole of shard 6
+    (`npx vitest run --shard=6/16`: the vault flow green; one symlink case
+    refused by this PC's account), and no vault path reaches the process
+    helpers whose deadlines changed. The toast check printed no log; it now
+    prints the panel's log with the toasts, so a repeat names its cause.
