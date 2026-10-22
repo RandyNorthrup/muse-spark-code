@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Tab completions take a maximum output length you set.
+  `museSpark.tabMaxOutputTokens` caps each request and its worst-case
+  cost reservation; 0 leaves the provider's own maximum for the model.
+- The session's background tasks, hooks and plugins open as a read-only
+  dialog with Refresh, and the History dialog offers a Recap button
+  where the backend can recap sessions.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
