@@ -354,6 +354,21 @@ describe('M80 args (A1–A10, F1)', () => {
       expect(accepted.options.timeoutMs).toBe(Number(value) * 1000)
     }
   })
+  it('C-M95-SUB accepts --subscription and refuses it with --key-stdin or museCode', () => {
+    const accepted = parseExec({ backend: 'modelApi', 'max-budget-usd': '1', subscription: true }, [
+      'hi',
+    ])
+    if (!accepted.ok) throw new Error('subscription was refused')
+    expect(accepted.options.subscription).toBe(true)
+    expect(serveOptionsFor(accepted.options)).toMatchObject({ subscription: true })
+    expect(
+      parseExec(
+        { backend: 'modelApi', 'max-budget-usd': '1', subscription: true, 'key-stdin': true },
+        ['hi'],
+      ).ok,
+    ).toBe(false)
+    expect(parseExec({ backend: 'museCode', subscription: true }, ['hi']).ok).toBe(false)
+  })
   it('accepts full bounded Model API options and the two alternate prompt sources', () => {
     const values = {
       backend: 'modelApi',

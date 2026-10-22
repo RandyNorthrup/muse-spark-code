@@ -1,3 +1,4 @@
+import { uiLocale } from '../shared/l10n/text'
 // The paid Model API features in the agent (M63c, M58; PLAN.md D30, D48,
 // D62): "opt in and loud", as in the panel. A feature is off unless the
 // editor started the agent with its flag — except automatic compaction,
@@ -126,14 +127,16 @@ export function paidUseAnswer(
 
 export class AcpPaidUse {
   private readonly consents = new Map<string, PaidUseConsent>()
-  private readonly authority = new PaidAuthority()
+  private readonly authority: PaidAuthority
   private asker: PaidUseAsker | undefined
   private sessionNotifier: ((sessionId: string, text: string) => void) | undefined
   /** The session each folder's last question ran in, for the not-kept notice. */
   private readonly notifySessions = new Map<string, string>()
   private readonly used = new Map<PaidFeature, number>()
 
-  public constructor(private readonly deps: AcpPaidUseDeps) {}
+  public constructor(private readonly deps: AcpPaidUseDeps) {
+    this.authority = new PaidAuthority(UI_TEXT, uiLocale())
+  }
 
   private notKeptText(notice: PaidNotKeptNotice): string {
     return fill(UI_TEXT.paidAlwaysNotKept, {

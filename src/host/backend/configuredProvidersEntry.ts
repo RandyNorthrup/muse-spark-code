@@ -11,3 +11,4 @@ export { isPaidStop, isUserRefusal } from '../../core/refusal'
 // stays on its budget: the packed agent ships this bundle beside it.
 export { assembleProviderRun } from '../../runtime/exec/providerExec'
 export { providersFilePath, resolveEndpointHost } from '../../runtime/providerPaths'
+export { probeProvider } from '../../runtime/providerProbe'

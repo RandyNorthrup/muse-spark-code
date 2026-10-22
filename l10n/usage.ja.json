@@ -109,6 +109,7 @@
   "certaintyUncertain": "不確実",
   "reservedLabel": "予約済み",
   "certaintyPlan": "プラン",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "ローカル",
   "certaintyUnpriced": "価格未設定",
   "certaintyEstimated": "推定値",

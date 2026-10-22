@@ -37,6 +37,12 @@ export class CredentialStore {
     that lane merges: only the Meta key counts meanwhile.
     */
     private readonly providerIds?: () => PromiseLike<readonly CredentialProviderId[]>,
+    /**
+    C-M95-SUB: an additional credential outside secret storage (the
+    opted-in CLI subscription key). Consulted for backend availability
+    only; the key itself is never stored here.
+    */
+    private readonly hasSubscriptionCredential?: () => PromiseLike<boolean>,
   ) {}
 
   /**
@@ -69,11 +75,12 @@ export class CredentialStore {
   }
 
   /**
-  A Model API credential of either kind (M95, PLAN.md D74): the Meta key
-  or any provider's secret. Backend selection and the sign-in gate read
-  this, never the key alone, and switch on all three states. The scan
-  itself loads with the credential bundle (dist/auth.js); behaviour is
-  unchanged, including the provider scan's results.
+  A Model API credential of any kind (M95, PLAN.md D74): the Meta key,
+  any provider's secret, or the opted-in CLI subscription (C-M95-SUB).
+  Backend selection and the sign-in gate read this, never the key alone,
+  and switch on all three states. The scan itself loads with the
+  credential bundle (dist/auth.js); behaviour is unchanged, including the
+  provider scan's results.
   */
   public async readModelApiCredential(): Promise<CredentialRead> {
     const { readModelApiCredential } = await import('./authEntry')
@@ -83,6 +90,20 @@ export class CredentialStore {
       warn: this.warn,
       storeName: this.storeName,
       ...(this.providerIds !== undefined && { providerIds: this.providerIds }),
+      ...(this.hasSubscriptionCredential !== undefined && {
+        hasSubscriptionCredential: this.hasSubscriptionCredential,
+      }),
     })
+  }
+
+  /**
+  A Model API credential of any kind (M95, PLAN.md D74): the Meta key,
+  any provider's secret, or the opted-in CLI subscription (C-M95-SUB).
+  Backend selection and the sign-in gate read this, never the key alone.
+  An unreadable store reads as no credential here; the read warns once.
+  */
+  public async hasModelApiCredential(): Promise<boolean> {
+    const read = await this.readModelApiCredential()
+    return read.outcome === 'found'
   }
 }

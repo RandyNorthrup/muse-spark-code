@@ -292,6 +292,23 @@ export const MODELS_TABLE_ROW_PX = 48
 export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
+/**
+ * Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
+ * (PROVSPEND): an admin key can read a whole organisation, so it is never
+ * stored where an inference read looks, and removing the provider removes it.
+ */
+export const PROVIDER_ADMIN_SECRET_PREFIX = 'museSpark.providerAdmin.'
+/** `providers usage` reports this many days back unless `--days n` says otherwise. */
+export const PROVIDER_SPEND_DAYS_DEFAULT = 30
+/** A spend report never spans more than a year plus a day. */
+export const PROVIDER_SPEND_DAYS_MAX = 366
+/**
+ * The vendored models.dev price snapshot's date (PROVSPEND): the spend
+ * reconciliation names it as the catalogue our estimate's prices come
+ * from. Pinned by test against `vendor/models-dev/VENDOR.json`
+ * (`fetchedAt`); bump both together when the snapshot refreshes.
+ */
+export const MODELS_DEV_CATALOGUE_DATE = '2026-10-05'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
 /**
@@ -807,6 +824,10 @@ export const SETTING_DEFAULTS = {
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
   modelApiSessionBudgetUsd: 0,
+  // C-M95-SUB: drive the Model API backend from the Muse Code subscription
+  // instead of a pay-as-you-go key. Off until the user turns it on; machine
+  // scoped, since a repository must not choose what is billed.
+  useMuseCodeSubscription: false,
   // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
   // before the media block below); machine scoped, since a repository must
   // not set what is uploaded, kept or billed on the key. D121: no cap of
