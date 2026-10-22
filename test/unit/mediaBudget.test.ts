@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { InputItem } from '../../src/core/backends/modelapi/schemas'
 import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
-import { MODEL_API_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { MEDIA_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
 const requiredImages = (count: number) =>
@@ -189,7 +189,7 @@ describe('Model API replay media budget', () => {
       {
         type: 'message',
         role: 'user',
-        content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut }],
+        content: [{ type: 'input_text', text: MEDIA_MODEL_TEXT.imageLeftOut }],
       },
       input[1],
       input[2],
@@ -349,7 +349,7 @@ describe('Model API replay media budget', () => {
     const fitted = budget.fit(input, record, fresh)
     expect(fitted[1]).toBe(input[1])
     expect(fitted[0]).toMatchObject({
-      content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut }],
+      content: [{ type: 'input_text', text: MEDIA_MODEL_TEXT.imageLeftOut }],
     })
     expect(budget.omitted).toBe(true)
   })
