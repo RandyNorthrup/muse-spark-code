@@ -2968,6 +2968,7 @@
   "agentRetryNoSubagent": "Nouvelle tentative indisponible pour cet agent : il n'a aucun sous-agent à relancer.",
   "agentRetryNoCheckpoint": "Nouvelle tentative indisponible pour cet agent : il n'a aucun point de contrôle isolé. Les modifications de l'espace partagé sont conservées.",
   "agentContinueUnavailable": "La continuation est indisponible pour cet agent ou son état actuel.",
+  "agentResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "Cet agent ne fait plus partie de cette conversation.",
   "referenceAgentOutcomes": "Les agents affichent leur activité et des résultats étayés. Sélectionnez un agent terminé pour son relevé limité et son historique. Continuer conserve la session et les modifications après confirmation ; réessayer exige un point de contrôle isolé. Les preuves manquantes restent non vérifiées. ACP : /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "cliquez sur un agent pour voir les détails",

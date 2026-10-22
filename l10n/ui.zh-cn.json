@@ -2852,6 +2852,7 @@
   "agentRetryNoSubagent": "此代理无法重试：它没有可重试的子代理。",
   "agentRetryNoCheckpoint": "此代理无法重试：它没有隔离的检查点。共享工作区的更改会保留。",
   "agentContinueUnavailable": "此代理或其当前状态无法继续。",
+  "agentResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "该代理已不在此对话中。",
   "referenceAgentOutcomes": "代理显示活动状态和基于证据的结果。选择已结束的代理可查看有大小限制的记录及尝试历史。确认后继续会保留会话和更改；重试需要隔离的检查点。缺失的证据显示为未验证。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "单击代理查看详细信息",

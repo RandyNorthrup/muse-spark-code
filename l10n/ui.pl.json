@@ -3026,6 +3026,7 @@
   "agentRetryNoSubagent": "Ponowienie jest niedostępne dla tego agenta: nie ma subagenta do ponowienia.",
   "agentRetryNoCheckpoint": "Ponowienie jest niedostępne dla tego agenta: nie ma izolowanego punktu kontrolnego. Zmiany wspólnego obszaru roboczego zostają zachowane.",
   "agentContinueUnavailable": "Kontynuacja jest niedostępna dla tego agenta lub jego obecnego stanu.",
+  "agentResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "Tego agenta nie ma już w tej rozmowie.",
   "referenceAgentOutcomes": "Agenci pokazują aktywność i wyniki oparte na dowodach. Wybierz zakończonego agenta, aby zobaczyć ograniczony raport i historię prób. Kontynuacja po potwierdzeniu zachowuje sesję i zmiany; ponowienie wymaga izolowanego punktu kontrolnego. Brakujące dowody pozostają niezweryfikowane. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "kliknij agenta, aby zobaczyć szczegóły",

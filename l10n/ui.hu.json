@@ -2910,6 +2910,7 @@
   "agentRetryNoSubagent": "Az újrapróbálás ennél az ügynöknél nem elérhető: nincs újrapróbálható alügynöke.",
   "agentRetryNoCheckpoint": "Az újrapróbálás ennél az ügynöknél nem elérhető: nincs elszigetelt ellenőrzőpontja. A közös munkaterület módosításai megmaradnak.",
   "agentContinueUnavailable": "A folytatás nem elérhető ennél az ügynöknél vagy a jelenlegi állapotában.",
+  "agentResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "Ez az ügynök már nincs ebben a beszélgetésben.",
   "referenceAgentOutcomes": "Az ügynökök tevékenységet és bizonyítékokon alapuló eredményeket mutatnak. Válasszon befejezett ügynököt a korlátozott bizonylathoz és az előzményekhez. A megerősített folytatás megőrzi a munkamenetet és a módosításokat; az újrapróbálás elszigetelt ellenőrzőpontot igényel. A hiányzó bizonyíték ellenőrizetlen marad. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "kattintson egy ügynökre a részletekért",

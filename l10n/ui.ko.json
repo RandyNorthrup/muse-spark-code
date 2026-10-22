@@ -2852,6 +2852,7 @@
   "agentRetryNoSubagent": "이 에이전트는 다시 시도할 수 없습니다. 다시 시도할 하위 에이전트가 없습니다.",
   "agentRetryNoCheckpoint": "이 에이전트는 다시 시도할 수 없습니다. 격리된 체크포인트가 없습니다. 공유 작업 공간의 변경 사항은 유지됩니다.",
   "agentContinueUnavailable": "이 에이전트 또는 현재 상태에서는 계속할 수 없습니다.",
+  "agentResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "이 대화에 해당 에이전트가 더 이상 없습니다.",
   "referenceAgentOutcomes": "에이전트는 활동과 증거 기반 결과를 표시합니다. 종료된 에이전트를 선택하면 제한된 기록과 시도 내역을 볼 수 있습니다. 확인 후 계속하면 세션과 변경 사항이 유지되며, 다시 시도하려면 격리된 체크포인트가 필요합니다. 증거가 없으면 미검증으로 표시됩니다. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "에이전트를 클릭하면 세부 정보가 표시됩니다",

@@ -321,7 +321,8 @@
       "agentImportKindHook",
       "usageLimit",
       "teamIntensityLevels.max",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "agentResumePaused"
     ],
     "ko": ["gitChangeCounts", "teamCapabilityWarning"],
     "ru": ["gitChangeCounts", "teamCapabilityWarning"]
