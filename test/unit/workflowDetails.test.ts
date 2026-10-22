@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { WorkflowChild, WorkflowEntry } from '../../src/webview/state/uiState'
 import {
   childName,
-  childStatusLabel,
   isChildRunning,
   triggerSourceLabel,
   workflowLaunch,
@@ -102,17 +101,6 @@ describe('the words of a workflow run (M47)', () => {
     expect(triggerSourceLabel('guidanceAuto')).toBe('started by the model')
     expect(triggerSourceLabel('cliHeadless')).toBe('cliHeadless')
     expect(triggerSourceLabel('toString')).toBe('toString')
-  })
-
-  it('says an agent’s state: its outcome once it ended, else its status', () => {
-    expect(childStatusLabel(child({ status: 'scheduled' }))).toBe('Queued')
-    expect(childStatusLabel(child({ status: 'started' }))).toBe('Running')
-    expect(childStatusLabel(child({ status: 'usage' }))).toBe('Running')
-    expect(childStatusLabel(child({ status: 'completed' }))).toBe('Completed')
-    expect(childStatusLabel(child({ status: 'terminal', terminal: 'completed' }))).toBe('Completed')
-    expect(childStatusLabel(child({ status: 'terminal', terminal: 'failed' }))).toBe('Failed')
-    expect(childStatusLabel(child({ status: 'terminal' }))).toBe('Finished')
-    expect(childStatusLabel(child({ status: 'waiting' }))).toBe('waiting')
   })
 
   it('offers the controls only for an agent that runs and has not ended', () => {

@@ -3161,13 +3161,6 @@
     "guidanceAuto": "vom Modell gestartet"
   },
   "workflowAgentsLabel": "Workflow-Agenten",
-  "workflowChildStatuses": {
-    "scheduled": "in der Warteschlange",
-    "started": "läuft",
-    "usage": "läuft",
-    "completed": "abgeschlossen",
-    "terminal": "beendet"
-  },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "Versuch {attempt}",
   "workflowsCount": {

@@ -3161,13 +3161,6 @@
     "guidanceAuto": "a modell indította"
   },
   "workflowAgentsLabel": "A munkafolyamat ügynökei",
-  "workflowChildStatuses": {
-    "scheduled": "sorban áll",
-    "started": "fut",
-    "usage": "fut",
-    "completed": "befejezve",
-    "terminal": "véget ért"
-  },
   "workflowChildUntitled": "{number}. ügynök",
   "workflowAttempt": "{attempt}. próbálkozás",
   "workflowsCount": {

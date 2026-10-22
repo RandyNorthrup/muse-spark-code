@@ -3101,13 +3101,6 @@
     "guidanceAuto": "モデルが開始"
   },
   "workflowAgentsLabel": "ワークフローのエージェント",
-  "workflowChildStatuses": {
-    "scheduled": "待機中",
-    "started": "実行中",
-    "usage": "実行中",
-    "completed": "完了",
-    "terminal": "終了"
-  },
   "workflowChildUntitled": "エージェント {number}",
   "workflowAttempt": "試行 {attempt}",
   "workflowsCount": {

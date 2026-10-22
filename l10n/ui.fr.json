@@ -3221,13 +3221,6 @@
     "guidanceAuto": "lancé par le modèle"
   },
   "workflowAgentsLabel": "Agents du flux de travail",
-  "workflowChildStatuses": {
-    "scheduled": "en file d’attente",
-    "started": "en cours",
-    "usage": "en cours",
-    "completed": "terminé",
-    "terminal": "fini"
-  },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "tentative {attempt}",
   "workflowsCount": {

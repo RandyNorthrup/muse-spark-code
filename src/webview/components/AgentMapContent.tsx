@@ -36,7 +36,7 @@ import {
   type WorkflowEntry,
 } from '../state/uiState'
 import { describeTool } from '../toolPresentation'
-import { agentStatusLabel, formatDurationMs } from '../agentFormat'
+import { formatDurationMs } from '../agentFormat'
 import { workflowName, workflowTriggerText } from '../workflowDetails'
 import { Modal } from './Modal'
 import type { TeamTreeActions } from './TeamTree'
@@ -242,9 +242,9 @@ function agentMeta(agent: SubagentEntry, now: number): string {
       : fill(UI_TEXT.workflowAttempt, { attempt: formatNumber(agent.agentEvidence.attempt) }),
     agent.durationMs === undefined ? undefined : formatDurationMs(agent.durationMs),
     agentTokens(agent),
-    agentStatusLabel(
-      agent.status === RUNNING ? agent.status : (agent.controlStatus ?? agent.status),
-    ),
+    // One true status: the derived activity and outcome. The raw status
+    // field can lag the controls (a closed Muse Code child still reads
+    // inProgress), so it never renders beside the derived text.
     agentStateText(
       { status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence },
       now,
@@ -521,7 +521,6 @@ function BackgroundTasks({
               <span className="agent-node-meta" aria-live="polite">
                 {[
                   presentation.summary === '' ? undefined : presentation.summary,
-                  agentStatusLabel(task.status),
                   agentStateText(taskSignals(task), now),
                 ]
                   .filter((part) => part !== undefined)

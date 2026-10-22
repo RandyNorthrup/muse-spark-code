@@ -3281,13 +3281,6 @@
     "guidanceAuto": "spustil ho model"
   },
   "workflowAgentsLabel": "Agenti pracovního postupu",
-  "workflowChildStatuses": {
-    "scheduled": "ve frontě",
-    "started": "běží",
-    "usage": "běží",
-    "completed": "dokončeno",
-    "terminal": "skončeno"
-  },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "pokus {attempt}",
   "workflowsCount": {
