@@ -376,6 +376,10 @@
     // scripts/build.mjs; the barrel is the chunk's API surface for the
     // engine chunk's dynamic reads, which knip cannot trace.
     "src/host/team/teamHostEntry.ts",
+    // The team chunk (dist/team.js): M120CAP's build plugin resolves the
+    // scheduler chunk's `teamTools` import to it, so the barrel is that
+    // chunk's API surface too, which knip cannot trace.
+    "src/core/team/teamEntry.ts",
     //
     // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
     // and editor pieces ahead of their schedule-use wiring. Wiring: the

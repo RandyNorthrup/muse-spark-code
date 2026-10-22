@@ -26,7 +26,6 @@ const uniqueIds = z.array(idSchema).check(z.refine((ids) => new Set(ids).size ==
 // The platforms a candidate can run on (D103's capability facts).
 export const teamPlatforms = ['windows', 'macos', 'linux'] as const
 export const teamPlatformSchema = z.enum(teamPlatforms)
-export type TeamPlatform = z.infer<typeof teamPlatformSchema>
 
 /**
 What a candidate can do, as capability facts, never vendor names. An absent
@@ -120,7 +119,6 @@ export const teamSkipReasons = [
   'borrowCooldown',
 ] as const
 export const teamSkipReasonSchema = z.enum(teamSkipReasons)
-export type TeamSkipReason = z.infer<typeof teamSkipReasonSchema>
 
 /** One skipped candidate and why; `untilMs` where the reason lapses at a time. */
 export const teamSkipSchema = z.object({
@@ -139,19 +137,7 @@ export interface TeamAvailabilityProbe {
   probe(candidate: TeamCandidate, nowMs: number): TeamAvailability
 }
 
-export {
-  teamMoveTriggers,
-  teamMoveTriggerSchema,
-  teamCapturedWorkSchema,
-  teamRecallEndings,
-  teamChainEntrySchema,
-  teamHandoffRecordSchema,
-  type TeamMoveTrigger,
-  type TeamCapturedWork,
-  type TeamRecallEnding,
-  type TeamChainEntry,
-  type TeamHandoffRecord,
-} from './teamHandoff'
+export { teamHandoffRecordSchema, type TeamHandoffRecord } from './teamHandoff'
 
 /** Per-role, per-candidate outcomes (D103): what a reorder suggestion reads. */
 export const teamOutcomeStatsSchema = z.object({
