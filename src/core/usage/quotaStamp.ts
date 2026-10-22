@@ -6,7 +6,12 @@
 // which also covers key-less flows the offer side cannot see. Housed
 // beside usage recording; the Model API bundle stamps the reservation's
 // identity as before and carries none of it (CM963JR4 veto).
-import type { UsageRecording } from './recording'
+import type {
+  OwnedLimitInput,
+  ScopedUsageRecording,
+  UsageLimitScope,
+  UsageRecording,
+} from './recording'
 
 /**
 The credential a host's attempts use, carried from final admission: the
@@ -50,28 +55,44 @@ export function stampQuotaRow(options: {
 /**
 A team host's usage recording: rows pass through, re-stamped with the
 credential the attempt used. Hosts without a team stash record exactly
-what the session stamped.
+what the session stamped. Producers publish through `scopeLimits` (the
+owner binding, M117), so every scope it mints, and every re-scope of
+those, re-stamps too; the raw owned `limit` does as well.
 */
 export function restampTeamQuota(
   recording: UsageRecording | undefined,
   stash: { readonly current: () => string | undefined } | undefined,
 ): UsageRecording | undefined {
-  return recording === undefined || stash === undefined
-    ? recording
-    : {
-        ...recording,
-        limit: (context: Parameters<UsageRecording['limit']>[0], isForced?: boolean) => {
-          const stamped = stampQuotaRow({
-            provider: context.provider,
-            attemptKeyDigest: stash.current(),
-            reservationAccount: context.observedAccount,
-          })
-          recording.limit(
-            stamped === context.observedAccount
-              ? context
-              : { ...context, observedAccount: stamped },
-            isForced,
-          )
+  if (recording === undefined || stash === undefined) return recording
+  const restamp = <T extends OwnedLimitInput>(context: T): T => {
+    const stamped = stampQuotaRow({
+      provider: context.provider,
+      attemptKeyDigest: stash.current(),
+      reservationAccount: context.observedAccount,
+    })
+    return stamped === context.observedAccount ? context : { ...context, observedAccount: stamped }
+  }
+  const restampScopes = (
+    mint: (scope: UsageLimitScope) => ScopedUsageRecording,
+  ): ((scope: UsageLimitScope) => ScopedUsageRecording) => {
+    const rescope = (scope: UsageLimitScope): ScopedUsageRecording => {
+      const scoped = mint(scope)
+      return {
+        ...scoped,
+        scopeLimits: rescope,
+        limit: (context, isForced) => {
+          scoped.limit(restamp(context), isForced)
         },
       }
+    }
+    return rescope
+  }
+  const { scopeLimits } = recording
+  return {
+    ...recording,
+    limit: (context, isForced) => {
+      recording.limit(restamp(context), isForced)
+    },
+    ...(scopeLimits !== undefined && { scopeLimits: restampScopes(scopeLimits) }),
+  }
 }
