@@ -5,6 +5,7 @@ import {
   PLAYBOOK_CONFIGURABLE_RULES,
   PLAYBOOK_FINDING_CLASSES,
   PLAYBOOK_ID_MAX_CHARS,
+  PLAYBOOK_INFORMATIONAL_NOTE_CODES,
   PLAYBOOK_RECORD_FOLDER,
   PLAYBOOK_SAFETY_RULE,
   REVIEW_FINDING_PATH_MAX_CHARS,
@@ -407,6 +408,40 @@ export interface PlaybookReportItem {
   readonly id: string
   readonly needsUser: boolean
   readonly failing: boolean
+}
+
+/** D214: the one report ordering. Owner rows first, then failures, then the
+rest; ties keep their input order under a stable sort. The policy's
+orderReport and every record/text presentation share this comparator, so no
+parallel copy of the order can drift. */
+export function comparePlaybookReportItems(
+  left: Pick<PlaybookReportItem, 'needsUser' | 'failing'>,
+  right: Pick<PlaybookReportItem, 'needsUser' | 'failing'>,
+): number {
+  return (
+    Number(right.needsUser) - Number(left.needsUser) || Number(right.failing) - Number(left.failing)
+  )
+}
+
+/** D214: journal records as report items. Unresolved designs and notes that
+need the person sort first; rounds with findings and refusal/failure notes
+next; everything else keeps journal order. This reproduces the CLI's buckets
+exactly (note codes outside PLAYBOOK_INFORMATIONAL_NOTE_CODES fail). */
+export function playbookRecordReportFlags(
+  record: PlaybookRecord,
+): Pick<PlaybookReportItem, 'needsUser' | 'failing'> {
+  if (record.kind === 'note')
+    return {
+      needsUser: record.value.needsUser,
+      failing:
+        !record.value.needsUser && !PLAYBOOK_INFORMATIONAL_NOTE_CODES.includes(record.value.code),
+    }
+  if (record.kind === 'design' && record.value.outcome !== 'impossible')
+    return { needsUser: true, failing: false }
+  return {
+    needsUser: false,
+    failing: record.kind === 'round' && record.value.findings.length > 0,
+  }
 }
 
 /** Synchronous admission: adapters must check immediately before the effect.

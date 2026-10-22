@@ -6,6 +6,7 @@ import {
   REVIEW_FINDING_TEXT_MAX_CHARS,
 } from '../../../shared/constants'
 import {
+  comparePlaybookReportItems,
   defaultPlaybookSettings,
   playbookDesignDecisionSchema,
   isPatchRoundsExceeded,
@@ -1227,11 +1228,8 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   } {
     this.refresh()
     const ordered = [...items]
-    if (this.on('loudFailures'))
-      ordered.sort(
-        (a, b) =>
-          Number(b.needsUser) - Number(a.needsUser) || Number(b.failing) - Number(a.failing),
-      )
+    // D214: the sort is the one shared ordering, never a local copy of it.
+    if (this.on('loudFailures')) ordered.sort((a, b) => comparePlaybookReportItems(a, b))
     const decision = this.on('loudFailures')
       ? this.decide('allow', 'loudFailures', 'ownerFirst')
       : this.passed('loudFailures')
