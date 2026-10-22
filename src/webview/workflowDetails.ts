@@ -10,7 +10,6 @@ import {
   WORKFLOW_CHILD_RUNNING_STATUSES,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
-import { agentStatusLabel } from './agentFormat'
 import type { WorkflowChild, WorkflowEntry } from './state/uiState'
 
 /** How a run ended, read from its reconciled message. */
@@ -116,13 +115,6 @@ export function workflowName(entry: WorkflowEntry): string {
 /** What started a run, in words; a source the table does not list shows as it came. */
 export function triggerSourceLabel(source: string): string {
   return tableLabel(UI_TEXT.workflowTriggerSources, source)
-}
-
-/** An agent's state: its outcome once it ended, else its status, each in words. */
-export function childStatusLabel(child: WorkflowChild): string {
-  return child.terminal === undefined
-    ? tableLabel(UI_TEXT.workflowChildStatuses, child.status)
-    : agentStatusLabel(child.terminal)
 }
 
 /** Whether the captured status reports an agent running, with no terminal outcome. */

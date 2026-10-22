@@ -98,6 +98,16 @@ export const chatGptRecordSchema = z.object({
 })
 export type ChatGptRecord = z.infer<typeof chatGptRecordSchema>
 
+/**
+The local verdict for a stored grant: signed in until its access token's
+time passes, expired after (an expired token refreshes on use, so the
+grant stays a completed sign-in). `providers status chatgpt` and `auth
+status` share this one verdict (RLTESTDRIVE item 7).
+*/
+export function chatGptGrantStatus(record: ChatGptRecord, now: number): 'signed-in' | 'expired' {
+  return record.expiresAt > now ? 'signed-in' : 'expired'
+}
+
 function parse<T>(schema: z.ZodMiniType<T>, value: unknown, code: ChatGptSignInError['code']): T {
   const result = schema.safeParse(value)
   if (!result.success) throw new ChatGptSignInError(code)

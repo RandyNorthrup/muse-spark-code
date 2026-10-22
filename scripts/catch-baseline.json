@@ -7,9 +7,9 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 72,
+      "SWALLOW": 71,
       "GENERIC": 262,
-      "CLEANUP": 235
+      "CLEANUP": 234
     },
     "host": {
       "SWALLOW": 19,
@@ -1515,7 +1515,7 @@
     },
     {
       "file": "src/core/media/record/windows.ts",
-      "identity": "84ee34f52631c09e87d0317dbd3e11dc28501a23d2c473b9b032e3829b999c5f",
+      "identity": "682b8ef745d0658b196c652a9d8acf01da570c799025c9185b0a40d3ae32debf",
       "class": "GENERIC"
     },
     {
@@ -1951,16 +1951,6 @@
     {
       "file": "src/core/reporting/sources/local.ts",
       "identity": "934057e6f039c92f885c48d39e9ef98ede7fca4d2af12f2985a9d27d20b469a9",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/reporting/sources/local.ts",
-      "identity": "c99b116868cd93c12568ee1fedff4d4069383c03c1bab203685a9442ffb0aae0",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/reporting/sources/local.ts",
-      "identity": "0a8574e48de5320c3db87fd566bad925b63f478b85c4a4d8040e4567be0187cd",
       "class": "CLEANUP"
     },
     {
@@ -4225,7 +4215,7 @@
     },
     {
       "file": "src/runtime/chatGptProviderCommands.ts",
-      "identity": "55ddee15cd70ca8c96a5098c2d21118c1bf39d50de2e38a171ab2452e3b4fcb4",
+      "identity": "45b98d59692e3639fc217c59b126748d12905213eacda82e4c45d6075f9b1e3b",
       "class": "GENERIC"
     },
     {
@@ -4451,6 +4441,16 @@
     {
       "file": "src/runtime/exec/providerExec.ts",
       "identity": "fa6cebfa990521f4834596f23000edfe245248c861d9762fc47bdd6c21ca0b53",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/exec/providerList.ts",
+      "identity": "6524609b803d9ba69f92e206767de99b93bce0f7d6e87cf076503c0e5ea6f67a",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/exec/providerList.ts",
+      "identity": "fd4b5e337f9bc9f32e44ba645833628ec200feb73ed86fad591a0d3d957a0df5",
       "class": "GENERIC"
     },
     {
@@ -4996,16 +4996,6 @@
     {
       "file": "src/runtime/providersCommands.ts",
       "identity": "83d3f9d997a6e488c62aa9abf612b8325163d9396e71989893d177c66036b158",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/providersCommands.ts",
-      "identity": "6524609b803d9ba69f92e206767de99b93bce0f7d6e87cf076503c0e5ea6f67a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/providersCommands.ts",
-      "identity": "fd4b5e337f9bc9f32e44ba645833628ec200feb73ed86fad591a0d3d957a0df5",
       "class": "GENERIC"
     },
     {

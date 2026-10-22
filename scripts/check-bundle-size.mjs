@@ -97,6 +97,9 @@ const BUDGETS = [
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/museCode.js', budgetKiB: 125 },
   { path: 'dist/exec.js', budgetKiB: 950 },
+  // RLTESTDRIVE item 5: the live list read for headless refresh on use:
+  // 13.4 KiB measured +15%, rounded up to 25 KiB.
+  { path: 'dist/providerList.js', budgetKiB: 25 },
   { path: 'dist/modelApiCodeIntel.js', budgetKiB: 100 },
   { path: 'dist/mcpPool.js', budgetKiB: 75 },
   { path: 'dist/structuredSchema.js', budgetKiB: 50 },

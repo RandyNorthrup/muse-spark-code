@@ -1,0 +1,32 @@
+{
+  "capturedAtUtc": "2026-10-22T11:32:00Z",
+  "lane": "RLTESTDRIVE",
+  "source": "release-reuse paging drill (item 9, D121)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "captures": [
+    {
+      "file": "page-full.json",
+      "bytes": 1654002,
+      "sha256": "098308e22be52382adeb9dfb7277af540e63d9419f72485a2526141000c75016",
+      "runs": 100,
+      "command": "curl -s 'https://api.github.com/repos/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/runs?status=success&per_page=100&page=1'",
+      "httpStatus": 200
+    },
+    {
+      "file": "page-tail.json",
+      "bytes": 168039,
+      "sha256": "25d6c382f2b300aef6ad2f83e2f1720eaf0591d9bd13f4bb59c8b0d6d9c09d49",
+      "runs": 10,
+      "command": "curl -s 'https://api.github.com/repos/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/runs?status=success&per_page=100&page=2'",
+      "httpStatus": 200,
+      "note": "the listing's genuine last page (110 runs total): short, as GitHub ends every listing"
+    }
+  ],
+  "scrubbed": {
+    "emailReplacements": 260,
+    "marker": "<email-redacted>",
+    "otherwise": "byte-exact"
+  },
+  "arrangement": "test/unit/releaseReusePaging.test.mjs serves page-full.json for pages 1-3 (three full recorded pages would need 300 successful runs; the listing holds 110) and page-tail.json for page 4. Every run object is recorded; only the page assignment is the harness's. Artifacts endpoints answer {artifacts: []} (aged out), so no run matches and the scan must walk every page to GitHub's short-page end."
+}

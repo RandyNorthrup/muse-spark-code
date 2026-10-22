@@ -2394,8 +2394,14 @@ still uses its verified family table; consuming catalog effort metadata
 is separate feature work. Lane REASONSHAPES (2026-10-12) consumes the
 `model/list` rows: the host reads each row's tiers and default through
 the `modelEfforts` port, the controller posts them per model, and the
-slider offers the model's own steps (UNVERIFIED row shape until a 1.4.x
-live capture lands). The original probe
+slider offers the model's own steps. Verified 2026-10-18 on Muse Code
+1.4.10 (`test/fixtures/muse-contributor/model-list-1.4.10.json`,
+RLTESTDRIVE item 8): `muse-spark-1.3` lists default `max`,
+`muse-spark-1.2` and the wonder models list `high`, and a new
+conversation starts on the row's own default (the owner's 0.19.0 drive
+saw the 1.3 session start at Max from actor `muse_spark_code`, which is
+the row's default, not a product choice); `DEFAULT_EFFORT` (`high`)
+stays the standing default where a row lists none. The original probe
 (`scratchpad/live-effort.ts`, one "Reply with OK" turn per tier per Standard
 model, contributor tiers skipped) is recorded in `docs/certification/m3.md`.
 Outcome: `muse-spark-1.3` completes turns at every wire tier (`none` …
@@ -34189,6 +34195,24 @@ repeat stop, and `modelApiMaxTurnRequests`, `questions.maxOpenQuestions`,
 (`dist/modelApi.js` 523.8 KiB against 525; new execution lives in
 `dist/modelApiTools.js` and `dist/modelApiFileRange.js`). Evidence:
 `docs/certification/rllimits.md`.
+
+### RLTESTDRIVE — The owner's 0.19.0 test drive: every defect it found, fixed (2026-10-22)
+
+**Status 2026-10-22: built.** Fixed on rig `linuxlt`, branch
+`rec/rltestdrive`, base 0.19.0, never merged: one true status per agent
+(derived text alone on every surface); the Anthropic count body drops
+manual thinking (live acceptance runs on the owner PC); the exec ready
+line names the provider run; headless documents no subagent tools by
+design; `providers refresh` plus refresh-on-use with the shared
+`dist/providerList.js`; the panel names the editor key store; one
+ChatGPT truth from both status surfaces; Max locked as the 1.3 row
+default; our bounds removed under D121/D208 (hand-off waits,
+recording cleanup, schedule snapshots, CI lookup pages, report
+cancellation; the fs-retry count, orphan-sweep rounds and registry
+visibility bound stay under D121(4) with records); the vault back in
+the palette with an always-present tab showing state or reason.
+claude-haiku-5-5 verified priced from Anthropic's published page.
+Evidence: `docs/certification/rltestdrive.md`.
 
 ---
 

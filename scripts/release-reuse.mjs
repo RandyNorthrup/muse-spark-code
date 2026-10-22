@@ -45,8 +45,6 @@ const RECOVERY_BUILD_JOBS = [
   'gitleaks',
   'semgrep',
 ]
-const LOOKUP_PAGES = 3
-const LOOKUP_TIMEOUT_MS = 120_000
 
 function execute(command, args) {
   return execFileSync(command, args, {
@@ -70,10 +68,15 @@ function assetNames(version) {
   ].toSorted((a, b) => a.localeCompare(b))
 }
 
-/** The receipt artifact names the actual package checkout, not the PR head. */
+/**
+The receipt artifact names the actual package checkout, not the PR head.
+No page count of ours (D121): the scan walks every page until a match or
+GitHub's own short-page end; the release job's timeout (the person's) or
+their Ctrl-C stops a hung lookup, never a number here.
+*/
 export async function findBuild(repository, tree, request) {
   SHA.parse(tree)
-  for (let page = 1; page <= LOOKUP_PAGES; page++) {
+  for (let page = 1; ; page += 1) {
     const { workflow_runs: runs } = RUNS.parse(
       await request(
         `/repos/${repository}/actions/workflows/ci.yml/runs?status=success&per_page=100&page=${page}`,
@@ -249,10 +252,8 @@ if (
             .string()
             .regex(/^[\w.-]+\/[\w.-]+$/)
             .parse(process.env.GITHUB_REPOSITORY)
-          const signal = globalThis.AbortSignal.timeout(LOOKUP_TIMEOUT_MS)
           const request = async (endpoint) => {
             const reply = await fetch(`https://api.github.com${endpoint}`, {
-              signal,
               headers: {
                 Authorization: `Bearer ${process.env.GH_TOKEN}`,
                 Accept: 'application/vnd.github+json',

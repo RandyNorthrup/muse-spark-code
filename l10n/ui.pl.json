@@ -301,7 +301,7 @@
   "referenceDialogKeys": "Przeglądaj wyniki, aktywuj wybraną rozmowę albo zamknij okno.",
   "referencePopoverKeys": "Przeglądaj opcje, zmień wartość, wybierz opcję albo zamknij menu.",
   "referenceExecImages": "Obrazy bez interfejsu wymagają --image-generation, acceptEdits i wystarczającego twardego budżetu. Nie ma pytania o cenę; żądania wymagające uprawnienia są odrzucane.",
-  "referenceProviders": "Wyświetlaj, dodawaj, testuj lub usuwaj dostawców modeli. Klucze korzystają z magazynu poświadczeń. Płatne testy tokenów wymagają edytora; CLI je odrzuca.",
+  "referenceProviders": "Wyświetlaj, dodawaj, testuj, odświeżaj lub usuwaj dostawców modeli. Klucze korzystają z magazynu poświadczeń. Płatne testy tokenów wymagają edytora; CLI je odrzuca.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Podaj okno kontekstu załadowane na lokalnym serwerze. Wartości ręczne zastępują wykryte limity.",
     "resource-governor": "--resource-governor on|off: Utrzymuje responsywność komputera przez spowalnianie lub odkładanie pracy uruchomionej przez środowisko agenta. Domyślnie włączone.",
@@ -3290,13 +3290,6 @@
     "guidanceAuto": "uruchomiony przez model"
   },
   "workflowAgentsLabel": "Agenci przepływu pracy",
-  "workflowChildStatuses": {
-    "scheduled": "w kolejce",
-    "started": "w toku",
-    "usage": "w toku",
-    "completed": "ukończono",
-    "terminal": "zakończono"
-  },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "próba {attempt}",
   "workflowsCount": {
@@ -4063,6 +4056,21 @@
     "few": "Klucz działa · {count} modele.",
     "many": "Klucz działa · {count} modeli."
   },
+  "providerRefreshAdded": {
+    "one": "Zapisano 1 nowy model w {provider}: {models}.",
+    "few": "Zapisano {count} nowe modele w {provider}: {models}.",
+    "many": "Zapisano {count} nowych modeli w {provider}: {models}.",
+    "other": "Zapisano {count} nowych modeli w {provider}: {models}."
+  },
+  "providerRefreshMissing": "Nadal skonfigurowane w {provider}, ale nie ma już na liście: {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} jest już aktualny: 1 model.",
+    "few": "{provider} jest już aktualny: {count} modele.",
+    "many": "{provider} jest już aktualny: {count} modeli.",
+    "other": "{provider} jest już aktualny: {count} modeli."
+  },
+  "providerModelStoredOnUse": "Zapisano {model} w {provider} z listy na żywo dostawcy.",
+  "providerModelStoreFailed": "Nie można zapisać {model} w {provider}; przebieg jest kontynuowany bez aktualizacji pliku.",
   "providerModelNoToolCalling": "{model} nie może uruchomić agenta kodowania, ponieważ wywoływanie narzędzi nie zostało dla niego potwierdzone.",
   "providerAddPickModel": "Dodaj co najmniej jeden z tych modeli za pomocą --model <id> (powtarzalne):",
   "providerAddNeedsModel": "Podaj co najmniej jeden model za pomocą --model <id> (powtarzalne).",
@@ -5171,7 +5179,8 @@
   "importUntrusted": "Ten plik nie jest zaufany: przed importem sprawdź każdy adres.",
   "openRouterOrder": "Preferowana kolejność dostawców",
   "openRouterFallback": "Przełącz na innych dostawców",
-  "keyMissing": "Brak zapisanego klucza",
+  "keyMissing": "Brak zapisanego klucza w edytorze",
+  "providerKeysSplitStores": "Klucze wprowadzone tutaj pozostają w tajnym magazynie edytora; agent terminala przechowuje własne klucze w magazynie poświadczeń systemu operacyjnego.",
   "testRunning": "Testowanie…",
   "modelsShownCount": {
     "one": "{shown} z {count} modelu",

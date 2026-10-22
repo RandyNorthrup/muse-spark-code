@@ -143,7 +143,11 @@ export async function authStatusAll(
     }
     const label = labelFor(entry.id)
     if (value === undefined || value === '') {
-      deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
+      // One truth from both (RLTESTDRIVE item 7): a ChatGPT entry with
+      // no stored grant reads as not signed in, as `providers status
+      // chatgpt` says, not as a missing API key.
+      if (entry.id === 'chatgpt') deps.print(UI_TEXT.acpChatGpt.states['signed-out'])
+      else deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
       continue
     }
     let parsed: unknown
@@ -155,6 +159,22 @@ export async function authStatusAll(
       parsed = undefined
     }
     const record = parsed === undefined ? undefined : parseStoredProviderSecret(parsed)
+    if (record === undefined && entry.id === 'chatgpt') {
+      // A ChatGPT sign-in is a subscription grant, not an API-key
+      // envelope: read it as the grant, with `providers status chatgpt`'s
+      // verdict and remedy, through the subscriptions entry (D207).
+      const { chatGptGrantStatus, chatGptRecordSchema } =
+        await import('../host/backend/subscriptionsEntry')
+      const grant = chatGptRecordSchema.safeParse(parsed)
+      if (!grant.success) {
+        deps.printError(UI_TEXT.acpChatGpt.grantUnreadable)
+        hasFailure = true
+        continue
+      }
+      deps.print(UI_TEXT.acpChatGpt.states[chatGptGrantStatus(grant.data, Date.now())])
+      hasAnyKey = true
+      continue
+    }
     if (record === undefined) {
       deps.printError(fill(UI_TEXT.providerSecretUnreadable, { provider: label }))
       hasFailure = true
@@ -304,7 +324,8 @@ export async function authStatusProvider(
     return storeDown(deps, error) ?? unavailable(deps, error)
   }
   if (stored === undefined || stored === '') {
-    deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
+    if (providerId === 'chatgpt') deps.print(UI_TEXT.acpChatGpt.states['signed-out'])
+    else deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: label }))
     return EXIT_FAILED
   }
   let value: unknown
@@ -316,6 +337,21 @@ export async function authStatusProvider(
     value = undefined
   }
   const parsed = value === undefined ? undefined : parseStoredProviderSecret(value)
+  if (parsed === undefined && providerId === 'chatgpt') {
+    // As the file loop above: a ChatGPT sign-in is a subscription
+    // grant, read with `providers status chatgpt`'s verdict and remedy.
+    const { chatGptGrantStatus, chatGptRecordSchema } =
+      await import('../host/backend/subscriptionsEntry')
+    const grant = chatGptRecordSchema.safeParse(value)
+    if (!grant.success) {
+      deps.printError(UI_TEXT.acpChatGpt.grantUnreadable)
+      return EXIT_FAILED
+    }
+    // A stored grant is a completed sign-in even expired: its token
+    // refreshes on use, as `providers status chatgpt` agrees (exit 0).
+    deps.print(UI_TEXT.acpChatGpt.states[chatGptGrantStatus(grant.data, Date.now())])
+    return EXIT_OK
+  }
   if (parsed === undefined) {
     deps.printError(fill(UI_TEXT.providerSecretUnreadable, { provider: label }))
     return EXIT_FAILED

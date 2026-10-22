@@ -300,7 +300,7 @@
   "referenceDialogKeys": "Percorrer resultados, ativar a conversa selecionada ou fechar a janela.",
   "referencePopoverKeys": "Percorrer opções, ajustar um valor, escolher uma opção ou fechar o menu.",
   "referenceExecImages": "Imagens sem interface exigem --image-generation, acceptEdits e um orçamento rígido suficiente. Não há pergunta sobre o preço; solicitações que exigem permissão são recusadas.",
-  "referenceProviders": "Listar, adicionar, testar ou remover provedores de modelos. As chaves usam o armazenamento de credenciais. Testes de tokens pagos exigem o editor; a CLI os recusa.",
+  "referenceProviders": "Listar, adicionar, testar, atualizar ou remover provedores de modelos. As chaves usam o armazenamento de credenciais. Testes de tokens pagos exigem o editor; a CLI os recusa.",
   "referenceCliOptions": {
     "context-window": "--context-window <tokens>: Informe a janela de contexto carregada no servidor local. Os valores manuais prevalecem sobre os limites detectados. O",
     "resource-governor": "--resource-governor on|off: Mantém esta máquina responsiva ao reduzir a velocidade ou adiar trabalhos iniciados pelo ambiente do agente. Ativado por padrão.",
@@ -3229,13 +3229,6 @@
     "guidanceAuto": "iniciado pelo modelo"
   },
   "workflowAgentsLabel": "Agentes do fluxo de trabalho",
-  "workflowChildStatuses": {
-    "scheduled": "na fila",
-    "started": "em execução",
-    "usage": "em execução",
-    "completed": "concluído",
-    "terminal": "encerrado"
-  },
   "workflowChildUntitled": "Agente {number}",
   "workflowAttempt": "tentativa {attempt}",
   "workflowsCount": {
@@ -3978,6 +3971,19 @@
     "other": "A chave funciona · {count} modelos.",
     "many": "A chave funciona · {count} modelos."
   },
+  "providerRefreshAdded": {
+    "one": "{count} modelo novo salvo em {provider}: {models}.",
+    "other": "{count} modelos novos salvos em {provider}: {models}.",
+    "many": "{count} modelos novos salvos em {provider}: {models}."
+  },
+  "providerRefreshMissing": "Ainda configurado em {provider}, mas não está mais na lista: {models}.",
+  "providerRefreshCurrent": {
+    "one": "{provider} já está atualizado: {count} modelo.",
+    "other": "{provider} já está atualizado: {count} modelos.",
+    "many": "{provider} já está atualizado: {count} modelos."
+  },
+  "providerModelStoredOnUse": "{model} salvo em {provider} da lista ativa do provedor.",
+  "providerModelStoreFailed": "Não foi possível salvar {model} em {provider}; esta execução continua sem atualizar o arquivo.",
   "providerModelNoToolCalling": "{model} não pode executar o agente de codificação porque as chamadas de ferramenta não estão confirmadas para ele.",
   "providerAddPickModel": "Adicione um ou mais destes modelos com --model <id> (repetível):",
   "providerAddNeedsModel": "Passe pelo menos um modelo com --model <id> (repetível).",
@@ -5046,7 +5052,8 @@
   "importUntrusted": "Este arquivo não é confiável: verifique cada endereço antes de importar.",
   "openRouterOrder": "Ordem de provedores preferida",
   "openRouterFallback": "Recorrer a outros provedores",
-  "keyMissing": "Nenhuma chave salva",
+  "keyMissing": "Nenhuma chave salva no editor",
+  "providerKeysSplitStores": "As chaves inseridas aqui permanecem no armazenamento secreto do editor; o agente de terminal mantém suas próprias chaves no armazenamento de credenciais do SO.",
   "testRunning": "Testando…",
   "modelsShownCount": {
     "one": "{shown} de {count} modelo",

@@ -6,7 +6,6 @@ import {
   MEDIA_MAX_UPLOAD_MIB,
   MEDIA_FILE_ID_MIN_BYTES,
   MILLISECONDS_PER_SECOND,
-  SCREEN_RECORDING_REMOVE_ATTEMPTS,
   SCREEN_RECORDING_REMOVE_RETRY_MS,
 } from '../../../shared/constants'
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
@@ -100,16 +99,17 @@ function isErrno(error: unknown, code: string): boolean {
 
 export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenRecorder {
   let active: ScreenRecordingRun | undefined
-  const remove = async (directory: string) => {
-    for (let attempt = 1; ; attempt++) {
+  const remove = async (directory: string, isCancelled: () => boolean) => {
+    for (;;) {
       try {
         await deps.removeDirectory(directory)
         return
       } catch (error: unknown) {
-        // Already removed is done. A scanner's lock retries bounded; any
-        // other failure surfaces at once instead of burning the attempts.
+        // Already removed is done. A scanner's lock retries until the
+        // person's cancel ends the wait (D121: no attempt count of ours);
+        // any other failure surfaces at once with its cause.
         if (isErrno(error, 'ENOENT')) return
-        if (!isRemoveRetriable(error) || attempt >= SCREEN_RECORDING_REMOVE_ATTEMPTS) throw error
+        if (!isRemoveRetriable(error) || isCancelled()) throw error
         await new Promise<void>((resolve) => setTimeout(resolve, SCREEN_RECORDING_REMOVE_RETRY_MS))
       }
     }
@@ -318,10 +318,10 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
       if (isCancelled()) end(true)
       let cleanup: Promise<void> | undefined
       // Share in-flight/successful cleanup, but let a later discard retry a
-      // failure after a scanner's lock has outlasted the bounded attempts.
+      // failure the person's cancel left behind.
       const removePreview = async () => {
         try {
-          await remove(outputDirectory)
+          await remove(outputDirectory, isCancelled)
         } catch (error) {
           cleanup = undefined
           throw error
@@ -376,7 +376,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
     } catch {
       unsubscribe?.()
       active = undefined
-      if (directory !== undefined) await remove(directory)
+      if (directory !== undefined) await remove(directory, isCancelled)
       return refused(unavailable())
     }
   }

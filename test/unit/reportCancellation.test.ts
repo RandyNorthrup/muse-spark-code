@@ -1,12 +1,12 @@
 // RVREPORTJOIN P2-3: cancellation stops work. The signal goes through
 // every step of the real reader factories (session, accounts, usage), is
-// checked before each next read, a deadline aborts and then waits for the
-// reader to settle (bounded) instead of returning while it still runs, and
-// an already-expired deadline starts nothing. Every case below drives the
-// real factories and localSource with counters, never a fabricated reader.
+// checked before each next read, a deadline aborts and its cancellation
+// returns at once (RLTESTDRIVE item 9: no settle grace of ours waits it
+// out), and an already-expired deadline starts nothing. Every case below
+// drives the real factories and localSource with counters, never a
+// fabricated reader.
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
-import { REPORT_SOURCE_SETTLE_MS } from '../../src/shared/constants'
 import { localSource } from '../../src/core/reporting/sources/local'
 import { sessionSource } from '../../src/core/reporting/sources/session'
 import { accountsSource } from '../../src/core/reporting/sources/accounts'
@@ -169,22 +169,22 @@ describe('production reads stop on cancellation', () => {
     expectCancelledResult(result)
   })
 
-  it('a deadline waits for the cooperative reader to settle before returning', async () => {
+  it('a deadline returns cancellation without waiting out the reader', async () => {
     let isSettled = false
     const port = localSource('questions', async ({ signal }) => {
       await aborted(signal)
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => setTimeout(resolve, 500))
       isSettled = true
       return { data: [] }
     })
     const result = await port.read(
       contextFor('project', new AbortController().signal, Date.now() + 30),
     )
-    expect(isSettled).toBe(true)
+    expect(isSettled).toBe(false)
     expectCancelledResult(result)
   })
 
-  it('a wedged reader cannot outlive the settle grace', async () => {
+  it('a wedged reader cannot hold cancellation past the deadline', async () => {
     const neverSettles = aborted(new AbortController().signal)
     const port = localSource('questions', async () => {
       await neverSettles
@@ -194,8 +194,9 @@ describe('production reads stop on cancellation', () => {
     const result = await port.read(
       contextFor('project', new AbortController().signal, Date.now() + 30),
     )
-    // The handed deadline plus one settle grace, with room for a loaded rig.
-    expect(Date.now() - startedAt).toBeLessThan(REPORT_SOURCE_SETTLE_MS + 5000)
+    // Cancellation returns at the ~30 ms handed deadline; 800 ms leaves a
+    // loaded rig 25x headroom while still catching any grace-length wait.
+    expect(Date.now() - startedAt).toBeLessThan(800)
     expectCancelledResult(result)
   })
 })

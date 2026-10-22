@@ -185,10 +185,11 @@ export interface MuseCodeEffortInfo {
 }
 
 /**
-Reads one `model/list` row's effort metadata (Muse Code 1.4.0/1.4.1 carry
-the tiers a model serves, a described subset and the default). The row
-shape is UNVERIFIED until a 1.4.x live capture lands (capture plan
-META-LIST): unknown fields stay absent, never guessed.
+Reads one `model/list` row's effort metadata (Muse Code 1.4.x carries the
+tiers a model serves, a described subset and the default; verified
+2026-10-18 on 1.4.10,
+test/fixtures/muse-contributor/model-list-1.4.10.json). Unknown fields
+stay absent, never guessed.
 */
 export function parseMuseCodeEffortInfo(row: unknown): MuseCodeEffortInfo {
   const parsed = museCodeEffortRowSchema.safeParse(row)

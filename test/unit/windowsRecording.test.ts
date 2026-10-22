@@ -1,6 +1,7 @@
 // The Windows screen recorder's failure handling (D119 catch burn-down): a
 // removal that finds nothing missing resolves, a scanner's lock retries
-// bounded, any other removal failure surfaces at once with its cause, and a
+// until the person's cancel ends the wait (D121: no attempt count of ours),
+// any other removal failure surfaces at once with its cause, and a
 // malformed helper line cancels the run instead of crossing as a frame. The
 // helper below is the driver's own injected process seam; every failure is a
 // real rejection, a real file-system error, or a real malformed line through
@@ -136,16 +137,36 @@ describe('windows screen recorder removal', () => {
     expect(removed).toHaveLength(1)
   })
 
-  it('retries a scanner lock bounded, then removes', async () => {
+  it('retries a scanner lock past any count of ours, then removes', async () => {
     const attempts: string[] = []
     const run = await startWithUnverifiableHelper((directory) => {
       attempts.push(directory)
-      return attempts.length < 3
+      return attempts.length < 6
         ? Promise.reject(codedError('EPERM: locked by scanner', 'EPERM'))
         : rm(directory, { recursive: true, force: true })
     })
     await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
-    expect(attempts).toHaveLength(3)
+    expect(attempts).toHaveLength(6)
+  })
+
+  it('stops retrying a scanner lock at the person cancel, surfacing the lock error', async () => {
+    const attempts: string[] = []
+    const failure = codedError('EPERM: locked by scanner', 'EPERM')
+    const { deps, processes } = depsWith({
+      removeDirectory: (directory) => {
+        attempts.push(directory)
+        return Promise.reject(failure)
+      },
+    })
+    const recorder = windowsScreenRecorder(deps)
+    const run = await recorder.start(recordOptions, noopCountdown)
+    const cancelled = run.cancel()
+    processes[0]?.emitExit(0)
+    await expect(run.result).rejects.toBe(failure)
+    await expect(cancelled).rejects.toBe(failure)
+    // One attempt only: the person's cancel ends the wait, and the lock
+    // error keeps its kind instead of burning attempts.
+    expect(attempts).toHaveLength(1)
   })
 
   it('surfaces a failure no scanner explains at once, with its cause', async () => {

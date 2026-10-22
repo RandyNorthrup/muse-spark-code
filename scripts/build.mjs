@@ -1385,6 +1385,14 @@ const execOptions = {
   outfile: 'dist/exec.js',
   banner: {},
 }
+// RLTESTDRIVE item 5: the provider's live model list for headless runs,
+// beside dist/headless.js so the runner's budget holds.
+const providerListOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/exec/providerListEntry.ts'],
+  outfile: 'dist/providerList.js',
+  banner: {},
+}
 const modelApiCodeIntelOptions = {
   ...modelApiOptions,
   entryPoints: ['src/core/backends/modelapi/codeIntelEntry.ts'],
@@ -2035,6 +2043,7 @@ if (isWatch) {
   const extraSpecs = [
     ['acp', () => esbuild.build(acpOptions)],
     ['exec', () => esbuild.build(execOptions)],
+    ['providerList', () => esbuild.build(providerListOptions)],
     ['headless', () => esbuild.build(headlessOptions)],
     ['acpQuestions', () => esbuild.build(acpQuestionsOptions)],
     ['runtimeQuestions', () => esbuild.build(runtimeQuestionsOptions)],
@@ -2049,6 +2058,7 @@ if (isWatch) {
   let shipped
   let acp
   let exec
+  let providerList
   let headless
   let acpQuestions
   let runtimeQuestions
@@ -2061,6 +2071,7 @@ if (isWatch) {
     ;({
       acp,
       exec,
+      providerList,
       headless,
       acpQuestions,
       runtimeQuestions,
@@ -2120,6 +2131,11 @@ if (isWatch) {
     )
     const execBuild = await exec
     writeFileSync(path.join(ACP_METAFILE_DIR, 'exec.json'), JSON.stringify(execBuild.metafile))
+    const providerListBuild = await providerList
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'providerList.json'),
+      JSON.stringify(providerListBuild.metafile),
+    )
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
   }
   console.log('bundle sizes:')

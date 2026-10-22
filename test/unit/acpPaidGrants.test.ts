@@ -11,6 +11,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { CoreLogger } from '../../src/core/logging'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
+import { ACP_PAID_FEATURES } from '../../src/shared/constants'
 
 const folder = mkdtempSync(path.join(tmpdir(), 'acp-paid-grants-'))
 afterAll(() => {
@@ -57,5 +58,21 @@ describe('ACP paid grants lapse with the start flags', () => {
     })
     await paid.forgetUnflagged()
     expect(grants.read(workspace).has('autoCompaction')).toBe(false)
+  })
+})
+
+describe('ACP paid features without a flag', () => {
+  it('keeps subagents off with every flag passed: headless offers no subagent tool (RLTESTDRIVE item 4)', () => {
+    const paid = new AcpPaidUse({
+      flagged: [...ACP_PAID_FEATURES],
+      canRemember: () => true,
+      grants: store('all.json'),
+      log,
+    })
+    for (const feature of ACP_PAID_FEATURES) expect(paid.isOn(feature)).toBe(true)
+    // Child tasks are paid and headless has no one to consent, so the
+    // agent has no subagents flag: the built-in explore/second-opinion
+    // agents and custom agents (roles) cannot run headless, by design.
+    expect(paid.isOn('subagents')).toBe(false)
   })
 })

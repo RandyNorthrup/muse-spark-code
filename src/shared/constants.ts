@@ -1467,8 +1467,12 @@ export const MODEL_EFFORT_LEVELS: Readonly<Record<string, readonly EffortLevel[]
   'muse-spark-1.3': EFFORT_LEVELS,
   'muse-spark-1.2': ['minimal', 'low', 'medium', 'high', 'xhigh'],
 }
-// `muse --help` documents `high` as the CLI's own default (verified 2026-09-21,
-// Muse Code 1.3.0); the extension starts there so the TUI and the panel agree.
+// The standing default where a model lists none of its own: `muse --help`
+// documents `high` as the CLI's global default (verified 2026-09-21, Muse
+// Code 1.3.0). A row's own default wins at session start (muse-spark-1.3
+// lists `max` on Muse Code 1.4.10,
+// test/fixtures/muse-contributor/model-list-1.4.10.json, RLTESTDRIVE
+// item 8), so the TUI, the session and the pill agree on the model's own.
 export const DEFAULT_EFFORT: EffortLevel = 'high'
 // Sent as the session default while the Thinking toggle is off.
 export const THINKING_OFF_EFFORT = 'none'
@@ -1707,7 +1711,6 @@ Screen Recordings, Xbox Game Bar in Captures. Attach Latest searches both.
 export const VIDEOS_FOLDER_NAME = 'Videos'
 export const WINDOWS_SCREEN_RECORDINGS_FOLDER = 'Screen Recordings'
 export const WINDOWS_CAPTURES_FOLDER = 'Captures'
-export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
 export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
@@ -4657,8 +4660,12 @@ export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.3
 export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
-/** OS hand-off adapters (opener, clipboard) must return promptly; only their root is owned. Windows PowerShell's cold start for Set-Clipboard sets the bound. */
-export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
+/**
+The usage-page opener's own wait bound (D121): the terminal must not wait on
+a stuck OS opener past this; the page, once handed off, is the OS's. Every
+other hand-off waits for its adapter's exit, start, or the caller's cancel.
+*/
+export const USAGE_PAGE_OPEN_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
@@ -6213,10 +6220,6 @@ export const REPORT_SOURCE_FRESH_MS = 5000
 // bound (which A30 had renamed from the session-export cap) was invented.
 // Row and text bounds elsewhere (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`)
 // still refuse what they bound.
-// A handed deadline aborts the read's signal and then waits for the
-// reader's own settlement instead of abandoning it mid-flight; a reader
-// that ignores the signal cannot outlive this grace (RVREPORTJOIN P2-3).
-export const REPORT_SOURCE_SETTLE_MS = 1000
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
