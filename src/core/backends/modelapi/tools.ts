@@ -679,8 +679,13 @@ const searchArgs = z.object({
   glob: z.optional(z.string()),
   output_mode: z.optional(z.enum(OUTPUT_MODES)),
   max_results: z.optional(z.number()),
+  offset: z.optional(z.number()),
 })
-const listFilesArgs = z.object({ glob: z.optional(z.string()), limit: z.optional(z.number()) })
+const listFilesArgs = z.object({
+  glob: z.optional(z.string()),
+  limit: z.optional(z.number()),
+  offset: z.optional(z.number()),
+})
 const shellArgs = z.object({
   command: z.string(),
   description: z.optional(z.string()),
@@ -689,7 +694,7 @@ const shellArgs = z.object({
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
 export const readSkillArgs = z.object({ id: z.string() })
-export const webFetchArgs = z.object({ url: z.string() })
+export const webFetchArgs = z.object({ url: z.string(), offset: z.optional(z.number()) })
 export const todoWriteArgs = z.object({ items: z.array(todoItemSchema) })
 
 const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
@@ -854,6 +859,11 @@ export function toolDefinitions(
             'content (default): matching lines; files_with_matches: paths; count: matches per file',
         },
         max_results: { type: 'integer' },
+        offset: {
+          type: 'integer',
+          description:
+            'Skip this many matches first; the note names the offset that fetches the rest',
+        },
       },
       ['pattern'],
       ['pattern'],
@@ -861,7 +871,15 @@ export function toolDefinitions(
     define(
       MODEL_API_TOOLS.listFiles,
       'List workspace files, optionally those matching a glob.',
-      { glob: { type: 'string' }, limit: { type: 'integer' } },
+      {
+        glob: { type: 'string' },
+        limit: { type: 'integer' },
+        offset: {
+          type: 'integer',
+          description:
+            'Skip this many files first; the note names the offset that fetches the rest',
+        },
+      },
       [],
     ),
     ...(options.hasShell
@@ -2086,21 +2104,56 @@ async function listMatching(
 }
 
 /** The lines a search reports for its mode, capped at `limit`. */
-function searchLines(
+/** One page of a search's rows, with the row count the page was taken from. */
+export interface SearchPage {
+  readonly rows: readonly string[]
+  readonly total: number
+}
+
+/**
+The rows a search reports for its mode, one page. `offset` skips that
+many rows first, so every capped list stays reachable.
+*/
+export function searchPage(
   hits: readonly SearchHit[],
   mode: (typeof OUTPUT_MODES)[number],
   limit: number,
-): readonly string[] {
+  offset = 0,
+): SearchPage {
+  const skip = Math.max(Math.floor(offset), 0)
   if (mode === 'content') {
-    return hits.slice(0, limit).map((hit) => `${hit.file}:${String(hit.line)}: ${hit.text}`)
+    return {
+      rows: hits
+        .slice(skip, skip + limit)
+        .map((hit) => `${hit.file}:${String(hit.line)}: ${hit.text}`),
+      total: hits.length,
+    }
   }
   const perFile = new Map<string, number>()
   for (const hit of hits) {
     perFile.set(hit.file, (perFile.get(hit.file) ?? 0) + 1)
   }
-  return Array.from(perFile, ([file, count]) =>
+  const rows = Array.from(perFile, ([file, count]) =>
     mode === 'count' ? `${file}: ${String(count)}` : file,
-  ).slice(0, limit)
+  )
+  return { rows: rows.slice(skip, skip + limit), total: rows.length }
+}
+
+/**
+The page note for a capped row list: which rows these are, how many
+there are, and the offset that fetches the rest. `isFloor` when the
+search itself stopped at its own cap, so the total is a floor.
+*/
+export function pageNote(
+  tool: string,
+  skip: number,
+  shown: number,
+  total: number,
+  isFloor: boolean,
+  noun = 'matches',
+): string {
+  const floor = isFloor ? 'at least ' : ''
+  return `[${noun} ${String(skip + 1)}-${String(skip + shown)} of ${floor}${String(total)}; call ${tool} again with offset ${String(skip + shown)} for the rest]`
 }
 
 async function search(
@@ -2145,7 +2198,23 @@ async function search(
   if (!outcome.ok) {
     return { ...failure(outcome.reason), touched }
   }
-  const results = searchLines(outcome.hits, mode, limit)
+  // The page size stays capped, and every page names what is left and the
+  // offset that fetches it.
+  const offset = Math.max(Math.floor(args.offset ?? 0), 0)
+  const page = searchPage(outcome.hits, mode, limit, offset)
+  // At the search's own hit cap (or a timeout) the total is a floor: the
+  // rest is reached by narrowing the pattern or glob, not by offset.
+  const isFloor = outcome.hits.length >= SEARCH_MAX_HITS || outcome.isPartial === true
+  if (page.rows.length === 0 && page.total > 0) {
+    return {
+      ...failure(
+        isFloor
+          ? `offset ${String(offset)} is past the ${String(page.total)} matches returned (of at least ${String(page.total)}); narrow the pattern or the glob`
+          : `offset ${String(offset)} is past the last of ${String(page.total)} matches; use an offset from 0 to ${String(page.total - 1)}`,
+      ),
+      touched,
+    }
+  }
   const notes = [
     ...(searched.length < candidates.length
       ? [
@@ -2157,8 +2226,21 @@ async function search(
           `[the search stopped after ${String(SEARCH_TIMEOUT_MS)} ms; these results are partial, narrow the pattern or the glob]`,
         ]
       : []),
+    ...(offset + page.rows.length < page.total
+      ? [pageNote(MODEL_API_TOOLS.search, offset, page.rows.length, page.total, isFloor)]
+      : []),
+    ...(isFloor && page.rows.length > 0 && offset + page.rows.length >= page.total
+      ? [
+          `[showing matches ${String(offset + 1)}-${String(offset + page.rows.length)} of at least ${String(page.total)}; the search stopped at its own cap, narrow the pattern or the glob for the rest]`,
+        ]
+      : []),
+    // A cut hit line names its file and line: the full line is reached
+    // through read_file, never through a wider search window.
+    ...(page.rows.some((row) => row.includes('[line cut to '))
+      ? ['[a shown hit line is cut; read its file with read_file for the full line]']
+      : []),
   ]
-  const found = results.length === 0 ? 'No matches.' : results.join('\n')
+  const found = page.rows.length === 0 ? 'No matches.' : page.rows.join('\n')
   const body = [found, ...notes].join('\n')
   // D121: no trimming of ours — the matches ride whole; the row keeps the
   // display clip, and the host's one bound cuts with a spill downstream.
@@ -2177,9 +2259,22 @@ async function listFiles(
     context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
-  const shown = files.slice(0, limit)
+  // The page size stays capped, and every page names what is left and the
+  // offset that fetches it.
+  const offset = Math.max(Math.floor(args.offset ?? 0), 0)
+  const shown = files.slice(offset, offset + limit)
+  if (shown.length === 0 && files.length > 0) {
+    return {
+      ...failure(
+        `offset ${String(offset)} is past the last of ${String(files.length)} files; use an offset from 0 to ${String(files.length - 1)}`,
+      ),
+      touched: { names: files, complete: true },
+    }
+  }
   const tail =
-    files.length > shown.length ? `\n[${String(files.length - shown.length)} more files]` : ''
+    offset + shown.length < files.length
+      ? `\n${pageNote(MODEL_API_TOOLS.listFiles, offset, shown.length, files.length, false, 'files')}`
+      : ''
   const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
   // Every file listed, shown or counted.
   // D121: no trimming of ours — the listing rides whole; the row keeps the
