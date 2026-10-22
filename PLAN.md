@@ -34257,6 +34257,21 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**RLM104 re-merge and certification (2026-10-22, linuxlt).**
+Re-merged `msm104` (lanes 0,A–J, LSP Tab bridge, companion accounts) and
+`m104-f2` (Visual Studio) onto main 0.19.0; one MHP version (1.5) in every
+host (D212); companion clients migrated to `/panel/message` + `/panel/events`
+with MHP frames; PATHGUARD record extended for the M104L spawns; branch quote
+money converted to `UsdAmount`. Harnesses green: JetBrains 76/76 + detekt +
+ktlint + plugin ZIP + 12 node checks, Neovim 19 + LSP, Emacs 9, Sublime 15,
+Zed 10, VS `dotnet build` clean + 8 bridge checks. Eclipse builds and takes
+20/27 JUnit (7 need WebKitGTK, absent on this rig). Full unit suite:
+23,294 pass; 12 merge fallout fixed; 32 fail only on this rig (nobody-owned
+`/`, no zopfli, slow-machine timeouts) with base-identical signatures;
+`run.mjs` conformance still needs per-host `distribution.json` (never
+authored); VS tests and marketplace need the Windows rig and owner accounts.
+Receipts: `docs/certification/m104-rlm104.md` (+ `.checks.json`, `.tests.json`).
+
 **M104 F4 round 8 (2026-10-10, RVM104F4H).** Repair Request input
 classification across page, frame and worker probes with the captured native URL
 getter, preserving ordinary constructor/prototype wrappers and cross-frame
