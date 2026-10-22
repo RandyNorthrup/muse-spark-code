@@ -9,7 +9,7 @@
 
 import * as z from 'zod/mini'
 import { workspaceKey } from '../../runtime/dataFolder'
-import { BOOKMARK_SYNC_KEY, UI_TEXT } from '../../shared/constants'
+import { BOOKMARK_SCHEMA_VERSION, BOOKMARK_SYNC_KEY, UI_TEXT } from '../../shared/constants'
 import { bookmarkRecordSchema, type BookmarkRecord } from '../../shared/protocol'
 
 /** The `globalState` surface the store reads and writes (VS Code's Memento). */
@@ -19,7 +19,7 @@ export interface BookmarkState {
 }
 
 const bookmarkStoreSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(BOOKMARK_SCHEMA_VERSION),
   // Each workspace's bytes stay opaque here: its list is validated on its
   // own when read, so one damaged list never hides the others.
   workspaces: z.record(z.string(), z.unknown()),
@@ -71,7 +71,7 @@ export class BookmarkStore {
     own: readonly BookmarkRecord[],
   ): Promise<void> {
     await this.state.update(BOOKMARK_SYNC_KEY, {
-      version: 1,
+      version: BOOKMARK_SCHEMA_VERSION,
       workspaces: { ...workspaces, [digest]: [...own] },
     })
   }
