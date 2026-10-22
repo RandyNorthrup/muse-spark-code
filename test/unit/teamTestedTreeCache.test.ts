@@ -349,17 +349,21 @@ describe('M96d tested-tree cache in the merge queue', () => {
       checkIdentity: 'checks-1',
       treeHash: (tree) => tree.hash,
     }
+    const serialTrees = new Map([
+      [`${baseTree}+good`, goodTree],
+      [`${goodTree}+bad`, batchTree],
+    ])
     let checkRuns = 0
     const reworked: string[] = []
     const deps: MergeAdmissionDeps<HashTree> = {
-      merge: (tree, asked) =>
-        Promise.resolve(
-          tree.hash === baseTree && asked.id === 'good'
-            ? { status: 'merged', tree: { hash: goodTree } }
-            : tree.hash === goodTree && asked.id === 'bad'
-              ? { status: 'merged', tree: { hash: batchTree } }
-              : { status: 'refused', output: 'unexpected trial' },
-        ),
+      merge: (tree, asked) => {
+        const hash = serialTrees.get(`${tree.hash}+${asked.id}`)
+        return Promise.resolve(
+          hash === undefined
+            ? { status: 'refused', output: 'unexpected trial' }
+            : { status: 'merged', tree: { hash } },
+        )
+      },
       // The batch tree fails; the good tree alone passes.
       check: (tree) => {
         checkRuns += 1
