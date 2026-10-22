@@ -6,18 +6,23 @@ import * as z from 'zod/mini'
 import { BookmarkStore, type BookmarkState } from '../../src/core/prompts/bookmarkStore'
 import { BOOKMARK_SYNC_KEY } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
-import { bookmarkRecordSchema } from '../../src/shared/protocol'
+import { bookmarkRecordSchema, type BookmarkRecord } from '../../src/shared/protocol'
 
 const FIRST_URI = 'file:///Users/person/first.code-workspace'
 const SECOND_URI = 'file:///Users/person/second'
 
-function memoryState(): BookmarkState & { values: Map<string, unknown>; writes: number } {
+function memoryState(): BookmarkState & {
+  values: Map<string, unknown>
+  writes: () => number
+} {
   const values = new Map<string, unknown>()
+  let writes = 0
   return {
     values,
-    writes: 0,
+    writes: () => writes,
     get: (key) => Promise.resolve(values.get(key)),
     update: (key, value) => {
+      writes += 1
       values.set(key, value)
       return Promise.resolve()
     },
@@ -28,14 +33,59 @@ function storedUris(values: Map<string, unknown>): string {
   return JSON.stringify(values.get(BOOKMARK_SYNC_KEY))
 }
 
+/** Seeds s-1 at 1000 and s-2 at 2000; the clock stays the caller's. */
+async function seedTwo(store: BookmarkStore, setNow: (now: number) => void): Promise<void> {
+  await store.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
+  setNow(2000)
+  await store.set({ backend: 'modelApi', sessionId: 's-2', title: 'Second', isBookmarked: true })
+}
+
+function unbook(
+  store: BookmarkStore,
+  sessionId: string,
+  title: string,
+): Promise<readonly BookmarkRecord[]> {
+  return store.set({ backend: 'modelApi', sessionId, title, isBookmarked: false })
+}
+
+/** A store seeded with s-1: exactly one write so far. */
+async function seededOnce(): Promise<{
+  state: ReturnType<typeof memoryState>
+  store: BookmarkStore
+}> {
+  const state = memoryState()
+  const store = new BookmarkStore(state, FIRST_URI, () => 1000)
+  await store.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
+  expect(state.writes()).toBe(1)
+  return { state, store }
+}
+
+/** Two workspaces sharing one state, each seeded with its first bookmark. */
+async function twoWorkspaces(secondInput: {
+  backend: BookmarkRecord['backend']
+  sessionId: string
+  title: string
+}): Promise<{
+  state: ReturnType<typeof memoryState>
+  first: BookmarkStore
+  second: BookmarkStore
+}> {
+  const state = memoryState()
+  const first = new BookmarkStore(state, FIRST_URI, () => 1000)
+  const second = new BookmarkStore(state, SECOND_URI, () => 2000)
+  await first.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
+  await second.set({ ...secondInput, isBookmarked: true })
+  return { state, first, second }
+}
+
 describe('bookmark store', () => {
   it('sets, lists oldest first, finds and removes one workspace', async () => {
     const state = memoryState()
     let now = 1000
     const store = new BookmarkStore(state, FIRST_URI, () => now)
-    await store.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
-    now = 2000
-    await store.set({ backend: 'modelApi', sessionId: 's-2', title: 'Second', isBookmarked: true })
+    await seedTwo(store, (at) => {
+      now = at
+    })
     expect(await store.list()).toEqual([
       { backend: 'modelApi', sessionId: 's-1', title: 'First', bookmarkedAtMs: 1000 },
       { backend: 'modelApi', sessionId: 's-2', title: 'Second', bookmarkedAtMs: 2000 },
@@ -43,22 +93,17 @@ describe('bookmark store', () => {
     expect(await store.has('modelApi', 's-1')).toBe(true)
     expect(await store.has('modelApi', 's-9')).toBe(false)
     expect(await store.has('museCode', 's-1')).toBe(false)
-    const after = await store.set({
-      backend: 'modelApi',
-      sessionId: 's-1',
-      title: 'First',
-      isBookmarked: false,
-    })
+    const after = await unbook(store, 's-1', 'First')
     expect(after.map((record) => record.sessionId)).toEqual(['s-2'])
     expect(await store.has('modelApi', 's-1')).toBe(false)
   })
 
   it('files each workspace under its own digest and stores no path', async () => {
-    const state = memoryState()
-    const first = new BookmarkStore(state, FIRST_URI, () => 1000)
-    const second = new BookmarkStore(state, SECOND_URI, () => 2000)
-    await first.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
-    await second.set({ backend: 'museCode', sessionId: 's-1', title: 'Other', isBookmarked: true })
+    const { state, first, second } = await twoWorkspaces({
+      backend: 'museCode',
+      sessionId: 's-1',
+      title: 'Other',
+    })
     const firstList = await first.list()
     const secondList = await second.list()
     expect(firstList.map((record) => record.title)).toEqual(['First'])
@@ -83,9 +128,9 @@ describe('bookmark store', () => {
     const state = memoryState()
     let now = 1000
     const store = new BookmarkStore(state, FIRST_URI, () => now)
-    await store.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
-    now = 2000
-    await store.set({ backend: 'modelApi', sessionId: 's-2', title: 'Second', isBookmarked: true })
+    await seedTwo(store, (at) => {
+      now = at
+    })
     now = 3000
     const after = await store.set({
       backend: 'modelApi',
@@ -100,26 +145,10 @@ describe('bookmark store', () => {
   })
 
   it('writes nothing when the set changes nothing', async () => {
-    const state = memoryState()
-    let writes = 0
-    const counting: BookmarkState = {
-      get: (key) => state.get(key),
-      update: (key, value) => {
-        writes += 1
-        return state.update(key, value)
-      },
-    }
-    const store = new BookmarkStore(counting, FIRST_URI, () => 1000)
+    const { state, store } = await seededOnce()
     await store.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
-    expect(writes).toBe(1)
-    await store.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
-    await store.set({
-      backend: 'modelApi',
-      sessionId: 's-9',
-      title: 'Gone',
-      isBookmarked: false,
-    })
-    expect(writes).toBe(1)
+    await unbook(store, 's-9', 'Gone')
+    expect(state.writes()).toBe(1)
   })
 
   it('refreshes titles from listed rows and keeps the missing ones', async () => {
@@ -134,28 +163,17 @@ describe('bookmark store', () => {
   })
 
   it('refreshes nothing when the titles match', async () => {
-    const state = memoryState()
-    let writes = 0
-    const counting: BookmarkState = {
-      get: (key) => state.get(key),
-      update: (key, value) => {
-        writes += 1
-        return state.update(key, value)
-      },
-    }
-    const store = new BookmarkStore(counting, FIRST_URI, () => 1000)
-    await store.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
-    expect(writes).toBe(1)
+    const { state, store } = await seededOnce()
     await store.refreshTitles([{ sessionId: 's-1', title: 'First' }])
-    expect(writes).toBe(1)
+    expect(state.writes()).toBe(1)
   })
 
   it('reports a damaged list, keeps it as found, and serves the other workspaces', async () => {
-    const state = memoryState()
-    const first = new BookmarkStore(state, FIRST_URI, () => 1000)
-    const second = new BookmarkStore(state, SECOND_URI, () => 2000)
-    await first.set({ backend: 'modelApi', sessionId: 's-1', title: 'First', isBookmarked: true })
-    await second.set({ backend: 'modelApi', sessionId: 's-2', title: 'Second', isBookmarked: true })
+    const { state, first, second } = await twoWorkspaces({
+      backend: 'modelApi',
+      sessionId: 's-2',
+      title: 'Second',
+    })
     const before = storedUris(state.values)
     // Damage arrives through sync: this workspace's list is no longer a list.
     // The cast names the envelope this test's own sets wrote, to forge the damage.

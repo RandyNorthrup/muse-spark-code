@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { BookmarkStore, type BookmarkState } from '../../src/core/prompts/bookmarkStore'
 import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
-import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import type { BookmarkRecord, HostToWebviewMessage } from '../../src/shared/protocol'
 import {
   conversationPanel,
   modelApiRig,
@@ -83,34 +83,28 @@ describe('bookmarked sessions past the loaded pages', () => {
     await removeFolder(directory)
   })
 
-  it('loads further pages until the bookmarked id is found', async () => {
+  async function listedWithBookmark(backend: BookmarkRecord['backend']): Promise<string[]> {
     if (rig === undefined) throw new Error('the rig never loaded')
     const bookmarks = new BookmarkStore(memoryState(), `file://${directory}`, () => 1000)
     await bookmarks.set({
-      backend: 'modelApi',
+      backend,
       sessionId: BOOKMARKED_ID,
       title: 'Conversation 0',
       isBookmarked: true,
     })
     const panel = conversationPanel({ rig, directory, bookmarks })
     await panel.controller.handle({ type: 'listSessions' })
-    const ids = listedIds(panel.posted)
+    return listedIds(panel.posted)
+  }
+
+  it('loads further pages until the bookmarked id is found', async () => {
+    const ids = await listedWithBookmark('modelApi')
     expect(ids).toContain(BOOKMARKED_ID)
     expect(ids).toHaveLength(SESSION_COUNT)
   })
 
   it('stops at the bound without the bookmark, and ignores the other backend', async () => {
-    if (rig === undefined) throw new Error('the rig never loaded')
-    const bookmarks = new BookmarkStore(memoryState(), `file://${directory}`, () => 1000)
-    await bookmarks.set({
-      backend: 'museCode',
-      sessionId: BOOKMARKED_ID,
-      title: 'Conversation 0',
-      isBookmarked: true,
-    })
-    const panel = conversationPanel({ rig, directory, bookmarks })
-    await panel.controller.handle({ type: 'listSessions' })
-    const ids = listedIds(panel.posted)
+    const ids = await listedWithBookmark('museCode')
     expect(ids).not.toContain(BOOKMARKED_ID)
     expect(ids).toHaveLength(1000)
   })

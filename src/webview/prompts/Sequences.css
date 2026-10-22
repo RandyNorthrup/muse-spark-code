@@ -1,40 +1,6 @@
-.sequences,
-.sequences-start {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.sequences label,
-.sequences form,
-.sequences li {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.sequences input,
-.sequences textarea,
-.sequences select {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  color: var(--vscode-input-foreground);
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border, transparent);
-}
-
+/* Beside PromptLibrary.css (imported first): only what sequences add or change. */
 .sequences textarea {
   min-height: 72px;
-  resize: vertical;
-}
-
-.sequences h3,
-.sequences p,
-.sequences-start h3,
-.sequences-start p {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .sequences-list {
@@ -64,8 +30,6 @@
 
 .sequences li {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding-block: 12px;
-  border-top: 1px solid var(--vscode-panel-border);
 }
 
 .sequences fieldset li {
@@ -74,35 +38,11 @@
   border-top: none;
 }
 
-.sequences li h3,
-.sequences li p {
-  grid-column: 1 / -1;
-}
-
-.sequences-actions,
-.sequences-start-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.sequences button,
-.sequences-start button {
-  padding: 4px 8px;
-  border: 1px solid var(--vscode-panel-border);
-  min-height: var(--ms-button-height);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-button-secondaryForeground);
-  font: inherit;
-  background: var(--vscode-button-secondaryBackground);
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-
-.sequences button:focus-visible,
-.sequences-start button:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+/* The run's steps are plain list rows, not library rows. */
+.sequences-start li {
+  display: block;
+  padding-block: 0;
+  border-top: none;
 }
 
 .sequences-start dl {

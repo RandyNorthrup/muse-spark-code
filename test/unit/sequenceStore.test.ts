@@ -9,20 +9,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { SequenceStore, validateSequenceInput } from '../../src/core/prompts/sequenceStore'
 import { PROMPT_USER_FOLDER, SEQUENCE_SUBFOLDER, UI_TEXT } from '../../src/shared/constants'
 import type { SavedSequence } from '../../src/shared/sequences'
+import { sequence } from './helpers/sequenceFixtures'
 import { removeFolder } from './helpers/temporaryFolders'
-
-function sequence(overrides: Partial<SavedSequence> = {}): SavedSequence {
-  return {
-    schemaVersion: 1,
-    id: 'seq-1',
-    name: 'Morning review',
-    steps: ['First', 'Second'],
-    scope: 'user',
-    createdAt: '2026-10-20T08:00:00.000Z',
-    updatedAt: '2026-10-20T08:00:00.000Z',
-    ...overrides,
-  }
-}
 
 describe('sequence store', () => {
   let dataFolder = ''

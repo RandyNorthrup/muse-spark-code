@@ -1,3 +1,4 @@
+import './PromptLibrary.css'
 import './Sequences.css'
 import { useState } from 'react'
 import { UI_TEXT, type PermissionMode } from '../../shared/constants'
@@ -79,8 +80,8 @@ export function SequencesDialog(props: SequencesDialogProps) {
 
   return (
     <Modal title={UI_TEXT.sequenceLibrary} titleId="sequences-title" onClose={props.onClose}>
-      <div className="sequences">
-        <div className="sequences-actions">
+      <div className="prompt-library sequences">
+        <div className="prompt-library-actions">
           <button
             type="button"
             onClick={() => {
@@ -166,15 +167,11 @@ export function SequencesDialog(props: SequencesDialogProps) {
                 {UI_TEXT.sequenceAddStep}
               </button>
             </fieldset>
-            <button type="submit">{UI_TEXT.sequenceSave}</button>
-            <button
-              type="button"
-              onClick={() => {
+            <EditButtons
+              onCancel={() => {
                 setEdit(undefined)
               }}
-            >
-              {UI_TEXT.goalEditCancel}
-            </button>
+            />
           </form>
         )}
         {deleting === undefined ? null : (
@@ -244,5 +241,22 @@ export function SequencesDialog(props: SequencesDialogProps) {
         )}
       </div>
     </Modal>
+  )
+}
+
+/** The edit form's save and cancel. */
+function EditButtons(props: { readonly onCancel: () => void }) {
+  return (
+    <>
+      <button type="submit">{UI_TEXT.sequenceSave}</button>
+      <button
+        type="button"
+        onClick={() => {
+          props.onCancel()
+        }}
+      >
+        {UI_TEXT.goalEditCancel}
+      </button>
+    </>
   )
 }

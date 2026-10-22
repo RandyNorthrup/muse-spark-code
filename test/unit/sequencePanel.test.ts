@@ -11,31 +11,19 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { SequencePort } from '../../src/host/conversation/featurePorts'
 import { SequenceRunner } from '../../src/host/prompts/sequenceRunner'
 import { SequenceStore } from '../../src/core/prompts/sequenceStore'
-import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
-import { parseHostToWebviewMessage, type HostToWebviewMessage } from '../../src/shared/protocol'
-import type { SavedSequence, SequenceRunView } from '../../src/shared/sequences'
-import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
+import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import type { SequenceRunView } from '../../src/shared/sequences'
 import {
-  awaitSaved,
   conversationPanel,
   modelApiRig,
   panelNotices,
+  savedSession,
+  shownState,
+  type ModelApiRig,
 } from './helpers/conversationPanel'
+import { sequence } from './helpers/sequenceFixtures'
 import { removeFolder } from './helpers/temporaryFolders'
-
-function sequence(overrides: Partial<SavedSequence> = {}): SavedSequence {
-  return {
-    schemaVersion: 1,
-    id: 'seq-1',
-    name: 'Morning review',
-    steps: ['First', 'Second'],
-    scope: 'user',
-    createdAt: '2026-10-20T08:00:00.000Z',
-    updatedAt: '2026-10-20T08:00:00.000Z',
-    ...overrides,
-  }
-}
 
 function storePort(store: SequenceStore, hasWorkspace: boolean): SequencePort {
   return {
@@ -46,14 +34,15 @@ function storePort(store: SequenceStore, hasWorkspace: boolean): SequencePort {
   }
 }
 
-function shownState(posted: readonly HostToWebviewMessage[]) {
-  let state = initialUiState
-  for (const raw of posted) {
-    const parsed = parseHostToWebviewMessage(raw)
-    expect(parsed.ok).toBe(true)
-    if (parsed.ok) state = uiReducer(state, { type: 'hostMessage', message: parsed.message, at: 0 })
-  }
-  return state
+function panelWithSequences(directory: string): {
+  store: SequenceStore
+  rig: ModelApiRig
+  panel: ReturnType<typeof conversationPanel>
+} {
+  const store = new SequenceStore(directory, directory)
+  const rig = modelApiRig(directory)
+  const panel = conversationPanel({ rig, directory, sequences: storePort(store, true) })
+  return { store, rig, panel }
 }
 
 function runStates(posted: readonly HostToWebviewMessage[]): (SequenceRunView | undefined)[] {
@@ -81,9 +70,7 @@ describe('sequence messages through the panel', () => {
   })
 
   it('saves, lists and deletes sequences, and the panel reads the library', async () => {
-    const store = new SequenceStore(directory, directory)
-    const rig = modelApiRig(directory)
-    const panel = conversationPanel({ rig, directory, sequences: storePort(store, true) })
+    const { panel } = panelWithSequences(directory)
 
     await panel.controller.handle({ type: 'sequenceSave', sequence: sequence() })
     await panel.controller.handle({
@@ -111,9 +98,7 @@ describe('sequence messages through the panel', () => {
   })
 
   it('refuses a blank name in words and saves nothing', async () => {
-    const store = new SequenceStore(directory, directory)
-    const rig = modelApiRig(directory)
-    const panel = conversationPanel({ rig, directory, sequences: storePort(store, true) })
+    const { store, panel } = panelWithSequences(directory)
     await panel.controller.handle({
       type: 'sequenceSave',
       sequence: sequence({ id: 'blank', name: '  ' }),
@@ -138,22 +123,14 @@ describe('sequence messages through the panel', () => {
   })
 
   it('refuses a run with no conversation, and a run of a removed sequence', async () => {
-    const store = new SequenceStore(directory, directory)
+    const { store, rig, panel } = panelWithSequences(directory)
     await store.save(sequence())
-    const rig = modelApiRig(directory)
-    const panel = conversationPanel({ rig, directory, sequences: storePort(store, true) })
     await panel.controller.handle({ type: 'sequenceStart', scope: 'user', id: 'seq-1' })
     expect(panelNotices(panel.posted)).toEqual([
       { level: 'warning', text: UI_TEXT.sequenceNoSession },
     ])
 
-    const live = await rig.host.startSession({
-      workspaceRoot: directory,
-      modelId: DEFAULT_MODEL_ID,
-      approvalMode: 'promptUnmatched',
-    })
-    await live.rename('Parser fix')
-    await awaitSaved(rig, live.sessionId)
+    const live = await savedSession(rig, directory, 'Parser fix')
     live.dispose()
     await panel.controller.handle({
       type: 'resumeSession',
@@ -169,17 +146,9 @@ describe('sequence messages through the panel', () => {
   })
 
   it('attempts the first step on start and ends silent when the send refuses', async () => {
-    const store = new SequenceStore(directory, directory)
+    const { store, rig, panel } = panelWithSequences(directory)
     await store.save(sequence())
-    const rig = modelApiRig(directory)
-    const panel = conversationPanel({ rig, directory, sequences: storePort(store, true) })
-    const live = await rig.host.startSession({
-      workspaceRoot: directory,
-      modelId: DEFAULT_MODEL_ID,
-      approvalMode: 'promptUnmatched',
-    })
-    await live.rename('Parser fix')
-    await awaitSaved(rig, live.sessionId)
+    const live = await savedSession(rig, directory, 'Parser fix')
     live.dispose()
     await panel.controller.handle({
       type: 'resumeSession',

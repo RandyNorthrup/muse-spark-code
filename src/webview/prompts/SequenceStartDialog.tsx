@@ -26,7 +26,7 @@ export function SequenceStartDialog(props: SequenceStartDialogProps) {
       titleId="sequence-start-title"
       onClose={props.onCancel}
     >
-      <div className="sequences-start">
+      <div className="prompt-library sequences-start">
         <p>{plural(UI_TEXT.sequenceStartDetail, props.sequence.steps.length)}</p>
         <dl>
           <dt>{UI_TEXT.sequenceStartConversation}</dt>
@@ -46,7 +46,7 @@ export function SequenceStartDialog(props: SequenceStartDialogProps) {
             </li>
           ))}
         </ol>
-        <div className="sequences-start-actions">
+        <div className="prompt-library-actions">
           <button
             type="button"
             disabled={isStarting}

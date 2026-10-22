@@ -9,19 +9,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { BookmarkPort } from '../../src/host/conversation/featurePorts'
-import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
+import type { BookmarkRecord } from '../../src/shared/protocol'
 import {
-  parseHostToWebviewMessage,
-  type BookmarkRecord,
-  type HostToWebviewMessage,
-} from '../../src/shared/protocol'
-import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
-import {
-  awaitSaved,
   conversationPanel,
   modelApiRig,
   panelNotices,
+  savedSession,
+  shownState,
 } from './helpers/conversationPanel'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -60,16 +55,6 @@ function memoryBookmarks(): BookmarkPort & { records: BookmarkRecord[] } {
   }
 }
 
-function shownState(posted: readonly HostToWebviewMessage[]) {
-  let state = initialUiState
-  for (const raw of posted) {
-    const parsed = parseHostToWebviewMessage(raw)
-    expect(parsed.ok).toBe(true)
-    if (parsed.ok) state = uiReducer(state, { type: 'hostMessage', message: parsed.message, at: 0 })
-  }
-  return state
-}
-
 describe('bookmark messages through the panel', () => {
   let directory = ''
 
@@ -84,13 +69,7 @@ describe('bookmark messages through the panel', () => {
     const bookmarks = memoryBookmarks()
     const rig = modelApiRig(directory)
     const panel = conversationPanel({ rig, directory, bookmarks })
-    const live = await rig.host.startSession({
-      workspaceRoot: directory,
-      modelId: DEFAULT_MODEL_ID,
-      approvalMode: 'promptUnmatched',
-    })
-    await live.rename('Parser fix')
-    await awaitSaved(rig, live.sessionId)
+    const live = await savedSession(rig, directory, 'Parser fix')
 
     await panel.controller.handle({
       type: 'bookmarkSet',
@@ -119,13 +98,7 @@ describe('bookmark messages through the panel', () => {
     const bookmarks = memoryBookmarks()
     const rig = modelApiRig(directory)
     const panel = conversationPanel({ rig, directory, bookmarks })
-    const live = await rig.host.startSession({
-      workspaceRoot: directory,
-      modelId: DEFAULT_MODEL_ID,
-      approvalMode: 'promptUnmatched',
-    })
-    await live.rename('Parser fix')
-    await awaitSaved(rig, live.sessionId)
+    const live = await savedSession(rig, directory, 'Parser fix')
     bookmarks.records.push({
       backend: 'modelApi',
       sessionId: live.sessionId,

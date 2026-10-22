@@ -8,6 +8,7 @@
 
 import { createHash } from 'node:crypto'
 import path from 'node:path'
+import { expect } from 'vitest'
 import { BestOfNCoordinator } from '../../../src/core/bestOfN/bestOfNCoordinator'
 import { PendingPrompts } from '../../../src/core/sessionBoard'
 import type { AuthPort } from '../../../src/host/auth/authService'
@@ -26,7 +27,7 @@ import type { SessionTransferFiles } from '../../../src/host/conversation/sessio
 import type { EditReviewActions } from '../../../src/host/editor/editReview'
 import type { ReviewTurnFeatures } from '../../../src/host/review/reviewBundle'
 import type { ChatSurface } from '../../../src/host/views/chatSurface'
-import type { HostToWebviewMessage } from '../../../src/shared/protocol'
+import { parseHostToWebviewMessage, type HostToWebviewMessage } from '../../../src/shared/protocol'
 import {
   ModelApiHost,
   type ModelApiHostDeps,
@@ -42,6 +43,7 @@ import {
   SETTING_DEFAULTS,
 } from '../../../src/shared/constants'
 import { Usd } from '../../../src/shared/usd'
+import { initialUiState, uiReducer, type UiState } from '../../../src/webview/state/uiState'
 
 // The spend ledger only serves key-digest accounts (`ACCOUNT_ID` in the
 // journal is 64 hex chars), so the test account is the real SHA-256 digest
@@ -152,6 +154,25 @@ export async function awaitSaved(rig: ModelApiRig, sessionId: string): Promise<v
     }
   }
   throw new Error(`session ${sessionId} was never saved; warnings: ${JSON.stringify(rig.warnings)}`)
+}
+
+/**
+Starts a session, names it and waits for its file: the conversation the
+panel suites resume, bookmark and run sequences against.
+*/
+export async function savedSession(
+  rig: ModelApiRig,
+  directory: string,
+  title: string,
+): ReturnType<ModelApiHost['startSession']> {
+  const live = await rig.host.startSession({
+    workspaceRoot: directory,
+    modelId: DEFAULT_MODEL_ID,
+    approvalMode: 'promptUnmatched',
+  })
+  await live.rename(title)
+  await awaitSaved(rig, live.sessionId)
+  return live
 }
 
 export function unused(name: string): (...args: unknown[]) => never {
@@ -379,4 +400,18 @@ export function panelNotices(
       level: message.level,
       text: message.text,
     }))
+}
+
+/**
+Folds every posted message through the webview reducer; each message
+parses, or the suite fails at the unparsable one.
+*/
+export function shownState(posted: readonly HostToWebviewMessage[]): UiState {
+  let state = initialUiState
+  for (const raw of posted) {
+    const parsed = parseHostToWebviewMessage(raw)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) state = uiReducer(state, { type: 'hostMessage', message: parsed.message, at: 0 })
+  }
+  return state
 }
