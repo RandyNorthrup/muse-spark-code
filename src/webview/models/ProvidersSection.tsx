@@ -253,6 +253,17 @@ const PICK_DRAFT: PanelDraft = {
   blockers: ['Pick a provider first.'],
 }
 
+/** A connected subscription's allowance notice, read live at render. */
+function subscriptionNotice(providerId: string): string {
+  let notice = UI_TEXT.planUi.copilotNotice
+  if (providerId === 'chatgpt') {
+    notice = UI_TEXT.acpChatGpt.notice
+  } else if (providerId === 'grok') {
+    notice = UI_TEXT.acpGrok.notice
+  }
+  return notice
+}
+
 function ProviderRow({
   provider,
   panelState,
@@ -289,9 +300,7 @@ function ProviderRow({
     return (
       <li className="models-provider">
         <h3>{provider.label}</h3>
-        <p>
-          {provider.id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.copilotNotice}
-        </p>
+        <p>{subscriptionNotice(provider.id)}</p>
         <p>{provider.models.join(', ')}</p>
         <button
           type="button"
@@ -544,6 +553,18 @@ export function ProvidersSection(props: SectionProps) {
             </button>
           </div>
           <p>{UI_TEXT.acpChatGpt.notice}</p>
+          <div className="models-row-actions">
+            <button
+              type="button"
+              className="models-button"
+              onClick={() => {
+                post({ type: 'providers/connectSubscription', providerId: 'grok' })
+              }}
+            >
+              {UI_TEXT.acpGrok.actions.add}
+            </button>
+          </div>
+          <p>{UI_TEXT.acpGrok.notice}</p>
           {panelState.copilotAvailable === true && (
             <>
               <button
