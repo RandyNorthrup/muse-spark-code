@@ -72,6 +72,7 @@ import {
   ImageIcon,
   ReplyIcon,
   RewindIcon,
+  SendIcon,
 } from './icons'
 import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
@@ -172,6 +173,12 @@ export interface TranscriptProps {
   readonly activeTurnId?: string | undefined
   /** A reply's actions menu (M17); absent while no session exists. */
   readonly onReply?: ((entryId: string) => void) | undefined
+  /**
+  A reply's actions menu "Send feedback" (C-M106-3R2); absent unless the
+  Muse Code backend is active with a session, so no offered entry can be
+  refused for want of a `feedback/submit` port.
+  */
+  readonly onSendFeedback?: ((opener: HTMLElement | null) => void) | undefined
   /** Tokens and the dollar estimate under each reply (M82, Model API only). */
   readonly showReplyUsage: boolean
   /** The latest Plan-mode reply, which carries the plan's actions (M79). */
@@ -633,6 +640,8 @@ interface AssistantRowProps {
   readonly onApply: ((text: string) => void) | undefined
   /** The actions menu's "Reply to This Output" (M17); absent while no session exists. */
   readonly onReply: ((entryId: string) => void) | undefined
+  /** The actions menu's "Send feedback" (C-M106-3R2); absent off the Muse Code backend. */
+  readonly onSendFeedback: ((opener: HTMLElement | null) => void) | undefined
   /** Tokens and the dollar estimate under the reply (M82); hidden while off. */
   readonly showReplyUsage: boolean
   /** The plan's actions under the latest Plan-mode reply (M79); absent elsewhere. */
@@ -710,6 +719,7 @@ const AssistantRow = memo(function AssistantRow({
   onInsert,
   onApply,
   onReply,
+  onSendFeedback,
   showReplyUsage,
   onSavePlan,
   onImplementPlan,
@@ -750,6 +760,19 @@ const AssistantRow = memo(function AssistantRow({
                 icon: <ReplyIcon />,
                 onSelect: () => {
                   onReply(entry.id)
+                  menu.close()
+                },
+              },
+            ]),
+        ...(onSendFeedback === undefined
+          ? []
+          : [
+              {
+                id: 'feedback.send',
+                label: UI_TEXT.feedbackTitle,
+                icon: <SendIcon />,
+                onSelect: () => {
+                  onSendFeedback(menu.opener.current)
                   menu.close()
                 },
               },
@@ -1160,6 +1183,7 @@ function TranscriptList(props: TranscriptProps) {
     conversationNote,
     activeTurnId,
     onReply,
+    onSendFeedback,
     showReplyUsage,
     planReplyId,
     onSavePlan,
@@ -1272,6 +1296,7 @@ function TranscriptList(props: TranscriptProps) {
             onInsert={onInsert}
             onApply={onApply}
             onReply={onReply}
+            onSendFeedback={onSendFeedback}
             showReplyUsage={showReplyUsage}
             onSavePlan={isPlanReply ? onSavePlan : undefined}
             onImplementPlan={isPlanReply ? onImplementPlan : undefined}

@@ -27087,6 +27087,77 @@ consent, defaults, wire shapes or dependencies. The rig brief forbids aggregate
 quality and integration here; the lead retains those gates and independent
 review.
 
+**C-M106-3 native readers (2026-10-11, macmini).** Native effort and
+feedback readers from the C-M106-1 1.4.4 frames: `modelEfforts.ts` reads
+each `model/list` row's ordered variants, tier descriptions and default
+(future tiers verbatim, explicit `unknown` kept), and `feedback.ts` reads
+the note-only receipt, showing the upload without its identifiers. Where
+Muse Code sends no frame the feature refuses with an upstream request
+(`docs/research/m106-s1-upstream.md`, unposted): record-attached receipts
+and `session/delete` (methodNotFound, no terminal frame); History stays
+archive-only. EffortSlider and HistoryDialog needed no change. Reader
+binding at the host constructions, the FeedbackDialog restore and History
+deletion wiring remain for integration. Evidence:
+`docs/certification/m106-native-readers.md`.
+
+**C-M106-3R2 end-to-end binding and dialog restore (2026-10-11, macmini).**
+The R1 readers are bound where the backend is constructed:
+`NATIVE_MUSE_CODE_FEATURE_PORTS` (note-only `feedback/submit` receipt)
+into `MuseCodeBackendManager` in `src/extension.ts` and
+`src/runtime/backends.ts`, the `feedback` handshake grant appended last,
+and the effort catalogue reader preloaded from the new
+`dist/modelEfforts.js` on first spawn (static binding broke the lane K
+activation budget at 3237 vs 3072; the split measures 2689 with identical
+behaviour). The feedback dialog is restored on the real reader
+(`FeedbackDialog.tsx` lazy turn-menu entry, `feedbackBridge.ts` zod
+bridge, controller answers with refusal before dispatch, ten strings in
+all 14 tables, `native-feedback` Help entry, reference at 78 features):
+note with classification only, no Files/Session-record controls (still
+refused, upstream request 2). Session delete stays refused with
+`sessionDeleteUnsupported`; History stays archive-only (upstream request
+1). Eight red drills (D4–D11) with SHA-256 byte-exact restores; bundle
+evidence (action dialogs 22.7/25, surface English 24.4/25, modelEfforts
+1.3/25) and the walked-back/still-hidden lists are in
+`docs/certification/m106-native-readers.md`. Open for the reviewer:
+`feedback-narrow` visual scenes (320 px, six themes) with baselines,
+`npm run test:a11y` (sandbox-blocked here), and the opt-in live receipt.
+
+**C-M106-3R3 review repairs (RVCM1063, 2026-10-11, macmini).** All four P2
+and four P3 findings fixed with no residuals. Only an `uploaded` receipt
+resolves: every other SDK outcome refuses with its own sentence in all 14
+tables, the dialog shows the refusal it carries, and a reply with neither
+outcome nor error rejects. The note stops at the protocol maximum with a
+counter; refused previews and submits settle with their reason. Request ids
+are unique for the webview lifetime, close settles preview waiters too, and
+a session change closes the bridge. The captured variants, descriptions and
+catalogue default flow through the controller's model rows to the Modes
+footer and palette dots and the ACP (which starts on the catalogue
+default); malformed rows read tierless, and unknown tiers ride open-string
+fields. The form uses the question-card/secret-prompt classes with three
+authored narrow scenes and end-state readiness gates; the Italian bad-result
+label reads `Brutto risultato`; the VS Code binding test reads the
+window's production wiring. Twelve red drills with hash-verified byte-exact
+restores; evidence in `docs/certification/m106-native-readers.md`. Open for
+the reviewer: render and review the scene baselines, `npm run
+check:visual`, `npm run test:a11y`, and the opt-in live receipt.
+
+**C-M106-3R4 review repair plan (RVCM1063B, 2026-10-11, linuxlt).**
+Merge the explicitly named `snap/04f47a026` first, preserving both features.
+Then move feedback outside inert regions, restore its opener's focus and
+clear closed session state; lazy-load its bridge and English with the dialog
+without changing startup caps. The lifecycle and form have separate lazy
+owners: the new lifecycle gets its own measured 25 KiB guard; the original
+startup, deferred aggregate and action-dialog caps remain fixed. Share served effort admission across pointer,
+keyboard, palette and ACP, disabling unfamiliar tiers and retaining empty
+catalogues. Localize the fake upload receipt. Repair all owned red dependents,
+compare native review failures with a same-machine control, and certify every
+non-hub dependent plus all five typechecks and scoped gates. Each finding
+gets a failing regression/drill with byte-exact restoration. Chrome proves
+focus, Tab, Escape, inertness and six-theme narrow accessibility. Full quality
+and cross-machine integration remain lead-owned under the explicit rig brief;
+no additional branch merge, dependency, cap change or live/paid call.
+Progress and receipts: `docs/certification/m106-native-readers.md`.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
@@ -27712,6 +27783,18 @@ in `docs/certification/m106-r.md`; no RVM106R residual remains.
         linked
   - [ ] Provider × item table complete; strings in all 14 tables; budgets
         measured; full gate green; the live check counted
+
+**MSM106 finish (2026-10-16, linuxlt).** The 0.18.0 code is connected end to
+end: streamed argument previews render in the panel and ACP on models whose
+record verifies them and never reach headless replay; the 1.4.4 effort
+catalogue drives dots, keyboard, palette and ACP admission; the note-only
+feedback receipt is bound in the VS Code window and the CLI/ACP runtime with
+the dialog reachable from a reply's actions menu; record-attached outcomes
+and session deletion still refuse with the upstream request. No `@unwired
+M106` tag remains. Native-reader tests run through the real modules with the
+captured frames as data; live dispatch is lead real-life steps. Evidence:
+`docs/certification/msm106.md`. Still the lead's: per-model live receipts,
+the provider × item table, and the full gate.
 
 ---
 
@@ -34547,6 +34630,17 @@ migration timeouts pass on both the branch replay and clean base; the cap
 callback assertion now verifies the resolved record and passes. The complete
 dependent gate remains outstanding; this record does not certify those
 260 files or claim release readiness.
+
+**C-M106-3R4 scoped certification (2026-10-11, linuxlt).** The explicit
+rig/common brief forbids aggregate quality here. Run complete owning and
+related files in batches of at most three at repository deadlines, all five
+typechecks and scoped static/build/accessibility gates. The lead retains
+aggregate quality and cross-OS integration. The native review no-filter
+collector is unchanged from the base; a same-machine native/Node-error control
+isolates its `exitCode`/`code` defect. The native schedule test encounters the
+rig's existing group-writable systemd search root; no machine mode is changed.
+These receipts and final dispositions remain explicit in
+`docs/certification/m106-native-readers.md`; no gate, timeout or cap is raised.
 
 **C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
 brief forbids aggregate quality, full-suite runs and branch integration.

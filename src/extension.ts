@@ -135,6 +135,7 @@ import {
   type UsageRecording,
 } from './core/usage/recording'
 import { isCodedError } from './core/workspaceRoot'
+import { NATIVE_MUSE_CODE_FEATURE_PORTS } from './core/backends/musecode/MuseCodeHost'
 import type { createPromptHost } from './host/prompts/promptEntry'
 
 import type { ReportPanel } from './host/reporting/reportPanel'
@@ -1788,6 +1789,9 @@ async function activateWindow(
     )
   }
   const backend = new MuseCodeBackendManager({
+    // The captured-frame readers (C-M106-3R2): effort extras on `model/list`
+    // rows, the note-only `feedback/submit` receipt; deletion stays refused.
+    featurePorts: NATIVE_MUSE_CODE_FEATURE_PORTS,
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MUSE_CODE_BUNDLE_FILE).fsPath,
     usageRecording,
