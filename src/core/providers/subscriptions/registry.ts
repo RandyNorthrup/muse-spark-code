@@ -14,8 +14,14 @@ import { PLAN_MODEL_PROVIDERS } from '../../../shared/providerRouting'
 // codec bundle — the subscriptions bundle must not carry
 // src/core/backends/modelapi/codecs/* (they load only in dist/providers.js).
 import { isChatCodecError } from '../../media/codecRefusal'
-const { ChatgptPlanLimitError, createResponsesCodec, ResponsesDecodeError } = responses
+const { ChatgptPlanRefusalError, createResponsesCodec, ResponsesDecodeError } = responses
 const { parseModelRef } = modelRef
+import { USAGE_HEADER_ALLOW_LIST } from '../../../shared/usageJournal'
+import { parsePlanLimitHeaders, type PlanLimits } from './planUsage'
+import { planRefusalMessage } from './planRefusals'
+
+/** Response header names the plan route may keep, as a set for lookup. */
+const PLAN_HEADER_NAMES: ReadonlySet<string> = new Set<string>(USAGE_HEADER_ALLOW_LIST)
 import {
   CHATGPT_DIRECT_UNAVAILABLE_CODE,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
@@ -315,6 +321,20 @@ export async function planRequestError(response: Response): Promise<ChatgptPlanR
   if (code === CHATGPT_PLAN_NOT_ELIGIBLE_CODE) {
     return new ChatgptPlanRequestError(UI_TEXT.planUi.notEligible, code)
   }
+  // OPENAI-G27: the provider's further documented refusals each read as
+  // their own sentence. Limit, retryable and not-eligible answers keep
+  // their own sentences above; an unknown code keeps the provider's own
+  // words below.
+  if (
+    code !== undefined &&
+    code !== CHATGPT_PLAN_LIMIT_ERROR_KIND &&
+    code !== CHATGPT_PLAN_NOT_ELIGIBLE_CODE &&
+    envelope.success &&
+    !CHATGPT_PLAN_RETRYABLE_CODES.includes(code)
+  ) {
+    const sentence = planRefusalMessage(code, undefined, envelope.data.error.param ?? undefined)
+    if (sentence !== undefined) return new ChatgptPlanRequestError(sentence, code)
+  }
   const admission = directAdmissionSchema.safeParse(body)
   let detail = ''
   if (envelope.success) detail = envelope.data.error.message
@@ -613,6 +633,7 @@ export function createSubscriptionClient(
       const notices = silentWaitNotices(deps.log, idleMs)
       let isDispatched = false
       let usage: Usage | undefined
+      let limits: PlanLimits | undefined
       const note = (event: StreamEvent) => {
         if ('response' in event && event.response.usage != null) usage = event.response.usage
       }
@@ -740,6 +761,14 @@ export function createSubscriptionClient(
         if (response.body === null) {
           throw new ChatgptPlanRequestError(UI_TEXT.planUi.noReply, 'request-failed')
         }
+        // OPENAI-G28: the plan's limit headers ride on the inference
+        // response. Only allow-listed names are kept; the parser reads the
+        // x-codex-* windows out of them.
+        const reported: Record<string, string> = {}
+        response.headers.forEach((value, name) => {
+          if (PLAN_HEADER_NAMES.has(name)) reported[name] = value
+        })
+        limits = parsePlanLimitHeaders(reported, Date.now()) ?? limits
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         // No size or output cap of this app's own: the plan route takes no
         // `max_output_tokens` (SIWC preview limitations), so the reply ends
@@ -775,8 +804,12 @@ export function createSubscriptionClient(
               : event
           }
         } catch (error) {
-          if (error instanceof ChatgptPlanLimitError) {
-            yield { type: 'error', code: error.code, message: UI_TEXT.planUi.limitDetail }
+          if (error instanceof ChatgptPlanRefusalError) {
+            yield {
+              type: 'error',
+              code: error.code,
+              message: planRefusalMessage(error.code, error.message) ?? error.message,
+            }
           } else throw error
         }
       } catch (error) {
@@ -851,6 +884,7 @@ export function createSubscriptionClient(
                 source: ref.providerId === 'copilot' ? 'estimated' : 'reported',
               },
             }),
+            ...(limits !== undefined && { limits }),
           })
           deps.saveUsage?.(tallies)
         }

@@ -8233,6 +8233,8 @@ export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_e
 // SIWC errors and recovery (2026-10-17), HTTP 403: plan use is unavailable for
 // the user, workspace or policy. Explained once; never retried, never OAuth again.
 export const CHATGPT_PLAN_NOT_ELIGIBLE_CODE = 'subscription_sharing_user_not_eligible'
+// OPENAI-G27: provider refusal text is shown as sent, never pasted whole.
+export const PLAN_REFUSAL_TEXT_MAX_CHARS = 500
 export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).

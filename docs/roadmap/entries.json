@@ -685,7 +685,7 @@
     {
       "id": "M95b",
       "title": "ChatGPT and Copilot sign-in",
-      "summary": "Eligible ChatGPT Plus or Pro accounts sign in through the browser and compatible editors can use Copilot models, with the plan's own limits instead of a dollar cap, though a successful reply from either real service has not been checked yet.",
+      "summary": "Eligible ChatGPT Plus or Pro accounts sign in through the browser and Copilot models stay usable, with the plan limits instead of a dollar cap; plan models use their own windows and effort, refusals name recovery, and limit windows show in Plan Usage.",
       "area": "models-providers",
       "release": "0.15.0",
       "labels": ["preview"]
