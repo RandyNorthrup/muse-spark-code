@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+if test "$(id -u)" = 0; then
+  exec setpriv --reuid=10001 --regid=10001 --groups=10003 \
+    --inh-caps=-all --ambient-caps=-all --bounding-set=-all --no-new-privs "$0" "$@"
+fi
+test "$(id -u)" = 10001
+exec env -i PATH=/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8 \
+  HOME=/var/lib/muse-spark-code-node XDG_CONFIG_HOME=/var/lib/muse-spark-code-node/config \
+  MUSE_NODE_DATA_ROOT=/var/lib/muse-spark-code-node \
+  node /opt/muse/dist/acp.js "$@"

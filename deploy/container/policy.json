@@ -1,0 +1,20 @@
+{
+  "image": "ghcr.io/randynorthrup/muse-spark-code-node",
+  "platforms": ["linux/amd64", "linux/arm64"],
+  "maxCompressedBytes": 200000000,
+  "maxExtractedBytes": 3000000000,
+  "maxExtractedFiles": 100000,
+  "artifactRetentionDays": 14,
+  "registryKeepVersions": 10,
+  "runtimeFiles": [
+    "package.json",
+    "package-lock.json",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.txt",
+    "dist/acp.js",
+    "dist/node.js",
+    "dist/nodeToolHost.js"
+  ],
+  "releaseIdentity": "https://github.com/RandyNorthrup/muse-spark-code/.github/workflows/node-image.yml@refs/tags/",
+  "oidcIssuer": "https://token.actions.githubusercontent.com"
+}
