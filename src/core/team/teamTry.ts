@@ -23,6 +23,7 @@ import {
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
+import { usableReply } from '../turns/usableReply'
 
 export interface TeamTryDeps {
   readonly isAllowed: () => boolean
@@ -150,7 +151,13 @@ export async function tryTeam(
         }
 
         lifetime.removeEventListener('abort', abort)
-        if (event.terminal !== 'completed') failure = event.reason ?? event.terminal
+        // A capped turn's wrap-up is never the plan: only a turn that
+        // completed without a limit yields its reply (usableReply).
+        const outcome = usableReply(event, text)
+        if (!outcome.usable) {
+          failure = event.reason ?? (outcome.capped ? event.errorKind : undefined) ?? event.terminal
+          if (outcome.capped) text = ''
+        }
         resolve()
       })
       void session

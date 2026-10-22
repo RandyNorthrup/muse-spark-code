@@ -30,6 +30,12 @@ export type SequenceRunEffect =
   /** Nothing to do: the run waits for the next end. */
   | { readonly kind: 'wait' }
 
+/** A transition's outcome: the run's next state and what the runner does now. */
+interface SequenceStep {
+  readonly state: SequenceRunState
+  readonly effect: SequenceRunEffect
+}
+
 /** Start a run: the first step goes at once. */
 export function startSequenceRun(input: {
   readonly runId: string
@@ -38,7 +44,7 @@ export function startSequenceRun(input: {
   readonly name: string
   readonly steps: readonly string[]
   readonly sessionId: string
-}): { readonly state: SequenceRunState; readonly effect: SequenceRunEffect } {
+}): SequenceStep {
   const state: SequenceRunState = { ...input, index: 0, settledTurnIds: [] }
   const first = input.steps[0]
   const effect: SequenceRunEffect =
@@ -64,7 +70,7 @@ export function sequenceTurnSettled(
   turnId: string,
   terminal: string,
   isIdle: boolean,
-): { readonly state: SequenceRunState; readonly effect: SequenceRunEffect } {
+): SequenceStep {
   if (state.settledTurnIds.includes(turnId)) {
     return { state, effect: { kind: 'wait' } }
   }
@@ -102,7 +108,7 @@ the session gone, the session switch's end speaks instead.
 export function sequenceSendRefused(
   state: SequenceRunState,
   recheck: 'ok' | 'busy' | 'notLoaded',
-): { readonly state: SequenceRunState; readonly effect: SequenceRunEffect } {
+): SequenceStep {
   switch (recheck) {
     case 'busy': {
       return { state, effect: { kind: 'wait' } }
