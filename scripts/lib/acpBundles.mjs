@@ -64,6 +64,12 @@ export const ACP_BUNDLES = [
   'planSnapshot.js',
   'questionNotes.js',
   'approvalModes.js',
+  // M103 (D83): the runtime maker host, its hardware guard and shell, and
+  // the shared maker schemas the companion page validates with.
+  'runtimeMaker.js',
+  'hardwareGuard.js',
+  'makerContracts.js',
+  'hardwareShell.js',
   'mcpPool.js',
   'exec.js',
   'execGuard.js',

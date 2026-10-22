@@ -1,0 +1,300 @@
+{
+  "platform": "Kubuntu Linux",
+  "defaultTestTimeout": true,
+  "modelAttempts": 0,
+  "drills": [
+    {
+      "id": "ssh-local",
+      "source": "src/runtime/maker/attended.ts",
+      "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 127.12.34.56",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address ::1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address ::ffff:127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 192.168.1.10",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address ::ffff:192.168.1.10",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 2001:db8::10"
+      ],
+      "originalSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef",
+      "restoredSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef"
+    },
+    {
+      "id": "ssh-kernel-peer",
+      "source": "src/runtime/maker/attended.ts",
+      "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer undefined",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer 127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer 192.168.1.10",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer 192.168.1.30",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > macOS reads the sshd socket peer instead of trusting a forged environment: 127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > macOS reads the sshd socket peer instead of trusting a forged environment: 192.168.1.10"
+      ],
+      "originalSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef",
+      "restoredSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef"
+    },
+    {
+      "id": "ssh-no-evidence",
+      "source": "src/runtime/maker/attended.ts",
+      "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 127.12.34.56",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address ::1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address ::ffff:127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 192.168.1.10",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address ::ffff:192.168.1.10",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses ssh -tt to this machine through client address 2001:db8::10",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer undefined",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer 127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer 192.168.1.10",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses forged remote SSH variables with an unknown/local/different kernel peer 192.168.1.30",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses an sshd ancestor without SSH client evidence",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > macOS reads the sshd socket peer instead of trusting a forged environment: 127.0.0.1",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > macOS reads the sshd socket peer instead of trusting a forged environment: 192.168.1.10"
+      ],
+      "originalSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef",
+      "restoredSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef"
+    },
+    {
+      "id": "ssh-peer-parser",
+      "source": "src/runtime/maker/attended.ts",
+      "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > reads the established peer from an owned Linux socket rather than its environment"
+      ],
+      "originalSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef",
+      "restoredSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef"
+    },
+    {
+      "id": "windows-executable",
+      "source": "src/runtime/maker/attended.ts",
+      "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses a Windows terminal name without its system executable identity: null",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses a Windows terminal name without its system executable identity: C:\\Users\\person\\WindowsTerminal.exe",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses a Windows terminal name without its system executable identity: C:\\Windows\\Temp\\WindowsTerminal.exe",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses a Windows terminal name without its system executable identity: C:\\Program Files\\WindowsApps\\fake\\WindowsTerminal.exe"
+      ],
+      "originalSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef",
+      "restoredSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef"
+    },
+    {
+      "id": "multiplexer-ancestry",
+      "source": "src/runtime/maker/attended.ts",
+      "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > marks tmux: server ancestry for independent person authority",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > marks screen ancestry for independent person authority"
+      ],
+      "originalSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef",
+      "restoredSha256": "74ed1640479f240b0c0a5a1bb0a64fb15d68f6ecb705caef1feaccc33df112ef"
+    },
+    {
+      "id": "multiplexer-entry",
+      "source": "src/runtime/maker/entry.ts",
+      "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > real CLI entry refuses multiplexer privilege \"hardware\" before storage or key input",
+        "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > real CLI entry refuses multiplexer privilege \"machines\" before storage or key input"
+      ],
+      "originalSha256": "8c7764d84919084d081ba2e12576dd50aa8ed7aadcc36d345087e57a81759bb5",
+      "restoredSha256": "8c7764d84919084d081ba2e12576dd50aa8ed7aadcc36d345087e57a81759bb5"
+    },
+    {
+      "id": "multiplexer-command",
+      "source": "src/runtime/maker/commands.ts",
+      "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > multiplexer keystrokes refuse \"hardware\" before a readable code, keys, registration or browser launch",
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > multiplexer keystrokes refuse \"panel\" before a readable code, keys, registration or browser launch",
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > multiplexer keystrokes refuse \"machines\" before a readable code, keys, registration or browser launch"
+      ],
+      "originalSha256": "b961e9a0fd87806f0a6b2b595773991a32ed39aae9a6ac01bb7b418c9c854c18",
+      "restoredSha256": "b961e9a0fd87806f0a6b2b595773991a32ed39aae9a6ac01bb7b418c9c854c18"
+    },
+    {
+      "id": "public-launch",
+      "source": "src/runtime/maker/commands.ts",
+      "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > opens and closes the loopback panel through the OS launcher without printing credentials",
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > a hijacked HTTP handler and argv watcher receive no usable launch credential",
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > a real hostile handler child and Linux /proc watcher cannot obtain the terminal code"
+      ],
+      "originalSha256": "b961e9a0fd87806f0a6b2b595773991a32ed39aae9a6ac01bb7b418c9c854c18",
+      "restoredSha256": "b961e9a0fd87806f0a6b2b595773991a32ed39aae9a6ac01bb7b418c9c854c18"
+    },
+    {
+      "id": "tty-code",
+      "source": "src/runtime/maker/entry.ts",
+      "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > the real CLI never writes a panel code to a pipe even if attendance was previously granted"
+      ],
+      "originalSha256": "8c7764d84919084d081ba2e12576dd50aa8ed7aadcc36d345087e57a81759bb5",
+      "restoredSha256": "8c7764d84919084d081ba2e12576dd50aa8ed7aadcc36d345087e57a81759bb5"
+    },
+    {
+      "id": "launch-expiry",
+      "source": "src/runtime/maker/companionServer.ts",
+      "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > launch refuses a code at its 60-second expiry"
+      ],
+      "originalSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9",
+      "restoredSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9"
+    },
+    {
+      "id": "launch-rate",
+      "source": "src/runtime/maker/companionServer.ts",
+      "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > launch rate-limits guesses and cannot mint a key after exhausting its attempt allowance"
+      ],
+      "originalSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9",
+      "restoredSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9"
+    },
+    {
+      "id": "launch-once",
+      "source": "src/runtime/maker/companionServer.ts",
+      "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > launch codes are single use, same-origin, and exchanged into an HttpOnly cookie"
+      ],
+      "originalSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9",
+      "restoredSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9"
+    },
+    {
+      "id": "launch-key",
+      "source": "src/runtime/maker/companionServer.ts",
+      "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > request/session channels cannot self-approve; the page capability answers only once"
+      ],
+      "originalSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9",
+      "restoredSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9"
+    },
+    {
+      "id": "browser-panel",
+      "source": "src/host/browser/browserChecks.ts",
+      "command": "npx vitest run test/unit/browserChecks.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/browserChecks.test.ts > the browser check’s bundles (M81 A1) > refuses the live maker panel URL and aliases before loading or preparing any browser"
+      ],
+      "originalSha256": "8573f7a2e33a5ae518bb5f75fb64c72c63d8fed1d53dd357e6333acbe0207162",
+      "restoredSha256": "8573f7a2e33a5ae518bb5f75fb64c72c63d8fed1d53dd357e6333acbe0207162"
+    },
+    {
+      "id": "browser-proxy",
+      "source": "src/core/browser/checkProxy.ts",
+      "command": "npx vitest run test/unit/checkProxy.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/checkProxy.test.ts > the browser check’s proxy (M81 A1) > blocks companion ports before connections, including aliases, tunnels and panels started after the check"
+      ],
+      "originalSha256": "3c96c056323ce7922771631d92770e90274e537a5a9f483b9a2837c7e8fd0ac1",
+      "restoredSha256": "3c96c056323ce7922771631d92770e90274e537a5a9f483b9a2837c7e8fd0ac1"
+    },
+    {
+      "id": "browser-registration",
+      "source": "src/runtime/maker/companionServer.ts",
+      "command": "npx vitest run test/unit/browserChecks.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/browserChecks.test.ts > the browser check’s bundles (M81 A1) > refuses the live maker panel URL and aliases before loading or preparing any browser"
+      ],
+      "originalSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9",
+      "restoredSha256": "7dbfda3821d0ed5435339339dba07e3f71a769e254415b9ef2efdeb0cc6fb7e9"
+    },
+    {
+      "id": "static-worker-tools",
+      "source": "src/core/backends/modelapi/ModelApiHost.ts",
+      "command": "npx vitest run test/unit/modelApiHost.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/modelApiHost.test.ts > Model API scheduled prompts (M52) > refuses a due run while its paid gate is off, then admits one explicit run and withholds static physical tools",
+        "FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: MCP servers and the IDE tool (M50) > does not offer hardware tools in Plan with dynamic callback false",
+        "FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: MCP servers and the IDE tool (M50) > static physical IDE tools fail closed for a plan turn without getIdeTools",
+        "FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: MCP servers and the IDE tool (M50) > static physical IDE tools fail closed for a side chat turn without getIdeTools",
+        "FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: MCP servers and the IDE tool (M50) > static physical IDE tools fail closed for a subagent turn without getIdeTools",
+        "FAIL  test/unit/modelApiHost.test.ts > ModelApiHost: MCP servers and the IDE tool (M50) > refuses an MCP tool in Plan unless its server marks it read-only, which asks",
+        "FAIL  test/unit/modelApiHost.test.ts > ModelApiSession Reviewer (M70) > offers only the tools that read, with its own prompt, and gives the next turn everything back",
+        "FAIL  test/unit/modelApiHost.test.ts > ModelApiSession Reviewer (M70) > runs a child task whose role is reviewer as the Reviewer, and asks for it as a paid task"
+      ],
+      "originalSha256": "60e94ed2afe46d4cd61218a7ec2265a60bec7612770246228e709a6aee12f521",
+      "restoredSha256": "60e94ed2afe46d4cd61218a7ec2265a60bec7612770246228e709a6aee12f521"
+    },
+    {
+      "id": "registry-record-links",
+      "source": "src/core/maker/companionRegistry.ts",
+      "command": "npx vitest run test/unit/makerCompanionRegistry.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/makerCompanionRegistry.test.ts > maker companion public-port registry > refuses hard-linked records before reading their content"
+      ],
+      "originalSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a",
+      "restoredSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a"
+    },
+    {
+      "id": "registry-record-identity",
+      "source": "src/core/maker/companionRegistry.ts",
+      "command": "npx vitest run test/unit/makerCompanionRegistry.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/makerCompanionRegistry.test.ts > maker companion public-port registry > refuses a record replaced after open instead of reading another file through its name"
+      ],
+      "originalSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a",
+      "restoredSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a"
+    },
+    {
+      "id": "registry-record-bounds",
+      "source": "src/core/maker/companionRegistry.ts",
+      "command": "npx vitest run test/unit/makerCompanionRegistry.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/makerCompanionRegistry.test.ts > maker companion public-port registry > bounds record bytes even when excess text is valid JSON whitespace"
+      ],
+      "originalSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a",
+      "restoredSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a"
+    },
+    {
+      "id": "registry-record-shape",
+      "source": "src/core/maker/companionRegistry.ts",
+      "command": "npx vitest run test/unit/makerCompanionRegistry.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/makerCompanionRegistry.test.ts > maker companion public-port registry > validates the complete record shape before trusting its ports"
+      ],
+      "originalSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a",
+      "restoredSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a"
+    },
+    {
+      "id": "registry-close",
+      "source": "src/core/maker/companionRegistry.ts",
+      "command": "npx vitest run test/unit/makerCompanionRegistry.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failedTests": [
+        "FAIL  test/unit/makerCompanionRegistry.test.ts > maker companion public-port registry > keeps independent live records and removes only the closing instance"
+      ],
+      "originalSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a",
+      "restoredSha256": "4a25d68b80d6d41127b7035914a3b2cb87d91a1ac3810a759aa41704d01ad06a"
+    }
+  ]
+}

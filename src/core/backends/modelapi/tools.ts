@@ -1,3 +1,4 @@
+import type { HardwareStop } from '../../maker/guard/hardwareCommands'
 // The in-process tool harness of the Model API backend (PLAN.md M7): the
 // function tools the model sees, their argument validation, and their
 // execution over an injected `ToolIo` (the host supplies the file system
@@ -167,6 +168,7 @@ export type SearchWorkerMessage =
 
 /** What the host lends the tools: files, a matcher it can stop, and a shell. */
 export interface ToolIo {
+  runHardwareStop?(stop: HardwareStop): Promise<ShellResult>
   /** Lazy M105 read: bounded sniff/hash on one checked handle; upload reopens and checks it again. */
   readonly readMedia?: (
     absolutePath: string,
@@ -298,6 +300,8 @@ export interface ToolIo {
     timeoutMs: number | undefined,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
+    /** The owner's final native-entry fence, after hook adapter preparation. */
+    assertCanStart?: () => void,
   ): Promise<ShellResult>
   /**
   An M91 http hook's POST of its bounded JSON payload, through the host's
@@ -2120,7 +2124,9 @@ export function shellOutcome(
   shouldKeepWhole = false,
 ): ToolOutcome {
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
-  if (result.isCancelled) {
+  if (result.isEntryRefused) {
+    exit = result.stderr
+  } else if (result.isCancelled) {
     exit = SHELL_STOPPED_BY_USER
   } else if (result.isTimedOut) {
     exit =
@@ -2136,7 +2142,9 @@ export function shellOutcome(
     output: body,
     visibleOutput: shown,
     ...(result.exitCode !== null && { exitCode: result.exitCode }),
-    ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
+    ...((result.isEntryRefused === true || result.isTimedOut || result.isCancelled) && {
+      failureReason: exit,
+    }),
   }
 }
 

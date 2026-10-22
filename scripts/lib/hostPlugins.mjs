@@ -12,7 +12,9 @@ import {
   sharedUiText,
   sharedValidation,
   sharedWire,
+  sharedMakerContracts,
 } from './deferredBundles.mjs'
+import { hardwareGuardSplit } from './hardwareGuardSplit.mjs'
 import { deferredTeamView } from './deferredTeamView.mjs'
 
 export const HOST_PLUGINS = Object.freeze([
@@ -20,6 +22,8 @@ export const HOST_PLUGINS = Object.freeze([
   sharedValidation,
   deferredCohort,
   sharedWire,
+  sharedMakerContracts,
+  hardwareGuardSplit,
   sharedResourceAdmission,
   deferredTeamView,
   sharedModelApiBoundaries,

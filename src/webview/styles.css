@@ -4915,6 +4915,15 @@ li:focus-within > .row-actions .row-actions-button,
   white-space: nowrap;
 }
 
+/* Independent Stop shell precedes storage, lazy maker CSS and host replay. */
+.maker-static-stop {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  max-width: calc(100% - 16px);
+}
+
 /* M116-U: shared playbook surface, notes and strike badges. */
 .playbook-surface {
   min-width: 0;

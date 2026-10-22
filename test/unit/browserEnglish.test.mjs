@@ -24,6 +24,12 @@ afterAll(() => (built.isOwned ? removeFolder(built.folder) : undefined))
 const embedded = (table) => ({
   querySelector: () => ({ textContent: JSON.stringify({ locale: 'de', table }) }),
 })
+it('PORTM103 carries lossless maker English without enumerating deferred surface getters', () => {
+  expect(built.bundle.MAKER_EN).toEqual(
+    Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('maker'))),
+  )
+  expect(built.bundle.MAKER_EN).not.toHaveProperty('accounts')
+})
 it('keeps account, developer and help values out of startup and loads them exactly on demand', async () => {
   expect(built.bundle.UI_TEXT.sendTitle).toBe(EN.sendTitle)
   expect(() => built.bundle.UI_TEXT.referenceIntro).toThrow('English surface is not loaded')
@@ -104,6 +110,8 @@ it('keeps account, developer and help values out of startup and loads them exact
   })
   expect(resourceOnly.length).toBeGreaterThan(0)
   await built.bundle.loadResourceEnglish()
+  // The maker surface installs this same independent projection before render.
+  Object.defineProperties(built.bundle.EN, Object.getOwnPropertyDescriptors(built.bundle.MAKER_EN))
   for (const [key, value] of Object.entries(built.bundle.EN)) expect(value).toEqual(EN[key])
   built.bundle.setUiText(built.bundle.EN, 'en')
   for (const [key, value] of Object.entries(built.bundle.EN))

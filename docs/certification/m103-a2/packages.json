@@ -1,0 +1,10 @@
+{
+  "muse-spark-code-0.13.0.vsix": {
+    "bytes": 2083633,
+    "sha256": "aaa72076c2579517daf2c15fb8d4d597ae058d8a73674174a77971e39fc047c2"
+  },
+  "muse-spark-code-0.13.0-arduino.vsix": {
+    "bytes": 2083637,
+    "sha256": "9c75cd2b1b595d17f65f3181a0d7fbce572cb6e7077204b8e39641f9ad78656e"
+  }
+}

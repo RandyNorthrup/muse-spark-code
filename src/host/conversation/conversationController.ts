@@ -19,6 +19,7 @@ import type {
   QuestionDeliveryOutcome,
   QuestionStore,
 } from '../../shared/questions'
+import { approvalHardwareAction } from '../../core/agent/approvalHardware'
 import { modelApiStatusSchema } from '../../shared/serviceStatus'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type {
@@ -220,6 +221,7 @@ import {
   approvalModeFor,
   composerModeForApprovalMode,
   mspPermissionProfile,
+  availablePermissionModes,
   untrustedStartMode,
 } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
@@ -466,6 +468,8 @@ export interface ConversationDeps {
   readonly recordingCommandDeps?: () => Promise<RecordingCommandDeps>
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
+  readonly isHardwareWorkspace?: () => boolean
+  readonly isHardwareApprovalPresent?: () => boolean
   /**
   A remote window (`vscode.env.remoteName`): a dev container's settings can
   switch Bypass on there, so it needs one explicit yes (PLAN.md D24).
@@ -1330,6 +1334,8 @@ export class ConversationController {
   private voiceContextRevision = 0
   /** Approvals "Edit Automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
+  private readonly hardwareCards = new Set<string>()
+  private readonly approvalChoices = new Map<string, ReadonlySet<string>>()
   /**
   A Muse Code side chat's cards (M53, C-M53-3): kept so an approving click
   on a card the host left to the user can be refused. A card the policy
@@ -1620,6 +1626,10 @@ export class ConversationController {
       this.startupNotice = UI_TEXT.bypassRemoteStartedManual
     }
     this.attachments = new AttachmentStore(deps.newAttachmentId)
+    if (this.permissionMode === BYPASS_MODE && deps.isHardwareWorkspace?.()) {
+      this.permissionMode = 'auto'
+      this.startupNotice = UI_TEXT.hardwareBypassNotice
+    }
     this.checkpoints = new ConversationCheckpoints({
       backend: (sessionId) =>
         this.session !== undefined && this.session.sessionId === sessionId
@@ -2128,6 +2138,7 @@ export class ConversationController {
   private postComposerState(): void {
     this.post({
       type: 'composerState',
+      ...(this.deps.isHardwareWorkspace?.() === true && { isHardwareWorkspace: true }),
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
       isFastEnabled: this.fast,
@@ -2398,7 +2409,12 @@ export class ConversationController {
       this.session !== undefined &&
       sessionSurfaces.get(this.session)?.size === 1 &&
       port.isOn() &&
-      isReviewableApproval(event, this.permissionMode, this.activeTurnId)
+      isReviewableApproval(
+        event,
+        this.permissionMode,
+        this.activeTurnId,
+        this.deps.isHardwareWorkspace?.(),
+      )
     )
   }
 
@@ -2720,6 +2736,8 @@ export class ConversationController {
       this.notice(event.level, event.text)
       return
     }
+    if (event.type === 'approvalRequested' || event.type === 'approvalUpdated')
+      this.trackHardwareApproval(event)
     switch (event.type) {
       case 'approvalRequested': {
         this.questionApprovals.add(event.approvalId)
@@ -2787,6 +2805,8 @@ export class ConversationController {
         this.questionApprovals.delete(event.approvalId)
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
+        this.hardwareCards.delete(event.approvalId)
+        this.approvalChoices.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
         if (this.session !== undefined) {
           this.deps.pendingPrompts.resolve(this.session.sessionId, event.approvalId)
@@ -3309,10 +3329,35 @@ export class ConversationController {
     this.deps.openExternal(url)
   }
 
+  private trackHardwareApproval(
+    event: Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>,
+  ): void {
+    this.approvalChoices.set(
+      event.approvalId,
+      new Set(
+        event.availableChoices
+          .filter((choice) => choice.decision !== 'abort' && choice.decision !== 'deny')
+          .map((choice) => choice.choiceId),
+      ),
+    )
+    if (this.deps.isHardwareWorkspace?.()) this.postComposerState()
+    if (this.deps.isHardwareWorkspace?.() || approvalHardwareAction(event.subject) !== undefined)
+      this.hardwareCards.add(event.approvalId)
+  }
+
   private async decideApproval(
     message: Extract<ConversationMessage, { type: 'decideApproval' }>,
   ): Promise<void> {
     if (this.session === undefined) {
+      return
+    }
+    if (
+      (this.hardwareCards.has(message.approvalId) || this.deps.isHardwareWorkspace?.()) &&
+      (this.approvalChoices.get(message.approvalId)?.has(message.choiceId) ??
+        message.choiceId !== 'abort') &&
+      this.deps.isHardwareApprovalPresent?.() !== true
+    ) {
+      this.notice('warning', UI_TEXT.hardwarePresenceRequired)
       return
     }
     // A Muse Code side chat never approves (M53, C-M53-3): an approving click
@@ -6039,9 +6084,10 @@ export class ConversationController {
       return PLAN_MODE
     }
     const mode = this.deps.initialPermissionMode
+    const safeMode = mode === BYPASS_MODE && this.deps.isHardwareWorkspace?.() ? 'auto' : mode
     const isBypassRefused =
       mode === BYPASS_MODE && (!this.deps.isBypassAllowed() || this.deps.isRemoteWindow)
-    return mode === PLAN_MODE || isBypassRefused ? FALLBACK_MODE : mode
+    return mode === PLAN_MODE || isBypassRefused ? FALLBACK_MODE : safeMode
   }
 
   /**
@@ -8230,10 +8276,11 @@ export class ConversationController {
 
   /** The mode a review hands back: Bypass only while its setting still allows it (D24). */
   private restorableMode(mode: PermissionMode, bypassEpoch: number): PermissionMode {
+    const safeMode = mode === BYPASS_MODE && this.deps.isHardwareWorkspace?.() ? 'auto' : mode
     return mode === BYPASS_MODE &&
       (!this.deps.isBypassAllowed() || bypassEpoch !== this.bypassRevocationEpoch)
       ? FALLBACK_MODE
-      : mode
+      : safeMode
   }
 
   // --- Playback (D203) ---
@@ -9232,6 +9279,14 @@ export class ConversationController {
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
     if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
     this.clearJudgeCards()
+    if (
+      this.deps.isHardwareWorkspace?.() &&
+      !availablePermissionModes(this.deps.isBypassAllowed(), true).includes(mode)
+    ) {
+      this.notice('info', UI_TEXT.hardwareBypassNotice)
+      this.postComposerState()
+      return
+    }
     this.legalFixPreviews?.invalidate()
     if (mode !== 'plan' && this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)

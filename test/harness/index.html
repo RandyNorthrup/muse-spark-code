@@ -2671,7 +2671,176 @@
           ],
         })
       }
+      const makerFixture = (view) => {
+        const machine = {
+          registrationId: '2b4a9acb-2dc5-4f46-aeb8-40aee71bb875',
+          id: 'printer',
+          name: 'Bench printer',
+          kind: 'moonraker',
+          category: 'printer',
+          endpoint: 'http://192.168.1.5',
+          limits: { extruder: 200 },
+        }
+        send({
+          v: 1,
+          type: 'makerState',
+          isTrusted: true,
+          hardwareEnabled: view !== 'off',
+          isInteractive: true,
+          machines: [machine],
+          ports: [
+            { kind: 'serial', port: 'COM7', vid: '303a', pid: '1001', serialNumber: 'board-one' },
+          ],
+        })
+        if (view === 'approval' || view === 'serial') {
+          const common = {
+            id: '954e0cdb-0f0a-4be0-80f2-fd0e47a93d61',
+            digest: 'a'.repeat(64),
+            expiresAt: Date.now() + 120_000,
+            action: 'actuate',
+          }
+          send({
+            v: 1,
+            type: 'makerApproval',
+            request:
+              view === 'serial'
+                ? {
+                    ...common,
+                    kind: 'serial',
+                    target: {
+                      kind: 'serial',
+                      port: 'COM7',
+                      vid: '303a',
+                      pid: '1001',
+                      serialNumber: 'board-one',
+                    },
+                    payload: { encoding: 'hex', value: '00ff' },
+                    baud: 115200,
+                    durationMs: 1000,
+                    dtr: false,
+                    rts: false,
+                    warnsAboutReset: true,
+                    flashIdentity: { status: 'unknown' },
+                  }
+                : {
+                    ...common,
+                    kind: 'machine',
+                    target: {
+                      kind: 'machine',
+                      registrationId: machine.registrationId,
+                      id: machine.id,
+                      name: machine.name,
+                      endpoint: machine.endpoint,
+                      identity: 'Klipper',
+                    },
+                    payload: 'M104 S190',
+                    analysis: {
+                      classes: ['actuate'],
+                      maxFeedMmMin: 1200,
+                      temperatures: { extruder: 190 },
+                      unknown: [],
+                      refused: [],
+                      hasMotion: false,
+                    },
+                  },
+          })
+        } else if (view === 'log') {
+          send({
+            v: 1,
+            type: 'makerDeviceLog',
+            entries: [
+              {
+                time: 1791266400000,
+                machine: 'Bench printer',
+                action: 'actuate',
+                payload: 'M104 S190',
+                digest: 'a'.repeat(64),
+                approval: null,
+                outcome: 'sentOutcomeUnknown',
+              },
+            ],
+          })
+          whenFound('.maker-toolbar', (bar) => bar.querySelectorAll('button')[1].click())
+        } else {
+          whenFound('.maker-toolbar', (bar) => bar.querySelector('button').click())
+          if (view === 'wizard')
+            whenFound('#maker-devices-title', (title) => {
+              const buttons = title.closest('[role="dialog"]').querySelectorAll('button')
+              buttons[buttons.length - 1].click()
+            })
+        }
+      }
       const steps = {
+        'maker-approval': () => makerFixture('approval'),
+        'maker-approval-narrow': () => {
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          makerFixture('approval')
+        },
+        'maker-serial-approval': () => makerFixture('serial'),
+        'maker-devices': () => makerFixture('devices'),
+        'maker-hardware-off': () => makerFixture('off'),
+        'maker-wizard': () => makerFixture('wizard'),
+        'maker-log': () => makerFixture('log'),
+        'maker-preview': () => {
+          document.querySelector('#root').remove()
+          document.body.dataset.artifactId = '2b4a9acb-2dc5-4f46-aeb8-40aee71bb875'
+          const text = (key, english) => harnessL10n.table?.[key] ?? english
+          const main = document.createElement('main')
+          const title = document.createElement('h1')
+          title.textContent = text('makerPreviewTitle', 'Maker preview')
+          main.append(title)
+          const controls = document.createElement('div')
+          controls.className = 'maker-preview-controls'
+          for (const [action, key, english] of [
+            ['left', 'makerRotateLeft', 'Rotate left'],
+            ['right', 'makerRotateRight', 'Rotate right'],
+            ['in', 'makerZoomIn', 'Zoom in'],
+            ['out', 'makerZoomOut', 'Zoom out'],
+            ['reset', 'makerResetView', 'Reset view'],
+          ]) {
+            const button = document.createElement('button')
+            button.type = 'button'
+            button.dataset.makerView = action
+            button.textContent = text(key, english)
+            controls.append(button)
+          }
+          main.append(controls)
+          const stop = document.createElement('button')
+          stop.type = 'button'
+          stop.dataset.makerStop = ''
+          stop.textContent = text('makerStopAll', 'Stop all machines')
+          controls.append(stop)
+          const canvas = document.createElement('canvas')
+          canvas.id = 'maker-canvas'
+          canvas.setAttribute('role', 'img')
+          canvas.setAttribute('aria-label', title.textContent)
+          main.append(canvas)
+          const unavailable = document.createElement('p')
+          unavailable.id = 'maker-preview-unavailable'
+          unavailable.hidden = true
+          unavailable.setAttribute('role', 'alert')
+          unavailable.textContent = text(
+            'makerPreviewUnavailable',
+            'Preview unavailable. Check the artifact and WebGL support.',
+          )
+          main.append(unavailable)
+          document.body.append(main)
+          const style = document.createElement('link')
+          style.rel = 'stylesheet'
+          style.href = '../../dist/webview/makerPreview.css'
+          document.head.append(style)
+          import('../../dist/webview/makerPreview.js').then(() => {
+            send({
+              v: 1,
+              type: 'makerMesh',
+              artifactId: document.body.dataset.artifactId,
+              positions: [
+                -1, -1, 0, 1, -1, 0, 0, 1, 0, -1, -1, 0, 0, 0, 1, 1, -1, 0, 1, -1, 0, 0, 0, 1, 0, 1,
+                0, 0, 1, 0, 0, 0, 1, -1, -1, 0,
+              ],
+            })
+          })
         'prompt-menu': () => promptMenuScene(),
         'prompt-menu-narrow': () => promptMenuScene(),
         'prompt-menu-toolbar': () => promptMenuScene(true),
@@ -2964,6 +3133,21 @@
         },
         modes: () => {
           click('Permission Mode: Manual')
+        },
+        'modes-hardware': () => {
+          send({ type: 'authState', status: 'signedIn', backend: 'museCode' })
+          send({
+            type: 'settingsChanged',
+            settings: { ...settings, allowDangerouslySkipPermissions: true },
+          })
+          send({
+            type: 'composerState',
+            effort: 'high',
+            isThinkingEnabled: true,
+            permissionMode: 'manual',
+            isHardwareWorkspace: true,
+          })
+          later(50, () => click('Permission mode: Manual'))
         },
         'modes-bypass': () => {
           send({
@@ -6653,6 +6837,14 @@
         'paid-usage': () => document.querySelector('.usage-facts') !== null,
         help: () => document.querySelector('#reference-search') !== null,
         'help-narrow': () => document.querySelector('#reference-search') !== null,
+        'maker-approval': () => document.querySelector('#maker-approval-title') !== null,
+        'maker-approval-narrow': () => document.querySelector('#maker-approval-title') !== null,
+        'maker-serial-approval': () => document.querySelector('#maker-approval-title') !== null,
+        'maker-devices': () => document.querySelector('#maker-devices-title') !== null,
+        'maker-hardware-off': () => document.querySelector('#maker-devices-title') !== null,
+        'maker-wizard': () => document.querySelector('#maker-wizard-title') !== null,
+        'maker-log': () => document.querySelector('#maker-log-title') !== null,
+        'maker-preview': () => document.querySelector('#maker-canvas[data-rendered]') !== null,
         'schedule-settlements': () => document.querySelectorAll('.schedule-v2-fire').length === 3,
         'schedule-settlements-narrow': () =>
           scheduleNarrowFits() && document.querySelectorAll('.schedule-v2-fire').length === 3,

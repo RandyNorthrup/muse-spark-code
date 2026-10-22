@@ -65,6 +65,8 @@ import {
   compressedEnglish,
   compactBrowserUiText,
 } from './lib/uiTextRegions.mjs'
+import { isolateMakerValidation } from './lib/makerValidation.mjs'
+import { buildProfile } from './lib/arduinoBuild.mjs'
 
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
@@ -84,6 +86,7 @@ import { runBuildPool } from './lib/buildPool.mjs'
 import {
   sharedUiText,
   sharedValidation,
+  sharedMakerContracts,
   nodeReferenceData,
   deferredCohort,
   sharedWire,
@@ -97,6 +100,12 @@ import {
   sharedVaultPosix,
   sharedVaultWindows,
 } from './lib/deferredBundles.mjs'
+import {
+  hardwareGuardSplit,
+  hardwareShellSplit,
+  hardwareConstantTables,
+  browserConstantTables,
+} from './lib/hardwareGuardSplit.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
@@ -132,6 +141,11 @@ buildVaultPeer()
 
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
+// The Arduino IDE job runs the integration suite inside a production
+// Arduino build (hosts.yml), so it asks for the test bundles explicitly.
+const isWithIntegrationTests = args.has('--integration-tests')
+const profile = buildProfile(args.has('--arduino'))
+const BUILD_PROFILE_FILE = 'dist/build-profile.json'
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
@@ -146,6 +160,10 @@ const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // the share-file preview), required on the first of those flows.
 const CONVERSATION_TRANSFER_ENTRY = 'src/host/conversation/conversationTransferEntry.ts'
 const CONVERSATION_TRANSFER_OUTFILE = 'dist/conversationTransfer.js'
+const VERIFY_EDITOR_ENTRY = 'src/host/editor/verifyEditor.ts'
+const VERIFY_EDITOR_OUTFILE = 'dist/verifyEditor.js'
+const MAKER_HOST_ENTRY = 'src/host/maker/makerEntry.ts'
+const MAKER_HOST_OUTFILE = 'dist/makerHost.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
@@ -244,6 +262,8 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+const HARDWARE_GUARD_ENTRY = 'src/core/maker/guardEntry.ts'
+const HARDWARE_GUARD_OUTFILE = 'dist/hardwareGuard.js'
 // M105 lane W: the attachment path (attach port with the portable sniffers,
 // limits and modality gate), loaded on first use.
 const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
@@ -368,9 +388,12 @@ const PROVIDER_CATALOG_OUTFILE = 'dist/providerCatalog.json'
 const PROVIDER_CATALOG_MODULE = 'dist/providerCatalog.js'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
 // Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
+// Recorded normal-build floor (check-host-api); the profile selects the variant.
 const HOST_NODE_TARGET = 'node20.18'
 const AGENT_NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
+const hostNodeTarget = args.has('--arduino') ? profile.host : HOST_NODE_TARGET
+const browserTarget = args.has('--arduino') ? profile.browser : BROWSER_TARGET
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
 // Hashed browser chunks from an earlier build must not enter the package.
@@ -394,7 +417,7 @@ const hostOptions = {
   outfile: HOST_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
   external: ['vscode'],
 }
 
@@ -413,6 +436,25 @@ const scheduleSurfacesOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const verifyEditorOptions = {
+  ...hostOptions,
+  entryPoints: [VERIFY_EDITOR_ENTRY],
+  outfile: VERIFY_EDITOR_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const makerHostOptions = {
+  ...hostOptions,
+  entryPoints: [MAKER_HOST_ENTRY],
+  outfile: MAKER_HOST_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const makerPreviewHostOptions = {
+  ...hostOptions,
+  entryPoints: ['src/host/maker/makerPreviewEntry.ts'],
+  outfile: 'dist/makerPreviewHost.js',
+}
 const sharingRuntimeOptions = {
   ...common,
   plugins: [
@@ -447,6 +489,8 @@ const modelApiOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    hardwareGuardSplit,
+    sharedMakerContracts,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -458,7 +502,7 @@ const modelApiOptions = {
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 const referenceOptions = {
@@ -698,7 +742,7 @@ const reviewOptions = {
   outfile: REVIEW_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // The report dialog's bundle (M93) takes the editor's clipboard, browser and
@@ -721,7 +765,7 @@ const reportOptions = {
   outfile: REPORT_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // The capacity estimator's engine (M117, PLAN.md D97), loaded the first
@@ -771,7 +815,7 @@ const recorderOptions = {
   outfile: RECORDER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // The credential lease (M95 D74), required on the first guarded credential
@@ -813,7 +857,7 @@ const planMarkdownOptions = {
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // Neither imports `vscode`, so it is not external there and a stray import
@@ -904,7 +948,7 @@ const whatsNewOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 const usageServiceOptions = {
@@ -1014,7 +1058,7 @@ const agentImportOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1091,7 +1135,7 @@ const bundledSkillsOptions = {
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1102,7 +1146,7 @@ const searchWorkerOptions = {
   outfile: SEARCH_WORKER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1131,7 +1175,7 @@ const conversationGitOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // The Model API backend's session store (D14), required when its host is
@@ -1221,6 +1265,33 @@ const checkpointStoreOptions = {
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
   format: 'cjs',
+  target: hostNodeTarget,
+}
+
+const hardwareGuardOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedModelApiBoundaries,
+    hardwareShellSplit,
+    sharedMakerContracts,
+    hardwareConstantTables,
+  ],
+  entryPoints: [HARDWARE_GUARD_ENTRY],
+  outfile: HARDWARE_GUARD_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+const hardwareShellOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, hardwareConstantTables],
+  entryPoints: ['src/core/maker/shellEntry.ts'],
+  outfile: 'dist/hardwareShell.js',
+  platform: 'node',
+  format: 'cjs',
   target: HOST_NODE_TARGET,
 }
 
@@ -1278,7 +1349,7 @@ const browserCheckOptions = {
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1298,7 +1369,7 @@ const browserRuntimeOptions = {
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1311,6 +1382,7 @@ const acpOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    hardwareGuardSplit,
     sharedResourceAdmission,
     sharedStructuredSchema,
     deferredTeamView,
@@ -1345,6 +1417,25 @@ const runtimeQuestionsOptions = {
   ...acpQuestionsOptions,
   entryPoints: [RUNTIME_QUESTIONS_ENTRY],
   outfile: RUNTIME_QUESTIONS_OUTFILE,
+}
+// M103 R: native/runtime maker work is absent from ACP and activation startup.
+const runtimeMakerOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedModelApiBoundaries,
+    hardwareShellSplit,
+    deferredCohort,
+    sharedMakerContracts,
+  ],
+  entryPoints: ['src/runtime/maker/entry.ts'],
+  outfile: 'dist/runtimeMaker.js',
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
 }
 const mcpPoolOptions = {
   ...modelApiOptions,
@@ -1414,7 +1505,7 @@ const uiTextOptions = {
   outfile: UI_TEXT_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 const uiTextRegionOptions = UI_TEXT_REGIONS.map((region) => ({
@@ -1497,7 +1588,7 @@ const pageWorkerOptions = {
   outfile: PAGE_WORKER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // The canonical comment template must stay with ReviewCommentForm when other pages
@@ -1532,9 +1623,11 @@ const webviewOptions = {
   plugins: [
     sharedHighlightGrammar,
     ...(isProduction ? [compactBrowserUiText] : []),
+    ...(isProduction ? [browserConstantTables] : []),
     ...(isProduction ? [lazyBrowserKeybindings] : []),
     browserReviewComment,
     resourceBrowserValidation,
+    isolateMakerValidation,
     {
       name: 'reference-caller-react',
       setup(build) {
@@ -1568,8 +1661,14 @@ const webviewOptions = {
   splitting: true,
   // STARTDIET: content hashes identify chunks; repeated names inflate every import.
   chunkNames: 'chunks/[hash]',
-  target: BROWSER_TARGET,
+  target: browserTarget,
   jsx: 'automatic',
+}
+
+const makerPreviewOptions = {
+  ...webviewOptions,
+  splitting: false,
+  entryPoints: { makerPreview: 'src/webview/maker/previewMain.ts' },
 }
 
 // M97 CM971-R3: SHA-256 hashes beside each bundle metafile (record
@@ -1641,7 +1740,7 @@ const integrationTestOptions = {
   outdir: INTEGRATION_TEST_OUTDIR,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
   external: ['vscode', 'mocha'],
 }
 
@@ -1649,6 +1748,9 @@ function reportSize(path) {
   const kib = (statSync(path).size / BYTES_PER_KIB).toFixed(1)
   console.log(`  ${path}  ${kib} KiB`)
 }
+
+// A failed or watch build cannot certify a package from earlier output.
+rmSync(BUILD_PROFILE_FILE, { force: true })
 
 copyCatalogToDist()
 writeFileSync(
@@ -1689,6 +1791,9 @@ if (isWatch) {
     esbuild.context(conversationTransferOptions),
     esbuild.context(scheduleSurfacesOptions),
     esbuild.context(tabOptions),
+    esbuild.context(verifyEditorOptions),
+    esbuild.context(makerHostOptions),
+    esbuild.context(makerPreviewHostOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(connectorOptions),
@@ -1759,6 +1864,8 @@ if (isWatch) {
     esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(hardwareGuardOptions),
+    esbuild.context(hardwareShellOptions),
     esbuild.context(mediaOptions),
     esbuild.context(mediaHostOptions),
     esbuild.context(screenRecordOptions),
@@ -1805,6 +1912,7 @@ if (isWatch) {
     esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(runtimeMakerOptions),
     esbuild.context(scheduleBackgroundOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
@@ -1846,6 +1954,22 @@ if (isWatch) {
     return esbuild.build(isProduction ? withCompiledRecording(options, buildRecord) : options)
   }
   const shippedSpecs = {
+    makerContracts: recorded('makerContracts', {
+      ...common,
+      plugins: [sharedUiText, sharedValidation],
+      entryPoints: ['src/shared/makerProtocol.ts'],
+      outfile: 'dist/makerContracts.js',
+      platform: 'node',
+      format: 'cjs',
+      target: HOST_NODE_TARGET,
+    }),
+    verifyEditor: recorded('verifyEditor', verifyEditorOptions),
+    makerHost: recorded('makerHost', makerHostOptions),
+    makerPreviewHost: recorded('makerPreviewHost', makerPreviewHostOptions),
+    hardwareGuard: recorded('hardwareGuard', hardwareGuardOptions),
+    hardwareShell: recorded('hardwareShell', hardwareShellOptions),
+    runtimeMaker: recorded('runtimeMaker', runtimeMakerOptions),
+    makerPreview: recorded('makerPreview', makerPreviewOptions),
     questionNotes: recorded('questionNotes', {
       ...modelApiOptions,
       entryPoints: ['src/core/questions/deferralEntry.ts'],
@@ -2011,7 +2135,7 @@ if (isWatch) {
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
   ]
-  if (!isProduction) {
+  if (!isProduction || isWithIntegrationTests) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
   }
   let shipped
@@ -2090,6 +2214,7 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'exec.json'), JSON.stringify(execBuild.metafile))
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
   }
+  writeFileSync(BUILD_PROFILE_FILE, JSON.stringify({ ...profile, production: isProduction }))
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
   reportSize(PLAYBOOK_OUTFILE)
@@ -2097,6 +2222,8 @@ if (isWatch) {
   reportSize(CONVERSATION_OUTFILE)
   reportSize(CONVERSATION_TRANSFER_OUTFILE)
   reportSize(TAB_OUTFILE)
+  reportSize(MAKER_HOST_OUTFILE)
+  reportSize('dist/makerPreviewHost.js')
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)
   reportSize(CONNECTOR_OUTFILE)
@@ -2177,6 +2304,7 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
+  reportSize('dist/runtimeMaker.js')
   reportSize('dist/headless.js')
   reportSize(SCHEDULE_BACKGROUND_OUTFILE)
 }

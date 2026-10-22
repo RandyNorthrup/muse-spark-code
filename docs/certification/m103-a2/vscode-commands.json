@@ -1,0 +1,23 @@
+{
+  "vscode": "1.139.1",
+  "commands": [
+    "editor.action.rename",
+    "acceptRenameInput",
+    "acceptRenameInputWithPreview",
+    "cancelRenameInput",
+    "focusNextRenameSuggestion",
+    "focusPreviousRenameSuggestion",
+    "_executeDocumentRenameProvider",
+    "_executePrepareRename",
+    "renameFile",
+    "debug.renameWatchExpression",
+    "agentSession.rename",
+    "workbench.action.terminal.rename",
+    "workbench.action.terminal.renameActiveTab",
+    "workbench.action.terminal.renameWithArg",
+    "workbench.action.localHistory.rename",
+    "editor.action.inlineSuggest.renameSymbol",
+    "git.rename",
+    "git.renameBranch"
+  ]
+}

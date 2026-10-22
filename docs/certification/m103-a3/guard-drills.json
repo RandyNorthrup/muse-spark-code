@@ -1,0 +1,271 @@
+[
+  {
+    "name": "fallback",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > publishes positioned syntax diagnostics, reads them through the API, then cleans up",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > a native error arriving during the final disk read prevents publication",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > does not mistake a previous collection-clear event for a clean JSON report",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > withdraws fallback diagnostics if a late native provider answers",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > checks an already visible JSON document without a reporting service",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > the diagnostics tool gets the same positioned fallback",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > publishes a clean report after fixing the file, including JSONC comments",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > reads a computed clean report even when the host suppresses empty-delta events",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses cancellation and read revocation while its own report settles",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses unsaved text and a retargeted path after publication"
+    ]
+  },
+  {
+    "name": "native-publication-race",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > a native error arriving during the final disk read prevents publication"
+    ]
+  },
+  {
+    "name": "late-native",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > withdraws fallback diagnostics if a late native provider answers"
+    ]
+  },
+  {
+    "name": "cleanup",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > publishes positioned syntax diagnostics, reads them through the API, then cleans up",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses cancellation and read revocation while its own report settles",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses unsaved text and a retargeted path after publication"
+    ]
+  },
+  {
+    "name": "disk-text",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > a native error arriving during the final disk read prevents publication",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > keeps stale editor text unchecked"
+    ]
+  },
+  {
+    "name": "stop-after-publication",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses cancellation and read revocation while its own report settles"
+    ]
+  },
+  {
+    "name": "read-revocation",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses cancellation and read revocation while its own report settles"
+    ]
+  },
+  {
+    "name": "dirty-after-publication",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses unsaved text and a retargeted path after publication"
+    ]
+  },
+  {
+    "name": "retarget-after-publication",
+    "file": "src/host/editor/verifyEditor.ts",
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > refuses unsaved text and a retargeted path after publication"
+    ]
+  },
+  {
+    "name": "jsonc",
+    "file": "src/core/verify/jsonDiagnostics.ts",
+    "before": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "exit": 1,
+    "after": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > accepts JSONC without erasing strings or changing error offsets",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > publishes a clean report after fixing the file, including JSONC comments"
+    ]
+  },
+  {
+    "name": "strict-json",
+    "file": "src/core/verify/jsonDiagnostics.ts",
+    "before": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "exit": 1,
+    "after": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > rejects comments and trailing commas in strict JSON"
+    ]
+  },
+  {
+    "name": "settings-schema",
+    "file": "src/core/verify/jsonDiagnostics.ts",
+    "before": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "exit": 1,
+    "after": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > uses shipped permission schemas only in editor settings"
+    ]
+  },
+  {
+    "name": "schema-scope",
+    "file": "src/core/verify/jsonDiagnostics.ts",
+    "before": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "exit": 1,
+    "after": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > uses shipped permission schemas only in editor settings"
+    ]
+  },
+  {
+    "name": "syntax-position",
+    "file": "src/core/verify/jsonDiagnostics.ts",
+    "before": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "exit": 1,
+    "after": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > reports malformed JSON without quoting document content"
+    ]
+  },
+  {
+    "name": "comma-message",
+    "file": "src/core/verify/jsonDiagnostics.ts",
+    "before": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "exit": 1,
+    "after": "1cd4218892076a4617eafd7c584c287de4657de6f0dcacdc593292725e189c47",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > finds the missing comma offset for {",
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > finds the missing comma offset for [1 2]",
+      "test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > finds the missing comma offset for {",
+      "test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > publishes positioned syntax diagnostics, reads them through the API, then cleans up"
+    ]
+  },
+  {
+    "name": "disposed-loader",
+    "file": "src/host/editor/verifyEditorBundle.ts",
+    "before": "6882b79f75b4dc60882a3c7189bd12a2e4ef1deaa97a40c69a3c2e646b866a0f",
+    "exit": 1,
+    "after": "6882b79f75b4dc60882a3c7189bd12a2e4ef1deaa97a40c69a3c2e646b866a0f",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditorBundle.test.ts > lazy editor verification > loads only on first use, installs the table, reuses its adapter and disposes it"
+    ]
+  },
+  {
+    "name": "factory-validation",
+    "file": "src/host/editor/verifyEditorBundle.ts",
+    "before": "6882b79f75b4dc60882a3c7189bd12a2e4ef1deaa97a40c69a3c2e646b866a0f",
+    "exit": 1,
+    "after": "6882b79f75b4dc60882a3c7189bd12a2e4ef1deaa97a40c69a3c2e646b866a0f",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditorBundle.test.ts > lazy editor verification > rejects missing or corrupt factories and retries a repaired module"
+    ]
+  },
+  {
+    "name": "size-gate",
+    "file": "scripts/check-bundle-size.mjs",
+    "before": "c822e4acb8f517683779eb0deb9280051875f3eb56a4a1d179875f57317a829c",
+    "exit": 1,
+    "after": "c822e4acb8f517683779eb0deb9280051875f3eb56a4a1d179875f57317a829c",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/bundleSize.test.mjs > bundled What\u2019s New content budget > rejects a verification bundle over its new 25 KiB cap"
+    ]
+  },
+  {
+    "name": "package-gate",
+    "file": "scripts/package-vsix.mjs",
+    "before": "c0449fe41271516ac20b1d849aef8f595ff1b693a04a3e4859a9441893f879a2",
+    "exit": 1,
+    "after": "c0449fe41271516ac20b1d849aef8f595ff1b693a04a3e4859a9441893f879a2",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/vsixPackaging.test.mjs > VSIX packaging > refuses to stage a package without the lazy verification adapter"
+    ]
+  },
+  {
+    "name": "lazy-creation",
+    "file": "src/host/editor/verifyEditorBundle.ts",
+    "before": "6882b79f75b4dc60882a3c7189bd12a2e4ef1deaa97a40c69a3c2e646b866a0f",
+    "exit": 1,
+    "after": "6882b79f75b4dc60882a3c7189bd12a2e4ef1deaa97a40c69a3c2e646b866a0f",
+    "byteExact": true,
+    "failedTests": [
+      "test/unit/verifyEditorBundle.test.ts > lazy editor verification > loads only on first use, installs the table, reuses its adapter and disposes it",
+      "test/unit/verifyEditorBundle.test.ts > lazy editor verification > disposal without a request loads nothing",
+      "test/unit/verifyEditorBundle.test.ts > lazy editor verification > rejects missing or corrupt factories and retries a repaired module"
+    ]
+  },
+  {
+    "name": "activation-split",
+    "file": "src/extension.ts",
+    "before": "dcb80f0f653667f790d7da375a9cb49153561843fc9be932865e513e310955fd",
+    "exit": 1,
+    "after": "dcb80f0f653667f790d7da375a9cb49153561843fc9be932865e513e310955fd",
+    "byteExact": true,
+    "failedTests": []
+  },
+  {
+    "before": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "exit": 1,
+    "stats": {
+      "suites": 8,
+      "tests": 34,
+      "passes": 32,
+      "pending": 0,
+      "failures": 2,
+      "start": "2026-10-06T02:37:57.369Z",
+      "end": "2026-10-06T02:38:24.092Z",
+      "duration": 26723
+    },
+    "failures": [
+      "verify loop in VS Code (M68) shows edited files no editor showed, and reads what their servers report",
+      "verify loop in VS Code (M68) settles one file for the diagnostics tool, read before its tab closes"
+    ],
+    "after": "0b1a92da9ecb0aa4b2f2b8f3dbc1afe1acf7063a583b9b1334b4063bb04bc8a7",
+    "byteExact": true,
+    "name": "real-IDE-fallback-off",
+    "file": "src/host/editor/verifyEditor.ts"
+  }
+]

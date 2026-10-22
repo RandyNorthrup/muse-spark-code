@@ -1,0 +1,7 @@
+
+> muse-spark-code@0.14.1 deadcode
+> knip
+
+Configuration hints (2)
+vendor/**    knip.jsonc  Remove from ignore            
+axe-core     knip.jsonc  Remove from ignoreDependencies

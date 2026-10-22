@@ -1,0 +1,58 @@
+[
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/checkProxy.test.ts test/unit/browserPolicy.test.ts test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run typecheck",
+    "exitCode": 0
+  },
+  {
+    "command": "npx eslint --max-warnings=0 src/core/backends/musecode/launch.ts src/core/browser/browserPolicy.ts src/core/browser/browserTool.ts src/core/browser/checkProxy.ts src/core/maker/registry.ts src/extension.ts src/host/backend/toolIo.ts src/host/browser/browserCheckConfirm.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserProcess.ts src/host/web/webFetcher.ts src/runtime/maker/assets.ts src/runtime/maker/commands.ts src/runtime/maker/companionServer.ts src/runtime/maker/entry.ts src/shared/companionProtocol.ts src/shared/constants.ts src/shared/l10n/en.ts src/webview/main.tsx test/unit/browserCheckConfirm.test.ts test/unit/browserPolicy.test.ts test/unit/browserTool.test.ts test/unit/canaries.test.ts test/unit/checkProxy.test.ts test/unit/ideBrowserCheck.test.ts test/unit/launch.test.ts test/unit/makerRegistryLog.test.ts test/unit/modelApiHost.test.ts test/unit/runtimeMakerAttendance.test.ts test/unit/runtimeMakerCommands.test.ts test/unit/runtimeMakerTransport.test.ts test/unit/settings.test.ts test/unit/toolIoCommandAdmission.test.ts src/host/web/nat64.ts",
+    "exitCode": 0
+  },
+  {
+    "command": "npx prettier --check CHANGELOG.md PLAN.md README.md docs/acp.md docs/certification/m103-r.md docs/certification/m103-r/fix-r4-drills.json docs/ide-compatibility/host-api.md l10n/ui.cs.json l10n/ui.de.json l10n/ui.es.json l10n/ui.fr.json l10n/ui.hu.json l10n/ui.it.json l10n/ui.ja.json l10n/ui.ko.json l10n/ui.pl.json l10n/ui.pt-br.json l10n/ui.ru.json l10n/ui.tr.json l10n/ui.zh-cn.json l10n/ui.zh-tw.json package.json package.nls.cs.json package.nls.de.json package.nls.es.json package.nls.fr.json package.nls.hu.json package.nls.it.json package.nls.ja.json package.nls.json package.nls.ko.json package.nls.pl.json package.nls.pt-br.json package.nls.ru.json package.nls.tr.json package.nls.zh-cn.json package.nls.zh-tw.json src/core/backends/musecode/launch.ts src/core/browser/browserPolicy.ts src/core/browser/browserTool.ts src/core/browser/checkProxy.ts src/core/maker/registry.ts src/extension.ts src/host/backend/toolIo.ts src/host/browser/browserCheckConfirm.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserProcess.ts src/host/web/webFetcher.ts src/runtime/maker/assets.ts src/runtime/maker/commands.ts src/runtime/maker/companionServer.ts src/runtime/maker/entry.ts src/shared/companionProtocol.ts src/shared/constants.ts src/shared/l10n/en.ts src/webview/main.tsx test/unit/browserCheckConfirm.test.ts test/unit/browserPolicy.test.ts test/unit/browserTool.test.ts test/unit/canaries.test.ts test/unit/checkProxy.test.ts test/unit/ideBrowserCheck.test.ts test/unit/launch.test.ts test/unit/makerRegistryLog.test.ts test/unit/modelApiHost.test.ts test/unit/runtimeMakerAttendance.test.ts test/unit/runtimeMakerCommands.test.ts test/unit/runtimeMakerTransport.test.ts test/unit/settings.test.ts test/unit/toolIoCommandAdmission.test.ts src/host/web/nat64.ts docs/certification/m103-r/fix-r4-tests.json",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run deadcode",
+    "exitCode": 0
+  },
+  {
+    "command": "TMPDIR=/dev/shm/m103r4 npx vitest run test/unit/modelApiHost.test.ts test/unit/checkProxy.test.ts test/unit/browserCheckConfirm.test.ts --maxWorkers=3",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run typecheck:unit",
+    "exitCode": 0
+  },
+  {
+    "command": "npx eslint --max-warnings=0 test/unit/modelApiHost.test.ts",
+    "exitCode": 0
+  },
+  {
+    "command": "npx prettier --check test/unit/modelApiHost.test.ts docs/certification/m103-r.md",
+    "exitCode": 0
+  },
+  {
+    "command": "npx jscpd",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run check:l10n",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run check:host-api",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run cycles",
+    "exitCode": 0
+  },
+  {
+    "command": "npm run build",
+    "exitCode": 0
+  }
+]

@@ -203,6 +203,8 @@ export function skillBodyForModel(skill: SkillDefinition): string {
 export interface SkillsLoaderDeps {
   readonly io: ContextIo
   readonly platform: NodeJS.Platform
+  /** M103 D: detected skill ids from the lazy maker engine; omitted means no maker catalogue. */
+  readonly makerSkillIds?: readonly string[]
 }
 
 function parseCatalogFile(text: string): CatalogParse<ParsedSkillFile> {
@@ -227,23 +229,30 @@ export async function loadSkills(
     ),
   )
   return {
-    skills: load.entries.map((entry) => {
-      const packageRoot = packageRoots.get(entry.directory)
-      return {
-        id: entry.id,
-        source: entry.source,
-        ...entry.entry,
-        ...(entry.contentSource !== undefined && {
-          contentSource: {
-            ...entry.contentSource,
-            kind: 'skill',
-            id: entry.id,
-            version: entry.contentSource.contentHash,
-          },
-        }),
-        ...(packageRoot !== undefined && { packageRoot }),
-      }
-    }),
+    skills: load.entries
+      .filter(
+        (entry) =>
+          entry.source !== 'bundled' ||
+          !entry.id.startsWith('maker_') ||
+          deps.makerSkillIds?.includes(entry.id) === true,
+      )
+      .map((entry) => {
+        const packageRoot = packageRoots.get(entry.directory)
+        return {
+          id: entry.id,
+          source: entry.source,
+          ...entry.entry,
+          ...(entry.contentSource !== undefined && {
+            contentSource: {
+              ...entry.contentSource,
+              kind: 'skill',
+              id: entry.id,
+              version: entry.contentSource.contentHash,
+            },
+          }),
+          ...(packageRoot !== undefined && { packageRoot }),
+        }
+      }),
     warnings: load.warnings,
   }
 }

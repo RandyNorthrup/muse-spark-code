@@ -129,7 +129,7 @@
   "config.modelApiAutoReviewer.description": "Auto 模式中，付費審查會判斷尚未解決的高風險操作；無法繞過禁止的命令、受保護的寫入或必須詢問的要求。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。",
   "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。",
   "command.downloadBrowserCheckRuntime.title": "下載瀏覽器檢查執行階段",
-  "config.browserCheckExtraHosts.description": "瀏覽器檢查可以開啟和連線的本電腦以外主機，以不含連接埠、路徑或萬用字元的一般主機名稱或 IP 位址表示；列出回送名稱還會允許本機頁面使用 https 和 WebSocket。空白表示僅限一般 http 的本機頁面，除非你在卡片或確認中針對該次檢查允許某個主機。傳往清單中主機的 https 和 WebSocket 流量經過加密且不受檢查，該網站可能會以此電腦的帳戶代你登入（尤其是在 Windows 上）。只有你可以擴大此範圍，模型不能，存放庫的設定也不能。",
+  "config.browserCheckExtraHosts.description": "僅限使用者設定：公共主機名稱或開發伺服器的精確 http(s) 來源。修改設定後，非迴路來源需要另行確認位址。已註冊的機器主機與已知的印表機/CNC 介面一律拒絕，Bypass 也不例外。私有 Web/機器連接埠與加密私有通道會遭拒。移除來源即可撤銷權限。空清單不允許本地伺服器。",
   "config.browserCheckRuntime.description": "瀏覽器檢查取得瀏覽器的方式：Google 的 Chrome for Testing headless shell，固定為此延伸模組版本，從 storage.googleapis.com 下載到延伸模組的儲存空間（每個固定版本約 100 到 120 MB）。只有你可以變更此項，存放庫的設定不能。",
   "config.browserCheckRuntime.enumDescriptions.ask": "下載前詢問。",
   "config.browserCheckRuntime.enumDescriptions.download": "檢查需要時直接下載而不詢問，現在以及之後每個固定的版本都是如此。",

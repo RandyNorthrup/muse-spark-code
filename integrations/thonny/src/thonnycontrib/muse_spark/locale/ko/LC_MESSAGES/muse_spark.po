@@ -1,0 +1,48 @@
+# Muse Spark Code (Unofficial), MIT.
+msgid ""
+msgstr "Language: ko\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+msgid "Open Muse Spark"
+msgstr "Muse Spark 열기"
+
+msgid "Stop machine"
+msgstr "기계 중지"
+
+msgid "Stop"
+msgstr "중지"
+
+msgid "Cannot start Muse Spark"
+msgstr "Muse Spark를 시작할 수 없습니다"
+
+msgid "Cannot reach Muse Spark"
+msgstr "Muse Spark에 연결할 수 없습니다"
+
+msgid "Cannot open Muse Spark"
+msgstr "Muse Spark를 열 수 없습니다"
+
+msgid "Stop machine failed"
+msgstr "기계를 중지하지 못했습니다"
+
+msgid "The runtime could not start. Check its installation and try again."
+msgstr "런타임을 시작하지 못했습니다. 설치 상태를 확인하고 다시 시도하세요."
+
+msgid "The local provider connection failed. Close Muse Spark and try again."
+msgstr "로컬 공급자 연결에 실패했습니다. Muse Spark를 닫고 다시 시도하세요."
+
+msgid "The system browser could not open the companion page."
+msgstr "시스템 브라우저가 컴패니언 페이지를 열지 못했습니다."
+
+msgid "The stop command failed. Use the machine's physical emergency stop if needed."
+msgstr "중지 명령에 실패했습니다. 필요한 경우 기계의 물리적 비상 정지 장치를 사용하세요."
+
+msgid "Hand the port to Muse Spark"
+msgstr "포트를 Muse Spark에 넘기기"
+
+msgid "Give the port back to Thonny"
+msgstr "포트를 Thonny에 돌려주기"
+
+msgid "Cannot transfer the port"
+msgstr "포트를 넘길 수 없음"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "포트 소유권이 확인되지 않았습니다. 명시적인 직렬 포트를 선택하고 Muse Spark를 연 다음 다시 시도하세요. 이전 결과가 불확실하면 Thonny는 연결이 끊긴 상태를 유지합니다."

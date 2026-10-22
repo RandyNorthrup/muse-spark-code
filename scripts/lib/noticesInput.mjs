@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 
 const NODE_MODULES = 'node_modules/'
 
-// Esbuild names the resource parser's cloned inputs with its namespace.
+// Esbuild names deferred parser inputs with their validation namespaces.
 export function noticePackageDir(input) {
-  const file = input.replace(/^resource-validation:/, '').replaceAll('\\', '/')
+  const file = input.replace(/^(?:resource|maker)-validation:/, '').replaceAll('\\', '/')
   if (!file.includes(NODE_MODULES)) return
   const at = file.lastIndexOf(NODE_MODULES) + NODE_MODULES.length
   const [scopeOrName = '', name = ''] = file.slice(at).split('/', 2)

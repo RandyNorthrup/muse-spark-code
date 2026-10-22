@@ -369,6 +369,18 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/runtimeMaker.js',
+    metafile: 'dist/meta/runtimeMaker.json',
+    files: [
+      'src/runtime/maker/entry.ts',
+      'src/runtime/maker/service.ts',
+      'src/runtime/maker/nativeSerial.ts',
+      'src/runtime/maker/runtimeMakerHost.ts',
+      'src/runtime/maker/companionServer.ts',
+      'src/runtime/maker/thonnyServer.ts',
+    ],
+  },
+  {
     output: 'dist/schedules.js',
     metafile: 'dist/meta/schedules.json',
     files: [
@@ -688,6 +700,35 @@ export const ON_FIRST_USE = [
     use: 'the first ACP question, elicitation or question command',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
     files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
+  },
+  {
+    output: 'dist/makerContracts.js',
+    metafile: 'dist/meta/makerContracts.json',
+    use: 'the first maker message or hardware approval',
+    files: ['src/shared/makerProtocol.ts', 'src/shared/makerProtocolPreview.ts'],
+  },
+  {
+    output: 'dist/makerHost.js',
+    metafile: 'dist/meta/makerHost.json',
+    use: 'the first maker UI or device tool',
+    files: [
+      'src/host/maker/makerEntry.ts',
+      'src/host/maker/vscodeMakerHost.ts',
+      'src/host/maker/makerCommands.ts',
+      'src/host/ide/makerTools.ts',
+    ],
+  },
+  {
+    output: 'dist/makerPreviewHost.js',
+    metafile: 'dist/meta/makerPreviewHost.json',
+    use: 'the first maker preview',
+    files: ['src/host/maker/makerPreviewEntry.ts', 'src/host/maker/makerPreviewPanel.ts'],
+  },
+  {
+    output: 'dist/verifyEditor.js',
+    metafile: 'dist/meta/verifyEditor.json',
+    use: 'the first diagnostics or formatting request',
+    files: ['src/host/editor/verifyEditor.ts', 'src/core/verify/jsonDiagnostics.ts'],
   },
   {
     output: 'dist/runtimeAccounts.js',
@@ -1047,6 +1088,16 @@ export const ON_FIRST_USE = [
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
   const problems = []
+  const makerHost = inputsOf(ON_FIRST_USE.find((bundle) => bundle.output === 'dist/makerHost.js'))
+  for (const file of [
+    'src/host/maker/makerPreviewEntry.ts',
+    'src/host/maker/makerPreviewPanel.ts',
+  ]) {
+    if (makerHost.has(file))
+      problems.push(
+        `dist/makerHost.js carries ${file}, which loads only on the first maker preview`,
+      )
+  }
   for (const [names, owner] of [
     [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
     [SHARED_TRANSPORT_ONLY, BUNDLES.modelApi],
@@ -1310,6 +1361,21 @@ export const sharedValidation = {
   },
 }
 
+// Maker schemas remain outside startup and are shared by the lazy guard,
+// maker host and standalone runtime instead of being copied into each one.
+export const sharedMakerContracts = {
+  name: 'shared-maker-contracts',
+  setup(build) {
+    build.onResolve({ filter: /\/makerProtocol(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return source === path.resolve('src/shared/makerProtocol.ts') &&
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/makerContracts.js')
+        ? { path: './makerContracts.js', external: true }
+        : undefined
+    })
+  },
+}
+
 // Keep dynamic imports dynamic: these entries run only on their first action.
 // Exported for the generated lazy registry (scripts/gen-lazy-registry.mjs):
 // the source entry each filename-loaded bundle resolves from.
@@ -1332,6 +1398,8 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/core/backends/musecode/approvalModesEntry.ts'), 'dist/approvalModes.js'],
+  [path.resolve('src/host/maker/makerEntry.ts'), 'dist/makerHost.js'],
+  [path.resolve('src/host/maker/makerPreviewEntry.ts'), 'dist/makerPreviewHost.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
@@ -1411,7 +1479,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:makerEntry|makerPreviewEntry|mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

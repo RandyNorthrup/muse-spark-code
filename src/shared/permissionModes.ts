@@ -137,8 +137,13 @@ The MSP mode to select for a UI permission mode. `hasApprovalUi` is false
 until M4 renders `approval/requested`; while it is false a prompting mode
 would hang the turn, so it degrades to `denyUnmatched`.
 */
-export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): ApprovalMode {
-  const mapped = mspApprovalMode(mode)
+export function approvalModeFor(
+  mode: PermissionMode,
+  hasApprovalUi: boolean,
+  isHardwareWorkspace?: boolean,
+): ApprovalMode {
+  const mapped =
+    mode === 'bypassPermissions' && isHardwareWorkspace ? 'promptUnmatched' : mspApprovalMode(mode)
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
 }
 
@@ -163,11 +168,11 @@ export function composerModeForApprovalMode(
 /** The modes the Modes menu lists, in the Claude Code order. */
 export function availablePermissionModes(
   canBypass: boolean,
+  isHardwareWorkspace?: boolean,
 ): readonly [PermissionMode, ...PermissionMode[]] {
-  const [first, ...rest] = PERMISSION_MODES
-  return canBypass
+  return canBypass && !isHardwareWorkspace
     ? PERMISSION_MODES
-    : [first, ...rest.filter((mode) => mode !== 'bypassPermissions')]
+    : ['manual', 'acceptEdits', 'plan', 'auto']
 }
 
 /**

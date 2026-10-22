@@ -1,0 +1,16 @@
+--- a/scripts/third-party-notices.mjs
++++ b/scripts/third-party-notices.mjs
+@@ -107,11 +107,11 @@
+   for (const file of metafiles) {
+     const metafile = JSON.parse(readFileSync(file, 'utf8'))
+     for (const output of Object.values(metafile.outputs)) {
+-      const packageInputs = Object.keys(output.inputs).filter((input) =>
++      const packageInputs = Object.keys(output.inputs).map((input) => input.replaceAll('\\', '/').replace(/^maker-validation:/, '')).filter((input) =>
+         input.includes(NODE_MODULES),
+       )
+       for (const input of packageInputs) {
+-        dirs.add(packageDirOf(input))
++        dirs.add(path.resolve(packageDirOf(input)))
+       }
+     }
+   }

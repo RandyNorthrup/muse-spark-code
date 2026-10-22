@@ -1,0 +1,62 @@
+{
+  "firmware": "Klipper native offline batch from virtual-klipper-printer image sha256:6c4dabb3eca5c20e8d98c6bd3b14db406b83dd3cf62539e409073e7a021198d1",
+  "capture": "FIXM103M3 Kubuntu generic-simulavr.cfg + gcode_arcs resolution 0.1; trace-only G1/arc-start instrumentation",
+  "modelAttempts": 0,
+  "initial": {
+    "x": 127,
+    "y": 127,
+    "z": 127
+  },
+  "radiusMm": 25.4,
+  "zCapMm": 139,
+  "columns": ["minX", "minY", "minZ", "maxX", "maxY", "maxZ"],
+  "rounding": "Extrema rounded outward to 0.000001 mm; full traces retained in capture workspace",
+  "accepted": {
+    "G17-G2-G90-G21": [127.0, 101.600012, 127.0, 177.799951, 152.399988, 127.0],
+    "G17-G3-G90-G21": [127.0, 101.600012, 127.0, 177.799951, 152.399988, 127.0],
+    "G18-G2-G90-G21": [127.0, 127.0, 101.600012, 177.799951, 127.0, 152.399988],
+    "G18-G3-G90-G21": [127.0, 127.0, 101.600012, 177.799951, 127.0, 152.399988],
+    "G19-G2-G90-G21": [127.0, 127.0, 101.600012, 127.0, 177.799951, 152.399988],
+    "G19-G3-G90-G21": [127.0, 127.0, 101.600012, 127.0, 177.799951, 152.399988]
+  },
+  "rejected": {
+    "G17-G2-G90-G20": ["Machine does not support G20 (inches) command"],
+    "G17-G2-G91-G21": ["G2/G3 does not support relative move mode"],
+    "G17-G2-G91-G20": [
+      "Machine does not support G20 (inches) command",
+      "G2/G3 does not support relative move mode"
+    ],
+    "G17-G3-G90-G20": ["Machine does not support G20 (inches) command"],
+    "G17-G3-G91-G21": ["G2/G3 does not support relative move mode"],
+    "G17-G3-G91-G20": [
+      "Machine does not support G20 (inches) command",
+      "G2/G3 does not support relative move mode"
+    ],
+    "G18-G2-G90-G20": ["Machine does not support G20 (inches) command"],
+    "G18-G2-G91-G21": ["G2/G3 does not support relative move mode"],
+    "G18-G2-G91-G20": [
+      "Machine does not support G20 (inches) command",
+      "G2/G3 does not support relative move mode"
+    ],
+    "G18-G3-G90-G20": ["Machine does not support G20 (inches) command"],
+    "G18-G3-G91-G21": ["G2/G3 does not support relative move mode"],
+    "G18-G3-G91-G20": [
+      "Machine does not support G20 (inches) command",
+      "G2/G3 does not support relative move mode"
+    ],
+    "G19-G2-G90-G20": ["Machine does not support G20 (inches) command"],
+    "G19-G2-G91-G21": ["G2/G3 does not support relative move mode"],
+    "G19-G2-G91-G20": [
+      "Machine does not support G20 (inches) command",
+      "G2/G3 does not support relative move mode"
+    ],
+    "G19-G3-G90-G20": ["Machine does not support G20 (inches) command"],
+    "G19-G3-G91-G21": ["G2/G3 does not support relative move mode"],
+    "G19-G3-G91-G20": [
+      "Machine does not support G20 (inches) command",
+      "G2/G3 does not support relative move mode"
+    ]
+  },
+  "acceptedReply": "exit 0",
+  "rejectedReply": "exit 255"
+}

@@ -79,8 +79,12 @@ import {
 } from './providers/accountArgs'
 import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault/vaultCommand'
 
+import { parseMakerCommand, type MakerCommand } from './maker/commandArgs'
+
 export interface ServeOptions {
   readonly initialModelId?: string
+  /** M103: physical tools require this flag and the workspace grant. */
+  readonly hardware?: boolean
   readonly usageHistory?: boolean
   readonly companionVoice?: boolean
   /** Which account pays; chosen here, never guessed (D62). */
@@ -151,6 +155,7 @@ export interface ProvidersAddOptions {
 }
 
 export type RuntimeCommand =
+  | MakerCommand
   | { readonly command: 'dictate'; readonly paid: boolean; readonly trustWorkspace: boolean }
   | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'schedule'; readonly options: ScheduleCommandOptions }
@@ -471,6 +476,12 @@ export function parseCommandLine<T>(
   const argv = hoistLeadingCommand(args)
   const divider = argv.indexOf('--')
   const flags = divider === -1 ? argv : argv.slice(0, divider)
+  try {
+    const maker = parseMakerCommand(argv)
+    if (maker !== undefined) return maker
+  } catch {
+    return { command: 'invalid', reason: UI_TEXT.makerDevicesTitle, exitCode: 2 }
+  }
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
     // Bare `report --help` is the report command's own help, not the help
@@ -752,6 +763,7 @@ export function parseCommandLine<T>(
     return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage, exitCode: 2 }
   const options: ServeOptions = {
     ...(values.model?.[0] !== undefined && { initialModelId: values.model[0] }),
+    ...(values.hardware === true && { hardware: true }),
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
     }),

@@ -1,0 +1,91 @@
+[
+  {
+    "name": "fixm103u5-bom-drill",
+    "file": "src/core/maker/canonicalPayload.ts",
+    "sha256": "fa10bd0997a37d12cb317503379f2edc3d28891ff711a2d2a1263b4649222999",
+    "restoredSha256": "fa10bd0997a37d12cb317503379f2edc3d28891ff711a2d2a1263b4649222999",
+    "exit": 1,
+    "failures": [
+      "      Tests  2 failed | 46 passed (48)",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > BOM bytes at the start and inside a payload are always visible",
+      "AssertionError: expected 'M105\u240d\u240a' to be '\\xef\\xbb\\xbfM105\\xef\\xbb\\xbf\u240d\u240a' // Object.is equality",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > random byte strings round-trip from the canonical rendering with every byte accounted for",
+      "AssertionError: expected Uint8Array[ 104, 101, 108, 108, \u2026(-96) ] to deeply equal Uint8Array[ 239, 187, 191, 104, \u2026(-80) ]"
+    ]
+  },
+  {
+    "name": "fixm103u5-danger-drill",
+    "file": "src/core/maker/payloadSummary.ts",
+    "sha256": "8de610e6a272b43b47598be715a59e54682e432d451c5cfa4c1462d5cbdf2ed8",
+    "restoredSha256": "8de610e6a272b43b47598be715a59e54682e432d451c5cfa4c1462d5cbdf2ed8",
+    "exit": 1,
+    "failures": [
+      "      Tests  6 failed | 42 passed (48)",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 6 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > safety-sensitive command M302 always needs the extra acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > safety-sensitive command M302 P always needs the extra acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > safety-sensitive command M302 P2 always needs the extra acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > safety-sensitive command M302 S1 always needs the extra acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > safety-sensitive command M302 P0 S170 always needs the extra acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > safety-sensitive command M0302P2 always needs the extra acknowledgement"
+    ]
+  },
+  {
+    "name": "fixm103u5-search-bound-drill",
+    "file": "src/webview/maker/PayloadReview.tsx",
+    "sha256": "923fd0b8599bbba8c3565cbb54aeae0eca6c48b443d7db6e4992cc52e09cd262",
+    "restoredSha256": "923fd0b8599bbba8c3565cbb54aeae0eca6c48b443d7db6e4992cc52e09cd262",
+    "exit": 1,
+    "failures": [
+      "      Tests  2 failed | 11 passed (13)",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: worst-case search with 10000 repeated rows keeps Stop below 100 ms",
+      "AssertionError: expected 329.1999969482422 to be less than 100",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: worst-case search with 20000 repeated rows keeps Stop below 100 ms",
+      "AssertionError: expected 358.39999771118164 to be less than 100"
+    ]
+  },
+  {
+    "name": "fixm103u5-stop-cancel-drill",
+    "file": "src/webview/maker/StopChip.tsx",
+    "sha256": "799e3091382d8150fca2c88670d94fe56aa945f0c6f3c78544a8d8c8c9fa20d0",
+    "restoredSha256": "799e3091382d8150fca2c88670d94fe56aa945f0c6f3c78544a8d8c8c9fa20d0",
+    "exit": 1,
+    "failures": [
+      "      Tests  1 failed | 48 passed (49)",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > Stop cancels search on its own event path before any search work resumes"
+    ]
+  },
+  {
+    "name": "fixm103u5-ready-drill",
+    "file": "src/webview/makerEntry.ts",
+    "sha256": "999840b556b3e70fc98abf1a2c0b193867447eae0a3a45e9280cc7d1686bd3d7",
+    "restoredSha256": "999840b556b3e70fc98abf1a2c0b193867447eae0a3a45e9280cc7d1686bd3d7",
+    "exit": 1,
+    "failures": [
+      "      Tests  4 failed | 10 passed (14)",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      " FAIL  test/unit/makerEntryLoading.test.ts > initial load failure preserves Stop, Retry and pending messages",
+      "AssertionError: expected \"vi.fn()\" to be called once with arguments: [ { v: 1, type: 'makerReady' } ]",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: retry reloads and refetches a failed static dependency, preserving panel state",
+      "AssertionError: expected +0 to be 10 // Object.is equality",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: reload re-fetches large host payloads (JSON expansion false) and retains Stop",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: reload re-fetches large host payloads (JSON expansion true) and retains Stop"
+    ]
+  },
+  {
+    "name": "fixm103u5-reopen-drill",
+    "file": "src/core/maker/ports.ts",
+    "sha256": "8e3eb15d242dc3156327fe837d1952230d1cff1d46ec0c8946c1e0bde4b1a7cb",
+    "restoredSha256": "8e3eb15d242dc3156327fe837d1952230d1cff1d46ec0c8946c1e0bde4b1a7cb",
+    "exit": 1,
+    "failures": [
+      "      Tests  1 failed | 45 passed (46)",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      " FAIL  test/unit/makerApproval.test.ts > host replay preserves exact large bytes and revokes readiness from the previous document",
+      "AssertionError: expected { \u2026(4) } to be undefined"
+    ]
+  }
+]

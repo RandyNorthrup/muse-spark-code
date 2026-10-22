@@ -1,36 +1,5 @@
-// The browser check's own proxy (M81 A1, design spec v4 §3.2): the
-// enforcing boundary. One per check, on 127.0.0.1 at a port the OS picks;
-// the browser sends everything to it (`--proxy-server`, `<-loopback>`, and
-// the same proxy on the private browser context), loopback included, and
-// a network-service restart returns to it, since it is the command line's.
-//
-// - Plain absolute-form HTTP goes on to `localhost`, 127.0.0.0/8, `[::1]`
-//   or a host the user explicitly widened; anything else is refused with a
-//   fixed 403 before any lookup or connection.
-// - CONNECT goes on only to an explicitly widened host: implicit loopback
-//   never tunnels (an HTTPS or WebSocket page on loopback needs its host
-//   widened). The reserved auth sentinel is never a destination.
-// - Every request is parsed strictly (Node's parser), reserialized with a
-//   canonical Host and `Connection: close`, its hop-by-hop fields and the
-//   fields they nominate dropped, and Authorization and
-//   Proxy-Authorization never forwarded. Every response loses every
-//   WWW-Authenticate and Proxy-Authenticate field (duplicates, any case);
-//   its trailers and informational heads are never relayed, so a sign-in
-//   challenge cannot reach the browser over plain HTTP.
-// - Heads are bounded (16 KiB; a request head within 3 s, an upstream
-//   answer's head within 3 s of its first byte), connections too (64), and
-//   bodies stream with backpressure; the check's deadline bounds the rest.
-//   The proxy never answers 407 and never sends a credential.
-// - `localhost` connects to fixed loopback literals; a numeric host
-//   connects as written; a widened name is looked up once, after approval,
-//   and that answer is connected without a second lookup.
-//
-// Observations (form, host, port, forwarded, challenge stripped) are for
-// the check's canaries only: no path, query, header, body or raw error.
-// `forwarded: false` is a refusal before any lookup or connection, and only
-// that: an admitted destination is recorded as forwarded even when its
-// lookup or connection then fails. Opaque tunnels to widened hosts are not
-// inspected (spec §3.4).
+// Every upstream connection is pinned to one resolved address. Private addresses
+// require an exact dev origin; companion ports are never allowed.
 
 import { lookup } from 'node:dns/promises'
 import {
@@ -39,7 +8,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http'
-import { connect, isIPv4, type Socket } from 'node:net'
+import { connect, isIPv4, isIPv6, type Socket } from 'node:net'
 import type { Duplex } from 'node:stream'
 import {
   BROWSER_AUTH_SENTINEL,
@@ -51,13 +20,23 @@ import {
   BROWSER_PROXY_HOST,
   BROWSER_PROXY_MAX_CONNECTIONS,
 } from '../../shared/browserCheckConstants'
-import { isLoopbackHost } from './browserPolicy'
+import { isMakerCompanionPort, isExplicitDevOrigin, isMachineBrowserUrl } from './browserPolicy'
+import {
+  BROWSER_MACHINE_PORTS,
+  BROWSER_MACHINE_UI,
+  BROWSER_DEV_HTML_MAX_BYTES,
+} from '../../shared/constants'
+import { isPublicAddress } from '../publicAddress'
+import type { Nat64Discovery } from '../web/webFetch'
+import * as z from 'zod/mini'
+import type { PhaseFixture } from './canaries'
 import { listen } from './canaries'
+import { makerCompanionPorts } from '../maker/companionRegistry'
 
 /** What a check may reach, frozen when the user approved it. */
 export interface FrozenScope {
   readonly url: string
-  /** Hosts the user explicitly widened, as `browserPolicy` writes them; loopback is implicit. */
+  /** Public widened hosts and confirmed user-level dev origins, as browserPolicy writes them. */
   readonly explicitHosts: readonly string[]
   readonly approvalKey: string
 }
@@ -77,6 +56,8 @@ export interface CheckProxy {
   /** `http://127.0.0.1:<port>`: trusted host data, never the model's. */
   readonly endpoint: string
   readonly bypassList: typeof BROWSER_PROXY_BYPASS
+  /** Trusted canary controller only, exact nonce path, revoked before page traffic. */
+  allowProbe?(target: Pick<PhaseFixture, 'port' | 'nonce' | 'loopbackHosts'>): () => void
   observe(listener: (record: ProxyObservation) => void): () => void
   /** Closes the listener and every connection it made or accepted. */
   close(): Promise<void>
@@ -91,6 +72,7 @@ interface Destination {
   /** `host[:port]` as the canonical URL writes it, for the Host field. */
   readonly authority: string
   readonly path: string
+  readonly scheme: 'http:' | 'https:'
 }
 
 const HTTP_PREFIX = 'http://'
@@ -114,9 +96,12 @@ const HOP_BY_HOP: ReadonlySet<string> = new Set([
   'http2-settings',
   'authorization',
   'proxy-authorization',
+  'accept-encoding',
 ])
 const CHALLENGES: ReadonlySet<string> = new Set(['www-authenticate', 'proxy-authenticate'])
 const NOMINATING: ReadonlySet<string> = new Set(['connection', 'proxy-connection'])
+
+class DestinationDenied extends Error {}
 
 function ignore(): void {
   // A socket that already failed has nothing more to say.
@@ -176,7 +161,13 @@ function httpDestination(request: IncomingMessage): Destination | undefined {
     hosts.length !== 1 ||
     hosts[0]?.[1].toLowerCase() !== url.host
     ? undefined
-    : { host: url.hostname, port, authority: url.host, path: `${url.pathname}${url.search}` }
+    : {
+        host: url.hostname,
+        port,
+        authority: url.host,
+        path: `${url.pathname}${url.search}`,
+        scheme: 'http:',
+      }
 }
 
 /** A CONNECT's destination: an authority only, `host:port`, written canonically. */
@@ -199,7 +190,7 @@ function connectDestination(request: IncomingMessage): Destination | undefined {
     url.search !== '' ||
     `${url.hostname}:${String(port)}` !== raw
     ? undefined
-    : { host: url.hostname, port, authority: raw, path: '' }
+    : { host: url.hostname, port, authority: raw, path: '', scheme: 'https:' }
 }
 
 /**
@@ -238,8 +229,12 @@ spawned. Its listener and every connection close with `close()`.
 export async function startCheckProxy(
   scope: FrozenScope,
   lookupName: ProxyLookup = NODE_LOOKUP,
+  nat64: () => Promise<Nat64Discovery> = () =>
+    Promise.resolve({ isKnown: false, detail: 'no-discovery' }),
+  registeredMachines?: () => Promise<readonly string[]>,
 ): Promise<CheckProxy> {
   const explicit = new Set(scope.explicitHosts.filter((host) => host !== BROWSER_AUTH_SENTINEL))
+  const probes = new Set<Pick<PhaseFixture, 'port' | 'nonce' | 'loopbackHosts'>>()
   const listeners = new Set<(record: ProxyObservation) => void>()
   const sockets = new Set<Duplex>()
   let isClosed = false
@@ -279,12 +274,65 @@ export async function startCheckProxy(
       return [host.slice(1, -1)]
     }
     // An explicitly widened name, approved before this lookup: one answer.
-    return [await lookupName(host)]
+    const address = await lookupName(host)
+    return [isIPv6(address) ? new URL(`http://[${address}]/`).hostname.slice(1, -1) : address]
   }
-  const connectFirst = async ({ host, port }: Destination): Promise<Socket> => {
+  const connectFirst = async (destination: Destination): Promise<Socket> => {
+    const { host, port } = destination
+    const url = new URL(`${destination.scheme}//${destination.authority}/`)
+    const isDev =
+      isExplicitDevOrigin(url, explicit) ||
+      (destination.path === '' &&
+        isExplicitDevOrigin(new URL(`http://${destination.authority}/`), explicit))
+    const isProbe =
+      destination.scheme === 'http:' &&
+      [...probes].some(
+        (target) =>
+          target.port === port &&
+          target.loopbackHosts.includes(host) &&
+          destination.path.startsWith(`/${target.nonce}/`),
+      )
+    let blockedAddresses: readonly string[] = []
+    if (!isProbe) {
+      if (
+        registeredMachines === undefined ||
+        isMachineBrowserUrl(new URL(destination.path || '/', url))
+      )
+        throw new DestinationDenied('browser-machine-origin-denied')
+      const endpoints = await registeredMachines()
+      const hosts = endpoints.map((endpoint) => new URL(endpoint).hostname)
+      if (hosts.includes(host)) throw new DestinationDenied('browser-registered-machine-denied')
+      const resolved = await Promise.all(
+        hosts.map(async (machineHost) => await addressesOf(machineHost)),
+      )
+      blockedAddresses = resolved.flat()
+    }
+    // Re-read before every upstream connection, including redirects and newly started panels.
+    const deniedPorts = await makerCompanionPorts()
+    if (isMakerCompanionPort(port) || deniedPorts.has(port))
+      throw new DestinationDenied('maker-companion-navigation-denied')
     let last: unknown = new Error('no address')
     const addresses = await addressesOf(host)
+    const translation =
+      !isProbe && addresses.some((address) => isIPv6(address))
+        ? await nat64()
+        : { isKnown: true as const, prefixes: [] }
     for (const address of addresses) {
+      if (!isProbe && blockedAddresses.includes(address))
+        throw new DestinationDenied('browser-registered-machine-denied')
+      if (
+        !isProbe &&
+        translation.isKnown &&
+        !isPublicAddress(address, translation.prefixes) &&
+        (BROWSER_MACHINE_PORTS.has(port) || destination.scheme === 'https:')
+      )
+        throw new DestinationDenied('browser-machine-ui-denied')
+      if (
+        !isProbe &&
+        ((!translation.isKnown && isIPv6(address)) ||
+          (!isDev && !isPublicAddress(address, translation.isKnown ? translation.prefixes : [])))
+      )
+        throw new DestinationDenied('browser-private-address-denied')
       try {
         return await new Promise<Socket>((resolve, reject) => {
           const socket = connect({ host: address, port })
@@ -311,7 +359,14 @@ export async function startCheckProxy(
       response.writeHead(STATUS_FORBIDDEN, { 'Content-Length': '0' }).end()
       return
     }
-    if (!isLoopbackHost(destination.host) && !explicit.has(destination.host)) {
+    const isProbe = [...probes].some(
+      (target) =>
+        target.port === destination.port &&
+        target.loopbackHosts.includes(destination.host) &&
+        destination.path.startsWith(`/${target.nonce}/`),
+    )
+    const isDev = isExplicitDevOrigin(new URL(`http://${destination.authority}/`), explicit)
+    if (!isProbe && !isDev && !explicit.has(destination.host)) {
       note('http', destination, false)
       response.writeHead(STATUS_FORBIDDEN, { 'Content-Length': '0' }).end()
       request.resume()
@@ -328,9 +383,13 @@ export async function startCheckProxy(
     let socket: Socket
     try {
       socket = await connectFirst(destination)
-    } catch {
-      note('http', destination, true)
-      response.writeHead(STATUS_BAD_GATEWAY, { 'Content-Length': '0' }).end()
+    } catch (error) {
+      note('http', destination, !(error instanceof DestinationDenied))
+      response
+        .writeHead(error instanceof DestinationDenied ? STATUS_FORBIDDEN : STATUS_BAD_GATEWAY, {
+          'Content-Length': '0',
+        })
+        .end()
       request.resume()
       return
     }
@@ -338,7 +397,13 @@ export async function startCheckProxy(
       createConnection: () => socket,
       method: request.method,
       path: destination.path,
-      headers: [...cleanHead(request.rawHeaders).head, 'Host', destination.authority],
+      headers: [
+        ...cleanHead(request.rawHeaders).head,
+        'Host',
+        destination.authority,
+        'Accept-Encoding',
+        'identity',
+      ],
       setHost: false,
       maxHeaderSize: BROWSER_PROXY_HEAD_MAX_BYTES,
     })
@@ -387,6 +452,36 @@ export async function startCheckProxy(
         return
       }
       const { head, stripped } = cleanHead(answer.rawHeaders)
+      if (
+        answer.headers['content-type']?.toLowerCase().includes('html') === true ||
+        ['document', 'iframe', 'frame'].includes(
+          request.headers['sec-fetch-dest']?.toString() ?? '',
+        )
+      ) {
+        void (async () => {
+          const chunks: Buffer[] = []
+          let bytes = 0
+          for await (const raw of answer) {
+            const chunk = z.instanceof(Buffer).parse(raw)
+            bytes += chunk.length
+            if (bytes > BROWSER_DEV_HTML_MAX_BYTES) throw new DestinationDenied('browser-html-size')
+            chunks.push(chunk)
+          }
+          const page = Buffer.concat(chunks)
+          if (
+            answer.headers['content-encoding'] !== undefined ||
+            BROWSER_MACHINE_UI.test(page.toString('utf8'))
+          )
+            throw new DestinationDenied('browser-machine-ui-denied')
+          note('http', destination, true, stripped)
+          response.writeHead(status, head).end(page)
+        })().catch(() => {
+          answer.destroy()
+          note('http', destination, false)
+          response.writeHead(STATUS_FORBIDDEN, { 'Content-Length': '0' }).end()
+        })
+        return
+      }
       note('http', destination, true, stripped)
       response.writeHead(status, head)
       answer.pipe(response)
@@ -399,16 +494,18 @@ export async function startCheckProxy(
   const onConnect = (request: IncomingMessage, client: Duplex, head: Buffer): void => {
     track(client)
     const destination = connectDestination(request)
-    if (destination === undefined || !explicit.has(destination.host)) {
+    if (
+      destination === undefined ||
+      (!explicit.has(destination.host) &&
+        !isExplicitDevOrigin(new URL(`https://${destination.authority}/`), explicit) &&
+        !isExplicitDevOrigin(new URL(`http://${destination.authority}/`), explicit))
+    ) {
       if (destination !== undefined) {
         note('connect', destination, false)
       }
       client.end(DENIED)
       return
     }
-    // Admitted, so recorded as such before any lookup: one that then fails
-    // is never a refusal.
-    note('connect', destination, true)
     void tunnel(client, head, destination)
   }
 
@@ -416,10 +513,12 @@ export async function startCheckProxy(
     let upstream: Socket
     try {
       upstream = await connectFirst(destination)
-    } catch {
+    } catch (error) {
+      note('connect', destination, !(error instanceof DestinationDenied))
       client.end(DENIED)
       return
     }
+    note('connect', destination, true)
     client.write(TUNNEL_OPEN)
     if (head.length > 0) {
       upstream.write(head)
@@ -457,6 +556,12 @@ export async function startCheckProxy(
   return {
     endpoint: `${HTTP_PREFIX}${BROWSER_PROXY_HOST}:${String(port)}`,
     bypassList: BROWSER_PROXY_BYPASS,
+    allowProbe: (target) => {
+      probes.add(target)
+      return () => {
+        probes.delete(target)
+      }
+    },
     observe: (listener) => {
       listeners.add(listener)
       return () => {

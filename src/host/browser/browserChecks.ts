@@ -35,6 +35,8 @@ import {
 } from '../../shared/constants'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
+import { isMakerCompanionPort } from '../../core/browser/browserPolicy'
+import { makerCompanionPorts } from '../../core/maker/companionRegistry'
 
 interface BrowserCheckBundle {
   readonly runBrowserCheck: (
@@ -94,6 +96,17 @@ export class BrowserChecks {
     }
     if (!this.isOffered()) {
       return { ok: false, failure: { kind: 'notOffered' } }
+    }
+    try {
+      const deniedPorts = await makerCompanionPorts()
+      if (
+        isMakerCompanionPort(Number(new URL(request.url).port)) ||
+        deniedPorts.has(Number(new URL(request.url).port))
+      )
+        return { ok: false, failure: { kind: 'pageBlocked' } }
+    } catch {
+      // An unreadable companion registry cannot establish a safe navigation target.
+      return { ok: false, failure: { kind: 'pageBlocked' } }
     }
     const bundle = this.load(this.deps.checkBundlePath, isBrowserCheckBundle)
     if (bundle === undefined) {

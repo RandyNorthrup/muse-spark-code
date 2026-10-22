@@ -1,0 +1,509 @@
+{
+  "rig": "kubuntu",
+  "revision": "c002dcb6d6f34067755ad73a058c6b0ef9bfcdcb",
+  "base": "39144b5194e10f32f44734bb6219214331cbc2fb",
+  "node": "v24.18.0",
+  "npm": "12.0.1",
+  "environment": "Fresh local clone; separate CI=true npm ci; no hardware, paid or live calls.",
+  "testCommand": "CI=true npx vitest run <complete owning files> --maxWorkers=3 --coverage --shard=1/1",
+  "coverage": "Existing CI shard collection. Full-map thresholds are unchanged and remain a lead merge gate.",
+  "timeout": "Repository defaults; no --testTimeout and no new named timeout.",
+  "files": [
+    "CHANGELOG.md",
+    "PLAN.md",
+    "README.md",
+    "docs/acp.md",
+    "docs/certification/m103-g.md",
+    "docs/certification/m103-g5-modes-dark.png",
+    "docs/certification/m103-g5-review-tests.json",
+    "src/core/backends/modelapi/ModelApiHost.ts",
+    "src/core/backends/musecode/MuseCodeHost.ts",
+    "src/core/maker/hardwareContext.ts",
+    "src/host/backend/museCodeBackendManager.ts",
+    "src/shared/l10n/en.ts",
+    "src/webview/App.tsx",
+    "test/harness/index.html",
+    "test/unit/App.test.tsx",
+    "test/unit/approvalHardware.test.ts",
+    "test/unit/hardwareBrowserText.test.mjs",
+    "test/unit/hardwareContextOwner.test.ts",
+    "test/unit/hardwareDesign5.test.ts",
+    "test/unit/hardwareDesign5Review.test.ts",
+    "test/unit/helpers/acpMsp.ts",
+    "test/unit/helpers/fakeMsp.ts",
+    "test/unit/modelApiHost.test.ts",
+    "test/unit/museCodeBackendManager.test.ts"
+  ],
+  "baseline": [
+    {
+      "receipt": "review-base-final-red",
+      "failed": 16,
+      "passed": 158,
+      "files": [
+        "unit/App.test.tsx",
+        "unit/hardwareDesign5Review.test.ts",
+        "unit/museCodeBackendManager.test.ts"
+      ]
+    },
+    {
+      "receipt": "review-base-p2-red",
+      "failed": 6,
+      "passed": 629,
+      "files": ["unit/hardwareContextOwner.test.ts", "unit/modelApiHost.test.ts"]
+    },
+    {
+      "receipt": "review-base-browser-red",
+      "failed": 1,
+      "passed": 0,
+      "files": ["unit/hardwareBrowserText.test.mjs"]
+    }
+  ],
+  "repetitions": [
+    {
+      "repeat": 1,
+      "passed": 1821,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "repeat": 2,
+      "passed": 1821,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "repeat": 3,
+      "passed": 1821,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "batches": [
+    {
+      "repeat": 1,
+      "batch": 1,
+      "files": [
+        "test/unit/hardwareDesign5Review.test.ts",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/hardwareContextOwner.test.ts"
+      ],
+      "exit": 0,
+      "passed": 649,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 33824
+    },
+    {
+      "repeat": 1,
+      "batch": 2,
+      "files": [
+        "test/unit/hardwareDesign5.test.ts",
+        "test/unit/approvalHardware.test.ts",
+        "test/unit/hardwareWorkspace.test.ts"
+      ],
+      "exit": 0,
+      "passed": 175,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 6921
+    },
+    {
+      "repeat": 1,
+      "batch": 3,
+      "files": [
+        "test/unit/MuseCodeHost.test.ts",
+        "test/unit/museCodeBackendManager.test.ts",
+        "test/unit/App.test.tsx"
+      ],
+      "exit": 0,
+      "passed": 256,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 25357
+    },
+    {
+      "repeat": 1,
+      "batch": 4,
+      "files": [
+        "test/unit/conversationController.test.ts",
+        "test/unit/acpAgent.test.ts",
+        "test/e2e/museCode.e2e.test.ts"
+      ],
+      "exit": 0,
+      "passed": 657,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 26904
+    },
+    {
+      "repeat": 1,
+      "batch": 5,
+      "files": [
+        "test/unit/museCodeReviewer.test.ts",
+        "test/unit/museCodeReviewerBundle.test.ts",
+        "test/e2e/acpStdio.e2e.test.ts"
+      ],
+      "exit": 0,
+      "passed": 57,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 16385
+    },
+    {
+      "repeat": 1,
+      "batch": 6,
+      "files": ["test/unit/hardwareBrowserText.test.mjs", "test/unit/l10n.test.ts"],
+      "exit": 0,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 6023
+    },
+    {
+      "repeat": 2,
+      "batch": 1,
+      "files": [
+        "test/unit/hardwareDesign5Review.test.ts",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/hardwareContextOwner.test.ts"
+      ],
+      "exit": 0,
+      "passed": 649,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 33571
+    },
+    {
+      "repeat": 2,
+      "batch": 2,
+      "files": [
+        "test/unit/hardwareDesign5.test.ts",
+        "test/unit/approvalHardware.test.ts",
+        "test/unit/hardwareWorkspace.test.ts"
+      ],
+      "exit": 0,
+      "passed": 175,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 6814
+    },
+    {
+      "repeat": 2,
+      "batch": 3,
+      "files": [
+        "test/unit/MuseCodeHost.test.ts",
+        "test/unit/museCodeBackendManager.test.ts",
+        "test/unit/App.test.tsx"
+      ],
+      "exit": 0,
+      "passed": 256,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 25496
+    },
+    {
+      "repeat": 2,
+      "batch": 4,
+      "files": [
+        "test/unit/conversationController.test.ts",
+        "test/unit/acpAgent.test.ts",
+        "test/e2e/museCode.e2e.test.ts"
+      ],
+      "exit": 0,
+      "passed": 657,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 26858
+    },
+    {
+      "repeat": 2,
+      "batch": 5,
+      "files": [
+        "test/unit/museCodeReviewer.test.ts",
+        "test/unit/museCodeReviewerBundle.test.ts",
+        "test/e2e/acpStdio.e2e.test.ts"
+      ],
+      "exit": 0,
+      "passed": 57,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 16494
+    },
+    {
+      "repeat": 2,
+      "batch": 6,
+      "files": ["test/unit/hardwareBrowserText.test.mjs", "test/unit/l10n.test.ts"],
+      "exit": 0,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 6163
+    },
+    {
+      "repeat": 3,
+      "batch": 1,
+      "files": [
+        "test/unit/hardwareDesign5Review.test.ts",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/hardwareContextOwner.test.ts"
+      ],
+      "exit": 0,
+      "passed": 649,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 33781
+    },
+    {
+      "repeat": 3,
+      "batch": 2,
+      "files": [
+        "test/unit/hardwareDesign5.test.ts",
+        "test/unit/approvalHardware.test.ts",
+        "test/unit/hardwareWorkspace.test.ts"
+      ],
+      "exit": 0,
+      "passed": 175,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 6927
+    },
+    {
+      "repeat": 3,
+      "batch": 3,
+      "files": [
+        "test/unit/MuseCodeHost.test.ts",
+        "test/unit/museCodeBackendManager.test.ts",
+        "test/unit/App.test.tsx"
+      ],
+      "exit": 0,
+      "passed": 256,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 25489
+    },
+    {
+      "repeat": 3,
+      "batch": 4,
+      "files": [
+        "test/unit/conversationController.test.ts",
+        "test/unit/acpAgent.test.ts",
+        "test/e2e/museCode.e2e.test.ts"
+      ],
+      "exit": 0,
+      "passed": 657,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 27152
+    },
+    {
+      "repeat": 3,
+      "batch": 5,
+      "files": [
+        "test/unit/museCodeReviewer.test.ts",
+        "test/unit/museCodeReviewerBundle.test.ts",
+        "test/e2e/acpStdio.e2e.test.ts"
+      ],
+      "exit": 0,
+      "passed": 57,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 16336
+    },
+    {
+      "repeat": 3,
+      "batch": 6,
+      "files": ["test/unit/hardwareBrowserText.test.mjs", "test/unit/l10n.test.ts"],
+      "exit": 0,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "ms": 6025
+    }
+  ],
+  "mutations": [
+    {
+      "name": "dispatch",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/hardwareDesign5Review.test.ts",
+      "exit": 1,
+      "failed": 10,
+      "before": "fdf7c7dd1e39a59358264570f69b3b8fe739325839dd7feb7360c1c2c858d02c",
+      "after": "fdf7c7dd1e39a59358264570f69b3b8fe739325839dd7feb7360c1c2c858d02c"
+    },
+    {
+      "name": "owner",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/hardwareDesign5Review.test.ts",
+      "exit": 1,
+      "failed": 2,
+      "before": "fdf7c7dd1e39a59358264570f69b3b8fe739325839dd7feb7360c1c2c858d02c",
+      "after": "fdf7c7dd1e39a59358264570f69b3b8fe739325839dd7feb7360c1c2c858d02c"
+    },
+    {
+      "name": "resume",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/hardwareDesign5Review.test.ts",
+      "exit": 1,
+      "failed": 3,
+      "before": "fdf7c7dd1e39a59358264570f69b3b8fe739325839dd7feb7360c1c2c858d02c",
+      "after": "fdf7c7dd1e39a59358264570f69b3b8fe739325839dd7feb7360c1c2c858d02c"
+    },
+    {
+      "name": "manager",
+      "file": "src/host/backend/museCodeBackendManager.ts",
+      "test": "test/unit/museCodeBackendManager.test.ts",
+      "exit": 1,
+      "failed": 1,
+      "before": "78111b80ca791bbcff6df1d625b3da14f8f89ba137674192a231f6b8678f220c",
+      "after": "78111b80ca791bbcff6df1d625b3da14f8f89ba137674192a231f6b8678f220c"
+    },
+    {
+      "name": "stop",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/modelApiHost.test.ts",
+      "exit": 1,
+      "failed": 2,
+      "before": "2c75a8efce250b026393665d4b5d7ead57e4854edd0931c4ddd055885e8ab956",
+      "after": "2c75a8efce250b026393665d4b5d7ead57e4854edd0931c4ddd055885e8ab956"
+    },
+    {
+      "name": "entry",
+      "file": "src/core/maker/hardwareContext.ts",
+      "test": "test/unit/hardwareContextOwner.test.ts",
+      "exit": 1,
+      "failed": 1,
+      "before": "7fb455686d64a01bb552e23a821f1a077c6d764ff64a7c40692441ffa20c83d4",
+      "after": "7fb455686d64a01bb552e23a821f1a077c6d764ff64a7c40692441ffa20c83d4"
+    },
+    {
+      "name": "descriptor",
+      "file": "src/core/maker/hardwareContext.ts",
+      "test": "test/unit/hardwareContextOwner.test.ts",
+      "exit": 1,
+      "failed": 1,
+      "before": "7fb455686d64a01bb552e23a821f1a077c6d764ff64a7c40692441ffa20c83d4",
+      "after": "7fb455686d64a01bb552e23a821f1a077c6d764ff64a7c40692441ffa20c83d4"
+    },
+    {
+      "name": "nonblocking",
+      "file": "src/core/maker/hardwareContext.ts",
+      "test": "test/unit/hardwareContextOwner.test.ts",
+      "exit": 1,
+      "failed": 1,
+      "before": "7fb455686d64a01bb552e23a821f1a077c6d764ff64a7c40692441ffa20c83d4",
+      "after": "7fb455686d64a01bb552e23a821f1a077c6d764ff64a7c40692441ffa20c83d4"
+    },
+    {
+      "name": "menu",
+      "file": "src/webview/App.tsx",
+      "test": "test/unit/App.test.tsx",
+      "exit": 1,
+      "failed": 1,
+      "before": "4e7af7a32e29bea287f2bf92c4ef49b74f27250c22916278cfbbcf4b94d28bf2",
+      "after": "4e7af7a32e29bea287f2bf92c4ef49b74f27250c22916278cfbbcf4b94d28bf2"
+    }
+  ],
+  "browserRetentionMutation": {
+    "file": "scripts/lib/hardwareGuardSplit.mjs",
+    "test": "test/unit/hardwareBrowserText.test.mjs",
+    "failed": 1,
+    "before": "4e1d8112fb1103c7cac0f620b6ea827b5b0337a7c627d6825909f87348f2c163",
+    "after": "4e1d8112fb1103c7cac0f620b6ea827b5b0337a7c627d6825909f87348f2c163"
+  },
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "ms": 61487
+    },
+    {
+      "name": "eslint",
+      "command": "npm run lint:js",
+      "exit": 0,
+      "ms": 199490
+    },
+    {
+      "name": "stylelint",
+      "command": "npm run lint:css",
+      "exit": 0,
+      "ms": 1238
+    },
+    {
+      "name": "powershell",
+      "command": "npm run lint:ps",
+      "exit": 0,
+      "ms": 209
+    },
+    {
+      "name": "prettier",
+      "command": "npm run format:check",
+      "exit": 0,
+      "ms": 51540
+    },
+    {
+      "name": "knip",
+      "command": "npm run deadcode",
+      "exit": 0,
+      "ms": 3255
+    },
+    {
+      "name": "cycles",
+      "command": "npm run cycles",
+      "exit": 0,
+      "ms": 5394
+    },
+    {
+      "name": "duplication",
+      "command": "npx jscpd",
+      "exit": 0,
+      "ms": 1029
+    },
+    {
+      "name": "l10n",
+      "command": "/usr/bin/node scripts/check-l10n.mjs",
+      "exit": 0,
+      "ms": 1958
+    },
+    {
+      "name": "host-api",
+      "command": "/usr/bin/node scripts/check-host-api.mjs",
+      "exit": 0,
+      "ms": 13725
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "exit": 0,
+      "ms": 3236
+    }
+  ],
+  "bundles": [
+    {
+      "file": "dist/extension.js",
+      "bytes": 605083
+    },
+    {
+      "file": "dist/modelApi.js",
+      "bytes": 450275
+    },
+    {
+      "file": "dist/hardwareGuard.js",
+      "bytes": 18654
+    },
+    {
+      "file": "dist/hardwareShell.js",
+      "bytes": 20476
+    },
+    {
+      "file": "dist/acp.js",
+      "bytes": 832078
+    }
+  ],
+  "visual": "Production bundle; repository Playwright withSizedPage helper; four modes with migration text and no Bypass. Screenshot m103-g5-modes-dark.png.",
+  "limitations": [
+    "PowerShell analyzer retains its existing non-Windows skip.",
+    "Aggregate quality/full coverage, hosted OS/editor matrix, USB/registry and physical/OS-lock qualification remain lead gates.",
+    "npm ci reported 13 dependency advisories and npm 12 blocked three native install scripts; pins and installer policy unchanged."
+  ]
+}

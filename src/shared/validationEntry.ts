@@ -43,6 +43,7 @@ export {
   nullable,
   number,
   object,
+  omit,
   optional,
   omit,
   partial,

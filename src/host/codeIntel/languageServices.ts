@@ -7,7 +7,7 @@
 
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
-import { VSCODE_COMMANDS } from '../../shared/constants'
+import { UNREGISTERED_HOST_COMMAND, VSCODE_COMMANDS } from '../../shared/constants'
 import type {
   CallDirection,
   CallHierarchyAnswer,
@@ -163,16 +163,46 @@ async function callHierarchy(
   return { item: fromCallItem(item), calls, otherItems: items.length - 1 }
 }
 
+function isUnregisteredCommand(error: unknown, command: string): boolean {
+  return error instanceof Error && UNREGISTERED_HOST_COMMAND.exec(error.message)?.[1] === command
+}
+
 async function rename(uri: vscode.Uri, at: CodePosition, newName: string): Promise<RenameEdits> {
   const position = toPosition(at)
   // Rejects with the provider's reason ("You cannot rename this element.").
-  await run(VSCODE_COMMANDS.prepareRename, uri, position)
-  const edit = await run<vscode.WorkspaceEdit>(
-    VSCODE_COMMANDS.executeDocumentRenameProvider,
-    uri,
-    position,
-    newName,
-  )
+  const commands = await vscode.commands.getCommands(false)
+  // VS Code lists internal provider identifiers, not its public API aliases.
+  // Captured in m103-a2/vscode-commands.json; dispatch stays on the public API.
+  if (
+    !commands.includes(VSCODE_COMMANDS.executeDocumentRenameProvider) &&
+    !commands.includes(VSCODE_COMMANDS.executeDocumentRenameProviderInternal)
+  ) {
+    return { files: [], fileOperations: 'none' }
+  }
+  if (
+    commands.includes(VSCODE_COMMANDS.prepareRename) ||
+    commands.includes(VSCODE_COMMANDS.prepareRenameInternal)
+  ) {
+    try {
+      await run(VSCODE_COMMANDS.prepareRename, uri, position)
+    } catch (error: unknown) {
+      // Theia lists the internal command but lacks the optional public alias.
+      // Only its captured missing-command failure is ignored; provider refusals propagate.
+      if (!isUnregisteredCommand(error, VSCODE_COMMANDS.prepareRename)) throw error
+    }
+  }
+  let edit: vscode.WorkspaceEdit | undefined
+  try {
+    edit = await run<vscode.WorkspaceEdit>(
+      VSCODE_COMMANDS.executeDocumentRenameProvider,
+      uri,
+      position,
+      newName,
+    )
+  } catch (error: unknown) {
+    if (!isUnregisteredCommand(error, VSCODE_COMMANDS.executeDocumentRenameProvider)) throw error
+    return { files: [], fileOperations: 'none' }
+  }
   if (edit === undefined) {
     return { files: [], fileOperations: 'none' }
   }

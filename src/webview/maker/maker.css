@@ -1,0 +1,214 @@
+.maker-surface {
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+.maker-toolbar {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  max-width: calc(100% - 16px);
+  z-index: 30;
+  padding: 6px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+.maker-toolbar,
+.maker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.maker-stop {
+  display: flex;
+  flex-direction: column;
+  max-height: min(120px, 40dvh);
+  overflow: hidden;
+  gap: 2px;
+  min-height: 28px;
+}
+
+.maker-stop > button {
+  flex-shrink: 0;
+}
+
+.maker-stop-list {
+  display: grid;
+  overflow: auto;
+  min-height: 0;
+  gap: 2px;
+}
+
+.maker-toolbar > .maker-stop {
+  flex-basis: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--vscode-editorWidget-background);
+}
+
+.maker-surface button {
+  min-height: 26px;
+}
+
+.maker-stop button {
+  min-width: 44px;
+  min-height: 28px;
+}
+
+.maker-surface button:not([class]),
+.maker-toolbar button:not([class]) {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius);
+  font: inherit;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+
+.maker-loading-toolbar {
+  display: block;
+}
+
+.maker-loading-toolbar > button:first-child {
+  position: sticky;
+  top: 0;
+}
+
+.maker-surface button:not([class]):hover:enabled,
+.maker-toolbar button:not([class]):hover:enabled {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.maker-surface .modal-backdrop {
+  z-index: 40;
+}
+
+.maker-surface .modal {
+  max-height: calc(100dvh - 16px);
+  min-height: 0;
+}
+
+.maker-surface .modal-header,
+.maker-surface .maker-stop-slot {
+  flex-shrink: 0;
+}
+
+.maker-surface .modal-body {
+  overflow-y: auto;
+}
+
+.maker-surface .modal > .maker-stop-slot {
+  padding-block: 4px;
+  background: var(--vscode-editorWidget-background);
+}
+
+.maker-surface pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.maker-surface .maker-payload {
+  font-family: monospace;
+  white-space: pre;
+  overflow-wrap: normal;
+  flex-shrink: 0;
+  height: min(40vh, 400px);
+  overflow: auto;
+  scroll-margin-top: 64px;
+  border: 1px solid var(--vscode-panel-border);
+  padding: 0;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.maker-payload-rows {
+  position: relative;
+}
+
+.maker-payload-rows > span {
+  position: absolute;
+  inset-inline: 0;
+  display: block;
+  white-space: pre;
+}
+
+.maker-payload [data-highlight],
+.maker-danger {
+  color: var(--vscode-editorWarning-foreground);
+  text-decoration: underline;
+}
+
+.maker-digest {
+  overflow-wrap: anywhere;
+}
+
+@media (height <= 160px) {
+  .maker-surface .modal-header {
+    padding-block: 2px;
+  }
+
+  .maker-surface .maker-stop-slot {
+    gap: 2px;
+    padding-block: 2px;
+  }
+}
+
+.maker-surface form button[type='submit'] {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.maker-approval-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.maker-surface label {
+  display: block;
+  margin-block: 8px;
+}
+
+.maker-surface input:not([type='checkbox']),
+.maker-surface select,
+.maker-surface textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  font: inherit;
+}
+
+.maker-surface :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.maker-surface fieldset {
+  min-width: 0;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.maker-surface > p[role='status'] {
+  position: fixed;
+  bottom: 16px;
+  left: 8px;
+  max-width: calc(100% - 32px);
+  padding: 8px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  z-index: 31;
+}
+
+.maker-log {
+  padding-inline-start: 24px;
+}

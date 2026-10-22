@@ -126,4 +126,50 @@ describe('runShell', () => {
     expect(result.stdout).toBe('')
     expect(result.stderr).toBe('')
   })
+
+  it.each(['shell', 'hook'] as const)(
+    'R3F2/F3: %s entry rechecks after environment preparation',
+    async (kind) => {
+      let isAllowed = true
+      const io = createToolIo({
+        platform: process.platform,
+        listFiles: () => Promise.resolve([]),
+        systemRoot: undefined,
+        env: () => {
+          isAllowed = false
+          return process.env
+        },
+        searchWorkerPath: '',
+        log: () => undefined,
+        unsavedFiles: () => [],
+      })
+      isAllowed = true
+      const assertCanStart = () => {
+        if (!isAllowed) throw new Error('Target changed during environment preparation')
+      }
+      const result =
+        kind === 'hook'
+          ? await io.runHook?.(
+              'echo REVIEW_FAKE_ACTUATION',
+              '{}',
+              base,
+              5000,
+              undefined,
+              undefined,
+              assertCanStart,
+            )
+          : await io.runShell(
+              'echo REVIEW_FAKE_ACTUATION',
+              base,
+              5000,
+              undefined,
+              undefined,
+              assertCanStart,
+            )
+      if (result === undefined) throw new Error('Missing hook adapter')
+      expect(result.isEntryRefused).toBe(true)
+      expect(result.isWorkspaceShutdownProven).toBe(true)
+      expect(result.stdout).toBe('')
+    },
+  )
 })

@@ -553,6 +553,66 @@ const CHECKPOINT_ONLY = [
   'src/host/checkpoints/writeRecorder.ts',
 ]
 const checkpointStore = inputsOf(CHECKPOINT_STORE)
+const HARDWARE_GUARD = { output: 'dist/hardwareGuard.js', metafile: 'dist/meta/hardwareGuard.json' }
+const hardwareGuard = inputsOf(HARDWARE_GUARD)
+const HARDWARE_SHELL = { output: 'dist/hardwareShell.js', metafile: 'dist/meta/hardwareShell.json' }
+const hardwareShell = inputsOf(HARDWARE_SHELL)
+const HOST_HARDWARE_TEXT = [
+  'approvalHardwareNote',
+  'hardwareShellNote',
+  'hardwareProgramWarning',
+  'hardwareConnectWarning',
+  'hardwareActuateWarning',
+  'hardwareRefused',
+  'hardwareUnattended',
+  'hardwareExpired',
+  'hardwareBypassNotice',
+]
+const browserFiles = readdirSync('src/webview', { recursive: true })
+for (const name of browserFiles) {
+  const file = `src/webview/${name}`
+  if (!/\.[cm]?[jt]sx?$/.test(file)) continue
+  const source = readFileSync(file, 'utf8')
+  if (HOST_HARDWARE_TEXT.some((key) => source.includes(key)))
+    problems.push(`${file} reads host-only hardware text omitted from browser fallback`)
+}
+for (const file of [
+  'src/core/maker/guardEntry.ts',
+  'src/core/maker/ports.ts',
+  'src/core/maker/sessionGuard.ts',
+  'src/core/maker/guardSecrets.ts',
+  'src/core/maker/guard/actionClass.ts',
+  'src/core/agent/approvalHardware.ts',
+  'src/core/agent/approvalRules.ts',
+  'src/core/agent/approvalSecrets.ts',
+]) {
+  if (!hardwareGuard.has(file)) problems.push(`${HARDWARE_GUARD.output} no longer carries ${file}`)
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file))
+      problems.push(
+        `${output} carries ${file}, which loads only on the first hardware classification`,
+      )
+  }
+}
+for (const file of [
+  'src/core/maker/shellEntry.ts',
+  'src/core/maker/guard/shellParse.ts',
+  'src/core/maker/guard/shellPolicy.ts',
+  'src/core/maker/guard/hardwareCommands.ts',
+  'src/core/maker/guard/httpCommands.ts',
+]) {
+  if (!hardwareShell.has(file)) problems.push(`${HARDWARE_SHELL.output} no longer carries ${file}`)
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [HARDWARE_GUARD.output, hardwareGuard],
+  ])
+    if (inputs.has(file)) problems.push(`${output} eagerly carries first-use shell module ${file}`)
+}
+// FIXM103DIET: the shell reads hasHardwareEvidence only; the shared constants
+// reach it through hardwareContext's detection code and must stay out.
+for (const file of ['src/shared/constants.ts', 'src/shared/browserCheckConstants.ts'])
+  if (hardwareShell.has(file)) problems.push(`${HARDWARE_SHELL.output} carries unused ${file}`)
 const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 // The English fallback is shared; installed-language state stays in each bundle.
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
@@ -683,6 +743,8 @@ for (const bundle of [
   BUNDLES.modelApi,
   BUNDLES.acp,
   CHECKPOINT_STORE,
+  HARDWARE_GUARD,
+  HARDWARE_SHELL,
   PROMPTS,
   SHARING_RUNTIME,
   CONNECTOR,
@@ -1272,7 +1334,6 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
 // declared; every other shipped bundle, lazily loaded ones included, must
 // not carry it (the review of the diet, P2-2: a lazy bundle that read one key
 // of another lazy bundle's block would carry the whole block).
-const CONSTANTS = 'src/shared/constants.ts'
 /** Every JavaScript bundle the production build ships, from its metafiles. */
 function shippedBundles() {
   return ['dist/meta', 'dist/meta-acp'].flatMap((dir) =>
@@ -1298,7 +1359,16 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
-problems.push(...checkResourceBundles(inputsOf, SHIPPED))
+const resourceProblems = checkResourceBundles(inputsOf, SHIPPED)
+problems.push(...resourceProblems)
+// Refuse an invalid boundary before the expensive source-reader scans. All
+// successful runs still execute every check below, with the same thresholds.
+if (resourceProblems.length > 0) {
+  console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
+  for (const problem of problems) console.error(`  ${problem}`)
+  process.exit(1)
+}
+const CONSTANTS = 'src/shared/constants.ts'
 // The chat ESM graph carries the review template in a shared chunk. Models
 // is a separate graph and may also use constants, but never this template.
 // textOf(main) checks every chunk in its graph; require its actual reader.
@@ -1364,6 +1434,22 @@ const TEXT_BLOCKS = [
     block: 'QUESTION_DELIVERY_MODEL_TEXT',
     sentinels: ['lateAnswer'],
     readers: ['dist/conversation.js', 'dist/runtimeQuestions.js'],
+  },
+  {
+    block: 'MAKER_HOST_MODEL_TEXT',
+    sentinels: ['deviceList', 'serialWrite', 'machineStop'],
+    readers: ['dist/makerHost.js'],
+  },
+  {
+    block: 'RUNTIME_MAKER_MODEL_TEXT',
+    sentinels: [
+      'runtimeMakerStatus',
+      'runtimeMakerSend',
+      'runtimeMakerStop',
+      'runtimeMakerPorts',
+      'runtimeMakerSerial',
+    ],
+    readers: ['dist/runtimeMaker.js'],
   },
   {
     block: 'CONVERSATION_MODEL_TEXT',
@@ -1693,6 +1779,31 @@ webviewMeta.outputs = Object.fromEntries(
   ]),
 )
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+// M103 U: only makerEntry's lazy loader may be eager. Guard every UI helper,
+// including future files, rather than relying solely on the named entry list.
+for (const [file, output] of Object.entries(webviewMeta.outputs)) {
+  if (eagerWebview.has(file)) {
+    for (const source of Object.keys(output.inputs)) {
+      if (
+        source.replaceAll('\\', '/').startsWith('src/webview/maker/') ||
+        source.replaceAll('\\', '/').startsWith('src/core/maker/') ||
+        source.includes('maker-validation:') ||
+        source.replaceAll('\\', '/').endsWith('l10n/makerEnglish.ts')
+      )
+        problems.push(`Maker UI must stay deferred: ${source}`)
+    }
+  }
+}
+const makerPreviewMeta = JSON.parse(readFileSync('dist/meta/makerPreview.json', 'utf8'))
+for (const source of Object.keys(makerPreviewMeta.inputs)) {
+  if (
+    source.startsWith('src/core/') ||
+    source.startsWith('src/host/') ||
+    source.startsWith('src/shared/l10n/') ||
+    source.startsWith('node_modules/react')
+  )
+    problems.push(`Maker preview must stay portable and independent: ${source}`)
+}
 for (const file of eagerWebview) {
   const sources = Object.keys(webviewMeta.outputs[file].inputs)
   for (const source of sources) {
@@ -1826,6 +1937,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'webview.json',
         'whatsNewPage.json',
         'referencePage.json',
+        'makerPreview.json',
         'modelsWebview.json',
         'usageWebview.json',
         'voiceCompanionWebview.json',
