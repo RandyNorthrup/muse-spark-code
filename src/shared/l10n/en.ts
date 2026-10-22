@@ -5209,6 +5209,19 @@ export const EN = {
   teamSwitchReasonReset: 'headroom back after reset',
   teamPoolNotStaffed: 'Role {role} has no entries in its pool: it is not staffed.',
   teamCapExceeded: '{entry} has no {measure}/{window} headroom left ({used} of {amount} used).',
+  teamRouteReason: 'Task matches the {role} area ({areas}).',
+  teamRouteNoMatch: 'Task matches no role area; it stays with engineering.',
+  teamRouteSplit: 'Split across {roles}.',
+  teamRouteCrossReview: '{author} work, cross-reviewed by {reviewer}.',
+  teamResumeBriefEmpty: 'Task {task} is new to {candidate}: no earlier work to resume.',
+  teamResumeBriefBorrow:
+    'Task {task} continues with {candidate}: borrowed from {lender} for {role}.',
+  teamResumeBriefRecall:
+    'Task {task} returns to {candidate}: the recall ended {ending}; new files: {files}.',
+  teamResumeBriefMove: 'Task {task} moves from {from} to {candidate}: {trigger}.',
+  teamCodingRoleFrontend: 'Build what the person sees: panels, pages, styles and interactions.',
+  teamCodingRoleBackend: 'Build what serves it: APIs, storage, workers and their contracts.',
+  teamCodingRoleEngineering: 'Build the shared core both sides run on: logic, tools and wiring.',
   // Inline completions (M94, PLAN.md D73): the paid feature, the
   // once-per-window popup (Q-M94a), the status bar with its menu, the snooze
   // and the Account & usage row. {price} is a dollar amount in the display
