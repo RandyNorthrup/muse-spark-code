@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { claimHardwareLease, stopHardwareLease } from '../../src/core/maker/lease'
 import { makerLeaseDeps, makerProcessDeps } from './helpers/makerSerial'
 
@@ -135,13 +135,17 @@ describe('real process death across atomic lease publication', () => {
       }
       await makerProcessDeps().kill(child, started)
       await ended
-      const stop = vi.fn(() => Promise.resolve())
+      let stops = 0
+      const stop = () => {
+        stops += 1
+        return Promise.resolve()
+      }
       const recovered = await claimHardwareLease(deps, resource, 'recovery', stop)
       expect(recovered.status).toBe('acquired')
       if (recovered.status === 'acquired') {
         try {
           const result = await stopHardwareLease(deps, resource)
-          expect(stop).toHaveBeenCalledTimes(1)
+          expect(stops).toBe(1)
           expect(result).toMatchObject({
             stopped: true,
             sessions: [{ record: recovered.record, party: 'holder', status: 'stopped' }],
