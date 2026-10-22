@@ -107,6 +107,12 @@ const KNOWN: Record<string, KnownSpawn> = {
     anchor: 'verifyWindowsVaultFileSync',
     reason: 'digest-pinned helper verified before the one-shot sync start; SystemRoot-only env',
   },
+  'src/core/resources/sampler/darwinMemory.ts': {
+    kind: 'reviewed',
+    anchor: 'RESOURCE_PROBE_EMPTY_ENV_KEYS',
+    reason:
+      'the packaged signed macOS helper at its absolute path in fixed --memory-headroom mode, an env of emptied probe keys only, no shell (M107)',
+  },
 }
 
 const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
@@ -171,6 +177,12 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: '/usr/bin/python3',
     reason: 'fixed /usr/bin/python3 only, empty env',
+  },
+  'src/core/team/workers/workerOps.ts': {
+    kind: 'reviewed',
+    anchor: 'scrubWorkerEnv',
+    reason:
+      "the worker file helper by absolute path only (the packaged native helper, or the system root's PowerShell 5.1 with windowsPowerShellEnvironment), the scrubbed worker env, through the governed contained launcher (M96)",
   },
   'src/host/team/windowHints.ts': {
     kind: 'reviewed',

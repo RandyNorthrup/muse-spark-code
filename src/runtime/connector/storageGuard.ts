@@ -11,20 +11,20 @@
 // timeout of ours stands on those fixed OS calls. A refusal names its fixed
 // reason word only, never a path.
 import { Buffer } from 'node:buffer'
-import { execFile } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { chmod, lstat, readdir, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { withoutCredentials } from '../../core/credentialEnvironment'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../core/execGuard'
+import type { GuardedChildEnv } from '../../core/executables'
+import { execFileGuarded } from '../../core/guardedChildProcess'
 import {
   CONNECTOR_FILE_MODE,
   CONNECTOR_FOLDER_MODE,
   MEDIA_PRIVATE_ROOT_TRUSTED_SIDS,
   POSIX_GROUP_OTHER_WRITE_BITS,
   POSIX_STICKY_BIT,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
-  WINDOWS_PSMODULEPATH_SEGMENTS,
-  WINDOWS_PSMODULEPATH_VARIABLE,
   WINDOWS_WRITE_CLASS_RIGHTS,
 } from '../../shared/constants'
 import {
@@ -59,35 +59,24 @@ const POSIX_MACOS_DIRECTORY_MODE = 'drwx------'
 const POSIX_MACOS_FILE_MODE = '-rw-------'
 
 /** One fixed program run to completion; any failure is a storage refusal with its cause. */
-function runFixed(file: string, args: readonly string[], env: NodeJS.ProcessEnv): Promise<string> {
+function runFixed(file: string, args: readonly string[], env: GuardedChildEnv): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(file, [...args], { env, windowsHide: true }, (failure, stdout) => {
+    execFileGuarded(file, args, { env, windowsHide: true }, (failure, stdout) => {
       if (failure === null) resolve(stdout)
       else reject(refused('access', failure))
     })
   })
 }
 
-interface WindowsShell {
-  readonly file: string
-  readonly env: NodeJS.ProcessEnv
-}
-
-/** The system root's own PowerShell, never PATH, with a credential-free module path. */
-function windowsShell(): WindowsShell {
+/**
+The system root's own PowerShell, never PATH: the shared 5.1 launch
+(windowsPowerShell), credential-free with Windows PowerShell's own module
+path, as the token file's routine runs it.
+*/
+function windowsShell(): { readonly file: string; readonly env: GuardedChildEnv } {
   const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
   if (systemRoot === undefined || !/^[a-z]:\\/iu.test(systemRoot)) throw refused('access')
-  const stripped = withoutCredentials(process.env)
-  const env: NodeJS.ProcessEnv = {}
-  for (const [name, value] of Object.entries(stripped))
-    if (name.toUpperCase() !== WINDOWS_PSMODULEPATH_VARIABLE.toUpperCase()) env[name] = value
-  const programFiles =
-    process.env['ProgramFiles'] ?? path.win32.join(systemRoot, '..', 'Program Files')
-  env[WINDOWS_PSMODULEPATH_VARIABLE] = [
-    path.win32.join(programFiles, ...WINDOWS_PSMODULEPATH_SEGMENTS.programFiles),
-    path.win32.join(systemRoot, ...WINDOWS_PSMODULEPATH_SEGMENTS.systemRoot),
-  ].join(';')
-  return { file: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH), env }
+  return windowsPowerShell(systemRoot)
 }
 
 // The single path arrives as base64 JSON in $inputPath; no caller text is
@@ -346,7 +335,11 @@ async function windowsVerify(root: string, anchor: string): Promise<void> {
 
 /** macOS only: the path carries no extended ACL, so the mode proves privacy. */
 async function isMacosModeBare(file: string, expected: string): Promise<boolean> {
-  const stdout = await runFixed('/bin/ls', ['-ledn', file], withoutCredentials(process.env))
+  const stdout = await runFixed(
+    '/bin/ls',
+    ['-ledn', file],
+    noWorkspaceChildEnvironment(process.platform, withoutCredentials(process.env), realpathSync),
+  )
   const lines = stdout.trimEnd().split('\n')
   const first = lines[0] ?? ''
   return lines.length === 1 && first.startsWith(expected) && !first.includes('+')
