@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Aufbewahrungsdauer täglicher Nutzungsübersichten in Tagen. Ohne Einstellung bleiben sie erhalten, bis Sie eine Tagesanzahl festlegen oder sie löschen; eine ganze Tagesanzahl ab 1 gilt wie gesetzt. Details einzelner Aufrufe werden 30 Tage aufbewahrt.",
   "command.connectChatGpt": "Mit ChatGPT fortfahren",
   "command.connectCopilot": "Meine Copilot-Modelle verwenden",
+  "command.connectGrok": "Mit Grok fortfahren",
   "command.shareChat.title": "Chat teilen…",
   "command.sharePrompt.title": "Prompt teilen…",
   "command.promptLibrary.title": "Prompt-Bibliothek",

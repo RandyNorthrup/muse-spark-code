@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "A napi használati összesítések megőrzési ideje napokban. Beállítás nélkül megmaradnak, amíg be nem állít egy napszámot, vagy nem törli őket; az 1 vagy több egész nap beállítás szerint érvényes. Az egyes hívások részletei 30 napig maradnak meg.",
   "command.connectChatGpt": "Folytatás ChatGPT-vel",
   "command.connectCopilot": "Saját Copilot-modellek használata",
+  "command.connectGrok": "Folytatás Grokkal",
   "command.shareChat.title": "Csevegés megosztása…",
   "command.sharePrompt.title": "Prompt megosztása…",
   "command.promptLibrary.title": "Promptkönyvtár",

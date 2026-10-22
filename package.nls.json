@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Days to keep daily usage summaries. Unset keeps them until you set a number of days or clear them; a whole number of days of 1 or more is honoured as set. Per-call detail is kept for 30 days.",
   "command.connectChatGpt": "Continue With ChatGPT",
   "command.connectCopilot": "Use My Copilot Models",
+  "command.connectGrok": "Continue With Grok",
   "command.shareChat.title": "Share Chat…",
   "command.sharePrompt.title": "Share Prompt…",
   "command.promptLibrary.title": "Prompt Library",

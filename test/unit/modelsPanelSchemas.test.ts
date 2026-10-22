@@ -30,6 +30,7 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'providers/select', presetId: 'openrouter' },
   { type: 'providers/connectSubscription', providerId: 'chatgpt' },
   { type: 'providers/connectSubscription', providerId: 'copilot' },
+  { type: 'providers/connectSubscription', providerId: 'grok' },
   { type: 'providers/edit', providerId: 'ollama' },
   { type: 'providers/edit', providerId: 'ollama', reload: true },
   { type: 'providers/prefill', fields: { address: 'https://openrouter.ai' } },

@@ -49,7 +49,8 @@
         "museSpark.modelsAndAgents",
         "museSpark.addModelProvider",
         "museSpark.connectChatGpt",
-        "museSpark.connectCopilot"
+        "museSpark.connectCopilot",
+        "museSpark.connectGrok"
       ],
       "settings": [
         "museSpark.suggestedProvider",
@@ -2659,6 +2660,16 @@
       "id": "museSpark.connectCopilot",
       "name": "Use My Copilot Models",
       "nameKey": "command.connectCopilot",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Add a model provider with an API key and pick a model.",
+      "text": { "ui": "startWithOwnModelDetail" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.connectGrok",
+      "name": "Continue With Grok",
+      "nameKey": "command.connectGrok",
       "category": "Muse Spark",
       "categoryKey": "command.category",
       "description": "Add a model provider with an API key and pick a model.",

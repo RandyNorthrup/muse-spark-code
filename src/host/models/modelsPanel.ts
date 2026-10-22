@@ -57,12 +57,18 @@ import { distinctProviderLabels } from '../../shared/providerLabels'
 import { redactSecrets } from '../../shared/redact'
 import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
-import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
+import {
+  ChatGptSignInError,
+  GrokSignInError,
+  chatGptFailureText,
+  grokFailureText,
+} from '../backend/subscriptionsEntry'
 
 export interface ModelsPanelDeps {
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: ((isNewAccount: boolean) => Promise<void>) | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
+  readonly connectGrok?: (() => Promise<void>) | undefined
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
   readonly extensionUri: vscode.Uri
@@ -319,16 +325,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (section !== 'vault') return navigateSection(section ?? 'providers', false)
     return ensureVault() === undefined ? 'providers' : 'vault'
   }
+  /** A sign-in failure's own sentence; anything else names no cause. */
+  const signInFailureNotice = (error: unknown): string => {
+    let notice = UI_TEXT.actionFailed
+    if (error instanceof ChatGptSignInError) {
+      notice = chatGptFailureText(error.code, error.reason)
+    } else if (error instanceof GrokSignInError) {
+      notice = grokFailureText(error.code, error.reason)
+    }
+    return notice
+  }
   const fail = (draft?: PanelDraft, error?: unknown): void => {
     // Exception text can contain a bare key even before it is retained.
     log.warn('Models panel operation failed')
     if (draft === undefined) {
       // Only our validated error code/reason may leave sign-in. Never show
       // arbitrary exception text here: it can contain a credential or path.
-      state.notice =
-        error instanceof ChatGptSignInError
-          ? chatGptFailureText(error.code, error.reason)
-          : UI_TEXT.actionFailed
+      state.notice = signInFailureNotice(error)
     } else {
       // Save failures name their cause with every retained key redacted. A
       // foreign failure (or none at all) names no cause: the sentence says
@@ -519,6 +532,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (id === 'chatgpt' && deps.isRemote === true) {
       return UI_TEXT.signInRemoteWindow
     }
+    if (id === 'grok' && deps.connectGrok === undefined) {
+      return UI_TEXT.signInNotOffered
+    }
+    if (id === 'grok' && deps.isRemote === true) {
+      return UI_TEXT.signInRemoteWindowGrok
+    }
     if (id === 'copilot' && deps.isConfidential?.() === true) {
       return UI_TEXT.planUi.copilotConfidential
     }
@@ -531,6 +550,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (id === 'chatgpt') {
       if (deps.connectChatGpt === undefined) throw new Error(UI_TEXT.actionFailed)
       await deps.connectChatGpt(isNewAccount)
+      return
+    }
+    if (id === 'grok') {
+      if (deps.connectGrok === undefined) throw new Error(UI_TEXT.actionFailed)
+      await deps.connectGrok()
       return
     }
     if (deps.connectCopilot === undefined) throw new Error(UI_TEXT.actionFailed)

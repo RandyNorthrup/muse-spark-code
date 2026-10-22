@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Liczba dni przechowywania dziennych podsumowań użycia. Bez ustawienia są przechowywane, dopóki nie ustawisz liczby dni lub ich nie wyczyścisz; całkowita liczba dni wynosząca 1 lub więcej obowiązuje w ustawionej wartości. Szczegóły poszczególnych wywołań są przechowywane przez 30 dni.",
   "command.connectChatGpt": "Kontynuuj z ChatGPT",
   "command.connectCopilot": "Użyj moich modeli Copilot",
+  "command.connectGrok": "Kontynuuj z Grokiem",
   "command.shareChat.title": "Udostępnij czat…",
   "command.sharePrompt.title": "Udostępnij prompt…",
   "command.promptLibrary.title": "Biblioteka promptów",

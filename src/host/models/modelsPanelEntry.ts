@@ -48,6 +48,7 @@ export interface ModelsPanelHostDeps {
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: (isNewAccount: boolean) => Promise<void>
   readonly connectCopilot?: () => Promise<void>
+  readonly connectGrok?: () => Promise<void>
   readonly removeSubscription?: (id: string) => Promise<void>
   readonly isConfidential?: () => boolean
   readonly secrets: SecretStore
@@ -428,6 +429,7 @@ export function createModelsPanelFeatures(
         sessionBudget,
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,
+        connectGrok: host.connectGrok,
         removeSubscription: host.removeSubscription,
         isConfidential: host.isConfidential,
         isRemote: host.isRemote,

@@ -222,6 +222,7 @@
   "setting.usageHistoryDays.description": "Günlük kullanım özetlerinin saklanacağı gün sayısı. Ayarlanmamışsa, bir gün sayısı ayarlayana veya temizleyene kadar saklanır; 1 veya üzeri tam gün sayısı ayarlandığı gibi geçerlidir. Çağrı ayrıntıları 30 gün saklanır.",
   "command.connectChatGpt": "ChatGPT ile devam et",
   "command.connectCopilot": "Copilot modellerimi kullan",
+  "command.connectGrok": "Grok ile devam et",
   "command.shareChat.title": "Sohbeti paylaş…",
   "command.sharePrompt.title": "İstemi paylaş…",
   "command.promptLibrary.title": "İstem kitaplığı",
