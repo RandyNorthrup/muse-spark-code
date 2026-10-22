@@ -5513,6 +5513,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (內容)",
     "noGrants": "尚無連線授權。",
+    "storageRefused": "連接器資料夾對您的帳戶不是私人的（{folder}），因此未執行任何動作。請將其設為您的帳戶私人（或將其刪除後重新授權），然後重試。",
     "unavailable": "連接器無法啟動。",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },

@@ -5513,6 +5513,7 @@
     "statusWorkspace": "  {id}: {root}{content}",
     "statusContent": " (콘텐츠)",
     "noGrants": "아직 연결 권한이 없습니다.",
+    "storageRefused": "커넥터 폴더가 계정에 비공개 상태가 아니라서({folder}) 아무 작업도 하지 않았습니다. 계정에 비공개로 만들거나(또는 삭제한 뒤 다시 권한을 부여하고) 다시 시도하세요.",
     "unavailable": "커넥터를 시작할 수 없습니다.",
     "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },
