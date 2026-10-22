@@ -9,6 +9,7 @@
   "command.openInSidebar.title": "Apri nella barra laterale",
   "command.openInNewTab.title": "Apri in una nuova scheda",
   "command.openTasks.title": "Apri le attività in una scheda",
+  "command.openDevices.title": "Apri i dispositivi in una scheda",
   "command.focusInput.title": "Attiva/Disattiva stato attivo",
   "command.insertMentionReference.title": "Inserisci menzione @ per la selezione",
   "command.toggleFocusView.title": "Attiva/Disattiva vista focalizzata",

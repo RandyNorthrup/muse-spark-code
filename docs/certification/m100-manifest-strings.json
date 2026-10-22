@@ -1,0 +1,77 @@
+{
+  "en": {
+    "command.pairDevice.title": "Pair device",
+    "config.devices.description": "Enable paired LAN devices after mutual fingerprint confirmation and an explicit local offer. Off by default. Each executing device keeps its own credentials, approvals and charges.",
+    "config.deviceDiscovery.description": "Enable optional LAN discovery for paired receivers that are offering work. Off by default. Advertises only an opaque service id, port and protocol version; discovery grants no trust."
+  },
+  "cs": {
+    "command.pairDevice.title": "Spárovat zařízení",
+    "config.devices.description": "Povolí spárovaná zařízení v LAN po vzájemném potvrzení otisků a výslovné místní nabídce. Ve výchozím stavu vypnuto. Každé vykonávající zařízení si ponechává vlastní přihlašovací údaje, schválení a poplatky.",
+    "config.deviceDiscovery.description": "Povolí volitelné vyhledávání v LAN pro spárované příjemce nabízející práci. Ve výchozím stavu vypnuto. Zveřejňuje jen neprůhledné ID služby, port a verzi protokolu; vyhledání nezakládá důvěru."
+  },
+  "de": {
+    "command.pairDevice.title": "Gerät koppeln",
+    "config.devices.description": "Aktiviert gekoppelte LAN-Geräte nach gegenseitiger Fingerabdruckbestätigung und ausdrücklichem lokalem Angebot. Standardmäßig aus. Jedes ausführende Gerät behält eigene Zugangsdaten, Genehmigungen und Kosten.",
+    "config.deviceDiscovery.description": "Aktiviert die optionale LAN-Suche für gekoppelte Empfänger, die Arbeit anbieten. Standardmäßig aus. Meldet nur eine undurchsichtige Dienst-ID, Port und Protokollversion; die Suche verleiht kein Vertrauen."
+  },
+  "es": {
+    "command.pairDevice.title": "Emparejar dispositivo",
+    "config.devices.description": "Habilita dispositivos LAN emparejados tras confirmar mutuamente las huellas y hacer una oferta local explícita. Desactivado de forma predeterminada. Cada dispositivo ejecutor conserva sus credenciales, aprobaciones y cargos.",
+    "config.deviceDiscovery.description": "Habilita la búsqueda LAN opcional de receptores emparejados que ofrecen trabajo. Desactivada de forma predeterminada. Solo anuncia un identificador opaco de servicio, puerto y versión de protocolo; la búsqueda no otorga confianza."
+  },
+  "fr": {
+    "command.pairDevice.title": "Associer un appareil",
+    "config.devices.description": "Active les appareils associés sur le réseau local après confirmation mutuelle des empreintes et offre locale explicite. Désactivé par défaut. Chaque appareil exécutant conserve ses identifiants, approbations et frais.",
+    "config.deviceDiscovery.description": "Active la découverte facultative des destinataires associés proposant du travail sur le réseau local. Désactivée par défaut. Annonce seulement un identifiant de service opaque, un port et une version de protocole ; la découverte n’accorde aucune confiance."
+  },
+  "hu": {
+    "command.pairDevice.title": "Eszköz párosítása",
+    "config.devices.description": "Engedélyezi a párosított LAN-eszközöket az ujjlenyomatok kölcsönös megerősítése és kifejezett helyi felajánlás után. Alapértelmezésben kikapcsolva. Minden végrehajtó eszköz megtartja saját hitelesítő adatait, jóváhagyásait és díjait.",
+    "config.deviceDiscovery.description": "Engedélyezi a munkát felajánló párosított fogadók opcionális LAN-felderítését. Alapértelmezésben kikapcsolva. Csak átlátszatlan szolgáltatásazonosítót, portot és protokollverziót hirdet; a felderítés nem ad bizalmat."
+  },
+  "it": {
+    "command.pairDevice.title": "Associa dispositivo",
+    "config.devices.description": "Abilita i dispositivi LAN associati dopo la conferma reciproca delle impronte e un’offerta locale esplicita. Disattivato per impostazione predefinita. Ogni dispositivo esecutore mantiene credenziali, approvazioni e costi propri.",
+    "config.deviceDiscovery.description": "Abilita la ricerca LAN facoltativa dei ricevitori associati che offrono lavoro. Disattivata per impostazione predefinita. Annuncia solo un ID di servizio opaco, la porta e la versione del protocollo; la ricerca non concede fiducia."
+  },
+  "ja": {
+    "command.pairDevice.title": "デバイスをペアリング",
+    "config.devices.description": "フィンガープリントの相互確認と明示的なローカル提供設定後に、ペアリング済みLANデバイスを有効にします。既定ではオフです。実行する各デバイスが自身の認証情報、承認、費用を保持します。",
+    "config.deviceDiscovery.description": "作業を提供するペアリング済み受信側のオプションのLAN検出を有効にします。既定ではオフです。不透明なサービスID、ポート、プロトコルバージョンのみを広告し、検出によって信頼は付与されません。"
+  },
+  "ko": {
+    "command.pairDevice.title": "기기 페어링",
+    "config.devices.description": "지문 상호 확인 및 명시적인 로컬 제공 설정 후 페어링된 LAN 기기를 활성화합니다. 기본값은 꺼짐입니다. 실행 기기마다 자체 인증 정보, 승인 및 비용을 유지합니다.",
+    "config.deviceDiscovery.description": "작업을 제공하는 페어링된 수신 기기의 선택적 LAN 검색을 활성화합니다. 기본값은 꺼짐입니다. 불투명한 서비스 ID, 포트 및 프로토콜 버전만 알리며 검색은 신뢰를 부여하지 않습니다."
+  },
+  "pl": {
+    "command.pairDevice.title": "Sparuj urządzenie",
+    "config.devices.description": "Włącza sparowane urządzenia LAN po wzajemnym potwierdzeniu odcisków i jawnej lokalnej ofercie. Domyślnie wyłączone. Każde urządzenie wykonujące zachowuje własne dane uwierzytelniające, zgody i koszty.",
+    "config.deviceDiscovery.description": "Włącza opcjonalne wykrywanie w LAN sparowanych odbiorców oferujących pracę. Domyślnie wyłączone. Ogłasza tylko nieprzejrzyste ID usługi, port i wersję protokołu; wykrycie nie nadaje zaufania."
+  },
+  "pt-br": {
+    "command.pairDevice.title": "Parear dispositivo",
+    "config.devices.description": "Ativa dispositivos LAN pareados após confirmação mútua das impressões digitais e oferta local explícita. Desativado por padrão. Cada dispositivo executor mantém suas próprias credenciais, aprovações e cobranças.",
+    "config.deviceDiscovery.description": "Ativa a descoberta LAN opcional de receptores pareados que oferecem trabalho. Desativada por padrão. Anuncia apenas um ID de serviço opaco, porta e versão de protocolo; a descoberta não concede confiança."
+  },
+  "ru": {
+    "command.pairDevice.title": "Связать устройство",
+    "config.devices.description": "Включает связанные устройства в локальной сети после взаимного подтверждения отпечатков и явного локального предложения. По умолчанию выключено. Каждое исполняющее устройство сохраняет собственные учётные данные, разрешения и расходы.",
+    "config.deviceDiscovery.description": "Включает необязательный поиск связанных получателей, предлагающих работу, в локальной сети. По умолчанию выключено. Объявляет только непрозрачный ID службы, порт и версию протокола; обнаружение не даёт доверия."
+  },
+  "tr": {
+    "command.pairDevice.title": "Cihaz eşleştir",
+    "config.devices.description": "Karşılıklı parmak izi onayı ve açık yerel teklif sonrasında eşleştirilmiş LAN cihazlarını etkinleştirir. Varsayılan olarak kapalıdır. Her yürütücü cihaz kendi kimlik bilgilerini, onaylarını ve ücretlerini korur.",
+    "config.deviceDiscovery.description": "İş sunan eşleştirilmiş alıcılar için isteğe bağlı LAN keşfini etkinleştirir. Varsayılan olarak kapalıdır. Yalnızca opak hizmet kimliği, bağlantı noktası ve protokol sürümünü duyurur; keşif güven vermez."
+  },
+  "zh-cn": {
+    "command.pairDevice.title": "配对设备",
+    "config.devices.description": "在双方确认指纹并明确选择本地提供后，启用配对的局域网设备。默认关闭。每台执行设备保留自己的凭据、批准和费用。",
+    "config.deviceDiscovery.description": "为正在提供工作的配对接收方启用可选的局域网发现。默认关闭。仅公告不透明的服务标识、端口和协议版本；发现不会授予信任。"
+  },
+  "zh-tw": {
+    "command.pairDevice.title": "配對裝置",
+    "config.devices.description": "在雙方確認指紋並明確選擇本機提供後，啟用配對的區域網路裝置。預設關閉。每台執行裝置保留自己的認證、核准及費用。",
+    "config.deviceDiscovery.description": "為正在提供工作的配對接收方啟用選用的區域網路探索。預設關閉。僅公告不透明的服務識別碼、連接埠及協定版本；探索不會授予信任。"
+  }
+}

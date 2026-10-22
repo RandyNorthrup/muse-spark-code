@@ -1354,6 +1354,11 @@ const TEXT_BLOCKS = [
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {
+    block: 'DEVICE_MODEL_TEXT',
+    sentinels: ['deviceTaskContext', 'deviceApprovalWait'],
+    readers: ['dist/devices.js'],
+  },
+  {
     block: 'QUESTION_MODEL_TEXT',
     sentinels: ['deferredClarification'],
     // The two backends share one first-deferral helper; ordinary startup

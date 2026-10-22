@@ -1,0 +1,767 @@
+[
+  {
+    "guard": "strict payload allowlist",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > bounds and allowlists signed confirmations",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects apiKey in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects provider in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects endpoint in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects environment in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects command in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects path in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects email in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects privateKey in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects approval in offers and nested entries",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects paidConsent in offers and nested entries",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > round-trips every designed frame and fixed failure without accepting arbitrary RPCs",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > retains unresolved occupancy/liability and separates permanent tombstones from full results"
+    ],
+    "sha256": "a7e933ed5c65dfb8098d937f5b24b800be38ae964b477d9b07feddf852e0a201",
+    "restored": true
+  },
+  {
+    "guard": "protocol version",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects old version",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects future version",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > round-trips every designed frame and fixed failure without accepting arbitrary RPCs"
+    ],
+    "sha256": "a7e933ed5c65dfb8098d937f5b24b800be38ae964b477d9b07feddf852e0a201",
+    "restored": true
+  },
+  {
+    "guard": "opaque identity encoding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects malformed routing ids, provider identities and oversized model names"
+    ],
+    "sha256": "a7e933ed5c65dfb8098d937f5b24b800be38ae964b477d9b07feddf852e0a201",
+    "restored": true
+  },
+  {
+    "guard": "digest encoding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects fingerprint encoding"
+    ],
+    "sha256": "a7e933ed5c65dfb8098d937f5b24b800be38ae964b477d9b07feddf852e0a201",
+    "restored": true
+  },
+  {
+    "guard": "integer resource counts",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects fractional time",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe time",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects invalid port 1.5",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces workers ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces processes ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces heavyChecks ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces tokens ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces artifactBytes ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects malformed routing ids, provider identities and oversized model names"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "nonnegative resource caps",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects negative time",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces workers ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces processes ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces heavyChecks ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces tokens ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces spendUsd ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces artifactBytes ceilings and nonnegative finite caps"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "positive port and revision",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects invalid port 0",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects malformed routing ids, provider identities and oversized model names",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds compressed/expanded results and requires exact Git object formats"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "port ceiling",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects invalid port 65536"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "private literal endpoint",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 0.0.0.0",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal ::",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 8.8.8.8",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 169.254.169.254",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 172.15.0.1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 172.32.0.1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 192.169.0.1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 10.0.0.256",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 010.0.0.1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal ::ffff:192.168.1.2",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fe80::1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fd00::1%en0",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fd00::1::2",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fd00:1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fd00:1:2:3:4:5:6:7:8",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal https://192.168.1.2",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal localhost",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal user@10.0.0.1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal 10.0.0.1",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fd00::1"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "invitation duration",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unbounded validity"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "positive invitation validity",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects empty validity"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "nonempty bounded text",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > binds dispatch routing to the attempt and bounds approved task input",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds offer and reconciliation batches, report text and artifact chunks"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "text and certificate ceilings",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects certificate bound",
+      "test/unit/devices.test.ts > M100 public pairing contracts > bounds and allowlists signed confirmations",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > rejects malformed routing ids, provider identities and oversized model names",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > binds dispatch routing to the attempt and bounds approved task input",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds offer and reconciliation batches, report text and artifact chunks"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "base64 encoding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects certificate newline",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects certificate encoding"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "decoded artifact chunk bytes",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > enforces decoded chunk bytes at the final partial base64 group"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "numeric resource ceilings",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces workers ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces processes ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces heavyChecks ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces tokens ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces artifactBytes ceilings and nonnegative finite caps",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > enforces decoded chunk bytes at the final partial base64 group",
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds compressed/expanded results and requires exact Git object formats"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "USD ceilings",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > enforces spendUsd ceilings and nonnegative finite caps"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "offer entries ceiling",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "offer checks ceiling",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "repository batch ceiling",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds offer and reconciliation batches, report text and artifact chunks"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "reconciliation page ceiling",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds offer and reconciliation batches, report text and artifact chunks"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "dispatch pair binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > binds dispatch routing to the attempt and bounds approved task input"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "dispatch incarnation binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > binds dispatch routing to the attempt and bounds approved task input"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "read-only write refusal",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > binds dispatch routing to the attempt and bounds approved task input"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "planned writes ceiling",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > binds dispatch routing to the attempt and bounds approved task input"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "snapshot object format binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > binds dispatch routing to the attempt and bounds approved task input"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "artifact base format binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds compressed/expanded results and requires exact Git object formats"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "artifact tree format binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > bounds compressed/expanded results and requires exact Git object formats"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "terminal artifact attempt binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > retains unresolved occupancy/liability and separates permanent tombstones from full results"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "terminal occupancy",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > retains unresolved occupancy/liability and separates permanent tombstones from full results"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "frame pair binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > rejects stale or cross-pair identities in each nested frame"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "frame incarnation binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > rejects stale or cross-pair identities in each nested frame"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "offer incarnation binding",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > rejects stale or cross-pair identities in each nested frame"
+    ],
+    "sha256": "e2bf98b7180c165d950f7623686d2ec5a9d26d3740bdb69446c669d38a29f4f0",
+    "restored": true
+  },
+  {
+    "guard": "panel strict allowlist",
+    "file": "src/shared/modelsPanel.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > keeps the off state empty and available without starting any device service",
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > carries observations and local setup facts, with no safety/liveness proof",
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > refuses key in a local request",
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > refuses repositoryPath in a local request",
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > refuses command in a local request",
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > refuses paidConsent in a local request",
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > refuses retirementProof in a local request"
+    ],
+    "sha256": "521d9dfd12bff7c7d5c83676d9c0a0757914c020eb0bc5bf19c719a8ffab2fd6",
+    "restored": true
+  },
+  {
+    "guard": "panel device count",
+    "file": "src/shared/modelsPanel.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > bounds invitations, rows, labels, observations, counters and retained liability"
+    ],
+    "sha256": "521d9dfd12bff7c7d5c83676d9c0a0757914c020eb0bc5bf19c719a8ffab2fd6",
+    "restored": true
+  },
+  {
+    "guard": "panel label ceiling",
+    "file": "src/shared/modelsPanel.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > bounds invitations, rows, labels, observations, counters and retained liability"
+    ],
+    "sha256": "521d9dfd12bff7c7d5c83676d9c0a0757914c020eb0bc5bf19c719a8ffab2fd6",
+    "restored": true
+  },
+  {
+    "guard": "panel invitation text ceiling",
+    "file": "src/shared/modelsPanel.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > bounds invitations, rows, labels, observations, counters and retained liability"
+    ],
+    "sha256": "521d9dfd12bff7c7d5c83676d9c0a0757914c020eb0bc5bf19c719a8ffab2fd6",
+    "restored": true
+  },
+  {
+    "guard": "panel counter ceiling",
+    "file": "src/shared/modelsPanel.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > bounds invitations, rows, labels, observations, counters and retained liability"
+    ],
+    "sha256": "521d9dfd12bff7c7d5c83676d9c0a0757914c020eb0bc5bf19c719a8ffab2fd6",
+    "restored": true
+  },
+  {
+    "guard": "panel retained liability",
+    "file": "src/shared/modelsPanel.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > bounds invitations, rows, labels, observations, counters and retained liability"
+    ],
+    "sha256": "521d9dfd12bff7c7d5c83676d9c0a0757914c020eb0bc5bf19c719a8ffab2fd6",
+    "restored": true
+  },
+  {
+    "guard": "offer requires work",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "nonempty lane entries",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "lane worker availability",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "nonempty checks",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "heavy check availability",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "process availability",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "unique entry ids",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "unique check ids",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses empty, impossible, oversized or duplicate offers"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "planned path traversal",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > confines planned write ../secret",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > confines planned write /etc/file",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > confines planned write src/./file",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > confines planned write src//file",
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > confines planned write src/../file"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "no remote Bypass",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses remote widening bypassPermissions"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "no remote in-place",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 scoped offers and dispatch > refuses remote widening in-place"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "artifact only after retirement",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > retains unresolved occupancy/liability and separates permanent tombstones from full results"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "settled processes",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > retains unresolved occupancy/liability and separates permanent tombstones from full results"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "settled heavy checks",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > retains unresolved occupancy/liability and separates permanent tombstones from full results"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "terminal tombstone state",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 frame, artifact and durable-state boundaries > retains unresolved occupancy/liability and separates permanent tombstones from full results"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "ULA metadata exclusion",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fd00:ec2::254",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal FD00:0EC2:0:0:0:0:0:0254",
+      "test/unit/devices.test.ts > M100 public pairing contracts > rejects unsafe or malformed literal fd00:ec2:0000:0000:0000:0000::254"
+    ],
+    "sha256": "00e2e6cdfd92daf8fbd5d02c3f958e4d61016d8d37de45dbff28ac9c0bd1dec7",
+    "restored": true
+  },
+  {
+    "guard": "devices off by default",
+    "file": "src/shared/constants.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > keeps public invitations and bilateral confirmations separate from authority"
+    ],
+    "sha256": "9b1dc51957656dfda32b334a209ba96413ae51ae8d2a468724bce5016e73bfa2",
+    "restored": true
+  },
+  {
+    "guard": "discovery off by default",
+    "file": "src/shared/constants.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > keeps public invitations and bilateral confirmations separate from authority"
+    ],
+    "sha256": "9b1dc51957656dfda32b334a209ba96413ae51ae8d2a468724bce5016e73bfa2",
+    "restored": true
+  },
+  {
+    "guard": "fixed private parse failure",
+    "file": "src/shared/modelsPanel.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devicesPanel.test.ts > M100 Devices panel and shared bridge > keeps Devices off the ordinary chat route"
+    ],
+    "sha256": "f876eabf7286920e0b5807a296231f9703a8d28a49e98f2b090a5d689ff27b89",
+    "restored": true
+  },
+  {
+    "guard": "certificate signature probe",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/deviceTlsDesign.test.ts > M100 certificate and TLS design probe > uses built-in P-256 signing and an exact self-signed per-pair certificate"
+    ],
+    "sha256": "44f224564b2cc9372046ea9e99902c6e0ba7ece7445109ebe698a71f332377cb",
+    "restored": true
+  },
+  {
+    "guard": "exact server pin probe",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/deviceTlsDesign.test.ts > M100 certificate and TLS design probe > keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "44f224564b2cc9372046ea9e99902c6e0ba7ece7445109ebe698a71f332377cb",
+    "restored": true
+  },
+  {
+    "guard": "model-text reader contract",
+    "file": "src/shared/constants.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > declares only the explicit lazy device factory as a model-text reader"
+    ],
+    "sha256": "6074b276eee539721a0ac99c4d8e3ab0d6335463dac0b753e368665b92d9213c",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 historical owner reconciliation: reintroduce current-channel matching",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "M100 frame, artifact and durable-state boundaries reconciles a lost terminal reply after receiver restart without rewriting the durable owner",
+      "M100 frame, artifact and durable-state boundaries keeps unresolved historical attempts occupied and rejects their relaunch or live control"
+    ],
+    "sha256": "7431b809ac4e8827681c611c004dd5cba0920e1af02933a3aef2bdb5f22aacce",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 historical pair binding: remove stable-pair check",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "M100 frame, artifact and durable-state boundaries rejects stale or cross-pair identities in each nested frame",
+      "M100 frame, artifact and durable-state boundaries reconciles a lost terminal reply after receiver restart without rewriting the durable owner"
+    ],
+    "sha256": "7431b809ac4e8827681c611c004dd5cba0920e1af02933a3aef2bdb5f22aacce",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 local threat boundary: remove attacker review",
+    "file": "docs/certification/m100-0.md",
+    "exit": 1,
+    "failed": [
+      "M100 same-machine threat contract defines local reachability, trusted-account risk and required isolation drills before a listener"
+    ],
+    "sha256": "b1685a35090aa73d1af9e34cbea29b21e55604e36a8698e0c5014f88d71d9962",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 local risk register: remove named residual from PLAN section 9",
+    "file": "PLAN.md",
+    "exit": 1,
+    "failed": [
+      "M100 same-machine threat contract defines local reachability, trusted-account risk and required isolation drills before a listener"
+    ],
+    "sha256": "191c2125985aa46314042addcbae575ade0f8aa2f9ac529280f7ca68d62cb982",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 real TLS ticket: remove all resumption controls",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "e800cbaf44c583003f93e918d5c13e683059c8d3069ada091d5797bb787ceb86",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 ticket positive control: restore pre-ticket getSession sampling",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "e800cbaf44c583003f93e918d5c13e683059c8d3069ada091d5797bb787ceb86",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 real TLS ticket: remove all resumption controls",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "44a4936ffe208c773517f7db6d5e5b59d3108740f72c43030814e7bd6038faf6",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 ticket positive control: restore pre-ticket getSession sampling",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "44a4936ffe208c773517f7db6d5e5b59d3108740f72c43030814e7bd6038faf6",
+    "restored": true
+  }
+]

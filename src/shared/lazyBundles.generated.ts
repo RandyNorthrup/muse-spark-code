@@ -234,6 +234,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'devices.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'DEVICE_MODEL_TEXT_READERS',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/shared/constants.ts', symbol: 'DEVICES_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
     file: 'dictation.js',
     side: 'vscode',
     requestedBy: [

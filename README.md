@@ -5046,6 +5046,47 @@ stopped and the next message resumes the same session.
 
 ## Privacy and security
 
+### Paired Devices integration in development
+
+Devices is off by default and remains unshipped. The `Muse Spark: Open Devices
+in a Tab` command opens the Devices tab; its code loads only when opened, and
+the document waits for its ready handshake before host observations replay.
+Invitations render as QR codes (with the copyable text as fallback) carrying
+the public certificate, fingerprint, address, protocol version and bounded
+validity — never a private key. Pairing, discovery, remote execution and
+per-action approvals need lane K's owner binding first: those actions refuse
+explicitly with recovery guidance instead of proceeding unchecked. Opening the
+tab starts no listener, discovery, model or remote task. Devices runs in VS
+Code on a local desktop window: in a Remote SSH, Tunnels, WSL, container or web
+window it refuses with recovery guidance before storing anything, and the
+other editors do not offer it yet. If the QR code cannot load, the tab says so;
+the copyable text invitation works on its own, and **Try again** reloads the tab
+(offered only while no action is waiting), keeping any invitation text you
+pasted. See the
+[feature inventory](docs/devices-reference.md) and
+[integration certification](docs/certification/m100.md).
+
+The integration caller must provide local execution and approval authorities.
+A peer receives no credentials, provider settings, consent, remembered approval
+or merge authority. Offers and grants are receiver-local; pairing alone offers
+no work. Pause offers is not a physical Stop. Cancellation starts before journal
+access, and channel corruption starts Stop before reporting, while occupancy and
+spending liability remain held until durable retirement is proved.
+
+QR rendering, mDNS runtime binding, the M95/M96 execution owners, board and Git
+result adapters, native Windows storage protection and concrete printer/CNC/MCU
+action controls remain prerequisites. Generic software simulator receipts do not
+qualify physical hardware or unattended operation. Remote/headless receivers are
+refused. Any later listener setup must name its application, selected interface,
+port and local firewall exposure. A failed route is reported as blocked or
+unavailable; a timeout alone does not identify the firewall as the cause.
+
+The fake-only shared UI keyboard check is `node scripts/devices-keyboard.mjs`.
+Set `CHROME_PATH` to the installed Chrome's absolute path if the launcher name
+is not resolved on your platform.
+Generate the help inventory with `node scripts/gen-reference.mjs`; verify it with
+`npm run check:reference`.
+
 - Model-run shell commands and native helpers do not inherit credential
   variables (`*_TOKEN`, `*_SECRET`, `*_PASSWORD`, `*_PASSPHRASE`, `*_API_KEY`,
   `*_ACCESS_KEY`, `*_PRIVATE_KEY`, `*_SECRET_KEY`, `*_CREDENTIALS`, `*_AUTH`,

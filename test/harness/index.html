@@ -249,7 +249,7 @@
       // Models captures finish counted actions after a lazy section arrives.
       if (harnessBundle === 'models')
         globalThis.harnessSceneWorkPending = () => pendingScenarioEvents > 0 || pendingFinds > 0
-      const whenFound = (selector, fn) => {
+      const whenFound = (selector, fn, settleMs = SETTLE_MS) => {
         if (isScenarioDone) refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingFinds += 1
         const look = (waited) => {
@@ -271,7 +271,7 @@
           notePlayed()
         }
         // kept-timing: host-message delivery and React paints settle before the first readiness probe.
-        setTimeout(() => look(0), SETTLE_MS)
+        later(settleMs, () => look(0))
       }
       const files = [
         'src/extension.ts',
@@ -506,6 +506,196 @@
           localStorage.setItem('museSpark.chatGptPlanNotice.v1', '1')
         }
       }
+      // M100 U: synthetic, strict lane-0 messages; no sockets or model calls.
+      const deviceId = '1'.repeat(32)
+      const devicePair = '2'.repeat(32)
+      const deviceHash = '4'.repeat(64)
+      const deviceInvitation = {
+        version: 1,
+        invitationId: '5'.repeat(32),
+        deviceId,
+        certificateDerBase64: 'AAAA',
+        fingerprint: deviceHash,
+        endpoint: { address: '10.2.3.4', port: 32123 },
+        issuedAt: 1000,
+        expiresAt: 2000,
+      }
+      const deviceConfirmation = {
+        version: 1,
+        pairId: devicePair,
+        localInvitationId: deviceInvitation.invitationId,
+        peerInvitationId: '6'.repeat(32),
+        localFingerprint: deviceHash,
+        peerFingerprint: '7'.repeat(64),
+        transcriptDigest: '8'.repeat(64),
+        confirmedAt: 1500,
+        signatureBase64: 'AAAA',
+      }
+      const devicePeerInvitation = {
+        ...deviceInvitation,
+        invitationId: '6'.repeat(32),
+        fingerprint: '0123456789abcdef'.repeat(4),
+      }
+      const deviceCaps = {
+        workers: 2,
+        processes: 4,
+        heavyChecks: 1,
+        tokens: 1000,
+        spendUsd: 1,
+        artifactBytes: 1024,
+      }
+      // M100P2U: synthetic phase-2 view facts; lane W wires the real host.
+      const deviceOwnerGrant = {
+        version: 1,
+        grantId: 'c'.repeat(32),
+        grantRevision: 1,
+        pairId: devicePair,
+        ownerId: 'a'.repeat(32),
+        roleId: '3'.repeat(32),
+        mode: 'manual',
+        repositoryId: 'b'.repeat(32),
+        lanes: true,
+        checks: false,
+        quota: deviceCaps,
+        issuedAt: 1000,
+        expiresAt: 2000,
+        requiresStepUp: false,
+      }
+      const deviceCapability = {
+        version: 1,
+        deviceId,
+        receiverIncarnationId: '9'.repeat(32),
+        observedAt: 1000,
+        platform: 'darwin',
+        osVersion: '26.0',
+        tools: ['read'],
+        engines: [],
+        presence: { touchId: true, windowsHello: false, tpm: false, secureEnclave: true },
+        power: 'battery',
+        sleepInhibited: true,
+        slotCap: 2,
+        pressure: { cpuPercent: 42, memoryPercent: 61, diskPercent: 73, transportResets: 3 },
+      }
+      const deviceThrottled = {
+        version: 1,
+        pairId: devicePair,
+        unknownSince: 1000,
+        reason: 'pressure',
+      }
+      const deviceOffer = {
+        deviceId,
+        receiverIncarnationId: '9'.repeat(32),
+        poolId: 'a'.repeat(32),
+        repositoryId: 'b'.repeat(32),
+        grantId: 'c'.repeat(32),
+        grantRevision: 1,
+        platform: 'darwin',
+        toolchainDigest: 'd'.repeat(64),
+        lanes: true,
+        checks: true,
+        caps: deviceCaps,
+        checkIds: ['e'.repeat(32)],
+        entries: [
+          {
+            entryId: 'f'.repeat(32),
+            roleId: '3'.repeat(32),
+            model: { providerId: 'local', modelId: 'qualified-model' },
+            capabilities: {
+              vision: false,
+              tools: true,
+              structuredOutput: true,
+              hostedSearch: false,
+              reasoningEffort: false,
+            },
+            readiness: 'ready',
+            payer: 'local',
+            caps: deviceCaps,
+          },
+        ],
+      }
+      let deviceRevision = 0
+      const deviceFixture = (name) => {
+        const status = name.includes('uncertain')
+          ? 'uncertain'
+          : name.includes('blocked')
+            ? 'blocked-or-unreachable'
+            : name.includes('incompatible')
+              ? 'incompatible'
+              : name.includes('offline')
+                ? 'offline'
+                : name.includes('paused')
+                  ? 'paused'
+                  : 'connected'
+        const message = {
+          type: 'deviceState',
+          revision: ++deviceRevision,
+          state:
+            name === 'devices-off'
+              ? { enabled: false }
+              : {
+                  enabled: true,
+                  discoveryEnabled: name === 'devices-discovery',
+                  devices: [
+                    {
+                      deviceId,
+                      pairId: devicePair,
+                      label: 'Mac receiver',
+                      fingerprint: deviceHash,
+                      endpoint: deviceInvitation.endpoint,
+                      status,
+                      lastObservedAt: 1000,
+                      waitingApprovals:
+                        name.includes('waiting') || name === 'devices-prompts-narrow' ? 1 : 0,
+                      unresolvedAttempts: status === 'connected' ? 0 : 1,
+                      retainedLiabilityUsd: status === 'connected' ? 0 : 1,
+                      offers: [deviceOffer],
+                    },
+                  ],
+                },
+        }
+        return message
+      }
+      const deviceReply = (message) => {
+        const response = deviceFixture(scenarioName)
+        // Action facts are emitted only in correlated replies.
+        let setup
+        if (scenarioName === 'devices-discovery')
+          setup = { discovery: { serviceId: '_musespark._tcp', port: 32123 } }
+        else if (scenarioName === 'devices-owners')
+          setup = {
+            owners: [{ ownerId: 'a'.repeat(32), grants: [deviceOwnerGrant] }],
+          }
+        else if (scenarioName === 'devices-prompts-narrow')
+          setup = { stepUp: { grantId: 'c'.repeat(32) } }
+        else if (scenarioName === 'devices-power')
+          setup = { capability: deviceCapability, throttled: deviceThrottled }
+        else if (scenarioName === 'devices-blocked')
+          setup = { listenerApplication: 'Editor host', interfaceLabel: 'LAN en0' }
+        // M100P2U: keep the fixture's phase-2 facts and add the reply's
+        // correlation ids, so the strict panel schema parses.
+        response.setup = {
+          ...setup,
+          viewId: message.viewId,
+          requestId: message.requestId,
+          listenerApplication: 'Editor host',
+          interfaceLabel: 'LAN en0',
+        }
+        if (scenarioName.includes('blocked')) response.setup.failure = 'blocked-or-unreachable'
+        if (message.action.kind === 'pair') response.setup.invitation = deviceInvitation
+        if (message.action.kind === 'revokeGrant')
+          response.setup.grantRefusal = {
+            version: 1,
+            pairId: devicePair,
+            ownerId: message.action.ownerId,
+            reason: 'grant-revoked',
+            retryable: false,
+          }
+        if (message.action.kind === 'importInvitation')
+          response.setup.invitation = devicePeerInvitation
+        if (message.action.kind === 'confirmFingerprint')
+          response.setup.confirmation = deviceConfirmation
+        send(response)
+      }
       // M25: the conversation a panel saved in VS Code's webview state before
       // the crash screen's Reload, as the webview's own snapshot writes it.
       const restoredState = {
@@ -649,6 +839,10 @@
               if (message.action === 'chatConfirm') value = 'shared'
               // kept-timing: the fake host replies asynchronously to the sharing request.
               hostLater(0, () => send({ type: 'sharingResult', id: message.id, value }))
+              break
+            }
+            case 'deviceRequest': {
+              deviceReply(message)
               break
             }
             case 'hostAction': {
@@ -1372,7 +1566,7 @@
               break
             }
           }
-          if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {
+          if (['ready', 'modelsPanel/ready', 'tasksReady', 'devicesReady'].includes(message.type)) {
             hasWebviewReady = true
             window.dispatchEvent(new Event('webviewReady'))
           }
@@ -1397,6 +1591,11 @@
           'copilot-plan-narrow',
         ].includes(surfaceScenario)
       ) {
+        document.documentElement.style.width = '100%'
+        document.body.style.width = '100%'
+      }
+      if (new URLSearchParams(location.search).get('scenario')?.startsWith('devices-')) {
+        document.body.dataset.surface = 'devices'
         document.documentElement.style.width = '100%'
         document.body.style.width = '100%'
       }
@@ -6353,6 +6552,112 @@
           })
         },
       }
+      const deviceScenes = [
+        'devices-off',
+        'devices-pairing',
+        'devices-pairing-narrow',
+        'devices-connected',
+        'devices-waiting',
+        'devices-uncertain-narrow',
+        'devices-blocked-narrow',
+        'devices-unlink-narrow',
+        'devices-caps-narrow',
+        'devices-incompatible',
+        'devices-offline-narrow',
+        'devices-paused-narrow',
+        // M100P2U: phase-2 views against fakes; lane W wires the host.
+        'devices-qr',
+        'devices-discovery',
+        'devices-owners',
+        'devices-prompts-narrow',
+        'devices-power',
+        'devices-blocked',
+      ]
+      // Each Devices step waits for an element only a host message or its
+      // reply creates, so it cannot match early: probe at once, still bounded.
+      const whenReplied = (selector, fn) => whenFound(selector, fn, 0)
+      for (const name of deviceScenes) {
+        steps[name] = () => {
+          const message = deviceFixture(name)
+          send(message)
+          const checkWidth = () => {
+            if (
+              name.endsWith('-narrow') &&
+              document.documentElement.scrollWidth > window.innerWidth
+            )
+              throw new Error('Devices overflow at 320px')
+            for (const row of document.querySelectorAll('.device-decisions')) {
+              const buttons = [...row.querySelectorAll(':scope > button')]
+              if (buttons.length !== 2) throw new Error('Decision row must have two buttons')
+              const [first, second] = buttons.map((button) => button.getBoundingClientRect())
+              if (Math.abs(first.width - second.width) > 1 || first.top !== second.top)
+                throw new Error('Decision buttons must share a row and equal widths')
+            }
+            document.querySelector('.devices-view').dataset.devicesReady = 'true'
+          }
+          if (name === 'devices-off') {
+            checkWidth()
+            return
+          }
+          whenReplied('.device-card', () => {
+            if (name.startsWith('devices-pairing')) {
+              document.querySelector('.device-pairing button').click()
+              whenReplied('.device-public-text textarea', () => {
+                const form = document.querySelector('.device-pairing form')
+                setValue(
+                  form.querySelector('textarea'),
+                  HTMLTextAreaElement.prototype,
+                  JSON.stringify(devicePeerInvitation),
+                )
+                form.querySelector('button[type="submit"]').click()
+                whenReplied('.device-comparison', checkWidth)
+              })
+            } else if (name === 'devices-blocked-narrow') {
+              document.querySelector('.device-card form button[type="submit"]').click()
+              whenReplied('.devices-view [role="alert"]', checkWidth)
+            } else if (name === 'devices-qr') {
+              document.querySelector('.device-pairing button').click()
+              whenReplied('.device-public-text textarea', () => {
+                const form = document.querySelector('.device-pairing form')
+                setValue(
+                  form.querySelector('textarea'),
+                  HTMLTextAreaElement.prototype,
+                  JSON.stringify(devicePeerInvitation),
+                )
+                form.querySelector('button[type="submit"]').click()
+                whenReplied('.device-comparison', () => {
+                  document.querySelector('.device-public-text button').focus()
+                  checkWidth()
+                })
+              })
+            } else if (name === 'devices-discovery') {
+              // Setup facts arrive on the reply: summon one with the switch.
+              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              whenReplied('.device-discovery-details', checkWidth)
+            } else if (name === 'devices-owners') {
+              document.querySelector('.device-actions button:first-child').click()
+              whenReplied('.device-owners button', () => {
+                document.querySelector('.device-owners button').click()
+                whenReplied('.devices-view [role="alert"]', checkWidth)
+              })
+            } else if (name === 'devices-prompts-narrow') {
+              document.querySelector('.device-actions button:first-child').click()
+              whenReplied('.device-prompts', checkWidth)
+            } else if (name === 'devices-power') {
+              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              whenReplied('.device-power', checkWidth)
+            } else if (name === 'devices-blocked') {
+              document.querySelector('.device-card form button[type="submit"]').click()
+              whenReplied('.device-blocked-setup', checkWidth)
+            } else if (name === 'devices-unlink-narrow') {
+              document.querySelector('.device-actions button:last-child').click()
+              whenReplied('.device-unlink', checkWidth)
+            } else {
+              checkWidth()
+            }
+          })
+        }
+      }
       for (const name of [
         'questions-waiting',
         'questions-open',
@@ -6393,8 +6698,10 @@
           return
         hasPlayedScenario = true
         playingScenario = scenario
-        const surface =
-          harnessBundle === 'models'
+        // Each document posts its own ready handshake after subscribing.
+        const surface = scenario.startsWith('devices-')
+          ? '.devices-view'
+          : harnessBundle === 'models'
             ? '.models-panel section'
             : '.composer textarea, .todo-surface, .schedule-v2-surface'
         whenFound(surface, () => steps[scenario]())
@@ -6710,6 +7017,9 @@
               animation.playState === 'running' &&
               animation.effect?.getComputedTiming().endTime !== Infinity,
           )
+      for (const name of deviceScenes) {
+        SCENARIO_READY[name] = () => document.querySelector('[data-devices-ready]') !== null
+      }
       const whenReady = async (name) => {
         const deadline = performance.now() + READY_TIMEOUT_MS
         const byDeadline = (promise) =>

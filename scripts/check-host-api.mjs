@@ -55,7 +55,14 @@ const SOURCE_ROOT = 'src'
 const WEBVIEW_ROOT = 'src/webview'
 // Code other hosts load as it is: the engine, the protocol, the React app,
 // and the ACP agent with its process (M63, D62), which run with no VS Code.
-const PORTABLE_ROOTS = ['src/core', 'src/shared', 'src/webview', 'src/acp', 'src/runtime']
+const PORTABLE_ROOTS = [
+  'src/core',
+  'src/shared',
+  'src/webview',
+  'src/acp',
+  'src/runtime',
+  'src/host/devices',
+]
 // Host modules another adapter reuses (D60, M61): the conversation, both
 // backends and their tool harness, the Model API backend's own bundle, which
 // the ACP agent loads as the extension does (M57, D6), the credential store,

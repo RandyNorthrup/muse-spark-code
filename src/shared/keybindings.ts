@@ -164,6 +164,7 @@ export const WEBVIEW_KEYBINDINGS = {
   elicitation: { close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceElicitationKeys' } } },
   'deferred.close': { close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceModalKeys' } } },
   'bestOfN.close': { close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceModalKeys' } } },
+  'devices.unlink': { close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceModalKeys' } } },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, KeyBinding>>>>
 
 interface KeyEvent {

@@ -178,6 +178,9 @@
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
     "src/core/imageResizeWorker.ts",
+    "src/shared/featureCatalog.ts",
+    "src/host/devices/deviceEntry.ts",
+    "src/host/devices/deviceBundle.ts",
     "src/webview/main.tsx",
     "src/webview/resources/ResourceSurface.tsx",
     "src/webview/usage/ResourcesSection.tsx",
@@ -434,8 +437,9 @@
     "src/core/reporting/sources/stores.ts",
     "src/host/reporting/sources.ts",
     //
-    // M100 (Paired devices as lane pools, D80, planned): device admission
-    // ahead of the lane pools. Wiring: the device pool.
+    // M100 lane K (owner binding over M108 accounts, planned): the lane-K
+    // account receiver binds in the M95 review question and the M108 account
+    // surface. Wiring: the lane-K grant flow.
     "src/host/devices/deviceReceiver.ts",
     //
     // M91 (Hooks from every popular agent, D70): Cline v1 discovery ahead

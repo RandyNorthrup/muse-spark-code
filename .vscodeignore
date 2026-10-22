@@ -1,5 +1,6 @@
 **
 !dist/extension.js
+!dist/devices.js
 !dist/resourceAdmission.js
 !dist/resourceGovernor.js
 !dist/resourceProcess.js
@@ -96,6 +97,8 @@
 !native/windows/MuseSparkMcpJob.cs
 !native/windows/MuseSparkJob.cs
 !native/windows/MuseSparkMcpLauncher.cs
+!native/windows/MuseSparkDeviceStorage.cs
+!native/windows/MuseSparkDeviceWorker.cs
 !native/linux/x64/muse-created
 !native/linux/arm64/muse-created
 !native/linux/x64/muse-vault-peer

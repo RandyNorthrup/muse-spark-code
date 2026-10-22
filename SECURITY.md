@@ -1,5 +1,19 @@
 # Security policy
 
+The unshipped paired-device integration uses owner-only pairing/journal stores
+and execution-host secrets, bilateral fingerprint confirmation and exact peer
+certificate pins. The production Devices tab and its lazy service loader are
+registered, but no listener or execution adapter is: lane K's owner binding
+arrives first, and every K-owned action refuses explicitly until it does.
+An authenticated peer is still untrusted input; receiver-local grants, policy,
+per-action approval and paid consent remain mandatory. Revocation closes the
+current transport and blocks future authority; an offline peer cannot be made
+to forget previously received context. The operating system and logged-in
+account are trusted: same-user processes, administrators and a compromised
+editor can inspect in-memory keys or act through local authorities. Native
+Windows protection and physical-action qualification remain open. See
+[M100 certification](docs/certification/m100.md) and PLAN D80/D212/§9.
+
 Muse Spark Code (Unofficial) runs a coding agent inside VS Code: it reads
 and edits files in your workspace, runs shell commands with your approval,
 and sends your prompts to Meta. Security problems in that surface are taken

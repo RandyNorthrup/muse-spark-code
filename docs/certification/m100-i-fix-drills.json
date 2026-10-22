@@ -1,0 +1,57 @@
+[
+  {
+    "name": "snapshot-backpressure",
+    "file": "src/host/devices/deviceEntry.ts",
+    "command": "env TMPDIR=/dev/shm/m100i-fix.aq9JLU npx vitest run test/unit/deviceIntegration.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "durationSeconds": 7.41,
+    "expectedTest": "bounds frame-flood snapshot work, keeps Stop independent and publishes the latest state",
+    "fired": true,
+    "beforeSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d",
+    "restoredSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d"
+  },
+  {
+    "name": "snapshot-coalescing",
+    "file": "src/host/devices/deviceEntry.ts",
+    "command": "env TMPDIR=/dev/shm/m100i-fix.aq9JLU npx vitest run test/unit/deviceIntegration.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "durationSeconds": 7.65,
+    "expectedTest": "bounds frame-flood snapshot work, keeps Stop independent and publishes the latest state",
+    "fired": true,
+    "beforeSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d",
+    "restoredSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d"
+  },
+  {
+    "name": "snapshot-latest-pending",
+    "file": "src/host/devices/deviceEntry.ts",
+    "command": "env TMPDIR=/dev/shm/m100i-fix.aq9JLU npx vitest run test/unit/deviceIntegration.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "durationSeconds": 7.34,
+    "expectedTest": "bounds frame-flood snapshot work, keeps Stop independent and publishes the latest state",
+    "fired": true,
+    "beforeSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d",
+    "restoredSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d"
+  },
+  {
+    "name": "snapshot-stop-independent",
+    "file": "src/host/devices/deviceEntry.ts",
+    "command": "env TMPDIR=/dev/shm/m100i-fix.aq9JLU npx vitest run test/unit/deviceIntegration.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "durationSeconds": 10.9,
+    "expectedTest": "bounds frame-flood snapshot work, keeps Stop independent and publishes the latest state",
+    "fired": true,
+    "beforeSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d",
+    "restoredSha256": "ec7200278b7b30c683e925ec37bfccfe57532f3a0f9ea94a4db6e79c20910e8d"
+  },
+  {
+    "name": "reset-journal-drain",
+    "file": "test/unit/deviceIntegration.test.ts",
+    "command": "env TMPDIR=/dev/shm/m100i-fix.aq9JLU npx vitest run test/unit/deviceIntegration.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "durationSeconds": 6.49,
+    "expectedTest": "starts fail-safe reset Stop before reporting, even while cancellation confirmation is held",
+    "fired": true,
+    "beforeSha256": "7f8a060d019b91c19440ad4f0cd23aede9d70051db32b4c3994ae51bac7ab581",
+    "restoredSha256": "7f8a060d019b91c19440ad4f0cd23aede9d70051db32b4c3994ae51bac7ab581"
+  }
+]

@@ -56,6 +56,8 @@ export const ACP_BUNDLES = [
   'sharingRuntime.js',
   // M124 (D106): the MCP connector ships in the ACP package; `mcp` loads it on use.
   'connector.js',
+  // Lazy shared method factory; receiver qualification still refuses headless hosts.
+  'devices.js',
   'acpQuestions.js',
   'acpPlaybook.js',
   'runtimeQuestions.js',
