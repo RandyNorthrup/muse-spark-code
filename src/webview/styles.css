@@ -3097,6 +3097,12 @@ li:focus-within > .row-actions .row-actions-button,
   font-weight: var(--ms-weight-bold);
 }
 
+/* --- Session-lists dialog (M127) --- */
+
+.sessionlists-title {
+  font-weight: var(--ms-weight-bold);
+}
+
 .usage-body,
 .modal-body {
   display: flex;
