@@ -163,7 +163,7 @@ function processUserId(): number | undefined {
   return typeof process.getuid === 'function' ? process.getuid() : undefined
 }
 
-async function assertJournalOwner(
+export async function assertJournalOwner(
   directory: string,
   platform: NodeJS.Platform,
   userId: () => number | undefined,
