@@ -4729,6 +4729,15 @@ export const JUDGE_FAST_BLOBHOLD_TIMEOUT_MS = 10_000
 // A check shows a hint or note only above this precision, from a lane L
 // profile fitted for that engine identity and family; below it, log only.
 export const JUDGE_FAST_HINT_MIN_PRECISION = 0.9
+// D107 §7.1: the destructive check answers at precision 0.8 (with recall
+// 0.95 on destructive commands); every other accuracy check answers at
+// the hint precision above.
+export const JUDGE_FAST_DESTRUCTIVE_MIN_PRECISION = 0.8
+// Lane-K choice: one cap for every evidence field a check judges over
+// or shows in its slots (a command, an excerpt, a head/tail, a claim).
+// Small fast models read these questions; 4000 chars a field keeps a
+// whole question small while keeping real excerpts intact.
+export const JUDGE_FAST_CHECK_EVIDENCE_MAX_CHARS = 4000
 // A model-backed family is used only with a profile fitted on at least
 // this many independent labels for that engine identity (D107).
 export const JUDGE_FAST_ACCURACY_MIN_LABELS = 400
