@@ -7,6 +7,26 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Starting the app twice at once no longer loses a session.** Two
+  windows, agents or commands starting together used to race saving the
+  created-resources registry, and the loser failed to start; they now
+  share it, and a start never fails for it.
+- **A start or turn that fails says what failed.** A failed session
+  start or turn start now names the failure in words (for example that
+  the created-resources registry could not be saved, and why) instead
+  of a bare "Internal error", and the warnings in the log name the
+  real cause too.
+- **A turn Muse's service could not finish can continue.** When the
+  service falters mid-turn and judges the turn resubmittable, the
+  turn keeps its work and says so — asking you to send the message
+  again — instead of failing as "Internal error".
+- **Usage history records what Muse Code requests really did.** Every
+  Muse Code request used to export as `incomplete`; a reported
+  request now exports as `completed`, with the model that served it
+  where the CLI reports one.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
