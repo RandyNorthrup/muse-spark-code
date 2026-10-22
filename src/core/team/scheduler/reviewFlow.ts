@@ -6,6 +6,12 @@ import {
   type ReviewFinding,
 } from '../../../shared/reviewFindings'
 import { type TeamBoardTask } from '../../../shared/team'
+import {
+  decideReviewCarryOver,
+  type CarryContext,
+  type CarryFileDelta,
+  type CarryFileVerdict,
+} from './reviewCarryOver'
 
 type ReviewClass = 'concurrency' | 'boundaries' | 'failurePaths'
 const classes: readonly ReviewClass[] = ['concurrency', 'boundaries', 'failurePaths']
@@ -68,6 +74,12 @@ export interface ReviewRequest {
   otherClasses: readonly ReviewClass[]
   claims: ReturnType<typeof checkClaims>
   isSameModel: boolean
+  /**
+  The changed files to review: carry-over scopes re-review to exactly
+  these. Undefined reviews the whole change; a reviewer that cannot
+  scope reviews more, never less.
+  */
+  files?: readonly string[]
 }
 export interface ReviewDependencies {
   head(taskId: string): string
@@ -99,6 +111,30 @@ export interface ReviewDependencies {
     findings: readonly ClassifiedFinding[],
     failedChecks: readonly ExecutedCheck[],
   ): void
+  /**
+  Exact per-file deltas at a head, computed from version control.
+  Absent when the host cannot read them: the review runs whole-head.
+  */
+  readDeltas?(taskId: string, head: string): readonly CarryFileDelta[]
+  /**
+  Patch-ID hints narrowing the carry-over comparison; never the
+  acceptance key. Absent compares every file by oid.
+  */
+  patchHints?(taskId: string, priorHead: string, head: string): CarryContext['patchHints']
+  /**
+  Files the integration changed between the heads. Absent means
+  unknown, and an unknown context carries nothing.
+  */
+  integrationChanged?(
+    taskId: string,
+    sinceHead: string,
+    head: string,
+  ): readonly string[] | undefined
+  /**
+  What each changed file reads. Absent means unknown, and an unknown
+  context carries nothing.
+  */
+  readSets?(taskId: string): ReadonlyMap<string, readonly string[]> | undefined
 }
 
 type ReviewOutcome =
@@ -111,9 +147,17 @@ interface ReviewRecord {
   findings: readonly ClassifiedFinding[]
   failedChecks: readonly ExecutedCheck[]
   hasDispatched: boolean
+  /**
+  Per-file verdicts at this head: custody-local, like the record.
+  A restart re-reviews rather than trusting a verdict it never read.
+  */
+  files?: readonly CarryFileVerdict<ClassifiedFinding>[]
 }
 
-/** Whole-head review only: a whitespace-only change invalidates it too. */
+/**
+Per-file carry-over on exact deltas; whole-head when the host cannot
+read deltas. A whitespace-only change is a changed delta too.
+*/
 export class ReviewFlow {
   private readonly records = new Map<string, ReviewRecord>()
   private readonly running = new Set<string>()
@@ -143,6 +187,15 @@ export class ReviewFlow {
     return 'reviewed'
   }
 
+  private async guardedDispatch(taskId: string, record: ReviewRecord): Promise<ReviewOutcome> {
+    this.running.add(taskId)
+    try {
+      return await this.dispatch(taskId, record)
+    } finally {
+      this.running.delete(taskId)
+    }
+  }
+
   reviewed(taskId: string): boolean {
     const record = this.records.get(taskId)
     return record?.isClean === true && record.head === this.deps.head(taskId)
@@ -167,13 +220,30 @@ export class ReviewFlow {
     const head = this.deps.head(task.id)
     const previous = this.records.get(task.id)
     if (previous?.head === head && previous.attempt === task.currentAttempt) {
-      this.running.add(task.id)
-      try {
-        return await this.dispatch(task.id, previous)
-      } finally {
-        this.running.delete(task.id)
-      }
+      return await this.guardedDispatch(task.id, previous)
     }
+    const deltas = this.deps.readDeltas?.(task.id, head)
+    const decision =
+      deltas === undefined || previous?.files === undefined
+        ? undefined
+        : decideReviewCarryOver(previous.files, deltas, {
+            patchHints: this.deps.patchHints?.(task.id, previous.head, head),
+            integrationChanged: this.deps.integrationChanged?.(task.id, previous.head, head),
+            readSets: this.deps.readSets?.(task.id),
+          })
+    if (decision !== undefined && previous !== undefined && decision.reReview.length === 0) {
+      // The review stands on unchanged deltas: move the record to the
+      // new head and dispatch its standing verdict, with no new round.
+      const carried: ReviewRecord = {
+        ...previous,
+        head,
+        attempt: task.currentAttempt,
+        files: decision.carried,
+      }
+      this.records.set(task.id, carried)
+      return await this.guardedDispatch(task.id, carried)
+    }
+    const scope = decision?.reReview
     const round = Math.max(task.reviewRounds, previous?.round ?? 0) + 1
     const authors = this.deps.authors(task.id)
     const available = this.deps.reviewers().filter((entry) => entry.freeLanes > 0)
@@ -203,6 +273,7 @@ export class ReviewFlow {
       otherClasses: classes.filter((reviewClass) => !assigned.includes(reviewClass)),
       claims,
       isSameModel,
+      files: scope,
     })
     const first = candidates[0]
     if (!first) return 'waiting'
@@ -263,14 +334,28 @@ export class ReviewFlow {
       await this.deps.record(task.id, head, round, merged, isSameModel)
       if (this.deps.head(task.id) !== head || !this.deps.isCurrent(task.id, task.currentAttempt))
         return 'stale'
+      // A round with findings records no verdict for the files it
+      // re-reviewed: unattributed findings must not taint a file the
+      // next round would otherwise carry. Clean files certify exactly
+      // the files the round scoped.
+      const carriedVerdicts = decision?.carried ?? []
+      const scopedPaths = decision?.reReview ?? deltas?.map((delta) => delta.path) ?? []
+      const freshClean: CarryFileVerdict<ClassifiedFinding>[] = []
+      if (!hasFailures && deltas !== undefined) {
+        for (const path of scopedPaths) {
+          const delta = deltas.find((candidate) => candidate.path === path)
+          if (delta !== undefined) freshClean.push({ delta, verdict: 'clean', findings: [] })
+        }
+      }
       const record: ReviewRecord = {
         head,
         attempt: task.currentAttempt,
         round,
-        isClean: !hasFailures,
-        findings: merged,
+        isClean: !hasFailures && carriedVerdicts.every((verdict) => verdict.verdict === 'clean'),
+        findings: [...carriedVerdicts.flatMap((verdict) => verdict.findings), ...merged],
         failedChecks,
         hasDispatched: false,
+        files: deltas === undefined ? undefined : [...carriedVerdicts, ...freshClean],
       }
       this.records.set(task.id, record)
       return await this.dispatch(task.id, record)

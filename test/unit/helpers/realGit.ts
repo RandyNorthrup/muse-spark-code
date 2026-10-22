@@ -7,6 +7,28 @@ import { GitExitError } from '../../../src/host/git'
 
 const runFile = promisify(execFile)
 
+/**
+A git binary that actually answers on this machine: the PATH git
+where it works, the Command Line Tools git where Apple's shim is
+broken (its `git` dies spawning a missing xcodebuild). Each
+candidate is asked its real version; the first that answers wins.
+*/
+export async function resolveWorkingGit(): Promise<string> {
+  const candidates =
+    process.platform === 'darwin'
+      ? ['/Library/Developer/CommandLineTools/usr/bin/git', 'git']
+      : ['git']
+  for (const candidate of candidates) {
+    try {
+      await runFile(candidate, ['--version'])
+      return candidate
+    } catch {
+      continue
+    }
+  }
+  throw new Error('no working git for the drill')
+}
+
 export const realGit = async (
   args: readonly string[],
   cwd: string,
