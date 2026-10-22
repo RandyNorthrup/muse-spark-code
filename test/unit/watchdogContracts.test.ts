@@ -71,6 +71,21 @@ describe('watchdog records and policy', () => {
     expect(() => triageFindingsSchema.parse({ ...findings, version: 2 })).toThrow()
   })
 
+  it('makes each verdict carry its evidence', () => {
+    const base: { version: number; summary: string; questions: string[] } = {
+      version: 1,
+      summary: 's',
+      questions: [],
+    }
+    expect(() => triageFindingsSchema.parse({ ...base, verdict: 'duplicate' })).toThrow()
+    expect(() => triageFindingsSchema.parse({ ...base, verdict: 'needsInfo' })).toThrow()
+    expect(() => triageFindingsSchema.parse({ ...base, verdict: 'alreadyFixed' })).toThrow()
+    expect(() => triageFindingsSchema.parse({ ...base, verdict: 'inHand' })).toThrow()
+    expect(
+      triageFindingsSchema.parse({ ...base, verdict: 'duplicate', duplicateOf: 3 }).duplicateOf,
+    ).toBe(3)
+  })
+
   it('requires the run id that keeps a restart from posting twice', () => {
     const record = {
       repository: 'owner/name',

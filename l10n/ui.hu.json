@@ -1862,6 +1862,12 @@
       "invalid": "Érvénytelen",
       "spam": "Levélszemét"
     },
+    "planDraft": {
+      "intro": "A figyelő tervvázlata ehhez: {repository}#{number} (ítélet: {verdict}).",
+      "issue": "Probléma",
+      "findings": "Megállapítások",
+      "questions": "Nyitott kérdések"
+    },
     "refusal": {
       "spamHeld": "Gyanított levélszemétként visszatartva: semmi sem lett közzétéve.",
       "approvalRequired": "Ehhez a bejegyzéshez előbb az ön jóváhagyása kell."

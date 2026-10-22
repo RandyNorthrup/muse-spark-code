@@ -1891,6 +1891,12 @@
       "invalid": "Inválido",
       "spam": "Spam"
     },
+    "planDraft": {
+      "intro": "Rascunho de plano do vigia para {repository}#{number} (veredito: {verdict}).",
+      "issue": "Problema",
+      "findings": "Constatações",
+      "questions": "Perguntas abertas"
+    },
     "refusal": {
       "spamHeld": "Retido como possível spam: nada foi publicado.",
       "approvalRequired": "Esta publicação precisa primeiro da sua aprovação."

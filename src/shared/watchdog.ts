@@ -27,16 +27,42 @@ export const watchdogVerdictSchema = z.enum([
 ])
 export type WatchdogVerdict = z.infer<typeof watchdogVerdictSchema>
 
-/** triageFindings v1: the triage role's structured findings (PLAN WT). */
-export const triageFindingsSchema = z.strictObject({
-  version: z.literal(1),
-  verdict: watchdogVerdictSchema,
-  summary: z.string(),
-  questions: z.array(z.string()),
-  duplicateOf: z.optional(z.number()),
-  fixedIn: z.optional(z.string()),
-  inHandRef: z.optional(z.string()),
-})
+/** triageFindings v1: the triage role's structured findings (PLAN WT).
+Each verdict carries its evidence: a duplicate names its issue, a
+needs-info asks its questions, an already-fixed names its version, an
+in-hand names its plan or lane. The model either proves the verdict or
+the findings refuse. */
+export const triageFindingsSchema = z
+  .strictObject({
+    version: z.literal(1),
+    verdict: watchdogVerdictSchema,
+    summary: z.string(),
+    questions: z.array(z.string()),
+    duplicateOf: z.optional(z.number()),
+    fixedIn: z.optional(z.string()),
+    inHandRef: z.optional(z.string()),
+  })
+  .check(
+    z.refine((findings) => {
+      switch (findings.verdict) {
+        case 'duplicate': {
+          return findings.duplicateOf !== undefined
+        }
+        case 'needsInfo': {
+          return findings.questions.length > 0
+        }
+        case 'alreadyFixed': {
+          return findings.fixedIn !== undefined
+        }
+        case 'inHand': {
+          return findings.inHandRef !== undefined
+        }
+        default: {
+          return true
+        }
+      }
+    }),
+  )
 export type TriageFindings = z.infer<typeof triageFindingsSchema>
 
 export const watchdogApprovalSchema = z.enum(['ask', 'always', 'never'])

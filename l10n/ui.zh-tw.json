@@ -1833,6 +1833,12 @@
       "invalid": "無效",
       "spam": "垃圾訊息"
     },
+    "planDraft": {
+      "intro": "針對 {repository}#{number} 的看守計畫草案（結論：{verdict}）。",
+      "issue": "問題",
+      "findings": "調查結果",
+      "questions": "待答問題"
+    },
     "refusal": {
       "spamHeld": "因疑似垃圾訊息已被扣留：未發佈任何內容。",
       "approvalRequired": "此貼文需要先獲得您的批准。"

@@ -15,7 +15,13 @@ import { pollWatchdogRepository, type WatchdogPollDeps } from '../../src/core/wa
 import { createWatchdogStore } from '../../src/core/watchdog/store'
 import { defaultWatchdogPolicy } from '../../src/shared/watchdog'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
-import { serveGithub, watchdogCaptured, watchdogLogger } from './helpers/watchdog/servedGithub'
+import {
+  capturedObjects,
+  capturedSearchIssues,
+  serveGithub,
+  watchdogCaptured,
+  watchdogLogger,
+} from './helpers/watchdog/servedGithub'
 
 const REPOSITORY = 'RandyNorthrup/muse-spark-code'
 const BASE = 'https://api.github.com/repos/RandyNorthrup/muse-spark-code'
@@ -29,27 +35,8 @@ afterEach(async () => {
   }
 })
 
-interface CapturedObject {
-  readonly number?: unknown
-  readonly [key: string]: unknown
-}
-
-function objectsOf(value: unknown): CapturedObject[] {
-  if (!Array.isArray(value)) throw new TypeError('the capture holds a list')
-  const list: unknown[] = value
-  return list.map((item) => {
-    if (typeof item !== 'object' || item === null) throw new TypeError('the capture holds objects')
-    return Object.fromEntries(
-      Object.entries(item).map(([key, entry]): [string, unknown] => [key, entry]),
-    )
-  })
-}
-
-function searchItems(): CapturedObject[] {
-  const search = watchdogCaptured('github-search-issues')
-  if (typeof search !== 'object' || search === null || !('items' in search))
-    throw new TypeError('the capture holds a search')
-  return objectsOf(search.items)
+function searchItems() {
+  return capturedSearchIssues()
 }
 
 function harness(routes: Record<string, { status: number; body: unknown }>) {
@@ -83,7 +70,7 @@ function harness(routes: Record<string, { status: number; body: unknown }>) {
 }
 
 function listRoutes(list: unknown): Record<string, { status: number; body: unknown }> {
-  const comments = objectsOf(watchdogCaptured('github-issue-comments'))
+  const comments = capturedObjects('github-issue-comments')
   const [first] = comments
   if (first === undefined) throw new TypeError('the capture holds comments')
   return {
@@ -152,7 +139,7 @@ describe('watchdog poll', () => {
       result: undefined,
     }))
     // Synthetic: the captured comment carrying our marker.
-    const marked = objectsOf(watchdogCaptured('github-issue-comments')).map((comment) => ({
+    const marked = capturedObjects('github-issue-comments').map((comment) => ({
       ...comment,
       body: composeAckBody(defaultWatchdogPolicy(REPOSITORY)),
     }))

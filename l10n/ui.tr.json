@@ -1862,6 +1862,12 @@
       "invalid": "Geçersiz",
       "spam": "İstenmeyen"
     },
+    "planDraft": {
+      "intro": "{repository}#{number} için bekçi plan taslağı (karar: {verdict}).",
+      "issue": "Sorun",
+      "findings": "Bulgular",
+      "questions": "Açık sorular"
+    },
     "refusal": {
       "spamHeld": "Olası istenmeyen ileti olarak tutuldu: hiçbir şey yayımlanmadı.",
       "approvalRequired": "Bu gönderi önce onayınızı gerektirir."

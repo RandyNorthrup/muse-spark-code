@@ -4,7 +4,7 @@
 // twice. Issue text is fenced before any prompt sees it, and every
 // embedded instruction the guards name is drilled.
 import { describe, expect, it } from 'vitest'
-import { WATCHDOG_POST_MARKER, UI_TEXT } from '../../src/shared/constants'
+import { WATCHDOG_ACK_MARKER, UI_TEXT } from '../../src/shared/constants'
 import { defaultWatchdogPolicy } from '../../src/shared/watchdog'
 import { GitHubClient } from '../../src/core/git/github'
 import type { GitHubIssue } from '../../src/core/git/github'
@@ -44,7 +44,7 @@ describe('acknowledgement', () => {
   it('composes the template, the marker and the automated note', () => {
     const body = composeAckBody(defaultWatchdogPolicy('owner/name'))
     expect(body).toContain(UI_TEXT.watchdog.ack.body)
-    expect(body).toContain(WATCHDOG_POST_MARKER)
+    expect(body).toContain(WATCHDOG_ACK_MARKER)
     expect(body).toContain(UI_TEXT.watchdog.ack.automatedNote)
     expect(isWatchdogPost(body)).toBe(true)
     expect(isWatchdogPost('Thanks, looking into it.')).toBe(false)
@@ -53,7 +53,7 @@ describe('acknowledgement', () => {
   it('honors the repository template override', () => {
     const policy = { ...defaultWatchdogPolicy('owner/name'), ackTemplate: 'We see it.' }
     expect(composeAckBody(policy)).toContain('We see it.')
-    expect(composeAckBody(policy)).toContain(WATCHDOG_POST_MARKER)
+    expect(composeAckBody(policy)).toContain(WATCHDOG_ACK_MARKER)
   })
 
   it('skips pull requests, locked issues, ignored authors and label filters, each said', () => {

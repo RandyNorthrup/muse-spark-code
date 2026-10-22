@@ -1920,6 +1920,12 @@
       "invalid": "Neplatné",
       "spam": "Spam"
     },
+    "planDraft": {
+      "intro": "Koncept plánu hlídacího psa pro {repository}#{number} (verdikt: {verdict}).",
+      "issue": "Problém",
+      "findings": "Zjištění",
+      "questions": "Otevřené otázky"
+    },
     "refusal": {
       "spamHeld": "Zadrženo jako podezřelý spam: nic nebylo zveřejněno.",
       "approvalRequired": "Tento příspěvek nejprve potřebuje vaše schválení."
