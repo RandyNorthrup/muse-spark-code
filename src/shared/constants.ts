@@ -4355,6 +4355,12 @@ export const MUSE_MEMORY_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/configur
 // or the window share cuts it (with a spill and notices).
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
+/**
+A byte window into a file (`read_file`/`edit_file` byte addressing) is at
+most this large: a bigger file is read window by window, never whole into
+the context. The window is the person's addressing, not a cap of ours.
+*/
+export const TOOL_FILE_RANGE_MAX_BYTES = 1 * 1024 * 1024
 /* TOOLCAP (one tool result can never end a conversation): the single bound
  * every tool result passes through on its way into the conversation
  * (toolResultBound.ts). D121: no trimming of ours — no token cap, no line

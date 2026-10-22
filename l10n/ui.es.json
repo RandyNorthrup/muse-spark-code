@@ -1587,6 +1587,7 @@
   "extensionHooksUnavailable": "No se pudieron cargar los hooks de la extensión, así que no se ejecutó ningún hook; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "modelApiToolsUnavailable": "No se pudieron cargar los ayudantes de llamada del modelo, así que los campos de llamada de hooks no están disponibles; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "modelApiToolsPreviewUnavailable": "No se pudieron cargar los ayudantes de llamada del modelo, así que las vistas previas de argumentos no están disponibles; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
+  "toolRangeUnavailable": "No se pudieron cargar los ayudantes de intervalos de archivo, por lo que los archivos no se pueden leer ni editar por intervalo de bytes; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "shellDirectory": "En {path}",
   "shellDirectoryReset": "El shell volvió a la raíz del área de trabajo: {path} está fuera del área de trabajo.",
   "elicitationTitle": "{server} solicita información",

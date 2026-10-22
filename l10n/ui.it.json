@@ -1587,6 +1587,7 @@
   "extensionHooksUnavailable": "Non è stato possibile caricare gli hook dell’estensione, quindi nessun hook è stato eseguito; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "modelApiToolsUnavailable": "Non è stato possibile caricare gli helper di chiamata del modello, quindi i campi di chiamata degli hook non sono disponibili; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "modelApiToolsPreviewUnavailable": "Non è stato possibile caricare gli helper di chiamata del modello, quindi le anteprime degli argomenti non sono disponibili; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
+  "toolRangeUnavailable": "Gli helper degli intervalli di file non possono essere caricati, quindi i file non possono essere letti o modificati per intervallo di byte; reinstalla l’estensione e ricarica la finestra. Nel log ci sono i dettagli.",
   "shellDirectory": "Nella cartella {path}",
   "shellDirectoryReset": "La shell è tornata alla radice dell’area di lavoro: {path} è fuori dall’area di lavoro.",
   "elicitationTitle": "{server} richiede informazioni",

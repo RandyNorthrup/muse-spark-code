@@ -1569,6 +1569,7 @@
   "extensionHooksUnavailable": "Uzantı kancaları yüklenemedi, bu yüzden hiçbir kanca çalıştırılamadı; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "modelApiToolsUnavailable": "Model çağrısı yardımcıları yüklenemedi, bu yüzden kanca çağrı alanları kullanılamıyor; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "modelApiToolsPreviewUnavailable": "Model çağrısı yardımcıları yüklenemedi, bu yüzden bağımsız değişken önizlemeleri kullanılamıyor; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
+  "toolRangeUnavailable": "Dosya aralığı yardımcıları yüklenemedi, bu nedenle dosyalar bayt aralığına göre okunamaz veya düzenlenemez; uzantıyı yeniden yükleyip pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "shellDirectory": "{path} içinde",
   "shellDirectoryReset": "Kabuk çalışma alanının kök klasörüne döndü: {path} çalışma alanının dışında.",
   "elicitationTitle": "{server} bilgi istiyor",

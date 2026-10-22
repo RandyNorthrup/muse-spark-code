@@ -1551,6 +1551,7 @@
   "extensionHooksUnavailable": "无法加载扩展钩子，因此未运行任何钩子；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "modelApiToolsUnavailable": "无法加载模型调用助手，因此钩子调用字段不可用；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "modelApiToolsPreviewUnavailable": "无法加载模型调用助手，因此参数预览不可用；请重新安装扩展并重新加载窗口。日志中有详细信息。",
+  "toolRangeUnavailable": "无法加载文件范围助手，因此无法按字节范围读取或编辑文件；请重新安装扩展并重新加载窗口。详细信息见日志。",
   "shellDirectory": "位于 {path}",
   "shellDirectoryReset": "shell 已返回工作区根目录：{path} 位于工作区之外。",
   "elicitationTitle": "{server} 请求提供信息",

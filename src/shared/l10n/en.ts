@@ -1981,6 +1981,9 @@ export const EN = {
     'The model call helpers could not be loaded, so hook call fields are unavailable; reinstall the extension and reload the window. The log has the details.',
   modelApiToolsPreviewUnavailable:
     'The model call helpers could not be loaded, so argument previews are unavailable; reinstall the extension and reload the window. The log has the details.',
+  // dist/toolRange.js failed to load.
+  toolRangeUnavailable:
+    'The file range helpers could not be loaded, so files cannot be read or edited by byte range; reinstall the extension and reload the window. The log has the details.',
   // The Model API shell's kept working directory. {path}: workspace-relative.
   shellDirectory: 'In {path}',
   shellDirectoryReset:
