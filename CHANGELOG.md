@@ -40,6 +40,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- OS1 Pi staging now follows the real apt chain (signed InRelease listing
+  index files, pinned Packages index digest, per-.deb stanza Filename,
+  SHA-256 and Size), copies trees through descriptor-anchored handles with
+  absolute link targets refused and missing sources an error, admits `.deb`
+  members incrementally through the shared bounded reader with in-process
+  stdlib zstd decoding, locks the initrd bind-ro enablement line, sizes the
+  Node skip ceiling from the pinned tarball's 5,774 members, and requires
+  the exact mkosi version token with a successful probe.
 - The internal M110 terminal surface now requires freshly focused approval
   keys after complete request presentation, ignores buffered and pasted
   decisions, and disables choices when the action and paid terms cannot fit.
@@ -2935,6 +2943,16 @@ Correction (2026-10-10): Live argument previews did not work for users in this r
   missing-browser-chunk checks accept Windows filesystem error paths.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
+- Node OS Pi staging (RVM110OS1, M110-OS1): the composer verifies the signed
+  Raspberry Pi Packages index with `gpgv` against the manifest-pinned
+  fingerprint and index digest, takes each `.deb` SHA-256 from the verified
+  index, and extracts through member admission that never follows symlinks;
+  Pi builds take the archive keyring as `--pi-keyring` with its digest.
+  The policy gate locks the manifest pins and the installer profile's
+  volatile-overlay cmdline, the ESP size (260M) and the Debian repositories;
+  the composer checks the mkosi version pin and reads Node through the
+  bounded xz-capable archive path. The prior certificate text claiming index
+  verification for the recorded media is corrected.
 - Retry after a failed optional panel reloads its complete module graph with
   the conversation and draft saved. Cold menus respect outside dismissal and
   late imports cannot take focus; failed menus accept Escape and return focus

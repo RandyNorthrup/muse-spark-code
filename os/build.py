@@ -2,9 +2,11 @@
 """OS1 image composer; inputs are pinned, no owner data is accepted."""
 
 import argparse
+import contextlib
 import gzip
 import hashlib
 import json
+import lzma
 from pathlib import Path
 import shutil
 import subprocess
@@ -18,6 +20,12 @@ OUT = ROOT.parent / "out"
 DOWNLOAD_LIMIT = 64 * 1024 * 1024
 ARCHIVE_MEMBER_LIMIT = 1024
 ARCHIVE_STREAM_LIMIT = DOWNLOAD_LIMIT * 4 + ARCHIVE_MEMBER_LIMIT * 1024
+# Upstream Node 24.18.0 linux-x64 carries 5,774 members (4,703 regular,
+# 1,068 directories, 3 symlinks; SHA-256 verified against pins.json before
+# counting, 2026-10-08). Enumerate-but-skip members get their own ceiling
+# at that count plus headroom for upstream growth; wanted members keep the
+# strict limits above.
+NODE_SKIP_LIMIT = 8192
 TARGETS = {"x86-64", "arm64", "pi4", "pi5"}
 
 
@@ -47,8 +55,24 @@ def digest(file):
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
+def check_mkosi_version(probe, pinned):
+    """Require a successful probe reporting exactly the pinned version.
+
+    The full version token must equal the pin: a substring test would
+    accept 27.10 or 127.1 for a 27.1 pin, and a failed probe must never
+    satisfy the check. Pure so the policy is unit-testable.
+    """
+    if probe.returncode != 0:
+        raise ValueError("OS1 mkosi version mismatch")
+    tokens = (probe.stdout or "").split()
+    if len(tokens) < 2 or tokens[0] != "mkosi" or tokens[1] != pinned:
+        raise ValueError("OS1 mkosi version mismatch")
+
+
 def download(url, expected, dest):
-    if dest.exists() and digest(dest) == expected:
+    # expected=None fetches without a digest pin (the Pi InRelease trust
+    # root, bound by its signature instead); the size bound still applies.
+    if dest.exists() and (expected is None or digest(dest) == expected):
         return
     partial = dest.with_suffix(".partial")
     try:
@@ -61,50 +85,74 @@ def download(url, expected, dest):
                 if total > DOWNLOAD_LIMIT:
                     raise ValueError("OS1 input exceeds download limit")
                 output.write(chunk)
-        if digest(partial) != expected:
+        if expected is not None and digest(partial) != expected:
             raise ValueError("OS1 input SHA-256 mismatch")
         partial.replace(dest)
     finally:
         partial.unlink(missing_ok=True)
 
 
+def archive_kind(archive):
+    with archive.open("rb") as header:
+        magic = header.read(6)
+    if magic[:2] == b"\x1f\x8b":
+        return "gz"
+    if magic == b"\xfd7zXZ\x00":
+        return "xz"
+    return None
+
+
+@contextlib.contextmanager
+def open_members(archive):
+    # npm packages are gzip tarballs, upstream Node is xz; plain tar is
+    # useful for isolated fixtures. Every stream passes BoundedArchive.
+    kind = archive_kind(archive)
+    if kind == "gz":
+        raw = gzip.open(archive, "rb")
+    elif kind == "xz":
+        raw = lzma.open(archive, "rb")
+    else:
+        raw = archive.open("rb")
+    with raw, tarfile.open(fileobj=BoundedArchive(raw), mode="r:") as source:
+        yield source
+
+
+def check_parts(parts, prefix):
+    if parts[0] != prefix or any(
+        not p
+        or ":" in p
+        or p != p.rstrip(" .")
+        or any(ord(c) < 32 or ord(c) == 127 for c in p)
+        for p in parts
+    ):
+        raise ValueError("OS1 unsafe archive member")
+    return "/".join(parts[1:]).rstrip("/")
+
+
 def extract(archive, destination, prefix, allowed):
     # Validate the whole archive BEFORE any write. Links, special files and
     # Windows-style paths are never build inputs (H10/H11/H17).
-    with archive.open("rb") as header:
-        compressed = header.read(2) == b"\x1f\x8b"
-    # npm packages are gzip tarballs; plain tar is useful for isolated fixtures.
-    with (
-        gzip.open(archive, "rb") if compressed else archive.open("rb")
-    ) as decoded, tarfile.open(fileobj=BoundedArchive(decoded), mode="r:") as source:
+    with open_members(archive) as source:
         members = []
         total = 0
         for member in source:
             if len(members) >= ARCHIVE_MEMBER_LIMIT:
                 raise ValueError("OS1 archive member limit")
             members.append(member)
+            if "\\" in member.name:
+                raise ValueError("OS1 unsafe archive member")
             parts = member.name.replace("\\", "/").rstrip("/").split("/")
-            if (
-                "\\" in member.name
-                or parts[0] != prefix
-                or any(
-                    not p
-                    or ":" in p
-                    or p != p.rstrip(" .")
-                    or any(ord(c) < 32 or ord(c) == 127 for c in p)
-                    for p in parts
-                )
-                or not (member.isfile() or member.isdir())
-            ):
+            relative = check_parts(parts, prefix)
+            if not (member.isfile() or member.isdir()):
                 raise ValueError("OS1 unsafe archive member")
             total += member.size
             if total > DOWNLOAD_LIMIT * 4:
                 raise ValueError("OS1 archive exceeds expansion limit")
-            relative = "/".join(parts[1:]).rstrip("/")
             if member.isfile() and not allowed(relative):
                 raise ValueError("OS1 unexpected archive member: " + relative)
         for member in members:
-            relative = "/".join(member.name.split("/")[1:]).rstrip("/")
+            parts = member.name.replace("\\", "/").rstrip("/").split("/")
+            relative = check_parts(parts, prefix)
             if not relative:
                 continue
             file = destination / relative
@@ -117,6 +165,63 @@ def extract(archive, destination, prefix, allowed):
                 file.chmod(0o755 if member.mode & 0o111 else 0o644)
 
 
+def extract_selected(archive, destination, prefix, names):
+    """Admit only the named regular files from a gzip/xz/plain tar.
+
+    Upstream archives carry files outside the wanted set, including symlinks
+    npm needs; those members are never validated or written. Every wanted
+    member faces the full ACP admission before any write, through the same
+    bounded reader as extract().
+    """
+    wanted = set(names)
+    if len(wanted) > ARCHIVE_MEMBER_LIMIT:
+        raise ValueError("OS1 archive member limit")
+    with open_members(archive) as source:
+        members = []
+        for member in source:
+            members.append(member)
+            if len(members) > NODE_SKIP_LIMIT:
+                raise ValueError("OS1 archive member limit")
+        seen = {}
+        for member in members:
+            candidate = member.name.replace("\\", "/")
+            if candidate == prefix or candidate.startswith(prefix + "/"):
+                relative = (
+                    candidate[len(prefix) + 1 :].rstrip("/")
+                    if (candidate != prefix)
+                    else ""
+                )
+                if relative in wanted:
+                    seen[relative] = member
+        total = 0
+        for relative in wanted:
+            member = seen.get(relative)
+            if member is None:
+                raise ValueError("OS1 missing archive member: " + relative)
+            if not member.isreg():
+                raise ValueError(
+                    "OS1 archive member is not a regular file: " + relative
+                )
+            if "\\" in member.name:
+                raise ValueError("OS1 unsafe archive member")
+            parts = member.name.replace("\\", "/").rstrip("/").split("/")
+            check_parts(parts, prefix)
+            total += member.size
+            if total > DOWNLOAD_LIMIT * 4:
+                raise ValueError("OS1 archive exceeds expansion limit")
+        for relative in sorted(wanted):
+            member = seen[relative]
+            file = destination / relative
+            file.parent.mkdir(parents=True, exist_ok=True)
+            with source.extractfile(member) as data, file.open("wb") as output:
+                if data is None:
+                    raise ValueError(
+                        "OS1 archive member is not a regular file: " + relative
+                    )
+                shutil.copyfileobj(data, output)
+            file.chmod(0o755 if member.mode & 0o111 else 0o644)
+
+
 def stage(args):
     check(ROOT)
     if args.target not in TARGETS:
@@ -125,6 +230,19 @@ def stage(args):
     if digest(artifact) != args.runtime_sha256:
         raise ValueError("OS1 runtime SHA-256 mismatch")
     pins = json.loads((ROOT / "pins.json").read_text())
+    probe = subprocess.run(
+        [str(args.mkosi.resolve()), "--version"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=False,
+    )
+    check_mkosi_version(probe, pins["mkosi"]["version"])
+    if args.target in ("pi4", "pi5"):
+        if args.pi_keyring is None or args.pi_keyring_sha256 is None:
+            raise ValueError("OS1 Pi keyring is required")
+        if digest(args.pi_keyring) != args.pi_keyring_sha256:
+            raise ValueError("OS1 keyring SHA-256 mismatch")
     workspace = OUT / args.target / ("installer-work" if args.installer else "work")
     workspace.mkdir(parents=True, exist_ok=False)
     try:
@@ -163,16 +281,7 @@ def stage(args):
         node_tree = workspace / "node"
         # The upstream Node archive includes npm symlinks; read only the two
         # exact regular files, never unpack npm or allow tar to follow links.
-        with tarfile.open(node_archive) as source:
-            for name in ("bin/node", "LICENSE"):
-                member = source.getmember(node_name + "/" + name)
-                if not member.isfile():
-                    raise ValueError("OS1 Node input is not a regular file")
-                dest = node_tree / name
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                with source.extractfile(member) as data, dest.open("wb") as output:
-                    shutil.copyfileobj(data, output)
-                dest.chmod(0o755 if name == "bin/node" else 0o644)
+        extract_selected(node_archive, node_tree, node_name, ("bin/node", "LICENSE"))
         overlay = workspace / "overlay"
         shutil.copytree(node_tree, overlay / "usr/lib/nodejs")
         bundles = {
@@ -231,7 +340,9 @@ def stage(args):
             "binding": digest(args.binding) if args.binding else None,
         }
         if args.target in ("pi4", "pi5"):
-            receipt["pi"] = prepare_pi(args.target, workspace, assets, download)
+            receipt["pi"] = prepare_pi(
+                args.target, workspace, assets, download, args.pi_keyring
+            )
         input_name = "inputs-installer.json" if args.installer else "inputs.json"
         (workspace.parent / input_name).write_text(json.dumps(receipt, indent=2) + "\n")
         return workspace
@@ -248,13 +359,19 @@ def main():
     parser.add_argument("--binding", type=Path)
     parser.add_argument("--binding-sha256")
     parser.add_argument("--mkosi", type=Path, default=Path("/usr/bin/mkosi"))
+    parser.add_argument("--pi-keyring", type=Path)
+    parser.add_argument("--pi-keyring-sha256")
     parser.add_argument("--extra-search-path", action="append", default=[])
     parser.add_argument("--installer", action="store_true")
     args = parser.parse_args()
     if (args.binding is None) != (args.binding_sha256 is None):
         parser.error("binding and its digest must be supplied together")
+    if (args.pi_keyring is None) != (args.pi_keyring_sha256 is None):
+        parser.error("keyring and its digest must be supplied together")
     if args.installer and args.target in ("pi4", "pi5"):
         parser.error("Pi targets use native firmware, not a UEFI ISO")
+    if args.target in ("pi4", "pi5") and args.pi_keyring is None:
+        parser.error("Pi builds need --pi-keyring with its digest")
     workspace = stage(args)
     try:
         profiles = args.target + (",installer" if args.installer else "")
