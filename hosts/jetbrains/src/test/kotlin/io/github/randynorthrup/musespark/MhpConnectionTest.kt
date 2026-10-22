@@ -52,15 +52,10 @@ class MhpConnectionTest {
 
   private fun initialize() {
     connection.initialize(
-      json(
-        "host" to json("id" to "jetbrains", "version" to "253"),
-        "protocolRange" to json("minimum" to "mhp/1.5.0", "maximumExclusive" to "mhp/1.6.0"),
-        "capabilities" to services.capabilities,
-        "locale" to "en",
-        "theme" to json("kind" to "dark", "tokens" to json()),
-        "folders" to emptyList<String>(),
-        "trusted" to true,
-      ),
+      fixtureMetadata().apply {
+        add("protocolRange", json("minimum" to "mhp/1.5.0", "maximumExclusive" to "mhp/1.6.0"))
+        add("capabilities", jsonValue(services.capabilities))
+      },
     )
     connection.receive(
       json(
@@ -292,13 +287,7 @@ class MhpConnectionTest {
           entered.countDown()
           release.await(10, TimeUnit.SECONDS)
           finished.countDown()
-          return json(
-            "host" to json("id" to "jetbrains", "version" to "253"),
-            "locale" to "en",
-            "theme" to json("kind" to "dark", "tokens" to json()),
-            "folders" to emptyList<String>(),
-            "trusted" to true,
-          )
+          return fixtureMetadata()
         }
 
       override fun request(
