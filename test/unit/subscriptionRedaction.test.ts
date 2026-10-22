@@ -13,12 +13,12 @@ import { memorySubscriptionFile } from './helpers/subscriptionFile'
 const SUB = 'opaque subscription value 9d4e1a'
 const PASTED = 'opaque pasted value 3b7c2e'
 
-function credential(text: string | undefined, pasted: string | undefined) {
+function credential(text: string | undefined) {
   const file = memorySubscriptionFile()
   if (text !== undefined) file.writeText(text)
   const source = file.source
   return new SubscriptionCredential({
-    credentials: { getApiKey: () => Promise.resolve(pasted) },
+    credentials: { getApiKey: () => Promise.resolve(PASTED) },
     isEnabled: () => true,
     platform: 'linux',
     homeDir: '/home/u',
@@ -101,7 +101,7 @@ describe('headless credential redaction', () => {
   it('scrubs the actually-sent subscription key from saved transcripts', async () => {
     const saved: unknown[] = []
     const wrapper = withCredentialRedaction(capturingStore(saved), () =>
-      credential(subscriptionFile(SUB), PASTED).redactionKeys(),
+      credential(subscriptionFile(SUB)).redactionKeys(),
     )
     const snapshot = transcript()
     await wrapper.save(snapshot)
@@ -113,7 +113,7 @@ describe('headless credential redaction', () => {
   it('still saves when the sign-in is unreadable', async () => {
     const saved: unknown[] = []
     const wrapper = withCredentialRedaction(capturingStore(saved), () =>
-      credential(undefined, PASTED).redactionKeys(),
+      credential(undefined).redactionKeys(),
     )
     await wrapper.save(transcript())
     expect(saved).toHaveLength(1)

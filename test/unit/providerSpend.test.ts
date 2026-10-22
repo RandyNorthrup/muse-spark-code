@@ -6,7 +6,7 @@
 // UNVERIFIED: field names await the lead's live capture.
 
 import { readFileSync } from 'node:fs'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { MODELS_DEV_CATALOGUE_DATE } from '../../src/shared/constants'
 import { PRESETS, presetById } from '../../src/core/providers/presets'
 import {
@@ -37,22 +37,19 @@ import {
 
 const AS_OF = '2026-10-10T12:00:00.000Z'
 
-function anthropicUsageBody(rows: readonly unknown[] = []) {
+function anthropicUsageBody() {
   return {
-    data:
-      rows.length === 0
-        ? [
-            {
-              model: 'claude-opus-4-1',
-              starting_at: '2026-10-01T00:00:00Z',
-              ending_at: '2026-10-02T00:00:00Z',
-              uncached_input_tokens: 1000,
-              cache_read_input_tokens: 200,
-              cache_creation_input_tokens: 50,
-              output_tokens: 500,
-            },
-          ]
-        : rows,
+    data: [
+      {
+        model: 'claude-opus-4-1',
+        starting_at: '2026-10-01T00:00:00Z',
+        ending_at: '2026-10-02T00:00:00Z',
+        uncached_input_tokens: 1000,
+        cache_read_input_tokens: 200,
+        cache_creation_input_tokens: 50,
+        output_tokens: 500,
+      },
+    ],
     has_more: false,
   }
 }
@@ -139,20 +136,20 @@ describe('spend request goldens', () => {
       endingAt: '2026-10-08T00:00:00Z',
     })
     for (const request of [usage, cost]) {
-      expect(request?.method).toBe('GET')
-      expect(request?.origin).toBe('https://api.anthropic.com')
-      expect(request?.url.startsWith('https://api.anthropic.com/')).toBe(true)
-      expect(request?.headers['anthropic-version']).toBe('2023-06-01')
+      expect(request.method).toBe('GET')
+      expect(request.origin).toBe('https://api.anthropic.com')
+      expect(request.url.startsWith('https://api.anthropic.com/')).toBe(true)
+      expect(request.headers['anthropic-version']).toBe('2023-06-01')
       // The key rides the transport's auth source, never a caller header.
-      expect(request?.headers).not.toHaveProperty('x-api-key')
-      expect(request?.auth).toEqual({ scheme: 'x-api-key', key: 'TEST-ADMIN-KEY' })
-      const query = new URL(request?.url ?? '').searchParams
+      expect(request.headers).not.toHaveProperty('x-api-key')
+      expect(request.auth).toEqual({ scheme: 'x-api-key', key: 'TEST-ADMIN-KEY' })
+      const query = new URL(request.url).searchParams
       expect(query.get('starting_at')).toBe('2026-10-01T00:00:00Z')
       expect(query.get('ending_at')).toBe('2026-10-08T00:00:00Z')
       expect(query.get('bucket_width')).toBe('1d')
     }
-    expect(usage?.url).toContain('/v1/organizations/usage_report/messages')
-    expect(cost?.url).toContain('/v1/organizations/cost_report')
+    expect(usage.url).toContain('/v1/organizations/usage_report/messages')
+    expect(cost.url).toContain('/v1/organizations/cost_report')
   })
 
   it('carries the Anthropic page cursor when paginating', () => {
@@ -163,7 +160,7 @@ describe('spend request goldens', () => {
       endingAt: '2026-10-02T00:00:00Z',
       page: 'cursor-9',
     })
-    expect(new URL(usage?.url ?? '').searchParams.get('page')).toBe('cursor-9')
+    expect(new URL(usage.url).searchParams.get('page')).toBe('cursor-9')
   })
 
   it('builds the OpenAI usage and cost requests with a bearer admin key', () => {
@@ -173,13 +170,13 @@ describe('spend request goldens', () => {
       startTime: '2026-10-01T00:00:00Z',
       endTime: '2026-10-02T00:00:00Z',
     })
-    expect(usage?.url).toContain('/v1/organization/usage/completions')
-    expect(cost?.url).toContain('/v1/organization/costs')
+    expect(usage.url).toContain('/v1/organization/usage/completions')
+    expect(cost.url).toContain('/v1/organization/costs')
     for (const request of [usage, cost]) {
-      expect(request?.headers).not.toHaveProperty('Authorization')
-      expect(request?.auth).toEqual({ scheme: 'bearer', key: 'TEST-ADMIN-KEY' })
+      expect(request.headers).not.toHaveProperty('Authorization')
+      expect(request.auth).toEqual({ scheme: 'bearer', key: 'TEST-ADMIN-KEY' })
     }
-    expect(new URL(cost?.url ?? '').searchParams.get('bucket_width')).toBe('1d')
+    expect(new URL(cost.url).searchParams.get('bucket_width')).toBe('1d')
   })
 
   it('builds the OpenRouter key request and the DeepSeek balance request', () => {
@@ -309,9 +306,11 @@ describe('strict parsing and exact money', () => {
 
 describe('key separation both ways', () => {
   it('refuses an inference key at admin endpoints before any request', async () => {
-    const fetch: SpendFetcher = vi.fn(() =>
-      Promise.resolve({ status: 200, body: anthropicUsageBody() }),
-    )
+    const seen: unknown[] = []
+    const fetch: SpendFetcher = (request) => {
+      seen.push(request)
+      return Promise.resolve({ status: 200, body: anthropicUsageBody() })
+    }
     const kinds: readonly SpendKeyKind[] = ['inference']
     for (const keyKind of kinds) {
       const result = await fetchAdminSpendReport({
@@ -326,16 +325,24 @@ describe('key separation both ways', () => {
       })
       expect(result).toEqual({ kind: 'wrong-key-kind' })
     }
-    expect(fetch).not.toHaveBeenCalled()
+    expect(seen).toEqual([])
   })
 
   it('refuses an admin key at key-usage and balance endpoints before any request', async () => {
-    const read = vi.fn(() => Promise.resolve({ usedToday: 1, usedThisWeek: 2, usedThisMonth: 3 }))
+    let reads = 0
+    const read = () => {
+      reads += 1
+      return Promise.resolve({ usedToday: 1, usedThisWeek: 2, usedThisMonth: 3 })
+    }
     await expect(
       fetchKeyUsageSpendReport({ read, key: 'sk-ant-admin01-x', keyKind: 'admin', asOf: AS_OF }),
     ).resolves.toEqual({ kind: 'wrong-key-kind' })
-    expect(read).not.toHaveBeenCalled()
-    const fetch: SpendFetcher = vi.fn(() => Promise.resolve({ status: 200, body: {} }))
+    expect(reads).toBe(0)
+    const seen: unknown[] = []
+    const fetch: SpendFetcher = (request) => {
+      seen.push(request)
+      return Promise.resolve({ status: 200, body: {} })
+    }
     await expect(
       fetchBalanceSpendReport({
         fetch,
@@ -345,12 +352,14 @@ describe('key separation both ways', () => {
         asOf: AS_OF,
       }),
     ).resolves.toEqual({ kind: 'wrong-key-kind' })
-    expect(fetch).not.toHaveBeenCalled()
+    expect(seen).toEqual([])
   })
 })
 
-function endlessPages(kind: 'anthropic' | 'openai'): SpendFetcher {
-  return vi.fn((request: { readonly url: string }) => {
+function endlessPages(kind: 'anthropic' | 'openai'): SpendFetcher & { readonly seen: string[] } {
+  const seen: string[] = []
+  const fetch: SpendFetcher = (request: { readonly url: string }) => {
+    seen.push(request.url)
     const page = new URL(request.url).searchParams.get('page') ?? 'p0'
     const next = `p${String(Number(page.slice(1)) + 1)}`
     if (request.url.includes('cost')) {
@@ -369,7 +378,8 @@ function endlessPages(kind: 'anthropic' | 'openai'): SpendFetcher {
           ? { ...anthropicUsageBody(), has_more: true, next_page: next }
           : { ...openAiUsageBody(), has_more: true, next_page: next },
     })
-  })
+  }
+  return Object.assign(fetch, { seen })
 }
 
 const refusedFetch: SpendFetcher = () => Promise.resolve({ status: 401, body: { error: 'x' } })
@@ -395,9 +405,8 @@ describe('pagination, failures and the polling floor', () => {
       })
       expect(result).not.toHaveProperty('kind')
       // Usage pages plus cost pages, each bounded.
-      expect(vi.mocked(fetch).mock.calls.length).toBeLessThanOrEqual(2 * SPEND_PAGE_BOUND)
-      const urls = vi.mocked(fetch).mock.calls.map(([request]) => request.url)
-      expect(urls.filter((url) => url.includes('page=')).length).toBeGreaterThan(0)
+      expect(fetch.seen.length).toBeLessThanOrEqual(2 * SPEND_PAGE_BOUND)
+      expect(fetch.seen.filter((url) => url.includes('page=')).length).toBeGreaterThan(0)
     }
   })
 
