@@ -18,6 +18,8 @@ import { outputJsonSchema, parseExecRecord } from './outputSchema'
 import type { AcpBackendKind } from '../../shared/constants'
 import type { ExecMode, ExecPaidFeature } from './execArgs'
 import { resourceExecEventSchema, type ResourceEvent } from '../../shared/resources'
+import { HTTP_STATUS } from '../../shared/constants'
+import { isIncompleteTransportError } from '../../core/agent/turnResilience'
 
 export type ExecStatus =
   | 'completed'
@@ -456,6 +458,32 @@ function isBackendAccountingValid(value: ExecResult): boolean {
     cap === microUsd(value.limits.budgetUsd) &&
     (total <= cap || (ledger.breach && value.status === 'budget_exceeded'))
   )
+}
+
+/**
+The run's outcome from its last response (M110r Y1): a lost model
+connection (`transport_lost`) is incomplete with its session to resume,
+never failed; an explicit `response.failed`, a refused answer (too
+large, malformed), an abort, or an HTTP error is failed. Anything else
+falls through to the run's other rules. Pure.
+*/
+export type OutcomeStatus = 'failed' | 'incomplete-transport' | 'other'
+
+export function outcomeStatus(
+  terminal: string | null,
+  transportError: string | null | undefined,
+  httpStatus: number | null | undefined,
+): OutcomeStatus {
+  if (
+    terminal === 'failed' ||
+    (transportError !== null &&
+      transportError !== undefined &&
+      !isIncompleteTransportError(transportError)) ||
+    (httpStatus !== null && httpStatus !== undefined && httpStatus >= HTTP_STATUS.badRequest)
+  ) {
+    return 'failed'
+  }
+  return isIncompleteTransportError(transportError) ? 'incomplete-transport' : 'other'
 }
 
 export function exitCodeFor(

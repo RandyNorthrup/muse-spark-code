@@ -4773,6 +4773,12 @@ export const EN = {
     'The last request exceeded its reservation by {overage} ({cost} charged, {reserved} reserved). The run stopped before another request.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
   execIncomplete: 'The response did not complete.',
+  execIncompleteTransport:
+    'The connection to the model was lost. The session is kept and can be resumed.',
+  turnPausedNetwork:
+    'Paused: the model connection was lost at {time}; attempt {attempt}, retrying.',
+  turnPausedNetworkCapped:
+    'Paused: the model connection was lost at {time}; attempt {attempt} of {cap}, retrying.',
   execDeniedStop: 'An approval denial stopped this run.',
   execInterrupted: 'The run was interrupted.',
   execOutputStalled: 'Output closed or stalled.',
