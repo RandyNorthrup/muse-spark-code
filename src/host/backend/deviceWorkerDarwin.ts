@@ -1,7 +1,7 @@
 // M100/H: a GUI launchd job with supervised caps and kernel coalition retirement.
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, open, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, open, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
@@ -710,19 +710,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     try {
       await previous
       await prepareRoot()
-      const names = await readdir(root)
-      if (
-        names.filter((name) => name.startsWith('attempt-')).length >=
-        DEVICE_LIMITS.unresolvedAttempts
-      ) {
-        await sweep()
-        const remaining = await readdir(root)
-        if (
-          remaining.filter((name) => name.startsWith('attempt-')).length >=
-          DEVICE_LIMITS.unresolvedAttempts
-        )
-          throw new DeviceWorkerHostError('capacity')
-      }
+      await sweep()
       await mkdir(directory, { mode: Number('0o700') })
       return identityOf(await lstatIdentity(directory))
     } finally {

@@ -144,11 +144,6 @@ export class DeviceDiscovery {
           const senderAddress = checkedDeviceAddress(sender)
           const parsed = advertisementSchema.safeParse(this.mdns.decode(packet))
           if (!parsed.success || parsed.data.serviceId === serviceId) return
-          if (
-            !this.hints.has(parsed.data.serviceId) &&
-            this.hints.size >= DEVICE_LIMITS.pairedDevices
-          )
-            return
           this.hints.set(parsed.data.serviceId, {
             address: senderAddress,
             port: parsed.data.port,

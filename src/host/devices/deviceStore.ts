@@ -27,9 +27,9 @@ const pairSchema = z.strictObject({
   endpoint: deviceEndpointSchema,
   completedAt: z.int().check(z.gte(0)),
   paused: z.boolean(),
-  grants: z.array(deviceGrantSchema).check(z.maxLength(DEVICE_LIMITS.repositories)),
+  grants: z.array(deviceGrantSchema),
 })
-const label = z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.labelChars))
+const label = z.string().check(z.minLength(1))
 const pendingSchema = z.strictObject({
   listenerApplication: label,
   interfaceLabel: label,
@@ -43,13 +43,11 @@ const stateSchema = z.strictObject({
   // Lane D: the persisted discovery-switch choice. Optional so state written
   // before the switch existed still opens; an absent choice reads as off.
   discoveryEnabled: z.optional(z.boolean()),
-  pending: z.array(pendingSchema).check(z.maxLength(DEVICE_LIMITS.pairedDevices)),
-  pairs: z.array(pairSchema).check(z.maxLength(DEVICE_LIMITS.pairedDevices)),
-  usedInvitationIds: z.array(id).check(z.maxLength(DEVICE_LIMITS.tombstones)),
-  revokedPairIds: z.array(id).check(z.maxLength(DEVICE_LIMITS.tombstones)),
-  revokedKeys: z
-    .array(z.strictObject({ pairId: id, invitationId: id }))
-    .check(z.maxLength(DEVICE_LIMITS.tombstones)),
+  pending: z.array(pendingSchema),
+  pairs: z.array(pairSchema),
+  usedInvitationIds: z.array(id),
+  revokedPairIds: z.array(id),
+  revokedKeys: z.array(z.strictObject({ pairId: id, invitationId: id })),
 })
 export type DeviceStoreState = z.infer<typeof stateSchema>
 
@@ -145,12 +143,10 @@ export class DeviceStore {
         throw new DevicePairingError('storage')
       const file = path.join(this.directory, 'pairs.json')
       const sample = await this.checkPrivate(file, false)
-      if (sample.size > BigInt(DEVICE_LIMITS.journalBytes)) throw new DevicePairingError('storage')
       const handle = await open(file, 'r')
       try {
         if (!sameFile(sample, await handleIdentity(handle))) throw new DevicePairingError('storage')
         const bytes = await handle.readFile()
-        if (bytes.length > DEVICE_LIMITS.journalBytes) throw new DevicePairingError('storage')
         const raw: unknown = JSON.parse(bytes.toString('utf8'))
         const state = stateSchema.parse(raw)
         if (JSON.stringify(state) !== bytes.toString('utf8'))
@@ -212,7 +208,6 @@ export class DeviceStore {
         )
           throw new DevicePairingError('storage')
         const bytes = Buffer.from(JSON.stringify(after))
-        if (bytes.length > DEVICE_LIMITS.journalBytes) throw new DevicePairingError('storage')
         const stage = path.join(
           this.directory,
           `.${randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex')}.stage`,

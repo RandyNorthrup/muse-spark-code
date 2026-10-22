@@ -20,8 +20,7 @@ import { DevicePairingError } from './pairing'
 // ASCII letters, digits, space and . _ - + @ only, separated by `/`.
 // No empty/dot/parent segments, trailing dot/space, device names (including
 // extensions and spaces before an extension), Unicode or short-name `~`
-// aliases. DEVICE_LIMITS.pathChars bounds the whole path to 512 characters.
-// This is stricter than lane 0's plannedWrites rule without changing it.
+// aliases. D121: no length of ours bounds the whole path.
 const FORBIDDEN_SEGMENT_CHARACTER = /[^A-Za-z0-9 ._+@-]/u
 const TRAILING_DOT_OR_SPACE = /[. ]$/u
 const RESERVED_DEVICE_NAME =
@@ -41,7 +40,6 @@ const isManifestPath = (value: string): boolean =>
 
 const manifestPath = z.string().check(
   z.minLength(1),
-  z.maxLength(DEVICE_LIMITS.pathChars),
   z.refine((value) => isManifestPath(value)),
 )
 const digest = z
@@ -68,8 +66,8 @@ export const deviceInputManifestSchema = z
     identity: deviceAttemptIdentitySchema,
     baseCommit: gitObject,
     tree: gitObject,
-    // The manifest names files, like an artifact: bounded by artifactFiles.
-    items: z.array(manifestItem).check(z.maxLength(DEVICE_LIMITS.artifactFiles)),
+    // The manifest names files, like an artifact: D121 keeps no count of ours.
+    items: z.array(manifestItem),
   })
   .check(
     z.refine(

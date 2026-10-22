@@ -15,7 +15,7 @@ import {
 } from './devices'
 
 const devicePanelId = z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/))
-const label = z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.labelChars))
+const label = z.string().check(z.minLength(1))
 export const DEVICE_STATUSES = [
   'local',
   'connected',
@@ -32,37 +32,30 @@ export const devicesPanelStateSchema = z.discriminatedUnion('enabled', [
   z.strictObject({
     enabled: z.literal(true),
     discoveryEnabled: z.boolean(),
-    devices: z
-      .array(
-        z.strictObject({
-          deviceId: devicePanelId,
-          pairId: devicePanelId,
-          label,
-          fingerprint: z.string().check(z.regex(/^[a-f0-9]{64}$(?![\s\S])/)),
-          endpoint: deviceEndpointSchema,
-          status: z.enum(DEVICE_STATUSES),
-          lastObservedAt: z.optional(
-            z.int().check(z.gte(0), z.lte(DEVICE_LIMITS.observationMaxMs)),
-          ),
-          waitingApprovals: z.int().check(z.gte(0), z.lte(DEVICE_LIMITS.unresolvedAttempts)),
-          unresolvedAttempts: z.int().check(z.gte(0), z.lte(DEVICE_LIMITS.unresolvedAttempts)),
-          retainedLiabilityUsd: z
-            .number()
-            .check(z.gte(0), z.lte(DEVICE_LIMITS.spendUsd * DEVICE_LIMITS.unresolvedAttempts)),
-          offers: z.array(deviceOfferSchema).check(z.maxLength(DEVICE_LIMITS.repositories)),
-        }),
-      )
-      .check(z.maxLength(DEVICE_LIMITS.pairedDevices)),
+    devices: z.array(
+      z.strictObject({
+        deviceId: devicePanelId,
+        pairId: devicePanelId,
+        label,
+        fingerprint: z.string().check(z.regex(/^[a-f0-9]{64}$(?![\s\S])/)),
+        endpoint: deviceEndpointSchema,
+        status: z.enum(DEVICE_STATUSES),
+        lastObservedAt: z.optional(z.int().check(z.gte(0), z.lte(DEVICE_LIMITS.observationMaxMs))),
+        waitingApprovals: z.int().check(z.gte(0)),
+        unresolvedAttempts: z.int().check(z.gte(0)),
+        retainedLiabilityUsd: z.number().check(z.gte(0)),
+        offers: z.array(deviceOfferSchema),
+      }),
+    ),
   }),
 ])
 export type DevicesPanelState = z.infer<typeof devicesPanelStateSchema>
 
 // M100 phase 2 (lane U): owners bound to a device, each with revocable
-// per-action grants. The host enforces ownersPerDevice and grantsPerOwner;
-// the schema refuses wider shapes before display.
+// per-action grants. D121: no count of ours; any number binds and displays.
 const deviceOwnerGrantsSchema = z.strictObject({
   ownerId: devicePanelId,
-  grants: z.array(deviceGrantSchema).check(z.maxLength(DEVICE_LIMITS.grantsPerOwner)),
+  grants: z.array(deviceGrantSchema),
 })
 export type DeviceOwnerGrants = z.infer<typeof deviceOwnerGrantsSchema>
 
@@ -150,9 +143,7 @@ export const deviceHostMessageSchema = z.strictObject({
           port: z.int().check(z.gte(1), z.lte(DEVICE_LIMITS.portMax)),
         }),
       ),
-      owners: z.optional(
-        z.array(deviceOwnerGrantsSchema).check(z.maxLength(DEVICE_LIMITS.ownersPerDevice)),
-      ),
+      owners: z.optional(z.array(deviceOwnerGrantsSchema)),
       capability: z.optional(deviceCapabilitySchema),
       throttled: z.optional(deviceThrottledSchema),
       stepUp: z.optional(z.strictObject({ grantId: devicePanelId })),

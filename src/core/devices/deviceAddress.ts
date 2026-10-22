@@ -45,7 +45,7 @@ export async function resolveDeviceAddress(
     throw new Error('invalid-device-address')
   }
   const answers = isIP(hostname) === 0 ? await lookup(hostname) : [hostname]
-  if (answers.length === 0 || answers.length > DEVICE_LIMITS.entries) {
+  if (answers.length === 0) {
     throw new Error('invalid-device-address')
   }
   const local = checkedDeviceAddress(localAddress)

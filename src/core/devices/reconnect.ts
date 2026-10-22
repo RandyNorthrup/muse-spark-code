@@ -64,7 +64,6 @@ export class DeviceReconnectSession {
   ): DeviceEpochState {
     const parsed = this.scoped(identity)
     if (this.leases.has(parsed.attemptId)) throw new DeviceEpochError('uncertain')
-    if (this.leases.size >= DEVICE_LIMITS.unresolvedAttempts) throw new DeviceEpochError('capacity')
     const state = openEpochLease(parsed, checkpoint, now, leaseMs)
     this.leases.set(parsed.attemptId, state)
     return structuredClone(state)
@@ -77,8 +76,6 @@ export class DeviceReconnectSession {
     const known = this.leases.get(parsed.identity.attemptId)
     if (known !== undefined && JSON.stringify(known) !== JSON.stringify(parsed))
       throw new DeviceEpochError('payload-changed')
-    if (known === undefined && this.leases.size >= DEVICE_LIMITS.unresolvedAttempts)
-      throw new DeviceEpochError('capacity')
     this.leases.set(parsed.identity.attemptId, parsed)
     return structuredClone(parsed)
   }

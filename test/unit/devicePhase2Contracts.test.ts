@@ -9,8 +9,6 @@ import {
   DEVICE_STREAMS,
   DEVICE_THROTTLE_REASONS,
   isAckForEnvelope,
-  canAddGrant,
-  canAddOwner,
   canOpenHandshake,
   canQueueResultAck,
   grantCeilingRefusal,
@@ -266,7 +264,7 @@ describe('M100 phase-2 capability contracts (lane V reads)', () => {
     const { slotCap: _slot, power: _power, ...withoutTruth } = capability
     expect(deviceCapabilitySchema.safeParse(withoutTruth).success).toBe(false)
   })
-  it('refuses duplicate tools, duplicate engines and oversized lists', () => {
+  it('refuses duplicate tools and duplicate engines, at any list length', () => {
     expect(
       deviceCapabilitySchema.safeParse({ ...capability, tools: ['node', 'node'] }).success,
     ).toBe(false)
@@ -279,24 +277,19 @@ describe('M100 phase-2 capability contracts (lane V reads)', () => {
     expect(
       deviceCapabilitySchema.safeParse({
         ...capability,
-        tools: Array.from(
-          { length: DEVICE_LIMITS.capabilityTools + 1 },
-          (_, index) => `tool-${String(index)}`,
-        ),
+        tools: Array.from({ length: 70 }, (_, index) => `tool-${String(index)}`),
       }).success,
-    ).toBe(false)
+    ).toBe(true)
   })
   it('serializes the advertisement within the capability byte cap', () => {
     expect(utf8Bytes(capability)).toBeLessThanOrEqual(DEVICE_LIMITS.capabilityBytes)
   })
   it('counts the byte cap in UTF-8 bytes, not string length', () => {
-    // Each name is labelChars code units but about three times as many UTF-8
+    // Each name is 60 code units but about three times as many UTF-8
     // bytes, so string length stays under the cap while the wire size exceeds it.
     const wide: DeviceCapability = {
       ...capability,
-      tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
-        `t${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, '你'),
-      ),
+      tools: Array.from({ length: 60 }, (_, index) => `t${String(index)}-`.padEnd(60, '你')),
     }
     expect(JSON.stringify(wide).length).toBeLessThanOrEqual(DEVICE_LIMITS.capabilityBytes)
     expect(utf8Bytes(wide)).toBeGreaterThan(DEVICE_LIMITS.capabilityBytes)
@@ -305,16 +298,7 @@ describe('M100 phase-2 capability contracts (lane V reads)', () => {
   it('refuses a field-valid advertisement that serializes past the byte cap', () => {
     const full: DeviceCapability = {
       ...capability,
-      tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
-        `tool-${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, 'x'),
-      ),
-      engines: Array.from({ length: DEVICE_LIMITS.capabilityEngines }, (_, index) => ({
-        model: {
-          providerId: `p${String(index)}`.padEnd(DEVICE_LIMITS.modelIdChars, 'x'),
-          modelId: `m${String(index)}`.padEnd(DEVICE_LIMITS.modelIdChars, 'x'),
-        },
-        budget: 'ok',
-      })),
+      tools: Array.from({ length: 100 }, (_, index) => `tool-${String(index)}-`.padEnd(100, 'x')),
       pressure: { ...capability.pressure, transportResets: Number.MAX_SAFE_INTEGER },
     }
     expect(JSON.stringify(full).length).toBeGreaterThan(DEVICE_LIMITS.capabilityBytes)
@@ -386,26 +370,18 @@ describe('M100 phase-2 grant contracts (lanes A and K read)', () => {
   })
 })
 
-describe('M100 phase-2 queue caps (lanes K and R read)', () => {
-  it('locks ownersPerDevice, grantsPerOwner and pendingResultAcks behind callable guards', () => {
-    expect(DEVICE_LIMITS.ownersPerDevice).toBe(4)
-    expect(DEVICE_LIMITS.grantsPerOwner).toBe(16)
+describe('M100 phase-2 queue caps (lane R reads)', () => {
+  it('locks pendingResultAcks behind a callable guard', () => {
     expect(DEVICE_LIMITS.pendingResultAcks).toBe(256)
-    expect(canAddOwner(DEVICE_LIMITS.ownersPerDevice - 1)).toBe(true)
-    expect(canAddOwner(DEVICE_LIMITS.ownersPerDevice)).toBe(false)
-    expect(canAddGrant(DEVICE_LIMITS.grantsPerOwner - 1)).toBe(true)
-    expect(canAddGrant(DEVICE_LIMITS.grantsPerOwner)).toBe(false)
     expect(canQueueResultAck(DEVICE_LIMITS.pendingResultAcks - 1)).toBe(true)
     expect(canQueueResultAck(DEVICE_LIMITS.pendingResultAcks)).toBe(false)
   })
-  it('refuses negative, fractional and non-finite counts on every queue guard', () => {
-    for (const guard of [canAddOwner, canAddGrant, canQueueResultAck]) {
-      expect(guard(0)).toBe(true)
-      expect(guard(-1)).toBe(false)
-      expect(guard(1.5)).toBe(false)
-      expect(guard(NaN)).toBe(false)
-      expect(guard(Number.MAX_SAFE_INTEGER)).toBe(false)
-    }
+  it('refuses negative, fractional and non-finite counts on the queue guard', () => {
+    expect(canQueueResultAck(0)).toBe(true)
+    expect(canQueueResultAck(-1)).toBe(false)
+    expect(canQueueResultAck(1.5)).toBe(false)
+    expect(canQueueResultAck(NaN)).toBe(false)
+    expect(canQueueResultAck(Number.MAX_SAFE_INTEGER)).toBe(false)
   })
 })
 

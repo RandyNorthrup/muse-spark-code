@@ -1,20 +1,18 @@
 // S/map and native hosts inject this read-only projection of their task record.
 // Rendering a route, branch or usage never grants control or opens a peer link.
 import * as z from 'zod/mini'
-import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
+import { UI_TEXT } from '../../../../shared/constants'
 import { deviceRouteSchema } from '../../../../shared/devices'
 import { formatUsd } from '../../../../shared/l10n/exactUsd'
 
 const taskView = z.strictObject({
   taskId: z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/)),
-  title: z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.labelChars)),
+  title: z.string().check(z.minLength(1)),
   route: deviceRouteSchema,
-  branch: z.optional(z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.pathChars))),
+  branch: z.optional(z.string().check(z.minLength(1))),
   usage: z.strictObject({
     kind: z.enum(['known', 'estimated', 'uncertain']),
-    amountUsd: z
-      .number()
-      .check(z.gte(0), z.lte(DEVICE_LIMITS.spendUsd * DEVICE_LIMITS.unresolvedAttempts)),
+    amountUsd: z.number().check(z.gte(0)),
   }),
 })
 export type DeviceTaskView = z.infer<typeof taskView>
