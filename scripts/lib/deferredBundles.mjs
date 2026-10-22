@@ -24,6 +24,10 @@ export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/copilotFailure.ts',
   // The plan catalogue's entry parse, read by the registry beside it.
   'src/core/providers/subscriptions/chatgptPlanFacts.ts',
+  // RLGROKAUTH: the Grok sign-in core, read beside the registry like chatgpt.ts.
+  'src/core/providers/subscriptions/grok.ts',
+  // RLGROKAUTH: the OIDC mechanics both subscription sign-ins share.
+  'src/core/providers/subscriptions/oidc.ts',
 ]
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
