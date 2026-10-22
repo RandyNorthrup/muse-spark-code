@@ -63,19 +63,28 @@ function pager(pages: readonly (readonly string[])[]): {
   }
 }
 
+async function foundIds(
+  pages: readonly (readonly string[])[],
+  wanted: readonly string[],
+): Promise<{ ids: string[]; fetched: string[] }> {
+  const { fetchPage, fetched } = pager(pages)
+  const records = await pageSessionsUntilFound(fetchPage, new Set(wanted), '0', () => false)
+  return { ids: records.map((row) => row.sessionId), fetched }
+}
+
 describe('pageSessionsUntilFound', () => {
   it('stops at the page that names every wanted id', async () => {
-    const { fetchPage, fetched } = pager([['s-0'], ['s-1'], ['s-2']])
-    const records = await pageSessionsUntilFound(fetchPage, new Set(['s-1']), '0', () => false)
-    expect(records.map((row) => row.sessionId)).toEqual(['s-0', 's-1'])
-    expect(fetched).toEqual(['0', '1'])
+    expect(await foundIds([['s-0'], ['s-1'], ['s-2']], ['s-1'])).toEqual({
+      ids: ['s-0', 's-1'],
+      fetched: ['0', '1'],
+    })
   })
 
   it('reads to the end when a wanted id never appears', async () => {
-    const { fetchPage, fetched } = pager([['s-0'], ['s-1']])
-    const records = await pageSessionsUntilFound(fetchPage, new Set(['gone']), '0', () => false)
-    expect(records.map((row) => row.sessionId)).toEqual(['s-0', 's-1'])
-    expect(fetched).toEqual(['0', '1'])
+    expect(await foundIds([['s-0'], ['s-1']], ['gone'])).toEqual({
+      ids: ['s-0', 's-1'],
+      fetched: ['0', '1'],
+    })
   })
 
   it('fetches nothing with no wanted ids or no further pages', async () => {
