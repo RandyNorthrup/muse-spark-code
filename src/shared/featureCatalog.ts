@@ -700,6 +700,15 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApi'],
     ),
     feature(
+      'native-feedback',
+      { ui: 'feedbackTitle' },
+      { ui: 'feedbackPrivacy' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['museCode'],
+    ),
+    feature(
       'native-deletion',
       { ui: 'memoryDeleteAction' },
       { ui: 'historyLabel' },
@@ -708,9 +717,19 @@ export function featureCatalog(): readonly Feature[] {
       'agent-loop-guarantees',
       ['museCode'],
     ),
-    // Deep CLI help follows the public command table; full reference is explicit.
-    // ACP and exec use the selected provider summary's known effort levels.
-    feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
+    // The effort item serves the VS Code panel and the ACP agent; the
+    // selected provider summary's known effort levels apply in both.
+    feature(
+      'effort',
+      { ui: 'effortItem' },
+      { tip: 'effort' },
+      [],
+      [],
+      'the-panel',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     feature(
       'custom-agents',
       { ui: 'agentsCommand' },

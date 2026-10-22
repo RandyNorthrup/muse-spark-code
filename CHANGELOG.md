@@ -15,6 +15,48 @@ happened, not what was planned; superseded entries are kept.
   compared the universal package with another platform's (every package
   was published and matched when checked by its own address).
 
+### Added
+
+- M106's native Muse Code readers for the captured 1.4.4 frames: the
+  `model/list` effort catalogue (ordered variants, tier descriptions and
+  default, future tiers shown as they arrive) and the note-only
+  `feedback/submit` receipt (uploads report **Feedback uploaded** without
+  exposing receipt identifiers). Where Muse Code sends no frame, the
+  feature refuses with an upstream SDK request: record-attached feedback
+  outcomes and session deletion stay unavailable, and History stays
+  archive-only. Both readers are bound in the VS Code window and in the
+  CLI/ACP runtime (the handshake asks for the `feedback` grant the capture
+  proves; the effort reader loads on first spawn, never at activation). A
+  reply's actions menu offers **Send feedback to Muse Code**: a note with
+  its classification, previewed scrubbed before consent, uploaded without
+  files or session record; the dialog loads on first open with its own
+  strings, and Help lists it too.
+
+### Fixed
+
+- Native Muse Code feedback opens outside inert page regions, keeps keyboard
+  focus within the dialog and restores its opener on close. Switching sessions
+  discards the old dialog and port. The bridge and form load only on first use.
+
+- Effort controls and ACP/headless admission use the served model tiers,
+  retaining empty catalogues and disabling unfamiliar tiers. Pointer, arrow
+  and palette selection share that range.
+
+- The Muse Code feedback dialog reports what the upload receipt actually
+  says: only an uploaded receipt reads as success, and every other outcome
+  (recorded, rate limited, rejected sign-in, missing credential, uncertain
+  delivery, and the rest of the receipt taxonomy) shows its own sentence.
+  The note stops at the protocol maximum with a counter, and a refused
+  preview or send settles the dialog with its reason instead of waiting.
+  The Modes footer and palette effort dots render the served catalogue's
+  tiers and names, and new ACP sessions start on the catalogue's default;
+  a malformed catalogue row no longer fails the whole model list.
+
+- The Agent-loop-guarantees section again matches the product: the SDK pin
+  is 1.4.4 and the effort catalogue and note-only feedback receipt are
+  bound in the VS Code window and the CLI/ACP runtime, while
+  record-attached feedback and permanent deletion refuse before dispatch.
+
 ## [0.19.0] - 2026-10-21
 
 ### Highlights
@@ -775,6 +817,8 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   the ChatGPT sign-in's English and the team runners' English load in their
   own lazily fetched chunks beside their deferred surfaces instead of riding
   the shared surface-English closure. No sentence changed in any language.
+
+### Pending
 
 - Bundled skills load when the extensions or storage folder is reached
   through a symlink or a short Windows name. A symlinked or short-named

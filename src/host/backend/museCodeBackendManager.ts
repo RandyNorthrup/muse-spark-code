@@ -470,15 +470,23 @@ export class MuseCodeBackendManager {
     const restartCause = this.failedExit
     try {
       this.deps.accountHome?.assertCurrent()
+      // The captured 1.4.4 effort reader loads on first spawn, not at
+      // activation: dist/modelEfforts.js stays out of the activation bundle
+      // (lane K budget) while every spawn reads the same captured
+      // catalogue. An injected reader (tests) wins over the preload; the
+      // contributor mode rides on the caller's ports where it speaks.
+      let modelEfforts = this.deps.featurePorts?.modelEfforts
+      if (modelEfforts === undefined) {
+        const entry = await import('../../core/backends/musecode/modelEffortsEntry')
+        modelEfforts = { parseModel: entry.parseModelEffortExtras }
+      }
       host = new backend.MuseCodeHost(
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
-        // The per-model effort reader is always on (META-G05); an
-        // injected port still wins where it speaks.
         {
-          ...backend.museCodeEffortPort,
           ...withContributorMode(this.deps.featurePorts, this.contributorModeEnabled()),
+          modelEfforts,
         },
         undefined,
         this.deps.accountHome,

@@ -61,6 +61,9 @@ const BUDGETS = [
   // POSTSPAWN: the vault MCP launch, off activation; 13.4 KiB measured,
   // +15%, rounded up to 25 KiB.
   { path: 'dist/mcpVault.js', budgetKiB: 25 },
+  // POSTSPAWN (C-M106-3R2): the 1.4.4 effort catalogue reader, off
+  // activation; ~1 KiB measured, rounded up to 25 KiB like its neighbours.
+  { path: 'dist/modelEfforts.js', budgetKiB: 25 },
   { path: 'dist/resourceAdmission.js', budgetKiB: 25 },
   // INT0170: M107 W2's journal, shared by the governor and the usage service;
   // 41.1 KiB measured, +15%, rounded up to 25 KiB.

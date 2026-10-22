@@ -100,7 +100,13 @@ import {
   WHATS_NEW_CONTENT_FILE,
 } from '../shared/constants'
 import { isCredentialStoreDown } from '../host/auth/credentialStore'
-import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
+import {
+  effortForThinking,
+  effortLabel,
+  effortLevelsFor,
+  isEffortLevel,
+  servedEffortLevels,
+} from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { MediaRefusal } from './media'
@@ -423,7 +429,7 @@ sentence plus the levels it does serve, the same words headless `exec`
 refuses with, so both surfaces name the choice.
 */
 export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
-  return `${UI_TEXT.execEffortUnavailable} --effort: ${modelEffortLevels(models, modelId).join(', ')}`
+  return `${UI_TEXT.execEffortUnavailable} --effort: ${servedEffortLevels(models, modelId).join(', ')}`
 }
 
 /**
@@ -475,6 +481,51 @@ export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly 
         (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
     )
   })
+}
+
+/** The default effort where the model serves it, else the nearest tier it has. */
+function servedEffort(
+  models: readonly ModelSummary[],
+  modelId: string,
+  wanted: EffortLevel,
+): EffortLevel | undefined {
+  // ACP admits through the one shared function too (RVCM1063D cause 1).
+  const levels = servedEffortLevels(models, modelId)
+  return levels.includes(wanted) ? wanted : levels.at(-1)
+}
+
+/**
+The effort a session starts on (C-M106-3R3): the served catalogue's
+default where it names a known tier, else the panel default. The captured
+contributor catalogue defaults to `max`, which the static default would
+never select (RVCM1063 #3).
+*/
+function startingEffort(models: readonly ModelSummary[], modelId: string): EffortLevel {
+  const catalogueDefault = models.find((model) => model.modelId === modelId)?.defaultReasoningEffort
+  const wanted =
+    catalogueDefault !== undefined && isEffortLevel(catalogueDefault)
+      ? catalogueDefault
+      : DEFAULT_EFFORT
+  return servedEffort(models, modelId, wanted) ?? DEFAULT_EFFORT
+}
+
+/**
+The effort options for one model: the catalogue's tiers in catalogue order
+with the catalogue's names, projected to the selectable vocabulary (a tier
+outside it cannot be set, so it is not offered); the family table where
+the row carries no catalogue.
+*/
+function effortOptionsFor(
+  models: readonly ModelSummary[],
+  modelId: string,
+): { readonly value: string; readonly name: string }[] {
+  const row = models.find((model) => model.modelId === modelId)
+  return servedEffortLevels(models, modelId).map((tier) => ({
+    value: tier,
+    name:
+      row?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
+      effortLabel(tier),
+  }))
 }
 
 /** One ACP session over one AgentSession. */
@@ -1918,6 +1969,21 @@ class AcpSession {
     ]
   }
 
+  private effortOption(): SessionConfigOption[] {
+    const options = effortOptionsFor(this.models, this.modelId)
+    if (options.length === 0) return []
+    return [
+      {
+        id: ACP_CONFIG_IDS.effort,
+        name: UI_TEXT.effortItem,
+        category: 'thought_level',
+        type: 'select',
+        currentValue: this.effort,
+        options,
+      },
+    ]
+  }
+
   /**
   The effort the model runs: the wanted tier where it serves it, else
   the model's own default, else the highest tier it serves.
@@ -2138,17 +2204,7 @@ class AcpSession {
           ...(model.agentLimit !== undefined && { description: model.agentLimit }),
         })),
       },
-      {
-        id: ACP_CONFIG_IDS.effort,
-        name: UI_TEXT.effortItem,
-        category: 'thought_level',
-        type: 'select',
-        currentValue: this.effort,
-        options: modelEffortLevels(this.models, this.modelId).map((level) => ({
-          value: level,
-          name: effortLabel(level),
-        })),
-      },
+      ...this.effortOption(),
       ...this.fastOption(),
     ]
   }
@@ -2347,7 +2403,7 @@ class AcpSession {
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !modelEffortLevels(this.models, this.modelId).includes(value)) {
+    if (!isEffortLevel(value) || !servedEffortLevels(this.models, this.modelId).includes(value)) {
       throw RequestError.invalidParams(undefined, effortRefusalData(this.models, this.modelId))
     }
     await this.applyEffort(value)
@@ -3413,7 +3469,7 @@ class AgentState {
     // plan model starts on its catalogue default unless the person chose one.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(defaultEffortFor(models, modelId)),
+      started.applyEffort(startingEffort(models, modelId)),
     )
     // Keep what the editor is shown, including backend events during setup.
     this.choices.set(session.sessionId, acp.currentChoice())

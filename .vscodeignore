@@ -57,6 +57,7 @@
 !dist/dictation.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
+!dist/modelEfforts.js
 !dist/modelsPanel.js
 !dist/auth.js
 !dist/paid.js

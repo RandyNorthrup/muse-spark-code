@@ -35,6 +35,7 @@ import {
 } from '../core/paid/spendClaim'
 import type { UsageRecording } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
+import { NATIVE_MUSE_CODE_FEATURE_PORTS } from '../core/backends/musecode/MuseCodeHost'
 import type { Logger } from '../host/logger'
 import {
   FILE_REFUSAL_MODEL_TEXT,
@@ -245,6 +246,10 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
     ...(windowsJobAssembly !== undefined && { shellJobAssembly: windowsJobAssembly }),
     bundlePath: path.join(deps.distDir, MUSE_CODE_BUNDLE_FILE),
     usageRecording: deps.usageRecording,
+    // The same captured-frame readers as the VS Code window (C-M106-3R2),
+    // so the CLI and the ACP agent read effort extras, the note-only
+    // feedback receipt and the deletion refusal identically.
+    featurePorts: NATIVE_MUSE_CODE_FEATURE_PORTS,
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,

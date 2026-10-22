@@ -1,3 +1,4 @@
+import { catalogueSliderProps } from '../../src/webview/components/EffortSlider'
 import { describe, expect, it } from 'vitest'
 import { EFFORT_LEVELS } from '../../src/shared/constants'
 import {
@@ -11,7 +12,21 @@ import {
   type ReasoningControl,
 } from '../../src/shared/effort'
 
+// The catalogue tests assert the carried props, never a selection: the
+// callback is an unused selection sink.
+function ignoreTierSelection(): void {
+  return undefined
+}
+
 describe('effort helpers', () => {
+  it.each([
+    { variants: ['low', 'high', 'turbo'], expected: ['low', 'high'] },
+    { variants: [], expected: [] },
+    { variants: 'unknown', expected: [] },
+  ] as const)('treats served $variants as authoritative', ({ variants, expected }) => {
+    expect(effortLevelsFor('muse-spark-1.3', ['medium'], { variants })).toEqual(expected)
+  })
+
   it('uses only recorded BYO effort tiers, with an empty unknown range', () => {
     expect(effortLevelsFor('other/model')).toEqual([])
     expect(effortLevelsFor('other/model', ['low', 'high'])).toEqual(['low', 'high'])
@@ -42,6 +57,32 @@ describe('effort helpers', () => {
     expect(effortLevelsFor('muse-spark-1.2')).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh'])
     expect(effortLevelsFor('some-future-model')).toBe(EFFORT_LEVELS)
     expect(effortLevelsFor(undefined)).toBe(EFFORT_LEVELS)
+  })
+
+  it('builds no catalogue props where the row carries no catalogue', () => {
+    expect(catalogueSliderProps(undefined, 'high', () => undefined)).toBeUndefined()
+    expect(catalogueSliderProps({ variants: undefined }, 'high', () => undefined)).toBeUndefined()
+  })
+
+  it('builds the slider catalogue path with the row default and current', () => {
+    const onSelectTier = ignoreTierSelection
+    expect(
+      catalogueSliderProps(
+        {
+          variants: ['minimal', 'turbo'],
+          reasoningEffortVariants: [{ tier: 'turbo', description: 'Fastest' }],
+          defaultReasoningEffort: 'turbo',
+        },
+        'turbo',
+        onSelectTier,
+      ),
+    ).toEqual({
+      variants: ['minimal', 'turbo'],
+      reasoningEffortVariants: [{ tier: 'turbo', description: 'Fastest' }],
+      defaultReasoningEffort: 'turbo',
+      current: 'turbo',
+      onSelect: onSelectTier,
+    })
   })
 
   it('maps tiers to slider positions and clamps positions back to tiers', () => {

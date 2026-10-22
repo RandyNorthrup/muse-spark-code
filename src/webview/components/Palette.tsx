@@ -19,7 +19,7 @@ import {
   useState,
 } from 'react'
 import { UI_TEXT, PALETTE_LISTBOX_ID, CONTRIBUTOR_MODEL_SUFFIX } from '../../shared/constants'
-import { effortAt, effortIndex } from '../../shared/effort'
+import { effortAt, effortIndex, isEffortLevel } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
 import {
   type PaletteContext,
@@ -35,7 +35,7 @@ import { buildPalette } from '../../shared/paletteRegistry'
 import type { ModelOption } from '../../shared/protocol'
 import { MoneyUnavailable, useMoneyDisplay, usePriceOf } from '../money'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
-import { EffortSlider } from './EffortSlider'
+import { catalogueSliderProps, EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
 import { ListBody } from './ListBody'
 import { PaletteList, usePaletteDismiss } from './paletteDialog'
@@ -352,6 +352,14 @@ function Widget({
                   onStep(effortIndex(widget.levels, level))
                 }
           }
+          model={catalogueSliderProps(widget.catalogue, widget.current, (tier) => {
+            // Known tiers step the row; a tier outside the vocabulary has no
+            // step on the EffortLevel-typed row.
+            if (onStep === undefined || !isEffortLevel(tier)) return
+            const index = effortIndex(widget.levels, tier)
+            if (index < 0) return
+            onStep(index)
+          })}
         />
       )
     }
