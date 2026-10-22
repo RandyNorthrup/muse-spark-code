@@ -23,6 +23,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { Usd } from '../../shared/usd'
+import type { Usd as AccountUsd } from '../../shared/accountUsd'
 import { AccountRequestJournal } from './accountRequestJournal'
 
 /** Runtime policy grants come from the machine store. Without the provider
@@ -31,6 +32,16 @@ class RuntimePolicyGate extends AccountPolicyGate {
   public override authorize(request: Parameters<AccountPolicyGate['authorize']>[0]) {
     return super.authorize({ ...request, isInteractive: false })
   }
+}
+
+/** Priced-model cold-cache estimate, shared by the owner and its composition tests. */
+export function ownerColdCacheUsd(modelId: string, inputTokens: number): AccountUsd {
+  const pricing = modelPolicyFor(modelId).pricing
+  if (pricing.kind !== 'priced') throw new Error(UI_TEXT.execModelUnpriced)
+  return accountColdCacheEstimate(
+    inputTokens,
+    Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
+  )
 }
 
 export async function createAccountRequestOwner(deps: {
@@ -130,14 +141,8 @@ export async function createAccountRequestOwner(deps: {
     // before creating its client; no capability is invented for a BYO row.
     canUseModel: (_account, request) =>
       modelPolicyFor(request.modelId).identity.provider === deps.provider,
-    coldCache: (_previous, _next, request) => {
-      const pricing = modelPolicyFor(request.modelId).pricing
-      if (pricing.kind !== 'priced') throw new Error(UI_TEXT.execModelUnpriced)
-      return accountColdCacheEstimate(
-        request.estimate.inputTokens,
-        Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
-      )
-    },
+    coldCache: (_previous, _next, request) =>
+      ownerColdCacheUsd(request.modelId, request.estimate.inputTokens),
     reserve: (account, estimate, request) => {
       const claim = journal.reserve(deps.provider, account.id, estimate, request)
       return Promise.resolve(claim)

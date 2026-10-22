@@ -2,26 +2,27 @@
 // gate, confirmations, bundled policy and model catalogue, with durable
 // state in a scratch directory. No fakes: every seam is bound the way the
 // runtime owner binds it.
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { fileConfirmationStore, scriptedAsker } from './helpers/accountConfirmationStore'
 import {
   AccountPool,
   AccountPoolBusyError,
   AccountPoolStoppedError,
-  accountColdCacheEstimate,
   type AccountPoolRequest,
 } from '../../src/core/accounts/pool'
 import { AccountPolicyGate } from '../../src/core/accounts/policyGate'
 import { AccountConfirmations } from '../../src/core/accounts/confirmations'
 import { accountPolicyFor } from '../../src/core/providers/accountPolicy'
 import { AccountRequestJournal } from '../../src/runtime/providers/accountRequestJournal'
+import { ownerColdCacheUsd } from '../../src/runtime/providers/accountRequestOwner'
 import { accountPeriodRange } from '../../src/core/accounts/thresholds'
 import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import { parseUsd, usdDecimal } from '../../src/shared/accountUsd'
-import { Usd } from '../../src/shared/usd'
-import { ACCOUNT_REQUEST_STORE, TOKENS_PER_MILLION, UI_TEXT } from '../../src/shared/constants'
+import { usdAmountSchema } from '../../src/shared/usd'
+import { ACCOUNT_REQUEST_STORE, UI_TEXT } from '../../src/shared/constants'
 import { accountEventSchema, type Account, type AccountEvent } from '../../src/shared/accounts'
 
 const MODEL = 'muse-spark-1.3'
@@ -89,42 +90,8 @@ async function setup(rows: Account[], settings?: { isSwapOn: boolean; isParallel
   const confirmations = new AccountConfirmations({
     machineId: 'pool-test-machine',
     now: () => NOW,
-    ask: () => {
-      asked.count += 1
-      const answer = asked.answers.shift()
-      return answer === undefined
-        ? Promise.reject(new Error('unexpected policy question'))
-        : Promise.resolve(answer)
-    },
-    store: {
-      read: async (provider, product) => {
-        try {
-          return JSON.parse(
-            await readFile(path.join(dir, `confirmation-${provider}-${product}.json`), 'utf8'),
-          ) as unknown
-        } catch (error: unknown) {
-          if (
-            typeof error === 'object' &&
-            error !== null &&
-            'code' in error &&
-            error.code === 'ENOENT'
-          )
-            return undefined
-          throw error
-        }
-      },
-      write: async (provider, product, value) => {
-        await mkdir(dir, { recursive: true, mode: ACCOUNT_REQUEST_STORE.directoryMode })
-        await writeFile(
-          path.join(dir, `confirmation-${provider}-${product}.json`),
-          JSON.stringify(value),
-          { mode: ACCOUNT_REQUEST_STORE.fileMode },
-        )
-      },
-      remove: async (provider, product) => {
-        await rm(path.join(dir, `confirmation-${provider}-${product}.json`), { force: true })
-      },
-    },
+    ask: scriptedAsker(asked),
+    store: fileConfirmationStore(dir),
   })
   const published: AccountEvent[] = []
   const pool = new AccountPool({
@@ -150,14 +117,8 @@ async function setup(rows: Account[], settings?: { isSwapOn: boolean; isParallel
     settings: () => live,
     headroom: (row) => journal.headroom(row, 'meta'),
     canUseModel: (_row, request) => modelPolicyFor(request.modelId).identity.provider === 'meta',
-    coldCache: (_previous, _next, request) => {
-      const pricing = modelPolicyFor(request.modelId).pricing
-      if (pricing.kind !== 'priced') throw new Error(UI_TEXT.execModelUnpriced)
-      return accountColdCacheEstimate(
-        request.estimate.inputTokens,
-        Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
-      )
-    },
+    coldCache: (_previous, _next, request) =>
+      ownerColdCacheUsd(request.modelId, request.estimate.inputTokens),
     reserve: (row, estimate, request) =>
       Promise.resolve(journal.reserve('meta', row.id, estimate, request)),
     record: (event) => {
@@ -179,6 +140,12 @@ function totalsOf(harness: Awaited<ReturnType<typeof setup>>, id: string) {
     account: id,
     ...accountPeriodRange('day', NOW),
   })
+}
+
+async function primeConversation(harness: Awaited<ReturnType<typeof setup>>): Promise<void> {
+  const priming = await harness.pool.acquire(conversation())
+  priming.beforeSend()
+  await priming.settle(parseUsd('0.01'))
 }
 
 /** A pid the operating system reports as never having run. */
@@ -281,7 +248,7 @@ describe('M108 account pool composition', () => {
 
   it('swaps on a user cap without asking, since no vendor limit is crossed', async () => {
     const harness = await setup([
-      account('s1', 0, { thresholds: { spendUsd: { day: '0.01' } } }),
+      account('s1', 0, { thresholds: { spendUsd: { day: usdAmountSchema.parse('0.01') } } }),
       account('s2', 1),
     ])
     const admitted = await harness.pool.acquire(conversation())
@@ -320,9 +287,7 @@ describe('M108 account pool composition', () => {
 
   it('spreads worker requests by headroom and records the spread', async () => {
     const harness = await setup([account('s1', 0), account('s2', 1)])
-    const priming = await harness.pool.acquire(conversation())
-    priming.beforeSend()
-    await priming.settle(parseUsd('0.01'))
+    await primeConversation(harness)
     const admitted = await harness.pool.acquire(worker())
     expect(admitted.account).toBe('s2')
     expect(harness.asked.count).toBe(0)
@@ -357,9 +322,7 @@ describe('M108 account pool composition', () => {
       isSwapOn: true,
       isParallelOn: false,
     })
-    const priming = await harness.pool.acquire(conversation())
-    priming.beforeSend()
-    await priming.settle(parseUsd('0.01'))
+    await primeConversation(harness)
     const admitted = await harness.pool.acquire(worker())
     expect(admitted.account).toBe('s1')
     admitted.beforeSend()
@@ -385,7 +348,7 @@ describe('M108 account pool composition', () => {
     const harness = await setup([account('s1', 0), account('s2', 1)])
     const request = conversation()
     const claim = harness.journal.reserve('meta', 's1', request.estimate, request)
-    claim.started()
+    claim.started?.()
     // The owning process is gone; only its open claim row survives.
     const bucket = new Date(NOW).toISOString().slice(0, '2026-10-22'.length)
     const names = await readdir(path.join(harness.journalDir, bucket))
