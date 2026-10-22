@@ -1,0 +1,76 @@
+{
+  "cases": [
+    {
+      "rule": "no-silent-fallback",
+      "fixture": "standards/no-silent-fallback-pass.txt",
+      "expect": "pass",
+      "reason": "Read failures reject instead of masquerading as empty content."
+    },
+    {
+      "rule": "no-silent-fallback",
+      "fixture": "standards/no-silent-fallback-fail.txt",
+      "expect": "fail",
+      "reason": "A failed read is presented as successful empty content."
+    },
+    {
+      "rule": "no-placeholder-production-code",
+      "fixture": "standards/no-placeholder-production-code-pass.txt",
+      "expect": "pass",
+      "reason": "The promised copy is performed and its failure propagates."
+    },
+    {
+      "rule": "no-placeholder-production-code",
+      "fixture": "standards/no-placeholder-production-code-fail.txt",
+      "expect": "fail",
+      "reason": "The copy function claims success without copying."
+    },
+    {
+      "rule": "no-production-mock-data",
+      "fixture": "standards/no-production-mock-data-pass.txt",
+      "expect": "pass",
+      "reason": "The function returns the actual injected inventory result."
+    },
+    {
+      "rule": "no-production-mock-data",
+      "fixture": "standards/no-production-mock-data-fail.txt",
+      "expect": "fail",
+      "reason": "Production inventory is a fabricated list."
+    },
+    {
+      "rule": "actionable-errors",
+      "fixture": "standards/actionable-errors-pass.txt",
+      "expect": "pass",
+      "reason": "The error identifies the parser input and the necessary syntax repair."
+    },
+    {
+      "rule": "actionable-errors",
+      "fixture": "standards/actionable-errors-fail.txt",
+      "expect": "fail",
+      "reason": "The error gives no cause or remedy."
+    },
+    {
+      "rule": "explained-values",
+      "fixture": "standards/explained-values-pass.txt",
+      "expect": "pass",
+      "reason": "A named millisecond limit expresses the accepted request duration."
+    },
+    {
+      "rule": "explained-values",
+      "fixture": "standards/explained-values-fail.txt",
+      "expect": "fail",
+      "reason": "The domain timeout is an unexplained number with no units."
+    },
+    {
+      "rule": "honest-function-names",
+      "fixture": "standards/honest-function-names-pass.txt",
+      "expect": "pass",
+      "reason": "The function is named for its actual membership query."
+    },
+    {
+      "rule": "honest-function-names",
+      "fixture": "standards/honest-function-names-fail.txt",
+      "expect": "fail",
+      "reason": "The function promises deletion but only tests membership."
+    }
+  ]
+}

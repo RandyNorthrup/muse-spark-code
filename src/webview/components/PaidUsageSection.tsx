@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import {
   PAID_PRICES_VERIFIED_ON,
   MILLISECONDS_PER_SECOND,
@@ -15,51 +16,103 @@ import {
 } from '../../shared/paid'
 import { formatUsd } from '../../core/usage/insights'
 import { Usd } from '../../shared/usd'
-import { formatDurationMs } from '../agentFormat'
+import { formatDurationMs, paidUseText } from '../agentFormat'
+import { judgePanelRows, judgePanelStatusText } from '../../shared/judgePanelText'
+import type { JudgePanelSnapshot } from '../../shared/judgePanelSchema'
 
 /**
 The paid features this backend uses (D30 rule 5; on Muse Code, the key's
 images and voice, M44): each one's state, this window's use and its
 estimated cost at the published prices.
 */
+export function JudgeUsageRows({ snapshot }: { readonly snapshot: JudgePanelSnapshot }) {
+  const rows = judgePanelRows(snapshot)
+  return (
+    <div className="judge-usage">
+      <p className="usage-row-meta" role="status">
+        {judgePanelStatusText(snapshot)}
+      </p>
+      {snapshot.untested && snapshot.reason !== 'source-untested' ? (
+        <p className="usage-row-meta">{UI_TEXT.judgeSourceUntested}</p>
+      ) : null}
+      <dl className="usage-facts">
+        {rows.map((row) => (
+          <Fragment key={row.term}>
+            <dt>{row.term}</dt>
+            <dd dir="auto">{row.detail}</dd>
+          </Fragment>
+        ))}
+      </dl>
+      {snapshot.showSubscriptionNote ? (
+        <p className="usage-row-meta">{UI_TEXT.judgeSubscriptionNotice}</p>
+      ) : null}
+    </div>
+  )
+}
+
 export function PaidSection({
   paid,
   features,
   onForgetPaidUse,
+  judgeUsage,
 }: {
   readonly paid: PaidState
   readonly features: readonly PaidFeature[]
   readonly onForgetPaidUse: () => void
+  readonly judgeUsage?: JudgePanelSnapshot | undefined
 }) {
   const always = features.filter((feature) => paid.alwaysAllowed.includes(feature))
+  // A separate judge route's window grant is its own (never a Meta grant):
+  // it has its own Ask again, on any backend (RVM98P2R2 9).
+  const routeModel =
+    judgeUsage?.paidSourceSelected === true && judgeUsage.consent === 'granted'
+      ? judgeUsage.modelId
+      : undefined
   return (
     <>
-      <dl className="usage-facts">
-        {features.map((feature) => (
-          <PaidRow key={feature} feature={feature} paid={paid} />
-        ))}
-        <dt>
-          {features.includes('subagents') ? UI_TEXT.usagePaidExtraTotal : UI_TEXT.usagePaidTotal}
-        </dt>
-        <dd>{formatUsd(paidTotalUsd(paid.tally))}</dd>
-      </dl>
-      <p className={'usage-row-meta'}>
-        {fill(UI_TEXT.usagePaidNote, { date: PAID_PRICES_VERIFIED_ON })}
-      </p>
-      {features.includes('subagents') ? (
-        <p className={'usage-row-meta'}>{UI_TEXT.usagePaidSubagentSubset}</p>
-      ) : null}
-      {always.length === 0 ? null : (
+      {judgeUsage === undefined ? null : <JudgeUsageRows snapshot={judgeUsage} />}
+      {routeModel === undefined ? null : (
         <div className="usage-paid-always">
           <p className={'usage-row-meta'}>
-            {fill(UI_TEXT.usagePaidAlwaysNote, {
-              features: always.map((feature) => paidFeatureName(feature)).join(', '),
-            })}
+            {fill(UI_TEXT.usagePaidRouteNote, { model: routeModel })}
           </p>
           <button type="button" className="button-secondary" onClick={onForgetPaidUse}>
             {UI_TEXT.usagePaidAskAgain}
           </button>
         </div>
+      )}
+      {features.length === 0 ? null : (
+        <>
+          <dl className="usage-facts">
+            {features.map((feature) => (
+              <PaidRow key={feature} feature={feature} paid={paid} />
+            ))}
+            <dt>
+              {features.includes('subagents')
+                ? UI_TEXT.usagePaidExtraTotal
+                : UI_TEXT.usagePaidTotal}
+            </dt>
+            <dd>{formatUsd(paidTotalUsd(paid.tally))}</dd>
+          </dl>
+          <p className={'usage-row-meta'}>
+            {fill(UI_TEXT.usagePaidNote, { date: PAID_PRICES_VERIFIED_ON })}
+          </p>
+          {features.includes('subagents') ? (
+            <p className={'usage-row-meta'}>{UI_TEXT.usagePaidSubagentSubset}</p>
+          ) : null}
+          {always.length === 0 ? null : (
+            <div className="usage-paid-always">
+              <p className={'usage-row-meta'}>
+                {fill(UI_TEXT.usagePaidAlwaysNote, {
+                  features: always.map((feature) => paidFeatureName(feature)).join(', '),
+                })}
+              </p>
+              <button type="button" className="button-secondary" onClick={onForgetPaidUse}>
+                {UI_TEXT.usagePaidAskAgain}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </>
   )

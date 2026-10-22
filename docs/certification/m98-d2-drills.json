@@ -1,0 +1,868 @@
+[
+  {
+    "guard": "sampling explicit opt-in",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > stays opt-in even for high-stakes families and refuses missing adoption evidence"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "captured capability validation",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > requires captured cache capability unless explicitly high-stakes"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption receipt required",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "valid measurement identity",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > stays opt-in even for high-stakes families and refuses missing adoption evidence"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "capture identity match",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption source binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption providerId binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption model binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption modelVersion binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption endpoint binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption family binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption promptVersion binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption criteriaVersion binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "adoption technique binding",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "request model cannot switch",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > binds adoption to capture, source, model, version, endpoint, family and framing"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "integer input token count",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > rejects invalid preparation and thrown failures without dispatch or empty success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "nonnegative input token count",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > rejects invalid preparation and thrown failures without dispatch or empty success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "provider output limit retained",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > rejects invalid preparation and thrown failures without dispatch or empty success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "complete request plus output context",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > preflights the entire paired request including output, provider minimum and body cap",
+      "test/unit/judgeSampling.test.ts > judge sampling > uses the provider minimum output and the complete system/user overhead plus output allowance"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "loaded context window",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > preflights the entire paired request including output, provider minimum and body cap",
+      "test/unit/judgeSampling.test.ts > judge sampling > uses the provider minimum output and the complete system/user overhead plus output allowance"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "shared context ceiling",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > uses the provider minimum output and the complete system/user overhead plus output allowance"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "finite uncached price",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > never bypasses consent, unpriced/budget refusal, or cancellation while admission waits",
+      "test/unit/judgeSampling.test.ts > judge sampling > rejects invalid preparation and thrown failures without dispatch or empty success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "nonnegative uncached price",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > rejects invalid preparation and thrown failures without dispatch or empty success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "pre-cancelled attempt never admitted",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > pre-cancelled calls never enter admission and missing distributions are no answer"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "late cancellation discards output",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > drops late cancelled output while preserving the actual settlement",
+      "test/unit/judgeSampling.test.ts > judge sampling > cancellation after dispatch drops late answers but waits for all settlements"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "receipt schema boundary",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > parses the full receipt before returning to either technique"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "one distinct claim per attempt",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > never bypasses consent, unpriced/budget refusal, or cancellation while admission waits",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > drops late cancelled output while preserving the actual settlement",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > retains uncertain charges on timeout without an automatic second POST",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > refuses invalid input/output allowance and thrown preparation/admission failures",
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > parses the full receipt before returning to either technique",
+      "test/unit/judgeSampling.test.ts > judge sampling > reserves k uncached worst cases with independent parallel samples and empirical agreement",
+      "test/unit/judgeSampling.test.ts > judge sampling > cold-writes the first of k samples before parallel reads, with no answer conditioning",
+      "test/unit/judgeSampling.test.ts > judge sampling > the high-stakes exception still requires consent and every budget claim",
+      "test/unit/judgeSampling.test.ts > judge sampling > cache misses settle the full price without cancelling already admitted peers",
+      "test/unit/judgeSampling.test.ts > judge sampling > retries get new claims and retain the timed-out attempt liability",
+      "test/unit/judgeSampling.test.ts > judge sampling > cancellation after dispatch drops late answers but waits for all settlements",
+      "test/unit/judgeSampling.test.ts > judge sampling > rebinds admission after a held consent wait and refunds a known non-send",
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success",
+      "test/unit/judgeSampling.test.ts > judge sampling > rejects invalid preparation and thrown failures without dispatch or empty success",
+      "test/unit/judgeSampling.test.ts > judge sampling > validates admission receipts and refuses invented successful accounting"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "matching answer kinds",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > rejects wrong alternatives, out-of-range/nonfinite masses and incorrect choice/score summaries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "complete alternative key set",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > rejects wrong alternatives, out-of-range/nonfinite masses and incorrect choice/score summaries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "bounded probability masses",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > rejects wrong alternatives, out-of-range/nonfinite masses and incorrect choice/score summaries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "normalized distribution",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions",
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > rejects wrong alternatives, out-of-range/nonfinite masses and incorrect choice/score summaries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "noul summary matches probability",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "choice winner matches distribution",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > rejects wrong alternatives, out-of-range/nonfinite masses and incorrect choice/score summaries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "score matches expectation",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > technique distribution validation > rejects wrong alternatives, out-of-range/nonfinite masses and incorrect choice/score summaries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "uncalibrated technique labels",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeSampling.test.ts > judge sampling > reserves k uncached worst cases with independent parallel samples and empirical agreement"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "unseen sampling alternatives partial",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > supports choice/score frequency distributions and exposes unseen alternatives as partial"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "all reservations counted",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeSampling.test.ts > judge sampling > reserves k uncached worst cases with independent parallel samples and empirical agreement",
+      "test/unit/judgeSampling.test.ts > judge sampling > cache misses settle the full price without cancelling already admitted peers"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "known settlement counted",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeSampling.test.ts > judge sampling > reserves k uncached worst cases with independent parallel samples and empirical agreement",
+      "test/unit/judgeSampling.test.ts > judge sampling > cache misses settle the full price without cancelling already admitted peers",
+      "test/unit/judgeSampling.test.ts > judge sampling > retries get new claims and retain the timed-out attempt liability"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "uncertain retry liability retained",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > retries get new claims and retain the timed-out attempt liability"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "no reasoning-forced sampling",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > never samples a reasoning-forced Muse Spark, including the high-stakes exception"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "cache eligibility unless high stakes",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > requires captured cache capability unless explicitly high-stakes"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "bounded fan-out",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > bounds sample and retry fan-out and rejects malformed requests"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "at least two samples",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > bounds sample and retry fan-out and rejects malformed requests"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "uncached cost gate includes k",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > never substitutes cached pricing at the per-question cost gate, including retries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "uncached cost gate includes retries",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > never substitutes cached pricing at the per-question cost gate, including retries"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "full state in every sample",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > reserves k uncached worst cases with independent parallel samples and empirical agreement",
+      "test/unit/judgeSampling.test.ts > judge sampling > cold-writes the first of k samples before parallel reads, with no answer conditioning",
+      "test/unit/judgeSampling.test.ts > judge sampling > uses the provider minimum output and the complete system/user overhead plus output allowance",
+      "test/unit/judgeSampling.test.ts > judge sampling > supports choice/score frequency distributions and exposes unseen alternatives as partial"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "retry creates new admitted attempt",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > retries get new claims and retain the timed-out attempt liability"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "exact sample answer count",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "sample source identity",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "sample model identity",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "sample partial refusal",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "sample top1 refusal",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "sampling categorical observations",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "cold write before parallel reads",
+    "file": "src/core/judge/sampling.ts",
+    "sha256Before": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "sha256After": "2458823e9a0248053e462dcad859a417d84872e5b2c0fe30dbcafe364538e7a2",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeSampling.test.ts > judge sampling > cold-writes the first of k samples before parallel reads, with no answer conditioning",
+      "test/unit/judgeSampling.test.ts > judge sampling > does not turn failed or malformed samples into partial success"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive requires stated capability",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > requires exact adoption evidence and a captured stated path"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive inverse count alignment",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > refuses missing/extra inverses and non-binary framings rather than guessing an inverse"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive binary framing",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > refuses missing/extra inverses and non-binary framings rather than guessing an inverse"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive pair identity",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > aligns multiple pairs without response order dependence or sequential conditioning",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > preflights the entire paired request including output, provider minimum and body cap",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive intact state",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > preflights the entire paired request including output, provider minimum and body cap"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive complete paired body cap",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > preflights the entire paired request including output, provider minimum and body cap"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive provider output minimum",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > preflights the entire paired request including output, provider minimum and body cap"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "one contrastive POST",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > aligns multiple pairs without response order dependence or sequential conditioning",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > retains uncertain charges on timeout without an automatic second POST",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive exact answer count",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive model identity",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive partial refusal",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive answer model identity",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive source identity",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive top1 refusal",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > rejects mismatched pairs, partial/top-1, source/model switches and invalid distributions"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  },
+  {
+    "guard": "contrastive mean with inverted probability",
+    "file": "src/core/judge/contrastive.ts",
+    "sha256Before": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "sha256After": "dc29346e4d136b8145d7bcb55990571aa53dd80b7c5388740fb200f4586acd35",
+    "redExit": 1,
+    "failingAssertions": [
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > sends one paired request with intact state and combines mean(p, 1\u2212inverse)",
+      "test/unit/judgeContrastive.test.ts > one-call judge contrastive framing > aligns multiple pairs without response order dependence or sequential conditioning"
+    ],
+    "greenExit": 0,
+    "greenTests": ["32 passed (32)"]
+  }
+]

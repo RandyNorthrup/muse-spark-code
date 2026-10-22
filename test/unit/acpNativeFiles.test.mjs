@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DARWIN_PEERS,
   JOB_SOURCES,
+  JUDGE_PEER_SOURCES,
   LINUX_HELPERS,
   VOICE_WINDOWS_HELPERS,
   acpNativeFiles,
@@ -19,6 +20,7 @@ describe('per-platform ACP native inventory', () => {
   it('keeps the universal package whole without a target', () => {
     expect(acpNativeFiles()).toEqual([
       ...JOB_SOURCES,
+      ...JUDGE_PEER_SOURCES,
       ...DARWIN_PEERS,
       ...LINUX_HELPERS,
       ...VOICE_WINDOWS_HELPERS,
@@ -29,15 +31,28 @@ describe('per-platform ACP native inventory', () => {
     for (const target of VSIX_TARGETS) {
       const [platform, arch] = target.split('-', 2)
       const files = acpNativeFiles(target)
+      // The local judge's peer (M98): each platform stages only its own piece.
+      const judgePeer = JUDGE_PEER_SOURCES.filter((file) =>
+        file
+          .replaceAll('\\', '/')
+          .split('/')
+          .includes(platform === 'win32' ? 'windows' : platform),
+      )
       if (platform === 'linux') {
-        expect(files).toEqual(
-          LINUX_HELPERS.filter((helper) => helper.replaceAll('\\', '/').split('/').includes(arch)),
-        )
+        expect(files).toEqual([
+          ...LINUX_HELPERS.filter((helper) =>
+            helper.replaceAll('\\', '/').split('/').includes(arch),
+          ),
+          ...judgePeer,
+        ])
       } else if (platform === 'darwin') {
         // One thin peer per Mac architecture (D209): this target's only.
-        expect(files).toEqual([path.join('native', 'darwin', `muse-vault-peer-${arch}`)])
+        expect(files).toEqual([
+          path.join('native', 'darwin', `muse-vault-peer-${arch}`),
+          ...judgePeer,
+        ])
       } else {
-        expect(files).toEqual([...JOB_SOURCES, ...VOICE_WINDOWS_HELPERS])
+        expect(files).toEqual([...JOB_SOURCES, ...judgePeer, ...VOICE_WINDOWS_HELPERS])
       }
     }
   })

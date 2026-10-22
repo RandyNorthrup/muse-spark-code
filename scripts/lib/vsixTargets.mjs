@@ -96,11 +96,17 @@ export function isVsixTargetFile(target, file) {
   if (normalized.startsWith('native/windows/')) return platform === 'win32'
   if (normalized.startsWith('native/darwin/') || normalized.startsWith('dist/native/darwin/')) {
     if (platform !== 'darwin') return false
+    // The local judge's peer is one universal binary for both Mac
+    // architectures (M98 phase 2); the per-architecture slices below stay split.
+    if (normalized === 'native/darwin/muse-local-judge-peer') return true
     // One thin binary per Mac architecture (D209): a darwin target ships
     // only its own architecture's slices (`-arm64` or `-x64`).
     const arch = archOf(target)
     return normalized.includes(`-${arch}.app/`) || normalized.endsWith(`-${arch}`)
   }
+  // The local judge's peer ships as one C source for both Linux
+  // architectures, compiled on first use (M98 phase 2).
+  if (normalized === 'native/linux/MuseSparkLocalJudgePeer.c') return platform === 'linux'
   const isForeignLinux =
     normalized.startsWith('native/linux/') &&
     (platform !== 'linux' || !normalized.startsWith(`native/linux/${archOf(target)}/`))
@@ -125,11 +131,17 @@ const WINDOWS_REQUIRED_FILES = [
   'native/windows/MuseSparkVaultHello.cs',
   'native/windows/MuseSparkVaultLock.cs',
   'native/windows/MuseSparkVaultPipe.cs',
+  // The local judge's peer compiles its C# source on first judge use (M98).
+  'native/windows/MuseSparkLocalJudgePeer.cs',
 ]
+// The local judge's peer compiles its C source on first judge use (M98);
+// one source serves both Linux architectures.
+const LINUX_JUDGE_SOURCE = 'native/linux/MuseSparkLocalJudgePeer.c'
 
 export function requiredNativeFiles(target) {
   if (target === undefined) return UNIVERSAL_REQUIRED_FILES
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown VSIX target: ${target}`)
-  if (platformOf(target) === 'linux') return [`native/linux/${archOf(target)}/muse-created`]
+  if (platformOf(target) === 'linux')
+    return [`native/linux/${archOf(target)}/muse-created`, LINUX_JUDGE_SOURCE]
   return platformOf(target) === 'win32' ? WINDOWS_REQUIRED_FILES : []
 }

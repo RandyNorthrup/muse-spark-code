@@ -1,0 +1,371 @@
+{
+  "review": "RVM98G2",
+  "rig": "macmini",
+  "snapshot": "8e44a584",
+  "drills": [
+    {
+      "id": "G2-1-mass",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "Math.abs(total - 1) > rounding",
+        "to": "false"
+      },
+      "expected": "unnormalized noul",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: unnormalized noul",
+          "judge CLI bounded advisory commands validates answer evidence: unnormalized choice",
+          "judge MCP stdio validates MCP answer evidence: unnormalized noul",
+          "judge MCP stdio validates MCP answer evidence: unnormalized choice"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-noul",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "Math.abs(answer.noul - answer.probabilities.true) <= rounding",
+        "to": "true"
+      },
+      "expected": "contradictory noul",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: contradictory noul",
+          "judge MCP stdio validates MCP answer evidence: contradictory noul"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-choice-coverage",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "keys.every((option) => Object.hasOwn(question.criteria, option))",
+        "to": "true"
+      },
+      "expected": "foreign choice option",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: foreign choice option",
+          "judge CLI bounded advisory commands rejects options not offered and scores beyond the requested legend",
+          "judge MCP stdio validates MCP answer evidence: foreign choice option"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-choice-partial",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "(keys.length === Object.keys(question.criteria).length || meta.partial)",
+        "to": "true"
+      },
+      "expected": "missing choice without partial",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: missing choice without partial",
+          "judge MCP stdio validates MCP answer evidence: missing choice without partial"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-choice-consistency",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "Object.values(probabilities).every((probability) => probability <= selected)",
+        "to": "true"
+      },
+      "expected": "choice is not most probable",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: choice is not most probable",
+          "judge MCP stdio validates MCP answer evidence: choice is not most probable"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-score-coverage",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "keys.every((level) => levels.includes(level))",
+        "to": "true"
+      },
+      "expected": "foreign zero-mass score level",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: foreign zero-mass score level",
+          "judge MCP stdio validates MCP answer evidence: foreign zero-mass score level"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-score-partial",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "(keys.length === levels.length || meta.partial)",
+        "to": "true"
+      },
+      "expected": "missing score without partial",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: missing score without partial",
+          "judge MCP stdio validates MCP answer evidence: missing score without partial"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-legend-size",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "Object.keys(answer.legend).length === levels.length",
+        "to": "true"
+      },
+      "expected": "extra score legend level",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: extra score legend level",
+          "judge MCP stdio validates MCP answer evidence: extra score legend level"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-legend-text",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "levels.every((level, index) => answer.legend[level] === question.criteria[index])",
+        "to": "true"
+      },
+      "expected": "wrong score legend text",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: wrong score legend text",
+          "judge MCP stdio validates MCP answer evidence: wrong score legend text"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-1-score-consistency",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "Math.abs(answer.score - expected) <= rounding",
+        "to": "true"
+      },
+      "expected": "score differs from expectation",
+      "files": ["test/unit/judgeCliCommands.test.ts", "test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 93,
+        "failed": [
+          "judge CLI bounded advisory commands validates answer evidence: score differs from expectation",
+          "judge MCP stdio validates MCP answer evidence: score differs from expectation"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 93,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-2-config",
+      "file": "src/runtime/judge/commands.ts",
+      "mutation": {
+        "from": "if (error instanceof JudgeCliInputError) throw error",
+        "to": ""
+      },
+      "expected": "preserves source configuration errors",
+      "files": ["test/unit/judgeCliCommands.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 46,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 46,
+        "failed": [
+          "judge CLI bounded advisory commands preserves source configuration errors as exit 2 without private text"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 46,
+        "failed": []
+      },
+      "beforeSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00",
+      "restoredSha256": "41be9ef137b72a2471734c03acbc0cd57150dfbfc1f0ee318e39406322e45f00"
+    },
+    {
+      "id": "G2-3-cancel",
+      "file": "src/runtime/judge/mcp.ts",
+      "mutation": {
+        "from": "cancelledNotificationSchema.safeParse(JSON.parse(line)).success",
+        "to": "true"
+      },
+      "expected": "ignores malformed cancellation envelope",
+      "files": ["test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 47,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 47,
+        "failed": [
+          "judge MCP stdio ignores malformed cancellation envelope: {\"jsonrpc\":\"1.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}",
+          "judge MCP stdio ignores malformed cancellation envelope: {\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}",
+          "judge MCP stdio ignores malformed cancellation envelope: {\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}",
+          "judge MCP stdio ignores malformed cancellation envelope: {\"jsonrpc\":\"2.0\",\"id\":null,\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 47,
+        "failed": []
+      },
+      "beforeSha256": "016b324ee56eb3cfa7c32fedf3abf2290ee5d281177b57df848bdcf50f2e164d",
+      "restoredSha256": "016b324ee56eb3cfa7c32fedf3abf2290ee5d281177b57df848bdcf50f2e164d"
+    }
+  ]
+}

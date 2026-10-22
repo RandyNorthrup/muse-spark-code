@@ -1,0 +1,1447 @@
+{
+  "startingHead": "a5a1ccf7b98fdb9eede33e2b5f8174ffd937f02e",
+  "main": "81a5ccfa7243a986a5a6901f934c89588b957bef",
+  "machine": "Windows 11 rig",
+  "certificationDates": ["2026-10-05", "2026-10-06"],
+  "testCountReconciliation": {
+    "initialReportedCases": {
+      "passed": 2897,
+      "failed": 14,
+      "skipped": 92
+    },
+    "finalReconciliation": {
+      "hookContractPreviouslyUncollected": 21,
+      "deliveryCaseIncrease": 43,
+      "productionFactoryProofMovedToParser": 1,
+      "newHookFormatCases": 178,
+      "newPackagingCases": 62,
+      "newReadmeAndNativeCases": {
+        "passed": 5,
+        "skipped": 1
+      }
+    }
+  },
+  "modelAttempts": 0,
+  "modelSpendUsd": 0,
+  "conflictIntegrity": {
+    "conflictCount": 57,
+    "files": [
+      ".github/workflows/build.yml",
+      ".vscodeignore",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "THIRD_PARTY_NOTICES.txt",
+      "docs/ide-compatibility/host-api.md",
+      "docs/judge.md",
+      "knip.jsonc",
+      "l10n/ui.cs.json",
+      "l10n/ui.de.json",
+      "l10n/ui.es.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.it.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.ko.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.zh-tw.json",
+      "package.json",
+      "package.nls.cs.json",
+      "package.nls.de.json",
+      "package.nls.es.json",
+      "package.nls.fr.json",
+      "package.nls.hu.json",
+      "package.nls.it.json",
+      "package.nls.ja.json",
+      "package.nls.json",
+      "package.nls.ko.json",
+      "package.nls.pl.json",
+      "package.nls.pt-br.json",
+      "package.nls.ru.json",
+      "package.nls.tr.json",
+      "package.nls.zh-cn.json",
+      "package.nls.zh-tw.json",
+      "scripts/build.mjs",
+      "scripts/check-bundle-size.mjs",
+      "scripts/check-bundle-split.mjs",
+      "scripts/check-host-globals.mjs",
+      "scripts/package-acp-test.mjs",
+      "scripts/package-acp.mjs",
+      "scripts/third-party-notices.mjs",
+      "src/core/paid/paidFeatures.ts",
+      "src/extension.ts",
+      "src/host/paid/paidHost.ts",
+      "src/host/review/reviewedApprovals.ts",
+      "src/runtime/main.ts",
+      "src/shared/constants.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/paid.ts",
+      "src/webview/components/UsageDialog.tsx",
+      "test/unit/deferredBundles.test.ts",
+      "test/unit/judgeActivation.test.ts",
+      "test/unit/judgeFences.test.ts"
+    ],
+    "remainingMarkers": []
+  },
+  "changelogAndPlanIntegrity": {
+    "releasedTailEqual": true,
+    "mainSha256": "6ec0ee1bc4a97bee7afe6edef99aedf17a20f55e046c316b80cd63e242a3160d",
+    "resolvedSha256": "6ec0ee1bc4a97bee7afe6edef99aedf17a20f55e046c316b80cd63e242a3160d",
+    "releasedBytes": 254562,
+    "planMissingMainLines": [],
+    "planMainNormalizedNonemptyLines": 18933
+  },
+  "translationUnion": [
+    {
+      "file": "l10n/ui.cs.json",
+      "mainKeys": 2380,
+      "resolvedKeys": 2386,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.de.json",
+      "mainKeys": 2192,
+      "resolvedKeys": 2198,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.es.json",
+      "mainKeys": 2286,
+      "resolvedKeys": 2292,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.fr.json",
+      "mainKeys": 2286,
+      "resolvedKeys": 2292,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.hu.json",
+      "mainKeys": 2192,
+      "resolvedKeys": 2198,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.it.json",
+      "mainKeys": 2286,
+      "resolvedKeys": 2292,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.ja.json",
+      "mainKeys": 2098,
+      "resolvedKeys": 2104,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.ko.json",
+      "mainKeys": 2098,
+      "resolvedKeys": 2104,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.pl.json",
+      "mainKeys": 2380,
+      "resolvedKeys": 2386,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.pt-br.json",
+      "mainKeys": 2286,
+      "resolvedKeys": 2292,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.ru.json",
+      "mainKeys": 2380,
+      "resolvedKeys": 2386,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.tr.json",
+      "mainKeys": 2192,
+      "resolvedKeys": 2198,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.zh-cn.json",
+      "mainKeys": 2098,
+      "resolvedKeys": 2104,
+      "missingMainKeys": []
+    },
+    {
+      "file": "l10n/ui.zh-tw.json",
+      "mainKeys": 2098,
+      "resolvedKeys": 2104,
+      "missingMainKeys": []
+    }
+  ],
+  "capIntegrity": {
+    "mainCaps": 37,
+    "phase2Caps": 33,
+    "resolvedCaps": 43,
+    "shippedTighterCaps": [
+      {
+        "file": "dist/pluginHooks.js",
+        "priorCapKiB": 75,
+        "shippedCapKiB": 50
+      }
+    ],
+    "violations": []
+  },
+  "initialWholeFileSweep": [
+    {
+      "files": [
+        "test/unit/judge.test.ts",
+        "test/unit/judgeActivation.test.ts",
+        "test/unit/judgeAdmission.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-1.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  65 passed (65)",
+        "Duration  3.34s (import 39%, setup 27%, transform 21%, tests 13%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeAdmissionLedger.test.ts",
+        "test/unit/judgeCalibration.test.ts",
+        "test/unit/judgeCliArgs.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-2.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  65 passed (65)",
+        "Duration  4.96s (tests 32%, import 27%, setup 21%, transform 19%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeCliCommands.test.ts",
+        "test/unit/judgeCliDispatch.test.ts",
+        "test/unit/judgeConsent.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-3.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  62 passed (62)",
+        "Duration  7.89s (tests 64%, import 16%, setup 11%, transform 9%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeContract.test.ts",
+        "test/unit/judgeContractPhase2.test.ts",
+        "test/unit/judgeContrastive.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-4.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  44 passed (44)",
+        "Duration  5.11s (transform 53%, import 26%, setup 17%, tests 4%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeDeadlineFences.test.ts",
+        "test/unit/judgeEntries.test.ts",
+        "test/unit/judgeFences.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-5.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  48 passed (48)",
+        "Duration  7.92s (import 40%, transform 31%, tests 18%, setup 10%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeHookCli.test.ts",
+        "test/unit/judgeHookCliBudget.test.ts",
+        "test/unit/judgeHookCliContracts.test.ts"
+      ],
+      "exit": 1,
+      "log": "temp/suites-6.log",
+      "summary": [
+        "FAIL  test/unit/judgeHookCliContracts.test.ts [ test/unit/judgeHookCliContracts.test.ts ]",
+        "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > honors the existing cursor advisory contract on preToolUse",
+        "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > honors the existing copilot advisory contract on preToolUse",
+        "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > honors the existing copilot advisory contract on PreToolUse",
+        "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses windsurf/pre_run_command before resolution when no advisory-only output exists",
+        "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses cursor/beforeReadFile before resolution when no advisory-only output exists",
+        "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses copilot/permissionRequest before resolution when no advisory-only output exists",
+        "Test Files  2 failed | 1 passed (3)",
+        "Tests  6 failed | 55 passed (61)",
+        "Duration  4.31s (import 38%, transform 26%, setup 21%, tests 14%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeHookCliProcess.test.ts",
+        "test/unit/judgeLintCache.test.ts",
+        "test/unit/judgeLintConfig.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-7.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  78 passed (78)",
+        "Duration  8.34s (tests 52%, transform 21%, import 17%, setup 9%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLintContext.test.ts",
+        "test/unit/judgeLintEvals.test.ts",
+        "test/unit/judgeLintEvaluate.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-8.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  52 passed (52)",
+        "Duration  3.36s (transform 41%, setup 27%, import 26%, tests 5%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLintHost.test.ts",
+        "test/unit/judgeLintPack.test.ts",
+        "test/unit/judgeLintRules.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-9.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  35 passed (35)",
+        "Duration  3.10s (import 37%, setup 30%, transform 22%, tests 10%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLintRuntime.test.ts",
+        "test/unit/judgeLintSyntax.test.ts",
+        "test/unit/judgeLintUnits.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-10.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  67 passed (67)",
+        "Duration  2.97s (import 36%, setup 32%, transform 23%, tests 8%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLintUpstream.test.ts",
+        "test/unit/judgeLintUpstreamExecution.test.ts",
+        "test/unit/judgeLocalDarwin.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-11.log",
+      "summary": [
+        "Test Files  2 passed | 1 skipped (3)",
+        "Tests  8 passed | 41 skipped (49)",
+        "Duration  3.62s (import 37%, transform 31%, setup 26%, tests 5%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalDarwinDeadline.test.ts",
+        "test/unit/judgeLocalDarwinHost.test.ts",
+        "test/unit/judgeLocalDarwinPeer.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-12.log",
+      "summary": [
+        "Test Files  3 skipped (3)",
+        "Tests  5 skipped (5)",
+        "Duration  3.68s (import 41%, setup 29%, transform 29%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalExecutable.test.ts",
+        "test/unit/judgeLocalHelper.test.ts",
+        "test/unit/judgeLocalHost.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-13.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  20 passed (20)",
+        "Duration  5.11s (tests 37%, import 27%, transform 19%, setup 17%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalLinuxNative.test.ts",
+        "test/unit/judgeLocalLinuxVolume.test.ts",
+        "test/unit/judgeLocalModel.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-14.log",
+      "summary": [
+        "Test Files  1 passed | 2 skipped (3)",
+        "Tests  12 passed | 44 skipped (56)",
+        "Duration  2.94s (setup 33%, import 29%, transform 24%, tests 13%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalPeer.test.ts",
+        "test/unit/judgeLocalPosix.test.ts",
+        "test/unit/judgeLocalPosixNative.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-15.log",
+      "summary": [
+        "Test Files  2 passed | 1 skipped (3)",
+        "Tests  42 passed | 2 skipped (44)",
+        "Duration  8.72s (tests 74%, import 11%, setup 9%, transform 6%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalPull.test.ts",
+        "test/unit/judgeLocalSource.test.ts",
+        "test/unit/judgeLocalTransport.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-16.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  59 passed (59)",
+        "Duration  3.56s (import 38%, setup 24%, transform 24%, tests 14%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeLocalWire.test.ts",
+        "test/unit/judgeMath.test.ts",
+        "test/unit/judgeMcp.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-17.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  83 passed (83)",
+        "Duration  2.84s (import 36%, setup 29%, transform 22%, tests 12%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeP2Bundle.test.ts",
+        "test/unit/judgeP2Delivery.test.ts",
+        "test/unit/judgeP2Round3.test.ts"
+      ],
+      "exit": 1,
+      "log": "temp/suites-18.log",
+      "summary": [
+        "FAIL  test/unit/judgeP2Delivery.test.ts > phase-2 judge production delivery > fires each phase-2 leak guard in extension with byte-exact restoration",
+        "FAIL  test/unit/judgeP2Delivery.test.ts > phase-2 judge production delivery > fires each phase-2 leak guard in modelApi with byte-exact restoration",
+        "FAIL  test/unit/judgeP2Delivery.test.ts > phase-2 judge production delivery > fires each phase-2 leak guard in acp with byte-exact restoration",
+        "FAIL  test/unit/judgeP2Delivery.test.ts > phase-2 judge production delivery > fires every missing implementation guard with byte-exact restoration",
+        "FAIL  test/unit/judgeP2Delivery.test.ts > phase-2 judge production delivery > refuses duplicated English fallback and a missing shared-table import",
+        "Test Files  1 failed | 2 passed (3)",
+        "Tests  5 failed | 65 passed (70)",
+        "Duration  3008.93s (tests 100%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeP2Round4.test.ts",
+        "test/unit/judgePrompt.test.ts",
+        "test/unit/judgeResolve.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-19.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  24 passed (24)",
+        "Duration  6.89s (tests 73%, setup 11%, import 9%, transform 7%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeSameAllowRules.test.ts",
+        "test/unit/judgeSameModelApi.test.ts",
+        "test/unit/judgeSameMuseCode.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-20.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  31 passed (31)",
+        "Duration  3.92s (import 37%, tests 23%, transform 21%, setup 19%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeSameSession.test.ts",
+        "test/unit/judgeSameSideRequest.test.ts",
+        "test/unit/judgeSampling.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-21.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  44 passed (44)",
+        "Duration  2.92s (import 30%, setup 29%, transform 20%, tests 20%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeServe.test.ts",
+        "test/unit/judgeServeLifecycle.test.ts",
+        "test/unit/judgeServeTokenFile.test.ts"
+      ],
+      "exit": 1,
+      "log": "temp/suites-22.log",
+      "summary": [
+        "FAIL  test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > deletes its bearer and closes the listener on SIGINT",
+        "FAIL  test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > deletes its bearer and closes the listener on SIGTERM",
+        "FAIL  test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > never authenticates a crash token when the same port restarts",
+        "Test Files  1 failed | 2 passed (3)",
+        "Tests  3 failed | 69 passed (72)",
+        "Duration  56.33s (tests 96%, import 2%, setup 1%, transform 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeSharedBudget.test.ts",
+        "test/unit/judgeTechniques.test.ts",
+        "test/unit/judgeTransport.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-23.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  36 passed (36)",
+        "Duration  7.38s (import 46%, transform 31%, tests 14%, setup 9%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeUi.test.tsx",
+        "test/unit/judgeUsage.test.ts",
+        "test/unit/judgeUse.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-24.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  29 passed (29)",
+        "Duration  6.61s (tests 29%, import 23%, environment 19%, transform 17%, setup 11%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeUses.test.ts",
+        "test/unit/judgeUsesReview.test.ts",
+        "test/unit/judgeValidationSchema.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-25.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  40 passed (40)",
+        "Duration  7.30s (tests 69%, import 13%, setup 9%, transform 9%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeWindow.test.ts",
+        "test/unit/UsageDialog.test.tsx",
+        "test/unit/conversationController.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-26.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  625 passed (625)",
+        "Duration  41.20s (tests 67%, import 16%, transform 12%, environment 3%, setup 2%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/uiState.test.ts",
+        "test/unit/App.test.tsx"
+      ],
+      "exit": 0,
+      "log": "temp/suites-27.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  940 passed (940)",
+        "Duration  82.37s (tests 83%, import 8%, transform 7%, environment 2%, setup 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/ApprovalDock.test.tsx",
+        "test/unit/paidHost.test.ts",
+        "test/unit/paidFeatures.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-28.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  73 passed (73)",
+        "Duration  4.49s (environment 32%, import 22%, transform 18%, setup 17%, tests 11%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/paidConsent.test.ts",
+        "test/unit/autoReviewer.test.ts",
+        "test/unit/museCodeReviewerBundle.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-29.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  44 passed (44)",
+        "Duration  3.44s (import 37%, transform 24%, setup 22%, tests 16%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/deferredBundles.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/suites-30.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  61 passed (61)",
+        "Duration  11.46s (import 34%, transform 30%, tests 30%, setup 6%)"
+      ]
+    },
+    {
+      "files": ["test/unit/uiTextRegions.test.mjs", "test/unit/settings.test.ts"],
+      "exit": 0,
+      "log": "temp/suites-31.log",
+      "summary": [
+        "Test Files  2 passed (2)",
+        "Tests  21 passed (21)",
+        "Duration  4.66s (tests 50%, import 25%, transform 14%, setup 11%)"
+      ]
+    }
+  ],
+  "supplementaryWholeFiles": [
+    {
+      "files": [
+        "test/unit/judgeHookCli.test.ts",
+        "test/unit/judgeHookCliBudget.test.ts",
+        "test/unit/judgeHookCliContracts.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/supplement-1.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  82 passed (82)",
+        "Duration  3.98s (import 42%, transform 23%, setup 17%, tests 17%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/hookFormats.test.ts",
+        "test/unit/hookFormatsGemini.test.ts",
+        "test/unit/importHookSources.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/supplement-2.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  178 passed (178)",
+        "Duration  3.99s (import 36%, tests 26%, transform 20%, setup 18%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/manifest.test.ts",
+        "test/unit/vsixPackaging.test.mjs"
+      ],
+      "exit": 0,
+      "log": "temp/supplement-3.log",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  62 passed (62)",
+        "Duration  15.69s (tests 79%, import 14%, setup 4%, transform 3%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/readmeVersion.test.ts",
+        "test/e2e/judgeLocalPid.native.e2e.test.ts",
+        "test/e2e/judgeLocalDarwinPid.e2e.test.ts"
+      ],
+      "exit": 0,
+      "log": "temp/supplement-4.log",
+      "nativeFlag": "MUSE_LOCAL_JUDGE_PID_CERT=1",
+      "summary": [
+        "Test Files  2 passed | 1 skipped (3)",
+        "Tests  5 passed | 1 skipped (6)",
+        "Duration  20.28s (tests 92%, setup 3%, import 3%, transform 2%)"
+      ]
+    },
+    {
+      "files": ["test/unit/judgeServeLifecycle.test.ts"],
+      "exit": 0,
+      "log": "temp/supplement-5.log",
+      "summary": [
+        "Test Files  1 passed (1)",
+        "Tests  6 passed (6)",
+        "Duration  13.22s (tests 94%, import 2%, transform 2%, setup 2%)"
+      ]
+    }
+  ],
+  "sourceDrills": [
+    {
+      "source": "src/host/review/reviewedApprovals.ts",
+      "mutation": {
+        "before": "hasUseCaution = held.useCaution?.read() ?? false",
+        "after": "hasUseCaution = !hasJudgeCaution && (held.useCaution?.read() ?? false)"
+      },
+      "redExit": 1,
+      "restoredSha256": "078d9ccc244b36ba9dc2b5115f69af98a004db4667c1ef85354f00e5822f4ef0",
+      "greenExit": 0,
+      "assertion": "reads both independent holders when the shipped phase-1 fence returns caution"
+    },
+    {
+      "name": "independent-no-shortcut",
+      "source": "src/host/review/reviewedApprovals.ts",
+      "suite": "test/unit/judgeUsesReview.test.ts",
+      "mutation": {
+        "before": "hasUseCaution = held.useCaution?.read() ?? false",
+        "after": "hasUseCaution = false"
+      },
+      "redExit": 1,
+      "restoredSha256": "078d9ccc244b36ba9dc2b5115f69af98a004db4667c1ef85354f00e5822f4ef0",
+      "greenExit": 0,
+      "assertion": "reads both independent holders when the shipped phase-1 fence returns none"
+    },
+    {
+      "name": "distinct-production-factories",
+      "source": "src/host/judge/judgeEntry.ts",
+      "suite": "test/unit/judgeValidationSchema.test.ts",
+      "mutation": {
+        "before": "export function createWindowJudge(",
+        "after": "export function wrongFactory("
+      },
+      "redExit": 1,
+      "restoredSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+      "greenExit": 0,
+      "assertion": "ships distinct callable factories for the installed phase-1 and explicit phase-2 paths"
+    },
+    {
+      "name": "lazy-schema-writer",
+      "source": "src/host/validationSchema.ts",
+      "suite": "test/unit/judgeValidationSchema.test.ts",
+      "mutation": {
+        "before": "  const writer: unknown = createRequire(__filename)('./validationSchema.js')",
+        "after": "  const writer: unknown = eagerWriter",
+        "prefix": "const eagerWriter: unknown = createRequire(__filename)('./validationSchema.js')\n"
+      },
+      "redExit": 1,
+      "restoredSha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6",
+      "greenExit": 0,
+      "assertion": "loads JSON Schema conversion only on conversion"
+    }
+  ],
+  "nativePid": {
+    "originalPid": 23964,
+    "originalCreationTime": "134357421959511279",
+    "nearestPid": 23956,
+    "distance": 8,
+    "attempts": 427,
+    "refusedExit": 1,
+    "originalExited": true
+  },
+  "gateAttempts": [
+    {
+      "name": "typecheck",
+      "command": "npm.cmd run typecheck",
+      "exit": 1,
+      "durationMs": 61655,
+      "log": "temp/final-typecheck.log"
+    },
+    {
+      "name": "scopedLintAndFormat",
+      "command": "node temp/scoped-checks.mjs",
+      "exit": 1,
+      "durationMs": 64492,
+      "log": "temp/final-scopedLintAndFormat.log"
+    },
+    {
+      "name": "cycles",
+      "command": "npm.cmd run cycles",
+      "exit": 0,
+      "durationMs": 10523,
+      "log": "temp/final-cycles.log"
+    },
+    {
+      "name": "knip",
+      "command": "npm.cmd run deadcode",
+      "exit": 0,
+      "durationMs": 10377,
+      "log": "temp/final-knip.log"
+    },
+    {
+      "name": "duplication",
+      "command": "npm.cmd run duplication",
+      "exit": 0,
+      "durationMs": 2146,
+      "log": "temp/final-duplication.log"
+    },
+    {
+      "name": "localization",
+      "command": "npm.cmd run check:l10n",
+      "exit": 0,
+      "durationMs": 3360,
+      "log": "temp/final-localization.log"
+    },
+    {
+      "name": "hostApiRegenerate",
+      "command": "node scripts/check-host-api.mjs --write",
+      "exit": 0,
+      "durationMs": 19196,
+      "log": "temp/final-hostApiRegenerate.log"
+    },
+    {
+      "name": "hostApiCheck",
+      "command": "npm.cmd run check:host-api",
+      "exit": 0,
+      "durationMs": 18736,
+      "log": "temp/final-hostApiCheck.log"
+    },
+    {
+      "name": "productionBuild",
+      "command": "npm.cmd run build",
+      "exit": 0,
+      "durationMs": 11918,
+      "log": "temp/final-productionBuild.log"
+    },
+    {
+      "name": "powerShell",
+      "command": "npm.cmd run lint:ps",
+      "exit": 0,
+      "durationMs": 4100,
+      "log": "temp/final-powerShell.log"
+    },
+    {
+      "name": "css",
+      "command": "npm.cmd run lint:css",
+      "exit": 0,
+      "durationMs": 12370,
+      "log": "temp/final-css.log"
+    },
+    {
+      "name": "typecheck",
+      "command": "npm.cmd run typecheck",
+      "exit": 0,
+      "durationMs": 82860,
+      "log": "temp/retry-typecheck.log",
+      "reason": "Remove the factory proof import after moving its test."
+    },
+    {
+      "name": "scopedLintAndFormat",
+      "command": "node temp/scoped-checks.mjs",
+      "exit": 0,
+      "durationMs": 60517,
+      "log": "temp/retry-scopedLintAndFormat.log",
+      "reason": "Remove the factory proof import after moving its test."
+    }
+  ],
+  "finalGates": [
+    {
+      "name": "typecheck",
+      "command": "npm.cmd run typecheck",
+      "exit": 0,
+      "durationMs": 82860,
+      "log": "temp/retry-typecheck.log",
+      "reason": "Remove the factory proof import after moving its test."
+    },
+    {
+      "name": "scopedLintAndFormat",
+      "command": "node temp/scoped-checks.mjs",
+      "exit": 0,
+      "durationMs": 60517,
+      "log": "temp/retry-scopedLintAndFormat.log",
+      "reason": "Remove the factory proof import after moving its test."
+    },
+    {
+      "name": "cycles",
+      "command": "npm.cmd run cycles",
+      "exit": 0,
+      "durationMs": 10523,
+      "log": "temp/final-cycles.log"
+    },
+    {
+      "name": "knip",
+      "command": "npm.cmd run deadcode",
+      "exit": 0,
+      "durationMs": 10377,
+      "log": "temp/final-knip.log"
+    },
+    {
+      "name": "duplication",
+      "command": "npm.cmd run duplication",
+      "exit": 0,
+      "durationMs": 2146,
+      "log": "temp/final-duplication.log"
+    },
+    {
+      "name": "localization",
+      "command": "npm.cmd run check:l10n",
+      "exit": 0,
+      "durationMs": 3360,
+      "log": "temp/final-localization.log"
+    },
+    {
+      "name": "hostApiRegenerate",
+      "command": "node scripts/check-host-api.mjs --write",
+      "exit": 0,
+      "durationMs": 19196,
+      "log": "temp/final-hostApiRegenerate.log"
+    },
+    {
+      "name": "hostApiCheck",
+      "command": "npm.cmd run check:host-api",
+      "exit": 0,
+      "durationMs": 18736,
+      "log": "temp/final-hostApiCheck.log"
+    },
+    {
+      "name": "productionBuild",
+      "command": "npm.cmd run build",
+      "exit": 0,
+      "durationMs": 11918,
+      "log": "temp/final-productionBuild.log"
+    },
+    {
+      "name": "powerShell",
+      "command": "npm.cmd run lint:ps",
+      "exit": 0,
+      "durationMs": 4100,
+      "log": "temp/final-powerShell.log"
+    },
+    {
+      "name": "css",
+      "command": "npm.cmd run lint:css",
+      "exit": 0,
+      "durationMs": 12370,
+      "log": "temp/final-css.log"
+    }
+  ],
+  "artifacts": {
+    "fixed": [
+      {
+        "file": "dist/extension.js",
+        "bytes": 448978,
+        "capKiB": 600,
+        "capBytes": 614400,
+        "withinCap": true,
+        "sha256": "f70d7bab3fc2962933b12f40834adb04508827a41db91a49c77bdfaf2cc76942"
+      },
+      {
+        "file": "dist/conversation.js",
+        "bytes": 197811,
+        "capKiB": 250,
+        "capBytes": 256000,
+        "withinCap": true,
+        "sha256": "c059d82ef006826b7622b233da7f1a3ea820e561e4eb97d87328b7bdceefb1e0"
+      },
+      {
+        "file": "dist/tab.js",
+        "bytes": 50630,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "6ce2d43d1ada675343643515bfabfa7aa951177c488c44c2cdb942f1ef49314e"
+      },
+      {
+        "file": "dist/modelApi.js",
+        "bytes": 457597,
+        "capKiB": 475,
+        "capBytes": 486400,
+        "withinCap": true,
+        "sha256": "7e7b02005451b4e75f4c21aea85bb4d6346978a5bc5e10d33610e71acbe8473a"
+      },
+      {
+        "file": "dist/review.js",
+        "bytes": 29690,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "c19a93bf0d8227b7e30f36857307124ceafd0d144a4ccc1a3ef66a312ba681c4"
+      },
+      {
+        "file": "dist/sessionBoard.js",
+        "bytes": 46128,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "93f8fc421933e1ac640ba2f0ad476ceb63f251159a3d8ea349e6851398764d20"
+      },
+      {
+        "file": "dist/reviewer.js",
+        "bytes": 23081,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "1ba8446e705cdd98f59ddcdbc44f52c30e14d32dd432f175f9bf2654b1730639"
+      },
+      {
+        "file": "dist/foreignHooks.js",
+        "bytes": 70894,
+        "capKiB": 100,
+        "capBytes": 102400,
+        "withinCap": true,
+        "sha256": "a682e260d5a35749f6064b308c5dfe72ec3519972b59e4ddcd969abc917f5897"
+      },
+      {
+        "file": "dist/hookRuntime.js",
+        "bytes": 44006,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "4b33451caee05ac29188c2159b4fc60139c39d14b74e1ea33d658ec994e8eec4"
+      },
+      {
+        "file": "dist/pluginHooks.js",
+        "bytes": 35445,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "883ae3df5c035b4d602514b90a9688f3bcf133fd7d0e89bc612bbcd0aa320c54"
+      },
+      {
+        "file": "dist/planMarkdown.js",
+        "bytes": 147608,
+        "capKiB": 150,
+        "capBytes": 153600,
+        "withinCap": true,
+        "sha256": "5d8760b833c795e1a0cf1d0398e3b5849c6743dadc53d9421fcd56035ec1ea31"
+      },
+      {
+        "file": "dist/checkpointStore.js",
+        "bytes": 78764,
+        "capKiB": 225,
+        "capBytes": 230400,
+        "withinCap": true,
+        "sha256": "340152b565ce7bfeb895ddbe25d6d5b7aed7c8fa3ba49f21d3cdc06cf1863151"
+      },
+      {
+        "file": "dist/agentImport.js",
+        "bytes": 118326,
+        "capKiB": 125,
+        "capBytes": 128000,
+        "withinCap": true,
+        "sha256": "0fe7e2c5bdb293ea65c413f8e5962ba10b0b44dff7d65a34d7137b7cedf6405b"
+      },
+      {
+        "file": "dist/browserCheck.js",
+        "bytes": 43448,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "f392ca85827940564f68b9c82a785738bac17d9a36974d1827478f8f09817e18"
+      },
+      {
+        "file": "dist/browserRuntime.js",
+        "bytes": 19762,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "bf78122411d861a98d85678257a6b6abeeffbe603fa36baab018518ef3b2b75c"
+      },
+      {
+        "file": "dist/conversationGit.js",
+        "bytes": 73951,
+        "capKiB": 150,
+        "capBytes": 153600,
+        "withinCap": true,
+        "sha256": "fe8dd88153dfbff90f07e5285b647d82f32aa044a2a1b6601f617c16bba61ecf"
+      },
+      {
+        "file": "dist/bundledSkills.js",
+        "bytes": 15083,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "164eb19cce42617f22113854d644e8a268209b21da48feeb5343b7b925fb2242"
+      },
+      {
+        "file": "dist/codeIntel.js",
+        "bytes": 40005,
+        "capKiB": 100,
+        "capBytes": 102400,
+        "withinCap": true,
+        "sha256": "6c06ad943232bf08f2c041d30730c80746267050363a4b2b7263f9acf050e532"
+      },
+      {
+        "file": "dist/voice.js",
+        "bytes": 20182,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "3b6bae219e7739e2430a35d0b34275f858ccf30cf8368af975b33dfc7d8e9bfb"
+      },
+      {
+        "file": "dist/webFetch.js",
+        "bytes": 38258,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "96b251b991beb00875c59105cf5da8101d9832af352bdfaa0ce4f46278f84f8d"
+      },
+      {
+        "file": "dist/museCodeReviewer.js",
+        "bytes": 24077,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "5d7d24cf2d793314bee376c92ae2b30a30c234c57522258ade2bf35c8673902d"
+      },
+      {
+        "file": "dist/extensionHooks.js",
+        "bytes": 36663,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "18448c0021c7e6896e3ed7f6d89f72b82d6b490660b0f019c59b0046c3598559"
+      },
+      {
+        "file": "dist/report.js",
+        "bytes": 22230,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "622d3a623845153737a44a4d49969b747ad7fce70b52c53f75a9757c79b21851"
+      },
+      {
+        "file": "dist/recorder.js",
+        "bytes": 24875,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "09d930048d7d990ec4d31a5f2573206a20d1d104222b9e3654daa5709f82a56e"
+      },
+      {
+        "file": "dist/whatsNew.js",
+        "bytes": 19057,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "97ba8ab8e69ff36169401ebacd71b220771fd4ede8d475ce2e679e0c3e8ba236"
+      },
+      {
+        "file": "dist/judge.js",
+        "bytes": 48148,
+        "capKiB": 100,
+        "capBytes": 102400,
+        "withinCap": true,
+        "sha256": "af39c7a8032f580a30764dd99eb282e79149206894558f5744b4d69bb2800ba5"
+      },
+      {
+        "file": "dist/uiText.js",
+        "bytes": 49286,
+        "capKiB": 125,
+        "capBytes": 128000,
+        "withinCap": true,
+        "sha256": "0760581fa85267f3f0f77b399dca7c8cada3e40c362b5466f518f8e80eb38195"
+      },
+      {
+        "file": "dist/judgeP2.js",
+        "bytes": 53218,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "786509ffc84eb44fdc454c1eddaff26202307a4d3eb18ac1edcffe6ed541ebfb"
+      },
+      {
+        "file": "dist/judgeLint.js",
+        "bytes": 39663,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "14a19c7be3e669723d515158f8ccb6c515e12e90954a82a69c3309470435345b"
+      },
+      {
+        "file": "dist/judgeHook.js",
+        "bytes": 70590,
+        "capKiB": 100,
+        "capBytes": 102400,
+        "withinCap": true,
+        "sha256": "6863d17a5ae7e4564add9b66dd2e9ceb627b4bc44830f973e13579cb62d0e3c2"
+      },
+      {
+        "file": "dist/judgeLocal.js",
+        "bytes": 50925,
+        "capKiB": 75,
+        "capBytes": 76800,
+        "withinCap": true,
+        "sha256": "a8e4db973c0d606afa9964cf58b08fa1839891a5ba5f8af767df1f8cc9ace956"
+      },
+      {
+        "file": "dist/judgeUses.js",
+        "bytes": 16569,
+        "capKiB": 25,
+        "capBytes": 25600,
+        "withinCap": true,
+        "sha256": "2b6615c48b9e5f4b2407a89c04417a464849a8ac87bc2e4a3ee2bd6aed73161c"
+      },
+      {
+        "file": "dist/validationSchema.js",
+        "bytes": 22808,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "cefd78400c22a4be6d861cde3497fef43255cc47c95dda086e6b331ad377212f"
+      },
+      {
+        "file": "dist/uiTextRuntime.js",
+        "bytes": 3542,
+        "capKiB": 25,
+        "capBytes": 25600,
+        "withinCap": true,
+        "sha256": "ae027865fdd859e67f928db3711d09cc4a38ef82913b97644b802915bf3a0118"
+      },
+      {
+        "file": "dist/uiTextHooks.js",
+        "bytes": 4746,
+        "capKiB": 25,
+        "capBytes": 25600,
+        "withinCap": true,
+        "sha256": "ffca4813c8958d878805ed33b0d062dc1126bb73f86c944ad1853d1ecab662c7"
+      },
+      {
+        "file": "dist/uiTextSurfaces.js",
+        "bytes": 2510,
+        "capKiB": 25,
+        "capBytes": 25600,
+        "withinCap": true,
+        "sha256": "bb5e221aa512b7fb886ba5cc914ee56f6922ee4dd4d3b1e1bc78380d29d973ab"
+      },
+      {
+        "file": "dist/validation.js",
+        "bytes": 41502,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "b23e40f44efc546a1d8ca9c4d1514effc3802be533d39beae3505b71f3db8bdb"
+      },
+      {
+        "file": "dist/wire.js",
+        "bytes": 41396,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "151d71a453fa07c5b01270cf8acb95358a3744c60d740134db75c58eda95b61e"
+      },
+      {
+        "file": "dist/searchWorker.js",
+        "bytes": 4969,
+        "capKiB": 50,
+        "capBytes": 51200,
+        "withinCap": true,
+        "sha256": "14338954deb1cc12c2b38c46b989a6a587e778f55812d2e2e007b5a3662d7058"
+      },
+      {
+        "file": "dist/pageWorker.js",
+        "bytes": 193171,
+        "capKiB": 300,
+        "capBytes": 307200,
+        "withinCap": true,
+        "sha256": "520bafa5a877928be07c6283b91ac1802780d3819168f511ec4b2d8aafbc156e"
+      },
+      {
+        "file": "dist/webview/main.js",
+        "bytes": 363383,
+        "capKiB": 900,
+        "capBytes": 921600,
+        "withinCap": true,
+        "sha256": "b8860918ab4a3f445b9828bb280d30d07e2fa168eb1f527518f23c18b73761cf"
+      },
+      {
+        "file": "dist/webview/whatsNew.js",
+        "bytes": 708,
+        "capKiB": 25,
+        "capBytes": 25600,
+        "withinCap": true,
+        "sha256": "a04a649fe4b1b856e5615d6842914e83d315c959117549cfa641fe5b7ec19cbf"
+      },
+      {
+        "file": "dist/acp.js",
+        "bytes": 840257,
+        "capKiB": 850,
+        "capBytes": 870400,
+        "withinCap": true,
+        "sha256": "2ab7d1c8182d0f126978a6d8145e9d0b7bfec30999bbbdcc7402653180cfab4b"
+      }
+    ],
+    "officialCapLines": [
+      "ok   dist/extension.js: 438.5 KiB (budget 600 KiB)",
+      "ok   dist/conversation.js: 193.2 KiB (budget 250 KiB)",
+      "ok   dist/tab.js: 49.4 KiB (budget 75 KiB)",
+      "ok   dist/modelApi.js: 446.9 KiB (budget 475 KiB)",
+      "ok   dist/review.js: 29.0 KiB (budget 50 KiB)",
+      "ok   dist/sessionBoard.js: 45.0 KiB (budget 75 KiB)",
+      "ok   dist/reviewer.js: 22.5 KiB (budget 75 KiB)",
+      "ok   dist/foreignHooks.js: 69.2 KiB (budget 100 KiB)",
+      "ok   dist/hookRuntime.js: 43.0 KiB (budget 50 KiB)",
+      "ok   dist/pluginHooks.js: 34.6 KiB (budget 50 KiB)",
+      "ok   dist/planMarkdown.js: 144.1 KiB (budget 150 KiB)",
+      "ok   dist/checkpointStore.js: 76.9 KiB (budget 225 KiB)",
+      "ok   dist/agentImport.js: 115.6 KiB (budget 125 KiB)",
+      "ok   dist/browserCheck.js: 42.4 KiB (budget 75 KiB)",
+      "ok   dist/browserRuntime.js: 19.3 KiB (budget 50 KiB)",
+      "ok   dist/conversationGit.js: 72.2 KiB (budget 150 KiB)",
+      "ok   dist/bundledSkills.js: 14.7 KiB (budget 50 KiB)",
+      "ok   dist/codeIntel.js: 39.1 KiB (budget 100 KiB)",
+      "ok   dist/voice.js: 19.7 KiB (budget 50 KiB)",
+      "ok   dist/webFetch.js: 37.4 KiB (budget 75 KiB)",
+      "ok   dist/museCodeReviewer.js: 23.5 KiB (budget 75 KiB)",
+      "ok   dist/extensionHooks.js: 35.8 KiB (budget 75 KiB)",
+      "ok   dist/report.js: 21.7 KiB (budget 75 KiB)",
+      "ok   dist/recorder.js: 24.3 KiB (budget 75 KiB)",
+      "ok   dist/whatsNew.js: 18.6 KiB (budget 50 KiB)",
+      "ok   dist/whatsNew.json: 28.2 KiB (budget 40 KiB)",
+      "ok   dist/judge.js: 47.0 KiB (budget 100 KiB)",
+      "ok   dist/uiText.js: 48.1 KiB (budget 125 KiB)",
+      "ok   dist/judgeP2.js: 52.0 KiB (budget 75 KiB)",
+      "ok   dist/judgeLint.js: 38.7 KiB (budget 50 KiB)",
+      "ok   dist/judgeHook.js: 68.9 KiB (budget 100 KiB)",
+      "ok   dist/judgeLocal.js: 49.7 KiB (budget 75 KiB)",
+      "ok   dist/judgeUses.js: 16.2 KiB (budget 25 KiB)",
+      "ok   dist/validationSchema.js: 22.3 KiB (budget 50 KiB)",
+      "ok   dist/uiTextRuntime.js: 3.5 KiB (budget 25 KiB)",
+      "ok   dist/uiTextHooks.js: 4.6 KiB (budget 25 KiB)",
+      "ok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)",
+      "ok   dist/validation.js: 40.5 KiB (budget 50 KiB)",
+      "ok   dist/wire.js: 40.4 KiB (budget 50 KiB)",
+      "ok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)",
+      "ok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)",
+      "ok   dist/webview/main.js + static imports: 792.5 KiB (budget 900 KiB)",
+      "ok   dist/webview/whatsNew.js: 0.7 KiB (budget 25 KiB)",
+      "ok   dist/acp.js: 820.6 KiB (budget 850 KiB)",
+      "ok   dist/webview deferred JS: 49.7 KiB (budget 50 KiB)",
+      "ok   dist/webview code highlighting: 93.1 KiB (budget 125 KiB)",
+      "ok   dist/webview action dialogs: 9.1 KiB (budget 25 KiB)",
+      "ok   dist/webview tasks tab: 1.3 KiB (budget 25 KiB)",
+      "ok   dist/extension.js: 6 of the backend's 65 files (14.7 KiB), all on the allowed list",
+      "ok   dist/acp.js: 4 of the backend's files, all on the allowed list",
+      "ok   dist/modelApi.js: carries the 37 files that load only with the backend, and no English table",
+      "ok   dist/planMarkdown.js: carries the plan reader; dist/extension.js carries none of its parser",
+      "ok   dist/pageWorker.js: the page converter (parse5 and its parts) loads only there, never at activation",
+      "ok   dist/checkpointStore.js: carries the checkpoint implementation; activation keeps the port and synchronous loader",
+      "ok   dist/browserCheck.js: carries the browser check's pipe, run, proxy, canaries and processes; activation keeps the loaders and the tool",
+      "ok   dist/browserRuntime.js: carries the runtime's acquisition (pin, download, ZIP reader, store); no other bundle does",
+      "ok   dist/review.js: carries the review and edit review; dist/extension.js keeps the loader",
+      "ok   dist/agentImport.js: carries the import (scan, converters, file access, smol-toml); dist/extension.js carries none of it",
+      "ok   model text: CONVERSATION_MODEL_TEXT, TAB_MODEL_TEXT, HOOK_MODEL_TEXT, MODEL_API_MODEL_TEXT, CODE_INTEL_MODEL_TEXT, CHECKPOINT_MODEL_TEXT, AGENT_IMPORT_MODEL_TEXT, GIT_MODEL_TEXT, REVIEW_MODEL_TEXT, REVIEW_COMMENT_MODEL_TEXT, WEB_FETCH_MODEL_TEXT, EXEC_MODEL_TEXT, AUTO_REVIEWER_MODEL_TEXT, JUDGE_MODEL_TEXT each in its readers and in no other of the 79 shipped bundles; FILE_REFUSAL_MODEL_TEXT pinned to 2 keys; 87 MODEL_TEXT keys, each read at activation",
+      "ok   dist/uiText.js: Node bundles share the English fallback",
+      "ok   webview: optional surfaces and highlighting load only in guarded deferred chunks",
+      "ok   dist/conversationGit.js: carries the Git adapter and the window's 13 git and pull request files; activation keeps its checked loader",
+      "ok   dist/judgeP2.js: B/D/CS/G load only on an explicit judge action",
+      "ok   dist/sessionBoard.js: loads only on its first action",
+      "ok   dist/reviewer.js: loads only on its first action",
+      "ok   dist/foreignHooks.js: loads only on its first action",
+      "ok   dist/hookRuntime.js: loads only on its first action",
+      "ok   dist/pluginHooks.js: loads only on its first action",
+      "ok   dist/conversation.js: loads only on the first chat surface, never at activation",
+      "ok   dist/judge.js: loads only on the first eligible Judge approval, never at activation",
+      "ok   dist/tab.js: loads only on the first Tab request or menu, never at activation",
+      "ok   dist/codeIntel.js: loads only on the first code intelligence call, never at activation",
+      "ok   dist/voice.js: loads only on the first recording, never at activation",
+      "ok   dist/webFetch.js: loads only on the first web fetch, never at activation",
+      "ok   dist/museCodeReviewer.js: loads only on the first review, never at activation",
+      "ok   dist/report.js: loads only on the first report dialog, never at activation",
+      "ok   dist/recorder.js: loads only on the journal, just after activation, never at activation",
+      "ok   dist/whatsNew.js: loads only on the first What’s New page or notice, never at activation",
+      "ok   dist/webview/whatsNew.js: the page script alone, no package and no display table",
+      "ok   dist/validation.js: 0 reference(s) to navigator",
+      "ok   dist/validationSchema.js: 0 reference(s) to navigator",
+      "ok   dist/wire.js: 0 reference(s) to navigator",
+      "ok   dist/uiText.js: 0 reference(s) to navigator",
+      "ok   dist/uiTextRuntime.js: 0 reference(s) to navigator",
+      "ok   dist/uiTextHooks.js: 0 reference(s) to navigator",
+      "ok   dist/uiTextSurfaces.js: 0 reference(s) to navigator",
+      "ok   dist/extension.js: 0 reference(s) to navigator",
+      "ok   dist/conversation.js: 0 reference(s) to navigator",
+      "ok   dist/tab.js: 0 reference(s) to navigator",
+      "ok   dist/modelApi.js: 0 reference(s) to navigator",
+      "ok   dist/review.js: 0 reference(s) to navigator",
+      "ok   dist/sessionBoard.js: 0 reference(s) to navigator",
+      "ok   dist/reviewer.js: 0 reference(s) to navigator",
+      "ok   dist/foreignHooks.js: 0 reference(s) to navigator",
+      "ok   dist/hookRuntime.js: 0 reference(s) to navigator",
+      "ok   dist/extensionHooks.js: 0 reference(s) to navigator",
+      "ok   dist/pluginHooks.js: 0 reference(s) to navigator",
+      "ok   dist/planMarkdown.js: 0 reference(s) to navigator",
+      "ok   dist/checkpointStore.js: 0 reference(s) to navigator",
+      "ok   dist/browserCheck.js: 0 reference(s) to navigator",
+      "ok   dist/browserRuntime.js: 0 reference(s) to navigator",
+      "ok   dist/agentImport.js: 0 reference(s) to navigator",
+      "ok   dist/conversationGit.js: 0 reference(s) to navigator",
+      "ok   dist/bundledSkills.js: 0 reference(s) to navigator",
+      "ok   dist/codeIntel.js: 0 reference(s) to navigator",
+      "ok   dist/voice.js: 0 reference(s) to navigator",
+      "ok   dist/webFetch.js: 0 reference(s) to navigator",
+      "ok   dist/museCodeReviewer.js: 0 reference(s) to navigator",
+      "ok   dist/judgeP2.js: 0 reference(s) to navigator",
+      "ok   dist/judgeLint.js: 0 reference(s) to navigator",
+      "ok   dist/judgeHook.js: 0 reference(s) to navigator",
+      "ok   dist/judgeLocal.js: 0 reference(s) to navigator",
+      "ok   dist/judgeUses.js: 0 reference(s) to navigator",
+      "ok   dist/report.js: 0 reference(s) to navigator",
+      "ok   dist/recorder.js: 0 reference(s) to navigator",
+      "ok   dist/whatsNew.js: 0 reference(s) to navigator",
+      "ok   dist/judge.js: 0 reference(s) to navigator",
+      "ok   dist/searchWorker.js: 0 reference(s) to navigator",
+      "ok   dist/pageWorker.js: 0 reference(s) to navigator",
+      "ok   THIRD_PARTY_NOTICES.txt: 83 bundled packages"
+    ]
+  },
+  "delivery": {
+    "status": "passed",
+    "wholeFile": "test/unit/judgeP2Delivery.test.ts",
+    "expectedTests": 93,
+    "command": "npx.cmd vitest run test/unit/judgeP2Delivery.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=verbose",
+    "exit": 0,
+    "tests": 93,
+    "durationSeconds": 2680.58,
+    "distinctWholeFiles": 101,
+    "distinctPassingTests": 3221,
+    "existingPlatformSkips": 93,
+    "modelAttempts": 0,
+    "modelSpendUsd": 0,
+    "postMatrixArtifactCount": 43,
+    "postMatrixDifferences": [],
+    "summary": [
+      "Test Files  1 passed (1)",
+      "Tests  93 passed (93)",
+      "Duration  2680.58s (tests 100%)"
+    ]
+  },
+  "remaining": [
+    "Full 0.16.0 quality/coverage/accessibility and hosted matrix",
+    "Universal native macOS artifacts, actual integrated package/raw cap and installed-editor receipts",
+    "Phase-two adoption evidence and C/E/A/I/FP owners",
+    "Help-reference catalog/generator dependency absent on both parents"
+  ]
+}

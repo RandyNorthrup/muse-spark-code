@@ -1,11 +1,11 @@
-import type { ImageLimits } from '../imageResize'
 // What a model can do (M95, PLAN.md D74). Capabilities come from the
 // provider's models list where it gives them, the vendored catalogue
 // otherwise, and the user for a custom server. A custom server and the
 // local servers start from Zed's conservative defaults (no parallel calls,
 // no images, the window required). Pure.
 
-/** What the harness needs to know about a model before using it. */
+import { JUDGE_MAX_STATE_TOKENS } from '../../shared/constants'
+import type { ImageLimits } from '../imageResize'
 import {
   resolveModelCapabilities,
   type Known,
@@ -25,6 +25,7 @@ export type {
   CapabilityEvidence,
 } from './capabilityRecord'
 
+/** What the harness needs to know about a model before using it. */
 export interface ModelCapabilities {
   /** The model calls tools (false keeps it out of agent mode and badges). */
   readonly toolCalling: boolean
@@ -116,4 +117,79 @@ answers the picker's grouping only.
 */
 export function hasSameToolShape(a: ModelCapabilities, b: ModelCapabilities): boolean {
   return a.toolCalling === b.toolCalling && a.parallelToolCalls === b.parallelToolCalls
+}
+
+// --- SystemOne model capabilities (M98 phase 2 lane C) ---
+//
+// Bounds and price are the captured Jev facts (PLAN.md D50; docs.typesafe.ai/models,
+// read 2026-10-06; OpenRouter's 2026-10-04 calls in m98-research.md): $0.042 per
+// million input tokens, output free, 32k tokens for the state plus the longest
+// question, and twice that for the whole request. The served ids are the ones
+// those records name. A row is not a permission to auto-select, and it is not a
+// Clef parser: Clef has no row.
+
+const SYSTEMONE_JEV_TERMS = {
+  tested: false,
+  optIn: true,
+  autoSelectable: false,
+  inputUsdPerMillion: 0.042,
+  outputUsdPerMillion: 0,
+  statePlusLongestQuestionTokens: JUDGE_MAX_STATE_TOKENS,
+  requestTokens: JUDGE_MAX_STATE_TOKENS * 2,
+} as const
+
+export interface SystemOneModelCapability {
+  readonly presetId: string
+  readonly requestModel: string
+  /** Response `model` values this request id may report. Anything else is misaligned. */
+  readonly responseModels: readonly string[]
+  readonly captureId: string
+  readonly tested: false
+  readonly optIn: true
+  readonly autoSelectable: false
+  readonly inputUsdPerMillion: number
+  readonly outputUsdPerMillion: number
+  readonly statePlusLongestQuestionTokens: number
+  readonly requestTokens: number
+}
+
+export const SYSTEMONE_CAPABILITIES: readonly SystemOneModelCapability[] = [
+  Object.freeze({
+    presetId: 'openrouter-jev',
+    requestModel: 'typesafe/jev-1.13',
+    responseModels: Object.freeze(['typesafe/jev-1.13', 'typesafe/jev-1.13-20260917']),
+    captureId: 'docs/certification/m98-research.md#openrouter-systemone',
+    ...SYSTEMONE_JEV_TERMS,
+  }),
+  Object.freeze({
+    presetId: 'openrouter-jev',
+    requestModel: '~typesafe/jev-latest',
+    responseModels: Object.freeze(['~typesafe/jev-latest', 'typesafe/jev-1.13-20260917']),
+    captureId: 'docs/certification/m98-research.md#openrouter-systemone',
+    ...SYSTEMONE_JEV_TERMS,
+  }),
+  Object.freeze({
+    presetId: 'typesafe-jev',
+    requestModel: 'jev-1.13.0',
+    responseModels: Object.freeze(['jev-1.13.0']),
+    captureId: 'https://docs.typesafe.ai/models',
+    ...SYSTEMONE_JEV_TERMS,
+  }),
+  Object.freeze({
+    presetId: 'typesafe-jev',
+    requestModel: 'jev-latest',
+    responseModels: Object.freeze(['jev-latest', 'jev-1.13.0']),
+    captureId: 'https://docs.typesafe.ai/models',
+    ...SYSTEMONE_JEV_TERMS,
+  }),
+]
+
+/** The capability of one request model on one SystemOne route, or undefined. */
+export function systemOneCapability(
+  presetId: string,
+  requestModel: string,
+): SystemOneModelCapability | undefined {
+  return SYSTEMONE_CAPABILITIES.find(
+    (row) => row.presetId === presetId && row.requestModel === requestModel,
+  )
 }

@@ -21,6 +21,10 @@ const ModelsSurface = lazy(async () => {
   const { ModelsSection } = await import('./ModelsSection')
   return { default: ModelsSection }
 })
+const JudgeSurface = lazy(async () => {
+  const { JudgeSection } = await import('./sections/judge/JudgeSection')
+  return { default: JudgeSection }
+})
 
 const heightSchema = z.object({
   snapshot: z.object({
@@ -169,4 +173,7 @@ export function DeferredProvidersSection(props: SectionProps) {
 }
 export function DeferredModelsSection(props: SectionProps) {
   return <ModelsSurface {...props} />
+}
+export function DeferredJudgeSection(props: SectionProps) {
+  return <JudgeSurface {...props} />
 }

@@ -1,0 +1,3 @@
+async function copyReport(copyFile, source, destination) {
+  await copyFile(source, destination)
+}

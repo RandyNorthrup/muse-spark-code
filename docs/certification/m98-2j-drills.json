@@ -1,0 +1,155 @@
+[
+  {
+    "id": "agent-opens-another-socket",
+    "file": "src/core/judge/local/transport.ts",
+    "status": 1,
+    "originalHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "restoredHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "byte-before-verification",
+    "file": "src/core/judge/local/transport.ts",
+    "status": 1,
+    "originalHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "restoredHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "single-lookup-loopback",
+    "file": "src/core/judge/local/transport.ts",
+    "status": 1,
+    "originalHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "restoredHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "redirect-refusal",
+    "file": "src/core/judge/local/transport.ts",
+    "status": 1,
+    "originalHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "restoredHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "incoming-outgoing-bounds",
+    "file": "src/core/judge/local/transport.ts",
+    "status": 1,
+    "originalHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "restoredHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "port-bounds",
+    "file": "src/core/judge/local/transport.ts",
+    "status": 1,
+    "originalHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "restoredHash": "014cb439f80131bae5eaebd1533aa0989ff47e86561f83f9d2acbca528e89b74",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "pid-reuse-generation",
+    "file": "src/core/judge/local/windowsPeer.ts",
+    "status": 1,
+    "originalHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "restoredHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "changed-pid",
+    "file": "src/core/judge/local/windowsPeer.ts",
+    "status": 1,
+    "originalHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "restoredHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "caller-sid",
+    "file": "src/core/judge/local/windowsPeer.ts",
+    "status": 1,
+    "originalHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "restoredHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "installed-binary-fingerprint",
+    "file": "src/core/judge/local/windowsPeer.ts",
+    "status": 1,
+    "originalHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "restoredHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "whole-tuple-client-port",
+    "file": "test/unit/helpers/localJudgePeer.cs",
+    "status": 1,
+    "originalHash": "b5d72665f37a20415e86e51872bb891534e9a4e95ae17d8e22b1e894160690e0",
+    "restoredHash": "b5d72665f37a20415e86e51872bb891534e9a4e95ae17d8e22b1e894160690e0",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "served-manifest-digest",
+    "file": "src/core/judge/local/model.ts",
+    "status": 1,
+    "originalHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "restoredHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "actual-blob-digest",
+    "file": "src/core/judge/local/model.ts",
+    "status": 1,
+    "originalHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "restoredHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "blob-name-identity",
+    "file": "src/core/judge/local/model.ts",
+    "status": 1,
+    "originalHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "restoredHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "canonical-model-path",
+    "file": "src/core/judge/local/model.ts",
+    "status": 1,
+    "originalHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "restoredHash": "aff8b79b7d5ade9425217e4feab6a97ddb41e87d46a48335100f8d5b51792762",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "installed-binary-path",
+    "file": "src/core/judge/local/windowsPeer.ts",
+    "status": 1,
+    "originalHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "restoredHash": "8d393b5d8f45bc52e805bdc7afb96248d7b54d84defa62e6fc276d68b8ef4e28",
+    "byteExact": true,
+    "assertionFailure": true
+  },
+  {
+    "id": "explicit-port-zero",
+    "file": "src/core/judge/local/transport.ts",
+    "status": 1,
+    "originalHash": "7d3d0f0316e9883bd7d8b7d44af08056d5fcc3a0251e9dffdd2f2294acfb9721",
+    "restoredHash": "7d3d0f0316e9883bd7d8b7d44af08056d5fcc3a0251e9dffdd2f2294acfb9721",
+    "byteExact": true,
+    "assertionFailure": true
+  }
+]

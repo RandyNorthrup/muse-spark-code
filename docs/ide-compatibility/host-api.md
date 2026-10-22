@@ -33,7 +33,7 @@ The VS Code adapter: 50 files. Everything else reaches VS Code only through them
 
 | File                                               | VS Code APIs used |
 | -------------------------------------------------- | ----------------- |
-| `src/extension.ts`                                 | 194               |
+| `src/extension.ts`                                 | 195               |
 | `src/host/agentImportHost.ts`                      | 28                |
 | `src/host/browser/browserCheckConfirm.ts`          | 5                 |
 | `src/host/browser/runtimeCommand.ts`               | 9                 |
@@ -103,7 +103,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (383)
+## VS Code API used at run time (384)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -491,6 +491,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.registerTextDocumentContentProvider`                                      | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.saveAll`                                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `workspace.workspaceFile`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## Node built-ins the host imports (30)
@@ -498,32 +499,32 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | Module                   | Files |
 | ------------------------ | ----- |
 | `node:async_hooks`       | 5     |
-| `node:buffer`            | 73    |
-| `node:child_process`     | 31    |
-| `node:crypto`            | 216   |
+| `node:buffer`            | 75    |
+| `node:child_process`     | 37    |
+| `node:crypto`            | 225   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
-| `node:dns/promises`      | 6     |
-| `node:events`            | 4     |
-| `node:fs`                | 135   |
-| `node:fs/promises`       | 144   |
-| `node:http`              | 17    |
+| `node:dns/promises`      | 8     |
+| `node:events`            | 5     |
+| `node:fs`                | 139   |
+| `node:fs/promises`       | 151   |
+| `node:http`              | 20    |
 | `node:https`             | 3     |
-| `node:module`            | 4     |
-| `node:net`               | 26    |
-| `node:os`                | 46    |
-| `node:path`              | 265   |
+| `node:module`            | 5     |
+| `node:net`               | 31    |
+| `node:os`                | 47    |
+| `node:path`              | 274   |
 | `node:perf_hooks`        | 4     |
-| `node:process`           | 28    |
-| `node:readline`          | 1     |
+| `node:process`           | 29    |
+| `node:readline`          | 3     |
 | `node:readline/promises` | 3     |
-| `node:stream`            | 27    |
+| `node:stream`            | 29    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
 | `node:timers/promises`   | 37    |
 | `node:tls`               | 1     |
 | `node:url`               | 9     |
-| `node:util`              | 11    |
+| `node:util`              | 17    |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 6     |
 | `node:zlib`              | 10    |

@@ -1569,69 +1569,76 @@ unchanged. Verify exact
 round-trip values, loading/retry/localization and client dispatch, drill these
 properties, and retain all existing caps. No new artifact or dependency.
 
-| Artifact                                 | Budget (minified, uncompressed)     |
-| ---------------------------------------- | ----------------------------------- |
-| `dist/resourceGovernor.js`               | ≤ 125 KiB                           |
-| `dist/resourceProcess.js`                | ≤ 50 KiB                            |
-| `dist/mcpVault.js`                       | ≤ 25 KiB                            |
-| `dist/resourceAdmission.js`              | ≤ 25 KiB                            |
-| Resource controls/history                | ≤ 25 KiB entries; ≤ 50 KiB closures |
-| `docs/schemas/exec-event-v2.schema.json` | ≤ 50 KiB                            |
-| `dist/conversation.js`                   | ≤ 250 KiB                           |
-| `dist/conversationTransfer.js`           | ≤ 50 KiB                            |
-| `dist/tab.js`                            | ≤ 75 KiB                            |
-| `dist/extension.js`                      | ≤ 600 KiB                           |
-| `dist/modelApi.js`                       | ≤ 475 KiB                           |
-| `dist/modelApiBoundaries.js`             | ≤ 25 KiB                            |
-| `dist/team.js`                           | ≤ 75 KiB                            |
-| `dist/teamRunners.js`                    | ≤ 75 KiB                            |
-| `dist/teamScheduler.js`                  | ≤ 75 KiB                            |
-| `dist/review.js`                         | ≤ 50 KiB                            |
-| `dist/searchWorker.js`                   | ≤ 50 KiB                            |
-| `dist/pageWorker.js`                     | ≤ 300 KiB                           |
-| `dist/webview/main.js`                   | ≤ 900 KiB                           |
-| Webview original deferred surfaces       | ≤ 50 KiB                            |
-| Webview provider-usage import closure    | ≤ 25 KiB                            |
-| Webview paid usage import closure        | ≤ 25 KiB                            |
-| Webview highlighting import closure      | ≤ 125 KiB                           |
-| Webview action-dialog import closures    | ≤ 25 KiB                            |
-| Webview question UI import closure       | ≤ 25 KiB                            |
-| Webview Tasks import closure             | ≤ 25 KiB                            |
-| Webview team UI import closure           | ≤ 25 KiB                            |
-| `.vsix`                                  | ≤ 2775 KiB                          |
-| `dist/acp.js`                            | ≤ 850 KiB                           |
-| `dist/planMarkdown.js`                   | ≤ 150 KiB                           |
-| `dist/checkpointStore.js`                | ≤ 225 KiB                           |
-| `dist/uiText.js`                         | ≤ 125 KiB                           |
-| `dist/wire.js`                           | ≤ 75 KiB                            |
-| `dist/uiTextRuntime.js`                  | ≤ 25 KiB                            |
-| `dist/uiTextHooks.js`                    | ≤ 25 KiB                            |
-| `dist/uiTextSurfaces.js`                 | ≤ 25 KiB                            |
-| `dist/sessionBoard.js`                   | ≤ 75 KiB                            |
-| `dist/reviewer.js`                       | ≤ 75 KiB                            |
-| `dist/foreignHooks.js`                   | ≤ 100 KiB                           |
-| `dist/hookRuntime.js`                    | ≤ 50 KiB                            |
-| `dist/pluginHooks.js`                    | ≤ 50 KiB                            |
-| `dist/agentImport.js`                    | ≤ 125 KiB                           |
-| `dist/bundledSkills.js`                  | ≤ 50 KiB                            |
-| `dist/codeIntel.js`                      | ≤ 100 KiB                           |
-| `dist/voice.js`                          | ≤ 50 KiB                            |
-| `dist/museCodeReviewer.js`               | ≤ 75 KiB                            |
-| `dist/extensionHooks.js`                 | ≤ 75 KiB                            |
-| `dist/browserCheck.js`                   | ≤ 75 KiB                            |
-| `dist/browserRuntime.js`                 | ≤ 50 KiB                            |
-| `dist/whatsNew.js`                       | ≤ 50 KiB                            |
-| `dist/whatsNew.json`                     | ≤ 40 KiB                            |
-| `dist/webview/whatsNew.js`               | ≤ 25 KiB                            |
-| `dist/tab.js`                            | ≤ 75 KiB                            |
-| `dist/modelApiCodeIntel.js`              | ≤ 100 KiB                           |
-| `dist/mcpPool.js`                        | ≤ 75 KiB                            |
-| `dist/structuredSchema.js`               | ≤ 50 KiB                            |
-| `dist/exec.js`                           | ≤ 950 KiB                           |
-| Webview estimator import closure         | ≤ 25 KiB                            |
-| `dist/reference.js`                      | ≤ 125 KiB                           |
-| `dist/auth.js`                           | ≤ 75 KiB                            |
-| `dist/paid.js`                           | ≤ 75 KiB                            |
+| Artifact                                 | Budget (minified, uncompressed)                                                                                                                                                                                        |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/resourceGovernor.js`               | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/resourceProcess.js`                | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/mcpVault.js`                       | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/resourceAdmission.js`              | ≤ 25 KiB                                                                                                                                                                                                               |
+| Resource controls/history                | ≤ 25 KiB entries; ≤ 50 KiB closures                                                                                                                                                                                    |
+| `docs/schemas/exec-event-v2.schema.json` | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/conversation.js`                   | ≤ 250 KiB                                                                                                                                                                                                              |
+| `dist/conversationTransfer.js`           | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/tab.js`                            | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/extension.js`                      | ≤ 600 KiB                                                                                                                                                                                                              |
+| `dist/modelApi.js`                       | ≤ 475 KiB                                                                                                                                                                                                              |
+| `dist/modelApiBoundaries.js`             | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/team.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/teamRunners.js`                    | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/teamScheduler.js`                  | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/review.js`                         | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/searchWorker.js`                   | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/pageWorker.js`                     | ≤ 300 KiB                                                                                                                                                                                                              |
+| `dist/webview/main.js`                   | ≤ 900 KiB                                                                                                                                                                                                              |
+| Webview original deferred surfaces       | ≤ 50 KiB                                                                                                                                                                                                               |
+| Webview provider-usage import closure    | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview paid usage import closure        | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview highlighting import closure      | ≤ 125 KiB                                                                                                                                                                                                              |
+| Webview action-dialog import closures    | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview question UI import closure       | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview Tasks import closure             | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview team UI import closure           | ≤ 25 KiB                                                                                                                                                                                                               |
+| `.vsix`                                  | ≤ 2775 KiB                                                                                                                                                                                                             |
+| `dist/acp.js`                            | ≤ 850 KiB                                                                                                                                                                                                              |
+| `dist/planMarkdown.js`                   | ≤ 150 KiB                                                                                                                                                                                                              |
+| `dist/checkpointStore.js`                | ≤ 225 KiB                                                                                                                                                                                                              |
+| `dist/uiText.js`                         | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/wire.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/uiTextRuntime.js`                  | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/uiTextHooks.js`                    | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/uiTextSurfaces.js`                 | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/sessionBoard.js`                   | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/reviewer.js`                       | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/foreignHooks.js`                   | ≤ 100 KiB                                                                                                                                                                                                              |
+| `dist/hookRuntime.js`                    | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/pluginHooks.js`                    | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/agentImport.js`                    | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/bundledSkills.js`                  | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/codeIntel.js`                      | ≤ 100 KiB                                                                                                                                                                                                              |
+| `dist/voice.js`                          | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/museCodeReviewer.js`               | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/extensionHooks.js`                 | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/browserCheck.js`                   | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/browserRuntime.js`                 | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/whatsNew.js`                       | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/whatsNew.json`                     | ≤ 40 KiB                                                                                                                                                                                                               |
+| `dist/webview/whatsNew.js`               | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/tab.js`                            | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/modelApiCodeIntel.js`              | ≤ 100 KiB                                                                                                                                                                                                              |
+| `dist/mcpPool.js`                        | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/structuredSchema.js`               | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/exec.js`                           | ≤ 950 KiB                                                                                                                                                                                                              |
+| Webview estimator import closure         | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/reference.js`                      | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/auth.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/paid.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/judgeLint.js`                      | ≤ 50 KiB (unchanged phase-2 lint child).                                                                                                                                                                               |
+| `dist/judgeHook.js`                      | ≤ 100 KiB (unchanged phase-2 hook child).                                                                                                                                                                              |
+| `dist/judgeLocal.js`                     | ≤ 75 KiB (unchanged phase-2 local child).                                                                                                                                                                              |
+| `dist/judgeUses.js`                      | ≤ 25 KiB (unchanged phase-2 use child).                                                                                                                                                                                |
+| `dist/judgeServe.js`                     | ≤ 30 KiB (M98P2F serve child: authenticated serve factory and token file, out of the judge parent bundle; explicit serve action only. RLM98P2: merged judge schema measures 25.2 KiB, plus 15%, rounded up to 25 KiB). |
+| `dist/validationSchema.js`               | ≤ 50 KiB (unchanged lazy JSON Schema writer).                                                                                                                                                                          |
+| `dist/judgeP2.js`                        | ≤ 75 KiB (M98 phase-2 B/D/CS: offline calibration, injected sampling/contrastive and authenticated serve factory; explicit-action loading only; 61,039 bytes plus 15%, rounded up to 25 KiB)                           |
 
 **`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
 
@@ -1766,7 +1773,6 @@ vaultBoundaries scrubber. No existing cap or parser guard changes.
 **`dist/auth.js` budget rationale.** (CIFIX161B: the sign-in gate, AuthService and the three-valued credential read, loaded on the first credential, money or consent read; measured 64.8 KiB plus 15%, rounded up to 25 KiB)
 
 **`dist/paid.js` budget rationale.** (CIFIX161B: the paid gate, consent, usage and quote authority, loaded on the first paid consent, gate or usage read; measured 62.7 KiB plus 15%, rounded up to 25 KiB)
-
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
@@ -13673,7 +13679,9 @@ test that fails without the rule:
    lane (test `handshakeRefusalIsThrottled`); G35 every launch confirmed by a
    liveness probe (process alive, log growing within 30 s) or reported as
    failed to start; G36 done means a clean tree, every brief step listed as
-   done, and a moved head, otherwise the lane is continued in place.
+   done, and a moved head, otherwise the lane is continued in place;
+   G130 result reducers preserve immutable raw events and
+   fold replay into a separate output, never back into retained inputs.
 2. **M96 (team and board):** G3 structural rendering of briefs (no text
    substitution; the rendered brief is checked and hashed before dispatch);
    G5 three job states (running, finished, unknown since a time); G7
@@ -13693,6 +13701,8 @@ test that fails without the rule:
    smoke call per engine per machine in the capability record, with a failed
    probe removing that engine from the machine until fixed. G37 fail-closed
    safety checks before deletes, with per-run caches in the run's workspace.
+   G130 applies to result consolidation; its regression folds the same raw
+   report twice and verifies unchanged input hashes and event counts.
 4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
    ledger-only cleanup with an identity re-check, never by name pattern; G12
    OS-service pressure and transport failure as signals; G13 spawn-rate and
@@ -13708,7 +13718,8 @@ test that fails without the rule:
    sandboxes. Also the M100 rules above for G49 to G52 on its SSH route
    (tests `keyInstallKeepsEntriesSeparate`, `handshakeRefusalIsThrottled`,
    `windowsHeapDiagnostic`, `noPortProbes`, `authFailureStopsAfterOne`), plus
-   G34 smoke calls and G37 fail-closed teardown on its route.
+   G34 smoke calls and G37 fail-closed teardown on its route,
+   plus G130 immutable inputs during result consolidation.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
    process-name matching; G22 every unattended delivery verified where it
    landed.
@@ -33623,6 +33634,8 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/m98.md`.
 
+**Status 2026-10-22 (RLM98P2 lands phase 2 on main at 0.19.0 with the D121/D208 rework; the serve budget moves 25 to 30 KiB on its measured 25.2 KiB; evidence `docs/certification/m98-p2-landing.md`; M125 builds on it): built.**
+
 - **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
   from the user's own chat model first, with separate judges later. The Muse
   model, or a deterministic rule, still decides.
@@ -35634,6 +35647,510 @@ FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
 fallback. The other counts above are unchanged. W owns this same generated
 snapshot handoff; the portable-module check and all build checks pass.
 
+**M98P2INT round-4 bounded integration (2026-10-05).** The explicit rig
+brief authorizes four ordered no-ff merges (J2fix, J3-linux, J3-macos, FUfix),
+lazy J/FU assembly and native packaging, owning unit/native files in batches
+of at most three, and the scoped gates named in the brief. No main merge,
+push, aggregate quality/full suite or local/live/paid model call is authorized.
+The local source remains opt-in; each use remains inactive without its own
+paired and borrowed-golden evidence. Existing bundle and VSIX caps remain
+unchanged; record the known package overage for the lead/VSIXDIET2. Full
+quality, coverage, installed-source and release receipts remain lead gates.
+
+**M98P2INT round-4 package-budget receipt (2026-10-05).** Four ordered
+J/FU merges and their lazy libraries pass the named bounded source/unit/native
+gates and every JavaScript/shared/CSS cap. The real universal VSIX is
+2,418,240 bytes, 165,440 over the unchanged 2,252,800-byte cap (36,219
+above the final round-3 archive); its real size gate exits 1 after packaging.
+Both actual archive inventories, all ten new missing-entry controls,
+extracted factories and signed universal Mac helpers pass. Production ACP is
+1,280,879 bytes. No cap is raised, package optimization is not widened into
+this lane, and the lead/VSIXDIET2 owns recovery. Source controls, platform
+limitations, the two discarded command overlaps and their serial green reruns,
+all final hashes/bytes and $0 / zero new inference attempts are recorded in
+`docs/certification/m98-p2int-round4.md` and its adjacent JSON receipts.
+
+**M98P2INT round-3 package-budget deferral (2026-10-05).** The required
+H/GH merges and their M91 ancestry fit all existing JavaScript bundle caps
+with H/GH in separate lazy children. The actual universal VSIX, using the
+exact signed universal helper from the prior 0.13.0 archive, exceeds the
+unchanged 2,252,800-byte cap. The first measurement is 2,379,314 bytes;
+a lossless level-9 ZIP experiment preserves every decompressed entry but
+still measures 2,367,882 bytes. The final default package is 2,382,021 bytes,
+129,221 over the unchanged cap. No member, translation or behavior is removed
+and no cap is raised. Stop package optimization at this hard boundary under
+the shared lane rule; the final exact bytes and inventories are recorded in
+`docs/certification/m98-p2int-round3.md`. This private integration is not
+release-certified; the lead owns the cumulative package reduction/decision,
+full quality, coverage, a11y and installed/live receipts. No supported H/GH
+installed CLI command or inference source is claimed by the factory wiring.
+
+**M98P2INT bounded integration gates (2026-10-05).** The explicit rig brief
+authorizes only the three named branch merges, local hook-on commits and
+direct macmini lane checks: every merged owning unit file (at most three per
+run), typecheck, lint/format, dead-code, duplication, localization, cycles,
+host inventory, production build and caps. No aggregate quality/full suite,
+push, main merge, rebase or model call is authorized. Full quality/coverage,
+hosted and installed-product certification remains with the lead after the
+remaining phase-2 lanes merge. New integration guards require named red
+controls, byte-exact restoration and whole-file green reruns.
+
+**M98P2INT host-inventory refresh (2026-10-05).** Regenerated by
+`node scripts/check-host-api.mjs --write`, closing the inherited FIXM98J,
+P0/B/D and CS snapshot deferrals on this integrated tree. Reviewed changes:
+paidHost 11 → 12 and its `WorkspaceConfiguration.get` row; Node buffer
+27 → 29, crypto 32 → 35 (including inherited J), fs 24 → 25,
+fs/promises 34 → 35, http 2 → 3 and path 65 → 66. The 271 VS Code API
+identifiers and 18 direct adapter files are unchanged. The historical lane
+failure receipts below remain intact; the exact-tree regenerated gate is
+required green here.
+
+**FIXM98B bounded-lane gate delegation (2026-10-05).** The rig brief and
+shared rules prohibit aggregate quality/full tests and reserve them for the
+lead. Run owning regression files (at most three per run), red drills,
+typecheck, scoped lint/format, dead-code, duplication, localization, host API
+and production build directly on win11, with hooks enabled. The brief
+authorizes only the P0 merge; do not merge main or the common release
+candidate. Full quality, coverage, a11y and installed/package certification
+remain lead gates on the integrated tree. Existing host-API snapshot
+deferrals remain visible; no gate or threshold is weakened.
+
+**FIXM98CS bounded repair delegation (2026-10-05).** The rig brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Run owning files directly on macmini, at most three per invocation, plus
+scoped lint/format, typechecks and the named lane gates; commit locally
+with hooks on. The lead retains aggregate quality and generated/shared
+document refreshes. No gate, threshold, ignore or timeout is weakened.
+
+- **Phase 2 sections.** Planned, not dropped. Each starts after its
+  dependency and the evidence it names.
+  - **2a — Cascade, `both`, and `auto` → `both`.**
+    - **Design:** the separate judge first; the same model under the entropy
+      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
+      profile-weighted combination; disagreement only adds caution.
+    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
+      families. The round-2 numbers are offline prototypes.
+  - **2b — Calibration fitting and the report.**
+    - Platt first, isotonic at 200 or more labels.
+    - Per-family targets with independent labels; outcome signals kept
+      apart.
+    - Disjoint grouped splits; metrics from the evaluation set only.
+  - **2c — SystemOne adapters and `judge serve`** (M85).
+    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
+      (after a key), over M95's keys.
+    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
+      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
+      skips the token), 64 KiB, per-request admission.
+  - **2d — Sampling and contrastive framing,** under the cost gate,
+    measured first.
+  - **2e — BYO providers** after M95, with per-model capability blocks from
+    captures.
+  - **2f — The other uses, the Judge panel section and pre-execution
+    fences.**
+    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
+      signal, and the three testing uses, each measured first.
+    - **Fences:** a deadline-bounded or hook-based fence for immediate
+      allows, only with a captured pre-execution hook (M91) and a measured
+      ready rate.
+    - **The panel section** sits in M95's panel.
+  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
+    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
+    defaults to 0; hooks emit caution only.
+  - **2h — Lint,** within D77's declared limits: a strict, pinned
+    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
+    symbols cannot cover; a "not checked" coverage report; the first-party
+    pack.
+  - **2i — The embedding fast path,** after a measurement with hundreds of
+    labels.
+  - **2j — The local judge.** First, a design spike answering C1 and C2
+    (D77): verified local inference checked per connection, against the
+    named fixtures, or else only a user-configured, unverified endpoint
+    that is never confidential and never auto-selected. The build follows
+    the spike's verdict, starting from D77's carried design: the pinned
+    `node:net` transport, provenance, consented pulls and `tev1:4b`.
+    **Amended 2026-10-06** (D90.27's amendment): M110t's lane TJ owns the
+    hardware scan and recommendation table that 2j's setup in every editor
+    also uses, and the OS installers install and register the judge on hosts
+    and nodes once 2j has merged with outcome (a).
+- **Gates.**
+  - The lead runs the full `npm run quality` and the required CI checks on
+    the final integrated tree. Lane tests and builds run on the rigs; local
+    work is limited to changed-file formatting and lint.
+  - All existing budgets are preserved.
+  - New external shapes need counted captures before their parsers: for
+    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
+    allow-rule format.
+  - This planning lane authorizes no paid or live call beyond its recorded
+    probes.
+- **Security.**
+  - Inputs are bounded by named constants.
+  - State is data, and the judge can only add caution.
+  - Keys stay in SecretStorage or the OS store.
+  - Muse Code's judge session carries M90's recorded residual (§9), with
+    the narrowed claim.
+  - No local endpoint is contacted in phase 1.
+- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
+  Cloudflare) are needed only for 2c. Each surface is documented only after
+  a real successful run.
+- **Certification checklist.**
+  - [x] Owner requests and rulings; D77's policy of record; research and
+        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
+        prototypes labelled).
+  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
+        by this redesign. C1 and C2 move with the local judge to the 2j
+        spike; C3–C6 are fixed for phase 1.
+  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
+        and byte-exact red drills; no finding remains as an accepted residual.
+  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
+        receipt.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
+  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
+  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
+        installed-host receipts.
+  - [ ] Each phase-2 section certified on its own when it ships.
+- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
+  **FIXM98G2 merged-lane checks (2026-10-05).** The bounded repair brief
+  delegates full quality/coverage/installed-host certification to Z/lead.
+  Owning CLI/MCP regressions and red drills run on Mac mini; scoped lint,
+  format, five-project typecheck, dead-code, duplication, localization,
+  host API and production build remain required lane checks. The merge of
+  origin/main retains both branches' translated keys and paid startup rules.
+  The shared Node validation runtime deliberately excludes its large
+  JSON-schema converter: MCP carries the canonical generated request schema
+  in its existing file, with exact generated-schema parity enforced by the
+  owning test. Runtime request validation remains the original zod parser.
+  No budget, rule, boundary or dependency is weakened or added. Receipts:
+  `docs/certification/m98-g2.md`.
+
+**FIXM98G2 host-API snapshot deferral.** The merged source produces the
+already delegated judge additions: paidHost 11 → 12 configuration calls,
+that file added to WorkspaceConfiguration.get, node:crypto 36 → 37,
+node:stream 12 → 13 and node:util 4 → 5. The gate exits 1 until Z regenerates
+and reviews its owned `docs/ide-compatibility/host-api.md`. No new VS Code
+API is introduced by these repairs; this stale documentation gate is
+explicitly deferred, not claimed green. Follow-up: run
+`npm run check:host-api -- --write`, review these rows, rerun the check.
+
+**Closed by M98P2INT round 2 (2026-10-05).** The generated record now
+includes both G's delegated rows and B/CS/D's imports. Compared with G's
+snapshot: paidHost 11 → 12 and its WorkspaceConfiguration.get reader;
+Node buffer 30 → 32, crypto 36 → 39, fs 28 → 29, fs/promises 38 → 39,
+http 4 → 5, path 70 → 71, stream 12 → 13 and util 4 → 5. The merged
+release's 296 VS Code APIs, 24 adapters, 25 built-ins and 61 theme variables
+are unchanged by CLI factory wiring. Regeneration and the final check both
+exit 0; `docs/certification/m98-p2int-round2.md` holds the bounded receipts.
+The first duplication run caught copied display-language loading in the
+runtime entry; one local function shares the existing operation among its
+judge, exec/scanner and ACP callers, without changing its inputs or policy.
+**FIXM98GH bounded-lane gate delegation (2026-10-05).** The rig/shared
+brief forbids aggregate quality and edits outside GH. Owning whole-file
+regressions, 15 byte-exact red/restore drills, typechecks, scoped lint/format,
+localization, knip, duplication and dpdm pass; `docs/certification/m98p2-gh.md`
+holds the results. `check:host-api` still fails on the inherited generated
+snapshot mismatch (paid-host 11→12; crypto 37→38, stream 12→14, util 5→6).
+`npm run build` emits the bundles and passes every unchanged size cap, then
+fails on the inherited `src/runtime/judge/mcp.ts` use of `zod/mini.toJSONSchema`,
+which `src/shared/validationEntry.ts` does not export. These are the same
+failures recorded before the repair in `m98-gh.md` and RVM98GH, in G/Z-owned
+files. **GH-host-api-baseline** and **GH-validation-export-baseline** remain
+integration follow-ups: regenerate/review the snapshot, repair/review the
+shared schema export or G's schema assembly, then rerun the unchanged gates
+and full quality. No gate, threshold, ignore or cap is altered or claimed green.
+
+**FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
+commands ran directly on the Mac mini. `check:host-api` fails on the review base
+as well as this correction: its generated record says 65 `node:path` importers,
+the scanner finds 66. **P-host-api-baseline:** W/lead must regenerate and review
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`.
+`npm run build` compiles and passes all size caps, then the unchanged split gate
+rejects all eleven unwired adapter modules as on neither list. The same original
+sources reproduce those eleven errors. **P-bundle-map-baseline:** W must register
+the files' actual bundle/type membership while wiring them, then rerun the build.
+Both target files are outside lane P's permitted edits. Neither gate, ignore nor
+cap was changed; neither failing command is claimed green. Certification and
+PLAN §9 name the residuals. Full quality remains the lead's integration gate,
+as the shared lane rules expressly forbid running it in the lane.
+
+**Resolved in integration (lane W, 2026-10-05).** The bundle map is registered: lane P's modules ship in `dist/foreignHooks.js` (`FOREIGN_HOOKS_ONLY`) and its type-only `contract.ts` is listed as such. The host-API record is regenerated with the integration's full gate.
+
+**M91-I-Bundle-budget deferral (FIXM91I3, 2026-10-04).** The required
+production build was run and the import bundle alone exceeds its unchanged
+125 KiB cap: 148.5 KiB after removing the new heavy name-builder import and
+all six duplication-gate clones. An in-memory build of the starting commit
+`d1eeaadbb791c93a9440e36d358b9cfdc7f2c9f1`, with the production options and
+shared English fallback, is already 147.7 KiB. This is a blocking packaging
+deferral, not a gate waiver or support claim. Splitting a bundle needs build,
+bundle-split and host entry changes outside lane I's owned files; the lane
+brief forbids widening there and common.md says to stop and report when a
+bundle cannot fit. Follow-up: W/lead splits the importer under the existing
+budgets and reruns the production build and full quality gate before landing.
+No cap, threshold, ignore or rule level changed.
+
+**Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
+**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
+failures and running the complete quality gate directly on Kubuntu within
+120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
+The earlier TRAIN13 budget stop is historical; current receipts go in the
+same train certification record.
+
+**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
+branches in the owner's order with two-parent commits, preserving all PR
+heads. Resolve only integration breakage; retain D78, D79 and D71 with all
+existing decisions and milestones. Consolidate Unreleased into one Highlights
+list of at most five bullets and the Added/Changed/Fixed/Security sections;
+released sections remain byte-identical to `main-sync`. Regenerate notices,
+the host API inventory and exec schemas. Verify the shared M92 detection table
+still feeds #116's host-to-webview diagnostics and confidential admission,
+then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
+A size-budget failure stops this lane and is reported without changing a cap.
+The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
+
+**MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging
+`main-sync` (M87) into PR #116 with scoped owning tests and static/build
+checks. Its shared rules prohibit this lane from running full quality or
+the full test suite, assigning those checks to the lead. Full quality,
+coverage, accessibility and installed-editor/platform acceptance therefore
+remain required after integration; no gate or threshold is changed.
+Conflict resolutions, generated material, redaction drills and the observed
+Kubuntu results are recorded in `docs/certification/docs-truth-audit-0120.md`.
+
+**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
+check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
+for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
+the Model API backend says; the refusal table reads them by name. Activation
+is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
+blocks share with `MODEL_TEXT`, with four red drills. See
+`docs/certification/mg87c.md`.
+
+**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
+into M81 while retaining all main bundles, budgets, translations and
+permission behavior. Browser results join M78's live policy fence; best-of-N
+attempts receive no window browser check. The lane runs targeted static
+gates and Kubuntu tests, with hooks on and no origin push; full quality
+remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
+fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
+brief assigns its correction to the activation-diet lane. Focused accessibility
+has two missing Chrome results, so no complete browser pass is claimed.
+See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
+and the required static/build gates passed; two deliberate regressions
+failed and were restored byte-exact. The rig brief prohibits integration
+merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
+this shared lane. Full quality, aggregate coverage, accessibility and the
+hosted Windows recheck remain the lead's gates. No gate or deadline was
+weakened. Evidence: `docs/certification/mcp-job-flake.md`.
+**FIXM98J2 bounded repair delegation (2026-10-05).** The rig brief
+authorizes hook-on local commits after owning tests and red/restored drills,
+scoped lint/format and typechecks. Run the common final scoped checks
+directly on win11, never full quality/full tests, merge, rebase or push.
+The lead retains integrated quality, packaging and installed-host gates;
+the stale host-API generated record remains Z's existing handoff.
+
+**FIXM98J2 native certification deferral.** The completed review repairs
+have four full red/restore/green receipts and 144 passing Windows unit
+tests. Qwen's three free CPU calls returned below the unchanged request
+deadline. The native PID opt-in test passed a real exit/near-PID fixture
+and fired its liveness mutation, but restored reruns failed the allocation
+precondition twice. Its strict bound remains and the path stops under the
+common retry rule: `WIN-PID-REPEATABILITY` in section 9 is an incomplete
+certification drill, not a waived native support gate. The opt-in test and
+positive/failed receipts remain for a reviewed repeatable fixture; no
+product/native guard or portable quality configuration is changed.
+**M98J3L Linux gate delegation and snapshot deferral (2026-10-05).** The
+rig brief requires direct, at-most-three-file tests, scoped lint/format,
+all typechecks, localization, dead-code, duplication, cycles, build and
+every existing cap, with hook-on local commits. It prohibits aggregate
+quality, merges/rebases and pushes. The existing J2 host-API snapshot is
+stale; Linux additionally introduces `node:readline` (25 built-ins total).
+The check ran and failed only the generated Node import rows: 271 VS Code
+APIs, 18 vscode importers and 59 theme variables are unchanged. Z retains
+the integrated `check:host-api -- --write` refresh and full quality/host
+certification. The gate is not weakened or claimed green.
+
+**M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
+hook-on local commits after owning tests and deliberate failing drills,
+scoped lint/format and typecheck, with the final dead-code, duplication,
+localization, host API and production-build receipt. It prohibits a full
+quality or full test run here; the lead runs full quality on the integrated
+tree. No gate, threshold or ignore changes for this test-only spike.
+
+**M98-2j lane receipt.** The owning 47 tests, free probe, 17 failing/restored
+drills, all five typechecks, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass on win11. The host API
+snapshot is refreshed for the prototypes' Node imports (including
+`node:events`); it also resolves the pre-existing FIXM98J snapshot deferral
+below, recording paidHost's twelfth API call and judge's crypto import.
+This is a generated source record, not a new VS Code API or host policy.
+Full integrated quality/coverage/a11y and installed-host checks remain the
+lead's delegated gates. See `docs/certification/m98-2j-spike.md`.
+**FIXM98FU bounded-lane delegation (2026-10-05).** The rig/common brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Hook-on repair commits use the whole owning test files with the rig's
+flags, byte-exact red drills, scoped lint/format and serial typechecks;
+the final receipt also runs dead-code, duplication, localization, host API
+and production build. Full quality/coverage/installed-host certification
+stays with Z/lead. The inherited FIXM98J host-API snapshot deferral below
+is neither widened nor claimed green. No gate or threshold is weakened.
+
+**M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
+limits changes to PLAN and the phase-2 planning receipt and requires only
+changed-file Prettier and whitespace checks, with hooks enabled. No source,
+dependency, runtime test or new gate changes, and no aggregate quality run,
+live/paid call, merge, rebase or push is authorized here. Full product
+certification remains with the future surface lanes and the lead above;
+this is a bounded planning receipt, not aggregate-green evidence. README
+and CHANGELOG delivery is assigned to Z because this lane ships no feature.
+
+**FIXM98CS inherited host-inventory deferral.** `npm run check:host-api`
+again exits 1 for the same existing generated-document mismatch recorded
+in the original CS receipt: paidHost configuration reads 11 → 12, its
+`WorkspaceConfiguration.get` importer, and Node importer totals buffer
+29, crypto 35, fs 25, fs/promises 35, http 3, path 66. This repair adds no
+Node/VS Code importer. Z owns `docs/ide-compatibility/host-api.md`; refresh
+it with `npm run check:host-api -- --write`, review and rerun on the
+integrated tree. No inventory gate is weakened or claimed green.
+
+**FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
+shared lane rules prohibit a full `npm run quality` or full test suite in
+this worktree. Hook-on repair commits require the owning regression files,
+red drills, scoped lint/format and typecheck here; the final lane receipt
+also runs dead-code, duplication, localization, host API and production
+build. The lead retains full quality, coverage, accessibility and installed
+host certification on the integrated tree. No threshold or rule is changed.
+
+**TRAIN15E release preparation gate scope (2026-10-06, win11).** The
+continuation brief explicitly requires the entire Vitest suite in batches of
+at most three files, at the repository's default deadline, the full accessibility
+harness, reviewed README screenshots, live HTTPS badge verification, and the
+listed compiler, lint, inventory, dependency, cycle, build and package gates.
+These override common.md's scoped-test and network-only limits for those exact
+commands. The shared rule still forbids the aggregate `npm run quality`
+wrapper; merged coverage, integration hosts, audit/SAST and hosted cross-platform
+quality remain with the lead. This lane records each requested gate separately
+in docs/certification/train-0.15.0.md and its release receipt, without claiming
+aggregate quality or new model-service certification. No gate is weakened.
+
+**TRAIN15E final continuation (2026-10-06, win11; before repair).** The new
+90-minute brief resumes the staged release and explicitly reopens the nine
+Windows failures. First restructure the harness inventory as fixture state
+and commit the authorized merge with hooks. Preserve D75's closed stdin,
+remote slot and native retirement contract: the real PowerShell self-test
+fails with DETACHED_PROCESS and succeeds with CREATE_NO_WINDOW, retaining
+breakaway and the exact inherited-handle list. Export the fake SSH host's
+metric functions into its helper shell and use its discovered Bash for marker
+polling. Prepare the four ordinary landing cases' real Git staging in a
+shared beforeEach rather than spending their unchanged five-second body
+deadline on setup. Keep every assertion, timeout, cap and existing skip.
+Run all test files in batches of at most three at the repository defaults;
+finish lint, inventories, knip, duplication, cycles and both actual packages.
+Reuse the 952-page accessibility receipt if browser sources remain unchanged.
+Record root causes, red/restored drills, final totals and package bytes in the
+train certification; no push or model call.
+
+The final sweep exposes a separate fake SSH canary race: Git Bash can finish
+the command's two-second sleep before its independently scheduled one-second
+timer gets CPU, so an early write is mistaken for a post-retirement escape.
+Bind the writer to the fixture's explicit release file, release it only after
+the unchanged timeout result has returned, and retain the canary-absence
+assertion and observation interval. This tests D75's retirement guarantee
+without assuming relative scheduling of two real processes. Re-run the whole
+SSH file at the default deadline and retain the original failing receipt.
+
+**TRAIN15E final continuation result (2026-10-06, win11).** Merge and root
+repairs are committed with normal hooks. All 793 files have a final positive
+result: 15,966 passed, zero failed and 100 existing skips after the full SSH
+rerun removes its independent canary timing race. Actual universal VSIX:
+2,703,474 / 2,841,600 bytes; ACP: 1,708,084 bytes, both version 0.15.0.
+All requested source-only gates, production/package guards and unit typecheck
+pass. Full repository ESLint is interrupted without a result at the 90-minute
+brief limit; it is an explicit remaining gate, never waived. The prior 952-page
+accessibility receipt is retained because this continuation changes no UI/shared
+source; current production/packaged browser bytes match, and identity with the
+earlier compiled capture is not claimed. Final receipt and exact holds:
+docs/certification/train-0.15.0-final.json. Zero new model calls or push.
+
+**TRAIN15E hook hold (2026-10-06, win11).** The required commit hook rejects
+`teamHarness.test.mjs:23` for `unicorn/no-top-level-assignment-in-function`.
+Lint-staged restores and cleans its automatic backup. The rig time limit has
+expired, so no further source rewrite or bypass is attempted. The resolved
+merge and release handoff remain staged at c15b7eeae; no new commit is claimed.
+
+**TRAIN15E bounded final gate deferral (2026-10-06, win11).** The 120-minute
+rig limit stops full lint without a result after more than seven minutes. Final
+plain knip, duplication, dpdm cycles, formatting sweep and universal VSIX/ACP
+packaging were not reached. Earlier reference/localization/host-API/build checks
+remain evidence only for their recorded source. Final packed versions, sizes, cap
+compliance and browser hash comparison are pending. All five final TypeScript
+projects pass. These are explicit release holds, not waived gates.
+
+**TRAIN15E bounded Windows verification holds (2026-10-06).** Common.md
+requires stopping a path after the same owning test fails following two
+different fixes. Preserve the failing full-file receipts; do not skip or
+weaken their assertions. `runnerHelperNative.test.ts`: the trusted existing
+process-scoped PowerShell prefix gets past script-policy refusal; a named
+real-transaction limit then exposes a job that stays running without its exit
+marker. `sshRunner.test.ts`: explicit Node/Git Bash execution and portable
+paths remove executable-launch failures; fake-only Unix metric probes and
+named real Git/shell transaction limits leave two undefined health results
+and two setup-count assertions (four failures). Stop those paths and hand
+their exact receipts to the lead. The draft can record successful independent
+checks and measured packages, but these five assertions remain release holds;
+neither aggregate quality nor release readiness is certified.
+
+The final complete `teamLanding.test.ts` run also retains four default
+5-second transaction timeouts: deletion-holder admission, dependency/check
+identity invalidation, overlapping landings/Git add, and Land-without-checks
+consent. The journal escape/revalidation case clears after its named real
+transaction limit, but other ordinary deadlines now expose fixture cost.
+Stop further deadline rewrites: this file needs shared-fixture/process-cost
+work under the lead's review. R014 records 24 passed / 4 failed; these join
+the five runner/SSH assertions, making nine Windows release holds.
+
+**TESTWARM bounded-lane certification (2026-10-06).** The rig/shared brief
+forbids aggregate quality and full-suite runs. Collect owning suites with default
+timeouts, the drift drill, scoped lint/format, five compiler projects, plain
+Knip, duplication, localization, host API and production build on this rig.
+Integrated full quality, coverage and hosted cross-platform checks remain with
+the lead; no gate, timeout or budget is weakened.
+
+**PROMPTMENU2 inherited duplication deferral (2026-10-06).** The unchanged
+zero-clone `npm run duplication` gate exits 1 on three clones between
+`test/e2e/acpRegistryAuth.e2e.test.ts` and `test/e2e/acpStdio.e2e.test.ts`
+(8/18/8 lines, 50/94/52 tokens). Both files are byte-identical to the lane's
+`4ca230efc` base; the prompt-menu changes introduce no clone. The shared lane
+rules prohibit unrelated refactoring, so ACPREG's existing fixture duplication
+remains a named release-integration repair for the lead. No threshold, ignore,
+rule, timeout or test is changed. Full quality cannot be claimed green until
+that repair passes the unchanged gate. Evidence and all other requested rig
+receipts: `docs/certification/promptmenu-hosts.md`.
+
+**FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
+forbids aggregate quality and full-suite runs; full integrated quality remains
+with the lead. Run the complete owning test files, red drills, scoped lint and
+format, compiler projects, plain knip, duplication, localization, host API and
+production build directly on Kubuntu. The frozen Q base's U-owned
+`uiState.ts:2452` reducer and A-owned generated host-API inventory are already
+named integration handoffs in `docs/certification/m112-q.md`; do not weaken
+either gate or claim them green. No review finding is deferred.
+
+**CIFIX14T verified local result (2026-10-05).** The five owning suites
+pass 113 tests (six existing Windows-only skips); the exact restored monitor
+file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
+drills; all seven drills restore SHA-256-exact source. All five compiler
+projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass. Extension 437.4 / 600 KiB,
+Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
+Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
+Hosted Node 22 and native Linux/Windows certification remain with the lead.
+
+**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
+mini reproduction and red drills run directly here with hooks enabled.
+`common.md` prohibits aggregate quality/full unit runs; collect the owned
+shell tests and required static/build checks, leaving full quality, merged
+coverage and hosted cross-platform certification to the lead. No gate is
+weakened and no integrated-green claim is made by this lane.
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
 this worktree. Hook-on repair commits require the owning regression files,
@@ -35668,7 +36185,6 @@ the Windows lane (C-M109-1c) is active in those files, so their restructuring
 is deferred to the owning lanes; the gate configuration is unchanged, no
 ignore or threshold change. The lead reruns the unmodified gate on the
 integrated tree.
-
 **VAULTOPEN activation-budget note (2026-10-18, macmini).**
 `modelsActivationBudget` is red on the untouched base: growth 3086 bytes
 against the 3072 cap in a scratch worktree at `f44f54120d`. On this lane
@@ -35792,6 +36308,34 @@ removes it); the vault lane owns removing this row. Evidence:
 `docs/certification/m113-join.md` (Proof).
 
 **PR203FIX rig slow/blocked cases (2026-10-17, macmini, open).** Eight unit cases cannot pass on this lane's rig, all in files byte-identical to `main-now` and outside this lane's import closures. Seven need the process table through `/bin/ps`: `fileLease` process-owner births (3) and the reused-id takeover (1), `treesLifecycleNative` zombie/membership (2), `treesMacNative` zombie identity (1). Every `execFile('/bin/ps', …)` here fails `spawn EPERM` (`/bin/ps: Operation not permitted` in the lane shell; `/bin/ls`, node self-spawn, detached spawn, a freshly compiled helper and `/usr/bin/cc` all succeed), so `processStartTime` reads undefined and the tree readers see no members. The eighth is `nativeGitCore`'s fixture hook: some three dozen git invocations across eight fixture repositories run synchronously under a 10 s hook while one `git init` costs 1.4 s on this rig's disk, so the hook times out even file-alone. The product code is untouched and correct: absolute-path exec, no shell, a 10 s query timeout, and the documented "a birth that cannot be read proves nothing" fallback, which is exactly the semantic the failing assertions observe. Hosted CI runs `test:unit` on `macos-latest` without this sandbox and on fast disks, where these cases pass. Every other full-run failure on this rig (run 1: browserUiText, checkSlots ×4 plus one `ENOTEMPTY` cleanup race, vsixPackaging, two 60 s packaging hooks; run 2: a disjoint set — execStdio hook, checkSlots ×2, lintStagedBatching, teamSchedulerStalls, trafficView render, usagePackaging ×4) passes file-alone on the same tree: parallel-load flakes of this rig, not code. No timeout, threshold, gate or assertion was changed to get green. Disposition: open; the lead re-runs the eight cases outside the sandbox, or takes the CI macOS shard as the binding receipt. Detail: `docs/certification/msm82.md`.
+**M98P2Z source and host deferrals (2026-10-07).** The inherited clone and
+host-API record failures are closed structurally. Native M95 logprob and
+structured-output wrappers without committed captures remain deferred:
+E names the missing captures, and this brief authorizes zero live, paid or
+local inference. Empty/absent logprobs never become a capability. Concrete
+Models/ACP/headless source selection and first-charge binding remain
+unavailable until captured canonical codecs, the existing client/key store
+and D78 ledger are bound and fake and installed-host receipts pass. The
+lazy source assembly alone does not close that acceptance checkbox. No
+new transport, registry, credential store, ledger, ignore or gate weakening.
+A can integrate against the callable source factory and generation contract;
+I can use those contracts for its representation work but still needs named
+embedding captures and independent calibration labels. Receipt:
+`docs/certification/m98.md`.
+
+The universal ACP package also requires the compiled
+`native/darwin/muse-local-judge-peer` artifact. It is absent on this Linux
+rig; a test-owned inactive member only exercises private fake package trees
+and does not satisfy real packaging or installed macOS certification.
+
+**M98P2W bounded verification (2026-10-08).** The explicit two-hour rig brief delegates aggregate quality and live/installed-host measurement to the lead. This lane runs the specified scoped Judge/redact/golden/CLI/MCP inventory and unchanged static and production-build gates in a fresh npm-ci clone under CI=true. No gate, cap, rule or timeout is weakened. L98P2-EMBED is explicitly excluded from this fake-only lane.
+
+**FIXM98P2I6 bounded verification (2026-10-08).** The explicit rig/shared
+brief prohibits aggregate `npm run quality` in this lane and delegates it
+to the lead. Run the three owning suites and named static/build gates in
+a fresh clone instead; no gate, timeout, threshold or configuration changes.
+L98P2-EMBED's live family measurement and installed-editor certification
+remain lead-owned. Receipt: `docs/certification/m98.md`, lane I FIXM98P2I6.
 
 ## 8. Escape hatches register
 
@@ -35914,28 +36458,27 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/core/reporting/render/redaction.ts` | `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every root segment passes escapeReportRootSegment, whose literal operator escaping is covered by the complete reportRedaction owner and a deliberate escape-removal failure, before fixed separators, boundaries and a single path tail are added. User text cannot introduce regex operators. Literal metacharacters, Windows separators and case behavior are covered; the escape-removal drill must fail. |
 
-| 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                             | Removal                                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`)                                                                                           | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                                   | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                                          | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
-| `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                                                                                                               | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                          | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS.                   | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
-| `test/unit/l10nPackParity.test.mjs` (`beforeAll`)                                                                                                                                              | `PACK_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                               | Setup packs the real UI tables with `packRuntimeArchive` at production brotli quality into a temp folder (7.1 s measured on macbook without coverage); hosted runners with coverage need the headroom. The fourteen assertions compare one line each and stay on the default deadline.                                                                                                                             | Pack a smaller synthetic table for the mechanic and keep one real-tables case in the packaging job, then return to the default hook deadline.             |
-| `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                                                                                                          | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                                        | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                                                | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
-| `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                                                                                                                | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                                      | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                                                 | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
-| `package.json` `typecheck:unit`                                                                                                                                                                | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                           | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                                               | Remove when the unit project fits the default heap (smaller project references).                                                                          |
-| `test/unit/vsixCompression.test.mjs`                                                                                                                                                           | `REAL_VSIX_COMPRESSION_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                  | Python writes a real archive and the real compressor rewrites it at maximum compression; hosted Windows with coverage timed out at 5 s (5.9 s measured).                                                                                                                                                                                                                                                           | Compress a smaller real table at a lower level for the metadata checks and keep one full-size case in the packaging job.                                  |
-| `test/unit/whatsNewContent.test.ts` (real CHANGELOG cases)                                                                                                                                     | `REAL_CHANGELOG_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                         | The cases parse and encode every release of the real CHANGELOG.md; hosted macOS with coverage timed out at 5 s (5.4 s measured).                                                                                                                                                                                                                                                                                   | Parse the real changelog once per file and share the result between the cases.                                                                            |
-| `test/unit/usageCompanionChunks.test.ts`                                                                                                                                                       | `REAL_BROWSER_PAGE_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                      | The case loads the real shared vendor and Usage bundles in a real Chromium page; hosted macOS with coverage timed out at 5 s.                                                                                                                                                                                                                                                                                      | Build the bundles in `beforeAll` (its own hook deadline), leaving only the page load in the case.                                                         |
-| `test/unit/ReferencePage.test.tsx` (C03)                                                                                                                                                       | `FULL_REFERENCE_SEARCH_TIMEOUT_MS` (20 s) per-case deadline (the handoff refusal case is back on the default after rel017ci removed its per-string matcher rebuild)          | The case loops over several reference sections; hosted runners with coverage took 4.7 s, within half a second of the default.                                                                                                                                                                                                                                                                                      | Split the loop into `it.each` cases, then return to the default deadline.                                                                                 |
-| `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                                       | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
-| `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                                    | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
-| `vitest.config.ts` (Windows)                                                                                                                                                                   | `WINDOWS_TEST_TIMEOUT_MS` (15 s) and `WINDOWS_HOOK_TIMEOUT_MS` (30 s) as the Windows defaults                                                                                | Windows runs test files one at a time, and its real-OS cases start PowerShell, icacls or job helpers as cold processes. Hosted Windows shards varied from 456 s to 727 s between runs (2026-10-07); `tokenFile` real ACL ownership passed 5 s in one run and not the next, after the same happened to `teamHintsAndLoad` and `vsixCompression`. Assertions are unchanged; explicit per-case deadlines still apply. | Return to the default when a hosted Windows run measures every case under 2.5 s, or when the PowerShell-backed helpers are precompiled once per run.      |
-| `test/unit/treesWindows.test.ts`, `test/unit/actuatorsWindows.test.ts`, `test/unit/resourceWindowsLaunch.test.ts`                                                                              | `REAL_WINDOWS_JOB_TIMEOUT_MS` (60 s) per-suite deadline                                                                                                                      | These suites compile and drive the real Windows job helper (C#) and real child processes. In PR #140 run 2 (0.16.0) they passed the 15 s Windows default on hosted runners, while the Win11 rig ran them in a few seconds. Assertions unchanged.                                                                                                                                                                   | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
-| `test/unit/helpers/fixtureBudget.ts`; `test/unit/scheduleMigrate.test.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                              | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
-
-| REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/core/prompts/promptPrivacy.ts` (workspace, home, username) | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments | Every variable fragment passes through `escapePattern`; `pathPattern` splits separators and escapes each literal segment before joining fixed separator syntax. Boundaries, tails and flags are fixed. Names cannot introduce regex operators or groups. Literal-metacharacter regressions cover workspace/home/username and Windows separators; removing escaping must fail them. CI's generic dynamic-RegExp audit does not follow these local escaping helpers. |
-| `src/core/sharing/privacy.ts` (workspace, home, username)       | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments | `rootPattern` escapes each path segment with `escaped`, and username uses `escaped` directly; only fixed Unicode boundaries, separator/tail syntax and flags are added. Literal-metacharacter regressions and escape-removal drills cover these sites. Keep the existing root, UNC, case and space semantics rather than replacing the scrubber with an unrelated path parser.                                                                                     |
+| 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Removal                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`)                                                                                           | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                                   | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                                                                                          | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
+| `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                                                                                                               | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                          | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS.                                                                   | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
+| `test/unit/l10nPackParity.test.mjs` (`beforeAll`)                                                                                                                                              | `PACK_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                               | Setup packs the real UI tables with `packRuntimeArchive` at production brotli quality into a temp folder (7.1 s measured on macbook without coverage); hosted runners with coverage need the headroom. The fourteen assertions compare one line each and stay on the default deadline.                                                                                                                                                                             | Pack a smaller synthetic table for the mechanic and keep one real-tables case in the packaging job, then return to the default hook deadline.             |
+| `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                                                                                                          | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                                        | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                                                                                                | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
+| `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                                                                                                                | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                                      | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                                                                                                 | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
+| `package.json` `typecheck:unit`                                                                                                                                                                | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                           | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                                                                                               | Remove when the unit project fits the default heap (smaller project references).                                                                          |
+| `test/unit/vsixCompression.test.mjs`                                                                                                                                                           | `REAL_VSIX_COMPRESSION_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                  | Python writes a real archive and the real compressor rewrites it at maximum compression; hosted Windows with coverage timed out at 5 s (5.9 s measured).                                                                                                                                                                                                                                                                                                           | Compress a smaller real table at a lower level for the metadata checks and keep one full-size case in the packaging job.                                  |
+| `test/unit/whatsNewContent.test.ts` (real CHANGELOG cases)                                                                                                                                     | `REAL_CHANGELOG_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                         | The cases parse and encode every release of the real CHANGELOG.md; hosted macOS with coverage timed out at 5 s (5.4 s measured).                                                                                                                                                                                                                                                                                                                                   | Parse the real changelog once per file and share the result between the cases.                                                                            |
+| `test/unit/usageCompanionChunks.test.ts`                                                                                                                                                       | `REAL_BROWSER_PAGE_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                      | The case loads the real shared vendor and Usage bundles in a real Chromium page; hosted macOS with coverage timed out at 5 s.                                                                                                                                                                                                                                                                                                                                      | Build the bundles in `beforeAll` (its own hook deadline), leaving only the page load in the case.                                                         |
+| `test/unit/ReferencePage.test.tsx` (C03)                                                                                                                                                       | `FULL_REFERENCE_SEARCH_TIMEOUT_MS` (20 s) per-case deadline (the handoff refusal case is back on the default after rel017ci removed its per-string matcher rebuild)          | The case loops over several reference sections; hosted runners with coverage took 4.7 s, within half a second of the default.                                                                                                                                                                                                                                                                                                                                      | Split the loop into `it.each` cases, then return to the default deadline.                                                                                 |
+| `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                                                                                       | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
+| `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                                                                                    | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
+| `vitest.config.ts` (Windows)                                                                                                                                                                   | `WINDOWS_TEST_TIMEOUT_MS` (15 s) and `WINDOWS_HOOK_TIMEOUT_MS` (30 s) as the Windows defaults                                                                                | Windows runs test files one at a time, and its real-OS cases start PowerShell, icacls or job helpers as cold processes. Hosted Windows shards varied from 456 s to 727 s between runs (2026-10-07); `tokenFile` real ACL ownership passed 5 s in one run and not the next, after the same happened to `teamHintsAndLoad` and `vsixCompression`. Assertions are unchanged; explicit per-case deadlines still apply.                                                 | Return to the default when a hosted Windows run measures every case under 2.5 s, or when the PowerShell-backed helpers are precompiled once per run.      |
+| `test/unit/treesWindows.test.ts`, `test/unit/actuatorsWindows.test.ts`, `test/unit/resourceWindowsLaunch.test.ts`                                                                              | `REAL_WINDOWS_JOB_TIMEOUT_MS` (60 s) per-suite deadline                                                                                                                      | These suites compile and drive the real Windows job helper (C#) and real child processes. In PR #140 run 2 (0.16.0) they passed the 15 s Windows default on hosted runners, while the Win11 rig ran them in a few seconds. Assertions unchanged.                                                                                                                                                                                                                   | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
+| `test/unit/helpers/fixtureBudget.ts`; `test/unit/scheduleMigrate.test.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                              | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.                                                    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
+| REL0144 location                                                                                                                                                                               | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------                                                                                                                                | --------------------------------------------------------------------------------------------------------------                                                               | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/prompts/promptPrivacy.ts` (workspace, home, username)                                                                                                                                | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments                                                               | Every variable fragment passes through `escapePattern`; `pathPattern` splits separators and escapes each literal segment before joining fixed separator syntax. Boundaries, tails and flags are fixed. Names cannot introduce regex operators or groups. Literal-metacharacter regressions cover workspace/home/username and Windows separators; removing escaping must fail them. CI's generic dynamic-RegExp audit does not follow these local escaping helpers. |
+| `src/core/sharing/privacy.ts` (workspace, home, username)                                                                                                                                      | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments                                                               | `rootPattern` escapes each path segment with `escaped`, and username uses `escaped` directly; only fixed Unicode boundaries, separator/tail syntax and flags are added. Literal-metacharacter regressions and escape-removal drills cover these sites. Keep the existing root, UNC, case and space semantics rather than replacing the scrubber with an unrelated path parser.                                                                                     |
 
 | M118INT location                                   | Escape hatch                   | Reason                                                                                                                                                                                                                             |
 | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35974,6 +36517,22 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | ------------------------------------------------                                                                    | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                                                                                |
 | `src/runtime/exec/outputSchema.ts` (FIXM106O2)                                                                      | `unicorn/prefer-number-is-safe-integer`                          | JSON Schema integer means integral, including values outside the safe range; no safe-integer restriction is sent to the provider. RVM106O2 P2-4 tests and a restored red drill prove 2^53 works for integer types and enums. JSON transport precision limits are documented.                                                                                                                                                |
 | `src/host/settings.ts`, `readSetting` (REDM106H)                                                                    | Existing `as ExtensionSettings[K]` on fallback and parsed result | Every matching keyed schema validates the configured value and its default, including numeric-to-canonical money migration. TypeScript cannot correlate the generic indexed key with the schema output. Defaults and invalid money are tested.                                                                                                                                                                              |
+| Location                                                                                                            | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                                                                                                                                                                      | Date       |
+| --------------------------------------------                                                                        | --------------------------------------------                     | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                                                                                                                                                 | ---------- |
+| `src/runtime/judge/judgeEntry.ts:hasFactory`                                                                        | Same-build callable child factory predicates                     | Check the five shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred.                                                                                                                                                                                                                 | 2026-10-05 |
+
+| Location                                      | Escape hatch                         | Reason                                                                                                                                                                         | Date       |
+| --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/host/validationSchema.ts:isSchemaWriter` | Same-build callable export predicate | Node supplies an unknown module from the shipped sibling bundle; check the callable before using the compiler-checked conversion signature. No service/wire shape is inferred. | 2026-10-05 |
+
+Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M98 phase-2 Z location              | Escape hatch                             | Reason                                                                                                                                                                                                                                             | Date       |
+| ----------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeBundle.ts`  | `value is JudgeBundle` (`isJudgeBundle`) | Checks the callable factory export; its parameter/result signatures are trusted because entry, loader and package share one typed source tree/build. Built-factory tests exercise it.                                                              | 2026-10-05 |
+| Location                            | Escape hatch                             | Reason                                                                                                                                                                                                                                             |
+| ----------------------------------- | -----------------------------------      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone      | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 
 | File                                       | Construct                                             | Reason                                                                                                                                                                                                                                                           | Added      |
 | ------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -37186,6 +37745,64 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   full-quality receipts, as recorded in `docs/certification/m115-contracts.md`
   and `docs/certification/m115-0.md`. No new authority or shipping feature is
   enabled by this repair.
+
+- **FIXM98CS / RVM98CS (2026-10-05).** All three review findings are
+  repaired: macOS inherited/late ACL grants refuse startup, fatal/ordinary
+  exit cleanup is armed before the bearer is written, and close publishes
+  one promise before synchronous abort reentry. No reviewed P1/P2/P3 is
+  accepted as a residual. **CS-OS-INTEGRATION receipt gap:** this repair
+  adds installed macOS/Node receipts only; Linux's earlier UID/mode receipt
+  and synthetic Windows DACL controls are labelled in
+  `docs/certification/m98-cs.md`. Windows installed ACL and per-platform
+  integrated CLI/VS Code/source receipts remain with G/Z before release.
+  Safe for this bounded delivery because the boundary remains unwired and
+  unavailable as a supported command; follow up with the installed OS
+  matrix, generated host inventory, shared CHANGELOG and aggregate gates.
+- **G2-HOST-API-RECORD (FIXM98G2, 2026-10-05).** The generated host API
+  record is stale for the five already delegated judge rows listed in §7.
+  This is safe for the bounded repair review because the runtime parser,
+  API policy and gates stay unchanged; the check still fails visibly.
+  Z owns regenerating/reviewing the record and rerunning it on the final
+  integrated tree. No RVM98G2 P1/P2/P3 finding remains unresolved. Evidence:
+  `docs/certification/m98-g2.md`.
+  **Closed on this integration tree:** M98P2INT round 2 regenerated/reviewed
+  the record and the check exits 0. The original failure remains historical.
+
+- **GH-host-api-baseline / GH-validation-export-baseline (FIXM98GH).** The
+  inherited generated host record and shared `toJSONSchema` export failures
+  remain outside GH ownership (§7). Safe for a private, unwired repair lane
+  only; no installed-command or full-quality claim is made. G/Z must repair
+  the owned assembly/snapshot, review the generated diff, and run the unchanged
+  integration gates before shipping. Dispatcher/source/consent wiring and the
+  six inherited activation-fixture failures remain integration work already
+  recorded in `docs/certification/m98-gh.md`.
+  **Closed on round-3 integration:** the host record is regenerated by its
+  script and the shared Node validation module lazily exports canonical
+  `toJSONSchema` conversion; their gates pass. H/GH libraries are available
+  through the judge factory, with source/admission still injected. Installed
+  command/source certification and aggregate gates remain lead-owned. The
+  eight judge activation tests also pass on this resolved tree; the six
+  failures in GH's historical receipt do not reproduce.
+
+- **GH-Cursor-permission-abstention (FIXM98GH, RVM98GH P2).** Cursor's
+  `preToolUse`, `beforeShellExecution` and `beforeMCPExecution` require a
+  `permission` decision even on exit 0; empty output blocks, and `failClosed`
+  also blocks nonzero exits. No advisory-only abstention exists in the pinned
+  contract. These rows are unavailable before source initialization or paid
+  admission, so no safe judge result is emitted into the invalid-empty path.
+  Direct invocation of an unavailable row still reports failure and can veto
+  under a foreign `failClosed` configuration. `beforeReadFile` and
+  `beforeSubmitPrompt` likewise require a control decision and stay unavailable.
+  Safe for this unwired lane only: G/Z must not register these rows. Follow-up: settle a host-specific policy
+  with the owner and capture/prove native neutral delivery before enabling
+  them; never substitute an ALLOW grant for a missing answer. Cursor
+  observation rows preflight an empty JSON object against their own schema;
+  M91 applies `failClosed` only on the contract's blocking rows.
+
+  **Round-3 owner decision enforced:** all five named Cursor blocking rows
+  are permanently excluded from this registration list. Observation rows
+  remain available; the production-factory regression is proved red when
+  that exclusion is removed, then byte-exact restored and green.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
@@ -39311,6 +39928,48 @@ collision tests do not certify these host-owned seams or the assembled team.
   before any automatic reclamation; use a fresh user-selected runner root
   after manually retiring a lost supervisor. This retains exclusion and
   never silently permits concurrent setup.
+- **FIXM98J2 / WIN-PID-REPEATABILITY (2026-10-05).** A real process exit
+  and new PID eight away passed the held-handle refusal; ignoring the native
+  exit signal made the intended assertion fail. Source restoration matched
+  SHA-256, but two restored runs reached only PID distances 44 and 28 against
+  the unchanged at-most-16 fixture precondition. This is an incomplete drill,
+  not repeatable platform certification; the bounded allocator path stops
+  under the common retry rule. No native generation/liveness guard changes
+  and no local source is product-wired. Follow-up: a reviewed repeatable
+  native fixture and complete red/green installed-source receipt.
+
+- **FIXM98J2 / CPU-TEV (2026-10-05).** The three returned free CPU calls
+  certify one-token qwen transport/provenance latency on win11, all below
+  the unchanged 60-second request deadline and all with reported GPU
+  residence zero. They do not certify `tev1:4b` CPU SystemOne latency or a
+  population percentile. Automatic qwen selection still requires calibration;
+  no CPU speed recommendation for tev is added. Follow-up: a separately
+  bounded/consented tev CPU receipt and installed-source latency under Z.
+
+- **FIXM98J2 / WIN-INSTALLED (RVM98J2, 2026-10-05).** The repaired
+  source and headless native receipts do not certify transport inside an
+  installed extension or complete runtime assembly. The product exposes no
+  local-judge runtime yet; an unregistered factory is not a support claim.
+  Z must register/package the native helper and vetted install/update anchors,
+  supply the complete model token counter and model wording, install language
+  state, run exact installed-host execution and borrowed request goldens,
+  refresh the host-API snapshot and close aggregate quality/package gates.
+- **FIXM98J2 / WIN-SSH (RVM98J2, 2026-10-05).** Authenticated self-SSH
+  forwarding remains uncaptured. Real same-user relay refusal and exact
+  per-socket tuple/executable/generation checks passed; no relay exception
+  or confidential/unverified bypass is added. Follow-up: an authenticated
+  loopback SSH fixture through the assembled installed source on win11.
+- **FIXM98J2 / COMMON-MODEL-LIFETIME (RVM98J2, 2026-10-05).** Retained
+  blob handles and snapshot revalidation prove the bytes checked before
+  dispatch, not immutable weights during inference. Arbitrary same-user
+  code injection is outside that proof. The narrow advisory claim stays;
+  no peer/hash TTL is permitted. A stronger claim needs a separately reviewed
+  immutable-file/runtime-lifetime design and real replacement drills.
+- **FIXM98J2 / POSIX-NATIVE (RVM98J2, 2026-10-05).** This Windows lane
+  neither implements nor certifies Linux/macOS native lifetime, volume,
+  installation and transport. Missing native evidence fails closed and
+  Windows receipts are not inherited. M98J3L/M98J3M own their platform files
+  and installed native receipts; Z incorporates those before support.
 
 - The `muse` CLI is closed source; we trust its stdio protocol as documented
   by Meta's SDK and validate every message shape at our boundary. Residual

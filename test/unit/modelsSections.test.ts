@@ -2,7 +2,7 @@
 // title from the installed table, an icon, a Component and its own fold
 // of the panel's actions (M96 adds roles and agents the same way).
 // C-M109-1 P1 registers the vault beside them, offered only while the host
-// holds the vault binding.
+// holds the vault binding; M98 registers the judge beside them.
 
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -11,8 +11,13 @@ import { INITIAL_PANEL_UI } from '../../src/webview/models/reducer'
 import { makeState } from './modelsPanelFixtures'
 
 describe('MODEL_SECTIONS', () => {
-  it('registers providers, models and the gated vault, each with a title, icon and Component', () => {
-    expect(MODEL_SECTIONS.map((section) => section.id)).toEqual(['providers', 'models', 'vault'])
+  it('registers providers, models, the gated vault and judge, each with a title, icon and Component', () => {
+    expect(MODEL_SECTIONS.map((section) => section.id)).toEqual([
+      'providers',
+      'models',
+      'vault',
+      'judge',
+    ])
     for (const section of MODEL_SECTIONS) {
       expect(section.getTitle().length).toBeGreaterThan(0)
       expect(typeof section.icon).toBe('function')
@@ -22,6 +27,7 @@ describe('MODEL_SECTIONS', () => {
     expect(sectionById('providers')?.getTitle()).toBe(UI_TEXT.providersSectionTitle)
     expect(sectionById('models')?.getTitle()).toBe(UI_TEXT.modelsSectionTitle)
     expect(sectionById('vault')?.getTitle()).toBe(UI_TEXT.vault.title)
+    expect(sectionById('judge')?.getTitle()).toBe(UI_TEXT.paidJudgeName)
   })
 
   it('offers the vault only while the host holds the binding', () => {
@@ -46,9 +52,11 @@ describe('MODEL_SECTIONS', () => {
   it('folds each section only over its own overlay actions', () => {
     const providers = sectionById('providers')
     const models = sectionById('models')
-    if (providers === undefined || models === undefined) {
+    const judge = sectionById('judge')
+    if (providers === undefined || models === undefined || judge === undefined) {
       throw new Error('sections missing')
     }
+    expect(judge.reduceSection(INITIAL_PANEL_UI, { type: 'open-wizard' })).toBe(INITIAL_PANEL_UI)
     // The models section ignores overlay actions (identity fold).
     expect(models.reduceSection(INITIAL_PANEL_UI, { type: 'open-wizard' })).toBe(INITIAL_PANEL_UI)
     // The providers section handles its own and ignores navigation.

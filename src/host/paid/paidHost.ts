@@ -163,7 +163,11 @@ export async function askPaidUse(
     (request.feature === 'autoReviewer' &&
       autoReviewPrice(request.modelId, request.pricing) === undefined) ||
     (request.feature === 'judge' &&
-      (autoReviewPrice(request.modelId) === undefined ||
+      // A SystemOne route is priced by its own captured tariff, never by
+      // the conversation model's card.
+      ((request.systemOne === undefined
+        ? autoReviewPrice(request.modelId) === undefined
+        : Usd.from(request.systemOne.worstCaseUsd).compare(Usd.from(0)) <= 0) ||
         Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0))
   ) {
     return 'deny'
@@ -187,7 +191,14 @@ export async function askPaidUse(
     return 'deny'
   }
   const { title, detail } = await paidUseQuestion(request)
-  const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
+  // A separate judge route's grant covers the route until the window closes
+  // (the lead's window-scope decision, as Tab's): its button says so.
+  const once: vscode.MessageItem = {
+    title:
+      request.feature === 'judge' && request.systemOne !== undefined
+        ? UI_TEXT.paidAllowInWindow
+        : UI_TEXT.allowOnce,
+  }
   const always: vscode.MessageItem = {
     title:
       request.feature === 'scheduledPrompts' && request.schedule !== undefined
@@ -210,6 +221,25 @@ export async function askPaidUse(
     return 'once'
   }
   return answer === always && canRemember ? 'always' : 'deny'
+}
+
+/**
+The window's paid-feature availability (D30): a feature with no user
+value is on by default, and a default-on feature runs only on the Model
+API key (Tab everywhere). It governs the Meta-billed features only; a
+separate judge route has its own availability (M98 phase 2).
+*/
+export function paidAvailability(deps: {
+  readonly backend: () => 'modelApi' | 'museCode' | undefined
+  /** Whether the feature's setting has a user (global) value. */
+  readonly hasUserValue: (feature: PaidFeature) => boolean
+}): Required<Pick<PaidFeaturesDeps, 'isAvailable' | 'isDefaultOn'>> {
+  const isDefaultOn = (feature: PaidFeature) => !deps.hasUserValue(feature)
+  return {
+    isAvailable: (feature) =>
+      feature === 'tab' || deps.backend() === 'modelApi' || !isDefaultOn(feature),
+    isDefaultOn,
+  }
 }
 
 export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {

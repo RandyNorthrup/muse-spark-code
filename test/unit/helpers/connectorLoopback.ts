@@ -2,6 +2,7 @@
 // mocks, no fakes: plain `node:http` requests over 127.0.0.1, used by the
 // connector suites after main's test overhaul deleted `./helpers/companion`.
 import { request, type IncomingHttpHeaders } from 'node:http'
+import { receiveHttpResponse } from './httpResponse'
 
 export function connectorHeaders(panel: { url: string }, token?: string): string[] {
   const origin = new URL(panel.url).origin
@@ -31,20 +32,7 @@ export function connectorCall(
     const outgoing = request(
       new URL(path, panel.url),
       { method, headers: supplied ?? connectorHeaders(panel), setHost: false },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
-        response.on('error', reject)
-        response.on('end', () => {
-          resolve({
-            status: response.statusCode ?? 0,
-            headers: response.headers,
-            body: Buffer.concat(chunks).toString('utf8'),
-          })
-        })
-      },
+      receiveHttpResponse(resolve, reject),
     )
     outgoing.on('error', reject)
     outgoing.end(body)

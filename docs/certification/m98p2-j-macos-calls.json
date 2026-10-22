@@ -1,0 +1,228 @@
+{
+  "workspace": "/Users/<owner>/lanes/M98J3M",
+  "model": "tev1:0.8b-q8_0",
+  "inferenceAttempts": 6,
+  "responses": 6,
+  "paidCloudAttempts": 0,
+  "downloadCount": 1,
+  "downloadBytes": 811856202,
+  "calls": [
+    {
+      "attempt": 1,
+      "path": "/v1/systemone",
+      "state": "git status",
+      "sourceFactory": false,
+      "returned": true,
+      "retainedPayload": false
+    },
+    {
+      "attempt": 2,
+      "path": "/v1/systemone",
+      "state": "git status",
+      "sourceFactory": false,
+      "returned": true,
+      "retainedPayload": false
+    },
+    {
+      "attempt": 3,
+      "path": "/v1/systemone",
+      "state": "rm -rf synthetic-folder",
+      "sourceFactory": true,
+      "returned": true,
+      "retainedPayload": false
+    },
+    {
+      "attempt": 4,
+      "path": "/v1/systemone",
+      "state": "git status",
+      "sourceFactory": false,
+      "returned": true,
+      "retainedPayload": false
+    },
+    {
+      "attempt": 5,
+      "path": "/v1/systemone",
+      "state": "git status",
+      "sourceFactory": false,
+      "returned": true,
+      "retainedPayload": true
+    },
+    {
+      "attempt": 6,
+      "path": "/v1/systemone",
+      "state": "rm -rf synthetic-folder",
+      "sourceFactory": true,
+      "returned": true,
+      "retainedPayload": true
+    }
+  ],
+  "notes": [
+    "Attempt 3 returned an answered source outcome; metadata assertion failed before payload persistence. Completion counter reconciled from that observed outcome.",
+    "Capture attempt 4 returned before the runner was stopped; no inferred sends were subtracted.",
+    "Final live owning file passed its two tests. No further inference was attempted."
+  ],
+  "nativePidReuse": {
+    "pid": 30677,
+    "attempts": 92330,
+    "differentStart": true,
+    "exitWatchStillInvalid": true,
+    "beforeCreationTime": "1791227902325077",
+    "afterCreationTime": "1791227958334731",
+    "elapsedMs": 56352.108565999995
+  },
+  "finalSource": {
+    "counts": {
+      "attempts": 6,
+      "completed": 6
+    },
+    "elapsedMs": 18420.298064000002,
+    "outcome": {
+      "outcome": "answered",
+      "result": {
+        "model": "tev1:0.8b-q8_0",
+        "answers": {
+          "risk": {
+            "type": "noul",
+            "noul": 0.7211713311384936,
+            "probabilities": {
+              "true": 0.7211713311384936,
+              "false": 0.27882866886150637
+            }
+          }
+        },
+        "muse": {
+          "risk": {
+            "source": "separate",
+            "technique": "systemone",
+            "model": "tev1:0.8b-q8_0",
+            "label": "uncalibrated",
+            "confidence": 0.14615012362676838,
+            "partial": false,
+            "reservedCostUsd": 0,
+            "settledCostUsd": 0
+          }
+        },
+        "usage": {
+          "input_tokens": 110,
+          "output_tokens": 1
+        }
+      }
+    }
+  },
+  "finalCapture": {
+    "workspace": "/Users/<owner>/lanes/M98J3M",
+    "runtimeVersion": "0.35.1",
+    "platform": "darwin-x64",
+    "releaseArchiveSha256": "60dba52660dc7cb4e160e914edd76b98271945941f5db40d34a507cef544970e",
+    "teamId": "3MU9H2V9Y9",
+    "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26",
+    "counts": {
+      "attempts": 5,
+      "completed": 5
+    },
+    "request": {
+      "model": "tev1:0.8b-q8_0",
+      "state": "git status",
+      "questions": {
+        "risk": {
+          "type": "noul",
+          "instructions": "Can this command delete data?"
+        }
+      }
+    },
+    "response": {
+      "model": "tev1:0.8b-q8_0",
+      "answers": {
+        "risk": {
+          "type": "noul",
+          "noul": 0.1402065161341606
+        }
+      },
+      "usage": {
+        "input_tokens": 107,
+        "output_tokens": 1
+      }
+    },
+    "tags": {
+      "models": [
+        {
+          "name": "tev1:0.8b-q8_0",
+          "model": "tev1:0.8b-q8_0",
+          "modified_at": "2026-10-05T12:07:04.193001362-07:00",
+          "size": 811856202,
+          "digest": "d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf",
+          "details": {
+            "parent_model": "Tev1-0.8B-Q8_0.gguf",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": ["qwen35"],
+            "parameter_size": "752.39M",
+            "quantization_level": "Q8_0",
+            "context_length": 262144,
+            "embedding_length": 1024
+          },
+          "capabilities": ["decision"]
+        }
+      ]
+    },
+    "health": {
+      "models": [
+        {
+          "name": "tev1:0.8b-q8_0",
+          "model": "tev1:0.8b-q8_0",
+          "size": 896962395,
+          "digest": "d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": ["qwen35"],
+            "parameter_size": "752.39M",
+            "quantization_level": "Q8_0"
+          },
+          "expires_at": "2026-10-05T12:19:28.689047-07:00",
+          "size_vram": 0,
+          "context_length": 2050
+        }
+      ]
+    },
+    "peers": [
+      {
+        "pid": 41733,
+        "creationTime": "1791227123536208",
+        "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+        "uid": 502,
+        "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+      },
+      {
+        "pid": 41733,
+        "creationTime": "1791227123536208",
+        "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+        "uid": 502,
+        "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+      },
+      {
+        "pid": 41733,
+        "creationTime": "1791227123536208",
+        "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+        "uid": 502,
+        "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+      },
+      {
+        "pid": 41733,
+        "creationTime": "1791227123536208",
+        "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+        "uid": 502,
+        "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+      }
+    ],
+    "ports": [62078, 62080, 62080, 62096],
+    "disk": {
+      "digest": "d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf",
+      "weightBytes": 811843424
+    },
+    "elapsedMs": 10765.030599000002,
+    "verifiedMs": 10674.525374,
+    "noBytesBeforeProof": true
+  }
+}

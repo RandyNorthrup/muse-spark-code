@@ -1,0 +1,3 @@
+function requestTimedOut(elapsed) {
+  return elapsed > 3000
+}

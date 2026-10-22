@@ -77,6 +77,8 @@ import {
   MUSE_CODE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
+  JUDGE_P2_BUNDLE_FILE,
+  JUDGE_EVIDENCE_DIRNAME,
   AUTH_BUNDLE_FILE,
   PAID_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -1348,9 +1350,23 @@ async function activateWindow(
     log,
   })
   const judge = judgeWindowPort({
+    // The window quotes the cap in display dollars; consent and the ledger
+    // behind it stay exact.
+    dailyBudgetUsd: () => Number(dailyPaid.capUsd()),
     ledger: dailyPaid.judgeLedger,
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
     engine: () => currentSettings()['judge.engine'],
+    // Production phase-2 inputs (M98 P2B): plain data only. The window
+    // builds the binding inside its lazy bundle; without a configured
+    // separate id it keeps phase-1 behaviour.
+    separateId: () => currentSettings()['judge.separate'],
+    evidenceRoot: path.join(context.globalStorageUri.fsPath, JUDGE_EVIDENCE_DIRNAME),
+    judgeP2BundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_P2_BUNDLE_FILE)
+      .fsPath,
+    // M95's stored record for a SystemOne route's provider (the user's own
+    // key, origin-bound); read only when a configured route needs it.
+    readStoredCredential: async (providerId) =>
+      await context.secrets.get(`${PROVIDER_SECRET_PREFIX}${providerId}`),
     context: (action) => {
       if (!isProjectTrusted()) return
       for (const controller of controllers.values()) {
@@ -1374,6 +1390,18 @@ async function activateWindow(
         return
       }
     },
+    // The local workspace settings files, which the judge bundle reads within
+    // bounds only to name a separate judge set there (machine-scoped paid
+    // settings never honour it).
+    workspaceSettingsFiles: () =>
+      [
+        ...(vscode.workspace.workspaceFolders ?? []).map((folder) =>
+          vscode.Uri.joinPath(folder.uri, '.vscode', 'settings.json'),
+        ),
+        ...(vscode.workspace.workspaceFile === undefined ? [] : [vscode.workspace.workspaceFile]),
+      ]
+        .filter((uri) => uri.scheme === 'file')
+        .map((uri) => uri.fsPath),
     startSession: async (options) => {
       const host = await backend.ensureHost()
       return await host.startSession(options)
@@ -1390,6 +1418,9 @@ async function activateWindow(
       for (const controller of controllers.values()) {
         if (controller.boardSession()?.sessionId === action.sessionId)
           controller.postJudge({ type: 'judgeState', state: status })
+        const facts = judge.readPanelSnapshot()
+        if (facts !== undefined && controller.boardSession()?.sessionId === action.sessionId)
+          controller.postJudge({ type: 'judgeUsage', usage: facts })
       }
     },
     notice: (text) => {

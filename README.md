@@ -3016,11 +3016,60 @@ receipt counts as cost unknown. The subscription never pays for a Model API
 call. No paid/live Judge call or production calibration is claimed.
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
-model, `same` keeps that selection explicit, and `off` disables Judge. Set
-it to `off` in Settings to stop future judgments. A measured ready rate below
-the floor disables `auto` on that backend; no production ready-rate or
-precision measurement is claimed here. Status and separate dispatch rows
-show what ran, with missing usage left unknown. See [Judge](docs/judge.md)
+model, `same` keeps that selection explicit, and `off` disables Judge.
+`separate` runs a verified, permitted separate source alone; `both` runs the
+separate source first and asks the conversation model when entropy
+confidence is low or the family is high stakes, and needs recorded fitted
+profiles for both sides. Automatic `both` additionally requires recorded
+held-out paired M75 evidence. Until each input is recorded, `auto` keeps the
+same model and the status line names the gap in the same words: "Same model:
+no separate source is available", "Same model: separate source has not been
+verified", "Same model: fitted profiles are missing", or "Same model:
+held-out paired evaluation evidence is missing"; explicit `separate`/`both`
+stay off with the matching "Off: ..." sentence. `museSpark.judge.separate`
+(CLI `--separate`) holds the source id, without a credential; its default is
+empty. One separate source is buildable today, on the window
+(`src/extension.ts`) and the CLI/MCP (`src/runtime/main.ts`) alike: the
+**experimental, untested** SystemOne route `openrouter-jev:typesafe/jev-1.13`
+(or `~typesafe/jev-latest`), billed to your own OpenRouter key from Models &
+Providers, chosen only by an explicit `separate`/`both` engine and never by
+`auto`, asked about first with its price (at most $0.002688 a request) and the
+shared daily budget, and only ever adding caution. That question is the
+route's own popup, with "Allow in this window" or Deny: its grant covers every
+request on that route until the window closes (as Tab's does), an "always"
+Judge grant never covers it, and "Ask again every time" beside the route in
+Account & usage asks again. The status line and Account & usage name the
+route's own model, price and grant, never the chat model's. A request is
+withdrawn unsent, and its reservation refunded, when the owner, chat model,
+source or the route's grant changes, or the daily budget stops, while it
+waits on the popup, the key, name resolution or the connection; an answer
+whose grant was revoked in flight adds no caution. Each request is a paid
+Judge row in Account & usage from the moment it is sent, so a call that fails
+afterwards still shows as an uncertain paid use; the CLI settles it into the
+same shared daily budget on top of `--budget-usd` (exact to the nano-dollar,
+up to nine decimals) and refuses a missing key before any charge
+(`"gap":"key"`). It works on either backend with only its own engine setting
+and key: the Meta judge's price acceptance is never needed, and an explicit
+`separate` run never shows the Meta judge's popup. Like every paid setting it
+is read from user settings only; set only in workspace settings, it is not
+used and the status line says "Separate judge is set in workspace settings;
+paid settings are read from user settings only". Every other id names its
+gap after the reason: "Separate judge needs its provider key in Models &
+Providers", "...this provider model needs a captured structured or logprob
+judge request first" (bring-your-own models), "...the local judge needs a
+vetted install on a certified platform" (`local:` ids) or "...the configured
+id names no known source". With no buildable side the window keeps its own
+same-model judge. Set it to `off` in Settings to stop future judgments. A measured
+ready rate below the floor disables `auto` on that backend; no production
+ready-rate or precision measurement is claimed here. Status and separate
+dispatch rows show what ran, with missing usage left unknown. One
+request-only runtime serves the window, CLI and MCP surfaces; the
+experimental embedding fast path runs only with a recorded family head on a
+capable transport, with its attempt ceiling published before dispatch, paid
+consent asked once, and verified-local models behind explicit opt-in. With a
+configured transport but no recorded head, the status appends "The embedding
+shortcut needs hundreds of independent labels for this family; none recorded
+yet, so the full judge runs instead", and the full judge runs instead. See [Judge](docs/judge.md)
 for the phase-1 contract and remaining certification.
 
 ## Web fetch
@@ -6127,6 +6176,36 @@ bash native/darwin/check-disclaim.sh --screen-only
 Recorder entry points and packaging remain under M105 integration; the
 certification record lists the outstanding real-capture/editor checks.
 
+**Muse Judge phase-2 assembly (M98).** Offline calibration, sampling and
+one-call contrastive techniques, and the authenticated loopback boundary
+join the bounded CLI/MCP implementation in the separate `dist/judgeP2.js`
+bundle. An explicit judge command loads it through the shared lazy loader;
+ordinary ACP commands load no phase-2 judge schema; phase 1 loads only at an eligible approval.
+Source selection, paid admission and offline/surface adapters remain required
+before those commands can succeed. The production MCP initialization and
+tool-list smoke runs without inference; available-source support is pending.
+The factory now loads the reviewed lint library and advisory hook adapter as
+separate children. Lint keeps strict pinned config, stable rule/cache binding,
+complete-state batching and visible extraction omissions; real grammar and
+source/admission adapters remain required. Cursor observation rows work
+through this adapter. Its blocking rows **preToolUse, beforeShellExecution,
+beforeMCPExecution, beforeReadFile and beforeSubmitPrompt are never
+registered**: Cursor has no neutral answer for them, and the judge never
+grants a permission. This library delivery adds no installed hook/lint command
+support claim or automatic hook registration.
+The factory also exposes local-source and independently measured use libraries
+in `dist/judgeLocal.js` and `dist/judgeUses.js`. The VSIX and ACP archives carry
+Windows C# and Linux pidfd helper sources and the universal macOS libproc/kqueue
+helper. Explicit helper preparation uses a fixed system compiler with no API
+credentials; local inference still requires opt-in, vetted installation/platform
+proof, a real token counter and captured wording. Every use stays inactive
+without its own paired M75 and borrowed-golden evidence. Identical held review
+actions share one dispatch while retaining each approval's caution lifetime.
+This adds no local setting, automatic source choice or installed-source support
+claim. On macOS, `bash native/darwin/build-local-judge.sh` builds and verifies
+both helper architectures for packaging, as recorded in the macOS receipt.
+See [the integration contract and outstanding evidence](docs/judge.md).
+
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
 contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
 the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute
@@ -6275,6 +6354,16 @@ arguments its header gives.
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are
 in [`docs/certification/`](docs/certification/), one file per milestone.
+The [M98-2j local judge spike](docs/certification/m98-2j-spike.md) contains
+test-only transport/provenance prototypes and free-loopback measurements.
+It adds no local judge setting or runtime selection to the product.
+The [macOS native receipt](docs/certification/m98p2-j.md#macos-native)
+adds libproc/kqueue process binding, APFS/HFS volume checks and signed Ollama
+installation anchors. On a Mac, `bash native/darwin/build-local-judge.sh`
+builds and checks the universal helper; assembly must include that artifact
+before enabling this source in a shipped package. Its captured 812 MB
+`tev1:0.8b-q8_0` smoke model requires explicit selection and calibration
+before automatic use. `tev1:4b` remains the recommendation.
 Accessibility is a gate too: every screen the harness shows passes axe-core's
 WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
 (PLAN.md D32); CI's full tier runs it once, on Linux. So is localization
@@ -6729,3 +6818,15 @@ bindings/receipts pass. No companion
 dictation command is advertised as supported. Existing editor dictation is
 unchanged. [The certification record](docs/certification/m35-companion.md)
 tracks the Linux fake-device tests and the remaining platform checks.
+
+Phase-2 integration keeps the repaired SystemOne and BYO adapters behind the
+explicit `judgeP2.js` → `judgeSources.js` loader. Every source replacement or
+revocation advances the assembly generation; the host still supplies M95's
+client and D78's durable claims. Missing captured native codecs refuse a route.
+No separate provider is auto-selected or certified by this merge. The Models
+panel keeps its honest unavailable state until a source port is connected.
+Account & usage receives the current same-model judge status through the shared
+validated bridge; unavailable accounting amounts remain unknown. The shared
+React rows also apply to hosts using that bridge; ACP/headless expose the
+portable assembly but have no Models panel. Installed-editor receipts remain
+required before claiming those source routes are supported.

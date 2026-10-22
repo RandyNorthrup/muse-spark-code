@@ -57,6 +57,11 @@ import {
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
 } from '../shared/constants'
+import {
+  cliEvidenceRoot,
+  filePhase2EvidenceStore,
+  type Phase2EvidenceStore,
+} from '../core/judge/evidencePaths'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
@@ -126,6 +131,8 @@ import {
 } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
 import { requireFile } from '../host/lazyBundle'
+import { judgeFeaturesLoader } from './judge/judgeBundle'
+import { cliJudgeBinding } from './judge/cliBinding'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
 import { createToolIo } from '../host/backend/toolIo'
@@ -190,6 +197,14 @@ const loadVault = runtimeVaultLoader({
   processId: process.pid,
   acp: acpVault,
 })
+
+function loadDisplayLanguage(log: Logger) {
+  return loadUiTable({
+    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    log,
+  })
+}
 
 /** Standalone headless commands own their process, including wedged late setup. */
 function exitHeadless(code: number, shouldForce = false): never {
@@ -1382,6 +1397,92 @@ async function main(): Promise<number> {
       servicesInput,
     )
     return cachedAccounts
+  }
+  if (command.command === 'judge') {
+    const controller = new AbortController()
+    const stop = () => {
+      controller.abort()
+    }
+    const stdout = createFdWriter(process.stdout.fd, stop)
+    const stderr = createFdWriter(process.stderr.fd, stop)
+    const log = stderrLogger((line) => {
+      stderr.write(`${redactWhole(line, [])}\n`)
+    }, 'warn')
+    const loadJudge = judgeFeaturesLoader({
+      bundlePath: path.join(distDir, 'judgeP2.js'),
+      log,
+    })
+    process.on('SIGINT', stop)
+    process.on('SIGTERM', stop)
+    try {
+      // Available source/offline/surface adapters are required before those
+      // commands can succeed; missing dependencies retain explicit refusals.
+      const features = loadJudge()
+      const evidenceRoot = cliEvidenceRoot({
+        evidenceDir: process.env['MUSE_JUDGE_EVIDENCE_DIR'],
+        configHome: process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      })
+      const store: Phase2EvidenceStore = filePhase2EvidenceStore({
+        root: evidenceRoot,
+        readFile: (file: string): string | undefined => {
+          try {
+            return readFileSync(file, 'utf8')
+          } catch {
+            return undefined
+          }
+        },
+      })
+      // Production phase-2 binding (M98 P2B, redesign), the window's own
+      // policy and side-factory port: explicit modes bypass only the
+      // automatic readiness default, never consent, confidentiality,
+      // provenance or admission. The factory runs inside `dist/judgeP2.js`,
+      // so judge schemas stay lazy for ordinary commands.
+      const commandDeps = await features.createCommandDeps({
+        binding: await cliJudgeBinding({
+          features,
+          options: command.options,
+          store,
+          readSecret: async (name) => await secrets.get(name),
+          // The same D78 daily journal every paid headless use settles into.
+          daily: async () => {
+            const accounting = await import('./runtimeAccountingEntry.js')
+            return accounting.createRuntimeDailyBudget({
+              dataFolder: agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir: homedir(),
+              }),
+              now: () => Date.now(),
+              sleep: (ms) =>
+                new Promise((resolve) => {
+                  setTimeout(resolve, ms)
+                }),
+            })
+          },
+        }),
+        billing: 'free',
+        worstCaseUsd: () => 0,
+      })
+      const code = await features.runJudgeCommand(
+        command,
+        { stdin: process.stdin, stdout, stderr },
+        {
+          initialize: async (signal) => {
+            await loadDisplayLanguage(log)
+            signal.throwIfAborted()
+            // Node bundles have separate language state; install the table
+            // read above before the lazy command renders its first response.
+            loadJudge()
+          },
+          ...commandDeps,
+        },
+        controller.signal,
+      )
+      exitHeadless(code, stdout.queuedBytes > 0 || stderr.queuedBytes > 0)
+    } finally {
+      process.off('SIGINT', stop)
+      process.off('SIGTERM', stop)
+    }
   }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     // The refusal was built from the bundled English table at parse time.

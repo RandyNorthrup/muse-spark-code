@@ -1,0 +1,822 @@
+[
+  {
+    "drill": 1,
+    "guard": "strict hook settings",
+    "before": "const settingsSchema = z.strictObject({",
+    "after": "const settingsSchema = z.looseObject({",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "refuses invalid hook settings",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses invalid hook settings without reflecting private arguments"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 2,
+    "guard": "refuse guessed format",
+    "before": "const settings = settingsSchema.parse(rawSettings)",
+    "after": "const settings = settingsSchema.parse({ ...rawSettings, format: 'muse' })",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "refuses invalid hook settings",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > reads the captured Claude and Gemini payloads and their existing M91 output contracts",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only cursor advisory fields on preToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only copilot advisory fields on preToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only cline advisory fields on PreToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only kiro advisory fields on UserPromptSubmit from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only copilot advisory fields on PreToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses windsurf/pre_run_command before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses kiro/PreToolUse before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses cursor/beforeReadFile before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses cursor/stop before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses copilot/permissionRequest before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses a caution before inference when M91 rejects its native output",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses invalid hook settings without reflecting private arguments"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 3,
+    "guard": "preserve unknown payload additions",
+    "before": "const payloadSchema = z.looseObject({",
+    "after": "const payloadSchema = z.object({",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "redacts the whole state",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only cline advisory fields on PreToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses windsurf/pre_run_command before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses cursor/beforeReadFile before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses copilot/permissionRequest before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > redacts the whole state, preserves additions and never selects the payload model or opens a transcript"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 4,
+    "guard": "validate tool name types",
+    "before": "tool_name: z.optional(z.string().check(z.minLength(1))),",
+    "after": "tool_name: z.optional(z.unknown()),",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates malformed bytes",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates malformed bytes, envelopes and required tool fields before inference"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 5,
+    "guard": "validate tool input shape",
+    "before": "tool_input: z.optional(z.union([z.string(), z.record(z.string(), z.unknown())])),",
+    "after": "tool_input: z.optional(z.unknown()),",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates malformed bytes",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates malformed bytes, envelopes and required tool fields before inference"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 6,
+    "guard": "native explicit event binding",
+    "before": "supplied !== settings.event",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "requires a native event",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > requires a native event and rejects conflicting or unknown explicit events",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses invalid hook settings without reflecting private arguments"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 7,
+    "guard": "never guess missing event",
+    "before": "const event = supplied ?? settings.event",
+    "after": "const event = supplied ?? settings.event ?? 'PreToolUse'",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "requires a native event",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > requires a native event and rejects conflicting or unknown explicit events"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 8,
+    "guard": "native event enum and extension events",
+    "before": "const name = nativeEventSchema.parse(event)",
+    "after": "const name = 'PreToolUse'",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "uses M91 EXTENSION_HOOK_EVENTS",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for InstructionsLoaded without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for UserPromptExpansion without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for PermissionDenied without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for PreModelSwitch without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for PostModelSwitch without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for TaskCreated without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for TaskCompleted without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for FileChanged without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for ConfigChange without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for WorktreeCreate without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for WorktreeRemove without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for Setup without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for DirectoryAdded without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for CwdChanged without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for Elicitation without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for ElicitationResult without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for TeammateIdle without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for MessageDisplay without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for BeforeToolSelection without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for AfterAgentThought without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for Manual without granting a decision"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 9,
+    "guard": "native tool fields required",
+    "before": "['PreToolUse', 'PermissionRequest', 'PostToolUse', 'PostToolUseFailure'].includes(name)",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates malformed bytes",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates malformed bytes, envelopes and required tool fields before inference"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 10,
+    "guard": "native tool input remains an object",
+    "before": "typeof payload.tool_input !== 'object'",
+    "after": "payload.tool_input === undefined",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates malformed bytes",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates malformed bytes, envelopes and required tool fields before inference"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 11,
+    "guard": "caution never grants a permission",
+    "before": "permissionDecision: 'ask',",
+    "after": "permissionDecision: 'allow',",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "emits an ask and a fixed warning",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > emits an ask and a fixed warning for Muse PreToolUse, never a grant or a rewrite",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > safe, below-threshold and partial results never emit ALLOW or a caution",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > bounds the raw input and complete unsplit request including question overhead",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > requires bounded runtime caution text and a positive-polarity noul question",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > redacts the whole state, preserves additions and never selects the payload model or opens a transcript"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 12,
+    "guard": "native output preflight uses M91",
+    "before": "return isAccepted ? output : undefined",
+    "after": "return output",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "refuses a caution before inference when M91 rejects",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses a caution before inference when M91 rejects its native output"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 13,
+    "guard": "Claude uses the nested Local output contract",
+    "before": "const flavor = format === 'claude' || format === 'vscode' ? 'vscode' : contract.defaultFlavor",
+    "after": "const flavor = format === 'claude' || format === 'vscode' ? 'copilot' : contract.defaultFlavor",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "reads the captured Claude and Gemini",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > reads the captured Claude and Gemini payloads and their existing M91 output contracts"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 14,
+    "guard": "native aliases are honored",
+    "before": "candidate.aliases?.includes(event) === true",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "builds only kiro advisory fields",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only kiro advisory fields on UserPromptSubmit from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses kiro/PreToolUse before resolution when no advisory-only output exists"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 15,
+    "guard": "foreign explicit event binding",
+    "before": "row.aliases?.includes(settings.event) !== true",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates native field types",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates native field types, captured model packets and JSON toolArgs"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 16,
+    "guard": "required foreign native fields",
+    "before": "(value === undefined && field.required === true)",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates malformed bytes",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates malformed bytes, envelopes and required tool fields before inference"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 17,
+    "guard": "captured structured packet validation",
+    "before": "!field.schema.safeParse(value).success",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates native field types",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates native field types, captured model packets and JSON toolArgs"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 18,
+    "guard": "foreign scalar transforms require strings",
+    "before": "['text', 'toolName', 'json'].includes(field.transform ?? '')",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates native field types",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates native field types, captured model packets and JSON toolArgs"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 19,
+    "guard": "foreign JSON toolArgs syntax",
+    "before": "if (typeof value === 'string' && field.transform === 'json') JSON.parse(value)",
+    "after": "",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates native field types",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates native field types, captured model packets and JSON toolArgs"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 20,
+    "guard": "foreign output must be accepted by M91",
+    "before": "return answer.status === 'completed' &&",
+    "after": "return true &&",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "refuses a caution before inference when M91 rejects",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses a caution before inference when M91 rejects its native output"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 21,
+    "guard": "foreign output must carry an advisory",
+    "before": "(answer.permissionDecision === 'ask' ||\n      answer.context !== undefined ||\n      answer.systemMessage !== undefined)",
+    "after": "true",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "refuses windsurf/pre_run_command",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses windsurf/pre_run_command before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses kiro/PreToolUse before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses cursor/stop before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses copilot/permissionRequest before resolution when no advisory-only output exists"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 22,
+    "guard": "no blank caution text",
+    "before": "text.trim() === '' || text.length > HOOK_SYSTEM_MESSAGE_MAX_CHARS",
+    "after": "text.length > HOOK_SYSTEM_MESSAGE_MAX_CHARS",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "requires bounded runtime caution text",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > requires bounded runtime caution text and a positive-polarity noul question"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 23,
+    "guard": "caution text length bound",
+    "before": "text.trim() === '' || text.length > HOOK_SYSTEM_MESSAGE_MAX_CHARS",
+    "after": "text.trim() === ''",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "requires bounded runtime caution text",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > requires bounded runtime caution text and a positive-polarity noul question"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 24,
+    "guard": "no dispatch without a native advisory output",
+    "before": "if (output === undefined) return EXEC_EXIT.failed",
+    "after": "if (false) return EXEC_EXIT.failed",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "refuses windsurf/pre_run_command",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses windsurf/pre_run_command before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses kiro/PreToolUse before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses cursor/beforeReadFile before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses cursor/stop before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses copilot/permissionRequest before resolution when no advisory-only output exists",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses a caution before inference when M91 rejects its native output"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 25,
+    "guard": "redact before the borrowed engine call",
+    "before": "state: redactSecrets(JSON.stringify(payload)),",
+    "after": "state: JSON.stringify(payload),",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "redacts the whole state",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > redacts the whole state, preserves additions and never selects the payload model or opens a transcript"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 26,
+    "guard": "payload model cannot select a source",
+    "before": "questions: { risk: deps.question },",
+    "after": "questions: { risk: deps.question }, model: payload['model'],",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "redacts the whole state",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > emits an ask and a fixed warning for Muse PreToolUse, never a grant or a rewrite",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only cursor advisory fields on preToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > safe, below-threshold and partial results never emit ALLOW or a caution",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > keeps no-answer explicit at exit 4 with no stdout verdict",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > redacts the whole state, preserves additions and never selects the payload model or opens a transcript"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 27,
+    "guard": "complete request bound precedes initialization",
+    "before": "const request = judgeRequestSchema.parse({",
+    "after": "const request = ({",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "bounds the raw input and complete unsplit request",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > bounds the raw input and complete unsplit request including question overhead"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 28,
+    "guard": "raw streamed bytes bounded before EOF",
+    "before": "readPromptStdin(io.stdin, JUDGE_MAX_BODY_BYTES, signal)",
+    "after": "readPromptStdin(io.stdin, JUDGE_MAX_BODY_BYTES * 2, signal)",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "rejects an oversized open input",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > rejects an oversized open input before waiting for EOF or resolving a source"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 29,
+    "guard": "noul question polarity/type contract",
+    "before": "if (request.questions['risk']?.type !== 'noul') throw new Error(UI_TEXT.execRequestShape)",
+    "after": "",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "requires bounded runtime caution text",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > requires bounded runtime caution text and a positive-polarity noul question"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 30,
+    "guard": "malformed borrowed JSON is a failed result",
+    "before": "rawOutcome = JSON.parse(chunk)\n        } catch {\n          return",
+    "after": "rawOutcome = JSON.parse(chunk)\n        } catch {\n          throw new Error(UI_TEXT.execRequestShape)",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates borrowed command stdout",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates borrowed command stdout before translating a native verdict"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 31,
+    "guard": "borrowed outcome validation and no-answer exclusion",
+    "before": "if (!outcome.success || outcome.data.outcome === 'no-answer') return",
+    "after": "if (false) return",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates borrowed command stdout",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > keeps no-answer explicit at exit 4 with no stdout verdict",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates borrowed command stdout before translating a native verdict"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 32,
+    "guard": "borrowed answer must be noul",
+    "before": "answer?.type !== 'noul'",
+    "after": "false",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates borrowed command stdout",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates borrowed command stdout before translating a native verdict"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 33,
+    "guard": "partial evidence gives no opinion",
+    "before": "meta === undefined || answer?.type !== 'noul' || meta.partial",
+    "after": "meta === undefined || answer?.type !== 'noul'",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "safe, below-threshold and partial results",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > safe, below-threshold and partial results never emit ALLOW or a caution"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 34,
+    "guard": "late cancellation suppresses output",
+    "before": "!signal.aborted && !io.stdout.isClosed && answer.noul >= JUDGE_ADVISORY_THRESHOLD",
+    "after": "!io.stdout.isClosed && answer.noul >= JUDGE_ADVISORY_THRESHOLD",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "drops a borrowed result after cancellation",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > drops a borrowed result after cancellation and fails a stalled native flush"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 35,
+    "guard": "closed pipe suppresses output",
+    "before": "!signal.aborted && !io.stdout.isClosed && answer.noul >= JUDGE_ADVISORY_THRESHOLD",
+    "after": "!signal.aborted && answer.noul >= JUDGE_ADVISORY_THRESHOLD",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "does not deliver a result to a pipe closed",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > does not deliver a result to a pipe closed while the source was resolving"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 36,
+    "guard": "caution probability threshold",
+    "before": "answer.noul >= JUDGE_ADVISORY_THRESHOLD",
+    "after": "answer.noul <= JUDGE_ADVISORY_THRESHOLD",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "safe, below-threshold and partial results",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > emits an ask and a fixed warning for Muse PreToolUse, never a grant or a rewrite",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > reads the captured Claude and Gemini payloads and their existing M91 output contracts",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for InstructionsLoaded without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for UserPromptExpansion without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for PermissionDenied without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for PreModelSwitch without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for PostModelSwitch without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for TaskCreated without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for TaskCompleted without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for FileChanged without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for ConfigChange without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for WorktreeCreate without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for WorktreeRemove without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for Setup without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for DirectoryAdded without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for CwdChanged without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for Elicitation without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for ElicitationResult without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for TeammateIdle without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for MessageDisplay without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for BeforeToolSelection without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for AfterAgentThought without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > uses M91 EXTENSION_HOOK_EVENTS for Manual without granting a decision",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only cursor advisory fields on preToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only copilot advisory fields on preToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only copilot advisory fields on PreToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only cline advisory fields on PreToolUse from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > builds only kiro advisory fields on UserPromptSubmit from the existing contract",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > safe, below-threshold and partial results never emit ALLOW or a caution"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 37,
+    "guard": "empty/invalid borrowed success is exit 4",
+    "before": "if (code === EXEC_EXIT.ok && !outcomeState.isValid) code = EXEC_EXIT.failed",
+    "after": "",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "validates borrowed command stdout",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > safe, below-threshold and partial results never emit ALLOW or a caution",
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates borrowed command stdout before translating a native verdict"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 38,
+    "guard": "one deadline includes stdin and borrowed execution",
+    "before": "      deps,\n      signal,\n    )",
+    "after": "      deps,\n      undefined,\n    )",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "counts stdin time against the same execution deadline",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > counts stdin time against the same execution deadline"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 39,
+    "guard": "parent cancellation is inherited",
+    "before": "const signal = parentSignal === undefined ? deadline : AbortSignal.any([parentSignal, deadline])",
+    "after": "const signal = deadline",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "honors parent cancellation before dispatch",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > honors parent cancellation before dispatch and during admission without leaking the reason"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 40,
+    "guard": "closed pipes refuse before input/config work",
+    "before": "if (io.stdout.isClosed || io.stderr.isClosed) return EXEC_EXIT.failed",
+    "after": "",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "refuses closed pipes before dispatch",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > refuses closed pipes before dispatch and reports stalled delivery as exit 4"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 41,
+    "guard": "stdin is destroyed on early exits",
+    "before": "io.stdin.destroy()",
+    "after": "",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "refuses closed pipes before dispatch",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > refuses closed pipes before dispatch and reports stalled delivery as exit 4"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 42,
+    "guard": "native flush failure is not success",
+    "before": "!signal.aborted && flushed.every(Boolean) && !io.stdout.isClosed && !io.stderr.isClosed",
+    "after": "!signal.aborted && !io.stdout.isClosed && !io.stderr.isClosed",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "drops a borrowed result after cancellation",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > drops a borrowed result after cancellation and fails a stalled native flush"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 43,
+    "guard": "abort at the output fence remains failure",
+    "before": "!signal.aborted && flushed.every(Boolean) && !io.stdout.isClosed && !io.stderr.isClosed",
+    "after": "flushed.every(Boolean) && !io.stdout.isClosed && !io.stderr.isClosed",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "drops a borrowed result after cancellation",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > drops a borrowed result after cancellation and fails a stalled native flush"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 44,
+    "guard": "run cap is preserved unchanged",
+    "before": "{ command: 'judge', action: 'ask', options, surfaceArgs: [] }",
+    "after": "{ command: 'judge', action: 'ask', options: { ...options, budgetMicroUsd: JUDGE_MAX_BODY_BYTES }, surfaceArgs: [] }",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "keeps the default zero and tiny positive run caps",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > keeps the default zero and tiny positive run caps from authorizing a paid batch"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 45,
+    "guard": "shared admission adapter is passed through",
+    "before": "      deps,\n      signal,\n    )",
+    "after": "      { ...deps, admitPaid: undefined },\n      signal,\n    )",
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "expected": "routes every paid attempt through admission",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > routes every paid attempt through admission and honors daily-budget and consent refusals"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  },
+  {
+    "drill": 46,
+    "guard": "fixed configuration error text",
+    "before": "  } catch {\n    // Fixed words only: never private stdin, question, provider error or argv.\n    code = signal.aborted ? EXEC_EXIT.failed : EXEC_EXIT.usage\n    io.stderr.write(`${signal.aborted ? UI_TEXT.execTimedOut : UI_TEXT.execRequestShape}\\n`)",
+    "after": "  } catch (error) {\n    code = signal.aborted ? EXEC_EXIT.failed : EXEC_EXIT.usage\n    io.stderr.write(`${error instanceof Error ? error.message : String(error)}\\n`)",
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "expected": "sanitizes configuration failures",
+    "file": "src/runtime/judge/hook.ts",
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeHookCli.test.ts > judge hook native advisory formats > sanitizes configuration failures without printing private dependency text"
+    ],
+    "beforeSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "restoredSha256": "34cae9fd3a106a4d46041c404d905ecefd05772ed529b4f2490461de19a52b73",
+    "greenExit": 0
+  }
+]

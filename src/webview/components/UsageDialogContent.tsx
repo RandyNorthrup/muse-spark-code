@@ -49,7 +49,7 @@ import type { TeamUsageSummary } from '../../shared/teamView'
 import type { ContextSummary, UsageReport, UsageSummary, UiState } from '../state/uiState'
 
 import type { SignInMethod, WebviewToHostMessage, ModelOption } from '../../shared/protocol'
-
+import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 const AccountSection = lazy(async () => {
   const module = await import('./UsageProviderSections')
   return { default: module.AccountSection }
@@ -103,6 +103,8 @@ export interface UsageDialogProps {
   readonly modelPricing: ModelPricing | undefined
   /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
   readonly paid: PaidState
+  /** Judge rows for this window. Absent until the host sends `judgeUsage`. */
+  readonly judgeUsage?: JudgePanelSnapshot | undefined
   readonly auth: UiState['auth']
   readonly onInstallMuseCode: () => void
   readonly onSetupSignIn: (method: SignInMethod) => void
@@ -418,6 +420,7 @@ export function UsageDialogContent({
   onInstallMuseCode,
   onSetupSignIn,
   onForgetPaidUse,
+  judgeUsage,
   now,
   onOpenExternal,
   onOpenUsagePage,
@@ -521,11 +524,18 @@ export function UsageDialogContent({
             <PlanUsageSection rows={report.plans} models={models} onOpenExternal={onOpenExternal} />
           </Suspense>
         ) : null}
-        {paidFeatures.length > 0 ? (
+        {judgeUsage !== undefined || paidFeatures.length > 0 ? (
           <>
-            <h3 className="usage-heading">{UI_TEXT.usagePaidHeading}</h3>
+            <h3 className="usage-heading">
+              {paidFeatures.length > 0 ? UI_TEXT.usagePaidHeading : UI_TEXT.paidJudgeName}
+            </h3>
             <Suspense fallback={<p role="status">{UI_TEXT.usageLoading}</p>}>
-              <PaidSection paid={paid} features={paidFeatures} onForgetPaidUse={onForgetPaidUse} />
+              <PaidSection
+                paid={paid}
+                features={paidFeatures}
+                onForgetPaidUse={onForgetPaidUse}
+                judgeUsage={judgeUsage}
+              />
             </Suspense>
           </>
         ) : null}
@@ -766,6 +776,7 @@ export function UsageSurface({
       modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
       models={state.models}
       paid={state.paid}
+      judgeUsage={state.judgeUsage}
       onInstallMuseCode={() => {
         postMessage({ type: 'installMuseCode' })
       }}

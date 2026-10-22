@@ -1,3 +1,4 @@
+import { armHttpServerShutdown } from '../httpServer'
 import { randomBytes } from 'node:crypto'
 import {
   createServer,
@@ -302,10 +303,7 @@ export async function startCompanionServer<Input, Output>(
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('EPANEL_BIND')
     origin = `http://${host === '::1' ? '[::1]' : host}:${String(address.port)}`
-    options.signal?.throwIfAborted()
-    process.once('SIGINT', onSignal)
-    process.once('SIGTERM', onSignal)
-    options.signal?.addEventListener('abort', onSignal, { once: true })
+    armHttpServerShutdown(options.signal, onSignal)
     activity()
     if (earlySignal.signal.aborted) await close()
     return {
