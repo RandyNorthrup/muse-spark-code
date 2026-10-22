@@ -4692,7 +4692,8 @@
       "modelRef": "模型參照",
       "outputCap": "輸出上限超過上下文視窗",
       "customLimits": "自訂模型需要上下文視窗和輸出上限",
-      "compat": "相容性選項僅適用於自訂伺服器"
+      "compat": "相容性選項僅適用於自訂伺服器",
+      "upstream": "上游路由僅適用於 Hugging Face 項目"
     },
     "descriptions": {
       "openai": "使用 GPT 模型的 OpenAI Responses API",

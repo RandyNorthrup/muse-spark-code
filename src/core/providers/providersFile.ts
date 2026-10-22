@@ -89,6 +89,11 @@ export const providerEntrySchema = z
     prices: z.optional(z.record(z.string(), userPriceCardSchema)),
     // OpenRouter's routing choices (only on an `openrouter` entry).
     routing: z.optional(openRouterRoutingSchema),
+    // Hugging Face's router upstream (only on a `huggingface` entry): sent
+    // as the documented model-id suffix (`model:upstream`, `:cheapest`,
+    // `:fastest`, `:preferred`; huggingface.co/docs/inference-providers,
+    // read 2026-10-12), shown and priced from the live list row.
+    upstream: z.optional(z.string().check(z.regex(/^[a-z0-9][a-z0-9-]{0,63}$/))),
     // The context each Ollama model runs with (only on an `ollama` entry).
     numCtx: z.optional(z.record(z.string(), z.number())),
     // EXECPROV round 6: exact input counts are on by default where the
@@ -174,6 +179,9 @@ export const providerEntrySchema = z
     },
     z.refine((entry) => entry.compat === undefined || entry.preset === 'custom', {
       error: () => UI_TEXT.providerText.schema.compat,
+    }),
+    z.refine((entry) => entry.upstream === undefined || entry.preset === 'huggingface', {
+      error: () => UI_TEXT.providerText.schema.upstream,
     }),
   )
 export type ProviderEntry = z.infer<typeof providerEntrySchema>

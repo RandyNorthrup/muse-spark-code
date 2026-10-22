@@ -11,6 +11,7 @@ import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
 import { isBestOfNError } from '../../src/core/bestOfN/bestOfNError'
 import type { BestOfNError } from '../../src/core/bestOfN/bestOfNError'
 import { BestOfNRunner } from '../../src/core/bestOfN/bestOfNRunner'
+import { billingKeyDigest } from '../../src/core/backends/modelapi/billingRoute'
 import { defaultBestOfNRequest } from '../../src/shared/bestOfN'
 import { fileRoots } from './helpers/tempDirs'
 
@@ -34,7 +35,7 @@ describe('best-of-N worktree setup failure', () => {
         const { stdout } = await runGit('git', [...args], { cwd })
         return stdout
       },
-      getAccountId: () => Promise.resolve('test-account'),
+      getAccountId: () => Promise.resolve(billingKeyDigest('test-account')),
       hasDirtyEditors: () => false,
       validatePaths: () => Promise.resolve(),
       validateWorktree: () => Promise.resolve(),

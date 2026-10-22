@@ -16708,6 +16708,31 @@ every branch.
   existing contributor confirmation; a person not entitled hears the
   provider's own refusal.
 
+### USAGEFIELDS — Every usage and price field a provider reports (2026-10-12)
+
+**Status 2026-10-12: built.** On branch `feat/provider-usage-fields` with
+wire shapes still UNVERIFIED (see below). Closes GQ-G01, DS-G03, GEM-G01, HF-G01,
+HF-G02, HF-G03, HF-G04, OR-G04, FW-G01. Money shown is what the provider
+reported for that request: cached tokens, reasoning-token prices, tier
+boundaries, the routed upstream and the credit balance flow through the
+price card, the session budget and `/usage`; where the reply gives no
+number the product says "not reported", never a guess. Amounts stay exact
+decimal text end to end. The spend ledger and the reservation rule are
+untouched; only which fields the codecs read and how a price is computed
+from them changed. New request bytes: Fireworks'
+`prompt_cache_isolation_key` (its API reference, read 2026-10-12) and the
+Hugging Face `model:upstream` suffix (its Inference Providers page, read
+2026-10-12). UNVERIFIED until the lead runs
+`docs/certification/usagefields-capture-plan.json` (10 requests) and the
+answers return: the Groq cached-token envelope path and billed half price
+(GQ-C1), DeepSeek's reasoning-token envelope (DS-C1), the Gemini
+usageMetadata paths (GEM-C1), the router's routed-upstream signal and
+suffix acceptance (HF-C1, HF-C2), the `/api/v1/key` balance fields (OR-C1)
+and the isolation-key acceptance (FW-C1). Catalogue `cache_write` prices
+now apply (132 rows carried them unread). The Hugging Face price
+fingerprint now includes per-upstream status, context and flags, so every
+HF model re-fingerprints once on the next refresh.
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.

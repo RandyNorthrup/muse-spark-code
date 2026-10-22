@@ -1351,6 +1351,11 @@
       "title": "Answers survive model-call limits",
       "summary": "Long Model API turns retain a final summary at their call limit; headless request caps determine the turn allowance.",
       "area": "chat"
+    },
+    {
+      "id": "USAGEFIELDS",
+      "public": false,
+      "note": "provider usage and price fields (cached, reasoning, tiers, upstreams, credit balance)"
     }
   ]
 }

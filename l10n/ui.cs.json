@@ -5052,7 +5052,8 @@
       "modelRef": "Odkaz na model",
       "outputCap": "Limit výstupu překračuje kontextové okno",
       "customLimits": "Vlastní modely vyžadují kontextová okna a limity výstupu",
-      "compat": "Možnosti kompatibility platí pouze pro vlastní server"
+      "compat": "Možnosti kompatibility platí pouze pro vlastní server",
+      "upstream": "Směrování upstream platí jen pro záznam Hugging Face"
     },
     "descriptions": {
       "openai": "OpenAI Responses API s modely GPT",

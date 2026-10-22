@@ -111,15 +111,15 @@ export async function runProviderKeyTest(
 export type ListPriceSource = 'list' | 'catalogue' | 'user' | 'none-local'
 
 /**
- * What a provider's own API offers about spend (PROVSPEND, 2026-10-12; shapes
- * from the providers' documented report APIs, UNVERIFIED against a live
- * account until the lead's capture): `none` (no account spend endpoint found:
- * Gemini, Groq, Mistral, Together, Fireworks, Hugging Face, Z.ai, xAI, Azure
- * and every local/custom server), `key-usage` (the inference key reads its
- * own usage: OpenRouter `GET /api/v1/key`), `balance` (the inference key
- * reads a balance: DeepSeek `GET /user/balance`), `admin-report` (a separate
- * admin key reads organisation reports: Anthropic, OpenAI).
- */
+What a provider's own API offers about spend (PROVSPEND, 2026-10-12; shapes
+from the providers' documented report APIs, UNVERIFIED against a live
+account until the lead's capture): `none` (no account spend endpoint found:
+Gemini, Groq, Mistral, Together, Fireworks, Hugging Face, Z.ai, xAI, Azure
+and every local/custom server), `key-usage` (the inference key reads its
+own usage: OpenRouter `GET /api/v1/key`), `balance` (the inference key
+reads a balance: DeepSeek `GET /user/balance`), `admin-report` (a separate
+admin key reads organisation reports: Anthropic, OpenAI).
+*/
 export type ProviderSpendCapability = 'none' | 'key-usage' | 'balance' | 'admin-report'
 
 export interface ModelsListSpec {
@@ -807,7 +807,10 @@ const GROQ_PRESET: ProviderPreset = {
   modelsList: { path: '/openai/v1/models', windowField: 'context_window', priceSource: 'list' },
   quirks: {
     outputCapParam: 'max_completion_tokens',
-    cachedUsageFields: [],
+    // Groq reports `cached_tokens` in usage (console.groq.com/docs/
+    // prompt-caching, read 2026-10-12); the chat codec reads the
+    // OpenAI-compatible `prompt_tokens_details.cached_tokens` path.
+    cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
     // `reasoning_format` (`console.groq.com/docs/reasoning`, read
     // 2026-10-12): `parsed` keeps reasoning in its dedicated field, which
     // tool calling and JSON mode require. Never beside `include_reasoning`.

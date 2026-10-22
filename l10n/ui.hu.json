@@ -4812,7 +4812,8 @@
       "modelRef": "Modellhivatkozás",
       "outputCap": "A kimeneti korlát meghaladja a kontextusablakot",
       "customLimits": "Az egyéni modellekhez kontextusablak és kimeneti korlát szükséges",
-      "compat": "A kompatibilitási beállítások csak egyéni kiszolgálóra vonatkoznak"
+      "compat": "A kompatibilitási beállítások csak egyéni kiszolgálóra vonatkoznak",
+      "upstream": "Az upstream-irányítás csak Hugging Face-bejegyzésre vonatkozik"
     },
     "descriptions": {
       "openai": "OpenAI Responses API GPT-modellekkel",
