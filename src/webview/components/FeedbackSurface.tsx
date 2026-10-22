@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { webviewErrorReport } from '../errorReport'
 import { feedbackBridge } from '../feedbackBridge'
 import type { WebviewToHostMessage } from '../../shared/protocol'
 import { deferred } from './DeferredSurface'
@@ -37,5 +38,14 @@ export function FeedbackSurface({
       document.querySelector<HTMLTextAreaElement>('.composer-area .composer-input')?.focus()
     }
   }, [bridge, opener])
-  return <LazyFeedbackDialog sessionId={sessionId} port={bridge.port} onClose={onClose} />
+  return (
+    <LazyFeedbackDialog
+      sessionId={sessionId}
+      port={bridge.port}
+      reportError={(source, error) => {
+        postMessage(webviewErrorReport(source, error))
+      }}
+      onClose={onClose}
+    />
+  )
 }

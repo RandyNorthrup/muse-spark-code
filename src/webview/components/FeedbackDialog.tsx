@@ -8,11 +8,13 @@ import {
 } from '../../core/backends/musecode/feedbackRequest'
 import { FEEDBACK_NOTE_MAX_CHARS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import type { ErrorReporter } from '../errorReport'
 import { Modal } from './Modal'
 
 export interface FeedbackDialogProps {
   readonly sessionId: string
   readonly port: FeedbackSubmitPort
+  readonly reportError: ErrorReporter
   readonly onClose: () => void
 }
 
@@ -22,7 +24,7 @@ function refusalOf(error: unknown): string {
   return error instanceof Error ? error.message : UI_TEXT.feedbackFailed
 }
 
-function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
+function FeedbackForm({ sessionId, port, reportError, onClose }: FeedbackDialogProps) {
   // Labels are read from the installed-language table on every render, never
   // at module load. The fixed order offers exactly what the 1.4.4 capture
   // certifies: a note with its classification. Files and the session record
@@ -96,11 +98,15 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
         ),
       )
     } catch (error: unknown) {
+      // The dialog shows the refusal; the host log keeps the failure for
+      // the problem report, like any other rejected webview promise.
+      reportError('promise', error)
       setFailure(refusalOf(error))
       if (previewed) {
         try {
           setNote(await scrubMuseFeedbackNote(note, port))
-        } catch {
+        } catch (scrubError: unknown) {
+          reportError('promise', scrubError)
           setPreviewed(false)
         }
       }

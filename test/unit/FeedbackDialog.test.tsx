@@ -24,17 +24,28 @@ function recordingSubmit(
 function setup(overrides: Partial<FeedbackDialogProps> = {}) {
   const calls: FeedbackRequest[] = []
   const outcomes: (() => Promise<string>)[] = []
+  const reported: unknown[] = []
   let closes = 0
   const submit = recordingSubmit(calls, outcomes)
   const props: FeedbackDialogProps = {
     sessionId: 's',
     port: { submit },
+    reportError: (_source, error) => {
+      reported.push(error)
+    },
     onClose: () => {
       closes += 1
     },
     ...overrides,
   }
-  return { calls, outcomes, closes: () => closes, props, ...render(<FeedbackDialog {...props} />) }
+  return {
+    calls,
+    outcomes,
+    reported,
+    closes: () => closes,
+    props,
+    ...render(<FeedbackDialog {...props} />),
+  }
 }
 
 function classificationSelect() {
@@ -184,7 +195,7 @@ describe('FeedbackDialog: the captured disclosure only', () => {
   )
 
   it('shows the generic failure for a refusal carrying no reason', async () => {
-    setup({
+    const { reported } = setup({
       port: {
         submit: recordingSubmit(
           [],
@@ -201,6 +212,7 @@ describe('FeedbackDialog: the captured disclosure only', () => {
     fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
     await send()
     await screen.findByText(UI_TEXT.feedbackFailed)
+    expect(reported).toEqual(['gone'])
     expect(screen.getByRole('status').textContent).toBe(UI_TEXT.feedbackFailed)
   })
 

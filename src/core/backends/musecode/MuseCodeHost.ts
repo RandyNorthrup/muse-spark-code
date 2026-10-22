@@ -3485,10 +3485,12 @@ export class MuseCodeHost implements AgentHost {
     const models = modelListResultSchema.parse(result).models.map((model) => {
       try {
         return toModelSummary(model, this.features.modelEfforts)
-      } catch {
+      } catch (error: unknown) {
         // A malformed row reads as before instead of failing the whole
         // catalogue (C-M106-3R3): the row's identity is logged, its
-        // content stays out of the log.
+        // content stays out of the log. Anything else is a reader bug
+        // and fails the listing instead of hiding behind tierless rows.
+        if (!(error instanceof z.core.$ZodError)) throw error
         this.log.warn(
           `model/list row for ${model.modelId} has malformed effort extras; reading it without tiers`,
         )

@@ -9550,6 +9550,11 @@ export class ConversationController {
       })
       this.post({ type: 'feedbackOutcome', requestId: message.requestId, outcome })
     } catch (error: unknown) {
+      // The dialog carries the reason; the log keeps only its kind (never a
+      // note), like any other refused webview promise.
+      this.deps.log.warn(
+        `Feedback submit refused (${errorKind(error)}); the dialog carries the reason`,
+      )
       this.post({
         type: 'feedbackOutcome',
         requestId: message.requestId,
