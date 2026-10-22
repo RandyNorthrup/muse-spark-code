@@ -52,7 +52,7 @@ export interface ResourceHistoryReader extends ResourceHistoryPort {
 interface JournalOptions {
   readonly historyDays?: (() => number | null) | undefined
   readonly onDropped?: () => void
-  readonly onRetentionError?: (() => void) | undefined
+  readonly onRetentionError?: ((error: unknown) => void) | undefined
 }
 
 function journal(dataFolder: string, isEnabled: () => boolean, options: JournalOptions = {}) {
@@ -90,7 +90,7 @@ function port(store: ResourceJournal, dataFolder: string): ResourceHistoryReader
 export function resourceHistoryReader(
   dataFolder: string,
   historyDays?: () => number | null,
-  onRetentionError?: () => void,
+  onRetentionError?: (error: unknown) => void,
 ): ResourceHistoryReader {
   return port(
     journal(dataFolder, () => false, { historyDays, onRetentionError }),
