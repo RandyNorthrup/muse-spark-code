@@ -135,6 +135,8 @@ const isWatch = args.has('--watch')
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+const DEVICES_ENTRY = 'src/host/devices/deviceEntry.ts'
+const DEVICES_OUTFILE = 'dist/devices.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 // SCHEDULESURFACES: the conversation's schedule surfaces (delivery target
 // readout, scheduled-question settlement, schedules panel commands), loaded
@@ -559,6 +561,14 @@ const subscriptionsOptions = {
   outfile: SUBSCRIPTIONS_OUTFILE,
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const devicesOptions = {
+  ...modelApiOptions,
+  entryPoints: [DEVICES_ENTRY],
+  outfile: DEVICES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
@@ -1688,6 +1698,7 @@ if (isWatch) {
     esbuild.context(conversationOptions),
     esbuild.context(conversationTransferOptions),
     esbuild.context(scheduleSurfacesOptions),
+    esbuild.context(devicesOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -1857,6 +1868,7 @@ if (isWatch) {
     extension: recorded('extension', hostOptions),
     conversation: recorded('conversation', conversationOptions),
     scheduleSurfaces: recorded('scheduleSurfaces', scheduleSurfacesOptions),
+    devices: recorded('devices', devicesOptions),
     tab: recorded('tab', tabOptions),
     prompts: recorded('prompts', promptsOptions),
     sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
@@ -2096,6 +2108,7 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(CONVERSATION_TRANSFER_OUTFILE)
+  reportSize(DEVICES_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)

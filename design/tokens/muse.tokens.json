@@ -483,7 +483,8 @@
           "usage": "ui"
         },
         { "foreground": "colour.brand-mark", "background": "colour.surface", "usage": "ui" },
-        { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" }
+        { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" },
+        { "foreground": "colour.qr-module", "background": "colour.qr-field", "usage": "ui" }
       ],
       "decorativeColours": [
         "colour.shadow",
@@ -1287,6 +1288,34 @@
         }
       },
       "$description": "Semantic host theme role: pressed."
+    },
+    "qr-field": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [1.0, 1.0, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-qr-field"
+        }
+      },
+      "$description": "QR invitation figure: fixed light field in every theme, high contrast included; scanners need the fixed module-on-field contrast."
+    },
+    "qr-module": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0, 0.0, 0.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-qr-module"
+        }
+      },
+      "$description": "QR invitation figure: fixed dark modules in every theme, high contrast included."
     },
     "diff-added": {
       "$type": "color",

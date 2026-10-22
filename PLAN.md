@@ -1767,6 +1767,21 @@ vaultBoundaries scrubber. No existing cap or parser guard changes.
 
 **`dist/paid.js` budget rationale.** (CIFIX161B: the paid gate, consent, usage and quote authority, loaded on the first paid consent, gate or usage read; measured 62.7 KiB plus 15%, rounded up to 25 KiB)
 
+**M100I measured additions (2026-10-06).** The exact browser entry is
+`src/webview/models/sections/agents/DevicesApp.tsx`, whose static closure carries
+`DevicesView`; hash names are never the identity. Its additional 27.630 KiB
+gets `25 × ceil(27.630 × 1.15 / 25) = 50 KiB`. The original deferred aggregate
+remains 49.697/50 KiB and startup remains 799.1/900 KiB. The lazy editor-neutral
+`dist/devices.js` measures 75.1 KiB; the same rule grants a new 100 KiB cap,
+within M100’s planning target. Existing activation, Model API, ACP and all
+other caps remain unchanged. Both new caps, closure ownership and absent/foreign
+reader cases are guarded and receive red/restored integration receipts.
+**2026-10-08 (P-I-WINDOWS-STORAGE, lead-approved D6 re-measure):** with the
+Windows storage binding (its C# shipped as `native/windows/MuseSparkDeviceStorage.cs`,
+outside the bundle) and the RVM100WS request deadline and lifetime fixes,
+`dist/devices.js` measures 100.4 KiB (102,770 bytes), so
+`25 × ceil(100.4 × 1.15 / 25) = 125 KiB`. No other cap moves.
+
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
@@ -7792,6 +7807,20 @@ and the two hook points.
   fields. Each VS Code release's notes are checked for it, and §3 holds it as
   a watch item (Q-M94d).
 
+### D212 — Physical device safety (M100 integration, owner brief 2026-10-06; numbered D83 until 2026-10-17, when that number was found shared with M103 makers, then D140 until the RLM100 join, when that number was found shared with Linux dictation)
+
+The M100I brief supplies this policy; none of the four input branches contains
+a paired-device safety decision or a printer/CNC/MCU executor. Simulators are the
+qualification rule: the owner’s physical devices are too old for these drills.
+Every physical action needs a fresh receiver-local approval of the exact payload;
+no unattended action, ordinary approval, pairing grant or Bypass substitutes.
+Stop always reaches the local cancellation port, including a fail-safe channel
+reset and unavailable journal, without waiting for approval or persistence.
+Cancellation does not prove retirement or release occupancy or retained liability.
+Physical support stays unavailable until an actual executor, exact-payload
+approval UI and printer/CNC/MCU simulators are supplied and their receipts pass.
+Software cancellation-port tests alone do not qualify physical support.
+
 ### D80 — Link devices on the LAN, with each device owning its work (M100, 2026-10-04)
 
 The owner, 2026-10-04: "we should plan out multi device orchistration ie we
@@ -7905,7 +7934,13 @@ the first delivery:
    it admits no new work; a receiver pauses at the next controlled boundary.
    An already admitted tool or request may finish and incur cost. On reconnect,
    reconcile durable records first, then ask **Resume queue**; paid work asks
-   locally again. Only the receiver's locally observed retirement can settle
+   locally again. The authenticated envelope names the current receiver;
+   reconciliation, terminal tombstones and settlement acknowledgements bind
+   the saved pair and original attempt tuple, including its historical receiver
+   incarnation. A restart may report a durably proved old outcome without
+   rewriting that owner or relaunching/adopting its work. Unknown or unresolved
+   old records remain blocked with their occupancy and liabilities; absence
+   never proves retirement. Only the receiver's locally observed retirement can settle
    its attempt, including all tool processes; an unproved descendant cannot
    be retired by its direct parent's exit. A timer, RPC failure, missing endpoint, PID/start-time check
    or user assertion never releases it. An unresolved launch stays blocked
@@ -13703,7 +13738,9 @@ test that fails without the rule:
    G51 transport resets and refusals lower a device's slot cap
    automatically (test `transportHealthLowersCap`). G37 every safety check
    before a delete fails closed, and per-run caches live in the run's own
-   workspace, removed at teardown.
+   workspace, removed at teardown. G131 result reduction has a bounded memory
+   budget and preserves every test, error and coverage counter, proved against
+   the tool's direct merge.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
    sandboxes. Also the M100 rules above for G49 to G52 on its SSH route
    (tests `keyInstallKeepsEntriesSeparate`, `handshakeRefusalIsThrottled`,
@@ -13720,7 +13757,10 @@ test that fails without the rule:
    release; G31 UI condition targets distinguish controls that share a style
    class, with the harness's two-pill regression as the concrete example;
    G36 an incomplete lane continued in place from its commits, never
-   restarted, and never marked done on exit code alone.
+   restarted, and never marked done on exit code alone. G130 verification
+   derives the actual configured execution partition and checks complete,
+   disjoint membership before accepting shard-labelled results; G131 a report
+   transport limitation never removes result data or disables the final gate.
 8. **M117 (estimator):** G4 base age as a schedule risk; G34 the measured
    per-engine profile (with a failed smoke probe removing that engine from
    the machine) feeding placement.
@@ -17586,7 +17626,7 @@ caller cancels after GitHub rotated the pair. Full record:
   pause the own-note write over an in-memory note port and native files,
   dispatch a real Git mutation, and retain successor/expiry/fence refusals.
   Simultaneous renewals recheck pending state after the ownership await
-  (G83); exactly one can enter its rewrite.
+  (G132; numbered G83 until the RLM100 join, when that number was found shared); exactly one can enter its rewrite.
 
 Lane G landed 2026-10-09 without the planned `src/core/git/process.ts` move: the host-API gate passes on the `src/host/git.ts` import (no `vscode` in its closure), so the lane kept the import and added `isUserEnvironment` to `GitProcessOptions` for the push and the fetch instead. No escape hatches; the record is `docs/certification/m123.md`.
 
@@ -24930,7 +24970,76 @@ discovery or remote execution is on main.
 
 **Status 2026-10-09: built.** Phase 2 accepted, not yet merged.
 
-**Status 2026-10-05: documentation only on `feature/m100-multi-device`.**
+**Status 2026-10-17: merged and connected (lane MSM100).** main-now
+`3d30a7321` merged in; the Devices tab, window, lazy `devices.js` entry,
+ACP bundle membership, Help inventory (`docs/devices-reference.md`) and
+README section are on the joined tree with gates green. Pairing, offers,
+remote execution and per-action approvals refuse explicitly until lane K's
+owner binding (M95 review question, M108 account surface, lead's
+installed four-device qualification, D212 physical executors and
+simulators). D212 renumbered from D140 (Linux dictation owns D140; M103 makers owns D83).
+
+**PORTM100 release-base port (2026-10-11, before follow-up repairs).** Merge
+0.17.1 `35d7b6f54280e6b6235ae4b90e079b865c3e4ff4` into accepted phase 2
+`1630f022d`, retaining both behaviours and every existing cap. Preserve the
+provider/account receiver, current stores, text and generated references beside
+M100’s lazy Devices service. Keep the unbound owner/execution ports and
+qualification restrictions; this port authorizes no listening or model call.
+Use scoped rig gates and default-timeout owning suites, at most three files per
+run. Aggregate quality and four-machine qualification remain with the lead,
+as the lane brief and shared rules require. Record semantic resolutions,
+regressions, bytes and the ordered switch-on prerequisites in
+`docs/certification/m100-port.md`.
+The merged browser build must keep the canonical `DEVICE_LIMITS` declaration in a
+reader-only lazy module (generated from the constants.ts fields used by the
+browser graph, refusing nonliteral reads), and move provider-only
+English into the existing lazy account English region. This preserves complete
+translation validation, first-use failure recovery and all existing byte caps.
+
+**M100I integration scope (2026-10-06).** Merge P f5da700eb, T fb19b5082,
+E ce479362f and U e0da1ba09 in that order with additive two-parent merges.
+Bind the shared local method port, pairing envelopes/public imports, a host-owned
+monotonic snapshot counter and T’s authenticated receive/disconnect callbacks to
+E’s journal/receiver. Package a lazy editor-neutral factory with mandatory local
+policy, execution, storage and observation ports; absence remains an explicit
+error. Register its actual model-text readers, browser closure, build/split/size,
+knip/cycle and packaging entries; regenerate the host inventory. Normalize
+Windows separators in the browser entry comparison. Repair the
+native keyboard check's macOS-only Select All shortcut to use the current
+platform's modifier; retain all interaction assertions and deadlines. Repair the
+keyboard focus assertion with an effect-aware wait. Add regression/red-restored
+receipts and scoped default-timeout gates in `docs/certification/m100.md`.
+The inherited stalled-handshake test waits a real 10 s against Vitest's 5 s
+default; retain real TCP with one named per-test timeout and its explicit
+reason, as the rig brief permits for a genuinely long operation. Fake JavaScript
+timers cannot drive Node's internal TLS timer; no global timeout is changed.
+M95/M96, S/G, QR/mDNS bindings, native Windows protection and the D212 physical
+executors/simulators are absent from the supplied branches. Do not invent these
+prerequisites or register a listening product command before qualification.
+Document those exact limits in README, privacy/security and the help catalog.
+
+**Historical integration 2026-10-06: P/T/E/U joined on `m100/int`, unshipped.** The shared
+method service binds pairing, pinned TLS, receiver/journal and correlated UI
+snapshots. The real lazy entries and measured budgets are registered; the focus
+regression waits for its effect. Software simulator receipts and joined gates
+are recorded in `docs/certification/m100.md`. M95/M96, S/G, QR/mDNS runtime,
+native Windows storage and concrete physical action controls remain unavailable
+on the supplied inputs; no installed command/listener or physical support is
+claimed. Installed-editor and four-device qualification and aggregate quality
+remain the lead's shipment gates. M100 is not complete.
+
+**FIXM100I review repair (2026-10-06).** Close RVM100I's P2 snapshot queue
+and P3 reset-Stop fixture race. Coalesce background observations per service's
+Devices panel to one running capture and one latest-state pending capture.
+Data-frame handling awaits that shared drain so the existing channel capacity
+counts snapshot backpressure; authenticated Stop and reset controls never wait
+for an observation. Prove bounded frame-flood work and the final snapshot, then
+await the reset test's complete cancellation/journal promise before fixture
+removal. Each repair gets a named regression and byte-exact red/restored drill
+in `docs/certification/m100.md`. Retain default test timeouts, all existing
+guards, dependency pins and the unshipped/physical-qualification limits.
+
+**Original status 2026-10-05: documentation only on `feature/m100-multi-device`.**
 Independent RVM100 review passed with no P1; its one P2 connectivity promise
 is corrected in D80, acceptance B/K and `m100-research.md`. **Devices and mDNS
 off by default** is a deliberate security exception to the owner's
@@ -24939,6 +25048,107 @@ context need an explicit local choice.
 Implementation starts after the dependency contracts and lane 0's security
 review are accepted. No pairing, listener, discovery or remote execution is
 implemented or certified by this record.
+
+**FIXM100U review repair (2026-10-06).** Repair all five RVM100U P2s and its
+P3 in the shared Devices UI: require a host-owned monotonic snapshot revision
+across observations and action replies; bound every UI wait and recover with
+localized error/Retry while preserving host-owned occupancy/liability; group
+both fingerprint readouts with an accessible heading description; validate
+observation dates and contain render failures; keep equal decision buttons
+in one row at 320 px; distinguish unpaired from revoked. Each repair has a
+regression and byte-exact red/restored drill in `docs/certification/m100-u.md`.
+I retains bundle registration; P/I must issue revisions monotonically for
+the lifetime of the Devices document, including enabled/off snapshots.
+
+**FIXM100U2 second review repair (2026-10-06).** Close both RVM100U2
+P2s through the shared Devices request helper: carry the live view instance
+id, request id and initiating snapshot revision on every local request;
+correlate replies to that view and request, and return a typed stale result
+without action data when freshness fails. Pairing consumes only successful,
+fresh replies without a host failure. The parent explicitly acknowledges
+snapshot acceptance before the helper publishes or returns action data,
+closing newer-parent-observation/child-commit batching. Abort and invalidate every pending
+request and its deadline on shared-view unmount, including injected ports
+that ignore cancellation; the dedicated parent accepts replies only for a
+registered live view instance. Regressions exercise stale Pair/import data
+and a pending embedded request with a surviving parent. Record each red
+mutation and byte-exact restoration in `docs/certification/m100-u.md`.
+Physical execution/Stop (D212) is unchanged; this lane supplies no physical
+adapter. No dependency, guard waiver or integration-owned registration.
+
+**FIXM100L0 review repair (2026-10-06).** RVM100L0 identified three P2s:
+historical durable attempts must reconcile through a new authenticated
+channel incarnation without changing the attempt owner; the TLS probe must
+capture a post-handshake ticket and prove a resumption-enabled positive
+control before testing refusal; the pre-listener threat review must define
+another local user versus a same-user process. Lane 0 repairs these contracts,
+owning tests and `docs/certification/m100-0.md`, with a regression and a
+byte-exact red/restored drill per finding. No production listener/store,
+dependency or guard waiver is introduced; P/T/E own runtime isolation and
+journal proofs. PLAN §9 records the trusted-account residual.
+
+**FIXM100P review repair (2026-10-06).** Repair both RVM100P P2 findings
+and its P3 fixture setup failure within P's owned files. Grants share the
+UI mutation queue; a later Pause blocks them immediately, and they recheck
+pause/block/revocation and grant revisions after the secret read before
+persisting. Expected revoked, unpaired and grant policy refusals retain their
+named reason and leave unrelated pairs usable; genuine storage failures
+still latch fail-closed. Both filesystem suites own and clean their temporary
+parents under the OS temporary directory. Each repair gets a regression and
+byte-exact red/restored receipt in `docs/certification/m100-p.md`. No new
+dependency, listener, installed-host claim or paid/live call. The rig brief
+forbids merges and aggregate quality; the lead retains those joined-tree gates.
+
+**FIXM100T review repair (2026-10-06).** Repair every RVM100T finding in
+T's transport/framing modules and owning tests: settle listener startup on
+listening/error/close/unlink with its own deadline and a named revoked error;
+bind cleanup to the listener generation; check absolute setup deadlines at
+DNS, TLS, initial-offer and readiness transitions against monotonic and wall
+clocks, refusing backwards wall jumps; assemble frames once from bounded
+chunks. The required fragment cap belongs to the existing `DEVICE_LIMITS`
+region. Each repair gets a failing regression and a byte-exact red/restored
+receipt in `docs/certification/m100-t.md`. Loopback only; no new dependency,
+paid/live calls, merge or push. Full quality and the existing I-owned
+host-API/split registration remain joined-tree gates, without any waiver.
+
+**FIXM100E review repair (2026-10-06).** Repair both RVM100E P2 findings:
+bind complete immutable attempt identities to the receiver's in-memory live
+leases, so cancellation reaches the local owner before any journal operation.
+Storage failure still blocks new attempts and reports unavailable cancellation
+evidence without releasing occupancy. Give authenticated cancel controls a
+bounded priority channel path independent of dispatch, local approval and
+start confirmation; cancelled pending dispatches cannot launch later. E owns
+the necessary `deviceChannel.ts` control-path change and its regressions for
+this repair. Each finding gets a regression and byte-exact red/restored drill
+in `docs/certification/m100-e.md`. No new dependency or physical-action
+adapter is introduced; D212's concrete physical-action UI remains unqualified.
+
+**FIXM100E3 fail-safe repair (2026-10-06).** Repair RVM100E3's remaining
+P2 without widening capacity or validation: decode each frame independently,
+refuse each excess data frame with its own capacity response, and continue
+to validated Stop controls anywhere in the chunk. Corrupt/unparseable framing
+resets the channel; its disconnect callback names the authenticated channel
+and invokes the receiver's independent Stop path for every live/pending attempt
+on that pair before reporting. Retain occupancy and liabilities until durable
+retirement. Owning regressions cover data-before-Stop overflow, corrupt framing
+before Stop and Stop after a reset, with byte-exact red/restored drills. No new
+dependency, shipped adapter or physical-device qualification is introduced.
+
+**FIXM100E2 round-two repair (2026-10-06).** Fix all four RVM100E2 P2s
+by construction: decode the validated control header before data capacity and
+route cancel frames immediately through a separate fixed control capacity;
+retain full-identity cancellation tombstones synchronously before effects,
+including controls that overtake queued dispatch, and persist them when the
+journal is available. Cancellation retention is named and survives identical
+retries. One synchronous receiver state owner issues tagged effects for
+admission, cancellation, retirement and confirmations; completed retirement
+invalidates late confirmation generations. E owns the necessary framing,
+channel, journal and constants changes. Owning regressions include 31 filled
+data slots and Stop-first overflow, queued dispatch overtaking, identical
+retry, delayed cancellation confirmation and a small completion-order
+permutation test. Every finding gets byte-exact red/restored evidence in
+`docs/certification/m100-e.md`; no review residual, dependency, guard waiver,
+paid/live call or physical-device qualification is introduced.
 
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
@@ -25030,6 +25240,445 @@ implemented or certified by this record.
   SECURITY covers peer compromise and revocation limits; CHANGELOG names the
   delivered slice. None describes future behavior as supported. Single-device
   requests, gates, secrets and Meta's unofficial product name stay unchanged.
+
+#### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
+
+**M100P2HM9 lifecycle review repair (2026-10-08, before implementation).**
+Keep HM8's recorded lifecycle. Reclaim signals every bootstrapped helper with an
+idempotent stop file, records the successful write, then bootouts, proves empty
+membership and removes only the owned directory. Signal even unobserved
+bootstraps conservatively: a published but unreadable readiness file may hide a
+live helper. Every sweep visits all pending attempts and returns all retained
+errors, including definitive failures; query surfaces them as typed uncertainty.
+D80 item 7 and M96's uncertain-attempt rule keep their directories/slots counted
+until local retirement proof; definitive program failure is never free capacity.
+Prove context/schema/read-timeout with failed bootout and native assertion release,
+plus definitive/retryable oldest failures with two reclaimable newer attempts.
+Run each regression on `ed3c06cbb`, drill stop removal and early sweep return,
+then fresh-clone owning suites three times and all requested scoped gates within
+60 minutes. W-owned product changelog, host inventory and aggregate quality
+remain integration obligations under §7; no shared contract or gate changes.
+
+**M100P2HM8 lifecycle redesign (2026-10-08, before implementation).**
+Replace readiness-file/pending booleans with one driver-owned attempt record:
+allocated → bootstrapping → running → retiring → reclaimed, with pendingReclaim
+retaining the furthest progress and observed membership. Every probe and ordinary
+attempt uses the same transitions. Never-bootstrap attempts remove directly;
+pre-ready attempts boot out and prove any observed PID/coalition empty; running
+attempts retain whole-membership proof. Unavailable observations retain explicit
+pending evidence for the sweep; query visits running records only. Centralize
+launchctl print 113 / bootout 3 as absence. Cover allocation, bootstrap deliveries,
+pre-ready print/write, retirement, bootout and removal in a delivery matrix,
+prove regressions on `78e72664f`, preserve 200/128 stress cases, drill all three
+guards, then fresh-clone H three times, receiver, five compilers/static/build
+at unchanged repository deadlines. Hooks remain installed; product changelog,
+inventory and aggregate quality remain W's integration obligations (§7).
+
+**M100P2HM7 probe reclamation (2026-10-08, before implementation).**
+Always boot out the preparation probe, treating launchd's absent-job status as
+idempotent success, and reclaim only after observed empty coalition membership.
+Retain failed observations as pending reclamation with exact factory-owned
+root/attempt identities. Sweep at preparation entry and before capacity refusal;
+never remove unowned, renamed or substituted directories. Prove 200 consecutive
+retryable observation failures, a full 128-pending-probe recovery, and empty
+attempt stores in every observing cell of the 288-cell table. Run both regressions
+on `bf57f638b`, reclaim/sweep red drills, and fresh-clone H/receiver/static/build
+gates at default deadlines within the 45-minute brief. W-owned product docs and
+inventories remain integration requests; no cap or gate is weakened.
+
+**M100P2HM6 round-3 redesign (2026-10-08, before implementation).** Replace
+both Darwin process wrappers with one bounded, injected-spawn primitive. It
+classifies synchronous throws, error events, exits, deadlines and output bounds
+before any caller sees them; one errno table makes EAGAIN/ENOMEM/EMFILE/ENFILE
+retryable capacity and missing/inaccessible executables definitive helper errors.
+Preparation is explicit unknown/preparing/ready/notGui/broken state, shares an
+in-flight preparation, and retains only definitive outcomes. Capacity, timeout
+and lost observations return to unknown. Keep all native macOS cases; add the
+failure-mode-by-spawn-site table, baseline proofs on `c94ddce3c`, bypass/cache
+red drills, and fresh-clone three-run static/build qualification. Shared W-owned
+docs/inventories remain lead requests; no deadline, cap or assertion changes.
+
+**M100P2HM5 review closure (2026-10-08, before implementation).** Share the
+Darwin runner's spawn-error mapping with the bounded Aqua probe: `EAGAIN`
+and `ENOMEM` reject as transient `capacity`, so preparation retries instead
+of caching an unsupported GUI session. Inject process pressure before the
+first launch, then prove the same factory reaches real launchctl and succeeds.
+Audit the driver's remaining spawn sites, prove the regression on `407025f16`
+and a deliberate guard break, and qualify the committed source in a fresh clone
+under the existing H scoped gate. Shared W-owned product docs and inventories
+remain integration requests; no deadline, assertion or cap changes.
+The audit also covers the primitive native self-test's own `posix_spawn`:
+return a validated optional capacity failure instead of caching pressure as a
+failed capability probe, and prove retry with a subprocess-only UID limit.
+
+**M100P2HM4 review closure (2026-10-08, before implementation).** Settle an
+observed whole-membership capacity exit as a typed local retirement with usage
+and existing localized recovery prose. The receiver durably records `retired`
+with optional `failure: capacity`, then releases once; unknown exits remain
+uncertain. Preserve that failure in compact terminal records. This narrow
+review-required result amendment preserves all existing journal states and
+failure vocabulary; lane 0/W must reconcile the additive result field during
+integration. Bound the Aqua-domain probe to its session line (the rig shell's
+manager is Background), and clear only rejected preparation promises so a
+transient capacity failure retries. Prove baseline failures and guard drills;
+verify H and receiver/recovery in a fresh committed clone at default deadlines.
+
+**FIXM100P2U2 review round 2 completed (2026-10-08, linuxlt).**
+Repair RVM100P2UB's P2 missing Devices readiness and P3 premature owners
+readiness. The brief explicitly includes the host handshake: add a strict
+`devicesReady` document message beside the existing action schema, subscribe
+before posting it, and gate/replay cached host observations in the existing
+editor-neutral DevicePanel/service path. No listener or pairing authorization
+comes from readiness. Remove the harness handshake bypass and pre-revoke
+refusal. Add mount/host/fixture regressions, prove P2 failures on `efebef284`,
+and drill both findings with exact hash restoration. Then commit with hooks,
+verify a fresh `npm ci` clone under `CI=true`: owning tests three times,
+five typechecks, changed-file lint/format, plain knip, duplication, l10n,
+reference, host API, production budgets, six-scene Chrome/a11y and keyboard.
+The keyboard recorder must assert the strict handshake separately from actions
+and make its existing no-grant-request receipt an assertion: readiness is not
+a permission action. Drill an injected grant request before refreshing receipts.
+Both findings and the keyboard recorder are fixed; nine red drills restore
+exact hashes. Fresh clone of `aecac0c81` with `CI=true npm ci`: 208 owning tests
+pass three times at default deadlines; five typechecks and every scoped static
+and production-build gate exit 0. All six scenes prove ready in Chrome at
+320 px, 48 English/pseudo accessibility pages have no violations or missing
+results, and four-theme keyboard/missing-asset checks pass. Existing caps
+hold. Lane U has no blocker; lane W retains aggregate qualification and
+installed-host wiring. No push, merge, live model call or real pairing.
+Full receipts: lane U in `docs/certification/m100-phase2.md`.
+
+**FIXM100P2U review repair (2026-10-07, linuxlt).** Repair all eight
+RVM100P2U findings within lane U and the brief's approved build inventory
+regions. Plan: add regressions and run them on `025b3accc`; register a
+measured lazy QR budget without changing existing caps; correct correlated
+harness facts and peer-bound actions; show throttling consistently, render
+refusal-only replies and all six grant quotas; make QR responsive and its
+optional loader honest/retryable. Prove red drills with byte-exact restoration,
+then verify committed work in a fresh `npm ci` clone (`CI=true`) with three
+owning runs at repository deadlines, five typechecks, changed-file lint/format,
+knip, duplication, localization/reference/host API, production budgets,
+six-scene browser/a11y proof and Devices keyboard checks. No merge, push,
+dependency install, paid call or real pairing. Aggregate quality and installed
+host qualification remain lane W's joined-tree obligation. Receipts and
+remaining wiring requests belong in lane U's certification section.
+
+Fresh-clone keyboard execution also owns correction of its inherited stale
+missing-Devices-asset expectation: assert the current shared panel failure
+heading and localized Retry control without dropping the no-pair/no-request
+assertions. The four-theme keyboard flow and missing-asset recovery must both
+pass on the committed script.
+
+**FIXM100P2U completed:** all eight review findings fixed and drilled.
+Fresh committed-code clone at `3415a2859`: 156 owning tests pass three times,
+81 boundary/harness tests pass, all scoped static/build gates exit 0, English
+and pseudo a11y cover 48 ready pages with zero findings, and four-theme
+320 px keyboard/missing-asset checks pass. Thirty screenshots reviewed;
+177-module QR measures 296 px square inside its narrow container. Existing
+caps, assertion levels and case deadlines unchanged. No lane blocker;
+W retains real-host facts, approved encoder install and aggregate qualification.
+Full receipts: lane U in `docs/certification/m100-phase2.md`.
+
+**Lead integration: final phase 2 join (2026-10-08, kubuntu).** Branch
+`m100/p2-int-lead2` from `2a0636760` merges the seven accepted tips with
+`git merge --no-ff` in order: lane V `90e65e308`, lane H caps `b0fe91da3`,
+Linux `21147c4cf`, macOS `8aa69e1cb`, lane U `a0a5466ce`, Windows storage
+`8218ab946`, e3race `fab90e81c`. Shared-file reconciliations keep both
+sides: `deviceWorkerHost.ts` carries both the Linux and macOS driver
+selectors (W picks one at wiring), `deviceIntegration.test.ts` carries both
+protected storage and the readiness flag, host-api counts are regenerated.
+CHANGELOG Unreleased lines added for V, H and storage as unshipped Devices
+work; e3race is test-only. Full receipts, merges table, test counts and gate
+exits: `docs/certification/m100-phase2.md` ("Lead integration: final phase
+2 join"). Remaining for W: production wiring, one selector, aggregate
+`npm run quality`, installed four-device qualification. Remaining for K:
+owner binding and vault path (not in this join).
+
+**Join W + JFIX (2026-10-08, Windows host).** `m100/p2-joined` merges
+`m100/p2-join-fix` `d1a776f40` into lane W's final `aa31aabcf` with
+`--no-ff`; both sides' fixes kept whole (two additive conflicts, plus the
+CHANGELOG line JFIX asked W to carry); receipts in
+`docs/certification/m100-phase2.md` ("Join (W + JFIX)"). Committed as
+`8303ff76f`; all 46 device files pass on Kubuntu and natively on the
+Windows host, the harness also on the Win11 VM; full-repo ESLint, five
+typechecks and the static checks exit 0 on Kubuntu. One unplanned
+whole-suite run found three `test:unit` failures the device sweeps never
+run: `execStdio` (storage-lane fixture, fixed in `5b370cf8d`),
+`browserUiText` (W's `DEVICES_STORAGE_DIR = 'devices'` literal makes the
+whole `devices` English table eager) and the FIXDIET1 startup baseline
+(over by 130 bytes on the base, 3,087 after W). Lead decisions, same
+branch: the storage folder is `device-storage` (gotcha: a shared constant
+equal to a text group's name loads that group eagerly), W's Devices mount
+moved into the lazy Devices chunk (startup 751,511 bytes, under the base;
+the baseline itself is re-pinned by the 0.17 lane), the real-Chrome
+harnesses share one production build from a vitest global setup, and the
+Linux self-test answers false instead of rejecting. Remaining: lane K after 0.17 lands on main, then the four-machine
+installed-host qualification and hosted macOS CI for the Darwin-native
+cases.
+
+**M100P2BASE integration scope (2026-10-07, macmini).** Merge only
+`23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
+branches and 0.15.0. Rebuild generated inventories. Verify committed work
+from a fresh `npm ci` clone with `CI=true`: five compiler projects, lint,
+format, plain knip, duplication, cycles, reference, localization, host API,
+production budgets and all four CI unit/process-e2e shard memberships with
+coverage at repository deadlines. The brief authorizes the full suite beyond
+common.md's scoped limit; execute at most three files/workers at a time and
+merge partial coverage before enforcing the unchanged global thresholds.
+The joined panel schemas must preserve independent lazy closures; split the
+Devices boundary into its own shared module if the union pulls M95/team
+validators into Devices and exceeds its unchanged cap. Record conflict
+decisions, structural repairs and counts in
+`docs/certification/m100-phase2.md`. No other merge, push or model call;
+aggregate quality/installed-host qualification remains lane W's obligation.
+
+The fresh-clone sweep also owns joined test-fixture repairs: include Devices
+in every isolated ACP/VSIX package inventory, and keep the real-TLS frame-flood
+test focused on transport/snapshot admission using an in-memory journal
+advance after its real pairing and launch. Separate integration/journal cases
+continue to prove durable writes, corrupt-storage Stop and retained liability.
+The flood still sends twice the data-frame cap and the same control traffic,
+with all capacity, Stop, coalescing and latest-state assertions intact.
+Keep the existing 733.8 KiB chat-startup review baseline as well as the build
+cap: the Devices chunk-failure shell uses the existing generic panel failure
+and retry text, so reading its fallback does not make the full Devices prose
+an eager browser reader. The browser text collector distinguishes a technical
+DOM `dataset['surface']` comparison from a literal translation-key reader;
+its regression retains indirect key reads and the full installed-language
+contract. The generated English import stays inside an async lazy factory's
+existing catch when its sole statement is that try/catch, so either failed
+chunk reaches its own fallback. Devices reports load failure and reloads on retry.
+Devices English has its own first-use module imported by the Devices body,
+inside that existing Devices closure and its unchanged 50 KiB budget. It is
+excluded from the common surface-English module, whose 25 KiB cap also stays
+unchanged. Canonical table validation still retains every language/key/slot.
+The recorder's exact package-frame vocabulary gains `dist/devices.js`, already
+in the VSIX allowlist; arbitrary paths remain refused. Because that changes a
+covered source file, final coverage is collected by another complete fresh-clone
+sweep after repairs, rather than combining maps from different source revisions.
+
+**Historical planning 2026-10-07: documentation only on `plan/m100-phase2`.** Phase 1 is
+integrated (`m100/int`, accepted). No pairing, listener, discovery or remote
+execution beyond phase 1 is implemented or certified by this record.
+
+- **Goal.** Harden the paired-device pool into something the owner can run
+  every day across his four devices: pairs bound to their owners with
+  least-privilege per-action control, QR and optional mDNS discovery on the
+  same trust contract as manual entry, Windows hosts that survive their
+  platform limits, a channel that paces itself and resumes instead of
+  duplicating, and qualification on installed hosts — with simulators ruling
+  where hardware is missing (the Q-M110 precedent).
+- **Scope.** D80 items deferred from phase 1 and the lead's phase-2 note:
+  owner binding, QR/mDNS discovery, Windows store protection, concrete
+  per-action controls, installed-host plus four-device qualification. The
+  orchestrator-link requirements (`codex/OLP-requirements.md`, from the
+  2026-10-06 fleet run) and the SSH/placement lessons
+  (`codex/ssh-limits-research.md`, `codex/playbook-placement.md`) are
+  requirements inputs, not new scope: one long-lived paced channel, verified
+  inputs, capability advertisement, and the gotcha rules below. Out of scope:
+  short numeric codes, unattended services, approval forwarding to the
+  orchestrator, ACP/headless pairing, NAT traversal/relay and overlays
+  (still Q-M100); machine-wide caps (still M96d/M107 territory).
+- **Depends on.** Phase 1 (paired channel, offers, journal, quarantine
+  results); M96c (board, scheduler, input manifests, merge queue); M107
+  (governor signals, relocation lane R); M109 (vault broker for lane K);
+  D101 when it lands (no lane waits on it; lane 0 reconciles its scope if
+  it touches pairing or transport). No lane starts implementation until
+  lane 0's contracts and threat-model update are accepted.
+- **Lanes and file ownership.** One integration branch; lane 0 settles
+  contracts first, D/C/R/V start after 0, H/A/K follow their dependencies,
+  U against fakes after 0, and W last. Each lane owns its new files plus
+  its named regions; shared-file regions are serialized by the lead.
+
+  | Lane                                           | Owns                                                                                                                                                                                                                                                                                                                                                                                                        | Rig                                                      | Starts                           |
+  | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------- |
+  | 0 Contracts, strings, threat model (lead)      | Phase-2 amendments to `src/shared/devices.ts`; `DEVICE_MODEL_TEXT` additions with declared lazy readers; versioned zod envelopes for channel, capability, grant and result messages; runtime English keys, all 14 `l10n/ui.*.json`, `package.nls*.json`; dependency choice with exact pins, peers, audit and notices (QR render, mDNS); update to `docs/certification/m100-threat-model.md`; contract tests | Linux                                                    | day 0, blocks all                |
+  | D QR and mDNS discovery                        | New `src/host/devices/qrInvite.ts` and `deviceMdns.ts`; pairing-UI invite regions; discovery switch and Blocked-or-unreachable setup regions; owning tests                                                                                                                                                                                                                                                  | macOS + Linux (Bonjour vs Avahi matrix)                  | 0                                |
+  | C Multiplexed channel                          | New `src/core/devices/channel.ts` (portable framing, priorities, backpressure, sequence/ack) and `src/host/devices/deviceChannel.ts` (TLS carriage, pacing, backoff, authenticated ready call); owning tests                                                                                                                                                                                                | Linux                                                    | 0                                |
+  | R Reconnect, leases, result channel            | New `src/core/devices/epochs.ts`; receiver reconcile and journal regions (new files only, phase-1 E stays untouched); result-channel regions; owning tests                                                                                                                                                                                                                                                  | Linux                                                    | 0                                |
+  | V Verified inputs and capability advertisement | New `src/core/devices/inputManifest.ts` and `capability.ts`; offer capability regions (new files only); owning tests                                                                                                                                                                                                                                                                                        | Linux                                                    | 0                                |
+  | H Host execution, Windows-first                | New `src/host/devices/deviceWorkerHost.ts`; native helper launch/query modes; sleep-inhibit and battery regions; owning tests                                                                                                                                                                                                                                                                               | Windows (Win11 VM), plus Linux/macOS for systemd/launchd | 0                                |
+  | A Per-action controls                          | New `src/core/devices/actionGrants.ts`; receiver admission grant-intersection regions; presence-relay protocol regions; owning tests                                                                                                                                                                                                                                                                        | Linux core; macOS + Windows for presence drills          | 0, reads M103 rules              |
+  | K Owner binding and vault path                 | New `src/core/devices/ownerBind.ts`; brokered-use call sites over the M100 channel (with M109 lane R); owning tests                                                                                                                                                                                                                                                                                         | Linux                                                    | M109 B; D101 reconcile if landed |
+  | U Devices UI phase 2                           | New `src/webview/models/sections/devices/qr/`, `grants/` view files; harness scenes; owning UI tests                                                                                                                                                                                                                                                                                                        | Linux                                                    | 0                                |
+  | W Wiring, qualification, docs (last)           | Lazy `dist/devices.js` phase-2 regions, `package.json`, build/split/size/host-globals/notices/packaging gates, knip/dpdm entries; README, PRIVACY, SECURITY, CHANGELOG, host API record, `docs/certification/m100-phase2.md`; installed-host four-device qualification                                                                                                                                      | All four (Windows PC, Kubuntu VM, Mac mini, Win11 VM)    | last                             |
+
+- **Dependency record (lane D, 2026-10-08, AGENTS.md rule 9).** No new
+  dependency ships: the first cut bundled `qrcode-generator@2.0.4` (21,323
+  bytes minified) and `dns-packet@5.6.1` (30,990 bytes with its single
+  `@leichtgewicht/ip-codec` dependency) for 136.7 KiB against the 100 KiB
+  `dist/devices.js` cap, so the lane was reworked to zero new runtime
+  dependencies — identical-text QR payload in the host with pixels in lane
+  U's lazy views, and a hand-rolled minimal DNS-SD codec over `node:dgram`
+  with no Avahi/Bonjour SDK or native build. Verified but NOT installed for
+  lane U's later use: `qrcode-generator@2.0.4` (MIT, zero dependencies, no
+  peers, own types). `npm audit` at install time showed only the 12
+  pre-existing dev-tooling findings; no notices entry follows.
+
+- **W install amendment (2026-10-08, AGENTS.md rule 9).** Lane W installs the
+  approved `qrcode-generator@2.0.4`, pinned exact (`save-exact`), into
+  `dependencies` (its pixels ship in the lazy webview QR closure, measured
+  21.6/25 KiB). Peers: none; dependencies: none; own types; MIT. `npm audit`
+  reports 11 findings, none touching the new package; `npm run
+security:audit` exits 0 under the existing exceptions. The published
+  tarball ships no licence file, so the notices gate carries upstream's
+  LICENSE verbatim from `vendor/qrcode-generator/LICENSE` (its copyright
+  holder is also named in the shipped `dist/qrcode.mjs`); the manifest's MIT
+  declaration is still checked and any other licence-less package still
+  fails. No other new dependency.
+
+- **Acceptance and red drills.** Each row requires a real failing test on an
+  intentional guard break, byte-exact restored source SHA-256, then a passing
+  run recorded in `docs/certification/m100-phase2.md`. These are planned
+  tests, not receipts from this documentation lane. D100 amendments naming
+  M100 are marked. The SSH-limit rules from `codex/ssh-limits-research.md`
+  are the register's G50–G52 (`docs/orchestration/ssh-limits.md`), which
+  carry M100's rule text; lane 0 first proposed them as G29–G31, and the
+  base integration held them as G34–G36 until main's numbering landed.
+
+  - **Lane 0.** Every new envelope has a version, a byte/queue cap and a
+    zod parse before use; unknown fields are shown, never dropped (D36).
+    Every UI string exists in all 14 tables (`npm run check:l10n` clean).
+    The threat-model update covers owner binding, QR/mDNS, Windows store
+    and per-action control, and names the D101 reconcile. Red drill: drop
+    one envelope version check; the contract test fails.
+  - **Lane D.** A QR invite decodes to the identical text invite; both
+    carry public certificate, fingerprint, address, protocol version and
+    bounded validity — never a bearer secret. mDNS is off by default,
+    advertises only opaque service id, port and protocol version, and a
+    spoofed record never replaces the saved peer pin. Manual entry connects
+    with discovery fully blocked (multicast denied plus authorized inbound
+    TCP). Red drills: copy a public invite without its private key and try
+    to pair (must fail); inject a spoofed mDNS record (must not connect);
+    enable discovery without consent in a golden (zero-traffic test fails).
+  - **Lane C (D100: G50, G52).** One long-lived authenticated channel per pair;
+    logical streams prioritize control over status/events over logs over
+    bulk, and bulk never starves control or Stop. At most 3 pending
+    handshakes per host with jittered exponential backoff capped at 10
+    minutes; refusal reads as throttled/unknown, never down. No port
+    probes: health is the authenticated ready call. One failed password
+    stops and asks; retries never loop. Red drills: fire a handshake burst
+    (pacer must queue); probe a port (test fails if any probe is sent);
+    fail one auth (second attempt without user consent fails the test).
+  - **Lane R (D100: G5, G6, G27).** Identity is the pair key, not the
+    address: reconnect resumes the session, resends only unacknowledged
+    messages, and never launches twice. A failed poll reads **unknown
+    since {time}**, never running. Re-dispatch only after lease expiry
+    under a new epoch, from the last acknowledged checkpoint; late results
+    go to quarantine. Results return content-addressed through the result
+    channel, acknowledged once. Red drills: drop the admission reply and
+    resend (launch counter must show one start); advance every timeout (no
+    release, duplication or reassignment); corrupt durable state (dispatch
+    refused, never an empty success).
+  - **Lane V (D100: G1, G2, G12).** Dispatch carries a manifest of
+    content-addressed inputs plus base objects; the worker verifies both
+    before starting and refuses with any item missing or mismatched. The
+    device advertises measured capabilities (OS, tools, signed-in engines,
+    hardware, power, slot cap) and live pressure; transport failure rate
+    and OS-service pressure feed M107 as signals. Red drills: name a plan
+    file not copied to the worker, and a base commit the worker lacks (both
+    must refuse before start); remove the manifest check (test fails).
+  - **Lane H (D100: G14, G15, G51).** Windows workers run in their own
+    scheduled-task or service context, never under the transport session;
+    a desktop-heap failure (`STATUS_DLL_INIT_FAILED`) surfaces a clear
+    diagnostic and never a registry change without consent. Remote commands
+    run with an explicit recorded environment; hook tools are resolved and
+    verified before start. Windows uses per-process policy only, stdin
+    closed explicitly, results on a structured exit-code-plus-JSON
+    channel. Red drills: run under the transport session on Windows (must
+    refuse); strip the hook tool from `PATH` (preflight fails before
+    start); parse stderr text for a result (test fails).
+    **Linux continuation M100P2HL2 (2026-10-08).** Preserve the prior
+    continuation record with the explicitly authorized no-ff merge. Implement
+    a per-attempt transient user service, admitted `TasksMax`, credential-free
+    recorded environment, bounded pipes, closed worker stdin, cgroup-observed
+    retirement and a sleep:idle inhibitor through retirement. Cache an honest
+    per-factory real containment/query/power/inhibitor probe. Add one lazy
+    platform selection factory in the host port; W binds production callers.
+    Test portable failures and native detached descendants, task ceiling,
+    inhibition/release and missing-manager refusal. Drill each guard, commit
+    finished pieces with hooks, then verify committed code in a fresh CI clone.
+    Native implementation and eleven real Linux cases pass at default deadlines.
+    SSH-context inhibition initially needed interactive authorization; launching
+    the inhibitor in its own user-manager service succeeds without policy changes.
+    Keep that fixed two-task control unit separate from the worker's admitted
+    ceiling. Full cgroup retirement, kernel refusal of a third task at cap two,
+    real inhibitor release/overlap, launcher loss and bounded output are covered.
+    The host selector accepts a lazy Linux loader to avoid a host/driver cycle;
+    existing attempt/driver contracts are unchanged. All seventeen final guard
+    drills fail as intended and restore source byte-exact; 68 tests pass with
+    seven Windows cases unrun here. Process observations count distinct
+    cgroup.procs PIDs; TasksMax still limits threads too. The real multithreaded
+    regression catches that distinction. Final committed fresh-clone verification
+    at 4b4fe4dc3 passes 68 tests three times, all five typechecks, full lint,
+    formatting, plain knip, duplication, reference, localization, default cycles
+    and the production build with unchanged caps. Host API exits 1 for the
+    stale W-owned Node inventory; W must regenerate it. A targeted host-port
+    graph also exposes the unchanged M96 refFence/workerFence/workerEnv cycle,
+    which its owner must repair before W binds the selector. Full joined
+    quality, coverage, production/doc binding and installed hosts remain W's
+    responsibility; this lane does not claim shipped Linux support.
+    **Linux review M100P2HL3 (2026-10-08), qualified.** Fix both
+    RVM100P2HL P2 findings without changing the shared receiver contracts:
+    attempt-owned launch slots release exactly once on every failed path;
+    worker units bind to their pipe-owned inhibitor with BindsTo/After.
+    Encode the receiver incarnation and journaled attempt identity alongside
+    the host PID/start identity in unit names. On first manager access, stop
+    dead-host units before retaining receiver occupancy; the existing receiver
+    restart journal records uncertainty, never inferred success. Prove repeated
+    readiness refusal, SIGKILL containment and fresh-host orphan cleanup at
+    repository deadlines; run base regressions and byte-exact red drills.
+    Commit finished fixes, then qualify a fresh CI clone with owning tests
+    three times, receiver/recovery, five typechecks and unchanged gates/caps.
+    Both fixes pass: readiness churn reaches launch 201; two native SIGKILL
+    cases prove bound-worker Stop and fresh-host orphan cleanup. Seven base
+    regressions and seven intentional guard drills fail as expected; receiver
+    recovery records the original attempts as uncertain without releasing
+    occupancy or liability. Local owning tests pass 78 cases (13 native Linux),
+    with seven Windows cases unrun; receiver/recovery passes 86. Fresh CI clone
+    at 64c7ea757 passes owning tests three times, receiver/recovery, all five
+    typechecks, full lint/format, plain knip, duplication, reference/localization,
+    default cycles and production caps. Host API exits 1 for the unchanged
+    W-owned inventory; targeted host-port cycles exits 1 for the inherited
+    M96 refFence/workerFence/workerEnv cycle. No finding is deferred. W owns
+    those integration blockers and final quality/coverage/installed hosts.
+    Both private clones are removed. Receipts: docs/certification/m100-phase2.md.
+  - **Lane A.** Every admission binds the sender's role/mode ceiling to the
+    receiver's repository grant, role/tools, workspace trust, protected
+    paths and current approval policy under an explicit receiver-side
+    grant; physical or maker actions need a fresh per-action step-up on
+    the device. User-presence prompts (Touch ID, Windows Hello) are
+    relayed to the device and answered there, never faked. A waiting
+    prompt shows **Waiting for approval on {device}**. Red drills: omit
+    the receiver intersection (denied work must reach a forbidden-call spy
+    and fail); forge an approval or settlement (must fail); fake a
+    presence answer on the orchestrator (must fail).
+  - **Lane K.** Pairs are bound to their owners: a device may serve two
+    orchestrators only with separate grants and quotas per owner.
+    Per-message authorization by role and by least-privilege time-bounded
+    revocable grant; every security-relevant action audited. Secrets never
+    cross the channel in the clear: brokered uses go through M109's vault.
+    Windows pair keys use OS store protection (DPAPI lane of M109 P's
+    platform slots). Red drills: present a valid pair key for the wrong
+    owner (must fail); plant a secret sentinel in any frame (scrub test
+    fails); replay a grant past its bound (must fail).
+  - **Lane U.** QR display with text fallback, discovery switch, owner and
+    grant views, per-action prompts, battery/pressure display, and
+    Blocked-or-unreachable setup naming the listener, interface, address
+    and port with OS/admin recovery. Full keyboard flow, four themes,
+    320px, pseudo-locale. Red drill: break one message schema, focus
+    label, status or recovery mapping; owning tests and a11y fail.
+  - **Lane W.** Installed-host qualification on all four devices (Windows
+    PC, Kubuntu VM, Mac mini, Win11 VM): actual listener ports, OS
+    permissions, firewall facts and authorizations recorded; simulators
+    rule where hardware is missing. Full gate on the joined tree
+    (`npm run quality`, coverage, integration, a11y, secrets/SAST/audit,
+    packaged-host checks). Split-gate drills prove activation, Model API
+    and ACP bundles contain no receiver, channel-multiplexing or QR/mDNS
+    code; a missing lazy asset refuses Devices without breaking chat.
+    `dist/devices.js` re-measured against the D6 budget lane 0 records.
+    Fake-only by default; any real-model/paid drill needs separate
+    authorization and records every attempt and spend.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
@@ -33500,6 +34149,30 @@ LEGALTRUE. Retained requirements and receipts follow.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
+**M100P2HM4/HM5/HM6/HM7/HM8/HM9 scoped review gate (2026-10-08, macmini).** Hooked commits are
+local checkpoints; the owner's 60-minute H brief requires fresh-clone scoped
+tests and static/build gates. HM5's 30-minute, HM6's 60-minute, HM7's 45-minute
+and HM8's 75-minute/HM9's 60-minute lifecycle follow-ups use the same scope.
+Full `npm run quality` and integrated platform
+qualification remain W's required gate before integration. No threshold,
+timeout, assertion or ignore changes. The inherited stale host API inventory
+remains W-owned and is reported separately in the macOS certification record.
+Final-source receiver/recovery verification also exposes the unchanged E test
+`RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation
+confirmation`: its final reconciliation can precede the asynchronously queued
+uncertain-state write, so fixture removal races that write (`ENOTEMPTY`).
+Per the shared file-ownership rule, E must await that durable state before its
+existing reconciliation/teardown; H records the actual three-run exits without
+editing E's test, suppressing the failure or changing an assertion/deadline.
+
+**FIXM100P2U scoped certification (2026-10-07).** The 90-minute rig brief
+requires fresh-clone owning suites and scoped static/build/browser checks;
+aggregate `npm run quality`, whole-repository coverage and installed-host
+qualification remain lane W's joined-tree obligation, as phase-2 ownership
+specifies. No gate, cap, timeout or assertion is weakened. Review-repair
+receipts and outstanding wiring are in lane U's section of
+`docs/certification/m100-phase2.md`.
+
 ### FIXM116P4 — Final outcome verification repairs (2026-10-06)
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
@@ -35531,6 +36204,73 @@ renumbering nothing. Only changed-document formatting/Markdown checks and
 normal commit hooks run here; full quality remains the lead's joined-tree
 gate. The research record separates these receipts from runtime certification.
 
+**FIXM100L0 contract/review repair (2026-10-06).** The rig brief forbids
+aggregate quality/full unit runs, merges and edits outside this lane. Run
+owning Vitest files (at most three files/workers), static checks and the
+production build directly on macmini; no unchanged gate is waived. The
+inherited `DEVICE_MODEL_TEXT` missing split-reader registration remains
+I-owned and must be fixed on the joined tree before full quality or release.
+Regressions and six red/restored receipts for all three RVM100L0 P2 repairs
+are in `docs/certification/m100-0.md`. The lead retains the full quality,
+coverage, packaged-host and security gates.
+
+**FIXM100P pairing/storage review repair (2026-10-06).** The rig brief
+requires direct owning-file tests and byte-exact red/restored drills, normal
+hooks and no merges or aggregate quality. All RVM100P findings (two P2s,
+one P3) are repaired with no deferred review finding. Scoped static/build
+receipts are in `docs/certification/m100-p.md`. P's inherited generated host
+API record and `DEVICE_MODEL_TEXT` split registration remain I-owned;
+neither guard is weakened or bypassed. The lead must regenerate/review the
+joined host record, register the actual lazy bundle readers and pass full
+quality/coverage before proposing a product commit or release.
+
+**FIXM100T transport/review repair (2026-10-06).** The rig brief requires
+direct Kubuntu owning-file runs (at most three files/workers), scoped static
+checks, normal-hook local commits and no aggregate quality, merge or push.
+The three RVM100T P2s and one P3 are repaired and have named regressions and
+byte-exact red/restored receipts in `docs/certification/m100-t.md`. No gate is
+weakened. The inherited host-API record and `DEVICE_MODEL_TEXT` split-reader
+registration stay I-owned; §9 names that joined-tree handoff. Full quality,
+coverage, installed-host/firewall/multicast, security and packaging evidence
+remain the lead's exact integrated-tree prerequisites.
+
+**FIXM100E execution/control review repair (2026-10-06).** The rig brief
+requires local scoped checks, hooks-on commits, no merges and no aggregate
+quality run. Both RVM100E P2s, all four RVM100E2 P2s and RVM100E3's P2 are repaired with
+owning regressions, completion-order permutations and byte-exact red/restored receipts in `docs/certification/m100-e.md`. Full
+quality, installed physical-device/UI qualification and the inherited
+host-API/split-reader handoffs remain the lead's joined-tree prerequisites;
+no existing gate, timeout or permission boundary is weakened.
+
+**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
+complete Windows unit inventory in batches of at most three files and
+300 consecutive checkpoint-copy file passes. It explicitly requires full
+`npm run quality` only for a product change; this lane changes tests and
+documentation only. Shared static/build checks still apply. Aggregate
+coverage/full quality and hosted confirmation remain the lead's gates; no
+rule, timeout or coverage threshold is weakened. The exact original hosted
+failure is not supplied and has not reproduced in 200 original-file runs.
+Evidence: `docs/certification/deflake3.md`.
+
+**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
+and the required static/build gates passed; two deliberate regressions
+failed and were restored byte-exact. The rig brief prohibits integration
+merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
+this shared lane. Full quality, aggregate coverage, accessibility and the
+hosted Windows recheck remain the lead's gates. No gate or deadline was
+weakened. Evidence: `docs/certification/mcp-job-flake.md`.
+**M94W size boundary (2026-10-05).** The Windows production build passes
+activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
+(3.299 KiB) against the integrated pre-W source control, within the brief's
+added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
+4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
+are not certified. Reducing the whole shim needs the existing service/provider
+orchestration moved into the lazy entry while preserving loader retry,
+cleanup and startup status; that broader follow-up is deferred to the lead
+under W's bounded scope. The hard 600 KiB cap and every existing gate remain
+unchanged. The exact control and bundle measurements are in
+`docs/certification/m94.md`.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
@@ -35577,6 +36317,43 @@ detail as its tip; no new English or translated key is needed.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+**FIXM100U2 scoped gate record (2026-10-06).** Both second-review P2s
+are repaired with 122 restored owning tests, repository-default timeouts and
+13 named red/byte-exact-restored drills. All five compiler projects, plain
+knip, zero-duplication and localization pass. The brief still delegates full
+quality/coverage and integration-owned registrations to the lead. Production
+assets emit; the unchanged deferred pool fails at **77.327/50 KiB**, including
+**27.630 KiB** for the exact DevicesApp entry. Excluding that closure leaves
+**49.697/50 KiB**. The two split findings (Devices surface and lane-0 model
+text) and generated CSS source-list update are unchanged I obligations, not
+gate waivers. Every other existing size cap passes. I retains the joined
+README/CHANGELOG/reference updates; this repair adds no command or setting
+and does not advertise the planned feature as shipped. Final native/scoped
+checks and the physical qualification limit are in `docs/certification/m100-u.md`.
+
+**FIXM100U scoped gate record (2026-10-06).** The rig brief prohibits full
+quality/coverage and reserves integration-owned registrations for I. Run the
+four owning UI/bridge/contract suites with repository-default timeouts,
+scoped static checks and native/axe checks; the lead runs aggregate quality.
+The unchanged production build still refuses the unregistered Devices lazy
+closure: **76.045/50 KiB** deferred JS, of which **26.348 KiB** belongs to
+`src/webview/models/sections/agents/DevicesApp.tsx`; registering that measured
+closure leaves **49.697/50 KiB**. No budget or split guard is widened. I must
+also register lane 0's `DEVICE_MODEL_TEXT` readers and refresh the generated
+host-API CSS source list. These named integration obligations, and final
+scoped results, are recorded in `docs/certification/m100-u.md`.
+**FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
+forbids aggregate quality and full-suite runs; full integrated quality remains
+with the lead. Run the complete owning test files, red drills, scoped lint and
+format, compiler projects, plain knip, duplication, localization, host API and
+production build directly on Kubuntu. The frozen Q base's U-owned
+`uiState.ts:2452` reducer and A-owned generated host-API inventory are already
+named integration handoffs in `docs/certification/m112-q.md`; do not weaken
+either gate or claim them green. No review finding is deferred.
 **M115-G bounded-lane gate delegation (2026-10-06).** The rig brief and
 `common.md` prohibit aggregate quality/full-suite runs in this worktree.
 G runs its owned suites, red drills, all five compiler projects, scoped
@@ -35929,6 +36706,7 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                                       | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
 | `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                                    | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
 | `vitest.config.ts` (Windows)                                                                                                                                                                   | `WINDOWS_TEST_TIMEOUT_MS` (15 s) and `WINDOWS_HOOK_TIMEOUT_MS` (30 s) as the Windows defaults                                                                                | Windows runs test files one at a time, and its real-OS cases start PowerShell, icacls or job helpers as cold processes. Hosted Windows shards varied from 456 s to 727 s between runs (2026-10-07); `tokenFile` real ACL ownership passed 5 s in one run and not the next, after the same happened to `teamHintsAndLoad` and `vsixCompression`. Assertions are unchanged; explicit per-case deadlines still apply. | Return to the default when a hosted Windows run measures every case under 2.5 s, or when the PowerShell-backed helpers are precompiled once per run.      |
+| `test/unit/deviceProductionWiring.test.ts` (`fakeBundle`)                                                                                                                                      | One `as unknown as DeviceProductionBundle` on the structural fake bundle                                                                                                     | The fakes prove the production binding (directories, secrets, owner, helper release) without touching the real filesystem stores, whose ownership check the sandbox refuses; the real bundle satisfies the same structural interface and is exercised through the real built bundle in `deviceBundle.test.ts`.                                                                                                     | Remove when a rig without the ownership refusal runs the builder against the real bundle.                                                                 |
 | `test/unit/treesWindows.test.ts`, `test/unit/actuatorsWindows.test.ts`, `test/unit/resourceWindowsLaunch.test.ts`                                                                              | `REAL_WINDOWS_JOB_TIMEOUT_MS` (60 s) per-suite deadline                                                                                                                      | These suites compile and drive the real Windows job helper (C#) and real child processes. In PR #140 run 2 (0.16.0) they passed the 15 s Windows default on hosted runners, while the Win11 rig ran them in a few seconds. Assertions unchanged.                                                                                                                                                                   | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
 | `test/unit/helpers/fixtureBudget.ts`; `test/unit/scheduleMigrate.test.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                              | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
 
@@ -36289,6 +37067,10 @@ No new escape hatch is introduced.
 | `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 5 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
 | `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                     | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
 
+| RLM100 escape                                                                                    | Reason                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/deviceMessageHandler.test.ts`: forged adapter reply `as unknown as DeviceHostMessage` | The malformed-response probe deliberately violates the typed port so the handler's runtime refusal executes; the typed port cannot express a secret-bearing reply. Test-only cast; production validation unchanged. |
+
 ## 9. Security assumptions and accepted residual risk
 
 - **CM109JOINB installed POSIX binding handoffs (2026-10-11).** Native host
@@ -36460,6 +37242,118 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   remote badge certification are claimed.
   No cap, test timeout, coverage gate or paid/capture policy is waived.
 
+- **M100-I-REVIEW-REPAIR (FIXM100I, 2026-10-06).** RVM100I's P2 snapshot
+  queue and P3 cancellation-fixture race are repaired with no finding deferred.
+  A panel has one running background capture and one coalesced pending capture;
+  data awaits that shared drain within the unchanged channel capacity, while
+  Stop and resets remain independent. The reset fixture waits for complete
+  cancellation persistence before removal. Five named red/restored drills and
+  scoped checks are recorded in `docs/certification/m100.md`. These repairs
+  do not qualify M100 shipment or physical hardware; the named joined-status
+  prerequisites below and the lead's aggregate quality gates remain required.
+
+- **M100-I-JOINED-STATUS (2026-10-06).** The P/T/E/U handoffs below describe
+  their isolated input tips. Integration now binds the shared revision/envelope
+  and abort contract, lazy browser/Node entries, model-text/split registrations,
+  package maps and help documentation. Generated host API and scoped gate
+  results are recorded in `docs/certification/m100.md`; prior inherited failing
+  registrations are repaired, without waivers. Concrete M95/M96 execution,
+  S/G, QR/mDNS runtime, native Windows protection and physical approval/Stop
+  authorities remain unresolved prerequisites. Only generic local execution
+  test ports are simulated; no installed editor, physical hardware or unattended
+  qualification follows. A listening product command remains unregistered.
+
+- **M100-E-JOINED-QUALIFICATION (inherited integration handoff).** Both
+  RVM100E P2 findings, all four RVM100E2 P2 findings and RVM100E3's P2 are repaired, with
+  no review finding deferred. Cancellation identities use
+  **M100-E-CANCEL-RETENTION**: the full receiver lifetime in memory and
+  permanent journal retention through compaction; finite evidence exhaustion
+  blocks new work while Stop still reaches the local cancellation port. A
+  framing reset invokes independent Stop for the authenticated pair before
+  reporting; overflow refuses each data frame and continues through Stop.
+  E's receiver and journal remain unshipped; scoped software/TLS-channel tests
+  do not qualify a concrete physical-action descriptor/nonce, receiver-local
+  physical approval UI or unattended device operation under D212. Safe for
+  this isolated lane because it registers no production execution adapter,
+  listener or command. Follow-up: I/M96 bind and independently qualify those
+  physical-action authorities, Windows/native storage, the real lazy Devices
+  readers and generated host API inventory, then run unchanged full quality,
+  packaging and installed four-device checks before shipment. The inherited
+  host-API/split checks stay failing until that integration; no waiver.
+  Receipts: `docs/certification/m100-e.md`.
+
+- **M100-T-JOINED-GATES (inherited integration handoff).** T's transport is
+  unshipped and ordinary chat does not load it. Its inherited generated host
+  API import counts and missing `DEVICE_MODEL_TEXT` split-reader registration
+  still fail their unchanged gates; no runtime or released support is claimed
+  from loopback tests. Safe for this isolated review lane while Devices remains
+  unshipped. Follow-up: I regenerates/reviews the host API inventory, registers
+  the real lazy Devices readers, and runs full quality, packaging and installed
+  four-device qualification before shipment. All four RVM100T findings are
+  repaired; none is deferred. Receipts: `docs/certification/m100-t.md`.
+
+- **M100-U2-INTEGRATION (FIXM100U2).** Both RVM100U2 P2s are repaired;
+  no P1/P2/P3 review finding is deferred. P/I must carry the local request
+  envelope (`viewId`, `requestId`, initiating `revision`) through its adapter,
+  echo view/request ids on correlated replies, preserve its host-owned
+  monotonic revision, and respect the shared view's abort signal. An embedded
+  parent returns explicit snapshot acceptance and refuses sources outside its
+  live view instance; refusal returns a typed stale result without pairing
+  data. The shared helper invalidates UI waits even when a port ignores abort.
+  No UI cancellation retires work or releases liability. Safe for the current
+  unshipped, explicitly opened view; no receiver or physical executor is
+  added. Follow-up: I binds this contract for installed hosts, registers the
+  measured Devices closure and existing lane-0 model text, refreshes the host
+  API record and README/CHANGELOG/help reference, and runs joined quality.
+  Evidence and per-guard red/restored receipts: `docs/certification/m100-u.md`.
+
+- **M100-U-PHYSICAL-QUALIFICATION (RVM100U2).** The review cannot certify
+  D212's always-visible, ungated physical Stop or exact-payload approvals:
+  this base has no D212 decision, physical action, Stop request or execution
+  adapter. No demonstrated execution bypass was found and this repair adds
+  no physical execution or permission. Safe only for this UI-only unshipped
+  slice; Pause offers is not a physical Stop. Follow-up: the owning physical
+  integration must supply and drill those controls before claiming physical
+  safety support. This lane changes no D212 policy or Stop gate.
+
+- **M100-U-INTEGRATION (FIXM100U).** All five RVM100U P2s and its P3 are
+  repaired; none is silently deferred. The remaining shipment obligations
+  are I's measured Devices browser budget/split registration (exact entry
+  `src/webview/models/sections/agents/DevicesApp.tsx`), lane-0 host model-text
+  registration and generated host-API record, plus P/I's host-owned snapshot
+  counter. Revision 0 is the document's initial unobserved/off UI; the host
+  starts at 1 and increases its counter across complete observations, off
+  states and action replies for that document's lifetime. Never reuse a
+  revision for changed state or reset it on receiver reconnect. A UI timeout
+  or newer observation releases only its local wait, never an attempt owner,
+  occupancy or spending liability. Retry restores current-control focus rather
+  than replaying a saved Resume, Unlink or fingerprint-confirmation choice.
+  Safe for the present unshipped, explicitly
+  opened UI against injected ports: mount sends no request and ordinary chat
+  stays unchanged. Follow-up: I binds the counter and lazy entry, carries the
+  revised UI behavior into README/CHANGELOG/help reference, refreshes the
+  generated record and runs the joined unchanged gates before shipment;
+  P/T/E retain pairing, transport, durable retirement and installed-host
+  qualification. No new supported-host or real VoiceOver claim follows from
+  shared React/Chrome accessibility-tree receipts.
+
+- **M100-LOCAL-ACCOUNT (FIXM100L0).** The OS, logged-in account, extension
+  host and installed extensions/helpers are trusted. Another local user can
+  reach loopback/LAN listeners but must not read/replace pairing or journal
+  state: P/E require per-user 0700 directories, 0600 files (owner-only Windows
+  ACLs), ownership/permission and symlink/junction/ancestor checks. T applies
+  exact mutual-TLS peer credential checks on loopback; any future local IPC
+  helper also requires OS peer identity/ACL checks. No pair keys or stored
+  provider secrets on argv/environment. A same-user process or administrator can replace a
+  syntactically valid journal outcome or obtain keys; zod, atomic writes and
+  permissions do not prove provenance against it. Safe only under that
+  explicit trusted-account assumption; lane 0 has no production listener.
+  Follow-up: P-local-store-isolation, E-local-journal-isolation and
+  T-local-peer-credentials runtime red drills before a listener ships, with
+  I carrying this boundary into SECURITY and the joined review. Untrusted
+  same-user support needs a separate isolation/authenticated-storage design.
+  Details and the documentation regression are in `docs/certification/m100-0.md`;
+  all three RVM100L0 P2 findings are repaired, no finding is silently deferred.
 - **M107-J-browser-rig-qualification (FIXM107J, 2026-10-06).** The
   installed Chrome exits with SIGTRAP before page creation, both under the
   unchanged history harness and a minimal headless about:blank probe. Fresh

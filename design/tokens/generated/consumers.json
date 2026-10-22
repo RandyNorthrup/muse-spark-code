@@ -140,6 +140,18 @@
         "css": "#0646c4",
         "variable": "--ms-pressed"
       },
+      "colour.qr-field": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
+        "variable": "--ms-qr-field"
+      },
+      "colour.qr-module": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
+        "variable": "--ms-qr-module"
+      },
       "colour.diff-added": {
         "type": "color",
         "value": {
@@ -923,6 +935,18 @@
         "value": { "colorSpace": "srgb", "components": [0.023529, 0.27451, 0.768627], "alpha": 1 },
         "css": "#0646c4",
         "variable": "--ms-pressed"
+      },
+      "colour.qr-field": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
+        "variable": "--ms-qr-field"
+      },
+      "colour.qr-module": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
+        "variable": "--ms-qr-module"
       },
       "colour.diff-added": {
         "type": "color",
@@ -1712,6 +1736,18 @@
         "css": "#000000",
         "variable": "--ms-pressed"
       },
+      "colour.qr-field": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
+        "variable": "--ms-qr-field"
+      },
+      "colour.qr-module": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
+        "variable": "--ms-qr-module"
+      },
       "colour.diff-added": {
         "type": "color",
         "value": {
@@ -2451,6 +2487,18 @@
         "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
         "css": "#ffffff",
         "variable": "--ms-pressed"
+      },
+      "colour.qr-field": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
+        "variable": "--ms-qr-field"
+      },
+      "colour.qr-module": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
+        "variable": "--ms-qr-module"
       },
       "colour.diff-added": {
         "type": "color",
@@ -3366,6 +3414,7 @@
     { "foreground": "colour.usage-purple", "background": "colour.editor-surface", "usage": "ui" },
     { "foreground": "colour.usage-orange", "background": "colour.editor-surface", "usage": "ui" },
     { "foreground": "colour.brand-mark", "background": "colour.surface", "usage": "ui" },
-    { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" }
+    { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.qr-module", "background": "colour.qr-field", "usage": "ui" }
   ]
 }

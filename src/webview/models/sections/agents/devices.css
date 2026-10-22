@@ -1,0 +1,156 @@
+.devices-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 12px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  overflow-wrap: anywhere;
+}
+
+.devices-view h1,
+.devices-view h2,
+.devices-view h3,
+.devices-view p {
+  margin: 0;
+}
+
+.devices-view h1 {
+  font-size: 1.25em;
+}
+
+.devices-view h2,
+.devices-view h3 {
+  font-size: 1em;
+}
+
+.devices-view button,
+.devices-view input,
+.devices-view textarea {
+  box-sizing: border-box;
+  min-height: 28px;
+  max-width: 100%;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  background: var(--vscode-input-background);
+}
+
+.devices-view button {
+  padding: 4px 8px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  cursor: pointer;
+}
+
+.device-decisions > button {
+  flex: 1;
+  min-width: 0;
+}
+
+.devices-view button:disabled {
+  cursor: default;
+  opacity: 60%;
+}
+
+.devices-view :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.devices-view textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+}
+
+.devices-view label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.devices-view label:has(textarea),
+.devices-view label:has(input:not([type='checkbox'])) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.devices-view input[type='checkbox'] {
+  min-width: 28px;
+}
+
+.devices-view input {
+  min-width: 0;
+}
+
+.device-card,
+.device-pairing,
+.device-comparison,
+.device-public-text,
+.devices-view form,
+.devices-view fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.device-card,
+.devices-view fieldset {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.device-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.device-facts dd {
+  margin: 0;
+}
+
+.device-facts dt {
+  font-weight: 600;
+}
+
+.devices-view code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.devices-view ul {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
+.device-decisions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.devices-view .device-fingerprint {
+  font-family: monospace;
+  white-space: normal;
+  overflow-wrap: normal;
+}
+
+.device-fingerprint > span > span {
+  white-space: nowrap;
+}

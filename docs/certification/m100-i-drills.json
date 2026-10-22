@@ -1,0 +1,631 @@
+[
+  {
+    "id": "pair-view",
+    "file": "src/host/devices/devicePairing.ts",
+    "mutation": {
+      "from": " || reply.viewId !== request.viewId",
+      "to": ""
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePairingAdapter.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "18d758f353963a38701f3b1967b1a22a3d28a5bbfb4ac28af4e4c4502bb79eea",
+    "sha256Restored": "18d758f353963a38701f3b1967b1a22a3d28a5bbfb4ac28af4e4c4502bb79eea",
+    "expected": "initiating view as well as request",
+    "failures": [
+      "test/unit/devicePairingAdapter.test.ts > binds neighboring action replies to the initiating view as well as request"
+    ],
+    "seconds": 8.15
+  },
+  {
+    "id": "pair-import",
+    "file": "src/host/devices/devicePairing.ts",
+    "mutation": {
+      "from": "setup.invitation = await this.importInvitation(action.text)",
+      "to": "await this.importInvitation(action.text)"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePairingAdapter.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "18d758f353963a38701f3b1967b1a22a3d28a5bbfb4ac28af4e4c4502bb79eea",
+    "sha256Restored": "18d758f353963a38701f3b1967b1a22a3d28a5bbfb4ac28af4e4c4502bb79eea",
+    "expected": "FAIL",
+    "failures": [
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > does no work at construction; pairs without activating offers, opening sockets or granting execution",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > requires the current pin, current local offer and grant revision for every request",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > unlinks only this key/pair and leaves unrelated pairs, execution evidence and liabilities intact through re-pair",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > rechecks revocation after an asynchronous key read, including existing authenticated connections",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > fails closed on missing platform secrets and never echoes store error details",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > fails closed on corrupt platform secrets and never echoes store error details",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > fails closed on read-error platform secrets and never echoes store error details",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > refuses replayed confirmation and corrupted stored pair transcripts after restart",
+      "test/unit/devicePairingAdapter.test.ts > explicit local pairing adapter and SecretStorage > requires deletion to succeed and preserves a durable revocation if the key store refuses it",
+      "test/unit/devicePairingAdapter.test.ts > blocks an existing authenticated pair immediately while durable unlink is pending",
+      "test/unit/devicePairingAdapter.test.ts > rechecks pause after an asynchronous key read before permitting any frame",
+      "test/unit/devicePairingAdapter.test.ts > a later Pause refuses a pending grant secret read for an already offered pair",
+      "test/unit/devicePairingAdapter.test.ts > a later Pause refuses a pending grant secret read for an already paused pair",
+      "test/unit/devicePairingAdapter.test.ts > queues a grant behind an earlier UI mutation instead of starting a second secret read",
+      "test/unit/devicePairingAdapter.test.ts > refuses a grant when durable pause state changes during its secret read",
+      "test/unit/devicePairingAdapter.test.ts > refuses a grant when durable revision state changes during its secret read",
+      "test/unit/devicePairingAdapter.test.ts > keeps a later Pause blocking a new frame when an older grant finishes persistence",
+      "test/unit/devicePairingAdapter.test.ts > keeps a later Pause blocking a pending secret read when an older grant finishes persistence",
+      "test/unit/devicePairingAdapter.test.ts > allows a fresh explicit grant after a completed Pause to resume this pair",
+      "test/unit/devicePairingAdapter.test.ts > disconnects and blocks a requested pair even when damaged metadata prevents key cleanup",
+      "test/unit/devicePairingAdapter.test.ts > refuses a grant assigned to another executing device and a non-increasing grant revision",
+      "test/unit/devicePairingAdapter.test.ts > updates a manual routing hint without changing the pin, signed transcript or execution evidence",
+      "test/unit/devicePairingAdapter.test.ts > does not reactivate another receiver incarnation\u2019s durable offers after reopening",
+      "test/unit/devicePairingAdapter.test.ts > keeps unrelated A\u2013C authorizable after an A\u2013B stale-pause policy refusal",
+      "test/unit/devicePairingAdapter.test.ts > keeps unrelated A\u2013C authorizable after an A\u2013B unknown-pause policy refusal",
+      "test/unit/devicePairingAdapter.test.ts > keeps unrelated A\u2013C authorizable after an A\u2013B duplicate-grant policy refusal",
+      "test/unit/devicePairingAdapter.test.ts > keeps unrelated A\u2013C authorizable after an A\u2013B stale-grant policy refusal",
+      "test/unit/devicePairingAdapter.test.ts > replaces a grant revision by both its id and repository instead of retaining ambiguous rows",
+      "test/unit/devicePairingAdapter.test.ts > refuses persisted grant owner corruption even with valid bilateral pair proofs",
+      "test/unit/devicePairingAdapter.test.ts > refuses persisted grant pair corruption even with valid bilateral pair proofs",
+      "test/unit/devicePairingAdapter.test.ts > refuses persisted grant grant corruption even with valid bilateral pair proofs",
+      "test/unit/devicePairingAdapter.test.ts > refuses persisted grant repository corruption even with valid bilateral pair proofs"
+    ],
+    "seconds": 3.72
+  },
+  {
+    "id": "revision",
+    "file": "src/core/devices/devicePanel.ts",
+    "mutation": {
+      "from": "const revision = this.revision + 1",
+      "to": "const revision = this.revision"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "sha256Restored": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "expected": "increases observations",
+    "failures": [
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > does no work at construction and increases observations, replies and off states",
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > serializes snapshot acquisition so a slow old read cannot supersede a newer observation",
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > refuses malformed snapshots and does not poison later valid observations",
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > drops a reply aborted while its complete snapshot is still being acquired"
+    ],
+    "seconds": 2.33
+  },
+  {
+    "id": "serialization",
+    "file": "src/core/devices/devicePanel.ts",
+    "mutation": {
+      "from": "await previous",
+      "to": "void previous"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "sha256Restored": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "expected": "serializes snapshot",
+    "failures": [
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > serializes snapshot acquisition so a slow old read cannot supersede a newer observation"
+    ],
+    "seconds": 3.31
+  },
+  {
+    "id": "panel-view",
+    "file": "src/core/devices/devicePanel.ts",
+    "mutation": {
+      "from": "setup?.viewId !== request.viewId || ",
+      "to": ""
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "sha256Restored": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "expected": "initiating viewId",
+    "failures": [
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > binds action replies to the initiating viewId"
+    ],
+    "seconds": 2.52
+  },
+  {
+    "id": "abort-before",
+    "file": "src/core/devices/devicePanel.ts",
+    "mutation": {
+      "from": "parsed.message.revision > this.revision || isAborted()",
+      "to": "parsed.message.revision > this.revision"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "sha256Restored": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "expected": "abort drops action",
+    "failures": [
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > abort drops action data without dispatching a physical Stop or retirement"
+    ],
+    "seconds": 2.35
+  },
+  {
+    "id": "abort-action",
+    "file": "src/core/devices/devicePanel.ts",
+    "mutation": {
+      "from": "setup.requestId !== request.requestId || isAborted()",
+      "to": "setup.requestId !== request.requestId"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "sha256Restored": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "expected": "abort drops action",
+    "failures": [
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > abort drops action data without dispatching a physical Stop or retirement"
+    ],
+    "seconds": 2.46
+  },
+  {
+    "id": "abort-snapshot",
+    "file": "src/core/devices/devicePanel.ts",
+    "mutation": {
+      "from": "if (isAborted()) throw new Error('invalid-device-message')",
+      "to": "void isAborted()"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "sha256Restored": "a9f6095eadfc5ddd5215a32d3497b8d902a3dd0042b85633402f92de7a696b40",
+    "expected": "aborted while its complete snapshot",
+    "failures": [
+      "test/unit/devicePanel.test.ts > host-owned Devices snapshots > drops a reply aborted while its complete snapshot is still being acquired"
+    ],
+    "seconds": 2.47
+  },
+  {
+    "id": "signal-port",
+    "file": "src/host/devices/deviceMessageHandler.ts",
+    "mutation": {
+      "from": "await port.request(request.message, signal)",
+      "to": "await port.request(request.message)"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceMessageHandler.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "12309ce50b85580684f6cf810b54d520f8c05a44091460ed4410c418579f2d92",
+    "sha256Restored": "12309ce50b85580684f6cf810b54d520f8c05a44091460ed4410c418579f2d92",
+    "expected": "forwards the browser abort",
+    "failures": [
+      "test/unit/deviceMessageHandler.test.ts > M100 U local host handler > forwards the browser abort signal to the same shared method port"
+    ],
+    "seconds": 2.48
+  },
+  {
+    "id": "reset-stop-order",
+    "file": "src/host/devices/deviceEntry.ts",
+    "mutation": {
+      "from": "receiver.disconnect(reason, channel.pairId)\n      deps.report(reason)",
+      "to": "deps.report(reason)\n      receiver.disconnect(reason, channel.pairId)"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceIntegration.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "sha256Restored": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "expected": "starts fail-safe reset Stop before reporting",
+    "failures": [
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > starts fail-safe reset Stop before reporting, even while cancellation confirmation is held"
+    ],
+    "seconds": 7.6
+  },
+  {
+    "id": "headless",
+    "file": "src/host/devices/deviceEntry.ts",
+    "mutation": {
+      "from": "assertLocalDeviceHost(deps.host)",
+      "to": "void deps.host"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceIntegration.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "sha256Restored": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "expected": "refuses headless receiver",
+    "failures": [
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > refuses headless receiver qualification before reading or retaining any journal"
+    ],
+    "seconds": 7.22
+  },
+  {
+    "id": "lazy-module",
+    "file": "src/host/devices/deviceBundle.ts",
+    "mutation": {
+      "from": "isBundle: isDeviceBundle",
+      "to": "isBundle: () => true"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceBundle.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "e8613f12f23dc1d79e627fe77d926351fe6e9c271aca8a9e288b246dec4750f1",
+    "sha256Restored": "e8613f12f23dc1d79e627fe77d926351fe6e9c271aca8a9e288b246dec4750f1",
+    "expected": "rejects an incomplete module",
+    "failures": [
+      "test/unit/deviceBundle.test.ts > shared lazy Devices method port > rejects an incomplete module and retries the repaired packaged factory"
+    ],
+    "seconds": 1.99
+  },
+  {
+    "id": "dispose-preparation",
+    "file": "src/host/devices/deviceBundle.ts",
+    "mutation": {
+      "from": "const deps = await options.dependencies(bundle)\n      if (isDisposed()) throw new Error('revoked')",
+      "to": "const deps = await options.dependencies(bundle)"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceIntegration.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "e8613f12f23dc1d79e627fe77d926351fe6e9c271aca8a9e288b246dec4750f1",
+    "sha256Restored": "e8613f12f23dc1d79e627fe77d926351fe6e9c271aca8a9e288b246dec4750f1",
+    "expected": "refuses disposed initialization",
+    "failures": [
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > refuses disposed initialization before authorities open and closes a factory that finishes after disposal"
+    ],
+    "seconds": 6.28
+  },
+  {
+    "id": "dispose-factory",
+    "file": "src/host/devices/deviceBundle.ts",
+    "mutation": {
+      "from": "if (isDisposed()) {\n        instance.dispose()\n        throw new Error('revoked')\n      }",
+      "to": ""
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceIntegration.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "e8613f12f23dc1d79e627fe77d926351fe6e9c271aca8a9e288b246dec4750f1",
+    "sha256Restored": "e8613f12f23dc1d79e627fe77d926351fe6e9c271aca8a9e288b246dec4750f1",
+    "expected": "refuses disposed initialization",
+    "failures": [
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > refuses disposed initialization before authorities open and closes a factory that finishes after disposal"
+    ],
+    "seconds": 6.82
+  },
+  {
+    "id": "keyboard-focus",
+    "file": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "mutation": {
+      "from": "peerHeading.current?.focus()",
+      "to": "peerHeading.current?.blur()"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "bc0ce69cbc5c74faa656b5eaf2ce23e6b191151c079c3d2a288ecb7dbc407b92",
+    "sha256Restored": "bc0ce69cbc5c74faa656b5eaf2ce23e6b191151c079c3d2a288ecb7dbc407b92",
+    "expected": "FAIL",
+    "failures": [
+      "test/unit/DevicesView.test.tsx > M100 U shared Devices view > groups both fingerprints and announces the full peer value on heading focus",
+      "test/unit/DevicesView.test.tsx > M100 U shared Devices view > pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check"
+    ],
+    "seconds": 10.89
+  },
+  {
+    "id": "deferred-parents",
+    "file": "scripts/lib/deferredBundles.mjs",
+    "mutation": {
+      "from": " || bundle.output === 'dist/devices.js'",
+      "to": ""
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deferredBundles.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "f33bfe0b498ba738d17a8d19a359646d2c43902649a3ce03ef910bec3bfc808c",
+    "sha256Restored": "f33bfe0b498ba738d17a8d19a359646d2c43902649a3ce03ef910bec3bfc808c",
+    "expected": "FAIL",
+    "failures": [
+      "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/devices/pairing.ts and restores its metafile byte-exact",
+      "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/host/devices/deviceTransport.ts and restores its metafile byte-exact"
+    ],
+    "seconds": 3.63
+  },
+  {
+    "id": "model-text-registration",
+    "file": "scripts/check-bundle-split.mjs",
+    "mutation": {
+      "from": "    block: 'DEVICE_MODEL_TEXT',",
+      "to": "    block: 'REMOVED_MODEL_TEXT',"
+    },
+    "command": ["node", "scripts/check-bundle-split.mjs"],
+    "redExit": 1,
+    "sha256Before": "064323eceed909a614ff265a88a56e0bba388a1df93ef5d8c1cd3d29770d9f88",
+    "sha256Restored": "064323eceed909a614ff265a88a56e0bba388a1df93ef5d8c1cd3d29770d9f88",
+    "expected": "DEVICE_MODEL_TEXT",
+    "failures": [],
+    "seconds": 1.47
+  },
+  {
+    "id": "help-stale",
+    "file": "docs/devices-reference.md",
+    "mutation": {
+      "from": "This is an implementation inventory",
+      "to": "This is a stale implementation inventory"
+    },
+    "command": ["npm", "run", "check:reference"],
+    "redExit": 1,
+    "sha256Before": "3385d8c261bd3a3ce986b6e85fffb1388dd0f2d3675ff5381029625cc77628b6",
+    "sha256Restored": "3385d8c261bd3a3ce986b6e85fffb1388dd0f2d3675ff5381029625cc77628b6",
+    "expected": "Stale docs/devices-reference.md",
+    "failures": [],
+    "seconds": 0.59
+  },
+  {
+    "id": "vsix-runtime",
+    "file": ".vscodeignore",
+    "mutation": {
+      "from": "!dist/devices.js\n",
+      "to": ""
+    },
+    "command": ["node", "scripts/package-vsix.mjs"],
+    "redExit": 1,
+    "sha256Before": "51560784d6b339cf83def89b3b243775c0c1b5c9b0b183033c1e683531208639",
+    "sha256Restored": "51560784d6b339cf83def89b3b243775c0c1b5c9b0b183033c1e683531208639",
+    "expected": "Lazy Devices runtime excluded from VSIX",
+    "failures": [],
+    "seconds": 6.29
+  },
+  {
+    "id": "local-approval-port",
+    "file": "src/host/devices/deviceEntry.ts",
+    "mutation": {
+      "from": "...deps.policy,",
+      "to": "...deps.policy,\n      approve: () => Promise.resolve(true),"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceIntegration.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "sha256Restored": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "expected": "requires receiver-local approval",
+    "failures": [
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > uses current P grants over real pinned TLS and journals both sides before one local launch",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers printer simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers CNC simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers MCU simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > requires receiver-local approval at every action boundary and denies changed payloads"
+    ],
+    "seconds": 7.54
+  },
+  {
+    "id": "receiver-channel",
+    "file": "src/host/devices/deviceEntry.ts",
+    "mutation": {
+      "from": "await receiver.receive(frame, channel)",
+      "to": "await Promise.resolve()"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceIntegration.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "sha256Restored": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "expected": "real pinned TLS",
+    "failures": [
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > uses current P grants over real pinned TLS and journals both sides before one local launch",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers printer simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers CNC simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers MCU simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > starts fail-safe reset Stop before reporting, even while cancellation confirmation is held",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > requires receiver-local approval at every action boundary and denies changed payloads"
+    ],
+    "seconds": 12.04
+  },
+  {
+    "id": "grant-binding",
+    "file": "src/host/devices/deviceEntry.ts",
+    "mutation": {
+      "from": "return grant",
+      "to": "return { ...grant, offer: { ...grant.offer, grantRevision: 0 } }"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceIntegration.test.ts",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "sha256Restored": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "expected": "real pinned TLS",
+    "failures": [
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > uses current P grants over real pinned TLS and journals both sides before one local launch",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers printer simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers CNC simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > delivers MCU simulator Stop despite a corrupt journal, retaining liability",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > starts fail-safe reset Stop before reporting, even while cancellation confirmation is held",
+      "test/unit/deviceIntegration.test.ts > joined P/T/E/U method port > requires receiver-local approval at every action boundary and denies changed payloads"
+    ],
+    "seconds": 10.9
+  },
+  {
+    "id": "editor-neutral",
+    "file": "src/host/devices/deviceEntry.ts",
+    "mutation": {
+      "from": "import { randomBytes, X509Certificate } from 'node:crypto'",
+      "to": "import 'vscode'\nimport { randomBytes, X509Certificate } from 'node:crypto'"
+    },
+    "command": ["node", "scripts/check-host-api.mjs"],
+    "redExit": 1,
+    "sha256Before": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "sha256Restored": "00ae73f2d1ed6ec24debdbbb6a650e83ad8df99a5ed74a371715b93d230408f6",
+    "expected": "reaches `vscode`",
+    "failures": [],
+    "seconds": 17.54
+  },
+  {
+    "id": "browser-cap",
+    "file": "scripts/lib/webviewBundles.mjs",
+    "mutation": {
+      "from": "name: 'Devices',\n    entries: ['src/webview/models/sections/agents/DevicesApp.tsx'],\n    budgetKiB: 50",
+      "to": "name: 'Devices',\n    entries: ['src/webview/models/sections/agents/DevicesApp.tsx'],\n    budgetKiB: 100"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/bundleSize.test.mjs",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "9440df29846bd2a6c970eaa6e4a9cf9d7bf2959474b940433aa4246d04bc06e2",
+    "sha256Restored": "9440df29846bd2a6c970eaa6e4a9cf9d7bf2959474b940433aa4246d04bc06e2",
+    "expected": "enforces the Devices cap",
+    "failures": [
+      "test/unit/bundleSize.test.mjs > bundled What\u2019s New content budget > enforces the Devices cap without widening the original deferred allowance"
+    ],
+    "seconds": 1.34
+  },
+  {
+    "id": "windows-entry",
+    "file": "scripts/lib/webviewBundles.mjs",
+    "mutation": {
+      "from": ".filter(([, output]) => sources.includes(output.entryPoint?.replaceAll('\\\\', '/')))",
+      "to": ".filter(([, output]) => sources.includes(output.entryPoint))"
+    },
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/webviewBundles.test.mjs",
+      "--maxWorkers=3"
+    ],
+    "redExit": 1,
+    "sha256Before": "9440df29846bd2a6c970eaa6e4a9cf9d7bf2959474b940433aa4246d04bc06e2",
+    "sha256Restored": "9440df29846bd2a6c970eaa6e4a9cf9d7bf2959474b940433aa4246d04bc06e2",
+    "expected": "Windows separators",
+    "failures": [
+      "test/unit/webviewBundles.test.mjs > webview import budgets > owns the exact Devices entry and its full static closure with Windows separators"
+    ],
+    "seconds": 1.21
+  },
+  {
+    "id": "keyboard-platform",
+    "file": "scripts/devices-keyboard.mjs",
+    "mutation": {
+      "from": "process.platform === 'darwin' ? 'Meta+A' : 'Control+A'",
+      "to": "'Meta+A'"
+    },
+    "command": ["node", "scripts/devices-keyboard.mjs"],
+    "redExit": 1,
+    "sha256Before": "75591c3b2ccb60c48e04d68f7a6b5a5aed085133572fb6f6cfa5d4d0d9acd8a9",
+    "sha256Restored": "75591c3b2ccb60c48e04d68f7a6b5a5aed085133572fb6f6cfa5d4d0d9acd8a9",
+    "expected": "page.waitForFunction: Timeout",
+    "failures": [],
+    "seconds": 31.85
+  }
+]

@@ -9,6 +9,7 @@
   "command.openInSidebar.title": "Open in Sidebar",
   "command.openInNewTab.title": "Open in New Tab",
   "command.openTasks.title": "Open Tasks in a Tab",
+  "command.openDevices.title": "Open Devices in a Tab",
   "command.focusInput.title": "Toggle Focus",
   "command.insertMentionReference.title": "Insert @-Mention for Selection",
   "command.toggleFocusView.title": "Toggle Focus View",

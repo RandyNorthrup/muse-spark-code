@@ -1,0 +1,1538 @@
+[
+  {
+    "guard": "private-address-scope",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 0.0.0.0",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral ::",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 8.8.8.8",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 169.254.169.254",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 100.100.100.200",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 172.32.0.1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral ::ffff:127.0.0.1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral ::ffff:7f00:1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral fe80::1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral fd00:ec2::254",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral FD00:0EC2:0:0:0:0:0:0254",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral fd12::1%eth0",
+      "device address boundary rechecks all DNS answers and pins the checked literal per connection"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "chosen-interface-ownership",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary requires actual interface ownership and normalizes IPv6"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "all-dns-answers",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary rechecks all DNS answers and pins the checked literal per connection"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "dns-answer-count",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary refuses missing/flooded answers, loopback substitution and wrong family"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "loopback-substitution",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary refuses missing/flooded answers, loopback substitution and wrong family"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "duplicate-json-keys",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"\\u0076ersion\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[]}}",
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[],\"offers\":[]}}"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "escaped-duplicate-json-keys",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"\\u0076ersion\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[]}}"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "pre-parse-nesting",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects invalid UTF-8 and excessive nesting before invoking JSON.parse"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "pre-concatenation-bytes",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects oversize bytes before parsing and before concatenating fragments"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "ready-frame-queue",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects floods before parsing beyond available queue capacity"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "strict-utf8",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects invalid UTF-8 and excessive nesting before invoking JSON.parse"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "outgoing-utf8-byte-count",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary counts byte length for multibyte text and outgoing frames"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "outgoing-schema",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": ["device pre-parse boundary validates outbound data before writing a frame"],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "incoming-schema",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[]},\"secret\":\"synthetic-sentinel\"}"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "incompatible-upgrade-reason",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary reports incompatible protocol versions with a fixed upgrade reason"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "identity-certificate-bytes",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses corrupt identity material with fixed errors before enabling a listener"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "identity-saved-fingerprint",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses changed pins, missing offer, unknown interface, wildcard and protocol downgrade"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "identity-self-signature",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses corrupt identity material with fixed errors before enabling a listener"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "identity-private-key",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses corrupt identity material with fixed errors before enabling a listener"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "initial-explicit-offer",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses changed pins, missing offer, unknown interface, wildcard and protocol downgrade"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "pair-listener-cap",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds pair listeners and refuses duplicate listener takeover"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "duplicate-listener-takeover",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds pair listeners and refuses duplicate listener takeover"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "per-pair-connection-cap",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds unauthenticated connections and releases transport slots on socket close"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "global-window-connection-cap",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds all pairs together before unauthenticated traffic can exhaust the window"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "T-local-peer-credentials",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS T-local-peer-credentials rejects anonymous and wrong-pair clients before application handlers",
+      "pinned device transport with real loopback TLS rejects a CA-signed child leaf even when TLS chain verification succeeds"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "exact-client-leaf-pin",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS rejects a CA-signed child leaf even when TLS chain verification succeeds"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "exact-server-leaf-pin",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS rejects a CA-signed child leaf even when TLS chain verification succeeds",
+      "pinned device transport with real loopback TLS rejects a CA-signed server child despite a valid chain and checks its exact saved pin"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "tls-version-floor",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses changed pins, missing offer, unknown interface, wildcard and protocol downgrade"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "no-session-resumption",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses real captured TLS tickets and authenticates each connection again"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "native-handshake-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS times out a real stalled handshake and never installs an application handler"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "outgoing-setup-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds stalled DNS and cancels pending connection setup on unlink without late dialing"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "pending-unlink-cancellation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds stalled DNS and cancels pending connection setup on unlink without late dialing"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "unlink-pair-isolation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS unlink closes only its own listener and live connections"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "failed-setup-slot-release",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds stalled DNS and cancels pending connection setup on unlink without late dialing"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "no-proxy-routing",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS ignores proxy environment variables and forwards no proxy request or credential"
+    ],
+    "restoredSha256": "1dfebb01f6af1b358d06e646dcb6d0b0d3173c7b00019474da8361e326d256b5"
+  },
+  {
+    "guard": "incoming-revocation-before-parse",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds drops revoked traffic before decoding and closes when Node reports an idle timeout"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "queued-request-revocation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds rechecks revocation between queued requests rather than trusting the handshake"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "outgoing-revocation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "incoming-envelope-pair",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds binds each incoming envelope to the authenticated pairId",
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "incoming-envelope-incarnation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds binds each incoming envelope to the authenticated receiverIncarnationId"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "outgoing-backpressure-cap",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "cross-chunk-queue-cap",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds bounds queued frames across chunks while an admitted handler is waiting"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "serial-handler-admission",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds bounds queued frames across chunks while an admitted handler is waiting"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "absolute-frame-deadline",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds enforces absolute incomplete-frame time without resetting for trickled bytes",
+      "authenticated device channel bounds clears completed-frame deadlines and starts a separate next-frame deadline"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "deadline-before-parse",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds checks elapsed deadlines before parse even when the timer callback is delayed"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "trickle-does-not-reset-deadline",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds enforces absolute incomplete-frame time without resetting for trickled bytes"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "idle-close-event",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds drops revoked traffic before decoding and closes when Node reports an idle timeout"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "fixed-protocol-recovery",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds provides a fixed incompatible reason for local upgrade recovery"
+    ],
+    "restoredSha256": "e9a52c26bac36093d20b5f18ab29563cbf2b024d3d88182a59116faa2dcbe87e"
+  },
+  {
+    "guard": "discovery-off-default-policy",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy does no work with discovery off or without an enabled paired offer"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-strict-private-fields",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy treats spoofed discovery as an address hint only and refuses extra private fields"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-id-minimum",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-id-maximum",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-id-alphabet",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-protocol-version",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-pre-parse-bytes",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds packets and floods before invoking the injected mDNS decoder"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-packet-flood",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds packets and floods before invoking the injected mDNS decoder"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-retained-hint-cap",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds retained hints and expires observations without changing any pairing identity"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-expiry",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds retained hints and expires observations without changing any pairing identity"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-id-rotation",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy advertises only an opaque rotating id, port and protocol version on the chosen interface"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-revocation-before-decode",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy does not decode or retain observations after the local offer is revoked"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-stale-callback-isolation",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy ignores an old adapter callback without shutting down a new discovery generation"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-stale-open-isolation",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy keeps a current adapter alive when an older pending open finishes later"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "discovery-error-privacy",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy turns adapter startup errors into fixed blocked/unreachable recovery without leaking text"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/identity-certificate-bytes",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses corrupt identity material with fixed errors before enabling a listener"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/identity-saved-fingerprint",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses changed pins, missing offer, unknown interface, wildcard and protocol downgrade"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/identity-self-signature",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses corrupt identity material with fixed errors before enabling a listener"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/identity-private-key",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses corrupt identity material with fixed errors before enabling a listener"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/initial-explicit-offer",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses changed pins, missing offer, unknown interface, wildcard and protocol downgrade"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/pair-listener-cap",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds pair listeners and refuses duplicate listener takeover"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/duplicate-listener-takeover",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds pair listeners and refuses duplicate listener takeover"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/per-pair-connection-cap",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds unauthenticated connections and releases transport slots on socket close"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/global-window-connection-cap",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds all pairs together before unauthenticated traffic can exhaust the window"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/T-local-peer-credentials",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS T-local-peer-credentials rejects anonymous and wrong-pair clients before application handlers",
+      "pinned device transport with real loopback TLS rejects a CA-signed child leaf even when TLS chain verification succeeds"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/exact-client-leaf-pin",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS rejects a CA-signed child leaf even when TLS chain verification succeeds"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/exact-server-leaf-pin",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS rejects a CA-signed child leaf even when TLS chain verification succeeds",
+      "pinned device transport with real loopback TLS rejects a CA-signed server child despite a valid chain and checks its exact saved pin"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/tls-version-floor",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses changed pins, missing offer, unknown interface, wildcard and protocol downgrade"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/no-session-resumption",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS refuses real captured TLS tickets and authenticates each connection again"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/native-handshake-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS times out a real stalled handshake and never installs an application handler"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/outgoing-setup-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds a pinned peer that completes TLS but never announces its current offers",
+      "pinned device transport with real loopback TLS bounds stalled DNS and cancels pending connection setup on unlink without late dialing"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/pending-unlink-cancellation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds stalled DNS and cancels pending connection setup on unlink without late dialing"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/unlink-pair-isolation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS unlink closes only its own listener and live connections"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/failed-setup-slot-release",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds stalled DNS and cancels pending connection setup on unlink without late dialing"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/no-proxy-routing",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS ignores proxy environment variables and forwards no proxy request or credential"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "pre-lint/incoming-revocation-before-parse",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds drops revoked traffic before decoding and closes when Node reports an idle timeout"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/queued-request-revocation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds rechecks revocation between queued requests rather than trusting the handshake"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/outgoing-revocation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/incoming-envelope-pair",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds binds each incoming envelope to the authenticated pairId",
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/incoming-envelope-incarnation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds learns current receiver metadata only from initial paired offers and keeps it fixed",
+      "authenticated device channel bounds refuses requests before a source has learned the authenticated receiver incarnation",
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness",
+      "authenticated device channel bounds binds each incoming envelope to the authenticated receiverIncarnationId"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/outgoing-backpressure-cap",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/cross-chunk-queue-cap",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds bounds queued frames across chunks while an admitted handler is waiting"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/serial-handler-admission",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds bounds queued frames across chunks while an admitted handler is waiting"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/absolute-frame-deadline",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds enforces absolute incomplete-frame time without resetting for trickled bytes",
+      "authenticated device channel bounds clears completed-frame deadlines and starts a separate next-frame deadline"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/deadline-before-parse",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds checks elapsed deadlines before parse even when the timer callback is delayed"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/trickle-does-not-reset-deadline",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds enforces absolute incomplete-frame time without resetting for trickled bytes"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/idle-close-event",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds drops revoked traffic before decoding and closes when Node reports an idle timeout"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/fixed-protocol-recovery",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds provides a fixed incompatible reason for local upgrade recovery"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "final/discovery-off-default-policy",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy does no work with discovery off or without an enabled paired offer"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-strict-private-fields",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy treats spoofed discovery as an address hint only and refuses extra private fields"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-id-minimum",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-id-maximum",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-id-alphabet",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-protocol-version",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy refuses public/metadata/mapped senders and incompatible/malformed data"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-pre-parse-bytes",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds packets and floods before invoking the injected mDNS decoder"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-packet-flood",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds packets and floods before invoking the injected mDNS decoder"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-retained-hint-cap",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds retained hints and expires observations without changing any pairing identity"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-expiry",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy bounds retained hints and expires observations without changing any pairing identity"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-id-rotation",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy advertises only an opaque rotating id, port and protocol version on the chosen interface"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-revocation-before-decode",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy does not decode or retain observations after the local offer is revoked"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-stale-callback-isolation",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy ignores an old adapter callback without shutting down a new discovery generation"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-stale-open-isolation",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy keeps a current adapter alive when an older pending open finishes later"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "final/discovery-error-privacy",
+    "source": "src/host/devices/deviceDiscovery.ts",
+    "sha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16",
+    "redExit": 1,
+    "test": "test/unit/deviceDiscovery.test.ts",
+    "failedTests": [
+      "optional minimal discovery policy turns adapter startup errors into fixed blocked/unreachable recovery without leaking text"
+    ],
+    "restoredSha256": "3e587922aec4ff30f6386cf244b384762c14deebc6201f450e3840365df96f16"
+  },
+  {
+    "guard": "pre-lint/receiver-introduction-offers",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/receiver-introduction-pair",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness",
+      "authenticated device channel bounds binds each incoming envelope to the authenticated pairId",
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "final/expired-DNS-no-late-dial",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS bounds stalled DNS and cancels pending connection setup on unlink without late dialing"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "final/source-current-incarnation-not-cache",
+    "source": "src/host/devices/deviceTransport.ts",
+    "sha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e",
+    "redExit": 1,
+    "test": "test/unit/deviceTransport.test.ts",
+    "failedTests": [
+      "pinned device transport with real loopback TLS ignores proxy environment variables and forwards no proxy request or credential",
+      "pinned device transport with real loopback TLS exchanges authenticated versioned frames without discovery or proxy forwarding",
+      "pinned device transport with real loopback TLS reconnects to current offers while preserving historical attempt ownership for reconciliation",
+      "pinned device transport with real loopback TLS bounds a pinned peer that completes TLS but never announces its current offers",
+      "pinned device transport with real loopback TLS rechecks revocation on an existing socket before another request"
+    ],
+    "restoredSha256": "aafe35c42ca26d7a074a3e641c8be2803414587876546e9982ac7d4f8a494e4e"
+  },
+  {
+    "guard": "pre-lint/source-initial-offer-before-ready",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds learns current receiver metadata only from initial paired offers and keeps it fixed",
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/source-unbound-outgoing",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses requests before a source has learned the authenticated receiver incarnation"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "pre-lint/source-immutable-incarnation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds learns current receiver metadata only from initial paired offers and keeps it fixed",
+      "authenticated device channel bounds binds each incoming envelope to the authenticated receiverIncarnationId"
+    ],
+    "restoredSha256": "f933a6128081c68c09f41e76e27d8aa7adacb60c26094e23281e74d1d431b4f3"
+  },
+  {
+    "guard": "final/incoming-revocation-before-parse",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds drops revoked traffic before decoding and closes when Node reports an idle timeout"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/queued-request-revocation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds rechecks revocation between queued requests rather than trusting the handshake"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/outgoing-revocation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/incoming-envelope-pair",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds binds each incoming envelope to the authenticated pairId",
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/incoming-envelope-incarnation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds learns current receiver metadata only from initial paired offers and keeps it fixed",
+      "authenticated device channel bounds refuses requests before a source has learned the authenticated receiver incarnation",
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness",
+      "authenticated device channel bounds binds each incoming envelope to the authenticated receiverIncarnationId"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/outgoing-backpressure-cap",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/cross-chunk-queue-cap",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds bounds queued frames across chunks while an admitted handler is waiting"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/serial-handler-admission",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds bounds queued frames across chunks while an admitted handler is waiting"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/absolute-frame-deadline",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds enforces absolute incomplete-frame time without resetting for trickled bytes",
+      "authenticated device channel bounds clears completed-frame deadlines and starts a separate next-frame deadline"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/deadline-before-parse",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds checks elapsed deadlines before parse even when the timer callback is delayed"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/trickle-does-not-reset-deadline",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds enforces absolute incomplete-frame time without resetting for trickled bytes"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/idle-close-event",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds drops revoked traffic before decoding and closes when Node reports an idle timeout"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/fixed-protocol-recovery",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds provides a fixed incompatible reason for local upgrade recovery"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/receiver-introduction-offers",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/receiver-introduction-pair",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness",
+      "authenticated device channel bounds binds each incoming envelope to the authenticated pairId",
+      "authenticated device channel bounds refuses revoked, foreign and backpressured outbound frames"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/source-initial-offer-before-ready",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds learns current receiver metadata only from initial paired offers and keeps it fixed",
+      "authenticated device channel bounds rejects foreign, non-offer and coalesced mismatched introductions before readiness"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/source-unbound-outgoing",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds refuses requests before a source has learned the authenticated receiver incarnation"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  },
+  {
+    "guard": "final/source-immutable-incarnation",
+    "source": "src/host/devices/deviceChannel.ts",
+    "sha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6",
+    "redExit": 1,
+    "test": "test/unit/deviceChannel.test.ts",
+    "failedTests": [
+      "authenticated device channel bounds learns current receiver metadata only from initial paired offers and keeps it fixed",
+      "authenticated device channel bounds binds each incoming envelope to the authenticated receiverIncarnationId"
+    ],
+    "restoredSha256": "e96470cd43e664608a412b95ec111175ad43bd76a8ee5e45b2ae3e94d142f1c6"
+  }
+]

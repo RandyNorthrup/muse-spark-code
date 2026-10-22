@@ -136,7 +136,9 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure",
+      "devices.diskPressure"
     ],
     "tr": [
       "groupModel",
@@ -148,7 +150,9 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure",
+      "devices.diskPressure"
     ],
     "pl": [
       "groupModel",
@@ -170,7 +174,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure"
     ],
     "de": [
       "groupSkills",
@@ -215,6 +220,8 @@
       "teamTreeLabel",
       "teamOrchestrator",
       "teamUsageTitle",
+      "devices.grantRepository",
+      "devices.cpuPressure",
       "gitPullRequestFormLabel",
       "agentsCount.one",
       "openPullRequestRepository"
@@ -235,7 +242,8 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "devices.cpuPressure"
     ],
     "pt-br": [
       "agentTokens",
@@ -251,7 +259,8 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "devices.cpuPressure"
     ],
     "fr": [
       "modesTitle",
@@ -280,7 +289,8 @@
       "teamSetupSteps.pools",
       "teamTemplateSolo",
       "teamIntensityLevels.minimal",
-      "reportLabels.total"
+      "reportLabels.total",
+      "devices.grantQuota"
     ],
     "it": [
       "usageAccount",
@@ -299,10 +309,14 @@
       "teamCapabilityWarning",
       "teamTreeLabel",
       "teamUsageTitle",
+      "devices.grantRepository",
+      "devices.grantQuota",
+      "devices.cpuPressure",
       "openPullRequestRepository"
     ],
-    "zh-cn": ["toolLabels.shell"],
-    "zh-tw": ["toolLabels.shell"],
+    "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
+    "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
+    "ja": ["devices.cpuPressure"],
     "hu": [
       "toolLabels.shell",
       "imageBuyPrompt",
@@ -310,10 +324,11 @@
       "agentImportKindHook",
       "usageLimit",
       "teamIntensityLevels.max",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure"
     ],
-    "ko": ["gitChangeCounts", "teamCapabilityWarning"],
-    "ru": ["gitChangeCounts", "teamCapabilityWarning"]
+    "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
+    "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]
   },
   "manifest": {
     "*": [

@@ -22,7 +22,11 @@ declare module 'vitest' {
     [VISUAL_BUILD_KEY]: string
   }
 }
-export const PRODUCTION_BUILD_SUITES = ['/packagedBundles.test.mjs', '/webviewBundleRoot.test.ts']
+export const PRODUCTION_BUILD_SUITES = [
+  '/packagedBundles.test.mjs',
+  '/webviewBundleRoot.test.ts',
+  '/devicesPhase2Harness.test.mjs',
+]
 
 export function buildProductionPackage(root: string, folder: string, shared?: unknown): void {
   mkdirSync(folder, { recursive: true })

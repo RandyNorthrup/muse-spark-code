@@ -9,6 +9,7 @@
   "command.openInSidebar.title": "Megnyitás az oldalsávon",
   "command.openInNewTab.title": "Megnyitás új lapon",
   "command.openTasks.title": "Feladatok megnyitása lapon",
+  "command.openDevices.title": "Eszközök megnyitása lapon",
   "command.focusInput.title": "Fókusz váltása",
   "command.insertMentionReference.title": "@-említés beszúrása a kijelöléshez",
   "command.toggleFocusView.title": "Fókusznézet be- és kikapcsolása",

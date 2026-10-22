@@ -27,6 +27,8 @@
   --ms-disabled: var(--vscode-disabledForeground, #858b98);
   --ms-hover: var(--vscode-list-hoverBackground, #303642);
   --ms-pressed: var(--vscode-button-hoverBackground, #0646c4);
+  --ms-qr-field: #fff;
+  --ms-qr-module: #000;
   --ms-diff-added: var(--vscode-diffEditor-insertedLineBackground, #2ea04333);
   --ms-diff-removed: var(--vscode-diffEditor-removedLineBackground, #f8514933);
   --ms-shadow: var(--vscode-widget-shadow, #0000004d);
