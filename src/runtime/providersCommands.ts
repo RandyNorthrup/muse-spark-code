@@ -471,9 +471,21 @@ async function getProviderJson(
   | { readonly transport: 'rebinding' | 'unreachable' }
 > {
   const shared = await import('../host/backend/modelApiEntry')
+  const auth = await import('../host/backend/configuredProvidersEntry')
   const via =
     transport ?? pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
-  const read = await readProviderJson(via, provider, key, url, headers, {})
+  const read = await readProviderJson(
+    via,
+    provider,
+    key,
+    url,
+    headers,
+    {},
+    {
+      noAuth: auth.NoAuthSource,
+      apiKey: auth.ApiKeyAuthSource,
+    },
+  )
   if ('cause' in read) {
     const error = read.cause
     if (error instanceof shared.ModelApiError && error.status !== 0) {
@@ -609,10 +621,18 @@ async function probeWithTransport(
   ): Promise<
     { readonly status: number; readonly body: unknown; readonly refusal?: string } | undefined
   > => {
-    const read = await readProviderJson(transport, provider, key, url, headers, {
-      parseError: reader.parseError,
-      sendFailure: reader.sendFailure,
-    })
+    const read = await readProviderJson(
+      transport,
+      provider,
+      key,
+      url,
+      headers,
+      {
+        parseError: reader.parseError,
+        sendFailure: reader.sendFailure,
+      },
+      { noAuth: auth.NoAuthSource, apiKey: auth.ApiKeyAuthSource },
+    )
     if ('cause' in read) {
       const error = read.cause
       if (shared.isModelApiError(error) && error.status !== 0) {

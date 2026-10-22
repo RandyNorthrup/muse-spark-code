@@ -3,10 +3,11 @@
 // The transport and the entries load lazily, as they did at each call
 // site; only leaf modules load statically.
 import * as z from 'zod/mini'
-import { ApiKeyAuthSource, NoAuthSource } from '../core/backends/modelapi/authSource'
+import type { ApiKeyAuthSource, NoAuthSource } from '../core/backends/modelapi/authSource'
 import { resolveAttemptBillingRoute } from '../core/backends/modelapi/billingRoute'
 import type { TransportDeps } from '../core/backends/modelapi/transport'
-import { OPENROUTER_ATTRIBUTION, type ProviderPreset } from '../core/providers/presets'
+import type { ProviderPreset } from '../core/providers/presets'
+import { presets } from '../host/backend/providersEntry'
 import type { ResolvedProvider } from './exec/providerExec'
 import {
   CREDENTIAL_RECORD_VERSION,
@@ -15,6 +16,8 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { uiLocale } from '../shared/l10n/text'
+
+const { OPENROUTER_ATTRIBUTION } = presets
 
 export function attributionHeaders(preset: ProviderPreset): Record<string, string> {
   return preset.id === 'openrouter'
@@ -55,6 +58,16 @@ function ignoreProbeLog(): void {
 }
 
 /**
+The auth-source classes behind a provider read. Passed by the caller:
+the probe chunk carries the core classes (their only declared home),
+while command paths reuse the entries they already load.
+*/
+export interface ProviderReadSources {
+  readonly noAuth: typeof NoAuthSource
+  readonly apiKey: typeof ApiKeyAuthSource
+}
+
+/**
 One pinned, authenticated provider GET as JSON: the shared read behind
 `getProviderJson` (D119) and `probeProvider` (D74). It answers the status
 with its parsed body, or the raw transport failure as `cause` with its
@@ -67,6 +80,7 @@ export async function readProviderJson(
   url: string,
   headers: Readonly<Record<string, string>>,
   failures: Pick<TransportDeps, 'parseError' | 'sendFailure'>,
+  sources: ProviderReadSources,
 ): Promise<
   | { readonly status: number; readonly body: unknown }
   | { readonly cause: unknown; readonly signal: AbortSignal }
@@ -76,8 +90,8 @@ export async function readProviderJson(
   const origin = new URL(url).origin
   const source =
     key === undefined
-      ? new NoAuthSource(origin)
-      : new ApiKeyAuthSource(
+      ? new sources.noAuth(origin)
+      : new sources.apiKey(
           () =>
             Promise.resolve({
               record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },

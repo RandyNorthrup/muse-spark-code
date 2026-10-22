@@ -1,5 +1,6 @@
 // Free provider checks load with configuredProviders, outside headless preflight.
-import { isUnreachableSend } from '../core/providers/providerSpend'
+import { ApiKeyAuthSource, NoAuthSource } from '../core/backends/modelapi/authSource'
+import { isUnreachableSend } from '../core/unreachableSend'
 import { HTTP_STATUS, UI_TEXT } from '../shared/constants'
 import { uiLocale } from '../shared/l10n/text'
 import {
@@ -46,7 +47,18 @@ export async function probeProvider(
     url: string,
     transport: typeof fetch = pinned,
   ): Promise<{ readonly status: number; readonly body: unknown } | undefined> => {
-    const read = await readProviderJson(transport, provider, key, url, headers, {})
+    const read = await readProviderJson(
+      transport,
+      provider,
+      key,
+      url,
+      headers,
+      {},
+      {
+        noAuth: NoAuthSource,
+        apiKey: ApiKeyAuthSource,
+      },
+    )
     if (!('cause' in read)) return read
     const error = read.cause
     if (error instanceof shared.ModelApiError && error.status !== 0) {

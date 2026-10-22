@@ -18,8 +18,7 @@ import { HTTP_STATUS, UI_TEXT } from '../../shared/constants'
 import { fill, formatDateTime, formatNumber } from '../../shared/l10n/text'
 import { formatUsd, parseUsd } from '../../shared/accountUsd'
 import { Usd, UsdParseError } from '../../shared/usd'
-import { isModelApiError } from '../backends/modelapi/transport'
-import { isRequestNotSent } from '../refusal'
+import { isUnreachableSend } from '../unreachableSend'
 import type { ProviderSpendCapability } from './presets'
 import {
   isSpendFailure,
@@ -541,23 +540,6 @@ export interface SpendPage {
 
 /** One page over the caller's pinned transport; never retried in a loop. */
 export type SpendFetcher = (request: SpendHttpRequest) => Promise<SpendPage>
-
-/**
-A fetch that never brought a usable answer, so the report reads
-`unreachable`: a wrapped transport failure, the endpoint pin's
-not-sent refusal, its rebinding refusal, or a raw fetch failure below
-the wrap. A wrapped HTTP answer the fetcher raised instead of
-returning reads the same. Anything else is a bug or a refusal with
-its own sentence, and is the caller's to throw.
-*/
-export function isUnreachableSend(error: unknown): boolean {
-  return (
-    isModelApiError(error) ||
-    isRequestNotSent(error) ||
-    (error instanceof Error && error.message === 'rebinding') ||
-    error instanceof TypeError
-  )
-}
 
 /**
 One spend page over the caller's fetcher: the page, or `unreachable`
